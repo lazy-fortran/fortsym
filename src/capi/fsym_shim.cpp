@@ -1,0 +1,460 @@
+/* Implementation of fortsym's shim over SymEngine. See fsym_shim.h for why
+ * each entry point exists. */
+
+#include <cstring>
+#include <string>
+#include <vector>
+
+#include <symengine/basic.h>
+#include <symengine/mul.h>
+#include <symengine/pow.h>
+#include <symengine/printers.h>
+#include <symengine/series.h>
+#include <symengine/simplify.h>
+#include <symengine/symbol.h>
+#include <symengine/symengine_casts.h>
+#include <symengine/symengine_exception.h>
+#include <symengine/visitor.h>
+
+#ifdef HAVE_SYMENGINE_FLINT
+#include <symengine/polys/cancel.h>
+#include <symengine/polys/uintpoly_flint.h>
+#endif
+
+#include "fsym_shim.h"
+
+/* cwrapper.h declares `typedef struct CRCPBasic basic_struct;` for C++ but
+ * defines CRCPBasic only inside SymEngine's own cwrapper.cpp, so a third-party
+ * shim has to restate it. cwrapper.h documents the contract: CRCPBasic holds a
+ * single RCP<const Basic>, and its size and alignment must match the CRCPBasic_C
+ * placeholder that C callers allocate. The static_asserts below reproduce
+ * upstream's check, so a future layout change in SymEngine breaks this
+ * translation unit at compile time instead of corrupting memory at run time. */
+struct CRCPBasic {
+    SymEngine::RCP<const SymEngine::Basic> m;
+};
+
+static_assert(sizeof(CRCPBasic) == sizeof(CRCPBasic_C),
+              "fsym_shim: CRCPBasic size no longer matches SymEngine's C "
+              "placeholder; the cwrapper layout contract has changed.");
+static_assert(alignof(CRCPBasic) == alignof(CRCPBasic_C),
+              "fsym_shim: CRCPBasic alignment no longer matches SymEngine's C "
+              "placeholder; the cwrapper layout contract has changed.");
+
+namespace
+{
+
+/* Rendered-text buffer. Thread-local so concurrent Fortran callers cannot
+ * overwrite each other's pending fetch. */
+thread_local std::string g_render_buffer;
+
+inline const SymEngine::RCP<const SymEngine::Basic> &deref(const basic s)
+{
+    return s->m;
+}
+
+/*! Default ceiling on intermediate node count during normalization. Expansion
+ *  of a large kernel can grow super-linearly, and fortsym runs inside a build,
+ *  where a hang is worse than an undecided answer. */
+const unsigned long kDefaultMaxNodes = 200000UL;
+
+/*! Rough size of an expression tree, used only as a growth guard. */
+unsigned long node_count(const SymEngine::RCP<const SymEngine::Basic> &e,
+                         unsigned long limit)
+{
+    unsigned long n = 1;
+    for (const auto &arg : e->get_args()) {
+        if (n > limit) {
+            return n;
+        }
+        n += node_count(arg, limit);
+    }
+    return n;
+}
+
+/*! Canonicalizes exponentials so that structurally different spellings of the
+ *  same quantity collapse:
+ *
+ *    exp(-I*(x + y))  ->  exp(-I*x - I*y)   (exponent expanded)
+ *    exp(log(u))      ->  u
+ *    exp(n*log(u))    ->  u**n
+ *
+ *  The first rule is what makes the angle-sum identities decidable: without it
+ *  exp(-I*(x+y)) and exp(-I*x-I*y) are distinct terms and never cancel.
+ *
+ *  SymEngine represents exp(a) as Pow(E, a), so this hooks Pow. */
+class ExpNormalizer
+    : public SymEngine::BaseVisitor<ExpNormalizer, SymEngine::TransformVisitor>
+{
+public:
+    using SymEngine::TransformVisitor::bvisit;
+
+    void bvisit(const SymEngine::Pow &x)
+    {
+        auto base = apply(x.get_base());
+        auto ex = apply(x.get_exp());
+
+        if (!SymEngine::eq(*base, *SymEngine::E)) {
+            result_ = SymEngine::pow(base, ex);
+            return;
+        }
+
+        ex = SymEngine::expand(ex);
+
+        // exp(log(u)) -> u
+        if (SymEngine::is_a<SymEngine::Log>(*ex)) {
+            result_ = ex->get_args()[0];
+            return;
+        }
+
+        // exp(c*log(u)) -> u**c, for any cofactor c
+        if (SymEngine::is_a<SymEngine::Mul>(*ex)) {
+            for (const auto &factor : ex->get_args()) {
+                if (SymEngine::is_a<SymEngine::Log>(*factor)) {
+                    const auto cofactor = SymEngine::div(ex, factor);
+                    result_ = SymEngine::pow(factor->get_args()[0], cofactor);
+                    return;
+                }
+            }
+        }
+
+        result_ = SymEngine::pow(base, ex);
+    }
+};
+
+SymEngine::RCP<const SymEngine::Basic>
+exp_normalize(const SymEngine::RCP<const SymEngine::Basic> &e)
+{
+    ExpNormalizer v;
+    return v.apply(e);
+}
+
+/*! Exponential normal form: the shared front half of fsym_zero_test and
+ *  fsym_normal_form. Throws whatever SymEngine throws. */
+SymEngine::RCP<const SymEngine::Basic>
+normal_form(const SymEngine::RCP<const SymEngine::Basic> &e)
+{
+    return exp_normalize(SymEngine::rewrite_as_exp(e));
+}
+
+/*! True when every node of e lies in the fragment fsym_zero_test can decide:
+ *  rational expressions over symbols, numbers, powers, logarithms and
+ *  exponentials.
+ *
+ *  This guard is what keeps a non-zero canonical form from being reported as a
+ *  non-identity. rewrite_as_exp does not throw on functions it has no rule for
+ *  -- gamma, erf, zeta, the Bessel family and abs/sign/floor all pass through
+ *  untouched -- so without this check gamma(x+1) - x*gamma(x) would normalize
+ *  to itself, fail to cancel, and be reported as NONZERO even though it is a
+ *  true identity. Confidently wrong is far worse than undecided, so anything
+ *  outside the fragment yields FSYM_ZERO_UNKNOWN and the caller falls back to a
+ *  numeric probe.
+ *
+ *  Structural cancellation to zero stays trustworthy regardless of the heads
+ *  involved, so the caller applies this test only before reporting NONZERO. */
+bool in_decidable_fragment(const SymEngine::RCP<const SymEngine::Basic> &e)
+{
+    switch (e->get_type_code()) {
+    case SymEngine::SYMENGINE_SYMBOL:
+    case SymEngine::SYMENGINE_INTEGER:
+    case SymEngine::SYMENGINE_RATIONAL:
+    case SymEngine::SYMENGINE_COMPLEX:
+    case SymEngine::SYMENGINE_REAL_DOUBLE:
+    case SymEngine::SYMENGINE_COMPLEX_DOUBLE:
+    case SymEngine::SYMENGINE_CONSTANT:
+    case SymEngine::SYMENGINE_ADD:
+    case SymEngine::SYMENGINE_MUL:
+    case SymEngine::SYMENGINE_POW:
+    case SymEngine::SYMENGINE_LOG:
+        break;
+    default:
+        return false;
+    }
+
+    for (const auto &arg : e->get_args()) {
+        if (!in_decidable_fragment(arg)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/*! Cancel the common polynomial factor between numerator and denominator, so
+ *  (x**2 - 1)/(x - 1) reads as x + 1.
+ *
+ *  SymEngine's cancel() dispatches to gcd_upoly, which FLINT provides only for
+ *  univariate polynomials, so this handles the single-generator case and
+ *  returns null otherwise. Multivariate rational expressions therefore keep
+ *  their uncancelled spelling. That costs readability, not correctness:
+ *  fsym_zero_test decides multivariate rational identities regardless, because
+ *  it compares expanded numerators rather than cancelled fractions.
+ *
+ *  Returns null when cancellation does not apply, which the caller treats as
+ *  "no candidate" rather than as an error. */
+SymEngine::RCP<const SymEngine::Basic>
+try_cancel(const SymEngine::RCP<const SymEngine::Basic> &e)
+{
+#ifdef HAVE_SYMENGINE_FLINT
+    using namespace SymEngine;
+    try {
+        RCP<const Basic> numer, denom;
+        as_numer_denom(e, outArg(numer), outArg(denom));
+        if (eq(*denom, *one)) {
+            return RCP<const Basic>();
+        }
+
+        RCP<const UIntPolyFlint> rn, rd, common;
+        cancel<UIntPolyFlint>(numer, denom, outArg(rn), outArg(rd),
+                              outArg(common));
+        if (rn.is_null() || rd.is_null()) {
+            return RCP<const Basic>(); // multivariate; cancel() left them unset
+        }
+        return div(rn->as_symbolic(), rd->as_symbolic());
+    } catch (...) {
+        return RCP<const Basic>();
+    }
+#else
+    (void)e;
+    return SymEngine::RCP<const SymEngine::Basic>();
+#endif
+}
+
+} // namespace
+
+extern "C" {
+
+/* ---------------------------------------------------------------- probes -- */
+
+int fsym_have_llvm(void)
+{
+#ifdef HAVE_SYMENGINE_LLVM
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+int fsym_have_mpfr(void)
+{
+#ifdef HAVE_SYMENGINE_MPFR
+    return 1;
+#else
+    return 0;
+#endif
+}
+
+const char *fsym_symengine_version(void)
+{
+    return symengine_version();
+}
+
+/* ---------------------------------------------------------------- strings -- */
+
+size_t fsym_str_render(const basic s, int mode)
+{
+    try {
+        switch (mode) {
+        case FSYM_STR_CCODE:
+            g_render_buffer = SymEngine::ccode(*deref(s));
+            break;
+        case FSYM_STR_LATEX:
+            g_render_buffer = SymEngine::latex(*deref(s));
+            break;
+        case FSYM_STR_JULIA:
+            g_render_buffer = SymEngine::julia_str(*deref(s));
+            break;
+        case FSYM_STR_DEFAULT:
+        default:
+            g_render_buffer = SymEngine::str(*deref(s));
+            break;
+        }
+    } catch (...) {
+        g_render_buffer.clear();
+        return 0;
+    }
+    return g_render_buffer.size();
+}
+
+size_t fsym_str_fetch(char *buf, size_t n)
+{
+    const size_t count = n < g_render_buffer.size() ? n : g_render_buffer.size();
+    if (count > 0 && buf != nullptr) {
+        std::memcpy(buf, g_render_buffer.data(), count);
+    }
+    return count;
+}
+
+/* ------------------------------------------------------------- transforms -- */
+
+CWRAPPER_OUTPUT_TYPE fsym_series(basic out, const basic ex, const basic var,
+                                 unsigned int prec)
+{
+    try {
+        if (!SymEngine::is_a<SymEngine::Symbol>(*deref(var))) {
+            return SYMENGINE_DOMAIN_ERROR;
+        }
+        const auto sym
+            = SymEngine::rcp_static_cast<const SymEngine::Symbol>(deref(var));
+        out->m = SymEngine::series(deref(ex), sym, prec)->as_basic();
+    } catch (const SymEngine::SymEngineException &) {
+        return SYMENGINE_RUNTIME_ERROR;
+    } catch (...) {
+        return SYMENGINE_RUNTIME_ERROR;
+    }
+    return SYMENGINE_NO_EXCEPTION;
+}
+
+unsigned int fsym_count_ops(const basic ex)
+{
+    try {
+        return SymEngine::count_ops({deref(ex)});
+    } catch (...) {
+        return 0u;
+    }
+}
+
+CWRAPPER_OUTPUT_TYPE fsym_normal_form(basic out, const basic ex)
+{
+    try {
+        out->m = normal_form(deref(ex));
+    } catch (...) {
+        return SYMENGINE_RUNTIME_ERROR;
+    }
+    return SYMENGINE_NO_EXCEPTION;
+}
+
+int fsym_zero_test(const basic ex, unsigned long max_nodes)
+{
+    using namespace SymEngine;
+
+    const unsigned long limit = max_nodes == 0UL ? kDefaultMaxNodes : max_nodes;
+
+    try {
+        RCP<const Basic> e = deref(ex);
+
+        // Cheapest test first: many residuals are already structurally zero.
+        if (eq(*e, *zero)) {
+            return FSYM_ZERO_TRUE;
+        }
+
+        // Exponential normal form. rewrite_as_exp has no rule for gamma, erf,
+        // the Bessel family and friends; when it gives up, so does the
+        // symbolic path, and the caller falls back to a numeric probe.
+        RCP<const Basic> r = normal_form(e);
+
+        // Fold onto a single rational function and expand the numerator. One
+        // pass suffices for most inputs; expanding can expose fractions that
+        // were nested inside a product (the tangent addition formula needs
+        // this), so re-fold a bounded number of times.
+        RCP<const Basic> numer, denom;
+        for (int pass = 0; pass < 4; ++pass) {
+            as_numer_denom(r, outArg(numer), outArg(denom));
+
+            if (node_count(numer, limit) > limit) {
+                return FSYM_ZERO_UNKNOWN;
+            }
+
+            numer = exp_normalize(expand(numer));
+            if (eq(*numer, *zero)) {
+                return FSYM_ZERO_TRUE;
+            }
+            if (eq(*numer, *r)) {
+                break; // fixed point; further passes cannot help
+            }
+            r = numer;
+        }
+
+        // A non-zero numerator only means "not an identity" when the whole
+        // expression lived in the fragment the normal form actually decides.
+        // Outside it, normalization was a no-op and the verdict is unknown.
+        if (!in_decidable_fragment(numer)) {
+            return FSYM_ZERO_UNKNOWN;
+        }
+
+        // Inside the fragment the numerator is a fully expanded element of a
+        // field where distinct canonical forms mean distinct functions, so a
+        // non-zero numerator is a genuine non-identity rather than a failure to
+        // simplify. Expressions that vanish only on part of the domain land
+        // here, which is correct: they are not identities.
+        return FSYM_ZERO_FALSE;
+    } catch (...) {
+        return FSYM_ZERO_UNKNOWN;
+    }
+}
+
+CWRAPPER_OUTPUT_TYPE fsym_simplify(basic out, const basic ex)
+{
+    using namespace SymEngine;
+
+    try {
+        const RCP<const Basic> input = deref(ex);
+
+        // Candidate forms. No single transform wins across inputs: expand is
+        // right for polynomials and wrong for factored products, the
+        // exponential normal form settles trigonometric identities but reads
+        // badly, and SymEngine::simplify handles some power rewrites the others
+        // miss. Generate them all and let the operation count decide, which is
+        // what SymPy's top-level simplify does.
+        std::vector<RCP<const Basic>> candidates;
+        candidates.push_back(input);
+
+        auto offer = [&candidates](const RCP<const Basic> &c) {
+            if (!c.is_null()) {
+                candidates.push_back(c);
+            }
+        };
+
+        // Each transform is attempted independently: one throwing must not
+        // deprive the ranking of the others.
+        try {
+            offer(SymEngine::simplify(input));
+        } catch (...) {
+        }
+        try {
+            offer(expand(input));
+        } catch (...) {
+        }
+        try {
+            RCP<const Basic> n, d;
+            as_numer_denom(input, outArg(n), outArg(d));
+            offer(div(expand(n), expand(d)));
+        } catch (...) {
+        }
+        offer(try_cancel(input));
+        offer(try_cancel(expand(input)));
+        try {
+            // Round trip through exponential normal form. This is what turns
+            // sin(x)**2 + cos(x)**2 into 1.
+            RCP<const Basic> n, d;
+            as_numer_denom(normal_form(input), outArg(n), outArg(d));
+            const auto folded = div(exp_normalize(expand(n)), expand(d));
+            offer(folded);
+            // ... and back to trigonometric form, which usually reads better
+            // than a sum of complex exponentials.
+            try {
+                offer(SymEngine::simplify(rewrite_as_sin(folded)));
+            } catch (...) {
+            }
+        } catch (...) {
+        }
+
+        // Lowest operation count wins; ties keep the earlier candidate, so the
+        // input survives unless something is strictly simpler.
+        RCP<const Basic> best = input;
+        unsigned int best_ops = count_ops({input});
+        for (const auto &c : candidates) {
+            const unsigned int ops = count_ops({c});
+            if (ops < best_ops) {
+                best_ops = ops;
+                best = c;
+            }
+        }
+
+        out->m = best;
+    } catch (...) {
+        return SYMENGINE_RUNTIME_ERROR;
+    }
+    return SYMENGINE_NO_EXCEPTION;
+}
+
+} /* extern "C" */
