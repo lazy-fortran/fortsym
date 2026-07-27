@@ -19,13 +19,12 @@ module fortsym_engine_symengine
     !   test already covers, so it is the better-tested of the two directions.
     use, intrinsic :: iso_c_binding, only: c_ptr, c_int, c_long, c_char, &
         c_null_char, c_size_t
-    use, intrinsic :: iso_fortran_env, only: int64, real64
-    use fortsym_string, only: str_t, str, chars
+    use, intrinsic :: iso_fortran_env, only: real64
+    use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect, DIA_SYMENGINE
-    use fortsym_print, only: print_expr_in
     use fortsym_parse, only: parse_expr_in
     use fortsym_engine, only: engine_t, engine_result_t, wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, &
@@ -85,7 +84,7 @@ contains
 
         case (NK_RAT)
             rc = rational_set_si(h, int(a%num_of(id), c_long), &
-                                 int(a%den_of(id), c_long))
+                int(a%den_of(id), c_long))
 
         case (NK_REAL)
             rc = real_double_set_d(h, a%real_of(id))

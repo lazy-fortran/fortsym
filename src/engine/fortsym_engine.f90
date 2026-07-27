@@ -51,11 +51,11 @@ module fortsym_engine
     !> Outcome of one engine call: what it answered, whether it answered at all,
     !> and how long it took.
     type :: engine_result_t
-        logical      :: ok = .false.       !< the engine produced an answer
+        logical      :: ok = .false. !< the engine produced an answer
         integer      :: verdict = VERDICT_UNKNOWN
-        type(expr_t) :: value              !< result expression, when applicable
+        type(expr_t) :: value !< result expression, when applicable
         real(dp)     :: seconds = 0.0_dp
-        type(str_t)  :: message            !< why, when ok is false
+        type(str_t)  :: message !< why, when ok is false
     end type engine_result_t
 
     !> A computer algebra backend.

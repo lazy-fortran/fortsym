@@ -90,7 +90,7 @@ module fortsym_capi
         end function integer_set_si
 
         function rational_set_si(s, i, j) bind(c, name="rational_set_si") &
-            result(rc)
+                result(rc)
             import :: c_ptr, c_long, c_int
             type(c_ptr),    value  :: s
             integer(c_long), value :: i, j
@@ -98,7 +98,7 @@ module fortsym_capi
         end function rational_set_si
 
         function real_double_set_d(s, d) bind(c, name="real_double_set_d") &
-            result(rc)
+                result(rc)
             import :: c_ptr, c_double, c_int
             type(c_ptr),   value  :: s
             real(c_double), value :: d
@@ -106,7 +106,7 @@ module fortsym_capi
         end function real_double_set_d
 
         function real_double_get_d(s) bind(c, name="real_double_get_d") &
-            result(d)
+                result(d)
             import :: c_ptr, c_double
             type(c_ptr), value :: s
             real(c_double)     :: d
@@ -382,14 +382,14 @@ module fortsym_capi
         end function basic_subs2
 
         function basic_as_numer_denom(numer, denom, x) &
-            bind(c, name="basic_as_numer_denom") result(rc)
+                bind(c, name="basic_as_numer_denom") result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: numer, denom, x
             integer(c_int)     :: rc
         end function basic_as_numer_denom
 
         function basic_evalf(s, b, bits, real_only) bind(c, name="basic_evalf") &
-            result(rc)
+                result(rc)
             import :: c_ptr, c_int, c_long
             type(c_ptr),    value  :: s, b
             integer(c_long), value :: bits
@@ -406,28 +406,28 @@ module fortsym_capi
         end function basic_get_type
 
         function basic_get_class_from_id(id) &
-            bind(c, name="basic_get_class_from_id") result(p)
+                bind(c, name="basic_get_class_from_id") result(p)
             import :: c_int, c_ptr
             integer(c_int), value :: id
             type(c_ptr)           :: p
         end function basic_get_class_from_id
 
         function basic_get_args(self, args) bind(c, name="basic_get_args") &
-            result(rc)
+                result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: self, args
             integer(c_int)     :: rc
         end function basic_get_args
 
         function basic_free_symbols(self, symbols) &
-            bind(c, name="basic_free_symbols") result(rc)
+                bind(c, name="basic_free_symbols") result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: self, symbols
             integer(c_int)     :: rc
         end function basic_free_symbols
 
         function function_symbol_set(s, c, arg) &
-            bind(c, name="function_symbol_set") result(rc)
+                bind(c, name="function_symbol_set") result(rc)
             import :: c_ptr, c_char, c_int
             type(c_ptr),    value      :: s, arg
             character(kind=c_char), intent(in) :: c(*)
@@ -435,7 +435,7 @@ module fortsym_capi
         end function function_symbol_set
 
         function basic_has_symbol(e, s) bind(c, name="basic_has_symbol") &
-            result(r)
+                result(r)
             import :: c_ptr, c_int
             type(c_ptr), value :: e, s
             integer(c_int)     :: r
@@ -444,7 +444,7 @@ module fortsym_capi
         ! -------------------------------------------------------------- cse --
 
         function basic_cse(replacement_syms, replacement_exprs, reduced_exprs, &
-                           exprs) bind(c, name="basic_cse") result(rc)
+                exprs) bind(c, name="basic_cse") result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: replacement_syms, replacement_exprs
             type(c_ptr), value :: reduced_exprs, exprs
@@ -464,14 +464,14 @@ module fortsym_capi
         end subroutine vecbasic_free
 
         function vecbasic_push_back(self, value_) &
-            bind(c, name="vecbasic_push_back") result(rc)
+                bind(c, name="vecbasic_push_back") result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: self, value_
             integer(c_int)     :: rc
         end function vecbasic_push_back
 
         function vecbasic_get(self, n, result_) bind(c, name="vecbasic_get") &
-            result(rc)
+                result(rc)
             import :: c_ptr, c_size_t, c_int
             type(c_ptr),      value :: self, result_
             integer(c_size_t), value :: n
@@ -485,7 +485,7 @@ module fortsym_capi
         end function vecbasic_size
 
         function vecbasic_linsolve(sol, sys, sym) &
-            bind(c, name="vecbasic_linsolve") result(rc)
+                bind(c, name="vecbasic_linsolve") result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: sol, sys, sym
             integer(c_int)     :: rc
@@ -523,7 +523,7 @@ module fortsym_capi
         end function dense_matrix_new
 
         function dense_matrix_new_vec(rows, cols, l) &
-            bind(c, name="dense_matrix_new_vec") result(m)
+                bind(c, name="dense_matrix_new_vec") result(m)
             import :: c_ptr, c_int
             integer(c_int), value :: rows, cols
             type(c_ptr),    value :: l
@@ -531,7 +531,7 @@ module fortsym_capi
         end function dense_matrix_new_vec
 
         function dense_matrix_new_rows_cols(r, c) &
-            bind(c, name="dense_matrix_new_rows_cols") result(m)
+                bind(c, name="dense_matrix_new_rows_cols") result(m)
             import :: c_ptr, c_int
             integer(c_int), value :: r, c
             type(c_ptr)           :: m
@@ -543,7 +543,7 @@ module fortsym_capi
         end subroutine dense_matrix_free
 
         function dense_matrix_get_basic(s, mat, r, c) &
-            bind(c, name="dense_matrix_get_basic") result(rc)
+                bind(c, name="dense_matrix_get_basic") result(rc)
             import :: c_ptr, c_int
             type(c_ptr),    value :: s, mat
             integer(c_int), value :: r, c
@@ -551,7 +551,7 @@ module fortsym_capi
         end function dense_matrix_get_basic
 
         function dense_matrix_set_basic(mat, r, c, s) &
-            bind(c, name="dense_matrix_set_basic") result(rc)
+                bind(c, name="dense_matrix_set_basic") result(rc)
             import :: c_ptr, c_int
             type(c_ptr),    value :: mat, s
             integer(c_int), value :: r, c
@@ -559,49 +559,49 @@ module fortsym_capi
         end function dense_matrix_set_basic
 
         function dense_matrix_rows(s) bind(c, name="dense_matrix_rows") &
-            result(n)
+                result(n)
             import :: c_ptr, c_long
             type(c_ptr), value :: s
             integer(c_long)    :: n
         end function dense_matrix_rows
 
         function dense_matrix_cols(s) bind(c, name="dense_matrix_cols") &
-            result(n)
+                result(n)
             import :: c_ptr, c_long
             type(c_ptr), value :: s
             integer(c_long)    :: n
         end function dense_matrix_cols
 
         function dense_matrix_det(s, mat) bind(c, name="dense_matrix_det") &
-            result(rc)
+                result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: s, mat
             integer(c_int)     :: rc
         end function dense_matrix_det
 
         function dense_matrix_inv(s, mat) bind(c, name="dense_matrix_inv") &
-            result(rc)
+                result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: s, mat
             integer(c_int)     :: rc
         end function dense_matrix_inv
 
         function dense_matrix_transpose(s, mat) &
-            bind(c, name="dense_matrix_transpose") result(rc)
+                bind(c, name="dense_matrix_transpose") result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: s, mat
             integer(c_int)     :: rc
         end function dense_matrix_transpose
 
         function dense_matrix_mul_matrix(s, matA, matB) &
-            bind(c, name="dense_matrix_mul_matrix") result(rc)
+                bind(c, name="dense_matrix_mul_matrix") result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: s, matA, matB
             integer(c_int)     :: rc
         end function dense_matrix_mul_matrix
 
         function dense_matrix_jacobian(result_, A, x) &
-            bind(c, name="dense_matrix_jacobian") result(rc)
+                bind(c, name="dense_matrix_jacobian") result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: result_, A, x
             integer(c_int)     :: rc
@@ -620,13 +620,13 @@ module fortsym_capi
         end function fsym_have_mpfr
 
         function fsym_symengine_version() &
-            bind(c, name="fsym_symengine_version") result(p)
+                bind(c, name="fsym_symengine_version") result(p)
             import :: c_ptr
             type(c_ptr) :: p
         end function fsym_symengine_version
 
         function fsym_str_render(s, mode) bind(c, name="fsym_str_render") &
-            result(n)
+                result(n)
             import :: c_ptr, c_int, c_size_t
             type(c_ptr),    value :: s
             integer(c_int), value :: mode
@@ -634,7 +634,7 @@ module fortsym_capi
         end function fsym_str_render
 
         function fsym_str_fetch(buf, n) bind(c, name="fsym_str_fetch") &
-            result(m)
+                result(m)
             import :: c_char, c_size_t
             character(kind=c_char), intent(inout) :: buf(*)
             integer(c_size_t), value              :: n
@@ -642,7 +642,7 @@ module fortsym_capi
         end function fsym_str_fetch
 
         function fsym_series(out, ex, var, prec) bind(c, name="fsym_series") &
-            result(rc)
+                result(rc)
             import :: c_ptr, c_int
             type(c_ptr),    value :: out, ex, var
             integer(c_int), value :: prec
@@ -650,7 +650,7 @@ module fortsym_capi
         end function fsym_series
 
         function fsym_simplify(out, ex) bind(c, name="fsym_simplify") &
-            result(rc)
+                result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: out, ex
             integer(c_int)     :: rc
@@ -663,7 +663,7 @@ module fortsym_capi
         end function fsym_count_ops
 
         function fsym_zero_test(ex, max_nodes) bind(c, name="fsym_zero_test") &
-            result(verdict)
+                result(verdict)
             import :: c_ptr, c_int, c_long
             type(c_ptr),     value :: ex
             integer(c_long), value :: max_nodes
@@ -671,7 +671,7 @@ module fortsym_capi
         end function fsym_zero_test
 
         function fsym_normal_form(out, ex) bind(c, name="fsym_normal_form") &
-            result(rc)
+                result(rc)
             import :: c_ptr, c_int
             type(c_ptr), value :: out, ex
             integer(c_int)     :: rc

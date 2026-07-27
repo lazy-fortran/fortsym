@@ -16,7 +16,10 @@ auto-tests = true
 # C++ numerical library from source. The fetch-and-build path (SymEngine and its
 # GMP dependency from source) is the CMake path: configure with
 # -DFORTSYM_USE_SYSTEM_DEPS=OFF.
-link = ["symengine", "gmp", "stdc++"]
+# FLINT provides the polynomial GCD behind rational cancellation in the shim,
+# and MPFR backs high-precision evaluation. Both are already SymEngine
+# dependencies; they are named here because the fpm/fo link line is explicit.
+link = ["symengine", "flint", "mpfr", "gmp", "stdc++"]
 
 [fortran]
 implicit-typing = false
