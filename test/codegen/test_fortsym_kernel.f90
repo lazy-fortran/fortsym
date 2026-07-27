@@ -26,6 +26,7 @@ program test_fortsym_kernel
     call test_explicit_regeneration_command()
     call test_module_wrapper()
     call test_openacc_routine()
+    call test_pure_procedure()
     call test_ordering_is_topological()
     call test_line_wrapping()
     call test_snippet_mode()
@@ -235,6 +236,21 @@ contains
         call ok("OpenACC routine directive", &
             index(code, "!$acc routine seq") > 0)
     end subroutine test_openacc_routine
+
+    subroutine test_pure_procedure()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+
+        call a%init()
+        roots(1) = parsed(a, "x*x")
+        spec = spec_for("k", ["x"], ["r"])
+        spec%pure_procedure = .true.
+        code = chars(emit_kernel(roots, spec))
+        call ok("pure procedure prefix", &
+            index(code, "pure subroutine k") > 0)
+    end subroutine test_pure_procedure
 
     !> A temporary must be assigned before anything uses it.
     subroutine test_ordering_is_topological()

@@ -59,6 +59,8 @@ module fortsym_kernel
         type(str_t)              :: module_name
         !> Mark a generated leaf kernel for sequential OpenACC device calls.
         logical                  :: openacc_routine_seq = .false.
+        !> Emit a side-effect-free Fortran subroutine.
+        logical                  :: pure_procedure = .false.
     end type kernel_spec_t
 
     !> Which nodes became temporaries, and in what order they must be assigned.
@@ -407,6 +409,7 @@ contains
         type(cse_result_t), intent(in) :: res
         integer :: k
 
+        if (spec%pure_procedure) call b%append("pure ")
         call b%append("subroutine ")
         call b%append(chars(spec%name))
         call b%append("(")
