@@ -60,6 +60,10 @@ module fortsym_kernel
         !> Optional Fortran module wrapper. A module gives consumers an
         !> explicit interface without maintaining a second handwritten one.
         type(str_t)              :: module_name
+        !> Mark a generated leaf for compilation on an OpenMP target device.
+        !> This only annotates the procedure; scheduling and data movement
+        ! remain the consuming application's responsibility.
+        logical                  :: openmp_declare_target = .false.
         !> Mark a generated leaf kernel for sequential OpenACC device calls.
         logical                  :: openacc_routine_seq = .false.
         !> Emit a side-effect-free Fortran subroutine.
@@ -366,6 +370,12 @@ contains
         type(strbuf_t)     :: b, body
         type(cse_result_t) :: res
 
+        if (spec%openmp_declare_target) then
+            if (len(chars(spec%module_name)) == 0) then
+                error stop "OpenMP device emission requires module_name"
+            end if
+        end if
+
         res = cse_analyse(roots, chars(spec%temp_prefix))
 
         call append_banner(b, spec)
@@ -389,6 +399,12 @@ contains
             call b%append("    public :: ")
             call b%append(chars(spec%name))
             call b%newline()
+            if (spec%openmp_declare_target) then
+                call b%append("    !$omp declare target(")
+                call b%append(chars(spec%name))
+                call b%append(")")
+                call b%newline()
+            end if
             call b%append("contains")
             call b%newline()
             call b%newline()

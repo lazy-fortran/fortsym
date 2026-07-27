@@ -26,7 +26,7 @@ program test_fortsym_kernel
     call test_explicit_regeneration_command()
     call test_generator_revision()
     call test_module_wrapper()
-    call test_openacc_routine()
+    call test_device_leaf_annotations()
     call test_pure_procedure()
     call test_ordering_is_topological()
     call test_line_wrapping()
@@ -239,20 +239,45 @@ contains
         end if
     end subroutine test_module_wrapper
 
-    subroutine test_openacc_routine()
+    subroutine test_device_leaf_annotations()
         type(arena_t), target :: a
         type(expr_t) :: roots(1)
         type(kernel_spec_t) :: spec
         character(:), allocatable :: code
+        integer :: unit, ios, stat
 
         call a%init()
         roots(1) = parsed(a, "x*x")
         spec = spec_for("k", ["x"], ["r"])
+        spec%module_name = str("generated_device_leaf")
+        spec%pure_procedure = .true.
+        spec%openmp_declare_target = .true.
         spec%openacc_routine_seq = .true.
         code = chars(emit_kernel(roots, spec))
         call ok("OpenACC routine directive", &
             index(code, "!$acc routine seq") > 0)
-    end subroutine test_openacc_routine
+        call ok("OpenMP declare-target directive names the leaf", &
+            index(code, "!$omp declare target(k)") > 0)
+        call ok("device emission adds no parallel schedule", &
+            index(code, "!$omp target") == 0 .and. &
+            index(code, "!$acc parallel") == 0 .and. &
+            index(code, "!$acc kernels") == 0)
+
+        open (newunit=unit, file="/tmp/fortsym_gen_device_leaf.f90", &
+            status="replace", action="write", iostat=ios)
+        if (ios /= 0) then
+            call ok("device leaf fixture opens", .false.)
+            return
+        end if
+        write (unit, "(a)") code
+        close (unit)
+        call execute_command_line( &
+            "gfortran -fopenmp -c -J /tmp -o /tmp/fortsym_gen_device_leaf.o "// &
+            "/tmp/fortsym_gen_device_leaf.f90 "// &
+            "> /tmp/fortsym_gen_device_leaf.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("OpenMP-annotated generated leaf compiles", stat == 0)
+    end subroutine test_device_leaf_annotations
 
     subroutine test_pure_procedure()
         type(arena_t), target :: a

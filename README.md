@@ -63,6 +63,13 @@ Candidate simplifications from every engine are *verified equivalent first*,
 then ranked by operation count after CSE — so the winner is the cheapest form
 that is provably the same function.
 
+Generated pure numerical leaves may optionally carry OpenMP
+`declare target` and OpenACC `routine seq` annotations. These flags only make
+the same procedure body callable on a device; fortsym deliberately emits no
+parallel schedule, data movement, memory management, or runtime dispatch.
+OpenMP annotation requires a generated module wrapper so the public procedure
+can be named in the module specification.
+
 **Cross-check engines.** When several engines answer, agreement raises
 confidence and **disagreement is reported as a finding**, not averaged away: it
 means one of them is wrong. Per-engine timings fall out of normal operation, so
