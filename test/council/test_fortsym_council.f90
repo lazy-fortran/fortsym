@@ -14,6 +14,7 @@ program test_fortsym_council
         verdict_name, engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortsym_engine_ext, only: make_maxima_engine, make_sympy_engine
+    use fortsym_engine_yacas, only: make_yacas_engine
     use fortsym_council
     implicit none
 
@@ -28,6 +29,7 @@ program test_fortsym_council
 
     se = make_symengine_engine(arena)
     call council_add(council, se)
+    call council_add(council, make_yacas_engine(arena))
     call council_add(council, make_maxima_engine(arena))
     call council_add(council, make_sympy_engine(arena))
 
@@ -46,6 +48,11 @@ program test_fortsym_council
         print *, "=== findings ==="
         write (*, "(a)") council%findings%chars()
     end if
+
+    ! The council owns its members, so it releases them. Yacas asserts at exit
+    ! if an engine is still alive, which would abort the program after the work
+    ! had already succeeded.
+    call council_shutdown(council)
 
     if (nfail /= 0) then
         print *, "test_fortsym_council: ", nfail, " check(s) FAILED"

@@ -25,12 +25,13 @@ module fortsym_council
     use fortsym_string, only: str_t, strbuf_t, str, chars
     use fortsym_expr, only: expr_t, operator(-), operator(==)
     use fortsym_engine, only: engine_t, engine_result_t, VERDICT_UNKNOWN, &
-        VERDICT_TRUE, VERDICT_FALSE, verdict_name
+        VERDICT_TRUE, VERDICT_FALSE, verdict_name, has_cap, &
+        CAP_ZERO_TEST, CAP_SIMPLIFY
     implicit none
     private
 
     public :: council_t, council_vote_t, member_ref_t
-    public :: council_add, council_zero_test, council_best_form
+    public :: council_add, council_shutdown, council_zero_test, council_best_form
     public :: council_report, council_benchmark_table
 
     integer, parameter :: dp = real64
@@ -81,6 +82,11 @@ contains
     !> Add an engine. Unavailable engines are dropped here rather than checked
     !> at every use site, so the rest of the code never asks whether a tool is
     !> installed.
+    !>
+    !> The council takes ownership: the member is a copy, and any resource the
+    !> engine holds is released by council_shutdown. A caller that also shuts
+    !> down its own copy would free the same handle twice, so hand the engine
+    !> over and let the council end its life.
     subroutine council_add(c, eng)
         type(council_t), intent(inout) :: c
         class(engine_t), intent(in)    :: eng
@@ -90,6 +96,21 @@ contains
         c%n = c%n + 1
         allocate (c%members(c%n)%eng, source=eng)
     end subroutine council_add
+
+    !> Release every member.
+    !>
+    !> Not optional for in-process engines that own native state. Yacas keeps a
+    !> memory pool whose destructor asserts at process exit if any engine is
+    !> still alive, so a council that is simply abandoned aborts the program
+    !> after its work is already done -- a confusing way to fail.
+    subroutine council_shutdown(c)
+        type(council_t), intent(inout) :: c
+        integer :: k
+
+        do k = 1, c%n
+            call c%members(k)%eng%shutdown()
+        end do
+    end subroutine council_shutdown
 
     !> Ask every engine whether an expression is identically zero.
     !>
@@ -113,6 +134,12 @@ contains
         n_false = 0
 
         do k = 1, c%n
+            ! Only engines that declare the capability are asked. An engine that
+            ! does not -- Yacas, whose Simplify cannot close trigonometric
+            ! identities -- would answer UNKNOWN every time, costing a call and
+            ! adding a vote that says nothing.
+            if (.not. has_cap(c%members(k)%eng, CAP_ZERO_TEST)) cycle
+
             r = c%members(k)%eng%zero_test(e)
 
             c%stats(k)%calls = c%stats(k)%calls + 1
@@ -188,6 +215,8 @@ contains
         best_size = e%node_count()
 
         do k = 1, c%n
+            if (.not. has_cap(c%members(k)%eng, CAP_SIMPLIFY)) cycle
+
             proposal = c%members(k)%eng%simplify(e)
 
             c%stats(k)%calls = c%stats(k)%calls + 1

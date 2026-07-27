@@ -152,7 +152,10 @@ contains
         logical :: wrap
 
         v = a%num_of(id)
-        wrap = v < 0_int64 .and. context > PREC_MUL
+        ! Parenthesise a negative literal from multiplicative context upward.
+        ! Without this a term following a minus sign emits as "2 - -1", which no
+        ! Fortran compiler accepts: two arithmetic operators cannot be adjacent.
+        wrap = v < 0_int64 .and. context >= PREC_MUL
         if (wrap) call b%append("(")
         call b%append(chars(str(v)))
         if (wrap) call b%append(")")
@@ -189,7 +192,8 @@ contains
         logical :: wrap
 
         v = a%real_of(id)
-        wrap = v < 0.0_dp .and. context > PREC_MUL
+        ! Same reason as emit_integer: "- -1.0_dp" is not valid Fortran.
+        wrap = v < 0.0_dp .and. context >= PREC_MUL
         if (wrap) call b%append("(")
         call b%append(chars(str(v)))
         call b%append(chars(d%real_suffix))
@@ -300,8 +304,10 @@ contains
 
         select case (a%kind_of(id))
         case (NK_INT)
+            ! No kind suffix: an integer stays an integer, exactly as in
+            ! emit_integer. Suffixing here turned a negated -1 into 1.0_dp and
+            ! put a real literal where an integer exponent belonged.
             call b%append(chars(str(-a%num_of(id))))
-            if (d%id == DIA_FORTRAN) call b%append(chars(d%int_real_suffix))
         case (NK_RAT)
             call b%append(chars(str(-a%num_of(id))))
             if (d%id == DIA_FORTRAN) call b%append(chars(d%int_real_suffix))

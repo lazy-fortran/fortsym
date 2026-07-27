@@ -11,9 +11,9 @@ module fortsym_kernel
     ! this ecosystem declare their temporaries with `implicit real(dp) (s-t)`,
     ! which silently types anything beginning with s or t and turns a misspelled
     ! variable into a fresh zero. Every temporary here is declared.
-    use, intrinsic :: iso_fortran_env, only: real64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, strbuf_t, str, chars
-    use fortsym_arena, only: arena_t, NK_ADD, NK_MUL, NK_POW, NK_FUNC
+    use fortsym_arena, only: arena_t, NK_INT, NK_ADD, NK_MUL, NK_POW, NK_FUNC
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
     use fortsym_print, only: print_expr_sub
@@ -142,6 +142,10 @@ contains
 
     !> Compound nodes only. Naming a symbol or a literal would cost a line and
     !> save nothing.
+    !>
+    !> Reciprocal powers are excluded too. The printer renders x**(-1) as a
+    !> division rather than as a power, so a temporary holding one is never
+    !> referenced and becomes a dead store -- computed, declared, and unused.
     pure function worth_naming(a, id) result(yes)
         type(arena_t), intent(in) :: a
         integer,       intent(in) :: id
@@ -149,7 +153,21 @@ contains
         integer :: k
         k = a%kind_of(id)
         yes = k == NK_ADD .or. k == NK_MUL .or. k == NK_POW .or. k == NK_FUNC
+        if (k == NK_POW) yes = .not. is_reciprocal_power(a, id)
     end function worth_naming
+
+    !> A power whose exponent is a negative integer, which the printer emits as
+    !> a division.
+    pure function is_reciprocal_power(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: yes
+        integer :: e_id
+        yes = .false.
+        e_id = a%arg_of(id, 2)
+        if (a%kind_of(e_id) /= NK_INT) return
+        yes = a%num_of(e_id) < 0_int64
+    end function is_reciprocal_power
 
     !> The assignment statements: every temporary, then every output.
     function emit_statements(roots, spec, res) result(s)
