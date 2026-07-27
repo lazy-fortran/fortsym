@@ -24,6 +24,7 @@ program test_fortsym_kernel
     call test_operation_count_uses_shared_dag()
     call test_temporaries_are_declared()
     call test_explicit_regeneration_command()
+    call test_generator_revision()
     call test_module_wrapper()
     call test_openacc_routine()
     call test_pure_procedure()
@@ -173,6 +174,21 @@ contains
         call ok("explicit regeneration command", &
             index(code, "Regenerate with: fpm run --example gen_k") > 0)
     end subroutine test_explicit_regeneration_command
+
+    subroutine test_generator_revision()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+
+        call a%init()
+        roots(1) = parsed(a, "x*x")
+        spec = spec_for("k", ["x"], ["r"])
+        spec%generator_revision = str("fortsym@0123456789abcdef")
+        code = chars(emit_kernel(roots, spec))
+        call ok("generator revision", &
+            index(code, "Generator revision: fortsym@0123456789abcdef") > 0)
+    end subroutine test_generator_revision
 
     subroutine test_module_wrapper()
         type(arena_t), target :: a

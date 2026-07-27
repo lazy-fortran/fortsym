@@ -51,6 +51,9 @@ module fortsym_kernel
         !> Name of the module or program that generated this, recorded in the
         !> banner so the file can always be traced back to its generator.
         type(str_t)              :: generator
+        !> Exact source revision of the generator dependency. Consumers use
+        !> this to reproduce committed output against the same fortsym state.
+        type(str_t)              :: generator_revision
         !> Exact command that regenerates the output. Empty retains the
         !> conventional `fo exec <generator>` command.
         type(str_t)              :: regenerate_command
@@ -510,6 +513,11 @@ contains
         call b%append("! Generator: ")
         call b%append(chars(spec%generator))
         call b%newline()
+        if (len(chars(spec%generator_revision)) > 0) then
+            call b%append("! Generator revision: ")
+            call b%append(chars(spec%generator_revision))
+            call b%newline()
+        end if
         call b%append("! Regenerate with: ")
         if (len(chars(spec%regenerate_command)) > 0) then
             call b%append(chars(spec%regenerate_command))
