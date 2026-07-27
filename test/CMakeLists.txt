@@ -27,5 +27,8 @@ fortsym_add_test(test_fortsym_council council/test_fortsym_council.f90)
 # --- code generation ---
 fortsym_add_test(test_fortsym_kernel codegen/test_fortsym_kernel.f90)
 
+# --- verification ---
+fortsym_add_test(test_fortsym_check verify/test_fortsym_check.f90)
+
 # --- C ABI over SymEngine ---
 fortsym_add_test(test_fortsym_capi capi/test_fortsym_capi.f90)

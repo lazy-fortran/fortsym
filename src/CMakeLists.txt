@@ -30,6 +30,10 @@ target_sources(fortsym PRIVATE
 
     # code generation
     codegen/fortsym_kernel.f90
+
+    # verification
+    verify/fortsym_eval.f90
+    verify/fortsym_check.f90
 )
 
 target_include_directories(fortsym
