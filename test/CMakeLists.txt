@@ -24,5 +24,8 @@ fortsym_add_test(test_fortsym_identities engine/test_fortsym_identities.f90)
 # --- multi-engine adjudication ---
 fortsym_add_test(test_fortsym_council council/test_fortsym_council.f90)
 
+# --- code generation ---
+fortsym_add_test(test_fortsym_kernel codegen/test_fortsym_kernel.f90)
+
 # --- C ABI over SymEngine ---
 fortsym_add_test(test_fortsym_capi capi/test_fortsym_capi.f90)

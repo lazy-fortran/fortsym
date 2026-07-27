@@ -24,7 +24,7 @@ module fortsym_print
     implicit none
     private
 
-    public :: print_expr, print_expr_in
+    public :: print_expr, print_expr_in, print_expr_sub
 
     integer, parameter :: dp = real64
 
@@ -56,18 +56,63 @@ contains
         type(dialect_t), intent(in) :: d
         type(str_t)                 :: s
         type(strbuf_t) :: b
-        call emit(b, e%a, e%id, d, PREC_ADD)
+        integer :: no_ids(0)
+        type(str_t) :: no_names(0)
+        call emit(b, e%a, e%id, d, PREC_ADD, no_ids, no_names)
         s = b%to_str()
     end function print_expr_in
 
+    !> Render with some nodes replaced by names.
+    !>
+    !> This is what lets common subexpression elimination reuse the printer: a
+    !> node that has been assigned to a temporary is emitted as that temporary's
+    !> name instead of being expanded again. Keeping it here rather than in a
+    !> second printer means generated kernels inherit every parenthesisation and
+    !> literal-formatting rule automatically.
+    function print_expr_sub(e, d, ids, names) result(s)
+        type(expr_t),    intent(in) :: e
+        type(dialect_t), intent(in) :: d
+        integer,         intent(in) :: ids(:)
+        type(str_t),     intent(in) :: names(:)
+        type(str_t)                 :: s
+        type(strbuf_t) :: b
+        call emit(b, e%a, e%id, d, PREC_ADD, ids, names)
+        s = b%to_str()
+    end function print_expr_sub
+
+    !> Index of `id` in the substitution table, or 0.
+    pure function subst_slot(id, ids) result(k)
+        integer, intent(in) :: id, ids(:)
+        integer             :: k
+        integer :: j
+        k = 0
+        do j = 1, size(ids)
+            if (ids(j) == id) then
+                k = j
+                return
+            end if
+        end do
+    end function subst_slot
+
     !> Append the rendering of node `id`, parenthesising if its precedence is
     !> below `context`.
-    recursive subroutine emit(b, a, id, d, context)
+    recursive subroutine emit(b, a, id, d, context, ids, names)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: id
         type(dialect_t), intent(in)    :: d
         integer,         intent(in)    :: context
+        integer,         intent(in)    :: ids(:)
+        type(str_t),     intent(in)    :: names(:)
+        integer :: slot
+
+        ! A node standing in for a temporary is emitted as its name, and its
+        ! subtree is not walked -- that is the whole saving of CSE.
+        slot = subst_slot(id, ids)
+        if (slot > 0) then
+            call b%append(chars(names(slot)))
+            return
+        end if
 
         select case (a%kind_of(id))
         case (NK_INT)
@@ -81,13 +126,13 @@ contains
         case (NK_CONST)
             call emit_constant(b, a, id, d)
         case (NK_ADD)
-            call emit_sum(b, a, id, d, context)
+            call emit_sum(b, a, id, d, context, ids, names)
         case (NK_MUL)
-            call emit_product(b, a, id, d, context)
+            call emit_product(b, a, id, d, context, ids, names)
         case (NK_POW)
-            call emit_power(b, a, id, d, context)
+            call emit_power(b, a, id, d, context, ids, names)
         case (NK_FUNC)
-            call emit_function(b, a, id, d)
+            call emit_function(b, a, id, d, ids, names)
         case default
             call b%append("<?>")
         end select
@@ -183,12 +228,14 @@ contains
     !> A sum. Terms carrying a negative coefficient are printed with a minus
     !> sign and their coefficient negated, so the output reads a - b rather than
     !> a + (-1)*b.
-    recursive subroutine emit_sum(b, a, id, d, context)
+    recursive subroutine emit_sum(b, a, id, d, context, ids, names)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: id
         type(dialect_t), intent(in)    :: d
         integer,         intent(in)    :: context
+        integer,         intent(in)    :: ids(:)
+        type(str_t),     intent(in)    :: names(:)
         integer :: k, child
         logical :: wrap
 
@@ -198,13 +245,13 @@ contains
         do k = 1, a%nargs_of(id)
             child = a%arg_of(id, k)
             if (k == 1) then
-                call emit(b, a, child, d, PREC_ADD)
+                call emit(b, a, child, d, PREC_ADD, ids, names)
             else if (is_negative_term(a, child)) then
                 call b%append(" - ")
-                call emit_negated(b, a, child, d, PREC_ADD)
+                call emit_negated(b, a, child, d, PREC_ADD, ids, names)
             else
                 call b%append(" + ")
-                call emit(b, a, child, d, PREC_ADD)
+                call emit(b, a, child, d, PREC_ADD, ids, names)
             end if
         end do
 
@@ -239,12 +286,14 @@ contains
     end function is_negative_term
 
     !> Print a term with its sign removed; the caller has already emitted "-".
-    recursive subroutine emit_negated(b, a, id, d, context)
+    recursive subroutine emit_negated(b, a, id, d, context, ids, names)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: id
         type(dialect_t), intent(in)    :: d
         integer,         intent(in)    :: context
+        integer,         intent(in)    :: ids(:)
+        type(str_t),     intent(in)    :: names(:)
         type(arena_t), pointer :: ap
         integer :: k, n, negated
         integer, allocatable :: factors(:)
@@ -272,22 +321,24 @@ contains
             do k = 1, n
                 factors(k) = a%arg_of(id, k)
             end do
-            call emit_product_factors(b, a, factors, d, context, negate=.true.)
+            call emit_product_factors(b, a, factors, d, context, ids, names, negate=.true.)
             deallocate (factors)
         case default
-            call emit(b, a, id, d, context)
+            call emit(b, a, id, d, context, ids, names)
         end select
     end subroutine emit_negated
 
     !> A product, split into numerator and denominator. Factors that are powers
     !> with a negative integer exponent move to the denominator with the sign of
     !> the exponent flipped, so x*y**(-1) prints as x/y.
-    recursive subroutine emit_product(b, a, id, d, context)
+    recursive subroutine emit_product(b, a, id, d, context, ids, names)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: id
         type(dialect_t), intent(in)    :: d
         integer,         intent(in)    :: context
+        integer,         intent(in)    :: ids(:)
+        type(str_t),     intent(in)    :: names(:)
         integer, allocatable :: factors(:)
         integer :: k, n
 
@@ -296,7 +347,7 @@ contains
         do k = 1, n
             factors(k) = a%arg_of(id, k)
         end do
-        call emit_product_factors(b, a, factors, d, context, negate=.false.)
+        call emit_product_factors(b, a, factors, d, context, ids, names, negate=.false.)
         deallocate (factors)
     end subroutine emit_product
 
@@ -320,12 +371,15 @@ contains
         end do
     end function product_is_negative
 
-    recursive subroutine emit_product_factors(b, a, factors, d, context, negate)
+    recursive subroutine emit_product_factors(b, a, factors, d, context, ids, &
+            names, negate)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: factors(:)
         type(dialect_t), intent(in)    :: d
         integer,         intent(in)    :: context
+        integer,         intent(in)    :: ids(:)
+        type(str_t),     intent(in)    :: names(:)
         logical,         intent(in)    :: negate
         integer :: k, nnum, nden, base, expo
         logical :: wrap, first, coeff_done
@@ -381,12 +435,12 @@ contains
                         cycle
                     end if
                     if (.not. first) call b%append("*")
-                    call emit_negated(b, a, numer(k), d, PREC_MUL)
+                    call emit_negated(b, a, numer(k), d, PREC_MUL, ids, names)
                     first = .false.
                     cycle
                 end if
                 if (.not. first) call b%append("*")
-                call emit(b, a, numer(k), d, PREC_MUL)
+                call emit(b, a, numer(k), d, PREC_MUL, ids, names)
                 first = .false.
             end do
         end if
@@ -397,10 +451,10 @@ contains
                 if (expo == -1) then
                     ! Plain reciprocal: print the base at power precedence so a
                     ! compound base keeps its parentheses.
-                    call emit(b, a, base, d, PREC_POW)
+                    call emit(b, a, base, d, PREC_POW, ids, names)
                 else
                     ! A higher reciprocal power: print base**|expo|.
-                    call emit(b, a, base, d, PREC_POW)
+                    call emit(b, a, base, d, PREC_POW, ids, names)
                     call b%append(chars(d%power))
                     call b%append(chars(str(-expo)))
                 end if
@@ -450,27 +504,31 @@ contains
 
     !> Power. Exponentiation is right-associative, so the base is printed at a
     !> higher precedence than the exponent: a**b**c must not become (a**b)**c.
-    recursive subroutine emit_power(b, a, id, d, context)
+    recursive subroutine emit_power(b, a, id, d, context, ids, names)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: id
         type(dialect_t), intent(in)    :: d
         integer,         intent(in)    :: context
+        integer,         intent(in)    :: ids(:)
+        type(str_t),     intent(in)    :: names(:)
         logical :: wrap
 
         wrap = context > PREC_POW
         if (wrap) call b%append("(")
-        call emit(b, a, a%arg_of(id, 1), d, PREC_POW + 1)
+        call emit(b, a, a%arg_of(id, 1), d, PREC_POW + 1, ids, names)
         call b%append(chars(d%power))
-        call emit(b, a, a%arg_of(id, 2), d, PREC_POW)
+        call emit(b, a, a%arg_of(id, 2), d, PREC_POW, ids, names)
         if (wrap) call b%append(")")
     end subroutine emit_power
 
-    recursive subroutine emit_function(b, a, id, d)
+    recursive subroutine emit_function(b, a, id, d, ids, names)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: id
         type(dialect_t), intent(in)    :: d
+        integer,         intent(in)    :: ids(:)
+        type(str_t),     intent(in)    :: names(:)
         integer :: k
 
         call b%append(chars(fn_spelling(d, chars(a%name_of(id)))))
@@ -479,7 +537,7 @@ contains
             if (k > 1) call b%append(", ")
             ! Arguments sit inside parentheses already, so they need none of
             ! their own whatever their precedence.
-            call emit(b, a, a%arg_of(id, k), d, PREC_ADD)
+            call emit(b, a, a%arg_of(id, k), d, PREC_ADD, ids, names)
         end do
         call b%append(")")
     end subroutine emit_function

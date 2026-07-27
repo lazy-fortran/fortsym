@@ -27,6 +27,9 @@ target_sources(fortsym PRIVATE
 
     # multi-engine adjudication
     council/fortsym_council.f90
+
+    # code generation
+    codegen/fortsym_kernel.f90
 )
 
 target_include_directories(fortsym
