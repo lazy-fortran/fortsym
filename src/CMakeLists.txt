@@ -22,6 +22,11 @@ target_sources(fortsym PRIVATE
     # engines
     engine/fortsym_engine.f90
     engine/fortsym_engine_symengine.f90
+    engine/fortsym_engine_ext.f90
+    engine/fortsym_proc.f90
+
+    # multi-engine adjudication
+    council/fortsym_council.f90
 )
 
 target_include_directories(fortsym
