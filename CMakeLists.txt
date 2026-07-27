@@ -46,6 +46,7 @@ include(cmake/deps/yacas.cmake)
 
 add_subdirectory(src)
 add_subdirectory(app)
+add_subdirectory(example)
 
 if(FORTSYM_BUILD_TESTING)
     enable_testing()
