@@ -44,6 +44,14 @@ program test_fortsym_chart
     call test_div_of_curl_vanishes()
     call test_laplacian_on_cartesian()
 
+    ! suite_end reports and then stops on failure, but the failing exit lives
+    ! inside it where a reader -- and fo lint -- cannot see it. Stating it here
+    ! as well makes this program's own failure path explicit.
+    if (s%failed /= 0) then
+        print *, "test_fortsym_chart: ", s%failed, " check(s) FAILED"
+        error stop 1
+    end if
+
     call suite_end(s, "/tmp/fortsym_chart.json")
     print *, "test_fortsym_chart: all checks passed"
 
