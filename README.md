@@ -12,9 +12,10 @@ integrates and factors but cannot simplify trigonometry. fortsym runs the
 engines that are present, compares their answers, and keeps the one that
 produces the smallest kernel.
 
-Currently wired: SymEngine (linked), SymPy and Maxima (subprocess). Yacas is
-specified and its fetch is written but the binding is not done yet — see
-[issue #12](https://github.com/lazy-fortran/fortsym/issues/12).
+Wired: SymEngine and Yacas (linked in-process), SymPy and Maxima (separate
+processes). Each declares what it can do and is only asked for that — Yacas
+does not claim zero testing, because its `Simplify` cannot close trigonometric
+identities and the engine that can should get the work.
 
 Your code never names an engine.
 
@@ -71,7 +72,8 @@ questions:
 | engine | decided | per call |
 |---|---|---|
 | symengine (linked) | 7/9 | 0.0001 s |
-| maxima (subprocess) | 4/9 | 0.40 s |
+| yacas (linked) | — | 0.08 s |
+| maxima (subprocess) | 4/9 | 0.41 s |
 | sympy (subprocess) | 4/9 | 0.38 s |
 
 **Do differential geometry.** Give it a coordinate chart and it derives the
@@ -84,6 +86,11 @@ which is what catches a raised index left lowered or a missing Jacobian weight.
 returns the symbolic expression that file computes, so a hand-written kernel can
 be checked against its definition without anyone transcribing the code into the
 checker by hand.
+
+**Build derivative products contracted.** `jvp`, `vjp`, `gradient` and `hvp`
+never form a Jacobian or a Hessian, and the implicit-function builders emit the
+actions of `R_y` and `R_p` directly — differentiating the defining equation, so
+the solver iteration that found the solution never enters the derivative.
 
 **Assert, with the strength of the claim visible.** A symbolic decision and a
 numeric probe are both useful and are not the same thing:
@@ -112,7 +119,9 @@ ctest --test-dir build --output-on-failure
 ```
 
 SymEngine is taken from the system by default; `-DFORTSYM_USE_SYSTEM_DEPS=OFF`
-builds it from source instead.
+builds it from source instead. Yacas is fetched and built at a pinned tag by
+the CMake path — a few seconds, nothing to install. The fpm path cannot build a
+C++ dependency from source, so there Yacas simply reports unavailable.
 
 Optional extra engines are detected at run time and skipped when absent.
 `scripts/bootstrap.sh` reports what is missing and prints the command to install
@@ -127,9 +136,8 @@ licence, whether it is linked or run as a separate process, and the obligations
 that follow. Read it before adding a dependency or redistributing a build. In
 short:
 
-- Linked in-process: SymEngine (MIT), FLINT, GMP and MPFR (LGPL) — the LGPL
-  components dynamically, so they remain replaceable. Yacas (LGPL-2.1+) is
-  specified for this tier and will be linked shared for the same reason.
+- Linked in-process: SymEngine (MIT), Yacas (LGPL-2.1+), FLINT, GMP and MPFR
+  (LGPL) — the LGPL components dynamically, so they remain replaceable.
 - Run as separate processes: SymPy (BSD), Maxima and other GPL engines. Process
   separation keeps them out of fortsym's link closure, and none is required.
 - **Wolfram and Mathematica are excluded entirely** — not as a backend, and not
