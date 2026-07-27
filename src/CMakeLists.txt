@@ -18,6 +18,10 @@ target_sources(fortsym PRIVATE
     io/fortsym_dialect.f90
     io/fortsym_parse.f90
     io/fortsym_print.f90
+
+    # engines
+    engine/fortsym_engine.f90
+    engine/fortsym_engine_symengine.f90
 )
 
 target_include_directories(fortsym

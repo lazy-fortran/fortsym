@@ -18,5 +18,8 @@ fortsym_add_test(test_fortsym_arena core/test_fortsym_arena.f90)
 # --- surface syntax ---
 fortsym_add_test(test_fortsym_roundtrip io/test_fortsym_roundtrip.f90)
 
+# --- engines ---
+fortsym_add_test(test_fortsym_identities engine/test_fortsym_identities.f90)
+
 # --- C ABI over SymEngine ---
 fortsym_add_test(test_fortsym_capi capi/test_fortsym_capi.f90)

@@ -426,6 +426,14 @@ module fortsym_capi
             integer(c_int)     :: rc
         end function basic_free_symbols
 
+        function function_symbol_set(s, c, arg) &
+            bind(c, name="function_symbol_set") result(rc)
+            import :: c_ptr, c_char, c_int
+            type(c_ptr),    value      :: s, arg
+            character(kind=c_char), intent(in) :: c(*)
+            integer(c_int)             :: rc
+        end function function_symbol_set
+
         function basic_has_symbol(e, s) bind(c, name="basic_has_symbol") &
             result(r)
             import :: c_ptr, c_int
