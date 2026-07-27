@@ -13,6 +13,11 @@ target_sources(fortsym PRIVATE
     # core representation
     core/fortsym_arena.f90
     core/fortsym_expr.f90
+
+    # surface syntax
+    io/fortsym_dialect.f90
+    io/fortsym_parse.f90
+    io/fortsym_print.f90
 )
 
 target_include_directories(fortsym
