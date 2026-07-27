@@ -51,6 +51,9 @@ module fortsym_kernel
         !> Name of the module or program that generated this, recorded in the
         !> banner so the file can always be traced back to its generator.
         type(str_t)              :: generator
+        !> Exact command that regenerates the output. Empty retains the
+        !> conventional `fo exec <generator>` command.
+        type(str_t)              :: regenerate_command
     end type kernel_spec_t
 
     !> Which nodes became temporaries, and in what order they must be assigned.
@@ -441,8 +444,13 @@ contains
         call b%append("! Generator: ")
         call b%append(chars(spec%generator))
         call b%newline()
-        call b%append("! Regenerate with: fo exec ")
-        call b%append(chars(spec%generator))
+        call b%append("! Regenerate with: ")
+        if (len(chars(spec%regenerate_command)) > 0) then
+            call b%append(chars(spec%regenerate_command))
+        else
+            call b%append("fo exec ")
+            call b%append(chars(spec%generator))
+        end if
         call b%newline()
         call b%newline()
     end subroutine append_banner

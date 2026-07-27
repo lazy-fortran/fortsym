@@ -23,6 +23,7 @@ program test_fortsym_kernel
     call test_cse_skips_atoms()
     call test_operation_count_uses_shared_dag()
     call test_temporaries_are_declared()
+    call test_explicit_regeneration_command()
     call test_ordering_is_topological()
     call test_line_wrapping()
     call test_snippet_mode()
@@ -153,6 +154,21 @@ contains
         call ok("declares output", index(code, "intent(out) :: r") > 0)
         call ok("names its generator", index(code, "gen_test") > 0)
     end subroutine test_temporaries_are_declared
+
+    subroutine test_explicit_regeneration_command()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+
+        call a%init()
+        roots(1) = parsed(a, "x*x")
+        spec = spec_for("k", ["x"], ["r"])
+        spec%regenerate_command = str("fpm run --example gen_k")
+        code = chars(emit_kernel(roots, spec))
+        call ok("explicit regeneration command", &
+            index(code, "Regenerate with: fpm run --example gen_k") > 0)
+    end subroutine test_explicit_regeneration_command
 
     !> A temporary must be assigned before anything uses it.
     subroutine test_ordering_is_topological()
