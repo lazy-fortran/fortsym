@@ -29,335 +29,335 @@ module fortsym_kernel
     !> Emit a complete subroutine with declarations and intents. The form
     !> fortnum and other consumers link against.
     integer, parameter :: KERNEL_SUBROUTINE = 1
-        !> Emit bare statements over names the host scope already has. This is the
-        !> `include` pattern genex relies on, where generated text is spliced into
-        !> the middle of an existing loop nest.
-        integer, parameter :: KERNEL_SNIPPET = 2
+    !> Emit bare statements over names the host scope already has. This is the
+    !> `include` pattern genex relies on, where generated text is spliced into
+    !> the middle of an existing loop nest.
+    integer, parameter :: KERNEL_SNIPPET = 2
 
-        !> Longest line the emitter will produce before continuing. The Fortran
-        !> standard allows 132 columns; leaving room for the continuation ampersand
-        !> and indentation keeps output inside it with margin.
-        integer, parameter :: LINE_LIMIT = 100
+    !> Longest line the emitter will produce before continuing. The Fortran
+    !> standard allows 132 columns; leaving room for the continuation ampersand
+    !> and indentation keeps output inside it with margin.
+    integer, parameter :: LINE_LIMIT = 100
 
-        type :: kernel_spec_t
-            type(str_t)              :: name
-            integer                  :: mode = KERNEL_SUBROUTINE
-            !> Input symbol names, in argument order.
-            type(str_t), allocatable :: args(:)
-            !> Output variable names, one per expression.
-            type(str_t), allocatable :: outputs(:)
-            !> Prefix for generated temporaries.
-            type(str_t)              :: temp_prefix
-            !> Name of the module or program that generated this, recorded in the
-            !> banner so the file can always be traced back to its generator.
-            type(str_t)              :: generator
-        end type kernel_spec_t
+    type :: kernel_spec_t
+        type(str_t)              :: name
+        integer                  :: mode = KERNEL_SUBROUTINE
+        !> Input symbol names, in argument order.
+        type(str_t), allocatable :: args(:)
+        !> Output variable names, one per expression.
+        type(str_t), allocatable :: outputs(:)
+        !> Prefix for generated temporaries.
+        type(str_t)              :: temp_prefix
+        !> Name of the module or program that generated this, recorded in the
+        !> banner so the file can always be traced back to its generator.
+        type(str_t)              :: generator
+    end type kernel_spec_t
 
-        !> Which nodes became temporaries, and in what order they must be assigned.
-        type :: cse_result_t
-            integer,     allocatable :: ids(:)
-            type(str_t), allocatable :: names(:)
-            integer                  :: n = 0
-        end type cse_result_t
+    !> Which nodes became temporaries, and in what order they must be assigned.
+    type :: cse_result_t
+        integer,     allocatable :: ids(:)
+        type(str_t), allocatable :: names(:)
+        integer                  :: n = 0
+    end type cse_result_t
 
-    contains
+contains
 
-        !> Decide which shared subexpressions deserve a temporary, and order the
-        !> assignments so every temporary is defined before it is used.
-        !>
-        !> A node qualifies when it is referenced more than once *and* is worth
-        !> naming. Atoms are excluded: a symbol or a small integer costs nothing to
-        !> repeat and naming it would make the output longer and slower to read.
-        function cse_analyse(roots, prefix) result(res)
-            type(expr_t), intent(in) :: roots(:)
-            character(*), intent(in) :: prefix
-            type(cse_result_t)       :: res
+    !> Decide which shared subexpressions deserve a temporary, and order the
+    !> assignments so every temporary is defined before it is used.
+    !>
+    !> A node qualifies when it is referenced more than once *and* is worth
+    !> naming. Atoms are excluded: a symbol or a small integer costs nothing to
+    !> repeat and naming it would make the output longer and slower to read.
+    function cse_analyse(roots, prefix) result(res)
+        type(expr_t), intent(in) :: roots(:)
+        character(*), intent(in) :: prefix
+        type(cse_result_t)       :: res
 
-            integer, allocatable :: refs(:)
-            logical, allocatable :: emitted(:)
-            type(arena_t), pointer :: a
-            integer :: k, capacity
+        integer, allocatable :: refs(:)
+        logical, allocatable :: emitted(:)
+        type(arena_t), pointer :: a
+        integer :: k, capacity
 
-            res%n = 0
-            if (size(roots) == 0) then
-                allocate (res%ids(0), res%names(0))
-                return
-            end if
+        res%n = 0
+        if (size(roots) == 0) then
+            allocate (res%ids(0), res%names(0))
+            return
+        end if
 
-            a => roots(1)%a
-            capacity = a%size()
-            allocate (refs(capacity), source=0)
-            allocate (emitted(capacity), source=.false.)
-            allocate (res%ids(capacity), res%names(capacity))
+        a => roots(1)%a
+        capacity = a%size()
+        allocate (refs(capacity), source=0)
+        allocate (emitted(capacity), source=.false.)
+        allocate (res%ids(capacity), res%names(capacity))
 
-            ! Count parents. Each root counts once even when two roots share it.
-            do k = 1, size(roots)
-                call count_refs(a, roots(k)%id, refs)
-            end do
+        ! Count parents. Each root counts once even when two roots share it.
+        do k = 1, size(roots)
+            call count_refs(a, roots(k)%id, refs)
+        end do
 
-            ! Post-order, so a temporary's own dependencies are assigned first.
-            do k = 1, size(roots)
-                call collect(a, roots(k)%id, refs, emitted, res, prefix)
-            end do
-        end function cse_analyse
+        ! Post-order, so a temporary's own dependencies are assigned first.
+        do k = 1, size(roots)
+            call collect(a, roots(k)%id, refs, emitted, res, prefix)
+        end do
+    end function cse_analyse
 
-        recursive subroutine count_refs(a, id, refs)
-            type(arena_t), intent(in)    :: a
-            integer,       intent(in)    :: id
-            integer,       intent(inout) :: refs(:)
-            integer :: k
+    recursive subroutine count_refs(a, id, refs)
+        type(arena_t), intent(in)    :: a
+        integer,       intent(in)    :: id
+        integer,       intent(inout) :: refs(:)
+        integer :: k
 
-            refs(id) = refs(id) + 1
-            ! Recurse only the first time. Hash-consing means the subtree below a
-            ! shared node is identical on every visit, so descending again would
-            ! inflate the counts of everything beneath it.
-            if (refs(id) > 1) return
-            do k = 1, a%nargs_of(id)
-                call count_refs(a, a%arg_of(id, k), refs)
-            end do
-        end subroutine count_refs
+        refs(id) = refs(id) + 1
+        ! Recurse only the first time. Hash-consing means the subtree below a
+        ! shared node is identical on every visit, so descending again would
+        ! inflate the counts of everything beneath it.
+        if (refs(id) > 1) return
+        do k = 1, a%nargs_of(id)
+            call count_refs(a, a%arg_of(id, k), refs)
+        end do
+    end subroutine count_refs
 
-        recursive subroutine collect(a, id, refs, emitted, res, prefix)
-            type(arena_t),      intent(in)    :: a
-            integer,            intent(in)    :: id
-            integer,            intent(in)    :: refs(:)
-            logical,            intent(inout) :: emitted(:)
-            type(cse_result_t), intent(inout) :: res
-            character(*),       intent(in)    :: prefix
-            integer :: k
+    recursive subroutine collect(a, id, refs, emitted, res, prefix)
+        type(arena_t),      intent(in)    :: a
+        integer,            intent(in)    :: id
+        integer,            intent(in)    :: refs(:)
+        logical,            intent(inout) :: emitted(:)
+        type(cse_result_t), intent(inout) :: res
+        character(*),       intent(in)    :: prefix
+        integer :: k
 
-            if (emitted(id)) return
-            emitted(id) = .true.
+        if (emitted(id)) return
+        emitted(id) = .true.
 
-            do k = 1, a%nargs_of(id)
-                call collect(a, a%arg_of(id, k), refs, emitted, res, prefix)
-            end do
+        do k = 1, a%nargs_of(id)
+            call collect(a, a%arg_of(id, k), refs, emitted, res, prefix)
+        end do
 
-            if (refs(id) > 1 .and. worth_naming(a, id)) then
-                res%n = res%n + 1
-                res%ids(res%n) = id
-                res%names(res%n) = str(prefix//chars(str(res%n)))
-            end if
-        end subroutine collect
+        if (refs(id) > 1 .and. worth_naming(a, id)) then
+            res%n = res%n + 1
+            res%ids(res%n) = id
+            res%names(res%n) = str(prefix//chars(str(res%n)))
+        end if
+    end subroutine collect
 
-        !> Compound nodes only. Naming a symbol or a literal would cost a line and
-        !> save nothing.
-        pure function worth_naming(a, id) result(yes)
-            type(arena_t), intent(in) :: a
-            integer,       intent(in) :: id
-            logical                   :: yes
-            integer :: k
-            k = a%kind_of(id)
-            yes = k == NK_ADD .or. k == NK_MUL .or. k == NK_POW .or. k == NK_FUNC
-        end function worth_naming
+    !> Compound nodes only. Naming a symbol or a literal would cost a line and
+    !> save nothing.
+    pure function worth_naming(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: yes
+        integer :: k
+        k = a%kind_of(id)
+        yes = k == NK_ADD .or. k == NK_MUL .or. k == NK_POW .or. k == NK_FUNC
+    end function worth_naming
 
-        !> The assignment statements: every temporary, then every output.
-        function emit_statements(roots, spec, res) result(s)
-            type(expr_t),       intent(in) :: roots(:)
-            type(kernel_spec_t), intent(in) :: spec
-            type(cse_result_t), intent(in) :: res
-            type(str_t)                    :: s
+    !> The assignment statements: every temporary, then every output.
+    function emit_statements(roots, spec, res) result(s)
+        type(expr_t),       intent(in) :: roots(:)
+        type(kernel_spec_t), intent(in) :: spec
+        type(cse_result_t), intent(in) :: res
+        type(str_t)                    :: s
 
-            type(strbuf_t)  :: b
-            type(dialect_t) :: d
-            type(expr_t)    :: tmp
-            integer :: k
+        type(strbuf_t)  :: b
+        type(dialect_t) :: d
+        type(expr_t)    :: tmp
+        integer :: k
 
-            d = dialect(DIA_FORTRAN)
+        d = dialect(DIA_FORTRAN)
 
-            do k = 1, res%n
-                tmp%a => roots(1)%a
-                tmp%id = res%ids(k)
-                ! Each temporary may refer to earlier temporaries but not to itself,
-                ! so the substitution table is truncated to what precedes it.
-                call append_assignment(b, chars(res%names(k)), &
-                    chars(print_expr_sub(tmp, d, &
-                    res%ids(1:k - 1), &
-                    res%names(1:k - 1))))
-            end do
+        do k = 1, res%n
+            tmp%a => roots(1)%a
+            tmp%id = res%ids(k)
+            ! Each temporary may refer to earlier temporaries but not to itself,
+            ! so the substitution table is truncated to what precedes it.
+            call append_assignment(b, chars(res%names(k)), &
+                chars(print_expr_sub(tmp, d, &
+                res%ids(1:k - 1), &
+                res%names(1:k - 1))))
+        end do
 
-            do k = 1, size(roots)
-                call append_assignment(b, chars(spec%outputs(k)), &
-                    chars(print_expr_sub(roots(k), d, &
-                    res%ids(1:res%n), &
-                    res%names(1:res%n))))
-            end do
+        do k = 1, size(roots)
+            call append_assignment(b, chars(spec%outputs(k)), &
+                chars(print_expr_sub(roots(k), d, &
+                res%ids(1:res%n), &
+                res%names(1:res%n))))
+        end do
 
-            s = b%to_str()
-        end function emit_statements
+        s = b%to_str()
+    end function emit_statements
 
-        !> One assignment, wrapped to the line limit.
-        subroutine append_assignment(b, lhs, rhs)
-            type(strbuf_t), intent(inout) :: b
-            character(*),   intent(in)    :: lhs, rhs
-            call append_wrapped(b, "    "//lhs//" = "//rhs)
-        end subroutine append_assignment
+    !> One assignment, wrapped to the line limit.
+    subroutine append_assignment(b, lhs, rhs)
+        type(strbuf_t), intent(inout) :: b
+        character(*),   intent(in)    :: lhs, rhs
+        call append_wrapped(b, "    "//lhs//" = "//rhs)
+    end subroutine append_assignment
 
-        !> Emit a statement, breaking it across continuation lines when it exceeds
-        !> the limit.
-        !>
-        !> Breaks are placed at operators and argument separators, never inside a
-        !> name or a numeric literal -- splitting `1.0e-8_dp` would change its
-        !> value, and splitting an identifier would not compile.
-        subroutine append_wrapped(b, text)
-            type(strbuf_t), intent(inout) :: b
-            character(*),   intent(in)    :: text
-            integer :: start, cut, n
+    !> Emit a statement, breaking it across continuation lines when it exceeds
+    !> the limit.
+    !>
+    !> Breaks are placed at operators and argument separators, never inside a
+    !> name or a numeric literal -- splitting `1.0e-8_dp` would change its
+    !> value, and splitting an identifier would not compile.
+    subroutine append_wrapped(b, text)
+        type(strbuf_t), intent(inout) :: b
+        character(*),   intent(in)    :: text
+        integer :: start, cut, n
 
-            n = len(text)
-            start = 1
+        n = len(text)
+        start = 1
 
-            do while (n - start + 1 > LINE_LIMIT)
-                cut = last_break(text, start, start + LINE_LIMIT - 1)
-                if (cut <= start) exit ! nowhere safe to break; emit long
-                call b%append(text(start:cut))
-                call b%append(" &")
-                call b%newline()
-                call b%append("        ")
-                start = cut + 1
-            end do
-
-            call b%append(text(start:n))
+        do while (n - start + 1 > LINE_LIMIT)
+            cut = last_break(text, start, start + LINE_LIMIT - 1)
+            if (cut <= start) exit ! nowhere safe to break; emit long
+            call b%append(text(start:cut))
+            call b%append(" &")
             call b%newline()
-        end subroutine append_wrapped
+            call b%append("        ")
+            start = cut + 1
+        end do
 
-        !> Rightmost position in [from, to] after which a break is safe.
-        pure function last_break(text, from, to) result(cut)
-            character(*), intent(in) :: text
-            integer,      intent(in) :: from, to
-            integer                  :: cut
-            integer :: k
-            character :: c
+        call b%append(text(start:n))
+        call b%newline()
+    end subroutine append_wrapped
 
-            cut = 0
-            do k = to, from + 1, -1
-                c = text(k:k)
-                if (c == "+" .or. c == "-" .or. c == "*" .or. c == "/" .or. &
-                    c == "," .or. c == ")") then
-                    ! A sign belonging to an exponent is part of the literal.
-                    if ((c == "+" .or. c == "-") .and. k > from) then
-                        if (is_exponent_sign(text, k)) cycle
-                    end if
-                    cut = k
-                    return
+    !> Rightmost position in [from, to] after which a break is safe.
+    pure function last_break(text, from, to) result(cut)
+        character(*), intent(in) :: text
+        integer,      intent(in) :: from, to
+        integer                  :: cut
+        integer :: k
+        character :: c
+
+        cut = 0
+        do k = to, from + 1, -1
+            c = text(k:k)
+            if (c == "+" .or. c == "-" .or. c == "*" .or. c == "/" .or. &
+                c == "," .or. c == ")") then
+                ! A sign belonging to an exponent is part of the literal.
+                if ((c == "+" .or. c == "-") .and. k > from) then
+                    if (is_exponent_sign(text, k)) cycle
                 end if
-            end do
-        end function last_break
-
-        !> True when this + or - is the sign of a floating-point exponent, as in
-        !> 1.0e-8. Breaking there would silently change the constant.
-        pure function is_exponent_sign(text, k) result(yes)
-            character(*), intent(in) :: text
-            integer,      intent(in) :: k
-            logical                  :: yes
-            character :: prev
-            yes = .false.
-            if (k <= 1) return
-            prev = text(k - 1:k - 1)
-            yes = prev == "e" .or. prev == "E" .or. prev == "d" .or. prev == "D"
-        end function is_exponent_sign
-
-        !> A complete kernel: banner, subroutine header, declarations, body.
-        function emit_kernel(roots, spec) result(s)
-            type(expr_t),        intent(in) :: roots(:)
-            type(kernel_spec_t), intent(in) :: spec
-            type(str_t)                     :: s
-
-            type(strbuf_t)     :: b
-            type(cse_result_t) :: res
-            integer :: k
-
-            res = cse_analyse(roots, chars(spec%temp_prefix))
-
-            call append_banner(b, spec)
-
-            if (spec%mode == KERNEL_SNIPPET) then
-                ! Bare statements over host-scope names. No header, no declarations:
-                ! the including scope owns them.
-                call b%append(chars(emit_statements(roots, spec, res)))
-                s = b%to_str()
+                cut = k
                 return
             end if
+        end do
+    end function last_break
 
-            call b%append("subroutine ")
-            call b%append(chars(spec%name))
-            call b%append("(")
-            do k = 1, size(spec%args)
-                if (k > 1) call b%append(", ")
-                call b%append(chars(spec%args(k)))
-            end do
-            do k = 1, size(spec%outputs)
-                call b%append(", ")
-                call b%append(chars(spec%outputs(k)))
-            end do
-            call b%append(")")
-            call b%newline()
+    !> True when this + or - is the sign of a floating-point exponent, as in
+    !> 1.0e-8. Breaking there would silently change the constant.
+    pure function is_exponent_sign(text, k) result(yes)
+        character(*), intent(in) :: text
+        integer,      intent(in) :: k
+        logical                  :: yes
+        character :: prev
+        yes = .false.
+        if (k <= 1) return
+        prev = text(k - 1:k - 1)
+        yes = prev == "e" .or. prev == "E" .or. prev == "d" .or. prev == "D"
+    end function is_exponent_sign
 
-            call b%append("    use, intrinsic :: iso_fortran_env, only: dp => real64")
-            call b%newline()
-            call b%append("    implicit none")
-            call b%newline()
+    !> A complete kernel: banner, subroutine header, declarations, body.
+    function emit_kernel(roots, spec) result(s)
+        type(expr_t),        intent(in) :: roots(:)
+        type(kernel_spec_t), intent(in) :: spec
+        type(str_t)                     :: s
 
-            call declare(b, "intent(in)", spec%args)
-            call declare(b, "intent(out)", spec%outputs)
+        type(strbuf_t)     :: b
+        type(cse_result_t) :: res
+        integer :: k
 
-            if (res%n > 0) then
-                ! Temporaries are declared explicitly, never left to an implicit
-                ! typing rule.
-                call declare(b, "", res%names(1:res%n))
-            end if
+        res = cse_analyse(roots, chars(spec%temp_prefix))
 
-            call b%newline()
+        call append_banner(b, spec)
+
+        if (spec%mode == KERNEL_SNIPPET) then
+            ! Bare statements over host-scope names. No header, no declarations:
+            ! the including scope owns them.
             call b%append(chars(emit_statements(roots, spec, res)))
-            call b%newline()
-            call b%append("end subroutine ")
-            call b%append(chars(spec%name))
-            call b%newline()
-
             s = b%to_str()
-        end function emit_kernel
+            return
+        end if
 
-        subroutine declare(b, attribute, names)
-            type(strbuf_t), intent(inout) :: b
-            character(*),   intent(in)    :: attribute
-            type(str_t),    intent(in)    :: names(:)
-            integer :: k
+        call b%append("subroutine ")
+        call b%append(chars(spec%name))
+        call b%append("(")
+        do k = 1, size(spec%args)
+            if (k > 1) call b%append(", ")
+            call b%append(chars(spec%args(k)))
+        end do
+        do k = 1, size(spec%outputs)
+            call b%append(", ")
+            call b%append(chars(spec%outputs(k)))
+        end do
+        call b%append(")")
+        call b%newline()
 
-            if (size(names) == 0) return
+        call b%append("    use, intrinsic :: iso_fortran_env, only: dp => real64")
+        call b%newline()
+        call b%append("    implicit none")
+        call b%newline()
 
-            call b%append("    real(dp)")
-            if (len(attribute) > 0) then
-                call b%append(", ")
-                call b%append(attribute)
-            end if
-            call b%append(" :: ")
-            do k = 1, size(names)
-                if (k > 1) call b%append(", ")
-                call b%append(chars(names(k)))
-            end do
-            call b%newline()
-        end subroutine declare
+        call declare(b, "intent(in)", spec%args)
+        call declare(b, "intent(out)", spec%outputs)
 
-        !> Provenance banner.
-        !>
-        !> The one thing that must never be lost is how to regenerate this file.
-        !> KiLCA's generated kernels in this ecosystem carry an "automatically
-        !> generated" note and no generator, so they can no longer be reproduced or
-        !> trusted; naming the generator here, plus the CI job that reruns it, is
-        !> what keeps that from happening again.
-        subroutine append_banner(b, spec)
-            type(strbuf_t),      intent(inout) :: b
-            type(kernel_spec_t), intent(in)    :: spec
+        if (res%n > 0) then
+            ! Temporaries are declared explicitly, never left to an implicit
+            ! typing rule.
+            call declare(b, "", res%names(1:res%n))
+        end if
 
-            call b%append("! Generated by fortsym. Do not edit.")
-            call b%newline()
-            call b%append("! Generator: ")
-            call b%append(chars(spec%generator))
-            call b%newline()
-            call b%append("! Regenerate with: fo exec ")
-            call b%append(chars(spec%generator))
-            call b%newline()
-            call b%newline()
-        end subroutine append_banner
+        call b%newline()
+        call b%append(chars(emit_statements(roots, spec, res)))
+        call b%newline()
+        call b%append("end subroutine ")
+        call b%append(chars(spec%name))
+        call b%newline()
 
-    end module fortsym_kernel
+        s = b%to_str()
+    end function emit_kernel
+
+    subroutine declare(b, attribute, names)
+        type(strbuf_t), intent(inout) :: b
+        character(*),   intent(in)    :: attribute
+        type(str_t),    intent(in)    :: names(:)
+        integer :: k
+
+        if (size(names) == 0) return
+
+        call b%append("    real(dp)")
+        if (len(attribute) > 0) then
+            call b%append(", ")
+            call b%append(attribute)
+        end if
+        call b%append(" :: ")
+        do k = 1, size(names)
+            if (k > 1) call b%append(", ")
+            call b%append(chars(names(k)))
+        end do
+        call b%newline()
+    end subroutine declare
+
+    !> Provenance banner.
+    !>
+    !> The one thing that must never be lost is how to regenerate this file.
+    !> KiLCA's generated kernels in this ecosystem carry an "automatically
+    !> generated" note and no generator, so they can no longer be reproduced or
+    !> trusted; naming the generator here, plus the CI job that reruns it, is
+    !> what keeps that from happening again.
+    subroutine append_banner(b, spec)
+        type(strbuf_t),      intent(inout) :: b
+        type(kernel_spec_t), intent(in)    :: spec
+
+        call b%append("! Generated by fortsym. Do not edit.")
+        call b%newline()
+        call b%append("! Generator: ")
+        call b%append(chars(spec%generator))
+        call b%newline()
+        call b%append("! Regenerate with: fo exec ")
+        call b%append(chars(spec%generator))
+        call b%newline()
+        call b%newline()
+    end subroutine append_banner
+
+end module fortsym_kernel
