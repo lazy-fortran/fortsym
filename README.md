@@ -7,10 +7,14 @@ and no Python round-trip.
 fortsym is a **multi-engine frontend**. It owns its expression representation
 and drives several computer algebra systems underneath, because no single one is
 good at everything: SymEngine is fastest and best at manipulation and code
-generation but cannot integrate, Yacas integrates and factors but cannot
-simplify trigonometry, SymPy and Maxima are broad but slow. fortsym runs the
+generation but cannot integrate, SymPy and Maxima are broad but slow, and Yacas
+integrates and factors but cannot simplify trigonometry. fortsym runs the
 engines that are present, compares their answers, and keeps the one that
 produces the smallest kernel.
+
+Currently wired: SymEngine (linked), SymPy and Maxima (subprocess). Yacas is
+specified and its fetch is written but the binding is not done yet — see
+[issue #12](https://github.com/lazy-fortran/fortsym/issues/12).
 
 Your code never names an engine.
 
@@ -108,8 +112,7 @@ ctest --test-dir build --output-on-failure
 ```
 
 SymEngine is taken from the system by default; `-DFORTSYM_USE_SYSTEM_DEPS=OFF`
-builds it from source instead. Yacas is always built from source at a pinned
-tag — it takes a few seconds and needs nothing installed.
+builds it from source instead.
 
 Optional extra engines are detected at run time and skipped when absent.
 `scripts/bootstrap.sh` reports what is missing and prints the command to install
@@ -124,8 +127,9 @@ licence, whether it is linked or run as a separate process, and the obligations
 that follow. Read it before adding a dependency or redistributing a build. In
 short:
 
-- Linked in-process: SymEngine (MIT), Yacas (LGPL-2.1+), FLINT, GMP and MPFR
-  (LGPL) — the LGPL components dynamically, so they remain replaceable.
+- Linked in-process: SymEngine (MIT), FLINT, GMP and MPFR (LGPL) — the LGPL
+  components dynamically, so they remain replaceable. Yacas (LGPL-2.1+) is
+  specified for this tier and will be linked shared for the same reason.
 - Run as separate processes: SymPy (BSD), Maxima and other GPL engines. Process
   separation keeps them out of fortsym's link closure, and none is required.
 - **Wolfram and Mathematica are excluded entirely** — not as a backend, and not
