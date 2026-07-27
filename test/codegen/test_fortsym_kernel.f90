@@ -13,6 +13,7 @@ program test_fortsym_kernel
     use fortsym_arena, only: arena_t
     use fortsym_expr
     use fortsym_parse, only: parse_expr
+    use fortsym_products, only: jvp, vjp
     use fortsym_kernel
     implicit none
 
@@ -27,6 +28,7 @@ program test_fortsym_kernel
     call test_generator_revision()
     call test_module_wrapper()
     call test_device_leaf_annotations()
+    call test_product_codegen_scales_linearly()
     call test_pure_procedure()
     call test_ordering_is_topological()
     call test_line_wrapping()
@@ -279,6 +281,57 @@ contains
             wait=.true., exitstat=stat)
         call ok("OpenMP-annotated generated leaf compiles", stat == 0)
     end subroutine test_device_leaf_annotations
+
+    subroutine test_product_codegen_scales_linearly()
+        integer :: operations8, operations16
+
+        operations8 = product_operations(8, "a")
+        operations16 = product_operations(16, "b")
+        call ok("contracted product code grows near-linearly", &
+            2*operations16 <= 5*operations8)
+    end subroutine test_product_codegen_scales_linearly
+
+    function product_operations(n, prefix) result(total)
+        integer, intent(in) :: n
+        character(*), intent(in) :: prefix
+        integer :: total
+        type(arena_t), target :: a
+        type(expr_t), allocatable :: x(:), direction(:), variables(:)
+        type(expr_t), allocatable :: tangents(:), cotangent(:), products(:)
+        type(expr_t) :: forward(1)
+        type(expr_t), allocatable :: roots(:)
+        type(expr_t) :: value, sum_x
+        type(operation_count_t) :: operations
+        character(3) :: index_text
+        integer :: i
+
+        call a%init()
+        allocate (x(n), direction(n), variables(n), tangents(n))
+        do i = 1, n
+            write (index_text, "(i0)") i
+            x(i) = sym(a, prefix//"x"//trim(index_text))
+            direction(i) = sym(a, prefix//"v"//trim(index_text))
+            variables(i) = x(i)
+            tangents(i) = direction(i)
+            if (i == 1) then
+                sum_x = x(i)
+                value = sin(x(i))
+            else
+                sum_x = sum_x + x(i)
+                value = value + sin(x(i))
+            end if
+        end do
+        value = value + sum_x**2/2
+        cotangent = [sym(a, prefix//"u")]
+        products = vjp([value], variables, cotangent)
+        forward = jvp([value], variables, tangents)
+        allocate (roots(n + 2))
+        roots(1) = value
+        roots(2) = forward(1)
+        roots(3:) = products
+        operations = count_operations(roots)
+        total = operations%total
+    end function product_operations
 
     subroutine test_pure_procedure()
         type(arena_t), target :: a
