@@ -38,6 +38,9 @@ target_sources(fortsym PRIVATE
     # differential geometry
     calculus/fortsym_diff.f90
     calculus/fortsym_chart.f90
+
+    # reading Fortran back
+    parse_fortran/fortsym_fparse.f90
 )
 
 target_include_directories(fortsym
