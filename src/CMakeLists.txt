@@ -34,6 +34,10 @@ target_sources(fortsym PRIVATE
     # verification
     verify/fortsym_eval.f90
     verify/fortsym_check.f90
+
+    # differential geometry
+    calculus/fortsym_diff.f90
+    calculus/fortsym_chart.f90
 )
 
 target_include_directories(fortsym
