@@ -356,9 +356,8 @@ contains
         type(kernel_spec_t), intent(in) :: spec
         type(str_t)                     :: s
 
-        type(strbuf_t)     :: b
+        type(strbuf_t)     :: b, body
         type(cse_result_t) :: res
-        integer :: k
 
         res = cse_analyse(roots, chars(spec%temp_prefix))
 
@@ -386,7 +385,25 @@ contains
             call b%append("contains")
             call b%newline()
             call b%newline()
+            call append_subroutine(body, roots, spec, res)
+            call append_indented(b, chars(body%to_str()))
+            call b%newline()
+            call b%append("end module ")
+            call b%append(chars(spec%module_name))
+            call b%newline()
+        else
+            call append_subroutine(b, roots, spec, res)
         end if
+
+        s = b%to_str()
+    end function emit_kernel
+
+    subroutine append_subroutine(b, roots, spec, res)
+        type(strbuf_t), intent(inout) :: b
+        type(expr_t), intent(in) :: roots(:)
+        type(kernel_spec_t), intent(in) :: spec
+        type(cse_result_t), intent(in) :: res
+        integer :: k
 
         call b%append("subroutine ")
         call b%append(chars(spec%name))
@@ -422,16 +439,28 @@ contains
         call b%append("end subroutine ")
         call b%append(chars(spec%name))
         call b%newline()
+    end subroutine append_subroutine
 
-        if (len(chars(spec%module_name)) > 0) then
+    subroutine append_indented(b, text)
+        type(strbuf_t), intent(inout) :: b
+        character(*), intent(in) :: text
+        integer :: first, k
+
+        first = 1
+        do k = 1, len(text)
+            if (text(k:k) /= new_line("a")) cycle
+            if (k > first) then
+                call b%append("    ")
+                call b%append(text(first:k - 1))
+            end if
             call b%newline()
-            call b%append("end module ")
-            call b%append(chars(spec%module_name))
-            call b%newline()
+            first = k + 1
+        end do
+        if (first <= len(text)) then
+            call b%append("    ")
+            call b%append(text(first:))
         end if
-
-        s = b%to_str()
-    end function emit_kernel
+    end subroutine append_indented
 
     subroutine declare(b, attribute, names)
         type(strbuf_t), intent(inout) :: b

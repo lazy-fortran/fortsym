@@ -209,8 +209,9 @@ contains
         write (unit, "(a)") "end program drive_module"
         close (unit)
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_gen_module /tmp/fortsym_gen_module.f90"// &
-            " > /tmp/fortsym_gen_module.log 2>&1", wait=.true., exitstat=stat)
+            "gfortran -J /tmp -o /tmp/fortsym_gen_module "// &
+            "/tmp/fortsym_gen_module.f90 > /tmp/fortsym_gen_module.log 2>&1", &
+            wait=.true., exitstat=stat)
         call ok("module-wrapped kernel compiles", stat == 0)
         if (stat == 0) then
             call execute_command_line("/tmp/fortsym_gen_module", wait=.true., &
