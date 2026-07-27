@@ -256,8 +256,9 @@ contains
         code = chars(emit_kernel(roots, spec))
         call ok("OpenACC routine directive", &
             index(code, "!$acc routine seq") > 0)
-        call ok("OpenMP declare-target directive names the leaf", &
-            index(code, "!$omp declare target(k)") > 0)
+        call ok("OpenMP declare-target directive annotates the leaf", &
+            index(code, "subroutine k(x, r)"//new_line("a")// &
+            "        !$omp declare target") > 0)
         call ok("device emission adds no parallel schedule", &
             index(code, "!$omp target") == 0 .and. &
             index(code, "!$acc parallel") == 0 .and. &

@@ -402,12 +402,6 @@ contains
             call b%append("    public :: ")
             call b%append(chars(spec%name))
             call b%newline()
-            if (spec%openmp_declare_target) then
-                call b%append("    !$omp declare target(")
-                call b%append(chars(spec%name))
-                call b%append(")")
-                call b%newline()
-            end if
             call b%append("contains")
             call b%newline()
             call b%newline()
@@ -447,6 +441,10 @@ contains
         call header%append(")")
         call append_wrapped(b, chars(header%to_str()))
 
+        if (spec%openmp_declare_target) then
+            call b%append("    !$omp declare target")
+            call b%newline()
+        end if
         if (spec%openacc_routine_seq) then
             call b%append("    !$acc routine seq")
             call b%newline()
