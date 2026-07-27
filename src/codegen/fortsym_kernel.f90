@@ -407,22 +407,23 @@ contains
         type(expr_t), intent(in) :: roots(:)
         type(kernel_spec_t), intent(in) :: spec
         type(cse_result_t), intent(in) :: res
+        type(strbuf_t) :: header
         integer :: k
 
-        if (spec%pure_procedure) call b%append("pure ")
-        call b%append("subroutine ")
-        call b%append(chars(spec%name))
-        call b%append("(")
+        if (spec%pure_procedure) call header%append("pure ")
+        call header%append("subroutine ")
+        call header%append(chars(spec%name))
+        call header%append("(")
         do k = 1, size(spec%args)
-            if (k > 1) call b%append(", ")
-            call b%append(chars(spec%args(k)))
+            if (k > 1) call header%append(", ")
+            call header%append(chars(spec%args(k)))
         end do
         do k = 1, size(spec%outputs)
-            call b%append(", ")
-            call b%append(chars(spec%outputs(k)))
+            call header%append(", ")
+            call header%append(chars(spec%outputs(k)))
         end do
-        call b%append(")")
-        call b%newline()
+        call header%append(")")
+        call append_wrapped(b, chars(header%to_str()))
 
         if (spec%openacc_routine_seq) then
             call b%append("    !$acc routine seq")
@@ -475,21 +476,22 @@ contains
         type(strbuf_t), intent(inout) :: b
         character(*),   intent(in)    :: attribute
         type(str_t),    intent(in)    :: names(:)
+        type(strbuf_t) :: declaration
         integer :: k
 
         if (size(names) == 0) return
 
-        call b%append("    real(dp)")
+        call declaration%append("    real(dp)")
         if (len(attribute) > 0) then
-            call b%append(", ")
-            call b%append(attribute)
+            call declaration%append(", ")
+            call declaration%append(attribute)
         end if
-        call b%append(" :: ")
+        call declaration%append(" :: ")
         do k = 1, size(names)
-            if (k > 1) call b%append(", ")
-            call b%append(chars(names(k)))
+            if (k > 1) call declaration%append(", ")
+            call declaration%append(chars(names(k)))
         end do
-        call b%newline()
+        call append_wrapped(b, chars(declaration%to_str()))
     end subroutine declare
 
     !> Provenance banner.

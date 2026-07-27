@@ -29,6 +29,7 @@ program test_fortsym_kernel
     call test_pure_procedure()
     call test_ordering_is_topological()
     call test_line_wrapping()
+    call test_long_interface_wrapping()
     call test_snippet_mode()
     call test_generated_kernel_compiles_and_agrees()
 
@@ -309,6 +310,29 @@ contains
         call ok("never breaks inside an exponent", index(code, "e- &") == 0)
         call ok("never breaks after an exponent sign", index(code, "e-&") == 0)
     end subroutine test_line_wrapping
+
+    subroutine test_long_interface_wrapping()
+        integer, parameter :: emitter_line_limit = 100
+        type(arena_t), target :: a
+        type(expr_t) :: roots(9)
+        type(kernel_spec_t) :: spec
+        character(3) :: args(18), outputs(9)
+        character(:), allocatable :: code
+        integer :: k
+
+        call a%init()
+        do k = 1, size(args)
+            write (args(k), "(a,i0)") "a", k
+        end do
+        do k = 1, size(outputs)
+            write (outputs(k), "(a,i0)") "r", k
+            roots(k) = parsed(a, trim(args(k)))
+        end do
+        spec = spec_for("long_generated_kernel", args, outputs)
+        code = chars(emit_kernel(roots, spec))
+        call ok("long interface stays within emitter line limit", &
+            longest_line(code) <= emitter_line_limit)
+    end subroutine test_long_interface_wrapping
 
     function longest_line(text) result(n)
         character(*), intent(in) :: text
