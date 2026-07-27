@@ -1,0 +1,16 @@
+# Register a test only when its source exists, so a milestone can add the
+# registration ahead of the file without breaking configure.
+function(fortsym_add_test name source)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${source}")
+        return()
+    endif()
+    add_executable(${name} ${source})
+    target_link_libraries(${name} PRIVATE fortsym)
+    add_test(NAME ${name} COMMAND ${name})
+endfunction()
+
+# --- utilities ---
+fortsym_add_test(test_fortsym_string util/test_fortsym_string.f90)
+
+# --- C ABI over SymEngine ---
+fortsym_add_test(test_fortsym_capi capi/test_fortsym_capi.f90)
