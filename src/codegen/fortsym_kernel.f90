@@ -319,6 +319,9 @@ contains
             call b%newline()
             call b%append("        ")
             start = cut + 1
+            if (start <= n) then
+                if (text(start:start) == " ") start = start + 1
+            end if
         end do
 
         call b%append(text(start:n))

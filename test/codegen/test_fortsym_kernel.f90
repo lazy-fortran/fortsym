@@ -373,6 +373,8 @@ contains
         code = chars(emit_kernel(roots, spec))
         call ok("long interface stays within emitter line limit", &
             longest_line(code) <= emitter_line_limit)
+        call ok("continuation indentation has no carried source blank", &
+            index(code, new_line("a")//"         a") == 0)
     end subroutine test_long_interface_wrapping
 
     function longest_line(text) result(n)
