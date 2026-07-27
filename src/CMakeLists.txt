@@ -14,6 +14,7 @@ target_sources(fortsym PRIVATE
     # core representation
     core/fortsym_arena.f90
     core/fortsym_expr.f90
+    core/fortsym_subs.f90
 
     # surface syntax
     io/fortsym_dialect.f90

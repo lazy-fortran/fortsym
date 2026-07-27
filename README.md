@@ -92,6 +92,11 @@ never form a Jacobian or a Hessian, and the implicit-function builders emit the
 actions of `R_y` and `R_p` directly — differentiating the defining equation, so
 the solver iteration that found the solution never enters the derivative.
 
+**Substitute structurally.** `subs(expression, old, new)` replaces a symbol or
+an arbitrary subexpression. `subs_many(expression, old, new)` applies all
+pairwise replacements simultaneously, so swaps and coupled governing-equation
+substitutions do not cascade through replacement expressions.
+
 **Assert, with the strength of the claim visible.** A symbolic decision and a
 numeric probe are both useful and are not the same thing:
 

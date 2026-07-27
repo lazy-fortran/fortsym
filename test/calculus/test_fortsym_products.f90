@@ -18,6 +18,7 @@ program test_fortsym_products
     use fortsym_expr, only: expr_t, sym, num, operator(+), operator(-), &
         operator(*), operator(/), operator(**), sin, cos, exp, log
     use fortsym_diff, only: diff
+    use fortsym_subs, only: subs
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_zero
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortsym_products
@@ -239,7 +240,7 @@ contains
         dy_explicit = diff(sqrt_of(pp), pp)
 
         call check_zero(s, eng, "implicit dy/dp equals the explicit derivative", &
-            subst_y_as_sqrt(dy_implicit, pp) - dy_explicit)
+            subs(dy_implicit, y1(1), sqrt_of(pp)) - dy_explicit)
     end subroutine test_implicit_tangent
 
     !> sqrt(p), built through the arena so it interns with everything else.
@@ -254,17 +255,6 @@ contains
         type(expr_t) :: h
         h = rat(arena, 1_8, 2_8)
     end function rat_half
-
-    !> dy_implicit is 1/(2*ty); the same quantity with ty replaced by sqrt(tp).
-    !>
-    !> Built directly rather than by a substitution pass, which fortsym does not
-    !> have yet. Stating it explicitly keeps the comparison honest: this is the
-    !> expression the theorem predicts, written out.
-    function subst_y_as_sqrt(e, pp) result(r)
-        type(expr_t), intent(in) :: e, pp
-        type(expr_t)             :: r
-        r = 1/(2*sqrt_of(pp))
-    end function subst_y_as_sqrt
 
     !> The adjoint gradient must be L_p - lambda^T R_p, with both terms present
     !> and the subtraction the right way round.

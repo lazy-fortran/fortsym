@@ -14,7 +14,7 @@ program test_fortsym_fparse
     use fortsym_expr, only: expr_t, sym, operator(+), operator(-), &
         operator(*), operator(/), operator(**), log
     use fortsym_diff, only: diff
-    use fortsym_parse, only: parse_expr
+    use fortsym_subs, only: subs
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortsym_fparse
@@ -202,7 +202,7 @@ contains
 
         ! The kernel names log(x) as logx, so substitute the definition of the
         ! temporary before comparing.
-        got = substitute_logx(got, x)
+        got = subs(got, sym(arena, "logx"), log(x))
 
         call ok("hand-written dpsi3_dx matches the symbolic derivative", &
             is_zero(got - want))
@@ -224,47 +224,10 @@ contains
         call ok("reads the wrong entry", good)
         if (.not. good) return
 
-        got = substitute_logx(got, x)
+        got = subs(got, sym(arena, "logx"), log(x))
 
         call ok("a wrong derivative is caught", .not. is_zero(got - want))
     end subroutine test_catches_a_wrong_derivative
-
-    !> Rebuild an expression with the symbol logx replaced by log(x).
-    !>
-    !> Done by reparsing rather than by a substitution pass, which fortsym does
-    !> not have yet; the kernel's text is available, so this stays honest and
-    !> small.
-    function substitute_logx(e, x) result(r)
-        type(expr_t), intent(in) :: e, x
-        type(expr_t)             :: r
-        character(:), allocatable :: text, replaced, message
-        logical :: good
-        integer :: pos
-
-        text = printed(e)
-        replaced = ""
-        do
-            pos = index(text, "logx")
-            if (pos == 0) exit
-            replaced = replaced//text(1:pos - 1)//"log(x)"
-            text = text(pos + 4:)
-        end do
-        replaced = replaced//text
-
-        r = parse_expr(arena, replaced, good, message)
-        if (.not. good) then
-            nfail = nfail + 1
-            print *, "FAIL substitution reparse: ", message
-            r = e
-        end if
-    end function substitute_logx
-
-    function printed(e) result(t)
-        use fortsym_print, only: print_expr
-        type(expr_t), intent(in)  :: e
-        character(:), allocatable :: t
-        t = chars(print_expr(e))
-    end function printed
 
     function is_zero(e) result(yes)
         type(expr_t), intent(in) :: e
