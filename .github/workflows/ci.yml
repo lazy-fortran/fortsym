@@ -1,0 +1,125 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Tier 1 only: the configuration every contributor and every consumer must be
+  # able to build. No optional engine is installed here on purpose, so a change
+  # that quietly starts depending on Maxima or SymPy fails this job.
+  cmake:
+    name: cmake + ctest (Tier 1 only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain and Tier 1 dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            g++ \
+            gfortran \
+            libflint-dev \
+            libgmp-dev \
+            libmpfr-dev \
+            libsymengine-dev \
+            ninja-build
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  # With the optional engines present, so the council actually has several
+  # voters and the cross-engine oracle is exercised. Not required: a Tier 2
+  # engine changing its output must not break the build for everyone.
+  multi-engine:
+    name: cmake + ctest (with Tier 2 engines)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain, Tier 1 and Tier 2
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            g++ \
+            gfortran \
+            libflint-dev \
+            libgmp-dev \
+            libmpfr-dev \
+            libsymengine-dev \
+            maxima \
+            ninja-build \
+            python3-sympy
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      # The council prints a per-engine benchmark table as a by-product of its
+      # own test run, so speed comparisons need no separate harness.
+      - name: Benchmark table
+        run: ./build/bin/test_fortsym_council
+
+  # Generated kernels are committed so they are reviewable in diffs and so
+  # consumers need no CAS to build. This job regenerates them and fails on any
+  # difference, which is what makes "generated code, lost generator" structurally
+  # impossible rather than merely discouraged.
+  generated-up-to-date:
+    name: generated sources are current
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain and Tier 1 dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ gfortran libflint-dev libgmp-dev libmpfr-dev \
+            libsymengine-dev ninja-build
+
+      - name: Configure and build generators
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j
+
+      - name: Regenerate and diff
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          generators=(build/bin/gen_*)
+          if [ ${#generators[@]} -eq 0 ]; then
+            echo "no generators yet; nothing to regenerate"
+            exit 0
+          fi
+          for gen in "${generators[@]}"; do
+            echo "running $gen"
+            "$gen"
+          done
+          git diff --exit-code -- src/generated
