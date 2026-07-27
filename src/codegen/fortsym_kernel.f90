@@ -54,6 +54,9 @@ module fortsym_kernel
         !> Exact command that regenerates the output. Empty retains the
         !> conventional `fo exec <generator>` command.
         type(str_t)              :: regenerate_command
+        !> Optional Fortran module wrapper. A module gives consumers an
+        !> explicit interface without maintaining a second handwritten one.
+        type(str_t)              :: module_name
     end type kernel_spec_t
 
     !> Which nodes became temporaries, and in what order they must be assigned.
@@ -369,6 +372,22 @@ contains
             return
         end if
 
+        if (len(chars(spec%module_name)) > 0) then
+            call b%append("module ")
+            call b%append(chars(spec%module_name))
+            call b%newline()
+            call b%append("    implicit none")
+            call b%newline()
+            call b%append("    private")
+            call b%newline()
+            call b%append("    public :: ")
+            call b%append(chars(spec%name))
+            call b%newline()
+            call b%append("contains")
+            call b%newline()
+            call b%newline()
+        end if
+
         call b%append("subroutine ")
         call b%append(chars(spec%name))
         call b%append("(")
@@ -403,6 +422,13 @@ contains
         call b%append("end subroutine ")
         call b%append(chars(spec%name))
         call b%newline()
+
+        if (len(chars(spec%module_name)) > 0) then
+            call b%newline()
+            call b%append("end module ")
+            call b%append(chars(spec%module_name))
+            call b%newline()
+        end if
 
         s = b%to_str()
     end function emit_kernel

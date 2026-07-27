@@ -24,6 +24,7 @@ program test_fortsym_kernel
     call test_operation_count_uses_shared_dag()
     call test_temporaries_are_declared()
     call test_explicit_regeneration_command()
+    call test_module_wrapper()
     call test_ordering_is_topological()
     call test_line_wrapping()
     call test_snippet_mode()
@@ -169,6 +170,54 @@ contains
         call ok("explicit regeneration command", &
             index(code, "Regenerate with: fpm run --example gen_k") > 0)
     end subroutine test_explicit_regeneration_command
+
+    subroutine test_module_wrapper()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+        integer :: unit, ios, stat
+
+        call a%init()
+        roots(1) = parsed(a, "x*x")
+        spec = spec_for("k", ["x"], ["r"])
+        spec%module_name = str("generated_k")
+        code = chars(emit_kernel(roots, spec))
+        call ok("module wrapper declaration", &
+            index(code, "module generated_k") > 0)
+        call ok("module wrapper exports kernel", &
+            index(code, "public :: k") > 0)
+        call ok("module wrapper contains procedures", &
+            index(code, "contains") > 0)
+        call ok("module wrapper closes", &
+            index(code, "end module generated_k") > 0)
+
+        open (newunit=unit, file="/tmp/fortsym_gen_module.f90", &
+            status="replace", action="write", iostat=ios)
+        if (ios /= 0) then
+            call ok("module wrapper fixture opens", .false.)
+            return
+        end if
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_module"
+        write (unit, "(a)") "  use generated_k, only: k"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(dp) :: r"
+        write (unit, "(a)") "  call k(3.0_dp, r)"
+        write (unit, "(a)") "  if (abs(r - 9.0_dp) > 1.0e-14_dp) error stop 1"
+        write (unit, "(a)") "end program drive_module"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -o /tmp/fortsym_gen_module /tmp/fortsym_gen_module.f90"// &
+            " > /tmp/fortsym_gen_module.log 2>&1", wait=.true., exitstat=stat)
+        call ok("module-wrapped kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_gen_module", wait=.true., &
+                exitstat=stat)
+            call ok("module-wrapped kernel runs", stat == 0)
+        end if
+    end subroutine test_module_wrapper
 
     !> A temporary must be assigned before anything uses it.
     subroutine test_ordering_is_topological()
