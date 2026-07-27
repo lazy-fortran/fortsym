@@ -41,7 +41,7 @@ Three problems this exists to solve, all drawn from real code in these repos:
 fortsym keeps the generator in the repository, regenerates it in CI, and checks
 generated code against the symbolic definition in the same test binary.
 
-## Three things it does
+## What it does
 
 **Decide identities.** A real zero-decision procedure, not a bag of rewrite
 rules: expressions go to exponential normal form, so the Pythagorean,
@@ -61,7 +61,35 @@ that is provably the same function.
 **Cross-check engines.** When several engines answer, agreement raises
 confidence and **disagreement is reported as a finding**, not averaged away: it
 means one of them is wrong. Per-engine timings fall out of normal operation, so
-the test run produces a benchmark table.
+the test run produces a benchmark table. Measured here over the same nine
+questions:
+
+| engine | decided | per call |
+|---|---|---|
+| symengine (linked) | 7/9 | 0.0001 s |
+| maxima (subprocess) | 4/9 | 0.40 s |
+| sympy (subprocess) | 4/9 | 0.38 s |
+
+**Do differential geometry.** Give it a coordinate chart and it derives the
+basis, metric, inverse metric, Jacobian, Christoffel symbols and
+grad/div/curl/laplacian. The tests assert the identities rather than stored
+answers -- `g^ik g_kj = delta`, `det g = J^2`, `curl grad = 0`, `div curl = 0` --
+which is what catches a raised index left lowered or a missing Jacobian weight.
+
+**Read Fortran back.** Point it at a source file and a variable name and it
+returns the symbolic expression that file computes, so a hand-written kernel can
+be checked against its definition without anyone transcribing the code into the
+checker by hand.
+
+**Assert, with the strength of the claim visible.** A symbolic decision and a
+numeric probe are both useful and are not the same thing:
+
+```
+PASS         pythagorean (decidable)
+PASS(probe)  gamma recurrence   [no counterexample in 98 points]
+```
+
+`check_identity` is the strict variant that refuses probe evidence.
 
 ## Build
 
