@@ -26,10 +26,15 @@ include(FetchContent)
 set(FORTSYM_YACAS_TAG "v1.9.1" CACHE STRING
     "Yacas git tag used by the fetch path")
 
-# Only the engine is wanted. The console, the Qt GUI, the Jupyter kernel and the
-# Java engine are the bulk of Yacas's build time and none of it is reachable
-# from fortsym.
-set(ENABLE_CYACAS_CONSOLE OFF CACHE BOOL "" FORCE)
+# Only the engine is wanted. The Qt GUI, the Jupyter kernel and the Java engine
+# are the bulk of Yacas's build time and none of it is reachable from fortsym.
+#
+# The console stays ON, which looks contradictory but is not: Yacas derives its
+# internal ENABLE_CYACAS from the console/GUI/kernel switches, and with all three
+# off it never adds the directory that builds libyacas at all. Turning the
+# console on is the cheapest way to get the library -- it costs one small
+# executable that nothing links against.
+set(ENABLE_CYACAS_CONSOLE ON CACHE BOOL "" FORCE)
 set(ENABLE_CYACAS_GUI OFF CACHE BOOL "" FORCE)
 set(ENABLE_CYACAS_KERNEL OFF CACHE BOOL "" FORCE)
 set(ENABLE_CYACAS_UNIT_TESTS OFF CACHE BOOL "" FORCE)
@@ -40,15 +45,27 @@ set(ENABLE_DOCS OFF CACHE BOOL "" FORCE)
 # Shared, for the LGPL relinking obligation above.
 set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
 
+# Yacas calls include(CTest), which registers its own suite against the parent
+# project. Without this, fortsym's ctest run grows from 11 tests to 64 and from
+# seconds to minutes, testing Yacas rather than fortsym. fortsym uses
+# enable_testing() and add_test() directly, so its own tests are unaffected.
+set(_fortsym_saved_build_testing "${BUILD_TESTING}")
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+
 FetchContent_Declare(yacas
     GIT_REPOSITORY https://github.com/grzegorzmazur/yacas.git
     GIT_TAG ${FORTSYM_YACAS_TAG}
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(yacas)
 
+set(BUILD_TESTING "${_fortsym_saved_build_testing}" CACHE BOOL "" FORCE)
+unset(_fortsym_saved_build_testing)
+
 add_library(fortsym_yacas INTERFACE)
+# libyacas's headers include libyacas_mp's, so both trees are needed.
 target_include_directories(fortsym_yacas SYSTEM INTERFACE
-    ${yacas_SOURCE_DIR}/cyacas/libyacas/include)
+    ${yacas_SOURCE_DIR}/cyacas/libyacas/include
+    ${yacas_SOURCE_DIR}/cyacas/libyacas_mp/include)
 target_link_libraries(fortsym_yacas INTERFACE libyacas)
 
 # Where the engine finds its script library at run time.

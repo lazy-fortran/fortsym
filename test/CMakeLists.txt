@@ -7,6 +7,13 @@ function(fortsym_add_test name source)
     add_executable(${name} ${source})
     target_link_libraries(${name} PRIVATE fortsym)
     add_test(NAME ${name} COMMAND ${name})
+    # Yacas keeps its algebra in .ys scripts and has to be told where they are.
+    # Passing it through the test environment avoids compiling the path in,
+    # which would require the Fortran preprocessor.
+    if(FORTSYM_YACAS_SCRIPTS)
+        set_tests_properties(${name} PROPERTIES
+            ENVIRONMENT "FORTSYM_YACAS_SCRIPTS=${FORTSYM_YACAS_SCRIPTS}")
+    endif()
 endfunction()
 
 # --- utilities ---
@@ -20,6 +27,7 @@ fortsym_add_test(test_fortsym_roundtrip io/test_fortsym_roundtrip.f90)
 
 # --- engines ---
 fortsym_add_test(test_fortsym_identities engine/test_fortsym_identities.f90)
+fortsym_add_test(test_fortsym_yacas engine/test_fortsym_yacas.f90)
 
 # --- multi-engine adjudication ---
 fortsym_add_test(test_fortsym_council council/test_fortsym_council.f90)

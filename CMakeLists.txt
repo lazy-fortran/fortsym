@@ -29,9 +29,9 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_Fortran_STANDARD 2018)
 set(CMAKE_Fortran_STANDARD_REQUIRED ON)
 
-# SymEngine's headers require C++11 at minimum; its own config reports the
-# standard it was compiled against.
-set(CMAKE_CXX_STANDARD 14)
+# C++17 is the floor: Yacas's multiprecision headers use std::string_view, and
+# SymEngine is happy at any standard from 11 upward.
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
@@ -42,6 +42,7 @@ set(CMAKE_Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 include(cmake/deps/symengine.cmake)
+include(cmake/deps/yacas.cmake)
 
 add_subdirectory(src)
 

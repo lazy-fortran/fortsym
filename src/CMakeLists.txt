@@ -5,6 +5,7 @@ add_library(fortsym STATIC)
 target_sources(fortsym PRIVATE
     # C ABI over SymEngine
     capi/fsym_shim.cpp
+    capi/fsym_yacas.cpp
     capi/fortsym_capi.f90
 
     # utilities
@@ -23,6 +24,7 @@ target_sources(fortsym PRIVATE
     engine/fortsym_engine.f90
     engine/fortsym_engine_symengine.f90
     engine/fortsym_engine_ext.f90
+    engine/fortsym_engine_yacas.f90
     engine/fortsym_proc.f90
 
     # multi-engine adjudication
@@ -49,6 +51,14 @@ target_include_directories(fortsym
     PRIVATE ${PROJECT_SOURCE_DIR}/src/capi)
 
 target_link_libraries(fortsym PUBLIC fortsym::symengine)
+
+# Yacas is optional at configure time; when present its shim and backend join
+# the library and the scripts path is compiled in.
+if(TARGET fortsym::yacas)
+    target_link_libraries(fortsym PUBLIC fortsym::yacas)
+    set_property(SOURCE capi/fsym_yacas.cpp APPEND PROPERTY
+        COMPILE_DEFINITIONS FORTSYM_HAVE_YACAS)
+endif()
 
 # The C++ shim pulls in the C++ runtime; a Fortran-driven link needs it named
 # explicitly because the linker is invoked by gfortran, not g++.
