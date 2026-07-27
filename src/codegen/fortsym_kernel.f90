@@ -13,15 +13,15 @@ module fortsym_kernel
     ! variable into a fresh zero. Every temporary here is declared.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, strbuf_t, str, chars
-    use fortsym_arena, only: arena_t, NK_INT, NK_ADD, NK_MUL, NK_POW, NK_FUNC
+    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_ADD, NK_MUL, NK_POW, NK_FUNC
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
     use fortsym_print, only: print_expr_sub
     implicit none
     private
 
-    public :: kernel_spec_t, cse_result_t
-    public :: cse_analyse, emit_kernel, emit_statements
+    public :: kernel_spec_t, cse_result_t, operation_count_t
+    public :: cse_analyse, count_operations, emit_kernel, emit_statements
     public :: KERNEL_SUBROUTINE, KERNEL_SNIPPET
 
     integer, parameter :: dp = real64
@@ -60,7 +60,76 @@ module fortsym_kernel
         integer                  :: n = 0
     end type cse_result_t
 
+    !> Arithmetic work represented by an emitted expression DAG. Counts are
+    !> structural and deterministic: a hash-consed node is counted once even
+    !> when several outputs share it, matching the work after CSE. They are
+    !> metadata for comparing generated variants, never a substitute for
+    !> measured runtime.
+    type :: operation_count_t
+        integer :: additions = 0
+        integer :: multiplications = 0
+        integer :: divisions = 0
+        integer :: powers = 0
+        integer :: functions = 0
+        integer :: total = 0
+    end type operation_count_t
+
 contains
+
+    !> Count distinct arithmetic nodes across all roots. An n-ary canonical
+    !> sum or product costs n-1 binary operations. Negative integer powers are
+    !> printed as divisions and are therefore classified as divisions rather
+    !> than powers.
+    function count_operations(roots) result(counts)
+        type(expr_t), intent(in) :: roots(:)
+        type(operation_count_t) :: counts
+
+        logical, allocatable :: visited(:)
+        type(arena_t), pointer :: a
+        integer :: k
+
+        if (size(roots) == 0) return
+        a => roots(1)%a
+        allocate (visited(a%size()), source=.false.)
+        do k = 1, size(roots)
+            call count_node(a, roots(k)%id, visited, counts)
+        end do
+        counts%total = counts%additions + counts%multiplications + &
+            counts%divisions + counts%powers + counts%functions
+    end function count_operations
+
+    recursive subroutine count_node(a, id, visited, counts)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical, intent(inout) :: visited(:)
+        type(operation_count_t), intent(inout) :: counts
+        integer :: k, kind
+
+        if (visited(id)) return
+        visited(id) = .true.
+        do k = 1, a%nargs_of(id)
+            call count_node(a, a%arg_of(id, k), visited, counts)
+        end do
+
+        kind = a%kind_of(id)
+        select case (kind)
+        case (NK_RAT)
+            if (a%den_of(id) /= 1) counts%divisions = counts%divisions + 1
+        case (NK_ADD)
+            counts%additions = counts%additions + max(0, a%nargs_of(id) - 1)
+        case (NK_MUL)
+            counts%multiplications = counts%multiplications + &
+                max(0, a%nargs_of(id) - 1)
+        case (NK_POW)
+            if (is_reciprocal_power(a, id)) then
+                counts%divisions = counts%divisions + 1
+            else
+                counts%powers = counts%powers + 1
+            end if
+        case (NK_FUNC)
+            counts%functions = counts%functions + 1
+        end select
+    end subroutine count_node
 
     !> Decide which shared subexpressions deserve a temporary, and order the
     !> assignments so every temporary is defined before it is used.

@@ -21,6 +21,7 @@ program test_fortsym_kernel
 
     call test_cse_finds_sharing()
     call test_cse_skips_atoms()
+    call test_operation_count_uses_shared_dag()
     call test_temporaries_are_declared()
     call test_ordering_is_topological()
     call test_line_wrapping()
@@ -113,6 +114,25 @@ contains
         end do
         call ok("atoms are not given temporaries", .not. named_an_atom)
     end subroutine test_cse_skips_atoms
+
+    subroutine test_operation_count_uses_shared_dag()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(2)
+        type(operation_count_t) :: counts
+
+        call a%init()
+        ! x*y is shared by both roots and must be charged once. The independent
+        ! expected work is one multiplication, one addition, and two function
+        ! calls: sin(x*y) + exp(x*y).
+        roots(1) = parsed(a, "sin(x*y)")
+        roots(2) = parsed(a, "sin(x*y) + exp(x*y)")
+
+        counts = count_operations(roots)
+        call ok("operation count additions", counts%additions == 1)
+        call ok("operation count multiplications", counts%multiplications == 1)
+        call ok("operation count functions", counts%functions == 2)
+        call ok("operation count total", counts%total == 4)
+    end subroutine test_operation_count_uses_shared_dag
 
     subroutine test_temporaries_are_declared()
         type(arena_t), target :: a
