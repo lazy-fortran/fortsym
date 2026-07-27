@@ -9,6 +9,10 @@ target_sources(fortsym PRIVATE
 
     # utilities
     util/fortsym_string.f90
+
+    # core representation
+    core/fortsym_arena.f90
+    core/fortsym_expr.f90
 )
 
 target_include_directories(fortsym

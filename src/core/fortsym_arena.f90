@@ -1,0 +1,608 @@
+module fortsym_arena
+    ! The expression store: a hash-consed directed acyclic graph.
+    !
+    ! fortsym owns its own representation rather than borrowing an engine's.
+    ! That is what lets the frontend stay engine-agnostic: SymEngine, Yacas,
+    ! SymPy and Maxima are all backends that convert to and from this, and none
+    ! of their data models reaches the public API.
+    !
+    ! Nodes live in one flat array and are referred to by integer index, never
+    ! by pointer. Three consequences make the rest of fortsym simpler:
+    !
+    !   - Copying an expression copies an integer.
+    !   - Every node is interned, so structurally identical subtrees are stored
+    !     once and share an index. Equality is therefore an integer comparison
+    !     rather than a tree walk, and common subexpression elimination becomes
+    !     a counting pass over existing sharing instead of a search for it.
+    !   - There are no cycles to worry about and nothing to finalize per node.
+    !
+    ! Canonicalization is deliberately shallow. Sums and products are flattened
+    ! and their operands sorted, so x+y and y+x intern to the same node, but no
+    ! attempt is made to collect like terms or simplify. Algebra is the engines'
+    ! job; this layer only has to be a faithful, shared, comparable structure.
+    use, intrinsic :: iso_fortran_env, only: int64, real64
+    use fortsym_string, only: str_t, str, chars
+    implicit none
+    private
+
+    public :: arena_t
+    public :: NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, &
+        NK_POW, NK_FUNC
+    public :: node_kind_name
+
+    integer, parameter :: dp = real64
+
+    !> Node kinds. NK_CONST covers named exact constants (pi, e, i) that must not
+    !> decay into a floating literal on the way through a backend.
+    integer, parameter :: NK_INT = 1
+    integer, parameter :: NK_RAT = 2
+    integer, parameter :: NK_REAL = 3
+    integer, parameter :: NK_SYM = 4
+    integer, parameter :: NK_CONST = 5
+    integer, parameter :: NK_ADD = 6
+    integer, parameter :: NK_MUL = 7
+    integer, parameter :: NK_POW = 8
+    integer, parameter :: NK_FUNC = 9
+
+    integer, parameter :: INITIAL_NODES = 256
+    integer, parameter :: INITIAL_ARGS = 512
+    integer, parameter :: INITIAL_NAMES = 32
+    !> Bucket count is a power of two so the modulo is a mask.
+    integer, parameter :: INITIAL_BUCKETS = 1024
+
+    !> One node. Fixed-size components only: no allocatable parts, so the node
+    !> array grows with a plain copy and needs no per-element finalization.
+    type :: node_t
+        integer        :: kind = 0
+        integer(int64) :: num = 0_int64 !< NK_INT value, NK_RAT numerator
+        integer(int64) :: den = 1_int64 !< NK_RAT denominator, always > 0
+        real(dp)       :: rval = 0.0_dp !< NK_REAL value
+        integer        :: name = 0 !< index into the name table
+        integer        :: first_arg = 0 !< start of this node's slice of args
+        integer        :: n_args = 0
+        integer(int64) :: hash = 0_int64
+        integer        :: next = 0 !< next node in the same hash bucket
+    end type node_t
+
+    type :: arena_t
+        type(node_t), allocatable :: nodes(:)
+        integer                   :: n_nodes = 0
+        !> Flattened child indices; a node owns args(first_arg : first_arg+n_args-1).
+        integer,      allocatable :: args(:)
+        integer                   :: n_args = 0
+        type(str_t),  allocatable :: names(:)
+        integer                   :: n_names = 0
+        integer,      allocatable :: buckets(:)
+    contains
+        procedure :: init => arena_init
+        procedure :: clear => arena_clear
+        procedure :: size => arena_size
+
+        procedure :: int => arena_int
+        procedure :: rat => arena_rat
+        procedure :: real => arena_real
+        procedure :: sym => arena_sym
+        procedure :: const => arena_const
+        procedure :: add => arena_add
+        procedure :: mul => arena_mul
+        procedure :: pow => arena_pow
+        procedure :: func => arena_func
+
+        procedure :: kind_of => arena_kind_of
+        procedure :: num_of => arena_num_of
+        procedure :: den_of => arena_den_of
+        procedure :: real_of => arena_real_of
+        procedure :: name_of => arena_name_of
+        procedure :: nargs_of => arena_nargs_of
+        procedure :: arg_of => arena_arg_of
+        procedure :: node_count => arena_node_count
+    end type arena_t
+
+contains
+
+    pure function node_kind_name(kind) result(s)
+        integer, intent(in) :: kind
+        type(str_t)         :: s
+        select case (kind)
+        case (NK_INT);   s = str("integer")
+        case (NK_RAT);   s = str("rational")
+        case (NK_REAL);  s = str("real")
+        case (NK_SYM);   s = str("symbol")
+        case (NK_CONST); s = str("constant")
+        case (NK_ADD);   s = str("add")
+        case (NK_MUL);   s = str("mul")
+        case (NK_POW);   s = str("pow")
+        case (NK_FUNC);  s = str("function")
+        case default;    s = str("unknown")
+        end select
+    end function node_kind_name
+
+    ! ------------------------------------------------------- arena setup --
+
+    subroutine arena_init(self)
+        class(arena_t), intent(inout) :: self
+        call arena_clear(self)
+        allocate (self%nodes(INITIAL_NODES))
+        allocate (self%args(INITIAL_ARGS))
+        allocate (self%names(INITIAL_NAMES))
+        allocate (self%buckets(INITIAL_BUCKETS), source=0)
+        self%n_nodes = 0
+        self%n_args = 0
+        self%n_names = 0
+    end subroutine arena_init
+
+    subroutine arena_clear(self)
+        class(arena_t), intent(inout) :: self
+        if (allocated(self%nodes)) deallocate (self%nodes)
+        if (allocated(self%args)) deallocate (self%args)
+        if (allocated(self%names)) deallocate (self%names)
+        if (allocated(self%buckets)) deallocate (self%buckets)
+        self%n_nodes = 0
+        self%n_args = 0
+        self%n_names = 0
+    end subroutine arena_clear
+
+    pure function arena_size(self) result(n)
+        class(arena_t), intent(in) :: self
+        integer                    :: n
+        n = self%n_nodes
+    end function arena_size
+
+    !> Ensure the arena is usable even if the caller forgot to call init. A CAS
+    !> is used interactively often enough that failing on a missing init would
+    !> be a needless sharp edge.
+    subroutine ensure_ready(self)
+        class(arena_t), intent(inout) :: self
+        if (.not. allocated(self%nodes)) call arena_init(self)
+    end subroutine ensure_ready
+
+    ! ------------------------------------------------------------ growth --
+
+    subroutine grow_nodes(self)
+        class(arena_t), intent(inout) :: self
+        type(node_t), allocatable :: bigger(:)
+        if (self%n_nodes < size(self%nodes)) return
+        allocate (bigger(size(self%nodes)*2))
+        bigger(1:self%n_nodes) = self%nodes(1:self%n_nodes)
+        call move_alloc(bigger, self%nodes)
+    end subroutine grow_nodes
+
+    subroutine grow_args(self, needed)
+        class(arena_t), intent(inout) :: self
+        integer,        intent(in)    :: needed
+        integer, allocatable :: bigger(:)
+        integer :: cap
+        if (self%n_args + needed <= size(self%args)) return
+        cap = size(self%args)
+        do while (cap < self%n_args + needed)
+            cap = cap*2
+        end do
+        allocate (bigger(cap), source=0)
+        bigger(1:self%n_args) = self%args(1:self%n_args)
+        call move_alloc(bigger, self%args)
+    end subroutine grow_args
+
+    ! ------------------------------------------------------- name table --
+
+    !> Intern a name, returning its index. Names are few (the symbols and
+    !> function heads of one problem), so a linear scan beats a second hash
+    !> table here.
+    function intern_name(self, name) result(id)
+        class(arena_t), intent(inout) :: self
+        character(*),   intent(in)    :: name
+        integer                       :: id
+        type(str_t), allocatable :: bigger(:)
+        integer :: i
+
+        do i = 1, self%n_names
+            if (chars(self%names(i)) == name) then
+                if (len(chars(self%names(i))) == len(name)) then
+                    id = i
+                    return
+                end if
+            end if
+        end do
+
+        if (self%n_names >= size(self%names)) then
+            allocate (bigger(size(self%names)*2))
+            bigger(1:self%n_names) = self%names(1:self%n_names)
+            call move_alloc(bigger, self%names)
+        end if
+
+        self%n_names = self%n_names + 1
+        self%names(self%n_names) = str(name)
+        id = self%n_names
+    end function intern_name
+
+    ! ------------------------------------------------------------ hashing --
+
+    !> FNV-1a over the fields that define a node. Any two nodes that must be
+    !> considered identical have to hash the same, so this mixes exactly the
+    !> fields that node_equal compares.
+    pure function mix(h, v) result(r)
+        integer(int64), intent(in) :: h, v
+        integer(int64)             :: r
+        integer(int64), parameter :: PRIME = 1099511628211_int64
+        r = ieor(h, v)*PRIME
+    end function mix
+
+    pure function hash_fields(kind, num, den, rval, name, argv) result(h)
+        integer,        intent(in) :: kind
+        integer(int64), intent(in) :: num, den
+        real(dp),       intent(in) :: rval
+        integer,        intent(in) :: name
+        integer,        intent(in) :: argv(:)
+        integer(int64)             :: h
+        integer(int64), parameter :: OFFSET = -3750763034362895579_int64
+        integer :: i
+
+        h = OFFSET
+        h = mix(h, int(kind, int64))
+        h = mix(h, num)
+        h = mix(h, den)
+        h = mix(h, transfer(rval, 0_int64))
+        h = mix(h, int(name, int64))
+        do i = 1, size(argv)
+            h = mix(h, int(argv(i), int64))
+        end do
+    end function hash_fields
+
+    pure function bucket_of(self, h) result(b)
+        class(arena_t), intent(in) :: self
+        integer(int64), intent(in) :: h
+        integer                    :: b
+        ! Bucket count is a power of two, so masking replaces a modulo. The
+        ! shift first discards the low bits, which FNV mixes least.
+        b = int(iand(ishft(h, -13), int(size(self%buckets) - 1, int64))) + 1
+    end function bucket_of
+
+    !> Structural identity for interning.
+    pure function node_equal(self, idx, kind, num, den, rval, name, argv) &
+            result(same)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: idx, kind, name
+        integer(int64), intent(in) :: num, den
+        real(dp),       intent(in) :: rval
+        integer,        intent(in) :: argv(:)
+        logical                    :: same
+        integer :: i
+
+        same = .false.
+        if (self%nodes(idx)%kind /= kind) return
+        if (self%nodes(idx)%n_args /= size(argv)) return
+        if (self%nodes(idx)%name /= name) return
+        if (self%nodes(idx)%num /= num) return
+        if (self%nodes(idx)%den /= den) return
+        ! Bit comparison, not numeric: interning must not fuse two distinct
+        ! literals, and it must keep -0.0 and 0.0 apart because they print
+        ! differently in generated code.
+        if (transfer(self%nodes(idx)%rval, 0_int64) /= transfer(rval, 0_int64)) &
+            return
+
+        do i = 1, size(argv)
+            if (self%args(self%nodes(idx)%first_arg + i - 1) /= argv(i)) return
+        end do
+
+        same = .true.
+    end function node_equal
+
+    !> Return the index of a node with these fields, creating it only if no
+    !> identical node exists. This is the single point where nodes are made.
+    function intern(self, kind, num, den, rval, name, argv) result(idx)
+        class(arena_t), intent(inout) :: self
+        integer,        intent(in)    :: kind, name
+        integer(int64), intent(in)    :: num, den
+        real(dp),       intent(in)    :: rval
+        integer,        intent(in)    :: argv(:)
+        integer                       :: idx
+        integer(int64) :: h
+        integer :: b, cur, i
+
+        call ensure_ready(self)
+
+        h = hash_fields(kind, num, den, rval, name, argv)
+        b = bucket_of(self, h)
+
+        cur = self%buckets(b)
+        do while (cur /= 0)
+            if (self%nodes(cur)%hash == h) then
+                if (node_equal(self, cur, kind, num, den, rval, name, argv)) then
+                    idx = cur
+                    return
+                end if
+            end if
+            cur = self%nodes(cur)%next
+        end do
+
+        call grow_nodes(self)
+        call grow_args(self, size(argv))
+
+        self%n_nodes = self%n_nodes + 1
+        idx = self%n_nodes
+
+        self%nodes(idx)%kind = kind
+        self%nodes(idx)%num = num
+        self%nodes(idx)%den = den
+        self%nodes(idx)%rval = rval
+        self%nodes(idx)%name = name
+        self%nodes(idx)%hash = h
+        self%nodes(idx)%n_args = size(argv)
+        self%nodes(idx)%first_arg = self%n_args + 1
+
+        do i = 1, size(argv)
+            self%args(self%n_args + i) = argv(i)
+        end do
+        self%n_args = self%n_args + size(argv)
+
+        ! Chain onto the bucket. Prepending keeps insertion O(1); lookup walks
+        ! the chain and compares the full hash before the field-by-field test.
+        self%nodes(idx)%next = self%buckets(b)
+        self%buckets(b) = idx
+    end function intern
+
+    ! ------------------------------------------------------ constructors --
+
+    function arena_int(self, value) result(idx)
+        class(arena_t), intent(inout) :: self
+        integer(int64), intent(in)    :: value
+        integer                       :: idx
+        integer :: none(0)
+        idx = intern(self, NK_INT, value, 1_int64, 0.0_dp, 0, none)
+    end function arena_int
+
+    !> Rational, stored in lowest terms with a positive denominator so that
+    !> 2/4, 1/2 and -1/-2 all intern to one node.
+    function arena_rat(self, numer, denom) result(idx)
+        class(arena_t), intent(inout) :: self
+        integer(int64), intent(in)    :: numer, denom
+        integer                       :: idx
+        integer(int64) :: n, d, g
+        integer :: none(0)
+
+        n = numer
+        d = denom
+        if (d == 0_int64) then
+            ! A zero denominator has no node. Callers get the integer zero
+            ! rather than a poisoned arena; division by zero is diagnosed at the
+            ! operator level where there is a status channel to report it.
+            idx = arena_int(self, 0_int64)
+            return
+        end if
+        if (d < 0_int64) then
+            n = -n
+            d = -d
+        end if
+        g = gcd_i64(abs(n), d)
+        if (g > 1_int64) then
+            n = n/g
+            d = d/g
+        end if
+        if (d == 1_int64) then
+            idx = arena_int(self, n)
+        else
+            idx = intern(self, NK_RAT, n, d, 0.0_dp, 0, none)
+        end if
+    end function arena_rat
+
+    pure function gcd_i64(a, b) result(g)
+        integer(int64), intent(in) :: a, b
+        integer(int64)             :: g
+        integer(int64) :: x, y, t
+        x = a
+        y = b
+        do while (y /= 0_int64)
+            t = mod(x, y)
+            x = y
+            y = t
+        end do
+        g = abs(x)
+    end function gcd_i64
+
+    function arena_real(self, value) result(idx)
+        class(arena_t), intent(inout) :: self
+        real(dp),       intent(in)    :: value
+        integer                       :: idx
+        integer :: none(0)
+        idx = intern(self, NK_REAL, 0_int64, 1_int64, value, 0, none)
+    end function arena_real
+
+    function arena_sym(self, name) result(idx)
+        class(arena_t), intent(inout) :: self
+        character(*),   intent(in)    :: name
+        integer                       :: idx
+        integer :: none(0), id
+        id = intern_name(self, name)
+        idx = intern(self, NK_SYM, 0_int64, 1_int64, 0.0_dp, id, none)
+    end function arena_sym
+
+    function arena_const(self, name) result(idx)
+        class(arena_t), intent(inout) :: self
+        character(*),   intent(in)    :: name
+        integer                       :: idx
+        integer :: none(0), id
+        id = intern_name(self, name)
+        idx = intern(self, NK_CONST, 0_int64, 1_int64, 0.0_dp, id, none)
+    end function arena_const
+
+    !> Sum. Nested sums are flattened and operands sorted, so that x+(y+z),
+    !> (x+y)+z and z+y+x all reach the same node.
+    function arena_add(self, operands) result(idx)
+        class(arena_t), intent(inout) :: self
+        integer,        intent(in)    :: operands(:)
+        integer                       :: idx
+        integer, allocatable :: flat(:)
+        call flatten(self, operands, NK_ADD, flat)
+        if (size(flat) == 1) then
+            idx = flat(1)
+            return
+        end if
+        call sort_indices(flat)
+        idx = intern(self, NK_ADD, 0_int64, 1_int64, 0.0_dp, 0, flat)
+    end function arena_add
+
+    function arena_mul(self, operands) result(idx)
+        class(arena_t), intent(inout) :: self
+        integer,        intent(in)    :: operands(:)
+        integer                       :: idx
+        integer, allocatable :: flat(:)
+        call flatten(self, operands, NK_MUL, flat)
+        if (size(flat) == 1) then
+            idx = flat(1)
+            return
+        end if
+        call sort_indices(flat)
+        idx = intern(self, NK_MUL, 0_int64, 1_int64, 0.0_dp, 0, flat)
+    end function arena_mul
+
+    !> Splice any operand that is itself an `outer` node into the operand list,
+    !> so associativity never produces two shapes for one expression.
+    subroutine flatten(self, operands, outer, flat)
+        class(arena_t),       intent(in)  :: self
+        integer,              intent(in)  :: operands(:), outer
+        integer, allocatable, intent(out) :: flat(:)
+        integer :: i, j, n
+
+        n = 0
+        do i = 1, size(operands)
+            if (self%nodes(operands(i))%kind == outer) then
+                n = n + self%nodes(operands(i))%n_args
+            else
+                n = n + 1
+            end if
+        end do
+
+        allocate (flat(n))
+        n = 0
+        do i = 1, size(operands)
+            if (self%nodes(operands(i))%kind == outer) then
+                do j = 1, self%nodes(operands(i))%n_args
+                    n = n + 1
+                    flat(n) = self%args(self%nodes(operands(i))%first_arg + j - 1)
+                end do
+            else
+                n = n + 1
+                flat(n) = operands(i)
+            end if
+        end do
+    end subroutine flatten
+
+    !> Insertion sort on node indices. Operand lists are short -- a handful of
+    !> terms -- so this beats anything with more bookkeeping.
+    pure subroutine sort_indices(v)
+        integer, intent(inout) :: v(:)
+        integer :: i, j, key
+        do i = 2, size(v)
+            key = v(i)
+            j = i - 1
+            do while (j >= 1)
+                if (v(j) <= key) exit
+                v(j + 1) = v(j)
+                j = j - 1
+            end do
+            v(j + 1) = key
+        end do
+    end subroutine sort_indices
+
+    !> Power is binary and non-commutative, so operands keep their order.
+    function arena_pow(self, base, expo) result(idx)
+        class(arena_t), intent(inout) :: self
+        integer,        intent(in)    :: base, expo
+        integer                       :: idx
+        idx = intern(self, NK_POW, 0_int64, 1_int64, 0.0_dp, 0, [base, expo])
+    end function arena_pow
+
+    !> Function application. Arguments keep their order: f(x,y) is not f(y,x).
+    function arena_func(self, name, fargs) result(idx)
+        class(arena_t), intent(inout) :: self
+        character(*),   intent(in)    :: name
+        integer,        intent(in)    :: fargs(:)
+        integer                       :: idx
+        integer :: id
+        id = intern_name(self, name)
+        idx = intern(self, NK_FUNC, 0_int64, 1_int64, 0.0_dp, id, fargs)
+    end function arena_func
+
+    ! ---------------------------------------------------------- accessors --
+
+    pure function arena_kind_of(self, idx) result(k)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: idx
+        integer                    :: k
+        k = self%nodes(idx)%kind
+    end function arena_kind_of
+
+    pure function arena_num_of(self, idx) result(v)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: idx
+        integer(int64)             :: v
+        v = self%nodes(idx)%num
+    end function arena_num_of
+
+    pure function arena_den_of(self, idx) result(v)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: idx
+        integer(int64)             :: v
+        v = self%nodes(idx)%den
+    end function arena_den_of
+
+    pure function arena_real_of(self, idx) result(v)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: idx
+        real(dp)                   :: v
+        v = self%nodes(idx)%rval
+    end function arena_real_of
+
+    pure function arena_name_of(self, idx) result(s)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: idx
+        type(str_t)                :: s
+        if (self%nodes(idx)%name > 0) then
+            s = self%names(self%nodes(idx)%name)
+        else
+            s = str("")
+        end if
+    end function arena_name_of
+
+    pure function arena_nargs_of(self, idx) result(n)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: idx
+        integer                    :: n
+        n = self%nodes(idx)%n_args
+    end function arena_nargs_of
+
+    pure function arena_arg_of(self, idx, k) result(a)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: idx, k
+        integer                    :: a
+        a = self%args(self%nodes(idx)%first_arg + k - 1)
+    end function arena_arg_of
+
+    !> Number of distinct nodes reachable from idx. Because the graph is
+    !> hash-consed this counts shared subtrees once, which makes it a measure of
+    !> the work a generated kernel does rather than of how the expression
+    !> happens to be written.
+    function arena_node_count(self, idx) result(n)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: idx
+        integer                    :: n
+        logical, allocatable :: seen(:)
+        allocate (seen(self%n_nodes), source=.false.)
+        n = 0
+        call visit(self, idx, seen, n)
+    end function arena_node_count
+
+    recursive subroutine visit(self, idx, seen, n)
+        class(arena_t), intent(in)    :: self
+        integer,        intent(in)    :: idx
+        logical,        intent(inout) :: seen(:)
+        integer,        intent(inout) :: n
+        integer :: i
+        if (seen(idx)) return
+        seen(idx) = .true.
+        n = n + 1
+        do i = 1, self%nodes(idx)%n_args
+            call visit(self, self%args(self%nodes(idx)%first_arg + i - 1), seen, n)
+        end do
+    end subroutine visit
+
+end module fortsym_arena
