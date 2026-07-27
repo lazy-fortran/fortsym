@@ -32,6 +32,7 @@ fortsym_add_test(test_fortsym_check verify/test_fortsym_check.f90)
 
 # --- differential geometry ---
 fortsym_add_test(test_fortsym_chart calculus/test_fortsym_chart.f90)
+fortsym_add_test(test_fortsym_products calculus/test_fortsym_products.f90)
 
 # --- reading Fortran back ---
 fortsym_add_test(test_fortsym_fparse parse_fortran/test_fortsym_fparse.f90)
