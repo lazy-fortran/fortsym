@@ -25,6 +25,7 @@ program test_fortsym_kernel
     call test_temporaries_are_declared()
     call test_explicit_regeneration_command()
     call test_module_wrapper()
+    call test_openacc_routine()
     call test_ordering_is_topological()
     call test_line_wrapping()
     call test_snippet_mode()
@@ -219,6 +220,21 @@ contains
             call ok("module-wrapped kernel runs", stat == 0)
         end if
     end subroutine test_module_wrapper
+
+    subroutine test_openacc_routine()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+
+        call a%init()
+        roots(1) = parsed(a, "x*x")
+        spec = spec_for("k", ["x"], ["r"])
+        spec%openacc_routine_seq = .true.
+        code = chars(emit_kernel(roots, spec))
+        call ok("OpenACC routine directive", &
+            index(code, "!$acc routine seq") > 0)
+    end subroutine test_openacc_routine
 
     !> A temporary must be assigned before anything uses it.
     subroutine test_ordering_is_topological()

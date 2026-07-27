@@ -57,6 +57,8 @@ module fortsym_kernel
         !> Optional Fortran module wrapper. A module gives consumers an
         !> explicit interface without maintaining a second handwritten one.
         type(str_t)              :: module_name
+        !> Mark a generated leaf kernel for sequential OpenACC device calls.
+        logical                  :: openacc_routine_seq = .false.
     end type kernel_spec_t
 
     !> Which nodes became temporaries, and in what order they must be assigned.
@@ -419,6 +421,10 @@ contains
         call b%append(")")
         call b%newline()
 
+        if (spec%openacc_routine_seq) then
+            call b%append("    !$acc routine seq")
+            call b%newline()
+        end if
         call b%append("    use, intrinsic :: iso_fortran_env, only: dp => real64")
         call b%newline()
         call b%append("    implicit none")
