@@ -1,10 +1,12 @@
 program test_fortsym_enzyme
     use fortsym_string, only: str, chars
-    use fortsym_enzyme, only: enzyme_scalar_wrapper_spec_t, &
+    use fortsym_enzyme, only: enzyme_scalar_vector_wrapper_spec_t, &
+        enzyme_scalar_wrapper_spec_t, emit_enzyme_scalar_vector_wrapper, &
         emit_enzyme_scalar_wrapper
     implicit none
 
     type(enzyme_scalar_wrapper_spec_t) :: spec
+    type(enzyme_scalar_vector_wrapper_spec_t) :: vector_spec
     character(:), allocatable :: source
     integer :: failures
 
@@ -49,6 +51,25 @@ program test_fortsym_enzyme
     call check(index(source, "call record_custom_rule()") > 0, &
         "shared custom-rule counter hook")
     call compile_source(source, "four")
+
+    vector_spec%module_name = str("generated_scalar_vector")
+    vector_spec%wrapper_prefix = str("scalar_vector")
+    vector_spec%primal_symbol = str("test_scalar_vector_primal")
+    vector_spec%vector_size = 4
+    vector_spec%generator = str("test_fortsym_enzyme")
+    vector_spec%generator_revision = str("test-revision")
+    vector_spec%regenerate_command = str("fo test test_fortsym_enzyme")
+    source = chars(emit_enzyme_scalar_vector_wrapper(vector_spec))
+    call check(index(source, &
+        "function scalar_vector_jvp(x, values, tangent, dvalues)") > 0, &
+        "scalar-vector JVP")
+    call check(index(source, &
+        "subroutine scalar_vector_vjp(x, values, cotangent, xbar, values_bar)") &
+        > 0, "scalar-vector VJP")
+    call check(index(source, &
+        "real(c_double), intent(in) :: values(4)") > 0, &
+        "scalar-vector fixed extent")
+    call compile_source(source, "scalar_vector")
 
     if (failures > 0) error stop "fortsym Enzyme wrapper tests failed"
 

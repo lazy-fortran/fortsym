@@ -16,9 +16,178 @@ module fortsym_enzyme
         type(str_t) :: regenerate_command
     end type enzyme_scalar_wrapper_spec_t
 
+    type, public :: enzyme_scalar_vector_wrapper_spec_t
+        type(str_t) :: module_name
+        type(str_t) :: wrapper_prefix
+        type(str_t) :: primal_symbol
+        integer :: vector_size = 1
+        type(str_t) :: generator
+        type(str_t) :: generator_revision
+        type(str_t) :: regenerate_command
+    end type enzyme_scalar_vector_wrapper_spec_t
+
+    public :: emit_enzyme_scalar_vector_wrapper
     public :: emit_enzyme_scalar_wrapper
 
 contains
+
+    function emit_enzyme_scalar_vector_wrapper(spec) result(source)
+        type(enzyme_scalar_vector_wrapper_spec_t), intent(in) :: spec
+        type(str_t) :: source
+        type(strbuf_t) :: buffer
+        character(:), allocatable :: module_name, prefix, primal
+
+        call validate_scalar_vector_spec(spec)
+        module_name = chars(spec%module_name)
+        prefix = chars(spec%wrapper_prefix)
+        primal = chars(spec%primal_symbol)
+        call append_scalar_vector_banner(buffer, spec)
+        call append_line(buffer, "module "//module_name)
+        call append_line(buffer, &
+            "    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr")
+        call append_line(buffer, "    implicit none")
+        call append_line(buffer, "    private")
+        call buffer%newline()
+        call append_line(buffer, "    public :: "//prefix//"_jvp, "//prefix//"_vjp")
+        call buffer%newline()
+        call append_line(buffer, "    interface")
+        call append_line(buffer, &
+            "        function primal(x, values) result(value) bind(c, name="""// &
+            primal//""")")
+        call append_line(buffer, "            import :: c_double")
+        call append_line(buffer, "            real(c_double) :: value")
+        call append_line(buffer, "            real(c_double), intent(in) :: x, values(*)")
+        call append_line(buffer, "        end function primal")
+        call buffer%newline()
+        call append_line(buffer, &
+            "        function enzyme_fwddiff(function_pointer, x, tangent, values, dvalues) result(derivative) &")
+        call append_line(buffer, &
+            "                bind(c, name=""__enzyme_fwddiff"")")
+        call append_line(buffer, "            import :: c_double, c_funptr")
+        call append_line(buffer, &
+            "            type(c_funptr), value :: function_pointer")
+        call append_line(buffer, &
+            "            real(c_double), intent(in) :: x, tangent, values(*), dvalues(*)")
+        call append_line(buffer, "            real(c_double) :: derivative")
+        call append_line(buffer, "        end function enzyme_fwddiff")
+        call buffer%newline()
+        call append_line(buffer, &
+            "        function enzyme_autodiff(function_pointer, x, xbar, values, values_bar) result(value) &")
+        call append_line(buffer, &
+            "                bind(c, name=""__enzyme_autodiff"")")
+        call append_line(buffer, "            import :: c_double, c_funptr")
+        call append_line(buffer, &
+            "            type(c_funptr), value :: function_pointer")
+        call append_line(buffer, "            real(c_double), intent(in) :: x")
+        call append_line(buffer, "            real(c_double), intent(inout) :: xbar")
+        call append_line(buffer, "            real(c_double), intent(in) :: values(*)")
+        call append_line(buffer, &
+            "            real(c_double), intent(inout) :: values_bar(*)")
+        call append_line(buffer, "            real(c_double) :: value")
+        call append_line(buffer, "        end function enzyme_autodiff")
+        call append_line(buffer, "    end interface")
+        call buffer%newline()
+        call append_line(buffer, "contains")
+        call buffer%newline()
+        call append_line(buffer, "    function "//prefix// &
+            "_jvp(x, values, tangent, dvalues) result(derivative)")
+        call append_line(buffer, &
+            "        use, intrinsic :: iso_c_binding, only: c_double, c_funloc")
+        call append_scalar_vector_declarations(buffer, spec%vector_size, .true.)
+        call append_line(buffer, "        real(c_double) :: derivative")
+        call buffer%newline()
+        call append_line(buffer, &
+            "        derivative = enzyme_fwddiff(c_funloc(primal), x, tangent, values, dvalues)")
+        call append_line(buffer, "    end function "//prefix//"_jvp")
+        call buffer%newline()
+        call append_line(buffer, "    subroutine "//prefix// &
+            "_vjp(x, values, cotangent, xbar, values_bar)")
+        call append_line(buffer, &
+            "        use, intrinsic :: iso_c_binding, only: c_double, c_funloc")
+        call append_scalar_vector_declarations(buffer, spec%vector_size, .false.)
+        call append_line(buffer, "        real(c_double), intent(in) :: cotangent")
+        call append_line(buffer, "        real(c_double), intent(out) :: xbar")
+        call buffer%append("        real(c_double), intent(out) :: values_bar(")
+        call append_integer(buffer, spec%vector_size)
+        call buffer%append(")")
+        call buffer%newline()
+        call append_line(buffer, "        real(c_double) :: ignored_value")
+        call buffer%newline()
+        call append_line(buffer, "        xbar = 0.0_c_double")
+        call append_line(buffer, "        values_bar = 0.0_c_double")
+        call append_line(buffer, &
+            "        ignored_value = enzyme_autodiff(c_funloc(primal), x, xbar, values, values_bar)")
+        call append_line(buffer, "        xbar = cotangent*xbar")
+        call append_line(buffer, "        values_bar = cotangent*values_bar")
+        call append_line(buffer, "    end subroutine "//prefix//"_vjp")
+        call buffer%newline()
+        call append_line(buffer, "end module "//module_name)
+        source = buffer%to_str()
+    end function emit_enzyme_scalar_vector_wrapper
+
+    subroutine validate_scalar_vector_spec(spec)
+        type(enzyme_scalar_vector_wrapper_spec_t), intent(in) :: spec
+
+        if (len(chars(spec%module_name)) == 0) then
+            error stop "Enzyme scalar-vector wrapper module_name is required"
+        end if
+        if (len(chars(spec%wrapper_prefix)) == 0) then
+            error stop "Enzyme scalar-vector wrapper_prefix is required"
+        end if
+        if (len(chars(spec%primal_symbol)) == 0) then
+            error stop "Enzyme scalar-vector wrapper primal_symbol is required"
+        end if
+        if (spec%vector_size < 1) then
+            error stop "Enzyme scalar-vector wrapper vector_size must be positive"
+        end if
+    end subroutine validate_scalar_vector_spec
+
+    subroutine append_scalar_vector_banner(buffer, spec)
+        type(strbuf_t), intent(inout) :: buffer
+        type(enzyme_scalar_vector_wrapper_spec_t), intent(in) :: spec
+
+        call append_line(buffer, "! Generated by fortsym. Do not edit.")
+        call append_line(buffer, "! Generator: "//chars(spec%generator))
+        if (len(chars(spec%generator_revision)) > 0) then
+            call append_line(buffer, &
+                "! Generator revision: "//chars(spec%generator_revision))
+        end if
+        call append_line(buffer, &
+            "! Regenerate with: "//chars(spec%regenerate_command))
+        call buffer%newline()
+    end subroutine append_scalar_vector_banner
+
+    subroutine append_scalar_vector_declarations(buffer, vector_size, tangent)
+        type(strbuf_t), intent(inout) :: buffer
+        integer, intent(in) :: vector_size
+        logical, intent(in) :: tangent
+
+        if (tangent) then
+            call append_line(buffer, &
+                "        real(c_double), intent(in) :: x, tangent")
+        else
+            call append_line(buffer, "        real(c_double), intent(in) :: x")
+        end if
+        call buffer%append("        real(c_double), intent(in) :: values(")
+        call append_integer(buffer, vector_size)
+        call buffer%append(")")
+        call buffer%newline()
+        if (tangent) then
+            call buffer%append( &
+                "        real(c_double), intent(in) :: dvalues(")
+            call append_integer(buffer, vector_size)
+            call buffer%append(")")
+            call buffer%newline()
+        end if
+    end subroutine append_scalar_vector_declarations
+
+    subroutine append_line(buffer, line)
+        type(strbuf_t), intent(inout) :: buffer
+        character(*), intent(in) :: line
+
+        call buffer%append(line)
+        call buffer%newline()
+    end subroutine append_line
 
     function emit_enzyme_scalar_wrapper(spec) result(source)
         type(enzyme_scalar_wrapper_spec_t), intent(in) :: spec
