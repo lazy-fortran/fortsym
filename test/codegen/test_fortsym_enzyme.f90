@@ -54,6 +54,26 @@ program test_fortsym_enzyme
         "shared custom-rule counter hook")
     call compile_source(source, "four")
 
+    spec%module_name = str("generated_scalar_five")
+    spec%wrapper_prefix = str("scalar_five")
+    spec%primal_symbol = str("test_primal_five")
+    spec%active_inputs = 5
+    spec%analytical_jvp_symbol = str("")
+    spec%custom_forward_symbol = str("")
+    spec%custom_forward_counter_symbol = str("")
+    source = chars(emit_enzyme_scalar_wrapper(spec))
+    call check(index(source, "real(c_double) :: values(5)") > 0, &
+        "five-input reverse result")
+    call check(index(source, &
+        "function scalar_five_jvp(x1, tangent1, x2, tangent2, " // &
+        "x3, tangent3, x4, tangent4, x5, tangent5)") > 0, &
+        "five-input JVP")
+    call check(index(source, &
+        "subroutine scalar_five_vjp(x1, x2, x3, x4, x5, cotangent, " // &
+        "cotangent1, cotangent2, cotangent3, cotangent4, cotangent5)") > 0, &
+        "five-input VJP")
+    call compile_source(source, "five")
+
     vector_spec%module_name = str("generated_scalar_vector")
     vector_spec%wrapper_prefix = str("scalar_vector")
     vector_spec%primal_symbol = str("test_scalar_vector_primal")

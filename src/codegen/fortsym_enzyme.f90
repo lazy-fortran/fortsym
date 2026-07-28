@@ -491,8 +491,8 @@ contains
         type(enzyme_scalar_wrapper_spec_t), intent(in) :: spec
         logical :: custom
 
-        if (spec%active_inputs < 1 .or. spec%active_inputs > 4) then
-            error stop "Enzyme scalar wrappers support one to four active inputs"
+        if (spec%active_inputs < 1 .or. spec%active_inputs > 5) then
+            error stop "Enzyme scalar wrappers support one to five active inputs"
         end if
         if (len(chars(spec%module_name)) == 0) then
             error stop "Enzyme scalar wrapper module_name is required"
