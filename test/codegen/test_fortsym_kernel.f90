@@ -26,6 +26,7 @@ program test_fortsym_kernel
     call test_cse_skips_atoms()
     call test_operation_count_uses_shared_dag()
     call test_temporaries_are_declared()
+    call test_default_temporary_prefix()
     call test_explicit_regeneration_command()
     call test_generator_revision()
     call test_module_wrapper()
@@ -167,6 +168,25 @@ contains
         call ok("declares output", index(code, "intent(out) :: r") > 0)
         call ok("names its generator", index(code, "gen_test") > 0)
     end subroutine test_temporaries_are_declared
+
+    subroutine test_default_temporary_prefix()
+        type(arena_t), target :: a
+        type(expr_t) :: x, y, shared, roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+
+        call a%init()
+        x = sym(a, "x")
+        y = sym(a, "y")
+        shared = exp(x*y)
+        roots(1) = shared + shared*shared
+        spec = spec_for("k", ["x", "y"], ["r"])
+        spec%temp_prefix = str("")
+        code = chars(emit_kernel(roots, spec))
+
+        call ok("empty temporary prefix defaults to a Fortran identifier", &
+            index(code, "real(dp) :: t1") > 0)
+    end subroutine test_default_temporary_prefix
 
     subroutine test_simplified_negative_product_emission()
         type(arena_t), target :: a

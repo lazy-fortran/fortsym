@@ -418,7 +418,11 @@ contains
             end if
         end if
 
-        res = cse_analyse(roots, chars(spec%temp_prefix))
+        if (len(chars(spec%temp_prefix)) > 0) then
+            res = cse_analyse(roots, chars(spec%temp_prefix))
+        else
+            res = cse_analyse(roots, "t")
+        end if
 
         call append_banner(b, spec)
 
