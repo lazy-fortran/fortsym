@@ -34,6 +34,7 @@ fortsym_add_test(test_fortsym_yacas engine/test_fortsym_yacas.f90)
 fortsym_add_test(test_fortsym_council council/test_fortsym_council.f90)
 
 # --- code generation ---
+fortsym_add_test(test_fortsym_enzyme codegen/test_fortsym_enzyme.f90)
 fortsym_add_test(test_fortsym_kernel codegen/test_fortsym_kernel.f90)
 
 # --- verification ---
