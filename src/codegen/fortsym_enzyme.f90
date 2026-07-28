@@ -26,10 +26,244 @@ module fortsym_enzyme
         type(str_t) :: regenerate_command
     end type enzyme_scalar_vector_wrapper_spec_t
 
+    type, public :: enzyme_fixed_array_wrapper_spec_t
+        type(str_t) :: module_name
+        type(str_t) :: wrapper_prefix
+        type(str_t) :: primal_symbol
+        integer, allocatable :: array_sizes(:)
+        logical :: trailing_integer = .false.
+        type(str_t) :: generator
+        type(str_t) :: generator_revision
+        type(str_t) :: regenerate_command
+    end type enzyme_fixed_array_wrapper_spec_t
+
+    public :: emit_enzyme_fixed_array_wrapper
     public :: emit_enzyme_scalar_vector_wrapper
     public :: emit_enzyme_scalar_wrapper
 
 contains
+
+    function emit_enzyme_fixed_array_wrapper(spec) result(source)
+        type(enzyme_fixed_array_wrapper_spec_t), intent(in) :: spec
+        type(str_t) :: source
+        type(strbuf_t) :: buffer
+        character(:), allocatable :: module_name, prefix, primal
+        integer :: i
+
+        call validate_fixed_array_spec(spec)
+        module_name = chars(spec%module_name)
+        prefix = chars(spec%wrapper_prefix)
+        primal = chars(spec%primal_symbol)
+        call append_fixed_array_banner(buffer, spec)
+        call append_line(buffer, "module "//module_name)
+        call append_line(buffer, &
+            "    use, intrinsic :: iso_c_binding, only: c_double, c_funloc, c_funptr, c_int")
+        call append_line(buffer, "    implicit none")
+        call append_line(buffer, "    private")
+        call buffer%newline()
+        call append_line(buffer, "    public :: "//prefix//"_jvp, "//prefix//"_vjp")
+        call buffer%newline()
+        call append_line(buffer, "    interface")
+        call buffer%append("        function primal(")
+        call append_array_names(buffer, size(spec%array_sizes), .false.)
+        if (spec%trailing_integer) call buffer%append(", selector")
+        call buffer%append(") result(value) bind(c, name="""//primal//""")")
+        call buffer%newline()
+        call append_line(buffer, "            import :: c_double, c_int")
+        call append_line(buffer, "            real(c_double) :: value")
+        do i = 1, size(spec%array_sizes)
+            call append_line(buffer, &
+                "            real(c_double), intent(in) :: x"//integer_text(i)//"(*)")
+        end do
+        if (spec%trailing_integer) then
+            call append_line(buffer, "            integer(c_int), value :: selector")
+        end if
+        call append_line(buffer, "        end function primal")
+        call buffer%newline()
+        call buffer%append("        function enzyme_fwddiff(function_pointer, ")
+        call append_array_names(buffer, size(spec%array_sizes), .true.)
+        if (spec%trailing_integer) call buffer%append(", selector")
+        call buffer%append(") result(derivative) bind(c, name=""__enzyme_fwddiff"")")
+        call buffer%newline()
+        call append_line(buffer, "            import :: c_double, c_funptr, c_int")
+        call append_line(buffer, "            type(c_funptr), value :: function_pointer")
+        do i = 1, size(spec%array_sizes)
+            call append_line(buffer, &
+                "            real(c_double), intent(in) :: x"//integer_text(i)// &
+                "(*), tangent"//integer_text(i)//"(*)")
+        end do
+        if (spec%trailing_integer) then
+            call append_line(buffer, "            integer(c_int), value :: selector")
+        end if
+        call append_line(buffer, "            real(c_double) :: derivative")
+        call append_line(buffer, "        end function enzyme_fwddiff")
+        call buffer%newline()
+        call buffer%append("        function enzyme_autodiff(function_pointer, ")
+        call append_array_names(buffer, size(spec%array_sizes), .true., "bar")
+        if (spec%trailing_integer) call buffer%append(", selector")
+        call buffer%append(") result(value) bind(c, name=""__enzyme_autodiff"")")
+        call buffer%newline()
+        call append_line(buffer, "            import :: c_double, c_funptr, c_int")
+        call append_line(buffer, "            type(c_funptr), value :: function_pointer")
+        do i = 1, size(spec%array_sizes)
+            call append_line(buffer, &
+                "            real(c_double), intent(in) :: x"//integer_text(i)//"(*)")
+            call append_line(buffer, &
+                "            real(c_double), intent(inout) :: bar"//integer_text(i)//"(*)")
+        end do
+        if (spec%trailing_integer) then
+            call append_line(buffer, "            integer(c_int), value :: selector")
+        end if
+        call append_line(buffer, "            real(c_double) :: value")
+        call append_line(buffer, "        end function enzyme_autodiff")
+        call append_line(buffer, "    end interface")
+        call buffer%newline()
+        call append_line(buffer, "contains")
+        call buffer%newline()
+        call buffer%append("    function "//prefix//"_jvp(")
+        call append_array_names(buffer, size(spec%array_sizes), .true.)
+        if (spec%trailing_integer) call buffer%append(", selector")
+        call buffer%append(") result(derivative)")
+        call buffer%newline()
+        call append_fixed_array_declarations(buffer, spec, .true.)
+        call append_line(buffer, "        real(c_double) :: derivative")
+        call buffer%newline()
+        call buffer%append("        derivative = enzyme_fwddiff(c_funloc(primal), ")
+        call append_array_names(buffer, size(spec%array_sizes), .true.)
+        if (spec%trailing_integer) call buffer%append(", selector")
+        call buffer%append(")")
+        call buffer%newline()
+        call append_line(buffer, "    end function "//prefix//"_jvp")
+        call buffer%newline()
+        call buffer%append("    subroutine "//prefix//"_vjp(")
+        call append_array_names(buffer, size(spec%array_sizes), .false.)
+        call buffer%append(", cotangent, ")
+        call append_bar_names(buffer, size(spec%array_sizes))
+        if (spec%trailing_integer) call buffer%append(", selector")
+        call buffer%append(")")
+        call buffer%newline()
+        call append_fixed_array_declarations(buffer, spec, .false.)
+        call append_line(buffer, "        real(c_double), intent(in) :: cotangent")
+        do i = 1, size(spec%array_sizes)
+            call append_line(buffer, &
+                "        real(c_double), intent(out) :: bar"//integer_text(i)// &
+                "("//integer_text(spec%array_sizes(i))//")")
+        end do
+        call append_line(buffer, "        real(c_double) :: ignored_value")
+        call buffer%newline()
+        do i = 1, size(spec%array_sizes)
+            call append_line(buffer, "        bar"//integer_text(i)//" = 0.0_c_double")
+        end do
+        call buffer%append("        ignored_value = enzyme_autodiff(c_funloc(primal), ")
+        call append_array_names(buffer, size(spec%array_sizes), .true., "bar")
+        if (spec%trailing_integer) call buffer%append(", selector")
+        call buffer%append(")")
+        call buffer%newline()
+        do i = 1, size(spec%array_sizes)
+            call append_line(buffer, &
+                "        bar"//integer_text(i)//" = cotangent*bar"//integer_text(i))
+        end do
+        call append_line(buffer, "    end subroutine "//prefix//"_vjp")
+        call buffer%newline()
+        call append_line(buffer, "end module "//module_name)
+        source = buffer%to_str()
+    end function emit_enzyme_fixed_array_wrapper
+
+    subroutine validate_fixed_array_spec(spec)
+        type(enzyme_fixed_array_wrapper_spec_t), intent(in) :: spec
+
+        if (len(chars(spec%module_name)) == 0) then
+            error stop "Enzyme fixed-array wrapper module_name is required"
+        end if
+        if (len(chars(spec%wrapper_prefix)) == 0) then
+            error stop "Enzyme fixed-array wrapper wrapper_prefix is required"
+        end if
+        if (len(chars(spec%primal_symbol)) == 0) then
+            error stop "Enzyme fixed-array wrapper primal_symbol is required"
+        end if
+        if (.not. allocated(spec%array_sizes)) then
+            error stop "Enzyme fixed-array wrapper array_sizes is required"
+        end if
+        if (size(spec%array_sizes) < 1 .or. size(spec%array_sizes) > 4) then
+            error stop "Enzyme fixed-array wrappers support one to four arrays"
+        end if
+        if (any(spec%array_sizes < 1)) then
+            error stop "Enzyme fixed-array wrapper extents must be positive"
+        end if
+    end subroutine validate_fixed_array_spec
+
+    subroutine append_fixed_array_banner(buffer, spec)
+        type(strbuf_t), intent(inout) :: buffer
+        type(enzyme_fixed_array_wrapper_spec_t), intent(in) :: spec
+
+        call append_line(buffer, "! Generated by fortsym. Do not edit.")
+        call append_line(buffer, "! Generator: "//chars(spec%generator))
+        if (len(chars(spec%generator_revision)) > 0) then
+            call append_line(buffer, &
+                "! Generator revision: "//chars(spec%generator_revision))
+        end if
+        call append_line(buffer, &
+            "! Regenerate with: "//chars(spec%regenerate_command))
+        call buffer%newline()
+    end subroutine append_fixed_array_banner
+
+    subroutine append_fixed_array_declarations(buffer, spec, tangent)
+        type(strbuf_t), intent(inout) :: buffer
+        type(enzyme_fixed_array_wrapper_spec_t), intent(in) :: spec
+        logical, intent(in) :: tangent
+        integer :: i
+
+        do i = 1, size(spec%array_sizes)
+            call append_line(buffer, &
+                "        real(c_double), intent(in) :: x"//integer_text(i)// &
+                "("//integer_text(spec%array_sizes(i))//")")
+            if (tangent) then
+                call append_line(buffer, &
+                    "        real(c_double), intent(in) :: tangent"// &
+                    integer_text(i)//"("//integer_text(spec%array_sizes(i))//")")
+            end if
+        end do
+        if (spec%trailing_integer) then
+            call append_line(buffer, "        integer(c_int), value :: selector")
+        end if
+    end subroutine append_fixed_array_declarations
+
+    subroutine append_array_names(buffer, count, paired, shadow_prefix)
+        type(strbuf_t), intent(inout) :: buffer
+        integer, intent(in) :: count
+        logical, intent(in) :: paired
+        character(*), intent(in), optional :: shadow_prefix
+        character(:), allocatable :: shadow
+        integer :: i
+
+        shadow = "tangent"
+        if (present(shadow_prefix)) shadow = shadow_prefix
+        do i = 1, count
+            if (i > 1) call buffer%append(", ")
+            call buffer%append("x"//integer_text(i))
+            if (paired) call buffer%append(", "//shadow//integer_text(i))
+        end do
+    end subroutine append_array_names
+
+    subroutine append_bar_names(buffer, count)
+        type(strbuf_t), intent(inout) :: buffer
+        integer, intent(in) :: count
+        integer :: i
+
+        do i = 1, count
+            if (i > 1) call buffer%append(", ")
+            call buffer%append("bar"//integer_text(i))
+        end do
+    end subroutine append_bar_names
+
+    function integer_text(value) result(text)
+        integer, intent(in) :: value
+        character(:), allocatable :: text
+        character(32) :: buffer
+
+        write (buffer, "(i0)") value
+        text = trim(buffer)
+    end function integer_text
 
     function emit_enzyme_scalar_vector_wrapper(spec) result(source)
         type(enzyme_scalar_vector_wrapper_spec_t), intent(in) :: spec

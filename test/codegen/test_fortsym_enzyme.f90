@@ -1,12 +1,14 @@
 program test_fortsym_enzyme
     use fortsym_string, only: str, chars
-    use fortsym_enzyme, only: enzyme_scalar_vector_wrapper_spec_t, &
-        enzyme_scalar_wrapper_spec_t, emit_enzyme_scalar_vector_wrapper, &
+    use fortsym_enzyme, only: enzyme_fixed_array_wrapper_spec_t, &
+        enzyme_scalar_vector_wrapper_spec_t, enzyme_scalar_wrapper_spec_t, &
+        emit_enzyme_fixed_array_wrapper, emit_enzyme_scalar_vector_wrapper, &
         emit_enzyme_scalar_wrapper
     implicit none
 
     type(enzyme_scalar_wrapper_spec_t) :: spec
     type(enzyme_scalar_vector_wrapper_spec_t) :: vector_spec
+    type(enzyme_fixed_array_wrapper_spec_t) :: array_spec
     character(:), allocatable :: source
     integer :: failures
 
@@ -70,6 +72,28 @@ program test_fortsym_enzyme
         "real(c_double), intent(in) :: values(4)") > 0, &
         "scalar-vector fixed extent")
     call compile_source(source, "scalar_vector")
+
+    array_spec%module_name = str("generated_fixed_arrays")
+    array_spec%wrapper_prefix = str("fixed_arrays")
+    array_spec%primal_symbol = str("test_fixed_array_primal")
+    array_spec%array_sizes = [16, 4]
+    array_spec%trailing_integer = .true.
+    array_spec%generator = str("test_fortsym_enzyme")
+    array_spec%generator_revision = str("test-revision")
+    array_spec%regenerate_command = str("fo test test_fortsym_enzyme")
+    source = chars(emit_enzyme_fixed_array_wrapper(array_spec))
+    call check(index(source, &
+        "function fixed_arrays_jvp(x1, tangent1, x2, tangent2, selector)") > 0, &
+        "fixed-array JVP")
+    call check(index(source, &
+        "subroutine fixed_arrays_vjp(x1, x2, cotangent, bar1, bar2, selector)") &
+        > 0, "fixed-array VJP")
+    call check(index(source, &
+        "real(c_double), intent(in) :: x1(16)") > 0, &
+        "fixed-array first extent")
+    call check(index(source, "integer(c_int), value :: selector") > 0, &
+        "fixed-array inactive selector")
+    call compile_source(source, "fixed_arrays")
 
     if (failures > 0) error stop "fortsym Enzyme wrapper tests failed"
 
