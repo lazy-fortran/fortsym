@@ -21,6 +21,9 @@ program test_fortsym_enzyme
     call check(index(source, &
         "subroutine scalar_one_vjp(x1, cotangent, cotangent1)") > 0, &
         "one-input VJP")
+    call check(index(source, &
+        "function scalar_one_vjp_scalar(x1, cotangent) result(cotangent1)") &
+        > 0, "one-input scalar-return VJP")
     call check(index(source, "type, bind(c) :: enzyme_gradient_t") == 0, &
         "one-input scalar reverse result")
     call check(index(source, "enzyme_pair_t") == 0, &

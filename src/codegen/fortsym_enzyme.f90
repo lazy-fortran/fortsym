@@ -46,6 +46,10 @@ contains
         call append_jvp(buffer, spec)
         call buffer%newline()
         call append_vjp(buffer, spec)
+        if (spec%active_inputs == 1) then
+            call buffer%newline()
+            call append_scalar_vjp(buffer, spec)
+        end if
         if (custom) then
             call buffer%newline()
             call append_custom_forward(buffer, spec)
@@ -144,6 +148,11 @@ contains
         call buffer%append("_jvp, ")
         call buffer%append(chars(spec%wrapper_prefix))
         call buffer%append("_vjp")
+        if (spec%active_inputs == 1) then
+            call buffer%append(", ")
+            call buffer%append(chars(spec%wrapper_prefix))
+            call buffer%append("_vjp_scalar")
+        end if
         if (custom) then
             call buffer%append(", ")
             call buffer%append(chars(spec%custom_forward_symbol))
@@ -333,6 +342,31 @@ contains
         call buffer%append("_vjp")
         call buffer%newline()
     end subroutine append_vjp
+
+    subroutine append_scalar_vjp(buffer, spec)
+        type(strbuf_t), intent(inout) :: buffer
+        type(enzyme_scalar_wrapper_spec_t), intent(in) :: spec
+
+        call buffer%append("    function ")
+        call buffer%append(chars(spec%wrapper_prefix))
+        call buffer%append("_vjp_scalar(x1, cotangent) result(cotangent1)")
+        call buffer%newline()
+        call buffer%append( &
+            "        use, intrinsic :: iso_c_binding, only: c_double, c_funloc")
+        call buffer%newline()
+        call buffer%append("        real(c_double), value :: x1, cotangent")
+        call buffer%newline()
+        call buffer%append("        real(c_double) :: cotangent1")
+        call buffer%newline()
+        call buffer%newline()
+        call buffer%append( &
+            "        cotangent1 = cotangent*enzyme_autodiff(c_funloc(primal), x1)")
+        call buffer%newline()
+        call buffer%append("    end function ")
+        call buffer%append(chars(spec%wrapper_prefix))
+        call buffer%append("_vjp_scalar")
+        call buffer%newline()
+    end subroutine append_scalar_vjp
 
     subroutine append_custom_forward(buffer, spec)
         type(strbuf_t), intent(inout) :: buffer
