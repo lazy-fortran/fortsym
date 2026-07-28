@@ -15,6 +15,8 @@ program test_fortsym_kernel
     use fortsym_parse, only: parse_expr
     use fortsym_products, only: jvp, vjp
     use fortsym_kernel
+    use fortsym_engine, only: engine_result_t
+    use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     implicit none
 
     integer, parameter :: dp = real64
@@ -29,6 +31,7 @@ program test_fortsym_kernel
     call test_module_wrapper()
     call test_device_leaf_annotations()
     call test_product_codegen_scales_linearly()
+    call test_simplified_negative_product_emission()
     call test_pure_procedure()
     call test_ordering_is_topological()
     call test_line_wrapping()
@@ -161,6 +164,31 @@ contains
         call ok("declares output", index(code, "intent(out) :: r") > 0)
         call ok("names its generator", index(code, "gen_test") > 0)
     end subroutine test_temporaries_are_declared
+
+    subroutine test_simplified_negative_product_emission()
+        type(arena_t), target :: a
+        type(symengine_engine_t) :: engine
+        type(engine_result_t) :: simplified
+        type(expr_t) :: x, values(1), variables(1), cotangents(1), roots(1)
+        character(:), allocatable :: code
+
+        call a%init()
+        engine = make_symengine_engine(a)
+        x = sym(a, "x")
+        values(1) = erfc(x)
+        variables(1) = x
+        cotangents(1) = sym(a, "u")
+        roots = vjp(values, variables, cotangents)
+        simplified = engine%simplify(roots(1))
+        call ok("erfc VJP simplification succeeds", simplified%ok)
+        if (.not. simplified%ok) return
+        roots(1) = simplified%value
+        code = chars(emit_kernel(roots, spec_for("k", ["x", "u"], ["vjp"])))
+        call ok("negative product has no doubled unary sign", &
+            index(code, "--") == 0)
+        call ok("negative product has no embedded negative factor", &
+            index(code, "*-") == 0)
+    end subroutine test_simplified_negative_product_emission
 
     subroutine test_explicit_regeneration_command()
         type(arena_t), target :: a

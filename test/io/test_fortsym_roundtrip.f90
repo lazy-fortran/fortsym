@@ -90,6 +90,8 @@ contains
 
         ! Unary minus, not "-1*x".
         call eq_check("negation", print_text(-x), "-x")
+        call eq_check("multiple numeric signs", &
+            print_text((-2)*(-1)*x), "x*2")
 
         ! A compound base keeps its parentheses under a power.
         call eq_check("compound base", print_text((x + y)**2), "(x + y)**2")

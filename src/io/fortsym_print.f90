@@ -280,11 +280,7 @@ contains
         case (NK_MUL)
             do k = 1, a%nargs_of(id)
                 child = a%arg_of(id, k)
-                if (a%kind_of(child) == NK_INT) then
-                    if (a%num_of(child) < 0_int64) yes = .true.
-                else if (a%kind_of(child) == NK_RAT) then
-                    if (a%num_of(child) < 0_int64) yes = .true.
-                end if
+                if (numeric_is_negative(a, child)) yes = .not. yes
             end do
         end select
     end function is_negative_term
@@ -357,9 +353,10 @@ contains
         deallocate (factors)
     end subroutine emit_product
 
-    !> True when a product carries a negative numeric coefficient anywhere in
-    !> its factor list. Operands are sorted by node index, so the coefficient is
-    !> not necessarily first and cannot be found by looking at one position.
+    !> True when a product has an odd number of negative numeric factors.
+    !> Engine results may retain several numeric factors, so testing only
+    !> whether any factor is negative emits doubled signs for expressions such
+    !> as (-2)*(-1)*x.
     function product_is_negative(a, factors) result(yes)
         type(arena_t), intent(in) :: a
         integer,       intent(in) :: factors(:)
@@ -367,13 +364,7 @@ contains
         integer :: k
         yes = .false.
         do k = 1, size(factors)
-            if (a%kind_of(factors(k)) == NK_INT) then
-                if (a%num_of(factors(k)) < 0_int64) yes = .true.
-            else if (a%kind_of(factors(k)) == NK_RAT) then
-                if (a%num_of(factors(k)) < 0_int64) yes = .true.
-            else if (a%kind_of(factors(k)) == NK_REAL) then
-                if (a%real_of(factors(k)) < 0.0_dp) yes = .true.
-            end if
+            if (numeric_is_negative(a, factors(k))) yes = .not. yes
         end do
     end function product_is_negative
 
@@ -388,7 +379,7 @@ contains
         type(str_t),     intent(in)    :: names(:)
         logical,         intent(in)    :: negate
         integer :: k, nnum, nden, base, expo
-        logical :: wrap, first, coeff_done
+        logical :: wrap, first, negative
         integer, allocatable :: numer(:), denom(:)
 
         allocate (numer(size(factors)), denom(size(factors)))
@@ -408,17 +399,12 @@ contains
         wrap = context > PREC_MUL
         if (wrap) call b%append("(")
 
-        ! A product with a negative coefficient reads as a negation. When the
-        ! caller has not already emitted the sign (a sum does that for its
-        ! non-first terms), emit it here -- otherwise -x prints as "x*-1".
+        ! Emit one leading sign for the parity of every numeric sign. The
+        ! caller's negate flag removes the sign already emitted by a sum.
         first = .true.
-        coeff_done = .not. negate
-        if (.not. negate) then
-            if (product_is_negative(a, factors)) then
-                call b%append("-")
-                coeff_done = .false.
-            end if
-        end if
+        negative = product_is_negative(a, factors)
+        if (negate) negative = .not. negative
+        if (negative) call b%append("-")
 
         if (nnum == 0) then
             ! Everything moved to the denominator, so the numerator is 1.
@@ -427,17 +413,10 @@ contains
             first = .false.
         else
             do k = 1, nnum
-                if (.not. coeff_done .and. is_numeric(a, numer(k))) then
-                    ! This is the factor carrying the sign. Negate it, and drop
-                    ! it entirely when it is exactly -1.
-                    coeff_done = .true.
+                if (numeric_is_negative(a, numer(k))) then
+                    ! The common leading sign already represents this factor's
+                    ! sign. Emit its magnitude and drop unit factors.
                     if (is_minus_one(a, numer(k))) then
-                        if (nnum == 1) then
-                            call b%append("1")
-                            if (d%id == DIA_FORTRAN) &
-                                call b%append(chars(d%int_real_suffix))
-                            first = .false.
-                        end if
                         cycle
                     end if
                     if (.not. first) call b%append("*")
@@ -449,6 +428,12 @@ contains
                 call emit(b, a, numer(k), d, PREC_MUL, ids, names)
                 first = .false.
             end do
+            if (first) then
+                call b%append("1")
+                if (d%id == DIA_FORTRAN) &
+                    call b%append(chars(d%int_real_suffix))
+                first = .false.
+            end if
         end if
 
         do k = 1, nden
@@ -499,6 +484,20 @@ contains
         yes = a%kind_of(id) == NK_INT .or. a%kind_of(id) == NK_RAT .or. &
             a%kind_of(id) == NK_REAL
     end function is_numeric
+
+    function numeric_is_negative(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: yes
+
+        yes = .false.
+        select case (a%kind_of(id))
+        case (NK_INT, NK_RAT)
+            yes = a%num_of(id) < 0_int64
+        case (NK_REAL)
+            yes = a%real_of(id) < 0.0_dp
+        end select
+    end function numeric_is_negative
 
     function is_minus_one(a, id) result(yes)
         type(arena_t), intent(in) :: a
