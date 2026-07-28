@@ -31,7 +31,7 @@ module fortsym_enzyme
         type(str_t) :: wrapper_prefix
         type(str_t) :: primal_symbol
         integer, allocatable :: array_sizes(:)
-        logical :: trailing_integer = .false.
+        integer :: inactive_integer_count = 0
         type(str_t) :: generator
         type(str_t) :: generator_revision
         type(str_t) :: regenerate_command
@@ -66,7 +66,7 @@ contains
         call append_line(buffer, "    interface")
         call buffer%append("        function primal(")
         call append_array_names(buffer, size(spec%array_sizes), .false.)
-        if (spec%trailing_integer) call buffer%append(", selector")
+        call append_inactive_integer_names(buffer, spec%inactive_integer_count)
         call buffer%append(") result(value) bind(c, name="""//primal//""")")
         call buffer%newline()
         call append_line(buffer, "            import :: c_double, c_int")
@@ -75,14 +75,13 @@ contains
             call append_line(buffer, &
                 "            real(c_double), intent(in) :: x"//integer_text(i)//"(*)")
         end do
-        if (spec%trailing_integer) then
-            call append_line(buffer, "            integer(c_int), value :: selector")
-        end if
+        call append_inactive_integer_declarations(buffer, &
+            spec%inactive_integer_count, 12)
         call append_line(buffer, "        end function primal")
         call buffer%newline()
         call buffer%append("        function enzyme_fwddiff(function_pointer, ")
         call append_array_names(buffer, size(spec%array_sizes), .true.)
-        if (spec%trailing_integer) call buffer%append(", selector")
+        call append_inactive_integer_names(buffer, spec%inactive_integer_count)
         call buffer%append(") result(derivative) bind(c, name=""__enzyme_fwddiff"")")
         call buffer%newline()
         call append_line(buffer, "            import :: c_double, c_funptr, c_int")
@@ -92,15 +91,14 @@ contains
                 "            real(c_double), intent(in) :: x"//integer_text(i)// &
                 "(*), tangent"//integer_text(i)//"(*)")
         end do
-        if (spec%trailing_integer) then
-            call append_line(buffer, "            integer(c_int), value :: selector")
-        end if
+        call append_inactive_integer_declarations(buffer, &
+            spec%inactive_integer_count, 12)
         call append_line(buffer, "            real(c_double) :: derivative")
         call append_line(buffer, "        end function enzyme_fwddiff")
         call buffer%newline()
         call buffer%append("        function enzyme_autodiff(function_pointer, ")
         call append_array_names(buffer, size(spec%array_sizes), .true., "bar")
-        if (spec%trailing_integer) call buffer%append(", selector")
+        call append_inactive_integer_names(buffer, spec%inactive_integer_count)
         call buffer%append(") result(value) bind(c, name=""__enzyme_autodiff"")")
         call buffer%newline()
         call append_line(buffer, "            import :: c_double, c_funptr, c_int")
@@ -111,9 +109,8 @@ contains
             call append_line(buffer, &
                 "            real(c_double), intent(inout) :: bar"//integer_text(i)//"(*)")
         end do
-        if (spec%trailing_integer) then
-            call append_line(buffer, "            integer(c_int), value :: selector")
-        end if
+        call append_inactive_integer_declarations(buffer, &
+            spec%inactive_integer_count, 12)
         call append_line(buffer, "            real(c_double) :: value")
         call append_line(buffer, "        end function enzyme_autodiff")
         call append_line(buffer, "    end interface")
@@ -122,7 +119,7 @@ contains
         call buffer%newline()
         call buffer%append("    function "//prefix//"_jvp(")
         call append_array_names(buffer, size(spec%array_sizes), .true.)
-        if (spec%trailing_integer) call buffer%append(", selector")
+        call append_inactive_integer_names(buffer, spec%inactive_integer_count)
         call buffer%append(") result(derivative)")
         call buffer%newline()
         call append_fixed_array_declarations(buffer, spec, .true.)
@@ -130,7 +127,7 @@ contains
         call buffer%newline()
         call buffer%append("        derivative = enzyme_fwddiff(c_funloc(primal), ")
         call append_array_names(buffer, size(spec%array_sizes), .true.)
-        if (spec%trailing_integer) call buffer%append(", selector")
+        call append_inactive_integer_names(buffer, spec%inactive_integer_count)
         call buffer%append(")")
         call buffer%newline()
         call append_line(buffer, "    end function "//prefix//"_jvp")
@@ -139,7 +136,7 @@ contains
         call append_array_names(buffer, size(spec%array_sizes), .false.)
         call buffer%append(", cotangent, ")
         call append_bar_names(buffer, size(spec%array_sizes))
-        if (spec%trailing_integer) call buffer%append(", selector")
+        call append_inactive_integer_names(buffer, spec%inactive_integer_count)
         call buffer%append(") result(value)")
         call buffer%newline()
         call append_fixed_array_declarations(buffer, spec, .false.)
@@ -156,7 +153,7 @@ contains
         end do
         call buffer%append("        value = enzyme_autodiff(c_funloc(primal), ")
         call append_array_names(buffer, size(spec%array_sizes), .true., "bar")
-        if (spec%trailing_integer) call buffer%append(", selector")
+        call append_inactive_integer_names(buffer, spec%inactive_integer_count)
         call buffer%append(")")
         call buffer%newline()
         do i = 1, size(spec%array_sizes)
@@ -189,6 +186,10 @@ contains
         end if
         if (any(spec%array_sizes < 1)) then
             error stop "Enzyme fixed-array wrapper extents must be positive"
+        end if
+        if (spec%inactive_integer_count < 0 .or. &
+            spec%inactive_integer_count > 4) then
+            error stop "Enzyme fixed-array wrappers support zero to four inactive integers"
         end if
     end subroutine validate_fixed_array_spec
 
@@ -223,10 +224,32 @@ contains
                     integer_text(i)//"("//integer_text(spec%array_sizes(i))//")")
             end if
         end do
-        if (spec%trailing_integer) then
-            call append_line(buffer, "        integer(c_int), value :: selector")
-        end if
+        call append_inactive_integer_declarations(buffer, &
+            spec%inactive_integer_count, 8)
     end subroutine append_fixed_array_declarations
+
+    subroutine append_inactive_integer_names(buffer, count)
+        type(strbuf_t), intent(inout) :: buffer
+        integer, intent(in) :: count
+        integer :: i
+
+        do i = 1, count
+            call buffer%append(", selector"//integer_text(i))
+        end do
+    end subroutine append_inactive_integer_names
+
+    subroutine append_inactive_integer_declarations(buffer, count, indentation)
+        type(strbuf_t), intent(inout) :: buffer
+        integer, intent(in) :: count, indentation
+        character(:), allocatable :: spaces
+        integer :: i
+
+        spaces = repeat(" ", indentation)
+        do i = 1, count
+            call append_line(buffer, spaces//"integer(c_int), value :: selector"// &
+                integer_text(i))
+        end do
+    end subroutine append_inactive_integer_declarations
 
     subroutine append_array_names(buffer, count, paired, shadow_prefix)
         type(strbuf_t), intent(inout) :: buffer

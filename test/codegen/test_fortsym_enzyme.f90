@@ -77,22 +77,22 @@ program test_fortsym_enzyme
     array_spec%wrapper_prefix = str("fixed_arrays")
     array_spec%primal_symbol = str("test_fixed_array_primal")
     array_spec%array_sizes = [16, 4]
-    array_spec%trailing_integer = .true.
+    array_spec%inactive_integer_count = 2
     array_spec%generator = str("test_fortsym_enzyme")
     array_spec%generator_revision = str("test-revision")
     array_spec%regenerate_command = str("fo test test_fortsym_enzyme")
     source = chars(emit_enzyme_fixed_array_wrapper(array_spec))
     call check(index(source, &
-        "function fixed_arrays_jvp(x1, tangent1, x2, tangent2, selector)") > 0, &
+        "function fixed_arrays_jvp(x1, tangent1, x2, tangent2, selector1, selector2)") > 0, &
         "fixed-array JVP")
     call check(index(source, &
-        "function fixed_arrays_vjp(x1, x2, cotangent, bar1, bar2, selector) result(value)") &
+        "function fixed_arrays_vjp(x1, x2, cotangent, bar1, bar2, selector1, selector2) result(value)") &
         > 0, "fixed-array VJP")
     call check(index(source, &
         "real(c_double), intent(in) :: x1(16)") > 0, &
         "fixed-array first extent")
-    call check(index(source, "integer(c_int), value :: selector") > 0, &
-        "fixed-array inactive selector")
+    call check(index(source, "integer(c_int), value :: selector2") > 0, &
+        "fixed-array inactive selectors")
     call compile_source(source, "fixed_arrays")
 
     if (failures > 0) error stop "fortsym Enzyme wrapper tests failed"
