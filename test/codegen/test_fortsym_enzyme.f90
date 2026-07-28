@@ -86,7 +86,7 @@ program test_fortsym_enzyme
         "function fixed_arrays_jvp(x1, tangent1, x2, tangent2, selector)") > 0, &
         "fixed-array JVP")
     call check(index(source, &
-        "subroutine fixed_arrays_vjp(x1, x2, cotangent, bar1, bar2, value, selector)") &
+        "function fixed_arrays_vjp(x1, x2, cotangent, bar1, bar2, selector) result(value)") &
         > 0, "fixed-array VJP")
     call check(index(source, &
         "real(c_double), intent(in) :: x1(16)") > 0, &

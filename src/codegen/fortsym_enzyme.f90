@@ -135,13 +135,12 @@ contains
         call buffer%newline()
         call append_line(buffer, "    end function "//prefix//"_jvp")
         call buffer%newline()
-        call buffer%append("    subroutine "//prefix//"_vjp(")
+        call buffer%append("    function "//prefix//"_vjp(")
         call append_array_names(buffer, size(spec%array_sizes), .false.)
         call buffer%append(", cotangent, ")
         call append_bar_names(buffer, size(spec%array_sizes))
-        call buffer%append(", value")
         if (spec%trailing_integer) call buffer%append(", selector")
-        call buffer%append(")")
+        call buffer%append(") result(value)")
         call buffer%newline()
         call append_fixed_array_declarations(buffer, spec, .false.)
         call append_line(buffer, "        real(c_double), intent(in) :: cotangent")
@@ -150,7 +149,7 @@ contains
                 "        real(c_double), intent(out) :: bar"//integer_text(i)// &
                 "("//integer_text(spec%array_sizes(i))//")")
         end do
-        call append_line(buffer, "        real(c_double), intent(out) :: value")
+        call append_line(buffer, "        real(c_double) :: value")
         call buffer%newline()
         do i = 1, size(spec%array_sizes)
             call append_line(buffer, "        bar"//integer_text(i)//" = 0.0_c_double")
@@ -164,7 +163,7 @@ contains
             call append_line(buffer, &
                 "        bar"//integer_text(i)//" = cotangent*bar"//integer_text(i))
         end do
-        call append_line(buffer, "    end subroutine "//prefix//"_vjp")
+        call append_line(buffer, "    end function "//prefix//"_vjp")
         call buffer%newline()
         call append_line(buffer, "end module "//module_name)
         source = buffer%to_str()
