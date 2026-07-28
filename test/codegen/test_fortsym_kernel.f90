@@ -31,6 +31,7 @@ program test_fortsym_kernel
     call test_generator_revision()
     call test_module_wrapper()
     call test_array_shaped_arguments()
+    call test_rank_two_array_arguments()
     call test_multi_element_array_output()
     call test_pure_elemental_procedure()
     call test_device_leaf_annotations()
@@ -344,6 +345,62 @@ contains
             call ok("array-shaped generated kernel runs", stat == 0)
         end if
     end subroutine test_array_shaped_arguments
+
+    subroutine test_rank_two_array_arguments()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(4)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+        integer :: unit, ios, stat
+
+        call a%init()
+        roots = [sym(a, "x(1,1)")*sym(a, "v(1,1)"), &
+            sym(a, "x(2,1)")*sym(a, "v(2,1)"), &
+            sym(a, "x(1,2)")*sym(a, "v(1,2)"), &
+            sym(a, "x(2,2)")*sym(a, "v(2,2)")]
+        spec = spec_for("matrix_product", ["x", "v"], ["jvp"])
+        spec%module_name = str("generated_matrix_product")
+        allocate (spec%arg_shapes(2), spec%output_shapes(1), &
+            spec%output_references(4))
+        spec%arg_shapes = [str("(2,2)"), str("(2,2)")]
+        spec%output_shapes = [str("(2,2)")]
+        spec%output_references = [str("jvp(1,1)"), str("jvp(2,1)"), &
+            str("jvp(1,2)"), str("jvp(2,2)")]
+        code = chars(emit_kernel(roots, spec))
+        call ok("rank-two input declarations", &
+            index(code, "intent(in) :: x(2,2), v(2,2)") > 0)
+        call ok("rank-two output declaration", &
+            index(code, "intent(out) :: jvp(2,2)") > 0)
+
+        open (newunit=unit, file="/tmp/fortsym_gen_matrix.f90", &
+            status="replace", action="write", iostat=ios)
+        if (ios /= 0) then
+            call ok("rank-two kernel fixture opens", .false.)
+            return
+        end if
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_matrix"
+        write (unit, "(a)") "  use generated_matrix_product"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(dp) :: x(2,2), v(2,2), jvp(2,2)"
+        write (unit, "(a)") "  x = reshape([1.0_dp, 2.0_dp, 3.0_dp, 4.0_dp], [2,2])"
+        write (unit, "(a)") "  v = reshape([5.0_dp, 6.0_dp, 7.0_dp, 8.0_dp], [2,2])"
+        write (unit, "(a)") "  call matrix_product(x, v, jvp)"
+        write (unit, "(a)") "  if (any(abs(jvp - x*v) > 1.0e-14_dp)) error stop 1"
+        write (unit, "(a)") "end program drive_matrix"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -J /tmp -o /tmp/fortsym_gen_matrix "// &
+            "/tmp/fortsym_gen_matrix.f90 > /tmp/fortsym_gen_matrix.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("rank-two generated kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_gen_matrix", wait=.true., &
+                exitstat=stat)
+            call ok("rank-two generated kernel runs", stat == 0)
+        end if
+    end subroutine test_rank_two_array_arguments
 
     subroutine test_multi_element_array_output()
         type(arena_t), target :: a
