@@ -33,6 +33,7 @@ program test_fortsym_enzyme
     spec%active_inputs = 4
     spec%analytical_jvp_symbol = str("test_analytical_four_jvp")
     spec%custom_forward_symbol = str("test_custom_four_forward")
+    spec%custom_forward_counter_symbol = str("test_rule_counter_record")
     source = chars(emit_enzyme_scalar_wrapper(spec))
     call check(index(source, "real(c_double) :: values(4)") > 0, &
         "four-input reverse result")
@@ -42,6 +43,8 @@ program test_fortsym_enzyme
     call check(index(source, &
         "pair%tangent = analytical_jvp(x1, tangent1, x2, tangent2, " // &
         "x3, tangent3, x4, tangent4)") > 0, "analytical JVP hook")
+    call check(index(source, "call record_custom_rule()") > 0, &
+        "shared custom-rule counter hook")
     call compile_source(source, "four")
 
     if (failures > 0) error stop "fortsym Enzyme wrapper tests failed"

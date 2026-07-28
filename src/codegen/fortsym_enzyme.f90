@@ -10,6 +10,7 @@ module fortsym_enzyme
         integer :: active_inputs = 1
         type(str_t) :: analytical_jvp_symbol
         type(str_t) :: custom_forward_symbol
+        type(str_t) :: custom_forward_counter_symbol
         type(str_t) :: generator
         type(str_t) :: generator_revision
         type(str_t) :: regenerate_command
@@ -33,6 +34,9 @@ contains
         call append_forward_interface(buffer, spec)
         call append_reverse_interface(buffer, spec)
         if (custom) call append_analytical_interface(buffer, spec)
+        if (len(chars(spec%custom_forward_counter_symbol)) > 0) then
+            call append_counter_interface(buffer, spec)
+        end if
         call buffer%append("    end interface")
         call buffer%newline()
         call buffer%newline()
@@ -72,6 +76,10 @@ contains
         custom = len(chars(spec%custom_forward_symbol)) > 0
         if (custom .and. len(chars(spec%analytical_jvp_symbol)) == 0) then
             error stop "custom forward rule requires analytical_jvp_symbol"
+        end if
+        if (.not. custom .and. &
+            len(chars(spec%custom_forward_counter_symbol)) > 0) then
+            error stop "custom forward counter requires custom_forward_symbol"
         end if
     end subroutine validate_spec
 
@@ -238,6 +246,19 @@ contains
         call buffer%newline()
     end subroutine append_analytical_interface
 
+    subroutine append_counter_interface(buffer, spec)
+        type(strbuf_t), intent(inout) :: buffer
+        type(enzyme_scalar_wrapper_spec_t), intent(in) :: spec
+
+        call buffer%append("        subroutine record_custom_rule() bind(c, name=""")
+        call buffer%append(chars(spec%custom_forward_counter_symbol))
+        call buffer%append(""")")
+        call buffer%newline()
+        call buffer%append("        end subroutine record_custom_rule")
+        call buffer%newline()
+        call buffer%newline()
+    end subroutine append_counter_interface
+
     subroutine append_jvp(buffer, spec)
         type(strbuf_t), intent(inout) :: buffer
         type(enzyme_scalar_wrapper_spec_t), intent(in) :: spec
@@ -337,6 +358,10 @@ contains
         call append_interleaved_arguments(buffer, spec%active_inputs)
         call buffer%append(")")
         call buffer%newline()
+        if (len(chars(spec%custom_forward_counter_symbol)) > 0) then
+            call buffer%append("        call record_custom_rule()")
+            call buffer%newline()
+        end if
         call buffer%append("    end function ")
         call buffer%append(chars(spec%custom_forward_symbol))
         call buffer%newline()
