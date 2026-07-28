@@ -44,8 +44,12 @@ module fortsym_kernel
         integer                  :: mode = KERNEL_SUBROUTINE
         !> Input symbol names, in argument order.
         type(str_t), allocatable :: args(:)
+        !> Optional declaration suffixes such as "(1)" or "(:)" for inputs.
+        type(str_t), allocatable :: arg_shapes(:)
         !> Output variable names, one per expression.
         type(str_t), allocatable :: outputs(:)
+        !> Optional declaration suffixes for outputs.
+        type(str_t), allocatable :: output_shapes(:)
         !> Prefix for generated temporaries.
         type(str_t)              :: temp_prefix
         !> Name of the module or program that generated this, recorded in the
@@ -68,6 +72,9 @@ module fortsym_kernel
         logical                  :: openacc_routine_seq = .false.
         !> Emit a side-effect-free Fortran subroutine.
         logical                  :: pure_procedure = .false.
+        !> Emit an elemental subroutine. Elemental dummy arguments must remain
+        !> scalar; use arg_shapes/output_shapes for explicit array kernels.
+        logical                  :: elemental_procedure = .false.
     end type kernel_spec_t
 
     !> Which nodes became temporaries, and in what order they must be assigned.
@@ -378,6 +385,22 @@ contains
                 error stop "OpenMP device emission requires module_name"
             end if
         end if
+        if (allocated(spec%arg_shapes)) then
+            if (size(spec%arg_shapes) /= size(spec%args)) then
+                error stop "arg_shapes must match args"
+            end if
+        end if
+        if (allocated(spec%output_shapes)) then
+            if (size(spec%output_shapes) /= size(spec%outputs)) then
+                error stop "output_shapes must match outputs"
+            end if
+        end if
+        if (spec%elemental_procedure) then
+            if (allocated(spec%arg_shapes) .or. &
+                allocated(spec%output_shapes)) then
+                error stop "elemental procedures require scalar arguments"
+            end if
+        end if
 
         res = cse_analyse(roots, chars(spec%temp_prefix))
 
@@ -427,6 +450,7 @@ contains
         integer :: k
 
         if (spec%pure_procedure) call header%append("pure ")
+        if (spec%elemental_procedure) call header%append("elemental ")
         call header%append("subroutine ")
         call header%append(chars(spec%name))
         call header%append("(")
@@ -454,8 +478,16 @@ contains
         call b%append("    implicit none")
         call b%newline()
 
-        call declare(b, "intent(in)", spec%args)
-        call declare(b, "intent(out)", spec%outputs)
+        if (allocated(spec%arg_shapes)) then
+            call declare(b, "intent(in)", spec%args, spec%arg_shapes)
+        else
+            call declare(b, "intent(in)", spec%args)
+        end if
+        if (allocated(spec%output_shapes)) then
+            call declare(b, "intent(out)", spec%outputs, spec%output_shapes)
+        else
+            call declare(b, "intent(out)", spec%outputs)
+        end if
 
         if (res%n > 0) then
             ! Temporaries are declared explicitly, never left to an implicit
@@ -492,10 +524,11 @@ contains
         end if
     end subroutine append_indented
 
-    subroutine declare(b, attribute, names)
+    subroutine declare(b, attribute, names, shapes)
         type(strbuf_t), intent(inout) :: b
         character(*),   intent(in)    :: attribute
         type(str_t),    intent(in)    :: names(:)
+        type(str_t),    intent(in), optional :: shapes(:)
         type(strbuf_t) :: declaration
         integer :: k
 
@@ -510,6 +543,7 @@ contains
         do k = 1, size(names)
             if (k > 1) call declaration%append(", ")
             call declaration%append(chars(names(k)))
+            if (present(shapes)) call declaration%append(chars(shapes(k)))
         end do
         call append_wrapped(b, chars(declaration%to_str()))
     end subroutine declare

@@ -29,6 +29,8 @@ program test_fortsym_kernel
     call test_explicit_regeneration_command()
     call test_generator_revision()
     call test_module_wrapper()
+    call test_array_shaped_arguments()
+    call test_pure_elemental_procedure()
     call test_device_leaf_annotations()
     call test_product_codegen_scales_linearly()
     call test_simplified_negative_product_emission()
@@ -268,6 +270,102 @@ contains
             call ok("module-wrapped kernel runs", stat == 0)
         end if
     end subroutine test_module_wrapper
+
+    subroutine test_array_shaped_arguments()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+        integer :: unit, ios, stat
+
+        call a%init()
+        roots(1) = sym(a, "x(1)")*sym(a, "v(1)")
+        spec = spec_for("array_product", ["x", "v"], ["jvp"])
+        spec%module_name = str("generated_array_product")
+        allocate (spec%arg_shapes(2), spec%output_shapes(1))
+        spec%arg_shapes = [str("(1)"), str("(1)")]
+        spec%output_shapes = [str("(1)")]
+        code = chars(emit_kernel(roots, spec))
+        call ok("array input declarations", &
+            index(code, "intent(in) :: x(1), v(1)") > 0)
+        call ok("array output declaration", &
+            index(code, "intent(out) :: jvp(1)") > 0)
+
+        open (newunit=unit, file="/tmp/fortsym_gen_array.f90", &
+            status="replace", action="write", iostat=ios)
+        if (ios /= 0) then
+            call ok("array kernel fixture opens", .false.)
+            return
+        end if
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_array"
+        write (unit, "(a)") "  use generated_array_product, only: array_product"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(dp) :: x(1), v(1), jvp(1)"
+        write (unit, "(a)") "  x = 3.0_dp; v = 2.0_dp"
+        write (unit, "(a)") "  call array_product(x, v, jvp)"
+        write (unit, "(a)") "  if (abs(jvp(1) - 6.0_dp) > 1.0e-14_dp) error stop 1"
+        write (unit, "(a)") "end program drive_array"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -J /tmp -o /tmp/fortsym_gen_array "// &
+            "/tmp/fortsym_gen_array.f90 > /tmp/fortsym_gen_array.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("array-shaped generated kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_gen_array", wait=.true., &
+                exitstat=stat)
+            call ok("array-shaped generated kernel runs", stat == 0)
+        end if
+    end subroutine test_array_shaped_arguments
+
+    subroutine test_pure_elemental_procedure()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+        integer :: unit, ios, stat
+
+        call a%init()
+        roots(1) = sym(a, "x")*sym(a, "v")
+        spec = spec_for("elemental_product", ["x", "v"], ["jvp"])
+        spec%module_name = str("generated_elemental_product")
+        spec%pure_procedure = .true.
+        spec%elemental_procedure = .true.
+        code = chars(emit_kernel(roots, spec))
+        call ok("pure elemental declaration", &
+            index(code, "pure elemental subroutine elemental_product") > 0)
+
+        open (newunit=unit, file="/tmp/fortsym_gen_elemental.f90", &
+            status="replace", action="write", iostat=ios)
+        if (ios /= 0) then
+            call ok("elemental kernel fixture opens", .false.)
+            return
+        end if
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_elemental"
+        write (unit, "(a)") "  use generated_elemental_product"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(dp) :: x(2), v(2), jvp(2)"
+        write (unit, "(a)") "  x = [3.0_dp, 4.0_dp]; v = [2.0_dp, -1.0_dp]"
+        write (unit, "(a)") "  call elemental_product(x, v, jvp)"
+        write (unit, "(a)") "  if (any(abs(jvp - [6.0_dp, -4.0_dp]) > 1.0e-14_dp)) error stop 1"
+        write (unit, "(a)") "end program drive_elemental"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -J /tmp -o /tmp/fortsym_gen_elemental "// &
+            "/tmp/fortsym_gen_elemental.f90 "// &
+            "> /tmp/fortsym_gen_elemental.log 2>&1", wait=.true., &
+            exitstat=stat)
+        call ok("pure elemental generated kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_gen_elemental", &
+                wait=.true., exitstat=stat)
+            call ok("pure elemental generated kernel maps arrays", stat == 0)
+        end if
+    end subroutine test_pure_elemental_procedure
 
     subroutine test_device_leaf_annotations()
         type(arena_t), target :: a
