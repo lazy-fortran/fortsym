@@ -282,14 +282,18 @@ contains
         roots(1) = sym(a, "x(1)")*sym(a, "v(1)")
         spec = spec_for("array_product", ["x", "v"], ["jvp"])
         spec%module_name = str("generated_array_product")
-        allocate (spec%arg_shapes(2), spec%output_shapes(1))
+        allocate (spec%arg_shapes(2), spec%output_shapes(1), &
+            spec%output_references(1))
         spec%arg_shapes = [str("(1)"), str("(1)")]
         spec%output_shapes = [str("(1)")]
+        spec%output_references = [str("jvp(1)")]
         code = chars(emit_kernel(roots, spec))
         call ok("array input declarations", &
             index(code, "intent(in) :: x(1), v(1)") > 0)
         call ok("array output declaration", &
             index(code, "intent(out) :: jvp(1)") > 0)
+        call ok("array output reference", &
+            index(code, "jvp(1) = x(1)*v(1)") > 0)
 
         open (newunit=unit, file="/tmp/fortsym_gen_array.f90", &
             status="replace", action="write", iostat=ios)

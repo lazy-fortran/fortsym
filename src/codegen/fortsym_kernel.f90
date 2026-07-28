@@ -50,6 +50,8 @@ module fortsym_kernel
         type(str_t), allocatable :: outputs(:)
         !> Optional declaration suffixes for outputs.
         type(str_t), allocatable :: output_shapes(:)
+        !> Optional assignment targets such as "jvp(1)".
+        type(str_t), allocatable :: output_references(:)
         !> Prefix for generated temporaries.
         type(str_t)              :: temp_prefix
         !> Name of the module or program that generated this, recorded in the
@@ -288,10 +290,15 @@ contains
         end do
 
         do k = 1, size(roots)
-            call append_assignment(b, chars(spec%outputs(k)), &
-                chars(print_expr_sub(roots(k), d, &
-                res%ids(1:res%n), &
-                res%names(1:res%n))))
+            if (allocated(spec%output_references)) then
+                call append_assignment(b, chars(spec%output_references(k)), &
+                    chars(print_expr_sub(roots(k), d, &
+                    res%ids(1:res%n), res%names(1:res%n))))
+            else
+                call append_assignment(b, chars(spec%outputs(k)), &
+                    chars(print_expr_sub(roots(k), d, &
+                    res%ids(1:res%n), res%names(1:res%n))))
+            end if
         end do
 
         s = b%to_str()
@@ -393,6 +400,11 @@ contains
         if (allocated(spec%output_shapes)) then
             if (size(spec%output_shapes) /= size(spec%outputs)) then
                 error stop "output_shapes must match outputs"
+            end if
+        end if
+        if (allocated(spec%output_references)) then
+            if (size(spec%output_references) /= size(spec%outputs)) then
+                error stop "output_references must match outputs"
             end if
         end if
         if (spec%elemental_procedure) then
