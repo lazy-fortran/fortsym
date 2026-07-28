@@ -30,6 +30,7 @@ program test_fortsym_kernel
     call test_generator_revision()
     call test_module_wrapper()
     call test_array_shaped_arguments()
+    call test_multi_element_array_output()
     call test_pure_elemental_procedure()
     call test_device_leaf_annotations()
     call test_product_codegen_scales_linearly()
@@ -323,6 +324,58 @@ contains
             call ok("array-shaped generated kernel runs", stat == 0)
         end if
     end subroutine test_array_shaped_arguments
+
+    subroutine test_multi_element_array_output()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(2)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+        integer :: unit, ios, stat
+
+        call a%init()
+        roots(1) = sym(a, "x") + 1
+        roots(2) = sym(a, "x")*2
+        spec = spec_for("array_fill", ["x"], ["y"])
+        spec%module_name = str("generated_array_fill")
+        allocate (spec%output_shapes(1), spec%output_references(2))
+        spec%output_shapes(1) = str("(2)")
+        spec%output_references = [str("y(1)"), str("y(2)")]
+        code = chars(emit_kernel(roots, spec))
+        call ok("multi-element array declared once", &
+            index(code, "intent(out) :: y(2)") > 0)
+        call ok("first array element assigned", &
+            index(code, "y(1) = x + 1") > 0)
+        call ok("second array element assigned", &
+            index(code, "y(2) = x*2") > 0)
+
+        open (newunit=unit, file="/tmp/fortsym_gen_array_fill.f90", &
+            status="replace", action="write", iostat=ios)
+        if (ios /= 0) then
+            call ok("multi-element array fixture opens", .false.)
+            return
+        end if
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_array_fill"
+        write (unit, "(a)") "  use generated_array_fill, only: array_fill"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(dp) :: y(2)"
+        write (unit, "(a)") "  call array_fill(3.0_dp, y)"
+        write (unit, "(a)") "  if (maxval(abs(y - [4.0_dp, 6.0_dp])) > 1.0e-14_dp) error stop 1"
+        write (unit, "(a)") "end program drive_array_fill"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -J /tmp -o /tmp/fortsym_gen_array_fill "// &
+            "/tmp/fortsym_gen_array_fill.f90 "// &
+            "> /tmp/fortsym_gen_array_fill.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("multi-element array kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line( &
+                "/tmp/fortsym_gen_array_fill", wait=.true., exitstat=stat)
+            call ok("multi-element array kernel runs", stat == 0)
+        end if
+    end subroutine test_multi_element_array_output
 
     subroutine test_pure_elemental_procedure()
         type(arena_t), target :: a

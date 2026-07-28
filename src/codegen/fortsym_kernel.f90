@@ -46,11 +46,13 @@ module fortsym_kernel
         type(str_t), allocatable :: args(:)
         !> Optional declaration suffixes such as "(1)" or "(:)" for inputs.
         type(str_t), allocatable :: arg_shapes(:)
-        !> Output variable names, one per expression.
+        !> Declared output arguments. Several expressions may target elements
+        !> of one declared array through output_references.
         type(str_t), allocatable :: outputs(:)
         !> Optional declaration suffixes for outputs.
         type(str_t), allocatable :: output_shapes(:)
-        !> Optional assignment targets such as "jvp(1)".
+        !> Optional assignment targets, one per expression, such as
+        !> "jacobian(1,1)" and "jacobian(1,2)".
         type(str_t), allocatable :: output_references(:)
         !> Prefix for generated temporaries.
         type(str_t)              :: temp_prefix
@@ -403,9 +405,11 @@ contains
             end if
         end if
         if (allocated(spec%output_references)) then
-            if (size(spec%output_references) /= size(spec%outputs)) then
-                error stop "output_references must match outputs"
+            if (size(spec%output_references) /= size(roots)) then
+                error stop "output_references must match expressions"
             end if
+        else if (size(spec%outputs) /= size(roots)) then
+            error stop "outputs must match expressions without output_references"
         end if
         if (spec%elemental_procedure) then
             if (allocated(spec%arg_shapes) .or. &
