@@ -1,14 +1,17 @@
 program test_fortsym_enzyme
     use fortsym_string, only: str, chars
-    use fortsym_enzyme, only: enzyme_fixed_array_wrapper_spec_t, &
+    use fortsym_enzyme, only: enzyme_fixed_array_map_wrapper_spec_t, &
+        enzyme_fixed_array_wrapper_spec_t, &
         enzyme_scalar_vector_wrapper_spec_t, enzyme_scalar_wrapper_spec_t, &
-        emit_enzyme_fixed_array_wrapper, emit_enzyme_scalar_vector_wrapper, &
+        emit_enzyme_fixed_array_map_wrapper, emit_enzyme_fixed_array_wrapper, &
+        emit_enzyme_scalar_vector_wrapper, &
         emit_enzyme_scalar_wrapper
     implicit none
 
     type(enzyme_scalar_wrapper_spec_t) :: spec
     type(enzyme_scalar_vector_wrapper_spec_t) :: vector_spec
     type(enzyme_fixed_array_wrapper_spec_t) :: array_spec
+    type(enzyme_fixed_array_map_wrapper_spec_t) :: map_spec
     character(:), allocatable :: source
     integer :: failures
 
@@ -114,6 +117,26 @@ program test_fortsym_enzyme
     call check(index(source, "integer(c_int), value :: selector2") > 0, &
         "fixed-array inactive selectors")
     call compile_source(source, "fixed_arrays")
+
+    map_spec%module_name = str("generated_fixed_array_map")
+    map_spec%wrapper_prefix = str("fixed_array_map")
+    map_spec%primal_symbol = str("test_fixed_array_map")
+    map_spec%input_size = 16
+    map_spec%output_size = 10
+    map_spec%generator = str("test_fortsym_enzyme")
+    map_spec%generator_revision = str("test-revision")
+    map_spec%regenerate_command = str("fo test test_fortsym_enzyme")
+    source = chars(emit_enzyme_fixed_array_map_wrapper(map_spec))
+    call check(index(source, &
+        "subroutine fixed_array_map_jvp(x, tangent, y, product)") > 0, &
+        "fixed-array map JVP")
+    call check(index(source, &
+        "real(c_double), intent(in) :: x(16), tangent(16)") > 0, &
+        "fixed-array map input extent")
+    call check(index(source, &
+        "real(c_double), intent(out) :: y(10), product(10)") > 0, &
+        "fixed-array map output extent")
+    call compile_source(source, "fixed_array_map")
 
     if (failures > 0) error stop "fortsym Enzyme wrapper tests failed"
 
