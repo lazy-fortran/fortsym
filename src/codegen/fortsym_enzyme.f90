@@ -32,6 +32,7 @@ module fortsym_enzyme
         type(str_t) :: primal_symbol
         integer, allocatable :: array_sizes(:)
         integer :: inactive_integer_count = 0
+        logical :: emit_vjp = .true.
         type(str_t) :: generator
         type(str_t) :: generator_revision
         type(str_t) :: regenerate_command
@@ -158,7 +159,11 @@ contains
         call append_line(buffer, "    implicit none")
         call append_line(buffer, "    private")
         call buffer%newline()
-        call append_line(buffer, "    public :: "//prefix//"_jvp, "//prefix//"_vjp")
+        if (spec%emit_vjp) then
+            call append_line(buffer, "    public :: "//prefix//"_jvp, "//prefix//"_vjp")
+        else
+            call append_line(buffer, "    public :: "//prefix//"_jvp")
+        end if
         call buffer%newline()
         call append_line(buffer, "    interface")
         call buffer%append("        function primal(")
@@ -192,24 +197,26 @@ contains
             spec%inactive_integer_count, 12)
         call append_line(buffer, "            real(c_double) :: derivative")
         call append_line(buffer, "        end function enzyme_fwddiff")
-        call buffer%newline()
-        call buffer%append("        function enzyme_autodiff(function_pointer, ")
-        call append_array_names(buffer, size(spec%array_sizes), .true., "bar")
-        call append_inactive_integer_names(buffer, spec%inactive_integer_count)
-        call buffer%append(") result(value) bind(c, name=""__enzyme_autodiff"")")
-        call buffer%newline()
-        call append_line(buffer, "            import :: c_double, c_funptr, c_int")
-        call append_line(buffer, "            type(c_funptr), value :: function_pointer")
-        do i = 1, size(spec%array_sizes)
-            call append_line(buffer, &
-                "            real(c_double), intent(in) :: x"//integer_text(i)//"(*)")
-            call append_line(buffer, &
-                "            real(c_double), intent(inout) :: bar"//integer_text(i)//"(*)")
-        end do
-        call append_inactive_integer_declarations(buffer, &
-            spec%inactive_integer_count, 12)
-        call append_line(buffer, "            real(c_double) :: value")
-        call append_line(buffer, "        end function enzyme_autodiff")
+        if (spec%emit_vjp) then
+            call buffer%newline()
+            call buffer%append("        function enzyme_autodiff(function_pointer, ")
+            call append_array_names(buffer, size(spec%array_sizes), .true., "bar")
+            call append_inactive_integer_names(buffer, spec%inactive_integer_count)
+            call buffer%append(") result(value) bind(c, name=""__enzyme_autodiff"")")
+            call buffer%newline()
+            call append_line(buffer, "            import :: c_double, c_funptr, c_int")
+            call append_line(buffer, "            type(c_funptr), value :: function_pointer")
+            do i = 1, size(spec%array_sizes)
+                call append_line(buffer, &
+                    "            real(c_double), intent(in) :: x"//integer_text(i)//"(*)")
+                call append_line(buffer, &
+                    "            real(c_double), intent(inout) :: bar"//integer_text(i)//"(*)")
+            end do
+            call append_inactive_integer_declarations(buffer, &
+                spec%inactive_integer_count, 12)
+            call append_line(buffer, "            real(c_double) :: value")
+            call append_line(buffer, "        end function enzyme_autodiff")
+        end if
         call append_line(buffer, "    end interface")
         call buffer%newline()
         call append_line(buffer, "contains")
@@ -228,36 +235,38 @@ contains
         call buffer%append(")")
         call buffer%newline()
         call append_line(buffer, "    end function "//prefix//"_jvp")
-        call buffer%newline()
-        call buffer%append("    function "//prefix//"_vjp(")
-        call append_array_names(buffer, size(spec%array_sizes), .false.)
-        call buffer%append(", cotangent, ")
-        call append_bar_names(buffer, size(spec%array_sizes))
-        call append_inactive_integer_names(buffer, spec%inactive_integer_count)
-        call buffer%append(") result(value)")
-        call buffer%newline()
-        call append_fixed_array_declarations(buffer, spec, .false.)
-        call append_line(buffer, "        real(c_double), intent(in) :: cotangent")
-        do i = 1, size(spec%array_sizes)
-            call append_line(buffer, &
-                "        real(c_double), intent(out) :: bar"//integer_text(i)// &
-                "("//integer_text(spec%array_sizes(i))//")")
-        end do
-        call append_line(buffer, "        real(c_double) :: value")
-        call buffer%newline()
-        do i = 1, size(spec%array_sizes)
-            call append_line(buffer, "        bar"//integer_text(i)//" = 0.0_c_double")
-        end do
-        call buffer%append("        value = enzyme_autodiff(c_funloc(primal), ")
-        call append_array_names(buffer, size(spec%array_sizes), .true., "bar")
-        call append_inactive_integer_names(buffer, spec%inactive_integer_count)
-        call buffer%append(")")
-        call buffer%newline()
-        do i = 1, size(spec%array_sizes)
-            call append_line(buffer, &
-                "        bar"//integer_text(i)//" = cotangent*bar"//integer_text(i))
-        end do
-        call append_line(buffer, "    end function "//prefix//"_vjp")
+        if (spec%emit_vjp) then
+            call buffer%newline()
+            call buffer%append("    function "//prefix//"_vjp(")
+            call append_array_names(buffer, size(spec%array_sizes), .false.)
+            call buffer%append(", cotangent, ")
+            call append_bar_names(buffer, size(spec%array_sizes))
+            call append_inactive_integer_names(buffer, spec%inactive_integer_count)
+            call buffer%append(") result(value)")
+            call buffer%newline()
+            call append_fixed_array_declarations(buffer, spec, .false.)
+            call append_line(buffer, "        real(c_double), intent(in) :: cotangent")
+            do i = 1, size(spec%array_sizes)
+                call append_line(buffer, &
+                    "        real(c_double), intent(out) :: bar"//integer_text(i)// &
+                    "("//integer_text(spec%array_sizes(i))//")")
+            end do
+            call append_line(buffer, "        real(c_double) :: value")
+            call buffer%newline()
+            do i = 1, size(spec%array_sizes)
+                call append_line(buffer, "        bar"//integer_text(i)//" = 0.0_c_double")
+            end do
+            call buffer%append("        value = enzyme_autodiff(c_funloc(primal), ")
+            call append_array_names(buffer, size(spec%array_sizes), .true., "bar")
+            call append_inactive_integer_names(buffer, spec%inactive_integer_count)
+            call buffer%append(")")
+            call buffer%newline()
+            do i = 1, size(spec%array_sizes)
+                call append_line(buffer, &
+                    "        bar"//integer_text(i)//" = cotangent*bar"//integer_text(i))
+            end do
+            call append_line(buffer, "    end function "//prefix//"_vjp")
+        end if
         call buffer%newline()
         call append_line(buffer, "end module "//module_name)
         source = buffer%to_str()

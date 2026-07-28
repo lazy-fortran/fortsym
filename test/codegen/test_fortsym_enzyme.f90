@@ -118,6 +118,18 @@ program test_fortsym_enzyme
         "fixed-array inactive selectors")
     call compile_source(source, "fixed_arrays")
 
+    array_spec%module_name = str("generated_forward_arrays")
+    array_spec%wrapper_prefix = str("forward_arrays")
+    array_spec%emit_vjp = .false.
+    source = chars(emit_enzyme_fixed_array_wrapper(array_spec))
+    call check(index(source, "public :: forward_arrays_jvp") > 0, &
+        "forward-only fixed-array JVP is public")
+    call check(index(source, "forward_arrays_vjp") == 0, &
+        "forward-only fixed-array omits VJP")
+    call check(index(source, "__enzyme_autodiff") == 0, &
+        "forward-only fixed-array omits reverse Enzyme entry")
+    call compile_source(source, "forward_arrays")
+
     map_spec%module_name = str("generated_fixed_array_map")
     map_spec%wrapper_prefix = str("fixed_array_map")
     map_spec%primal_symbol = str("test_fixed_array_map")
