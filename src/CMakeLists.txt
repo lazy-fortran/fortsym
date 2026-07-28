@@ -34,6 +34,7 @@ target_sources(fortsym PRIVATE
     # code generation
     codegen/fortsym_enzyme.f90
     codegen/fortsym_kernel.f90
+    codegen/fortsym_stability.f90
 
     # verification
     verify/fortsym_eval.f90
