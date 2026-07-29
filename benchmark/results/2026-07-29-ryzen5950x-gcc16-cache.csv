@@ -1,0 +1,13 @@
+schema,compiler,workload,engine,scope,warmups,repetitions,batch,median_seconds,min_seconds,correct
+1,GCC version 16.1.1 20260625,simplify_collect,native,warm_same_expression,5,31,50,1.22240745E-07,1.22019555E-07,true
+1,GCC version 16.1.1 20260625,simplify_collect,symengine,warm_same_expression,5,31,50,6.92503992E-06,6.61985949E-06,true
+1,GCC version 16.1.1 20260625,differentiate_power,native,warm_same_expression,5,31,50,1.47677958E-06,1.41625991E-06,true
+1,GCC version 16.1.1 20260625,differentiate_power,symengine,warm_same_expression,5,31,50,4.74133994E-06,4.56820009E-06,true
+1,GCC version 16.1.1 20260625,expand_power,native,warm_same_expression,5,31,50,9.76002775E-08,9.65781510E-08,true
+1,GCC version 16.1.1 20260625,expand_power,symengine,warm_same_expression,5,31,50,1.35143320E-04,1.25883480E-04,true
+1,GCC version 16.1.1 20260625,simplify_collect,native,cold_distinct_expression,2,11,10,4.90220264E-06,4.84110788E-06,true
+1,GCC version 16.1.1 20260625,simplify_collect,symengine,cold_distinct_expression,2,11,10,7.50210602E-06,6.45520631E-06,true
+1,GCC version 16.1.1 20260625,differentiate_power,native,cold_distinct_expression,2,11,10,5.24380011E-06,5.17480075E-06,true
+1,GCC version 16.1.1 20260625,differentiate_power,symengine,cold_distinct_expression,2,11,10,6.22570515E-06,6.10750867E-06,true
+1,GCC version 16.1.1 20260625,expand_power,native,cold_distinct_expression,2,11,10,3.37907820E-03,2.97406641E-03,true
+1,GCC version 16.1.1 20260625,expand_power,symengine,cold_distinct_expression,2,11,10,3.37174104E-04,3.02571803E-04,true
