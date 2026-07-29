@@ -22,8 +22,8 @@ it.
 | Polynomial GCD and rational cancellation | no | partial, univariate | partial | multivariate domains |
 | Factor, apart, and together | no | no public operation | advertised only | typed engine operations |
 | Assumptions and conditions | no | no public context | no public context | real, positive, nonnegative, nonzero |
-| Series and coefficient extraction | no public operation | C shim only | no public operation | Taylor and Laurent series |
-| Linear and polynomial solve | no | no public operation | advertised only | scalar linear solve, polynomial roots |
+| Series and coefficient extraction | Taylor | C shim only | no public operation | Laurent series and singular points |
+| Linear and polynomial solve | scalar linear | no public operation | advertised only | univariate polynomial roots |
 | Integration | no | no generic operation | Yacas concrete method | rational integration first |
 | Limits and asymptotics | no | no public operation | advertised only | Taylor limits, then Gruntz scales |
 | CSE and Fortran kernel generation | yes | candidate source | candidate source | runtime-aware cost model |

@@ -25,7 +25,7 @@ module fortsym_engine
     public :: engine_t, engine_result_t
     public :: VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, verdict_name
     public :: CAP_ZERO_TEST, CAP_SIMPLIFY, CAP_DIFF, CAP_EXPAND, CAP_FACTOR, &
-        CAP_INTEGRATE, CAP_LIMIT, CAP_SOLVE, CAP_CSE, CAP_EVAL
+        CAP_INTEGRATE, CAP_LIMIT, CAP_SOLVE, CAP_CSE, CAP_EVAL, CAP_SERIES
     public :: has_cap, wall_seconds
 
     integer, parameter :: dp = real64
@@ -47,6 +47,7 @@ module fortsym_engine
     integer, parameter :: CAP_SOLVE = 128
     integer, parameter :: CAP_CSE = 256
     integer, parameter :: CAP_EVAL = 512
+    integer, parameter :: CAP_SERIES = 1024
 
     !> Outcome of one engine call: what it answered, whether it answered at all,
     !> and how long it took.
@@ -76,6 +77,9 @@ module fortsym_engine
         procedure :: simplify => engine_simplify_default
         procedure :: diff => engine_diff_default
         procedure :: expand => engine_expand_default
+        procedure :: series => engine_series_default
+        procedure :: series_coeff => engine_series_coeff_default
+        procedure :: solve => engine_solve_default
         procedure :: shutdown => engine_shutdown_default
     end type engine_t
 
@@ -151,6 +155,41 @@ contains
         r%value = e
         r%message = str(chars(self%name)//": expand not supported")
     end function engine_expand_default
+
+    function engine_series_default(self, e, v, point, order) result(r)
+        class(engine_t), intent(inout) :: self
+        type(expr_t),    intent(in)    :: e, v, point
+        integer,         intent(in)    :: order
+        type(engine_result_t)          :: r
+        r%ok = .false.
+        r%value = e
+        r%message = str(chars(self%name)//": series not supported")
+        associate (unused_v => v, unused_point => point, unused_order => order)
+        end associate
+    end function engine_series_default
+
+    function engine_series_coeff_default(self, e, v, point, order) result(r)
+        class(engine_t), intent(inout) :: self
+        type(expr_t),    intent(in)    :: e, v, point
+        integer,         intent(in)    :: order
+        type(engine_result_t)          :: r
+        r%ok = .false.
+        r%value = e
+        r%message = str(chars(self%name)//": series_coeff not supported")
+        associate (unused_v => v, unused_point => point, unused_order => order)
+        end associate
+    end function engine_series_coeff_default
+
+    function engine_solve_default(self, e, v) result(r)
+        class(engine_t), intent(inout) :: self
+        type(expr_t),    intent(in)    :: e, v
+        type(engine_result_t)          :: r
+        r%ok = .false.
+        r%value = e
+        r%message = str(chars(self%name)//": solve not supported")
+        associate (unused_v => v)
+        end associate
+    end function engine_solve_default
 
     subroutine engine_shutdown_default(self)
         class(engine_t), intent(inout) :: self

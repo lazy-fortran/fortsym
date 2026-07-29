@@ -9,11 +9,13 @@ module fortsym_engine_native
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
-    use fortsym_expr, only: expr_t
+    use fortsym_expr, only: expr_t, num, operator(+), operator(-), operator(*), &
+        operator(/), operator(**)
     use fortsym_diff, only: diff_expr => diff
+    use fortsym_subs, only: subs
     use fortsym_engine, only: engine_t, engine_result_t, wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, CAP_ZERO_TEST, &
-        CAP_SIMPLIFY, CAP_DIFF, CAP_EXPAND
+        CAP_SIMPLIFY, CAP_DIFF, CAP_EXPAND, CAP_SOLVE, CAP_SERIES
     implicit none
     private
 
@@ -31,6 +33,9 @@ module fortsym_engine_native
         procedure :: simplify => native_simplify
         procedure :: diff => native_diff
         procedure :: expand => native_expand
+        procedure :: series => native_series
+        procedure :: series_coeff => native_series_coeff
+        procedure :: solve => native_solve
     end type native_engine_t
 
 contains
@@ -42,7 +47,8 @@ contains
         eng%name = str("native")
         eng%available = .true.
         eng%in_process = .true.
-        eng%caps = CAP_ZERO_TEST + CAP_SIMPLIFY + CAP_DIFF + CAP_EXPAND
+        eng%caps = CAP_ZERO_TEST + CAP_SIMPLIFY + CAP_DIFF + CAP_EXPAND + &
+            CAP_SERIES + CAP_SOLVE
         eng%home => home
     end function make_native_engine
 
@@ -133,6 +139,167 @@ contains
         r = self%simplify(expanded)
         r%seconds = wall_seconds() - started
     end function native_expand
+
+    function native_series_coeff(self, e, v, point, order) result(r)
+        class(native_engine_t), intent(inout) :: self
+        type(expr_t),           intent(in)    :: e, v, point
+        integer,                intent(in)    :: order
+        type(engine_result_t)                 :: r
+        type(engine_result_t) :: prepared, differentiated
+        type(expr_t) :: derivative, at_point
+        integer(int64) :: factorial
+        real(dp) :: started
+        logical :: factorial_ok
+        integer :: k
+
+        started = wall_seconds()
+        r%value = e
+        if (order < 0) then
+            r%message = str("native: series order must be nonnegative")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        call factorial_i64(order, factorial, factorial_ok)
+        if (.not. factorial_ok) then
+            r%message = str("native: series factorial exceeds int64")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        ! Expand and cancel polynomial powers before substituting the center.
+        ! This turns removable forms such as (2*a*r + 4*b*r**3)/r into a
+        ! regular polynomial before r=0 is applied.
+        prepared = self%expand(e)
+        if (.not. prepared%ok) then
+            r = prepared
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        derivative = prepared%value
+        do k = 1, order
+            differentiated = self%diff(derivative, v)
+            if (.not. differentiated%ok) then
+                r = differentiated
+                r%seconds = wall_seconds() - started
+                return
+            end if
+            derivative = differentiated%value
+        end do
+        at_point = subs(derivative, v, point)
+        r = self%simplify(at_point/num(e%a, factorial))
+        r%seconds = wall_seconds() - started
+    end function native_series_coeff
+
+    function native_series(self, e, v, point, order) result(r)
+        class(native_engine_t), intent(inout) :: self
+        type(expr_t),           intent(in)    :: e, v, point
+        integer,                intent(in)    :: order
+        type(engine_result_t)                 :: r
+        type(engine_result_t) :: coefficient, simplified
+        type(expr_t) :: polynomial, term
+        integer :: k
+        real(dp) :: started
+
+        started = wall_seconds()
+        r%value = e
+        if (order < 0) then
+            r%message = str("native: series order must be nonnegative")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        polynomial = point - point
+        do k = 0, order
+            coefficient = self%series_coeff(e, v, point, k)
+            if (.not. coefficient%ok) then
+                r = coefficient
+                r%seconds = wall_seconds() - started
+                return
+            end if
+            term = coefficient%value*(v - point)**k
+            polynomial = polynomial + term
+        end do
+        simplified = self%simplify(polynomial)
+        r = simplified
+        r%seconds = wall_seconds() - started
+    end function native_series
+
+    function native_solve(self, e, v) result(r)
+        class(native_engine_t), intent(inout) :: self
+        type(expr_t),           intent(in)    :: e, v
+        type(engine_result_t)                 :: r
+        type(engine_result_t) :: coefficient, constant, linearity, candidate
+        type(engine_result_t) :: verified
+        type(expr_t) :: derivative, residual
+        real(dp) :: started
+
+        started = wall_seconds()
+        r%value = e
+
+        derivative = diff_expr(e, v)
+        coefficient = self%simplify(derivative)
+        if (.not. coefficient%ok) then
+            r = coefficient
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        linearity = self%zero_test(diff_expr(coefficient%value, v))
+        if (linearity%verdict /= VERDICT_TRUE) then
+            r%message = str("native: equation is not linear in the variable")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        verified = self%zero_test(coefficient%value)
+        if (verified%verdict == VERDICT_TRUE) then
+            r%message = str("native: linear coefficient is zero")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        constant = self%simplify(subs(e, v, v - v))
+        if (.not. constant%ok) then
+            r = constant
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        candidate = self%simplify(-constant%value/coefficient%value)
+        if (.not. candidate%ok) then
+            r = candidate
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        residual = subs(e, v, candidate%value)
+        verified = self%zero_test(residual)
+        if (verified%verdict /= VERDICT_TRUE) then
+            r%message = str("native: candidate could not be verified")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        r = candidate
+        r%ok = .true.
+        r%seconds = wall_seconds() - started
+    end function native_solve
+
+    subroutine factorial_i64(order, value, ok)
+        integer,        intent(in)  :: order
+        integer(int64), intent(out) :: value
+        logical,        intent(out) :: ok
+        integer(int64) :: next
+        integer :: k
+
+        value = 1_int64
+        ok = .true.
+        do k = 2, order
+            call checked_mul(value, int(k, int64), next, ok)
+            if (.not. ok) return
+            value = next
+        end do
+    end subroutine factorial_i64
 
     recursive function simplify_id(a, id, memo, done) result(out)
         type(arena_t), intent(inout) :: a
@@ -415,11 +582,13 @@ contains
         yes = .true.
     end subroutine integer_power_factor
 
-    function simplify_power(a, base, exponent_id) result(out)
+    recursive function simplify_power(a, base, exponent_id) result(out)
         type(arena_t), intent(inout) :: a
         integer,       intent(in)    :: base, exponent_id
         integer                      :: out
+        integer, allocatable :: factors(:)
         integer(int64) :: exponent, den, bn, bd, rn, rd, nested, combined
+        integer :: k
         logical :: exact, base_exact, power_ok, nested_ok
 
         call exact_value(a, exponent_id, exponent, den, exact)
@@ -464,6 +633,15 @@ contains
                 out = a%rat(rn, rd)
                 return
             end if
+        end if
+
+        if (a%kind_of(base) == NK_MUL) then
+            allocate (factors(a%nargs_of(base)))
+            do k = 1, size(factors)
+                factors(k) = simplify_power(a, a%arg_of(base, k), exponent_id)
+            end do
+            out = simplify_mul(a, factors)
+            return
         end if
 
         call integer_power_factor(a, base, out, nested, nested_ok)

@@ -14,8 +14,9 @@ produces the smallest kernel.
 
 The native Fortran backend currently performs checked 64-bit rational
 arithmetic, collection of like terms and integer powers, bounded polynomial
-expansion, differentiation, and conservative zero decisions. Broader domains
-and assumptions remain on the documented roadmap.
+expansion, differentiation, Taylor coefficients and series, scalar linear
+solving, and conservative zero decisions. Broader domains and assumptions
+remain on the documented roadmap.
 
 Wired: SymEngine and Yacas (linked in-process), SymPy and Maxima (separate
 processes). Each declares what it can do and is only asked for that — Yacas

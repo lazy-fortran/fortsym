@@ -6,10 +6,11 @@ program test_fortsym_native
     !   * differentiation is checked by centered finite differences;
     !   * the overflow case asserts preservation, never wrapped arithmetic.
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use fortsym_string, only: str
+    use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_ADD
     use fortsym_expr
     use fortsym_eval, only: binding_t, eval_expr
+    use fortsym_print, only: print_expr
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -31,6 +32,8 @@ program test_fortsym_native
     call test_expansion()
     call test_differentiation()
     call test_bessel_recurrence()
+    call test_series()
+    call test_linear_solve()
     call test_verdicts()
     call test_overflow_preservation()
 
@@ -130,6 +133,82 @@ contains
         call check("J0 derivative simplifies to -J1", &
             r%value == -besselj(1, x))
     end subroutine test_bessel_recurrence
+
+    subroutine test_series()
+        type(engine_result_t) :: r
+        type(expr_t) :: expected
+
+        r = engine%series(exp(x), x, num(arena, 0), 3)
+        expected = 1 + x + x**2/2 + x**3/6
+        call check("exp Taylor series succeeds", r%ok)
+        call check_values("exp Taylor coefficients through order three", &
+            r%value, expected, 0.25_dp, 1.0e-13_dp)
+
+        r = engine%series_coeff((x + 2)**4, x, num(arena, 0), 2)
+        call check("series coefficient succeeds", r%ok)
+        call check("coefficient of x^2 in (x+2)^4 is 24", &
+            r%value == num(arena, 24))
+        if (r%value /= num(arena, 24)) then
+            print *, "  got coefficient: ", chars(print_expr(r%value))
+        end if
+
+        call test_axis_series_case()
+    end subroutine test_series
+
+    subroutine test_axis_series_case()
+        type(engine_result_t) :: derivative, coefficient, solution
+        type(expr_t) :: radius, a1, a3, b2, bz0, lambda0, lambda2, c
+        type(expr_t) :: bt, bz, lambda, residual, expected
+
+        radius = sym(arena, "radius")
+        a1 = sym(arena, "a1")
+        a3 = sym(arena, "a3")
+        b2 = sym(arena, "b2")
+        bz0 = sym(arena, "bz0")
+        lambda0 = sym(arena, "lambda0")
+        lambda2 = sym(arena, "lambda2")
+        c = sym(arena, "c")
+
+        bt = a1*radius + a3*radius**3
+        bz = bz0 + b2*radius**2
+        lambda = lambda0 + lambda2*radius**2
+        derivative = engine%diff(radius*bt, radius)
+        call check("axis product derivative succeeds", derivative%ok)
+        residual = c*derivative%value/(4*pi_expr(arena)*radius) - lambda*bz
+
+        coefficient = engine%series_coeff(residual, radius, num(arena, 0), 0)
+        call check("axis constant coefficient succeeds", coefficient%ok)
+        solution = engine%solve(coefficient%value, a1)
+        call check("axis coefficient solve succeeds", solution%ok)
+        if (.not. solution%ok) then
+            print *, "  coefficient: ", chars(print_expr(coefficient%value))
+            print *, "  solve message: ", chars(solution%message)
+        end if
+        expected = 2*pi_expr(arena)*lambda0*bz0/c
+        call check("axis regularity coefficient matches the MHD oracle", &
+            solution%value == expected)
+    end subroutine test_axis_series_case
+
+    subroutine test_linear_solve()
+        type(engine_result_t) :: r
+        type(expr_t) :: a, b, c
+
+        a = sym(arena, "a")
+        b = sym(arena, "b")
+        c = sym(arena, "c")
+
+        r = engine%solve(3*a + 2, a)
+        call check("numeric linear solve succeeds", r%ok)
+        call check("3*a + 2 = 0 gives -2/3", &
+            r%value == rat(arena, -2_int64, 3_int64))
+
+        r = engine%solve(c*a - b, a)
+        call check("symbolic linear solve succeeds", r%ok)
+        call check("c*a-b=0 gives b/c", r%value == b/c)
+
+        r = engine%solve(a**2 - 1, a)
+        call check("nonlinear solve is declined", .not. r%ok)
+    end subroutine test_linear_solve
 
     subroutine test_verdicts()
         type(engine_result_t) :: r
