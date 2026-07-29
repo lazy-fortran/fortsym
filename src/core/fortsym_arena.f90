@@ -372,7 +372,10 @@ contains
             n = -n
             d = -d
         end if
-        g = gcd_i64(abs(n), d)
+        ! Pass the signed numerator directly. abs(min_int64) is not
+        ! representable, while Euclid's remainders become bounded by the
+        ! positive denominator after the first step.
+        g = gcd_i64(n, d)
         if (g > 1_int64) then
             n = n/g
             d = d/g

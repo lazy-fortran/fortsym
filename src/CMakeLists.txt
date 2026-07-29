@@ -23,6 +23,7 @@ target_sources(fortsym PRIVATE
 
     # engines
     engine/fortsym_engine.f90
+    engine/fortsym_engine_native.f90
     engine/fortsym_engine_symengine.f90
     engine/fortsym_engine_ext.f90
     engine/fortsym_engine_yacas.f90

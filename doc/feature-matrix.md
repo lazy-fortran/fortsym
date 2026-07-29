@@ -16,9 +16,9 @@ it.
 | Differentiation | yes | yes | advertised only | memoization and domain-sensitive rules |
 | Multivariate symbolic partials | yes | opaque | opaque | function assumptions and rewrite rules |
 | JVP, VJP, gradient, and HVP | yes | verification | verification | consumer conformance corpus |
-| Simplification | no | partial | partial | native exact arithmetic and guarded rewrites |
-| Expansion | no | yes | advertised only | native polynomial expansion |
-| Zero decision | no | partial | weak simplify test | polynomial certificates and assumptions |
+| Simplification | partial | partial | partial | guarded rewrites and polynomial normal form |
+| Expansion | partial | yes | advertised only | sparse polynomial expansion without order bound |
+| Zero decision | partial | partial | weak simplify test | polynomial certificates and assumptions |
 | Polynomial GCD and rational cancellation | no | partial, univariate | partial | multivariate domains |
 | Factor, apart, and together | no | no public operation | advertised only | typed engine operations |
 | Assumptions and conditions | no | no public context | no public context | real, positive, nonnegative, nonzero |
@@ -37,4 +37,3 @@ simplification, and Taylor or Fourier projection.
 
 The matrix does not claim Mathematica-wide coverage. The competitive target is
 the measured FortNum and MHD1D fragment, followed by named algebraic domains.
-

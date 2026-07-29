@@ -27,6 +27,7 @@ fortsym_add_test(test_fortsym_subs core/test_fortsym_subs.f90)
 fortsym_add_test(test_fortsym_roundtrip io/test_fortsym_roundtrip.f90)
 
 # --- engines ---
+fortsym_add_test(test_fortsym_native engine/test_fortsym_native.f90)
 fortsym_add_test(test_fortsym_identities engine/test_fortsym_identities.f90)
 fortsym_add_test(test_fortsym_yacas engine/test_fortsym_yacas.f90)
 

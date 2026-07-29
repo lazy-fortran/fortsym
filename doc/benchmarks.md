@@ -61,3 +61,10 @@ interpretation.
 Only inputs with compatible licenses and provenance enter this repository.
 Wolfram notebooks, scripts, and outputs remain excluded by `LEGAL.md`.
 
+## Current harness
+
+`fo exec bench_native` writes CSV rows for warm, batched end-to-end native and
+SymEngine simplify, differentiation, and expansion calls. Each row includes a
+correctness result. This initial harness measures conversion and result
+construction with the operation. It does not represent direct SymEngine kernel
+time or establish performance parity.

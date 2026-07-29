@@ -12,6 +12,11 @@ integrates and factors but cannot simplify trigonometry. fortsym runs the
 engines that are present, compares their answers, and keeps the one that
 produces the smallest kernel.
 
+The native Fortran backend currently performs checked 64-bit rational
+arithmetic, collection of like terms and integer powers, bounded polynomial
+expansion, differentiation, and conservative zero decisions. Broader domains
+and assumptions remain on the documented roadmap.
+
 Wired: SymEngine and Yacas (linked in-process), SymPy and Maxima (separate
 processes). Each declares what it can do and is only asked for that — Yacas
 does not claim zero testing, because its `Simplify` cannot close trigonometric
