@@ -33,7 +33,7 @@ module fortsym_expr
         operator(**), operator(==), operator(/=)
     public :: sin, cos, tan, asin, acos, atan, atan2, &
         sinh, cosh, tanh, asinh, acosh, atanh, &
-        exp, log, sqrt, abs, erf, erfc, gamma
+        exp, log, sqrt, abs, erf, erfc, gamma, besselj
 
     integer, parameter :: dp = real64
 
@@ -108,6 +108,10 @@ module fortsym_expr
                                                                         interface erf;   module procedure fn_erf;   end interface
                                                                             interface erfc;  module procedure fn_erfc;  end interface
                                                                                 interface gamma; module procedure fn_gamma; end interface
+                                                                                    interface besselj
+                                                                                        module procedure fn_besselj_ee
+                                                                                        module procedure fn_besselj_ie
+                                                                                    end interface
 
                                                                                 contains
 
@@ -633,5 +637,19 @@ module fortsym_expr
                                                                                         type(expr_t)             :: e
                                                                                         e = apply1("gamma", x)
                                                                                     end function fn_gamma
+
+                                                                                    !> Bessel function of the first kind J_order(x).
+                                                                                    function fn_besselj_ee(order, x) result(e)
+                                                                                        type(expr_t), intent(in) :: order, x
+                                                                                        type(expr_t)             :: e
+                                                                                        e = func("besselj", [order, x])
+                                                                                    end function fn_besselj_ee
+
+                                                                                    function fn_besselj_ie(order, x) result(e)
+                                                                                        integer,      intent(in) :: order
+                                                                                        type(expr_t), intent(in) :: x
+                                                                                        type(expr_t)             :: e
+                                                                                        e = besselj(num(x%a, order), x)
+                                                                                    end function fn_besselj_ie
 
                                                                                 end module fortsym_expr

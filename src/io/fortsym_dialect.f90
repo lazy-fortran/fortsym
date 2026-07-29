@@ -138,6 +138,11 @@ contains
             case ("abs"); s = str("Abs")
             case default; s = str(canonical)
             end select
+        case (DIA_FORTRAN)
+            select case (canonical)
+            case ("besselj"); s = str("bessel_jn")
+            case default;     s = str(canonical)
+            end select
         case default
             s = str(canonical)
         end select
@@ -180,6 +185,11 @@ contains
             select case (spelling)
             case ("Abs"); s = str("abs")
             case default; s = str(spelling)
+            end select
+        case (DIA_FORTRAN)
+            select case (spelling)
+            case ("bessel_jn"); s = str("besselj")
+            case default;       s = str(spelling)
             end select
         case default
             s = str(spelling)

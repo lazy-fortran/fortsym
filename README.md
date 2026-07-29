@@ -104,6 +104,11 @@ an arbitrary subexpression. `subs_many(expression, old, new)` applies all
 pairwise replacements simultaneously, so swaps and coupled governing-equation
 substitutions do not cascade through replacement expressions.
 
+**Differentiate Bessel functions.** `besselj(n, x)` represents the Bessel
+function of the first kind and native differentiation uses the standard
+order recurrence, including the chain rule. Generated Fortran spells it as the
+standard `bessel_jn` intrinsic.
+
 **Assert, with the strength of the claim visible.** A symbolic decision and a
 numeric probe are both useful and are not the same thing:
 

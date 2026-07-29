@@ -102,6 +102,8 @@ contains
 
         call eq_check("function", print_text(sin(x)), "sin(x)")
         call eq_check("two-arg function", print_text(atan2(y, x)), "atan2(y, x)")
+        call eq_check("Bessel function", print_text(besselj(1, x)), &
+            "besselj(1, x)")
     end subroutine test_printing_shape
 
     subroutine eq_check(label, got, want)
@@ -238,6 +240,9 @@ contains
         ! SymPy's absolute value is a class name.
         call eq_text("sympy Abs", &
             chars(print_expr_in(abs(x), dialect(DIA_SYMPY))), "Abs(x)")
+        call eq_text("Fortran Bessel intrinsic", &
+            chars(print_expr_in(besselj(2, x), dialect(DIA_FORTRAN))), &
+            "bessel_jn(2, x)")
 
         ! Maxima prefixes constants; a bare e there is an ordinary symbol.
         call eq_text("maxima pi", &

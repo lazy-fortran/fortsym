@@ -41,6 +41,7 @@ fortsym_add_test(test_fortsym_kernel codegen/test_fortsym_kernel.f90)
 fortsym_add_test(test_fortsym_check verify/test_fortsym_check.f90)
 
 # --- differential geometry ---
+fortsym_add_test(test_fortsym_diff calculus/test_fortsym_diff.f90)
 fortsym_add_test(test_fortsym_chart calculus/test_fortsym_chart.f90)
 fortsym_add_test(test_fortsym_products calculus/test_fortsym_products.f90)
 

@@ -224,10 +224,26 @@ contains
         logical,         intent(inout) :: defined
         real(dp)                       :: v
         real(dp) :: x, y
+        integer :: order
         character(:), allocatable :: name
 
         v = 0.0_dp
         name = chars(a%name_of(id))
+
+        if (name == "besselj") then
+            x = ev(a, a%arg_of(id, 1), b, defined)
+            if (.not. defined) return
+            if (x /= real(nint(x), dp)) then
+                defined = .false.
+                return
+            end if
+            order = nint(x)
+            y = ev(a, a%arg_of(id, 2), b, defined)
+            if (.not. defined) return
+            v = bessel_jn(order, y)
+            return
+        end if
+
         x = ev(a, a%arg_of(id, 1), b, defined)
         if (.not. defined) return
 

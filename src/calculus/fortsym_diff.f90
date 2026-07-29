@@ -16,7 +16,7 @@ module fortsym_diff
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
-    use fortsym_expr, only: expr_t, sym, num, func, is_valid, &
+    use fortsym_expr, only: expr_t, sym, num, func, is_valid, besselj, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), sin, cos, tan, exp, log, sqrt, sinh, cosh, tanh
     implicit none
@@ -130,6 +130,19 @@ contains
 
         a => e%a
         name = chars(e%name())
+
+        ! DLMF 10.6.1 gives
+        !   d J_n(x)/dx = (J_(n-1)(x) - J_(n+1)(x))/2.
+        ! Keeping the order symbolic makes the rule valid beyond integer n and
+        ! directly yields J_0' = -J_1 after the native simplifier is applied.
+        ! https://dlmf.nist.gov/10.6.E1
+        if (name == "besselj") then
+            x = e%arg(2)
+            dx = diff(x, v)
+            d = (besselj(e%arg(1) - 1, x) - besselj(e%arg(1) + 1, x))*dx/2
+            return
+        end if
+
         x = e%arg(1)
         dx = diff(x, v)
 
