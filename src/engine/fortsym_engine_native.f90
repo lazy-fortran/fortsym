@@ -249,9 +249,11 @@ contains
         type(engine_result_t) :: verified
         type(expr_t) :: derivative, residual
         real(dp) :: started
+        logical :: conditional
 
         started = wall_seconds()
         r%value = e
+        conditional = .false.
 
         derivative = diff_expr(e, v)
         coefficient = self%simplify(derivative)
@@ -273,6 +275,9 @@ contains
             r%message = str("native: linear coefficient is zero")
             r%seconds = wall_seconds() - started
             return
+        end if
+        if (verified%verdict == VERDICT_UNKNOWN) then
+            conditional = .true.
         end if
 
         constant = self%simplify(subs(e, v, v - v))
@@ -298,6 +303,10 @@ contains
 
         r = candidate
         r%ok = .true.
+        if (conditional) then
+            r%conditional = .true.
+            r%condition = str("linear coefficient must be nonzero")
+        end if
         r%seconds = wall_seconds() - started
     end function native_solve
 

@@ -57,6 +57,8 @@ module fortsym_engine
         type(expr_t) :: value !< result expression, when applicable
         real(dp)     :: seconds = 0.0_dp
         type(str_t)  :: message !< why, when ok is false
+        logical      :: conditional = .false.
+        type(str_t)  :: condition !< validity condition when conditional
     end type engine_result_t
 
     !> A computer algebra backend.

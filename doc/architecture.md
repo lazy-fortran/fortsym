@@ -54,6 +54,7 @@ Every operation returns a result with:
 - a value when the operation constructs an expression
 - elapsed operation time
 - `ZERO`, `NONZERO`, or `UNKNOWN` for decision procedures
+- an explicit validity condition when a result is conditional
 
 Domain assumptions and conditional results use an explicit context and
 condition field. They must not be encoded in a backend-specific global state.

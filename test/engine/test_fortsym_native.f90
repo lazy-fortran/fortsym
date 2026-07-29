@@ -208,6 +208,9 @@ contains
         r = engine%solve(c*a - b, a)
         call check("symbolic linear solve succeeds", r%ok)
         call check("c*a-b=0 gives b/c", r%value == b/c)
+        call check("symbolic coefficient produces a condition", r%conditional)
+        call check("nonzero condition is reported", &
+            chars(r%condition) == "linear coefficient must be nonzero")
 
         r = engine%solve(a**2 - 1, a)
         call check("nonlinear solve is declined", .not. r%ok)
