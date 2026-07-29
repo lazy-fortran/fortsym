@@ -109,6 +109,11 @@ function of the first kind and native differentiation uses the standard
 order recurrence, including the chain rule. Generated Fortran spells it as the
 standard `bessel_jn` intrinsic.
 
+**Keep multivariate derivatives symbolic.** Differentiating an opaque applied
+function such as `func("psi", [r, u])` visits every argument and produces a
+canonical `partial_derivative` application. Mixed partial indices are sorted,
+so the two differentiation orders share one DAG node.
+
 **Assert, with the strength of the claim visible.** A symbolic decision and a
 numeric probe are both useful and are not the same thing:
 

@@ -13,7 +13,7 @@ module fortsym_diff
     ! subtree. Callers that want a tidy result ask an engine for one; callers
     ! generating a kernel let CSE and the tournament handle it.
     use, intrinsic :: iso_fortran_env, only: int64
-    use fortsym_string, only: chars
+    use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
     use fortsym_expr, only: expr_t, sym, num, func, is_valid, besselj, &
@@ -22,7 +22,7 @@ module fortsym_diff
     implicit none
     private
 
-    public :: diff, diff_n
+    public :: diff, diff_n, partial_derivative
 
 contains
 
@@ -124,12 +124,30 @@ contains
     recursive function diff_function(e, v) result(d)
         type(expr_t), intent(in) :: e, v
         type(expr_t)             :: d
-        type(expr_t) :: x, dx, y, dy, denom
+        type(expr_t) :: x, dx, y, dy, denom, term
         type(arena_t), pointer :: a
         character(:), allocatable :: name
+        integer :: k, order, first_arg
 
         a => e%a
         name = chars(e%name())
+
+        if (derivative_order(name, order)) then
+            first_arg = order + 2
+            d = num(a, 0)
+            do k = first_arg, e%nargs()
+                dx = diff(e%arg(k), v)
+                if (is_zero(dx)) cycle
+                term = partial_derivative(e, k - first_arg + 1)
+                if (.not. is_one(dx)) term = term*dx
+                if (is_zero(d)) then
+                    d = term
+                else
+                    d = d + term
+                end if
+            end do
+            return
+        end if
 
         ! DLMF 10.6.1 gives
         !   d J_n(x)/dx = (J_(n-1)(x) - J_(n+1)(x))/2.
@@ -177,12 +195,107 @@ contains
         case ("gamma"); d = func("gamma", [x])*func("polygamma", [zero_of(a), x])*dx
         case ("loggamma"); d = func("polygamma", [zero_of(a), x])*dx
         case default
-            ! An unknown head keeps its derivative symbolic rather than being
-            ! guessed at. Emitting zero would be a silent, wrong answer; a
-            ! named derivative is honest and an engine may still resolve it.
-            d = func("Derivative_"//name, [x])*dx
+            ! The chain rule must visit every argument. Treating only arg(1)
+            ! silently made d psi(r,u)/du zero. Partial derivatives are kept as
+            ! opaque applications with a canonical, sorted multi-index.
+            d = num(a, 0)
+            do k = 1, e%nargs()
+                dx = diff(e%arg(k), v)
+                if (is_zero(dx)) cycle
+                term = partial_derivative(e, k)
+                if (.not. is_one(dx)) term = term*dx
+                if (is_zero(d)) then
+                    d = term
+                else
+                    d = d + term
+                end if
+            end do
         end select
     end function diff_function
+
+    !> Symbolic partial derivative of an applied function.
+    !>
+    !> The internal application is
+    !>   DerivativeN(head, i1, ..., iN, arg1, ..., argM)
+    !> with sorted argument indices. Sorting makes mixed partials canonical,
+    !> under the standard smooth-function convention used by symbolic CASes.
+    function partial_derivative(e, arg_index) result(d)
+        type(expr_t), intent(in) :: e
+        integer,      intent(in) :: arg_index
+        type(expr_t)             :: d
+        type(expr_t), allocatable :: args(:)
+        type(expr_t) :: index_expr
+        integer, allocatable :: indices(:)
+        integer :: old_order, new_order, n_original, k, first_arg
+        character(:), allocatable :: name
+
+        name = chars(e%name())
+        if (derivative_order(name, old_order)) then
+            first_arg = old_order + 2
+            n_original = e%nargs() - old_order - 1
+            new_order = old_order + 1
+            allocate (indices(new_order))
+            do k = 1, old_order
+                index_expr = e%arg(k + 1)
+                indices(k) = int(index_expr%int_value())
+            end do
+            indices(new_order) = arg_index
+            call sort_integers(indices)
+
+            allocate (args(1 + new_order + n_original))
+            args(1) = e%arg(1)
+            do k = 1, new_order
+                args(k + 1) = num(e%a, indices(k))
+            end do
+            do k = 1, n_original
+                args(1 + new_order + k) = e%arg(first_arg + k - 1)
+            end do
+        else
+            old_order = 0
+            new_order = 1
+            n_original = e%nargs()
+            allocate (args(2 + n_original))
+            args(1) = sym(e%a, name)
+            args(2) = num(e%a, arg_index)
+            do k = 1, n_original
+                args(k + 2) = e%arg(k)
+            end do
+        end if
+
+        d = func("Derivative"//chars(str(new_order)), args)
+    end function partial_derivative
+
+    function derivative_order(name, order) result(yes)
+        character(*), intent(in)  :: name
+        integer,      intent(out) :: order
+        logical                   :: yes
+        integer :: ios
+
+        yes = .false.
+        order = 0
+        if (len(name) <= 10) return
+        if (name(1:10) /= "Derivative") return
+        read (name(11:), *, iostat=ios) order
+        if (ios /= 0) return
+        if (order < 1) return
+        yes = .true.
+    end function derivative_order
+
+    pure subroutine sort_integers(values)
+        integer, intent(inout) :: values(:)
+        integer :: i, j, key
+
+        do i = 2, size(values)
+            key = values(i)
+            j = i - 1
+            do while (j >= 1)
+                if (values(j) <= key) exit
+                values(j + 1) = values(j)
+                j = j - 1
+            end do
+            values(j + 1) = key
+        end do
+    end subroutine sort_integers
 
     function pi_of(a) result(p)
         type(arena_t), target, intent(inout) :: a
@@ -204,6 +317,14 @@ contains
         if (.not. is_valid(e)) return
         if (e%a%kind_of(e%id) == NK_INT) yes = e%a%num_of(e%id) == 0_int64
     end function is_zero
+
+    pure function is_one(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+        yes = .false.
+        if (.not. is_valid(e)) return
+        if (e%a%kind_of(e%id) == NK_INT) yes = e%a%num_of(e%id) == 1_int64
+    end function is_one
 
     !> Repeated differentiation with respect to the same symbol.
     function diff_n(e, v, order) result(d)

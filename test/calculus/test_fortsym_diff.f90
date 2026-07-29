@@ -6,8 +6,8 @@ program test_fortsym_diff
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, besselj, operator(*)
-    use fortsym_diff, only: diff
+    use fortsym_expr, only: expr_t, sym, func, besselj, operator(*), operator(==)
+    use fortsym_diff, only: diff, partial_derivative
     use fortsym_eval, only: binding_t, eval_expr
     implicit none
 
@@ -44,6 +44,8 @@ program test_fortsym_diff
     call check("Bessel derivative applies the chain rule", &
         abs(symbolic_value - numeric_value) < 1.0e-8_dp)
 
+    call test_multivariate_partials()
+
     if (nfail /= 0) error stop 1
     print *, "test_fortsym_diff: all checks passed"
 
@@ -57,5 +59,30 @@ contains
             print *, "FAIL ", label
         end if
     end subroutine check
+
+    subroutine test_multivariate_partials()
+        type(expr_t) :: r, u, psi, dpsi_dr, dpsi_du
+        type(expr_t) :: mixed_ru, mixed_ur
+
+        r = sym(arena, "r")
+        u = sym(arena, "u")
+        psi = func("psi", [r, u])
+
+        dpsi_dr = diff(psi, r)
+        dpsi_du = diff(psi, u)
+
+        ! Independent chain-rule oracle: r and u are independent symbols, so
+        ! differentiating with respect to either selects the matching partial.
+        call check("first argument produces partial 1", &
+            dpsi_dr == partial_derivative(psi, 1))
+        call check("second argument produces partial 2", &
+            dpsi_du == partial_derivative(psi, 2))
+
+        ! Schwarz's theorem is an independent metamorphic oracle. The two
+        ! differentiation paths must reach one canonical mixed partial.
+        mixed_ru = diff(dpsi_dr, u)
+        mixed_ur = diff(dpsi_du, r)
+        call check("mixed partials commute", mixed_ru == mixed_ur)
+    end subroutine test_multivariate_partials
 
 end program test_fortsym_diff
