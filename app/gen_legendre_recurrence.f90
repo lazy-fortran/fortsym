@@ -12,16 +12,23 @@ program gen_legendre_recurrence
     type(expr_t) :: degree, order, x, previous, current
     type(expr_t) :: roots(2)
     type(kernel_spec_t) :: spec
-    character(1024) :: output
-    integer :: length, status, unit, ios
+    character(1024) :: output, revision
+    integer :: length, revision_length, status, unit, ios
 
     call get_command_argument(1, output, length=length, status=status)
     if (status /= 0 .or. length == 0) then
         write (output_unit, "(a)") &
-            "usage: gen_legendre_recurrence OUTPUT_PATH"
+            "usage: gen_legendre_recurrence OUTPUT_PATH FORTSYM_REVISION"
         error stop 2
     end if
     output = output(:length)
+    call get_command_argument(2, revision, length=revision_length, status=status)
+    if (status /= 0 .or. revision_length == 0) then
+        write (output_unit, "(a)") &
+            "usage: gen_legendre_recurrence OUTPUT_PATH FORTSYM_REVISION"
+        error stop 2
+    end if
+    revision = revision(:revision_length)
 
     call arena%init()
     degree = sym(arena, "degree")
@@ -41,8 +48,9 @@ program gen_legendre_recurrence
     spec%mode = KERNEL_SUBROUTINE
     spec%module_name = str("fortnum_legendre_recurrence_kernel")
     spec%generator = str("gen_legendre_recurrence")
+    spec%generator_revision = str(trim(revision))
     spec%regenerate_command = str( &
-        "fo exec gen_legendre_recurrence -- OUTPUT_PATH")
+        "fo exec gen_legendre_recurrence -- OUTPUT_PATH FORTSYM_REVISION")
     spec%pure_procedure = .true.
     allocate (spec%args(5), spec%outputs(2))
     spec%args = [str("degree"), str("order"), str("x"), &
