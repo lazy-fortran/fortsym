@@ -30,6 +30,8 @@ module fortsym_engine_native
     type, extends(engine_t) :: native_engine_t
         type(arena_t), pointer :: home => null()
         type(assumption_context_t), pointer :: assumptions => null()
+        integer, allocatable :: simplify_cache(:)
+        integer, allocatable :: expand_cache(:)
     contains
         procedure :: zero_test => native_zero_test
         procedure :: simplify => native_simplify
@@ -72,6 +74,15 @@ contains
             r%seconds = wall_seconds() - started
             return
         end if
+        if (.not. associated(self%assumptions)) then
+            call ensure_cache(self%simplify_cache, e%a%size())
+            if (self%simplify_cache(e%id) /= 0) then
+                r%value%id = self%simplify_cache(e%id)
+                r%ok = .true.
+                r%seconds = wall_seconds() - started
+                return
+            end if
+        end if
 
         allocate (memo(e%a%size()), source=0)
         allocate (done(e%a%size()), source=.false.)
@@ -88,6 +99,9 @@ contains
         end if
         r%value%id = simplified_id
         r%ok = .true.
+        if (.not. associated(self%assumptions)) then
+            self%simplify_cache(e%id) = simplified_id
+        end if
         r%seconds = wall_seconds() - started
     end function native_simplify
 
@@ -147,14 +161,49 @@ contains
             r%seconds = wall_seconds() - started
             return
         end if
+        if (.not. associated(self%assumptions)) then
+            call ensure_cache(self%expand_cache, e%a%size())
+            if (self%expand_cache(e%id) /= 0) then
+                r%value%id = self%expand_cache(e%id)
+                r%ok = .true.
+                r%seconds = wall_seconds() - started
+                return
+            end if
+        end if
 
         allocate (memo(e%a%size()), source=0)
         allocate (done(e%a%size()), source=.false.)
         expanded = e
         expanded%id = expand_id(e%a, e%id, memo, done)
         r = self%simplify(expanded)
+        if (r%ok) then
+            if (.not. associated(self%assumptions)) then
+                self%expand_cache(e%id) = r%value%id
+            end if
+        end if
         r%seconds = wall_seconds() - started
     end function native_expand
+
+    subroutine ensure_cache(cache, needed)
+        integer, allocatable, intent(inout) :: cache(:)
+        integer,              intent(in)    :: needed
+        integer, allocatable :: larger(:)
+        integer :: capacity
+
+        if (.not. allocated(cache)) then
+            allocate (cache(max(256, needed)), source=0)
+            return
+        end if
+        if (size(cache) >= needed) return
+
+        capacity = size(cache)
+        do while (capacity < needed)
+            capacity = 2*capacity
+        end do
+        allocate (larger(capacity), source=0)
+        larger(1:size(cache)) = cache
+        call move_alloc(larger, cache)
+    end subroutine ensure_cache
 
     function native_series_coeff(self, e, v, point, order) result(r)
         class(native_engine_t), intent(inout) :: self
@@ -886,6 +935,7 @@ contains
                 acc = a%int(1_int64)
                 do k = 1, int(exponent)
                     acc = distribute(a, acc, base)
+                    acc = simplify_root_id(a, acc)
                 end do
                 out = acc
             else
@@ -904,6 +954,18 @@ contains
         done(id) = .true.
         memo(id) = out
     end function expand_id
+
+    function simplify_root_id(a, id) result(out)
+        type(arena_t), target, intent(inout) :: a
+        integer,       intent(in)            :: id
+        integer                              :: out
+        integer, allocatable :: memo(:)
+        logical, allocatable :: done(:)
+
+        allocate (memo(a%size()), source=0)
+        allocate (done(a%size()), source=.false.)
+        out = simplify_id(a, id, memo, done)
+    end function simplify_root_id
 
     function distribute(a, left, right) result(out)
         type(arena_t), intent(inout) :: a

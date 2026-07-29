@@ -67,7 +67,11 @@ Wolfram notebooks, scripts, and outputs remain excluded by `LEGAL.md`.
 SymEngine simplify, differentiation, and expansion calls. Each row includes a
 correctness result. This initial harness measures conversion and result
 construction with the operation. It does not represent direct SymEngine kernel
-time or establish performance parity.
+time or establish performance parity. The current scope repeats one immutable
+expression, so native cache hits are part of the measured workload. Cold,
+distinct-expression rows use unique small real shifts and bypass those cache
+entries. The CSV row records separate warmup, repetition, and batch counts for
+the two scopes.
 
 Pinned result CSV files and their TOML environment records live under
 `benchmark/results`. A record with uncontrolled affinity or governor is
