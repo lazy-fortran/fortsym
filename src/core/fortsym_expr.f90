@@ -33,7 +33,7 @@ module fortsym_expr
         operator(**), operator(==), operator(/=)
     public :: sin, cos, tan, asin, acos, atan, atan2, &
         sinh, cosh, tanh, asinh, acosh, atanh, &
-        exp, log, sqrt, abs, erf, erfc, gamma, besselj
+        exp, log, sqrt, abs, erf, erfc, gamma, besselj, legendrep, legendreq
 
     integer, parameter :: dp = real64
 
@@ -112,6 +112,12 @@ module fortsym_expr
                                                                                     interface besselj
                                                                                         module procedure fn_besselj_ee
                                                                                         module procedure fn_besselj_ie
+                                                                                    end interface
+                                                                                    interface legendrep
+                                                                                        module procedure fn_legendrep
+                                                                                    end interface
+                                                                                    interface legendreq
+                                                                                        module procedure fn_legendreq
                                                                                     end interface
 
                                                                                 contains
@@ -676,5 +682,19 @@ module fortsym_expr
                                                                                         type(expr_t)             :: e
                                                                                         e = besselj(num(x%a, order), x)
                                                                                     end function fn_besselj_ie
+
+                                                                                    !> Associated Legendre function P_degree^order(x).
+                                                                                    function fn_legendrep(degree, order, x) result(e)
+                                                                                        type(expr_t), intent(in) :: degree, order, x
+                                                                                        type(expr_t)             :: e
+                                                                                        e = func("legendrep", [degree, order, x])
+                                                                                    end function fn_legendrep
+
+                                                                                    !> Hobson associated Legendre function Q_degree^order(x).
+                                                                                    function fn_legendreq(degree, order, x) result(e)
+                                                                                        type(expr_t), intent(in) :: degree, order, x
+                                                                                        type(expr_t)             :: e
+                                                                                        e = func("legendreq", [degree, order, x])
+                                                                                    end function fn_legendreq
 
                                                                                 end module fortsym_expr

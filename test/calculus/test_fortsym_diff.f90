@@ -6,10 +6,12 @@ program test_fortsym_diff
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, num, exact, func, besselj, operator(*), &
+    use fortsym_expr, only: expr_t, sym, num, exact, func, besselj, legendrep, &
+        legendreq, log, operator(+), operator(-), operator(*), operator(/), &
         operator(==)
     use fortsym_diff, only: diff, partial_derivative
     use fortsym_eval, only: binding_t, eval_expr
+    use fortsym_subs, only: subs_many
     implicit none
 
     integer, parameter :: dp = real64
@@ -52,6 +54,7 @@ program test_fortsym_diff
         abs(symbolic_value - numeric_value) < 1.0e-8_dp)
 
     call test_multivariate_partials()
+    call test_legendre_derivative()
 
     if (nfail /= 0) error stop 1
     print *, "test_fortsym_diff: all checks passed"
@@ -91,5 +94,45 @@ contains
         mixed_ur = diff(dpsi_du, r)
         call check("mixed partials commute", mixed_ru == mixed_ur)
     end subroutine test_multivariate_partials
+
+    subroutine test_legendre_derivative()
+        type(expr_t) :: p1, p2, q0, q1, derivative, reduced
+        type(expr_t) :: old(2), replacement(2)
+
+        p2 = legendrep(num(arena, 2), num(arena, 0), x)
+        derivative = diff(p2, x)
+
+        ! Independent Rodrigues oracle:
+        ! P_1(x)=x and P_2(x)=(3x^2-1)/2, hence P_2'(x)=3x.
+        p1 = legendrep(num(arena, 2) - 1, num(arena, 0), x)
+        old = [p1, p2]
+        replacement = [x, (3*x*x - 1)/2]
+        reduced = subs_many(derivative, old, replacement)
+        symbolic_value = eval_expr(reduced, bindings, defined)
+        call check("Legendre derivative is numerically defined", defined)
+        call check("Legendre derivative agrees with Rodrigues formula", &
+            abs(symbolic_value - 3.0_dp*point) < 1.0e-13_dp)
+
+        q1 = legendreq(num(arena, 1), num(arena, 0), x)
+        q0 = legendreq(num(arena, 1) - 1, num(arena, 0), x)
+        derivative = diff(q1, x)
+        old = [q0, q1]
+        replacement(1) = log((x + 1)/(x - 1))/2
+        replacement(2) = x*replacement(1) - 1
+        reduced = subs_many(derivative, old, replacement)
+        symbolic_value = eval_expr(reduced, bindings, defined)
+        numeric_value = (q1_closed(point + step) - &
+            q1_closed(point - step))/(2*step)
+        call check("Legendre Q derivative is numerically defined", defined)
+        call check("Legendre Q derivative agrees with closed form", &
+            abs(symbolic_value - numeric_value) < 1.0e-9_dp)
+    end subroutine test_legendre_derivative
+
+    pure function q1_closed(value) result(q1_value)
+        real(dp), intent(in) :: value
+        real(dp) :: q1_value
+
+        q1_value = 0.5_dp*value*log((value + 1.0_dp)/(value - 1.0_dp)) - 1.0_dp
+    end function q1_closed
 
 end program test_fortsym_diff
