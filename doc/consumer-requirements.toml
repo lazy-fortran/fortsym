@@ -1,0 +1,277 @@
+schema_version = 1
+generated_on = "2026-07-29"
+evidence_file = "consumer-audit.json"
+status_vocabulary = ["implemented", "partial", "missing"]
+priority_vocabulary = ["P0", "P1", "P2"]
+
+[privacy]
+aggregate_only = true
+named_consumers = ["FortNum", "MHD1D"]
+repository_names_retained = false
+source_paths_retained = false
+source_snippets_retained = false
+
+[scope]
+local_source_classes = ["local_proj", "local_code"]
+local_policy = "Every discoverable Git worktree is inspected; repeated worktrees affect file-instance counts only."
+gitlab_policy = "Every project returned by the authenticated visible-project listing."
+github_policy = "Every repository returned for owner, collaborator, or organization membership."
+remote_policy = "Default-branch trees; empty repositories count as inspected."
+candidate_policy = "Wolfram notebooks/packages/scripts plus host-language files found by explicit Mathematica/Wolfram kernel-marker search."
+frequency_policy = "Every worktree is inspected, but repository-hit counts are unioned by transient logical repository identity."
+
+[interpretation]
+source_classes = "Classes with at least one observed logical-repository hit in consumer-audit.json."
+absence = "No hit was observed; it is not a claim of unsupported consumer use because every source class reports incomplete coverage."
+priority = "Priority combines observed breadth, FortNum/MHD1D contracts, semantic dependency order, and correctness risk; raw frequency alone does not set priority."
+
+[consumers.FortNum]
+source_classes = ["local_code", "github"]
+required_operations = [
+    "differentiate",
+    "parse_print_codegen",
+    "simplify",
+]
+non_operation_requirements = [
+    "expression_construction",
+    "elementary_functions",
+    "substitution",
+    "derivative_products",
+    "identity_verification",
+    "common_subexpression_elimination",
+    "stability_rewrites",
+    "Enzyme_wrappers",
+    "byte_stable_generated_kernels",
+]
+direct_wolfram_operations_observed = false
+
+[consumers.MHD1D]
+source_classes = ["github"]
+required_operations = [
+    "assumptions_inequalities",
+    "differential_equations",
+    "differentiate",
+    "exact_linear_algebra",
+    "expand_collect",
+    "fourier_laplace_transforms",
+    "integrate",
+    "limits_series_asymptotics",
+    "parse_print_codegen",
+    "polynomial_rational",
+    "simplify",
+    "solve_reduce",
+    "special_functions",
+    "trigonometric",
+]
+direct_wolfram_operations_observed = [
+    "arbitrary_precision",
+    "assumptions_inequalities",
+    "differential_equations",
+    "differentiate",
+    "expand_collect",
+    "integrate",
+    "limits_series_asymptotics",
+    "matrices_tensors",
+    "numeric_differential_equations",
+    "numeric_evaluation",
+    "parse_print_codegen",
+    "polynomial_rational",
+    "safe_log_power_radical",
+    "simplify",
+    "solve_reduce",
+    "special_functions",
+    "trigonometric",
+]
+additional_contract_basis = "Existing fortsym MHD1D compatibility documentation adds exact linear algebra and Fourier/Taylor projection requirements."
+
+[[requirement]]
+id = "arbitrary_precision"
+semantics = "Exact unbounded integers and normalized rationals; requested-precision real evaluation must not silently round through binary64."
+priority = "P0"
+independent_oracle = "Independently derived large integer/rational identities plus modular residues and exact numerator/denominator reconstruction."
+status = "missing"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "numeric_evaluation"
+semantics = "Requested-precision numerical evaluation with explicit precision/accuracy tracking and no silent round trip through binary64."
+priority = "P1"
+independent_oracle = "Independently derived high-precision constants and precision-doubling convergence with interval or error-bound checks."
+status = "partial"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "complex_algebraic"
+semantics = "Exact Gaussian rational and algebraic values with explicit principal branches; unsupported root selections return a condition or UNKNOWN."
+priority = "P0"
+independent_oracle = "Minimal-polynomial substitution and isolating numerical enclosures at precision exceeding the construction precision."
+status = "missing"
+source_classes = ["local_proj", "gitlab"]
+
+[[requirement]]
+id = "differentiate"
+semantics = "Exact scalar and multivariate differentiation, including known special-function rules and opaque derivatives for unknown applied functions."
+priority = "P0"
+independent_oracle = "Closed-form derivatives, dual-number identities, high-order finite differences at safe points, and mixed-partial symmetry."
+status = "implemented"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "simplify"
+semantics = "Deterministic canonical simplification that preserves domains and branches; a smaller expression may win only after equivalence is established."
+priority = "P0"
+independent_oracle = "Polynomial normal forms where applicable and independently evaluated safe-point plus branch-cut counterexample corpora elsewhere."
+status = "partial"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "expand_collect"
+semantics = "Sparse multivariate expansion, coefficient extraction, collection, and reconstruction without a fixed expression-order limit."
+priority = "P0"
+independent_oracle = "Exact coefficient-map reconstruction and finite-field evaluations at independently selected points."
+status = "partial"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "polynomial_rational"
+semantics = "Multivariate polynomial arithmetic, GCD, square-free factorization, cancel/together/apart, resultants, and Groebner reduction over exact domains."
+priority = "P0"
+independent_oracle = "Exact divisibility and reconstruction, Bezout/resultant identities, finite-field specialization, S-polynomial reduction, and bidirectional ideal-membership certificates."
+status = "missing"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "limits_series_asymptotics"
+semantics = "Taylor, Laurent, and required Puiseux/asymptotic series with one- and two-sided limits and explicit validity conditions."
+priority = "P0"
+independent_oracle = "Coefficient recomposition, exact residual order, and high-precision residual scaling along independently chosen safe approaches."
+status = "partial"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "solve_reduce"
+semantics = "Exact linear and polynomial solving plus condition-preserving reduction of evidenced equation and inequality systems."
+priority = "P0"
+independent_oracle = "Substitution into every input relation, polynomial root reconstruction, and independently derived linear-system rank identities."
+status = "partial"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "exact_linear_algebra"
+semantics = "Exact determinant, inverse, rank, nullspace, linear solve, characteristic data, and required matrix decompositions."
+priority = "P0"
+independent_oracle = "Exact matrix product identities, independently derived determinants/minors, nullspace residuals, and characteristic-polynomial reconstruction."
+status = "missing"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "parse_print_codegen"
+semantics = "Stable round-trip parsing and canonical printing with deterministic, compilable Fortran code generation and shared subexpressions."
+priority = "P0"
+independent_oracle = "Grammar fixtures, semantic round trips through the independent evaluator, and compiled-kernel comparison at safe points."
+status = "partial"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "assumptions_inequalities"
+semantics = "Immutable real/sign/nonzero/integer assumptions, compound inequality reasoning, and explicit conditions on conditional results."
+priority = "P1"
+independent_oracle = "Three-valued expectation tables and independently sampled interval/counterexample points satisfying each assumption context."
+status = "partial"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "piecewise_conditions"
+semantics = "Piecewise expressions and conditional results retain branch order, boundary semantics, and UNKNOWN for undecidable predicates."
+priority = "P1"
+independent_oracle = "Exact branch-table evaluation at interior, boundary, and uncovered points with independently derived predicate outcomes."
+status = "missing"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "integrate"
+semantics = "Exact indefinite and definite integration for evidenced rational, elementary, and special-function fragments with conditions."
+priority = "P1"
+independent_oracle = "Exact differentiation of antiderivatives, independently derived definite values, and high-precision quadrature as supplemental evidence."
+status = "partial"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "numeric_integrate"
+semantics = "Numerical definite integration with requested precision, singularity handling, convergence diagnostics, and explicit failure."
+priority = "P2"
+independent_oracle = "Independently derived exact integrals and interval or precision-doubling quadrature with separately selected subdivisions."
+status = "missing"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "matrices_tensors"
+semantics = "Exact symbolic matrix/tensor construction, contraction, products, reshaping, and component-preserving code generation."
+priority = "P1"
+independent_oracle = "Componentwise scalar reconstruction and independently indexed contraction/product identities."
+status = "partial"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "sums_products"
+semantics = "Finite and evidenced symbolic sums/products with explicit convergence or integer-bound conditions."
+priority = "P1"
+independent_oracle = "Direct exact enumeration, telescoping certificates, recurrence checks, and ratio reconstruction."
+status = "missing"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "trigonometric"
+semantics = "Safe trig/exp rewrites and projection that respect real/complex domains, periodicity, and inverse-function branches."
+priority = "P1"
+independent_oracle = "Exact angle identities plus high-precision safe-point and branch-boundary counterexample suites."
+status = "partial"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "safe_log_power_radical"
+semantics = "Logarithm, power, and radical rewrites preserve complex branches and real-domain sign conditions; unsafe PowerExpand-style requests return conditions or UNKNOWN."
+priority = "P0"
+independent_oracle = "Exact guarded identities plus high-precision counterexamples across negative, complex, zero, and branch-cut inputs."
+status = "partial"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "fourier_laplace_transforms"
+semantics = "Evidenced discrete/continuous Fourier and Laplace transforms, inverses, conventions, and convergence conditions."
+priority = "P1"
+independent_oracle = "Transform/inverse reconstruction, differentiation and convolution properties, and independent high-precision quadrature."
+status = "missing"
+source_classes = ["gitlab"]
+
+[[requirement]]
+id = "special_functions"
+semantics = "Consumer-observed Bessel, Airy, hypergeometric, elliptic, gamma, error, orthogonal-polynomial, and zeta-family expressions and rules."
+priority = "P1"
+independent_oracle = "Defining ODEs/recurrences, independently derived exact values, Wronskians, and high-precision numerical evaluation."
+status = "partial"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "differential_equations"
+semantics = "Verify and solve the bounded symbolic ODE fragments evidenced by consumers; unsupported classes return a diagnostic, condition, or UNKNOWN."
+priority = "P2"
+independent_oracle = "Exact residual and condition substitution plus independently known complete solution-set fixtures and parameter-count checks."
+status = "missing"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "numeric_solve"
+semantics = "Numerical root finding and polynomial/system solving with requested precision, residual/error diagnostics, and explicit nonconvergence."
+priority = "P2"
+independent_oracle = "Independently bracketed roots, high-precision residuals, interval inclusion, and known root-count fixtures."
+status = "missing"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]
+
+[[requirement]]
+id = "numeric_differential_equations"
+semantics = "Numerical ODE solving is consumer evidence, not evidence for symbolic DSolve coverage; any implementation must expose tolerances, events, and failure."
+priority = "P2"
+independent_oracle = "Manufactured solutions, independently derived invariants, convergence under step/tolerance refinement, and event-time fixtures."
+status = "missing"
+source_classes = ["local_proj", "local_code", "gitlab", "github"]

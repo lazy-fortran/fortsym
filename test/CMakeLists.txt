@@ -51,3 +51,14 @@ fortsym_add_test(test_fortsym_fparse parse_fortran/test_fortsym_fparse.f90)
 
 # --- C ABI over SymEngine ---
 fortsym_add_test(test_fortsym_capi capi/test_fortsym_capi.f90)
+
+# --- privacy-safe consumer evidence tooling ---
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_test(
+    NAME test_consumer_audit
+    COMMAND
+        ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/audit/test_consumer_audit.py)
+set_tests_properties(
+    test_consumer_audit
+    PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
