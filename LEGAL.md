@@ -42,7 +42,7 @@ recorded and the engine is skipped, never a build failure.
 | Component | Version | Licence | SPDX | How linked | Upstream |
 |---|---|---|---|---|---|
 | SymEngine | 0.14.0 | MIT | `MIT` | static or shared | https://github.com/symengine/symengine |
-| Yacas | 1.9.2 | LGPL-2.1-or-later | `LGPL-2.1-or-later` | **shared only**, built from source | https://github.com/grzegorzmazur/yacas |
+| Yacas | 1.9.1 | LGPL-2.1-or-later | `LGPL-2.1-or-later` | **shared only**, built from source | https://github.com/grzegorzmazur/yacas |
 | FLINT | 3.6.0 | LGPL-3.0-or-later | `LGPL-3.0-or-later` | **shared only** | https://github.com/flintlib/flint |
 | GMP | 6.3.0 | LGPL-3.0+ / GPL-2.0+ dual | `LGPL-3.0-or-later` | **shared only**, transitive | https://gmplib.org |
 | MPFR | 4.2.2 | LGPL-3.0-or-later | `LGPL-3.0-or-later` | **shared only**, transitive | https://www.mpfr.org |

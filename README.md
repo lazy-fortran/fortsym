@@ -153,6 +153,14 @@ it; it never installs anything on its own.
 
 fortsym is MIT licensed — see [LICENSE](LICENSE).
 
+The supported surface and planned native engine work are tracked in:
+
+- [CAS backend architecture](doc/architecture.md)
+- [feature matrix](doc/feature-matrix.md)
+- [roadmap](doc/roadmap.md)
+- [benchmark protocol](doc/benchmarks.md)
+- [algorithm and benchmark provenance](PROVENANCE.md)
+
 **[LEGAL.md](LEGAL.md) is the authoritative record** of every dependency, its
 licence, whether it is linked or run as a separate process, and the obligations
 that follow. Read it before adding a dependency or redistributing a build. In
