@@ -32,6 +32,9 @@ target_sources(fortsym PRIVATE
     engine/fortsym_engine_yacas.f90
     engine/fortsym_proc.f90
 
+    # exact linear algebra
+    algebra/fortsym_linalg.f90
+
     # multi-engine adjudication
     council/fortsym_council.f90
 

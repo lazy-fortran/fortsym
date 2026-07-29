@@ -25,6 +25,9 @@ fortsym_add_test(test_fortsym_arena core/test_fortsym_arena.f90)
 fortsym_add_test(test_fortsym_exact core/test_fortsym_exact.f90)
 fortsym_add_test(test_fortsym_subs core/test_fortsym_subs.f90)
 
+# --- exact linear algebra ---
+fortsym_add_test(test_fortsym_linalg algebra/test_fortsym_linalg.f90)
+
 # --- surface syntax ---
 fortsym_add_test(test_fortsym_roundtrip io/test_fortsym_roundtrip.f90)
 
