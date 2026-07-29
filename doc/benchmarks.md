@@ -68,3 +68,7 @@ SymEngine simplify, differentiation, and expansion calls. Each row includes a
 correctness result. This initial harness measures conversion and result
 construction with the operation. It does not represent direct SymEngine kernel
 time or establish performance parity.
+
+Pinned result CSV files and their TOML environment records live under
+`benchmark/results`. A record with uncontrolled affinity or governor is
+diagnostic and cannot support a release performance claim.

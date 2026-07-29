@@ -1,0 +1,7 @@
+schema,compiler,workload,engine,scope,warmups,repetitions,batch,median_seconds,min_seconds,correct
+1,GCC version 16.1.1 20260625,simplify_collect,native,end_to_end,5,31,50,2.70169927E-06,2.60351924E-06,true
+1,GCC version 16.1.1 20260625,simplify_collect,symengine,end_to_end,5,31,50,6.56657852E-06,6.42250059E-06,true
+1,GCC version 16.1.1 20260625,differentiate_power,native,end_to_end,5,31,50,3.82941915E-06,3.81097896E-06,true
+1,GCC version 16.1.1 20260625,differentiate_power,symengine,end_to_end,5,31,50,4.78781993E-06,4.50649997E-06,true
+1,GCC version 16.1.1 20260625,expand_power,native,end_to_end,5,31,50,2.03593862E-03,1.94779792E-03,true
+1,GCC version 16.1.1 20260625,expand_power,symengine,end_to_end,5,31,50,1.25069860E-04,1.23260459E-04,true
