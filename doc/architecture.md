@@ -55,7 +55,7 @@ Every operation returns a result with:
 - elapsed operation time
 - `ZERO`, `NONZERO`, or `UNKNOWN` for decision procedures
 
-Domain assumptions and conditional results need an explicit context and
+Domain assumptions and conditional results use an explicit context and
 condition field. They must not be encoded in a backend-specific global state.
 The assumption context will begin with `real`, `positive`, `nonnegative`, and
 `nonzero` facts on symbols and expressions.
@@ -92,4 +92,3 @@ the following require a FortNum compatibility run:
 FortNum's local generator uses a path dependency while its provenance stamp
 reads a lock file. A regeneration must verify that the dependency checkout
 matches the lock before claiming that revision.
-

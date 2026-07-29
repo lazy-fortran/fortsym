@@ -21,7 +21,7 @@ it.
 | Zero decision | partial | partial | weak simplify test | polynomial certificates and assumptions |
 | Polynomial GCD and rational cancellation | no | partial, univariate | partial | multivariate domains |
 | Factor, apart, and together | no | no public operation | advertised only | typed engine operations |
-| Assumptions and conditions | no | no public context | no public context | real, positive, nonnegative, nonzero |
+| Assumptions and conditions | sign facts | no public context | no public context | compound inference and returned conditions |
 | Series and coefficient extraction | Taylor | C shim only | no public operation | Laurent series and singular points |
 | Linear and polynomial solve | scalar linear | no public operation | advertised only | univariate polynomial roots |
 | Integration | no | no generic operation | Yacas concrete method | rational integration first |

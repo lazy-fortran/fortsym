@@ -9,6 +9,7 @@ program test_fortsym_native
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_ADD
     use fortsym_expr
+    use fortsym_assume, only: assumption_context_t, assume, positive
     use fortsym_eval, only: binding_t, eval_expr
     use fortsym_print, only: print_expr
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -19,6 +20,7 @@ program test_fortsym_native
     integer, parameter :: dp = real64
     type(arena_t), target :: arena
     type(native_engine_t) :: engine
+    type(assumption_context_t), target :: assumptions
     type(expr_t) :: x
     integer :: nfail
 
@@ -34,6 +36,7 @@ program test_fortsym_native
     call test_bessel_recurrence()
     call test_series()
     call test_linear_solve()
+    call test_assumptions()
     call test_verdicts()
     call test_overflow_preservation()
 
@@ -209,6 +212,35 @@ contains
         r = engine%solve(a**2 - 1, a)
         call check("nonlinear solve is declined", .not. r%ok)
     end subroutine test_linear_solve
+
+    subroutine test_assumptions()
+        type(native_engine_t) :: assumed_engine
+        type(engine_result_t) :: r
+        type(expr_t) :: u
+
+        r = engine%zero_test(sqrt(x**2) - x)
+        call check("sqrt(x^2)-x is unknown without a domain", &
+            r%verdict == VERDICT_UNKNOWN)
+
+        call assumptions%init(arena)
+        call assume(assumptions, positive(x))
+        assumed_engine = make_native_engine(arena, assumptions)
+        r = assumed_engine%zero_test(sqrt(x**2) - x)
+        call check("positive x permits sqrt(x^2)=x", &
+            r%verdict == VERDICT_TRUE)
+        r = assumed_engine%zero_test(abs(x) - x)
+        call check("positive x permits abs(x)=x", r%verdict == VERDICT_TRUE)
+
+        u = x**2 + 1
+        call assume(assumptions, positive(u))
+        assumed_engine = make_native_engine(arena, assumptions)
+        r = assumed_engine%zero_test(sqrt(u**2) - u)
+        call check("positive compound expression is honored", &
+            r%verdict == VERDICT_TRUE)
+        if (r%verdict /= VERDICT_TRUE) then
+            print *, "  compound residual: ", chars(print_expr(r%value))
+        end if
+    end subroutine test_assumptions
 
     subroutine test_verdicts()
         type(engine_result_t) :: r

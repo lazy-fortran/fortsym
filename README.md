@@ -18,6 +18,11 @@ expansion, differentiation, Taylor coefficients and series, scalar linear
 solving, and conservative zero decisions. Broader domains and assumptions
 remain on the documented roadmap.
 
+Guarded native rewrites accept an explicit `assumption_context_t`. Positive,
+nonnegative, nonzero, and real-valued facts are stored on interned expressions.
+For example, `positive(x)` permits `sqrt(x**2)` and `abs(x)` to reduce to `x`;
+without the context the same zero test returns `UNKNOWN`.
+
 Wired: SymEngine and Yacas (linked in-process), SymPy and Maxima (separate
 processes). Each declares what it can do and is only asked for that — Yacas
 does not claim zero testing, because its `Simplify` cannot close trigonometric

@@ -11,6 +11,7 @@ module fortsym_engine_native
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
     use fortsym_expr, only: expr_t, num, operator(+), operator(-), operator(*), &
         operator(/), operator(**)
+    use fortsym_assume, only: assumption_context_t, FACT_POSITIVE
     use fortsym_diff, only: diff_expr => diff
     use fortsym_subs, only: subs
     use fortsym_engine, only: engine_t, engine_result_t, wall_seconds, &
@@ -28,6 +29,7 @@ module fortsym_engine_native
 
     type, extends(engine_t) :: native_engine_t
         type(arena_t), pointer :: home => null()
+        type(assumption_context_t), pointer :: assumptions => null()
     contains
         procedure :: zero_test => native_zero_test
         procedure :: simplify => native_simplify
@@ -40,8 +42,9 @@ module fortsym_engine_native
 
 contains
 
-    function make_native_engine(home) result(eng)
+    function make_native_engine(home, assumptions) result(eng)
         type(arena_t), target, intent(inout) :: home
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
         type(native_engine_t)                :: eng
 
         eng%name = str("native")
@@ -50,14 +53,16 @@ contains
         eng%caps = CAP_ZERO_TEST + CAP_SIMPLIFY + CAP_DIFF + CAP_EXPAND + &
             CAP_SERIES + CAP_SOLVE
         eng%home => home
+        if (present(assumptions)) eng%assumptions => assumptions
     end function make_native_engine
 
     function native_simplify(self, e) result(r)
         class(native_engine_t), intent(inout) :: self
         type(expr_t),           intent(in)    :: e
         type(engine_result_t)                 :: r
-        integer, allocatable :: memo(:)
-        logical, allocatable :: done(:)
+        integer, allocatable :: memo(:), contextual_memo(:)
+        logical, allocatable :: done(:), contextual_done(:)
+        integer :: simplified_id
         real(dp) :: started
 
         started = wall_seconds()
@@ -70,7 +75,18 @@ contains
 
         allocate (memo(e%a%size()), source=0)
         allocate (done(e%a%size()), source=.false.)
-        r%value%id = simplify_id(e%a, e%id, memo, done)
+        simplified_id = simplify_id(e%a, e%id, memo, done)
+        if (associated(self%assumptions)) then
+            allocate (contextual_memo(e%a%size()), source=0)
+            allocate (contextual_done(e%a%size()), source=.false.)
+            simplified_id = contextual_id(e%a, simplified_id, self%assumptions, &
+                contextual_memo, contextual_done)
+            deallocate (memo, done)
+            allocate (memo(e%a%size()), source=0)
+            allocate (done(e%a%size()), source=.false.)
+            simplified_id = simplify_id(e%a, simplified_id, memo, done)
+        end if
+        r%value%id = simplified_id
         r%ok = .true.
         r%seconds = wall_seconds() - started
     end function native_simplify
@@ -302,7 +318,7 @@ contains
     end subroutine factorial_i64
 
     recursive function simplify_id(a, id, memo, done) result(out)
-        type(arena_t), intent(inout) :: a
+        type(arena_t), target, intent(inout) :: a
         integer,       intent(in)    :: id
         integer,       intent(inout) :: memo(:)
         logical,       intent(inout) :: done(:)
@@ -342,18 +358,144 @@ contains
         memo(id) = out
     end function simplify_id
 
+    recursive function contextual_id(a, id, context, memo, done) result(out)
+        type(arena_t), target, intent(inout) :: a
+        integer,       intent(in)    :: id
+        type(assumption_context_t), intent(in) :: context
+        integer,       intent(inout) :: memo(:)
+        logical,       intent(inout) :: done(:)
+        integer                      :: out
+        type(expr_t) :: base_expression
+        integer, allocatable :: children(:)
+        integer :: k, exponent_id, base_id
+        logical :: square
+
+        if (done(id)) then
+            out = memo(id)
+            return
+        end if
+
+        select case (a%kind_of(id))
+        case (NK_ADD)
+            allocate (children(a%nargs_of(id)))
+            do k = 1, size(children)
+                children(k) = contextual_id(a, a%arg_of(id, k), context, &
+                    memo, done)
+            end do
+            out = simplify_add(a, children)
+        case (NK_MUL)
+            allocate (children(a%nargs_of(id)))
+            do k = 1, size(children)
+                children(k) = contextual_id(a, a%arg_of(id, k), context, &
+                    memo, done)
+            end do
+            out = a%mul(children)
+        case (NK_POW)
+            base_id = contextual_id(a, a%arg_of(id, 1), context, memo, done)
+            exponent_id = contextual_id(a, a%arg_of(id, 2), context, memo, done)
+            out = a%pow(base_id, exponent_id)
+        case (NK_FUNC)
+            allocate (children(a%nargs_of(id)))
+            do k = 1, size(children)
+                children(k) = contextual_id(a, a%arg_of(id, k), context, &
+                    memo, done)
+            end do
+            out = a%func(chars(a%name_of(id)), children)
+
+            if (size(children) > 0) then
+                base_expression%a => a
+                base_expression%id = children(1)
+                if (chars(a%name_of(id)) == "abs") then
+                    if (context%has(base_expression, FACT_POSITIVE)) out = children(1)
+                end if
+                if (chars(a%name_of(id)) == "sqrt") then
+                    if (a%kind_of(children(1)) == NK_POW) then
+                        call is_square_power(a, children(1), base_id, square)
+                        if (square) then
+                            base_expression%id = base_id
+                            if (context%has(base_expression, FACT_POSITIVE)) &
+                                out = base_id
+                        end if
+                    end if
+                end if
+            end if
+        case default
+            out = id
+        end select
+
+        done(id) = .true.
+        memo(id) = out
+    end function contextual_id
+
+    subroutine is_square_power(a, id, base, square)
+        type(arena_t), intent(in)  :: a
+        integer,       intent(in)  :: id
+        integer,       intent(out) :: base
+        logical,       intent(out) :: square
+        integer(int64) :: exponent, den
+        logical :: exact
+
+        base = id
+        square = .false.
+        if (a%kind_of(id) /= NK_POW) return
+        call exact_value(a, a%arg_of(id, 2), exponent, den, exact)
+        if (.not. exact) return
+        if (den /= 1_int64) return
+        if (exponent /= 2_int64) return
+        base = a%arg_of(id, 1)
+        square = .true.
+    end subroutine is_square_power
+
     function simplify_add(a, operands) result(out)
         type(arena_t), intent(inout) :: a
         integer,       intent(in)    :: operands(:)
         integer                      :: out
-        integer, allocatable :: terms(:), bases(:), result(:)
-        logical, allocatable :: live(:)
+        integer, allocatable :: terms(:), bases(:), result(:), filtered(:)
+        logical, allocatable :: live(:), top_live(:)
         integer(int64), allocatable :: cnum(:), cden(:)
-        integer(int64) :: n, d, sn, sd
-        integer :: flat, i, j, count, base, term
-        logical :: exact, combined
+        integer(int64) :: n, d, sn, sd, n2, d2
+        integer :: flat, i, j, count, base, base2, term, remaining
+        logical :: exact, exact2, combined
 
-        flat = a%add(operands)
+        ! Preserve a composite term long enough to cancel its explicit
+        ! negative. Flattening u + (-u) first would splice u's children into
+        ! the outer sum and hide that the two operands are opposites.
+        allocate (top_live(size(operands)), source=.true.)
+        do i = 1, size(operands)
+            if (.not. top_live(i)) cycle
+            call split_coefficient(a, operands(i), base, n, d, exact)
+            if (.not. exact) cycle
+            do j = i + 1, size(operands)
+                if (.not. top_live(j)) cycle
+                call split_coefficient(a, operands(j), base2, n2, d2, exact2)
+                if (.not. exact2) cycle
+                if (base2 /= base) cycle
+                call fraction_add(n, d, n2, d2, sn, sd, exact2)
+                if (.not. exact2) cycle
+                if (sn /= 0_int64) cycle
+                top_live(i) = .false.
+                top_live(j) = .false.
+                exit
+            end do
+        end do
+
+        remaining = 0
+        do i = 1, size(top_live)
+            if (top_live(i)) remaining = remaining + 1
+        end do
+        if (remaining == 0) then
+            out = a%int(0_int64)
+            return
+        end if
+        allocate (filtered(remaining))
+        j = 0
+        do i = 1, size(operands)
+            if (.not. top_live(i)) cycle
+            j = j + 1
+            filtered(j) = operands(i)
+        end do
+
+        flat = a%add(filtered)
         if (a%kind_of(flat) /= NK_ADD) then
             out = flat
             return
