@@ -51,6 +51,7 @@ target_sources(fortsym PRIVATE
     calculus/fortsym_diff.f90
     calculus/fortsym_chart.f90
     calculus/fortsym_products.f90
+    calculus/fortsym_toroidal.f90
 
     # reading Fortran back
     parse_fortran/fortsym_fparse.f90
