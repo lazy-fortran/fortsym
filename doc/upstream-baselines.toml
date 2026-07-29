@@ -1,0 +1,220 @@
+schema_version = 1
+as_of = "2026-07-29"
+purpose = "Pinned upstream feature, algorithm, provenance, and license baseline"
+policy = "Published mathematics defines local algorithms. Upstream code is used only as allowed by license_role; GPL code is comparison-only. Unsupported or undecidable cases return conditions or UNKNOWN."
+
+[[upstream]]
+id = "symengine"
+name = "SymEngine"
+version = "0.14.0"
+revision = "fac9314c78f2809570494017efc6603befeb4eda"
+revision_kind = "git-tag-v0.14.0"
+repository = "https://github.com/symengine/symengine"
+license = "MIT"
+license_role = "linked backend and permissible implementation reference"
+official_docs = "https://symengine.org/"
+inspected_paths = [
+  "symengine/assumptions.h",
+  "symengine/expand.cpp",
+  "symengine/functions.cpp",
+  "symengine/polys/",
+  "symengine/rewrite.cpp",
+  "symengine/series_visitor.h",
+  "symengine/simplify.cpp",
+  "symengine/solve.cpp",
+]
+capability_notes = [
+  "arbitrary-precision integer, rational, real, and complex scalar classes",
+  "expansion with multinomial and polynomial paths",
+  "univariate polynomial and rational representations",
+  "univariate series with rational powers and selected elementary functions",
+  "linear through quartic, rational, trigonometric, and exact linear-system solving",
+  "three-valued assumption predicates",
+]
+
+[[upstream]]
+id = "sympy"
+name = "SymPy"
+version = "1.14.0"
+revision = "fe935ceb303891d1f8bea4c03b19fd9ec9464b02"
+revision_kind = "git-tag-1.14.0"
+repository = "https://github.com/sympy/sympy"
+license = "BSD-3-Clause"
+license_role = "optional subprocess backend, behavioral reference, and permissible design reference"
+official_docs = "https://docs.sympy.org/latest/"
+inspected_paths = [
+  "doc/src/guides/assumptions.rst",
+  "doc/src/modules/integrals/",
+  "doc/src/modules/polys/",
+  "doc/src/modules/series/",
+  "doc/src/modules/solvers/",
+  "sympy/assumptions/",
+]
+capability_notes = [
+  "explicit polynomial domains including integer, rational, finite, and algebraic extensions",
+  "multivariate GCD, factorization, resultants, Groebner bases, rational functions, and partial fractions",
+  "three-valued assumptions plus relational and set-valued solver results",
+  "Taylor, formal, Fourier, limit, and asymptotic series facilities",
+  "polynomial, partial Risch, heuristic Risch, table, and Meijer-G integration strategies",
+  "exact dense and sparse matrices, transforms, sums, products, and special functions",
+]
+
+[[upstream]]
+id = "yacas"
+name = "Yacas"
+version = "1.9.1"
+revision = "afade5b432c9d602daefe58abfd88bd985d73e51"
+revision_kind = "git-tag-v1.9.1"
+repository = "https://github.com/grzegorzmazur/yacas"
+license = "LGPL-2.1-or-later"
+license_role = "shared linked backend and black-box behavioral reference; no source adaptation"
+official_docs = "https://yacas.readthedocs.io/en/latest/"
+inspected_paths = [
+  "docs/book_of_algorithms/basic.rst",
+  "docs/book_of_algorithms/integration.rst",
+  "docs/book_of_algorithms/numtheory.rst",
+  "docs/book_of_algorithms/sturm-sequences.rst",
+  "docs/reference_manual/simplify.rst",
+  "docs/reference_manual/solvers.rst",
+  "docs/reference_manual/univariate-polynomials.rst",
+]
+capability_notes = [
+  "arbitrary-precision exact and numerical arithmetic",
+  "rule-based simplification, radical, logarithmic, and trigonometric transformations",
+  "univariate polynomial GCD, square-free reduction, modular factorization, and real roots",
+  "polynomial, rational, table-driven elementary, and transform integration",
+  "returns an unevaluated integral when its methods do not apply",
+]
+
+[[upstream]]
+id = "flint"
+name = "FLINT including Arb, Acb, and Calcium"
+version = "3.6.0"
+revision = "8d5454b96761fafe4d5a9da76a369a602f500f49"
+revision_kind = "git-tag-v3.6.0"
+repository = "https://github.com/flintlib/flint"
+license = "LGPL-3.0-or-later"
+license_role = "shared linked arithmetic and polynomial dependency through its C interface; thin original wrappers only"
+official_docs = "https://flintlib.org/doc/"
+inspected_paths = [
+  "doc/source/ca.rst",
+  "doc/source/fmpq.rst",
+  "doc/source/fmpq_mpoly.rst",
+  "doc/source/fmpz_mpoly.rst",
+  "doc/source/qqbar.rst",
+  "src/ca/",
+  "src/fmpz_mpoly/",
+  "src/qqbar/",
+]
+capability_notes = [
+  "arbitrary-precision integers and canonical rationals",
+  "exact real and complex algebraic numbers represented by minimal polynomials and isolating enclosures, with fortsym-imposed resource bounds",
+  "exact formal fields for selected algebraic and transcendental constants with three-valued predicates",
+  "integer and rational dense and sparse multivariate polynomial arithmetic and factorization",
+  "naive Buchberger routines on primitive integer generators representing ideals in Q[X1,...,Xn], with optional resource limits",
+  "rigorous arbitrary-precision real and complex ball arithmetic",
+]
+
+[[upstream]]
+id = "ginac"
+name = "GiNaC"
+version = "1.8.10"
+revision = "e41da5219650da501b0a4ccda9842e6964777c9a"
+revision_kind = "git-tag-release_1-8-10"
+repository = "https://codeberg.org/ginac/ginac"
+license = "GPL-2.0-or-later"
+license_role = "published architecture and public documentation comparison only; source must not be copied or transcribed"
+official_docs = "https://ginac.de/tutorial/"
+inspected_paths = [
+  "COPYING",
+  "doc/tutorial/ginac.texi",
+]
+capability_notes = [
+  "embedded expression hierarchy with automatic evaluation and canonicalization",
+  "exact numbers, polynomial arithmetic, linear algebra, indexed expressions, and series",
+  "internal canonical order is explicitly not a stable user-visible serialization order",
+]
+
+[[upstream]]
+id = "sympy-benchmarks"
+name = "SymPy benchmarks"
+version = "unreleased snapshot"
+revision = "84973d029ecc6cc1df3e0369cb1e7c0492048ef8"
+revision_kind = "git-head-observed-2026-07-29"
+repository = "https://github.com/sympy/sympy_benchmarks"
+license = "NOASSERTION"
+license_role = "metadata inspection only; do not import workloads without an explicit compatible license"
+official_docs = "https://github.com/sympy/sympy_benchmarks"
+inspected_paths = [
+  "README.rst",
+]
+inspection_evidence = [
+  "repository tree at revision 84973d029ecc6cc1df3e0369cb1e7c0492048ef8: no LICENSE or COPYING path",
+  "GitHub repository license endpoint observed 2026-07-29: no license declaration",
+]
+capability_notes = [
+  "a separate repository license was not exposed by the GitHub license endpoint and no license file was present in the inspected tree",
+]
+
+[[algorithm]]
+id = "zero-decision-boundary"
+status = "implemented-limitation"
+mathematical_source = "Daniel Richardson, Some Undecidable Problems Involving Elementary Functions of a Real Variable, Journal of Symbolic Logic 33(4), 1968"
+source_url = "https://doi.org/10.2307/2271358"
+upstream_context = ["symengine", "sympy", "flint"]
+local_adaptation = "Scope source, not an algorithm source: the undecidability result requires a three-valued decision contract and UNKNOWN outside proved fragments."
+independent_oracle = "unsupported special-function identities and branch-sensitive forms must remain UNKNOWN"
+
+[[algorithm]]
+id = "exponential-rational-normal-form"
+status = "implemented-original-composition"
+mathematical_source = "Standard rational-function normalization composed locally from pinned SymEngine transforms; no external algorithm publication is claimed"
+source_url = "https://github.com/symengine/symengine/tree/fac9314c78f2809570494017efc6603befeb4eda/symengine"
+upstream_context = ["symengine"]
+local_adaptation = "fsym_shim.cpp rewrites trigonometric functions as exponentials, normalizes exponential arguments, folds with as_numer_denom, and expands the numerator; a syntactic fragment guard prevents unsupported function heads from being reported NONZERO."
+independent_oracle = "independently derived rational, trigonometric, and hyperbolic identities; explicit nonidentities; and unsupported special-function UNKNOWN cases"
+
+[[algorithm]]
+id = "subresultant-prs"
+status = "planned"
+mathematical_source = "W. S. Brown, The Subresultant PRS Algorithm, ACM Transactions on Mathematical Software 4(3), 1978"
+source_url = "https://doi.org/10.1145/355791.355795"
+upstream_context = ["sympy", "flint", "ginac"]
+local_adaptation = "Implement from the publication over explicit integer and rational polynomial domains; do not transcribe GPL code."
+independent_oracle = "exact pseudo-division identities, resultant identities, and finite-field specialization"
+
+[[algorithm]]
+id = "multivariate-factorization"
+status = "planned"
+mathematical_source = "Paul S. Wang, An Improved Multivariate Polynomial Factoring Algorithm, Mathematics of Computation 32(144), 1978"
+source_url = "https://doi.org/10.1090/S0025-5718-1978-0568284-3"
+upstream_context = ["sympy", "flint", "yacas"]
+local_adaptation = "Prefer the pinned FLINT shared interface; any native fallback is derived from the publication."
+independent_oracle = "factor product reconstruction, primitive/content invariants, and random finite-field evaluations"
+
+[[algorithm]]
+id = "groebner-bases"
+status = "planned-when-required"
+mathematical_source = "Bruno Buchberger, Bruno Buchberger's PhD thesis 1965: An algorithm for finding the basis elements of the residue class ring of a zero dimensional polynomial ideal, Journal of Symbolic Computation 41(3-4), 2006"
+source_url = "https://doi.org/10.1016/j.jsc.2005.09.007"
+upstream_context = ["sympy", "flint"]
+local_adaptation = "Start with a bounded Buchberger method over rational domains or the pinned FLINT interface; preserve explicit monomial order."
+independent_oracle = "Buchberger S-polynomial criterion, ideal-membership reduction, and generator reconstruction"
+
+[[algorithm]]
+id = "symbolic-integration"
+status = "planned"
+mathematical_source = "Manuel Bronstein, Symbolic Integration I: Transcendental Functions, second edition, 2005"
+source_url = "https://doi.org/10.1007/b138171"
+upstream_context = ["sympy", "yacas"]
+local_adaptation = "Implement rational integration first, then explicitly bounded transcendental fragments; retain unevaluated results and conditions."
+independent_oracle = "exact differentiation of antiderivatives plus high-precision quadrature for safe definite cases"
+
+[[algorithm]]
+id = "limits-asymptotic-scales"
+status = "planned"
+mathematical_source = "Dominik Gruntz, On Computing Limits in a Symbolic Manipulation System, ETH thesis 11432, 1996"
+source_url = "https://doi.org/10.3929/ethz-a-001631582"
+upstream_context = ["sympy"]
+local_adaptation = "Taylor and Laurent limits precede an explicitly bounded most-rapidly-varying implementation."
+independent_oracle = "series recomposition, exact removable-singularity identities, and high-precision asymptotic ratios at safe points"

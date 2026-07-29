@@ -167,6 +167,8 @@ fortsym is MIT licensed — see [LICENSE](LICENSE).
 The supported surface and planned native engine work are tracked in:
 
 - [CAS backend architecture](doc/architecture.md)
+- [consumer requirement matrix](doc/consumer-requirements.toml)
+- [pinned upstream and algorithm baseline](doc/upstream-baselines.toml)
 - [feature matrix](doc/feature-matrix.md)
 - [roadmap](doc/roadmap.md)
 - [benchmark protocol](doc/benchmarks.md)

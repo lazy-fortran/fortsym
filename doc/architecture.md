@@ -33,12 +33,24 @@ declarations and must not be used for dispatch.
 The current exact number types use signed 64-bit numerators and denominators.
 They do not provide arbitrary-precision arithmetic. Code that combines exact
 numbers must detect overflow or decline the transformation. Arbitrary-precision
-integer, rational, real, and complex domains are a backend milestone.
+integer and canonical rational storage will use the shared FLINT 3.6.0 C
+interface
+pinned in `upstream-baselines.toml`. Exact algebraic complex values use bounded
+`qqbar` objects (minimal polynomial plus isolating enclosure), where the bounds
+are fortsym resource limits rather than an intrinsic restriction of `qqbar`.
+Rigorous
+approximate real and complex evaluation uses Arb/Acb balls and may not be
+silently converted into an exact result. Calcium predicates are three-valued;
+resource limits or unimplemented functions map to `UNKNOWN`, not false.
 
 Addition and multiplication flatten nested nodes and sort child node indices.
 This provides sharing inside one construction history. Node indices are not a
 cross-arena canonical order. Stable serialization and deterministic semantic
-ordering remain separate work.
+ordering remain separate work. The replacement order is defined by local node
+kind, exact scalar value, normalized head name, arity, and recursively ordered
+children. It is deliberately not inherited from a backend: GiNaC 1.8.10, for
+example, documents that its internal canonical order is not a stable
+user-visible serialization order.
 
 Applied functions may have any arity. Native differentiation represents an
 unknown partial derivative as

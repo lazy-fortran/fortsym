@@ -3,7 +3,8 @@
 The observed consumer requirements, source-class evidence, bounded semantics,
 priorities, and independent oracles are machine-readable in
 `consumer-requirements.toml`; aggregate scan coverage and operation counts are
-in `consumer-audit.json`.
+in `consumer-audit.json`. Exact upstream releases, inspected capabilities,
+licenses, and adaptation boundaries are in `upstream-baselines.toml`.
 
 Status values are `yes`, `partial`, and `no`. `Partial` means that the public
 operation handles a stated fragment or that only one concrete backend exposes

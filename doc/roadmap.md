@@ -8,6 +8,12 @@ added only with the operation it describes. A speed statement cites a pinned
 result file for matching semantics. Unsupported input returns a diagnostic or
 `UNKNOWN`.
 
+The exact upstream release and license baseline is
+`upstream-baselines.toml`. “SymEngine coverage” means the applicable
+capabilities observed in pinned SymEngine 0.14.0, not an unversioned project
+name. SymPy and Yacas requirements are limited to operations evidenced in
+`consumer-requirements.toml`; their broad unrelated subsystems are not implied.
+
 ## Milestones
 
 ### 1. Consumer compatibility
@@ -22,7 +28,11 @@ result file for matching semantics. Unsupported input returns a diagnostic or
 
 ### 2. Native arithmetic and canonical forms
 
-- Add checked integer and rational arithmetic.
+- Replace signed 64-bit exact storage with arbitrary-precision integer and
+  canonical rational storage using the pinned FLINT shared interface.
+- Add exact complex algebraic values through a bounded `qqbar` representation;
+  use Calcium or Arb/Acb only where their three-valued or rigorous enclosure
+  semantics are explicit.
 - Implement native bottom-up simplification and expansion with DAG memoization.
 - Collect numeric factors, like terms, and integer powers.
 - Resize hash tables and replace node-index ordering with a stable semantic
@@ -40,13 +50,18 @@ result file for matching semantics. Unsupported input returns a diagnostic or
 
 ### 4. Polynomial and rational algebra
 
-- Define dense and sparse polynomial views over integer and rational domains.
+- Define dense and sparse polynomial views over arbitrary-precision integer and
+  rational domains.
 - Implement content, primitive part, exact division, subresultant polynomial
   remainder sequences, GCD, square-free decomposition, resultant, cancellation,
-  together, and apart.
+  factorization, together, and apart.
 - Add modular reconstruction or finite-field evaluation as an independent
   identity oracle.
 - Extend to multivariate rational expressions needed by MHD script 42.
+- Add Gröbner bases only when a traced consumer case requires ideal operations:
+  start with a resource-bounded Buchberger method over rational ideals,
+  preserve the requested `lex`, `grlex`, or `grevlex` monomial order, and
+  verify every result with the S-polynomial criterion and generator reduction.
 
 ### 5. Series and solving
 
@@ -81,8 +96,8 @@ result file for matching semantics. Unsupported input returns a diagnostic or
 
 ## Deferred areas
 
-General differential equation solving, plotting, fixture integration, units,
-geometry, combinatorics, and broad theorem proving are outside the current
-consumer fragment. New consumer evidence can promote one of these areas into a
-bounded milestone.
-
+Plotting, fixture integration, units, geometry, combinatorics, and broad
+theorem proving are outside the current consumer fragment. Differential
+equation solving is evidenced but remains behind exact scalar solve,
+integration, series, and assumptions because those are prerequisites. New
+consumer evidence can promote another area into a bounded milestone.

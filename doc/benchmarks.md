@@ -54,9 +54,9 @@ interpretation.
 ## Baselines
 
 - SymEngine official benchmark inputs:
-  <https://github.com/symengine/symengine/tree/master/benchmarks>
-- SymPy ASV benchmarks:
-  <https://github.com/sympy/sympy_benchmarks>
+  <https://github.com/symengine/symengine/tree/fac9314c78f2809570494017efc6603befeb4eda/benchmarks>
+- SymPy's standalone ASV repository, metadata only pending an explicit license:
+  <https://github.com/sympy/sympy_benchmarks/tree/84973d029ecc6cc1df3e0369cb1e7c0492048ef8>
 
 Only inputs with compatible licenses and provenance enter this repository.
 Wolfram notebooks, scripts, and outputs remain excluded by `LEGAL.md`.
