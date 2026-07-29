@@ -7,6 +7,9 @@ target_link_libraries(gen_demo PRIVATE fortsym)
 add_executable(gen_legendre_recurrence gen_legendre_recurrence.f90)
 target_link_libraries(gen_legendre_recurrence PRIVATE fortsym)
 
+add_executable(gen_toroidal_kernels gen_toroidal_kernels.f90)
+target_link_libraries(gen_toroidal_kernels PRIVATE fortsym)
+
 # Reproducible end-to-end backend comparison. This remains separate from the
 # correctness suite because timing assertions do not belong in CI tests.
 add_executable(bench_native bench_native.f90)
