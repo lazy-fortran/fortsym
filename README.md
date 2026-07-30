@@ -7,10 +7,10 @@ and no Python round-trip.
 fortsym is a **multi-engine frontend**. It owns its expression representation
 and drives several computer algebra systems underneath, because no single one is
 good at everything: SymEngine is fastest and best at manipulation and code
-generation but cannot integrate, SymPy and Maxima are broad but slow, and Yacas
-integrates and factors but cannot simplify trigonometry. fortsym runs the
-engines that are present, compares their answers, and keeps the one that
-produces the smallest kernel.
+generation but cannot integrate, the current SymPy and Maxima adapters provide
+slow simplification checks, and Yacas integrates and factors but cannot
+simplify trigonometry. fortsym runs the engines that are present, compares their
+answers, and keeps the one that produces the smallest kernel.
 
 The native Fortran backend currently performs arbitrary-precision integer and
 rational arithmetic with a checked 64-bit fast path, collection of like terms
