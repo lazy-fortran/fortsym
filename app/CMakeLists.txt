@@ -8,3 +8,9 @@ target_link_libraries(gen_demo PRIVATE fortsym)
 # correctness suite because timing assertions do not belong in CI tests.
 add_executable(bench_native bench_native.f90)
 target_link_libraries(bench_native PRIVATE fortsym)
+
+add_executable(bench_algebraic bench_algebraic.f90)
+target_link_libraries(bench_algebraic PRIVATE fortsym)
+
+add_executable(bench_qqbar_direct bench_qqbar_direct.cpp)
+target_link_libraries(bench_qqbar_direct PRIVATE fortsym::flint)

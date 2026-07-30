@@ -83,6 +83,29 @@ from changing the other engine's cold conversion and interning cost. The two
 suites use the same input formulae, shifts, warmup counts, batches, validation
 points, and correctness oracles.
 
+`fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
+text validation, FLINT reconstruction, the exact operation, canonical
+serialization, and immediate fetch. It covers irreducible, reducible, and
+repeated-root normalization; Gaussian-rational construction; arithmetic;
+conjugation; signed powers; principal square root; exact component signs; and a
+one-shot near-64-KiB height refusal. Warm rows reuse one value. Cold rows scale
+the defining polynomial or rational text, producing distinct encodings of the
+same exact value and therefore preserving the independent expected answer.
+Rows report minimum, 5th percentile, median, 95th percentile, maximum, and an
+exact correctness flag derived from minimal polynomials, traces, norms,
+defining identities, and branch signs.
+
+`bench_qqbar_direct` applies the same eleven successful values and operations
+directly to FLINT. The bridge-only resource refusal has no direct baseline. The
+direct harness deliberately omits decimal parsing, `qqbar1` serialization, and
+the Fortran boundary, and its backend label says `direct_no_text`; it is a
+kernel floor, not an end-to-end parity row. Because it is a C++-only target,
+reproduce it with a standalone CMake build of that target. Both harnesses use a
+monotonic wall clock and the same sample counts. Percentiles select the
+one-based sample at `1 + floor(p * (n - 1))` after sorting. Peak resident memory
+and the complete commands belong in each pinned result's TOML record rather
+than in per-operation CSV rows.
+
 The pinned `2026-07-29-ryzen5950x-gcc16-multinomial` diagnostic compares the
 native engine immediately before and after bounded multinomial expansion using
 the same native suite order and an arena untouched by another engine. Median
