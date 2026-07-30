@@ -32,6 +32,7 @@ program test_fortsym_kernel
     call test_explicit_regeneration_command()
     call test_generator_revision()
     call test_module_wrapper()
+    call test_complex_kernel()
     call test_array_shaped_arguments()
     call test_rank_two_array_arguments()
     call test_multi_element_array_output()
@@ -355,6 +356,54 @@ contains
             call ok("module-wrapped kernel runs", stat == 0)
         end if
     end subroutine test_module_wrapper
+
+    subroutine test_complex_kernel()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+        integer :: unit, ios, stat
+
+        call a%init()
+        roots(1) = parsed(a, "y/x")
+        spec = spec_for("complex_quotient", ["x", "y"], ["value"])
+        spec%module_name = str("generated_complex_quotient")
+        spec%scalar_type = str("complex(dp)")
+        code = chars(emit_kernel(roots, spec))
+        call ok("complex inputs are declared", &
+            index(code, "complex(dp), intent(in) :: x, y") > 0)
+        call ok("complex outputs are declared", &
+            index(code, "complex(dp), intent(out) :: value") > 0)
+
+        open (newunit=unit, file="/tmp/fortsym_gen_complex.f90", &
+            status="replace", action="write", iostat=ios)
+        if (ios /= 0) then
+            call ok("complex kernel fixture opens", .false.)
+            return
+        end if
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_complex"
+        write (unit, "(a)") "  use generated_complex_quotient"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  complex(dp) :: value"
+        write (unit, "(a)") "  call complex_quotient((1.0_dp, 2.0_dp), "// &
+            "(3.0_dp, -1.0_dp), value)"
+        write (unit, "(a)") "  if (abs(value - (0.2_dp, -1.4_dp)) > "// &
+            "1.0e-14_dp) error stop 1"
+        write (unit, "(a)") "end program drive_complex"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -J /tmp -o /tmp/fortsym_gen_complex "// &
+            "/tmp/fortsym_gen_complex.f90 > /tmp/fortsym_gen_complex.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("complex generated kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_gen_complex", wait=.true., &
+                exitstat=stat)
+            call ok("complex generated kernel runs", stat == 0)
+        end if
+    end subroutine test_complex_kernel
 
     subroutine test_array_shaped_arguments()
         type(arena_t), target :: a
