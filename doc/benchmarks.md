@@ -82,3 +82,18 @@ engine instances. This prevents one engine's expanded result or cache growth
 from changing the other engine's cold conversion and interning cost. The two
 suites use the same input formulae, shifts, warmup counts, batches, validation
 points, and correctness oracles.
+
+The pinned `2026-07-29-ryzen5950x-gcc16-multinomial` diagnostic compares the
+native engine immediately before and after bounded multinomial expansion using
+the same native suite order and an arena untouched by another engine. Median
+cold expansion of `(x + y + c)^7` fell from 3.260 ms to 0.412 ms, a 7.91x
+speedup and 87.4% time reduction. SymEngine 0.14.0 took 0.155 ms in its own
+fresh arena, so native remained 2.66x slower. Logical CPU affinity was fixed,
+but the `powersave` governor was not controlled; these are diagnostic results,
+not a release-level parity claim.
+
+Its metadata records the exact base revision, SHA-256-addressed native-only
+baseline patch, separate replay commands, `fo` version/backend, compile flags,
+link libraries, affinity, and observed governor. The CSV identifies patched
+baseline rows by both base revision and patch hash rather than presenting the
+modified source tree as an unmodified Git revision.

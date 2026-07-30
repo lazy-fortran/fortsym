@@ -37,6 +37,9 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
   sums use checked, bounded multinomial composition enumeration.
 - Collect numeric factors, like terms, and integer powers.
 - Hash tables now resize before their average chain exceeds one node.
+- The pinned same-machine diagnostic reduced median cold expansion from
+  3.260 ms to 0.412 ms (7.91x); native remains 2.66x slower than SymEngine
+  0.14.0 on the isolated `(x + y + c)^7` workload.
 - Replace node-index ordering with a stable semantic order where generated
   output depends on it.
 - Benchmark construction, interning, simplification, expansion, and memory

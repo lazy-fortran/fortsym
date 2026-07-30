@@ -1,0 +1,66 @@
+schema = 2
+date = "2026-07-29"
+before_base_revision = "a2c933d0ae226c64ac225e1b4005db3b1cc34e2c"
+after_revision = "f3cbdd6bfbaffc56ea25f5e05ff92524df913702"
+operating_system = "Linux 7.1.3-2-cachyos x86_64 GNU/Linux"
+cpu = "AMD Ryzen 9 5950X 16-Core Processor"
+logical_cpus = 32
+compiler = "GNU Fortran (GCC) 16.1.1 20260625"
+fo_version = "0.3.2"
+fo_backend = "native"
+fortran_compile_flags = [
+  "-ffree-line-length-none",
+  "-fimplicit-none",
+  "-fimplicit-none",
+  "-Werror=implicit-interface",
+  "-ffree-form",
+  "-Warray-temporaries",
+]
+optimization_flags = []
+link_libraries = ["symengine", "flint", "mpfr", "gmp", "stdc++"]
+symengine = "0.14.0-10.1"
+flint = "3.6.0-1.1"
+gmp = "6.3.0-3.1"
+mpfr = "4.2.2-1.1"
+controlled_affinity = true
+affinity = "logical CPU 0"
+controlled_governor = false
+observed_governor = "powersave"
+claim_scope = "diagnostic same-machine before/after result; no release parity claim"
+correctness = "exact expected result or independent numeric evaluation"
+
+[before_harness]
+description = "The a2c933d benchmark application with the persisted native-only patch applied, so the native workload order matches the isolated after suite and no other engine touches its arena."
+engine = "native"
+patch = "benchmark/harnesses/a2c933d-native-only.patch"
+patch_sha256 = "18ee4c28ddb18146be92f2340f10e6f338779df786463f56bd1fe13ef9aa392a"
+reproduction_commands = [
+  "git worktree add --detach /tmp/fortsym-before a2c933d0ae226c64ac225e1b4005db3b1cc34e2c",
+  "git -C /tmp/fortsym-before apply /home/ert/code/fortsym/benchmark/harnesses/a2c933d-native-only.patch",
+  "cd /tmp/fortsym-before && taskset -c 0 fo exec bench_native",
+]
+
+[after_harness]
+description = "Committed benchmark application; native and SymEngine each run the same suite in a separate fresh arena."
+engines = ["native", "symengine"]
+reproduction_command = "taskset -c 0 fo exec bench_native"
+
+[warm_same_expression]
+warmups = 5
+repetitions = 31
+batch = 50
+
+[cold_distinct_expression]
+warmups = 2
+repetitions = 11
+batch = 10
+
+[summary]
+statistic = "median and minimum per-call wall time"
+cold_native_before_seconds = 3.25970420e-3
+cold_native_after_seconds = 4.12170205e-4
+cold_symengine_after_seconds = 1.54853601e-4
+native_speedup = 7.908636
+native_time_reduction_percent = 87.356
+native_to_symengine_ratio_after = 2.661677
+finding = "bounded multinomial expansion removes most of the known cold regression; native remains about 2.66x slower than SymEngine for this workload"

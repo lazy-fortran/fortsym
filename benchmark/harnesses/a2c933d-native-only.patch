@@ -1,0 +1,29 @@
+diff --git a/app/bench_native.f90 b/app/bench_native.f90
+index 1e4bd0b..bd4bd96 100644
+--- a/app/bench_native.f90
++++ b/app/bench_native.f90
+@@ -47,24 +47,13 @@ program bench_native
+         "repetitions,batch,median_seconds,min_seconds,correct"
+     call benchmark(native, "native", OP_SIMPLIFY, "simplify_collect", &
+         simplify_input, x)
+-    call benchmark(symengine, "symengine", OP_SIMPLIFY, "simplify_collect", &
+-        simplify_input, x)
+     call benchmark(native, "native", OP_DIFF, "differentiate_power", &
+         diff_input, x)
+-    call benchmark(symengine, "symengine", OP_DIFF, "differentiate_power", &
+-        diff_input, x)
+     call benchmark(native, "native", OP_EXPAND, "expand_power", &
+         expand_input, x)
+-    call benchmark(symengine, "symengine", OP_EXPAND, "expand_power", &
+-        expand_input, x)
+     call benchmark_cold(native, "native", OP_SIMPLIFY, "simplify_collect", x)
+-    call benchmark_cold(symengine, "symengine", OP_SIMPLIFY, &
+-        "simplify_collect", x)
+     call benchmark_cold(native, "native", OP_DIFF, "differentiate_power", x)
+-    call benchmark_cold(symengine, "symengine", OP_DIFF, &
+-        "differentiate_power", x)
+     call benchmark_cold(native, "native", OP_EXPAND, "expand_power", x)
+-    call benchmark_cold(symengine, "symengine", OP_EXPAND, "expand_power", x)
+ 
+ contains
+ 
