@@ -184,6 +184,15 @@ local_adaptation = "Implement from the publication over explicit integer and rat
 independent_oracle = "exact pseudo-division identities, resultant identities, and finite-field specialization"
 
 [[algorithm]]
+id = "multinomial-expansion"
+status = "implemented-bounded"
+mathematical_source = "Multinomial theorem"
+source_url = "https://dlmf.nist.gov/26.4"
+upstream_context = ["symengine"]
+local_adaptation = "Preflight checked multinomial coefficients, enumerate each final composition once with reusable scratch storage, cap the fast path at 100000 output terms, and preserve the unexpanded power when coefficient or term bounds are exceeded."
+independent_oracle = "the combinatorial monomial count C(n+m-1,m-1) plus direct numerical evaluation of the unexpanded power at safe points"
+
+[[algorithm]]
 id = "multivariate-factorization"
 status = "planned"
 mathematical_source = "Paul S. Wang, An Improved Multivariate Polynomial Factoring Algorithm, Mathematics of Computation 32(144), 1978"

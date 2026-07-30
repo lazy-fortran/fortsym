@@ -76,3 +76,9 @@ the two scopes.
 Pinned result CSV files and their TOML environment records live under
 `benchmark/results`. A record with uncontrolled affinity or governor is
 diagnostic and cannot support a release performance claim.
+
+Native and SymEngine benchmark suites construct separate fresh arenas and
+engine instances. This prevents one engine's expanded result or cache growth
+from changing the other engine's cold conversion and interning cost. The two
+suites use the same input formulae, shifts, warmup counts, batches, validation
+points, and correctness oracles.

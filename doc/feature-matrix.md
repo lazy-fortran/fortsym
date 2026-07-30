@@ -23,7 +23,7 @@ it.
 | Multivariate symbolic partials | yes | opaque | opaque | function assumptions and rewrite rules |
 | JVP, VJP, gradient, and HVP | yes | verification | verification | consumer conformance corpus |
 | Simplification | partial | partial | partial | guarded rewrites and polynomial normal form |
-| Expansion | partial | yes | advertised only | sparse polynomial expansion without order bound |
+| Expansion | bounded multinomial | yes | advertised only | sparse polynomial expansion without the 100,000-term fast-path bound |
 | Zero decision | partial | partial | weak simplify test | polynomial certificates and assumptions |
 | Polynomial GCD and rational cancellation | no | partial, univariate | partial | multivariate domains |
 | Factor, apart, and together | no | no public operation | advertised only | typed engine operations |

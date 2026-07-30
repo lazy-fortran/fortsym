@@ -25,54 +25,66 @@ program bench_native
     integer, parameter :: OP_DIFF = 2
     integer, parameter :: OP_EXPAND = 3
 
-    type(arena_t), target :: arena
-    type(native_engine_t) :: native
-    type(symengine_engine_t) :: symengine
-    type(expr_t) :: x, y, simplify_input, diff_input, expand_input
-
-    call arena%init()
-    native = make_native_engine(arena)
-    symengine = make_symengine_engine(arena)
-    x = sym(arena, "x")
-    y = sym(arena, "y")
-
-    simplify_input = x + x + 2*x - 4*x + &
-        rat(arena, 1_int64, 2_int64) + &
-        rat(arena, 1_int64, 3_int64) - &
-        rat(arena, 5_int64, 6_int64)
-    diff_input = (x + 1)**8
-    expand_input = (x + y + 1)**7
-
     write (*, '(a)') "schema,compiler,workload,engine,scope,warmups,"// &
         "repetitions,batch,median_seconds,min_seconds,correct"
-    call benchmark(native, "native", OP_SIMPLIFY, "simplify_collect", &
-        simplify_input, x)
-    call benchmark(symengine, "symengine", OP_SIMPLIFY, "simplify_collect", &
-        simplify_input, x)
-    call benchmark(native, "native", OP_DIFF, "differentiate_power", &
-        diff_input, x)
-    call benchmark(symengine, "symengine", OP_DIFF, "differentiate_power", &
-        diff_input, x)
-    call benchmark(native, "native", OP_EXPAND, "expand_power", &
-        expand_input, x)
-    call benchmark(symengine, "symengine", OP_EXPAND, "expand_power", &
-        expand_input, x)
-    call benchmark_cold(native, "native", OP_SIMPLIFY, "simplify_collect", x)
-    call benchmark_cold(symengine, "symengine", OP_SIMPLIFY, &
-        "simplify_collect", x)
-    call benchmark_cold(native, "native", OP_DIFF, "differentiate_power", x)
-    call benchmark_cold(symengine, "symengine", OP_DIFF, &
-        "differentiate_power", x)
-    call benchmark_cold(native, "native", OP_EXPAND, "expand_power", x)
-    call benchmark_cold(symengine, "symengine", OP_EXPAND, "expand_power", x)
+    call run_native_suite()
+    call run_symengine_suite()
 
 contains
 
-    subroutine benchmark(eng, engine_name, operation, workload, input, variable)
+    subroutine run_native_suite()
+        type(arena_t), target :: a
+        type(native_engine_t) :: eng
+
+        call a%init()
+        eng = make_native_engine(a)
+        call run_suite(eng, "native", a)
+    end subroutine run_native_suite
+
+    subroutine run_symengine_suite()
+        type(arena_t), target :: a
+        type(symengine_engine_t) :: eng
+
+        call a%init()
+        eng = make_symengine_engine(a)
+        call run_suite(eng, "symengine", a)
+    end subroutine run_symengine_suite
+
+    subroutine run_suite(eng, engine_name, a)
+        class(engine_t), intent(inout) :: eng
+        character(*),    intent(in)    :: engine_name
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t) :: x, y, simplify_input, diff_input, expand_input
+
+        x = sym(a, "x")
+        y = sym(a, "y")
+        simplify_input = x + x + 2*x - 4*x + &
+            rat(a, 1_int64, 2_int64) + rat(a, 1_int64, 3_int64) - &
+            rat(a, 5_int64, 6_int64)
+        diff_input = (x + 1)**8
+        expand_input = (x + y + 1)**7
+
+        call benchmark(eng, engine_name, OP_SIMPLIFY, "simplify_collect", &
+            simplify_input, x, a)
+        call benchmark(eng, engine_name, OP_DIFF, "differentiate_power", &
+            diff_input, x, a)
+        call benchmark(eng, engine_name, OP_EXPAND, "expand_power", &
+            expand_input, x, a)
+        call benchmark_cold(eng, engine_name, OP_SIMPLIFY, "simplify_collect", &
+            x, y, a)
+        call benchmark_cold(eng, engine_name, OP_DIFF, "differentiate_power", &
+            x, y, a)
+        call benchmark_cold(eng, engine_name, OP_EXPAND, "expand_power", &
+            x, y, a)
+    end subroutine run_suite
+
+    subroutine benchmark(eng, engine_name, operation, workload, input, &
+            variable, a)
         class(engine_t), intent(inout) :: eng
         character(*),    intent(in)    :: engine_name, workload
         integer,         intent(in)    :: operation
         type(expr_t),    intent(in)    :: input, variable
+        type(arena_t),   intent(inout) :: a
         real(dp) :: samples(REPETITIONS), started
         type(engine_result_t) :: result
         integer :: repetition, k
@@ -92,16 +104,17 @@ contains
             samples(repetition) = (wall_seconds() - started)/real(BATCH, dp)
         end do
 
-        correct = validate(operation, result, input)
+        correct = validate(operation, result, input, a)
         call emit_row(workload, engine_name, "warm_same_expression", samples, &
             correct, WARMUPS, REPETITIONS, BATCH)
     end subroutine benchmark
 
-    subroutine benchmark_cold(eng, engine_name, operation, workload, variable)
+    subroutine benchmark_cold(eng, engine_name, operation, workload, x, y, a)
         class(engine_t), intent(inout) :: eng
         character(*),    intent(in)    :: engine_name, workload
         integer,         intent(in)    :: operation
-        type(expr_t),    intent(in)    :: variable
+        type(expr_t),    intent(in)    :: x, y
+        type(arena_t),   intent(inout) :: a
         type(expr_t), allocatable :: inputs(:)
         real(dp) :: samples(COLD_REPETITIONS), started
         type(engine_result_t) :: result
@@ -111,13 +124,13 @@ contains
         total = (COLD_WARMUPS + COLD_REPETITIONS)*COLD_BATCH
         allocate (inputs(total))
         do k = 1, total
-            inputs(k) = distinct_input(operation, k)
+            inputs(k) = distinct_input(operation, k, x, y, a)
         end do
 
         do repetition = 1, COLD_WARMUPS
             offset = (repetition - 1)*COLD_BATCH
             do k = 1, COLD_BATCH
-                result = perform(eng, operation, inputs(offset + k), variable)
+                result = perform(eng, operation, inputs(offset + k), x)
             end do
         end do
 
@@ -125,25 +138,27 @@ contains
             offset = (COLD_WARMUPS + repetition - 1)*COLD_BATCH
             started = wall_seconds()
             do k = 1, COLD_BATCH
-                result = perform(eng, operation, inputs(offset + k), variable)
+                result = perform(eng, operation, inputs(offset + k), x)
             end do
             samples(repetition) = (wall_seconds() - started)/real(COLD_BATCH, dp)
         end do
 
-        correct = validate(operation, result, inputs(total))
+        correct = validate(operation, result, inputs(total), a)
         call emit_row(workload, engine_name, "cold_distinct_expression", &
             samples, correct, COLD_WARMUPS, COLD_REPETITIONS, COLD_BATCH)
     end subroutine benchmark_cold
 
-    function distinct_input(operation, index) result(e)
+    function distinct_input(operation, index, x, y, a) result(e)
         integer, intent(in) :: operation, index
+        type(expr_t), intent(in) :: x, y
+        type(arena_t), intent(inout) :: a
         type(expr_t)        :: e
         type(expr_t) :: marker
         real(dp) :: shift
 
         select case (operation)
         case (OP_SIMPLIFY)
-            marker = sym(arena, "cold_"//chars(str(index)))
+            marker = sym(a, "cold_"//chars(str(index)))
             e = x + x + 2*x - 4*x + marker - marker
         case (OP_DIFF)
             shift = real(index, dp)*1.0e-6_dp
@@ -170,10 +185,11 @@ contains
         end select
     end function perform
 
-    function validate(operation, result, input) result(correct)
+    function validate(operation, result, input, a) result(correct)
         integer,               intent(in) :: operation
         type(engine_result_t), intent(in) :: result
         type(expr_t),          intent(in) :: input
+        type(arena_t),         intent(inout) :: a
         logical                           :: correct
 
         correct = .false.
@@ -181,7 +197,7 @@ contains
 
         select case (operation)
         case (OP_SIMPLIFY)
-            correct = result%value == num(arena, 0)
+            correct = result%value == num(a, 0)
         case (OP_DIFF)
             correct = derivative_agrees(result%value, input, 0.375_dp, -0.5_dp)
         case (OP_EXPAND)
@@ -197,8 +213,11 @@ contains
         real(dp) :: lv, rv, scale
         logical :: left_ok, right_ok
 
-        bindings%names = [str("x"), str("y")]
-        bindings%values = [xv, yv]
+        allocate (bindings%names(2), bindings%values(2))
+        bindings%names(1) = str("x")
+        bindings%names(2) = str("y")
+        bindings%values(1) = xv
+        bindings%values(2) = yv
         bindings%n = 2
         lv = eval_expr(left, bindings, left_ok)
         rv = eval_expr(right, bindings, right_ok)
@@ -218,8 +237,11 @@ contains
         logical :: defined
 
         step = 1.0e-5_dp
-        bindings%names = [str("x"), str("y")]
-        bindings%values = [xv, yv]
+        allocate (bindings%names(2), bindings%values(2))
+        bindings%names(1) = str("x")
+        bindings%names(2) = str("y")
+        bindings%values(1) = xv
+        bindings%values(2) = yv
         bindings%n = 2
         symbolic = eval_expr(derivative, bindings, defined)
         agree = .false.

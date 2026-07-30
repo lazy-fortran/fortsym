@@ -32,6 +32,7 @@ program test_fortsym_native
     call test_exact_arithmetic()
     call test_like_terms_and_powers()
     call test_expansion()
+    call test_expansion_limits()
     call test_differentiation()
     call test_bessel_recurrence()
     call test_series()
@@ -107,6 +108,11 @@ contains
         ! total degree at most seven in x and y. Direct evaluation of the
         ! binomial power is a separate oracle from the distribution algorithm.
         y = sym(arena, "y")
+        r = engine%expand((x + y)**0)
+        call check("zero-power sum expands to one", r%value == num(arena, 1))
+        r = engine%expand((x + y)**1)
+        call check("first-power sum is unchanged", r%value == x + y)
+
         original = (x + y + 1)**7
         r = engine%expand(original)
         call check("seventh-power multinomial expansion succeeds", r%ok)
@@ -131,7 +137,93 @@ contains
             call check("multinomial expansion agrees with direct power", &
                 abs(expanded_value - expected_value) <= 1.0e-13_dp*scale)
         end do
+
+        original = (x*y + sin(x) + 2)**4
+        r = engine%expand(original)
+        call check("non-atomic multinomial expansion succeeds", r%ok)
+        call check("non-atomic expansion is a sum", r%value%kind() == NK_ADD)
+        if (r%value%kind() == NK_ADD) then
+            call check("non-atomic expansion has 15 monomials", &
+                r%value%nargs() == 15)
+        end if
+        do k = 1, size(xpoints)
+            bindings%values(1) = xpoints(k)
+            bindings%values(2) = ypoints(k)
+            expanded_value = eval_expr(r%value, bindings, defined)
+            call check("non-atomic expansion evaluates", defined)
+            expected_value = (xpoints(k)*ypoints(k) + sin(xpoints(k)) + &
+                2.0_dp)**4
+            scale = max(1.0_dp, abs(expanded_value), abs(expected_value))
+            call check("non-atomic expansion agrees with direct power", &
+                abs(expanded_value - expected_value) <= 1.0e-12_dp*scale)
+        end do
     end subroutine test_expansion
+
+    subroutine test_expansion_limits()
+        type(engine_result_t) :: r
+        type(expr_t) :: wide, original
+        type(expr_t) :: five(5)
+        type(binding_t) :: wide_bindings, five_bindings
+        character(16) :: name
+        real(dp) :: got, expected
+        logical :: defined
+        integer :: before, i
+
+        ! C(34,5) = 278256 exceeds the documented 100000-term fast-path
+        ! bound. Expansion must finish without materialising those terms and
+        ! retain the exact input power.
+        allocate (wide_bindings%names(30), wide_bindings%values(30))
+        wide_bindings%n = 30
+        do i = 1, 30
+            write (name, '("wide_",i0)') i
+            wide_bindings%names(i) = str(trim(name))
+            wide_bindings%values(i) = real(i, dp)/100.0_dp
+            if (i == 1) then
+                wide = sym(arena, trim(name))
+            else
+                wide = wide + sym(arena, trim(name))
+            end if
+        end do
+        original = wide**5
+        before = arena%size()
+        r = engine%expand(original)
+        call check("over-cap expansion succeeds conservatively", r%ok)
+        call check("over-cap expansion preserves the power", r%value == original)
+        call check("over-cap expansion allocates no expression nodes", &
+            arena%size() == before)
+        got = eval_expr(r%value, wide_bindings, defined)
+        expected = sum(wide_bindings%values)**5
+        call check("over-cap preserved power evaluates", defined)
+        call check("over-cap preserved power keeps its value", &
+            abs(got - expected) <= 1.0e-12_dp*max(1.0_dp, abs(expected)))
+
+        ! Five balanced parts of degree 32 have multinomial coefficient
+        ! 27753207637726771200, beyond signed int64, while C(36,4) = 58905
+        ! remains under the term cap. The coefficient preflight must detect
+        ! this independently and leave the arena untouched.
+        allocate (five_bindings%names(5), five_bindings%values(5))
+        five_bindings%n = 5
+        do i = 1, 5
+            write (name, '("coeff_",i0)') i
+            five_bindings%names(i) = str(trim(name))
+            five_bindings%values(i) = real(i, dp)/20.0_dp
+            five(i) = sym(arena, trim(name))
+        end do
+        wide = five(1) + five(2) + five(3) + five(4) + five(5)
+        original = wide**32
+        before = arena%size()
+        r = engine%expand(original)
+        call check("coefficient-overflow expansion succeeds conservatively", r%ok)
+        call check("coefficient-overflow preserves the power", &
+            r%value == original)
+        call check("coefficient-overflow preflight allocates no nodes", &
+            arena%size() == before)
+        got = eval_expr(r%value, five_bindings, defined)
+        expected = sum(five_bindings%values)**32
+        call check("coefficient-overflow preserved power evaluates", defined)
+        call check("coefficient-overflow preserved power keeps its value", &
+            abs(got - expected) <= 1.0e-12_dp*max(1.0_dp, abs(expected)))
+    end subroutine test_expansion_limits
 
     subroutine test_differentiation()
         type(engine_result_t) :: r

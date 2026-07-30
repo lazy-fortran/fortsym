@@ -33,7 +33,8 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
 - Add exact complex algebraic values through a bounded `qqbar` representation;
   use Calcium or Arb/Acb only where their three-valued or rigorous enclosure
   semantics are explicit.
-- Implement native bottom-up simplification and expansion with DAG memoization.
+- Native bottom-up simplification uses DAG memoization; nonnegative powers of
+  sums use checked, bounded multinomial composition enumeration.
 - Collect numeric factors, like terms, and integer powers.
 - Hash tables now resize before their average chain exceeds one node.
 - Replace node-index ordering with a stable semantic order where generated

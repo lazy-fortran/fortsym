@@ -26,6 +26,7 @@ module fortsym_engine_native
     integer(int64), parameter :: MAX_I64 = huge(0_int64)
     integer(int64), parameter :: MIN_I64 = -huge(0_int64) - 1_int64
     integer(int64), parameter :: MAX_EXPAND_POWER = 32_int64
+    integer(int64), parameter :: MAX_EXPAND_TERMS = 100000_int64
 
     type, extends(engine_t) :: native_engine_t
         type(arena_t), pointer :: home => null()
@@ -899,7 +900,7 @@ contains
         integer, allocatable :: children(:)
         integer(int64) :: exponent, den, remaining
         integer :: k, base, acc, factor
-        logical :: exact
+        logical :: exact, multinomial_ok
 
         if (done(id)) then
             out = memo(id)
@@ -932,21 +933,37 @@ contains
                 if (exponent > MAX_EXPAND_POWER) exact = .false.
             end if
             if (exact) then
-                acc = a%int(1_int64)
-                factor = base
-                remaining = exponent
-                do while (remaining > 0_int64)
-                    if (mod(remaining, 2_int64) == 1_int64) then
-                        acc = distribute(a, acc, factor)
-                        acc = simplify_root_id(a, acc)
+                multinomial_ok = .false.
+                if (exponent == 0_int64) then
+                    out = a%int(1_int64)
+                    multinomial_ok = .true.
+                else if (exponent == 1_int64) then
+                    out = base
+                    multinomial_ok = .true.
+                else if (a%kind_of(base) == NK_ADD) then
+                    out = expand_sum_power(a, base, exponent, multinomial_ok)
+                    if (.not. multinomial_ok) then
+                        out = a%pow(base, a%int(exponent))
+                        multinomial_ok = .true.
                     end if
-                    remaining = remaining/2_int64
-                    if (remaining > 0_int64) then
-                        factor = distribute(a, factor, factor)
-                        factor = simplify_root_id(a, factor)
-                    end if
-                end do
-                out = acc
+                end if
+                if (.not. multinomial_ok) then
+                    acc = a%int(1_int64)
+                    factor = base
+                    remaining = exponent
+                    do while (remaining > 0_int64)
+                        if (mod(remaining, 2_int64) == 1_int64) then
+                            acc = distribute(a, acc, factor)
+                            acc = simplify_root_id(a, acc)
+                        end if
+                        remaining = remaining/2_int64
+                        if (remaining > 0_int64) then
+                            factor = distribute(a, factor, factor)
+                            factor = simplify_root_id(a, factor)
+                        end if
+                    end do
+                    out = acc
+                end if
             else
                 out = a%pow(base, out)
             end if
@@ -963,6 +980,208 @@ contains
         done(id) = .true.
         memo(id) = out
     end function expand_id
+
+    !> Expand a nonnegative integer power of a sum directly by the multinomial
+    !> theorem. This constructs each final monomial once instead of generating
+    !> and recollecting the same monomial at every repeated distribution step.
+    !> Coefficient or output-size overflow declines the fast path without
+    !> changing the expression.
+    function expand_sum_power(a, base, exponent, success) result(out)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: base
+        integer(int64), intent(in)   :: exponent
+        logical,       intent(out)   :: success
+        integer                      :: out
+        integer(int64), allocatable :: composition(:)
+        integer, allocatable :: factors(:), terms(:)
+        integer(int64) :: term_count
+        integer :: index, nterms
+        logical :: count_ok
+
+        out = base
+        success = .false.
+        call binomial_nonnegative(exponent + int(a%nargs_of(base) - 1, int64), &
+            int(a%nargs_of(base) - 1, int64), term_count, count_ok)
+        if (.not. count_ok) return
+        if (term_count > MAX_EXPAND_TERMS) return
+
+        nterms = int(term_count)
+        allocate (composition(a%nargs_of(base)), source=0_int64)
+        success = .true.
+        call validate_multinomial(exponent, 1, composition, success)
+        if (.not. success) return
+
+        allocate (factors(a%nargs_of(base) + 1))
+        allocate (terms(nterms))
+        index = 0
+        success = .true.
+        call enumerate_multinomial(a, base, exponent, 1, composition, terms, &
+            factors, index, success)
+        if (.not. success) return
+        if (index /= nterms) then
+            success = .false.
+            return
+        end if
+        out = simplify_add(a, terms)
+    end function expand_sum_power
+
+    recursive subroutine validate_multinomial(remaining, position, &
+            composition, success)
+        integer(int64), intent(in)    :: remaining
+        integer,        intent(in)    :: position
+        integer(int64), intent(inout) :: composition(:)
+        logical,        intent(inout) :: success
+        integer(int64) :: coefficient, power
+
+        if (.not. success) return
+        if (position == size(composition)) then
+            composition(position) = remaining
+            call multinomial_coefficient(composition, coefficient, success)
+            return
+        end if
+
+        do power = 0_int64, remaining
+            composition(position) = power
+            call validate_multinomial(remaining - power, position + 1, &
+                composition, success)
+            if (.not. success) return
+        end do
+    end subroutine validate_multinomial
+
+    recursive subroutine enumerate_multinomial(a, base, remaining, position, &
+            composition, terms, factors, index, success)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: base, position
+        integer(int64), intent(in)   :: remaining
+        integer(int64), intent(inout) :: composition(:)
+        integer,       intent(inout) :: terms(:), factors(:), index
+        logical,       intent(inout) :: success
+        integer(int64) :: power
+
+        if (.not. success) return
+        if (position == size(composition)) then
+            composition(position) = remaining
+            index = index + 1
+            if (index > size(terms)) then
+                success = .false.
+                return
+            end if
+            call build_multinomial_term(a, base, composition, factors, &
+                terms(index), success)
+            return
+        end if
+
+        do power = 0_int64, remaining
+            composition(position) = power
+            call enumerate_multinomial(a, base, remaining - power, &
+                position + 1, composition, terms, factors, index, success)
+            if (.not. success) return
+        end do
+    end subroutine enumerate_multinomial
+
+    subroutine build_multinomial_term(a, base, composition, factors, term, &
+            success)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: base
+        integer(int64), intent(in)   :: composition(:)
+        integer,       intent(inout) :: factors(:)
+        integer,       intent(out)   :: term
+        logical,       intent(out)   :: success
+        integer(int64) :: coefficient
+        integer :: i, nf, operand
+
+        call multinomial_coefficient(composition, coefficient, success)
+        if (.not. success) then
+            term = base
+            return
+        end if
+
+        nf = 0
+        if (coefficient /= 1_int64) then
+            nf = nf + 1
+            factors(nf) = a%int(coefficient)
+        end if
+        do i = 1, size(composition)
+            if (composition(i) == 0_int64) cycle
+            operand = a%arg_of(base, i)
+            nf = nf + 1
+            if (composition(i) == 1_int64) then
+                factors(nf) = operand
+            else
+                factors(nf) = simplify_power(a, operand, &
+                    a%int(composition(i)))
+            end if
+        end do
+
+        if (nf == 0) then
+            term = a%int(1_int64)
+        else
+            term = simplify_mul(a, factors(1:nf))
+        end if
+    end subroutine build_multinomial_term
+
+    subroutine multinomial_coefficient(composition, coefficient, success)
+        integer(int64), intent(in)  :: composition(:)
+        integer(int64), intent(out) :: coefficient
+        logical,        intent(out) :: success
+        integer(int64) :: remaining, choice, next
+        integer :: i
+        logical :: choose_ok, product_ok
+
+        remaining = sum(composition)
+        coefficient = 1_int64
+        success = .true.
+        do i = 1, size(composition) - 1
+            call binomial_nonnegative(remaining, composition(i), choice, &
+                choose_ok)
+            if (.not. choose_ok) then
+                success = .false.
+                return
+            end if
+            call checked_mul(coefficient, choice, next, product_ok)
+            if (.not. product_ok) then
+                success = .false.
+                return
+            end if
+            coefficient = next
+            remaining = remaining - composition(i)
+        end do
+    end subroutine multinomial_coefficient
+
+    subroutine binomial_nonnegative(n, k, value, success)
+        integer(int64), intent(in)  :: n, k
+        integer(int64), intent(out) :: value
+        logical,        intent(out) :: success
+        integer(int64) :: i, kk, numerator, denominator, divisor, product
+        logical :: product_ok
+
+        value = 0_int64
+        success = .false.
+        if (n < 0_int64) return
+        if (k < 0_int64) return
+        if (k > n) return
+
+        kk = min(k, n - k)
+        value = 1_int64
+        do i = 1_int64, kk
+            numerator = n - kk + i
+            denominator = i
+            divisor = gcd_positive(numerator, denominator)
+            numerator = numerator/divisor
+            denominator = denominator/divisor
+            divisor = gcd_positive(value, denominator)
+            value = value/divisor
+            denominator = denominator/divisor
+            call checked_mul(value, numerator, product, product_ok)
+            if (.not. product_ok) return
+            if (denominator /= 1_int64) then
+                if (mod(product, denominator) /= 0_int64) return
+                product = product/denominator
+            end if
+            value = product
+        end do
+        success = .true.
+    end subroutine binomial_nonnegative
 
     function simplify_root_id(a, id) result(out)
         type(arena_t), target, intent(inout) :: a

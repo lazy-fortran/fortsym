@@ -23,6 +23,7 @@ documentation.
 | Hash-consed expression DAG | standard structural hashing | SymEngine public headers, MIT | original Fortran arena implementation |
 | Simplification architecture | Caviness, JACM 17, 1970; Moses, CACM 14, 1971 | SymEngine and SymPy public source, MIT and BSD-3-Clause | design references, no copied code |
 | Equality saturation candidate | Willsey et al., PACMPL 5, 2021, DOI 10.1145/3434304 | egg documentation, MIT | roadmap evaluation only |
+| Bounded multinomial expansion | multinomial theorem, NIST DLMF 26.4 | SymEngine 0.14.0 expansion used only as a benchmark baseline | original checked composition enumerator with reusable scratch storage and a 100,000-term cap; bound failures preserve the unexpanded power |
 | Subresultant PRS | Brown, ACM TOMS 4(3), 1978, DOI 10.1145/355791.355795 | SymPy public source, BSD-3-Clause | planned polynomial milestone |
 | Multivariate factorization | Wang, *Mathematics of Computation* 32, 1978, DOI 10.1090/S0025-5718-1978-0568284-3 | SymPy public source, BSD-3-Clause | planned polynomial milestone |
 | Gröbner bases | Buchberger, *Bruno Buchberger's PhD thesis 1965: An algorithm for finding the basis elements of the residue class ring of a zero dimensional polynomial ideal*, JSC 41(3-4), 2006, DOI 10.1016/j.jsc.2005.09.007 | SymPy and FLINT public source, BSD-3-Clause and LGPL-3.0+ | bounded rational-domain milestone when consumer cases require it |
