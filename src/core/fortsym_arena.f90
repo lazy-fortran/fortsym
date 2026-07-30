@@ -289,14 +289,20 @@ contains
 
     ! ------------------------------------------------------------ hashing --
 
-    !> FNV-1a over the fields that define a node. Any two nodes that must be
-    !> considered identical have to hash the same, so this mixes exactly the
-    !> fields that node_equal compares.
+    !> Overflow-free bitwise mixing over the fields that define a node. Any two
+    !> nodes that must be considered identical have to hash the same, so this
+    !> mixes exactly the fields that node_equal compares. Rotations, shifts,
+    !> and XOR have defined integer semantics; signed multiplication overflow
+    !> does not.
     pure function mix(h, v) result(r)
         integer(int64), intent(in) :: h, v
         integer(int64)             :: r
-        integer(int64), parameter :: PRIME = 1099511628211_int64
-        r = ieor(h, v)*PRIME
+        integer(int64), parameter :: SALT = -7046029254386353131_int64
+
+        r = ieor(ishftc(h, 21), v)
+        r = ieor(r, SALT)
+        r = ieor(r, ishft(r, -29))
+        r = ieor(r, ishft(r, 17))
     end function mix
 
     pure function hash_fields(kind, num, den, rval, name, argv) result(h)
