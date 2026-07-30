@@ -32,6 +32,9 @@ target_sources(fortsym PRIVATE
     engine/fortsym_engine_yacas.f90
     engine/fortsym_proc.f90
 
+    # exact linear algebra
+    algebra/fortsym_linalg.f90
+
     # multi-engine adjudication
     council/fortsym_council.f90
 
@@ -48,6 +51,7 @@ target_sources(fortsym PRIVATE
     calculus/fortsym_diff.f90
     calculus/fortsym_chart.f90
     calculus/fortsym_products.f90
+    calculus/fortsym_toroidal.f90
 
     # reading Fortran back
     parse_fortran/fortsym_fparse.f90

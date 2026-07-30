@@ -25,6 +25,9 @@ fortsym_add_test(test_fortsym_arena core/test_fortsym_arena.f90)
 fortsym_add_test(test_fortsym_exact core/test_fortsym_exact.f90)
 fortsym_add_test(test_fortsym_subs core/test_fortsym_subs.f90)
 
+# --- exact linear algebra ---
+fortsym_add_test(test_fortsym_linalg algebra/test_fortsym_linalg.f90)
+
 # --- surface syntax ---
 fortsym_add_test(test_fortsym_roundtrip io/test_fortsym_roundtrip.f90)
 
@@ -47,6 +50,7 @@ fortsym_add_test(test_fortsym_check verify/test_fortsym_check.f90)
 fortsym_add_test(test_fortsym_diff calculus/test_fortsym_diff.f90)
 fortsym_add_test(test_fortsym_chart calculus/test_fortsym_chart.f90)
 fortsym_add_test(test_fortsym_products calculus/test_fortsym_products.f90)
+fortsym_add_test(test_fortsym_toroidal calculus/test_fortsym_toroidal.f90)
 
 # --- reading Fortran back ---
 fortsym_add_test(test_fortsym_fparse parse_fortran/test_fortsym_fparse.f90)

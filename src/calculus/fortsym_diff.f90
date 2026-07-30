@@ -17,6 +17,7 @@ module fortsym_diff
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
     use fortsym_expr, only: expr_t, sym, num, func, is_valid, besselj, &
+        legendrep, legendreq, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), sin, cos, tan, exp, log, sqrt, sinh, cosh, tanh
     implicit none
@@ -158,6 +159,23 @@ contains
             x = e%arg(2)
             dx = diff(x, v)
             d = (besselj(e%arg(1) - 1, x) - besselj(e%arg(1) + 1, x))*dx/2
+            return
+        end if
+
+        ! DLMF 14.10.5, continued from the Ferrers interval to x > 1:
+        ! (x^2-1) dY_nu^mu/dx =
+        !     nu*x*Y_nu^mu - (nu+mu)*Y_(nu-1)^mu.
+        ! Both Hobson P and Q satisfy the same relation in its regular range.
+        if (name == "legendrep" .or. name == "legendreq") then
+            x = e%arg(3)
+            dx = diff(x, v)
+            if (name == "legendrep") then
+                term = legendrep(e%arg(1) - 1, e%arg(2), x)
+            else
+                term = legendreq(e%arg(1) - 1, e%arg(2), x)
+            end if
+            d = (e%arg(1)*x*e - (e%arg(1) + e%arg(2))*term)*dx/ &
+                (x*x - 1)
             return
         end if
 

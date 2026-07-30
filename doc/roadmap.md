@@ -107,6 +107,8 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
 
 - Expose Taylor and Laurent series plus coefficient extraction.
 - Implement exact scalar linear solving, then univariate polynomial solving.
+- Extend the implemented exact dense rational-system solve only when consumer
+  evidence requires conditional symbolic pivots or broader matrix operations.
 - Verify solutions by substitution and polynomial reconstruction.
 - Close the axis-series case tracked in issue 16.
 
