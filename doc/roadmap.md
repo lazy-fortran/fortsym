@@ -64,7 +64,7 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
   sums use checked, bounded multinomial composition enumeration.
 - Rewrites that change an expression containing a symbolic negative integer
   power return the condition that cancelled denominator bases must be nonzero,
-  including on cached simplification paths.
+  including on constant-time cached simplification paths.
 - Collect numeric factors, like terms, and integer powers.
 - Hash tables now resize before their average chain exceeds one node.
 - The pinned same-machine diagnostic reduced median cold expansion from

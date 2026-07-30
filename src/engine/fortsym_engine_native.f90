@@ -74,7 +74,7 @@ contains
         type(engine_result_t)                 :: r
         integer, allocatable :: memo(:), contextual_memo(:)
         logical, allocatable :: done(:), contextual_done(:)
-        integer :: simplified_id
+        integer :: cached_id, simplified_id
         real(dp) :: started
 
         started = wall_seconds()
@@ -87,9 +87,14 @@ contains
         if (.not. associated(self%assumptions)) then
             call ensure_cache(self%simplify_cache, e%a%size())
             if (self%simplify_cache(e%id) /= 0) then
-                r%value%id = self%simplify_cache(e%id)
+                cached_id = self%simplify_cache(e%id)
+                r%value%id = abs(cached_id)
                 r%ok = .true.
-                call set_simplify_condition(e, r%value%id, r)
+                if (cached_id < 0) then
+                    r%conditional = .true.
+                    r%condition = str( &
+                        "cancelled denominator bases must be nonzero")
+                end if
                 r%seconds = wall_seconds() - started
                 return
             end if
@@ -112,7 +117,11 @@ contains
         r%ok = .true.
         call set_simplify_condition(e, simplified_id, r)
         if (.not. associated(self%assumptions)) then
-            self%simplify_cache(e%id) = simplified_id
+            if (r%conditional) then
+                self%simplify_cache(e%id) = -simplified_id
+            else
+                self%simplify_cache(e%id) = simplified_id
+            end if
         end if
         r%seconds = wall_seconds() - started
     end function native_simplify

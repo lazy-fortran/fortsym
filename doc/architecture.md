@@ -122,8 +122,8 @@ and total dispatch time separately.
 Native simplification reports a nonzero-denominator condition whenever a
 rewrite changes an expression containing a symbolic negative integer power.
 This conservative guard covers cancellation such as `x*x**(-1) -> 1`; the
-condition is reconstructed on cache hits rather than being lost with the
-cached expression identifier.
+condition bit is retained with the cached expression identifier so warm lookup
+remains constant-time.
 
 ## Verification
 
