@@ -454,12 +454,14 @@ contains
 
     !> Rational, stored in lowest terms with a positive denominator so that
     !> 2/4, 1/2 and -1/-2 all intern to one node.
-    function arena_rat(self, numer, denom) result(idx)
+    recursive function arena_rat(self, numer, denom) result(idx)
         class(arena_t), intent(inout) :: self
         integer(int64), intent(in)    :: numer, denom
         integer                       :: idx
+        integer(int64), parameter :: MIN_I64 = -huge(0_int64) - 1_int64
         integer(int64) :: n, d, g
         integer :: none(0)
+        logical :: valid
 
         n = numer
         d = denom
@@ -468,6 +470,15 @@ contains
             ! rather than a poisoned arena; division by zero is diagnosed at the
             ! operator level where there is a status channel to report it.
             idx = arena_int(self, 0_int64)
+            return
+        end if
+        ! Neither -MIN_I64 nor mod(MIN_I64, -1) is representable. Normalize
+        ! these sign-sensitive inputs in the arbitrary exact domain before
+        ! attempting any machine negation or Euclidean remainder.
+        if (d == MIN_I64 .or. (d < 0_int64 .and. n == MIN_I64)) then
+            idx = arena_exact(self, &
+                chars(str(numer)//"/"//str(denom)), valid)
+            if (.not. valid) idx = 0
             return
         end if
         if (d < 0_int64) then
@@ -492,7 +503,7 @@ contains
     !> Canonical exact scalar of arbitrary size. Values representable in the
     !> compact int64 node kinds retain that fast path; only larger values store
     !> their canonical FLINT rendering in the arena name table.
-    function arena_exact(self, value, ok) result(idx)
+    recursive function arena_exact(self, value, ok) result(idx)
         class(arena_t), intent(inout) :: self
         character(*),   intent(in)    :: value
         logical,        intent(out), optional :: ok

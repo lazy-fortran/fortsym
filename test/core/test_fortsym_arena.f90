@@ -117,6 +117,7 @@ contains
     subroutine test_rational_normalisation()
         type(arena_t), target :: a
         type(expr_t) :: half1, half2, half3, whole
+        integer(int64), parameter :: MIN_I64 = -huge(0_int64) - 1_int64
 
         call a%init()
 
@@ -136,6 +137,19 @@ contains
         call ok("6/3 becomes integer", whole%kind() == NK_INT)
         call ok_int("6/3 equals 2", whole%int_value(), 2_int64)
         call ok("6/3 is the integer node", whole == num(a, 2))
+
+        ! Sign normalization must promote before negating the one int64 value
+        ! whose magnitude is not representable. The expected values follow
+        ! independently from MIN_I64 = -2^63.
+        call ok("minimum numerator over -1 promotes exactly", &
+            rat(a, MIN_I64, -1_int64) == &
+            exact(a, "9223372036854775808"))
+        call ok("minimum numerator over -2 reduces exactly", &
+            rat(a, MIN_I64, -2_int64) == &
+            num(a, 4611686018427387904_int64))
+        call ok("minimum denominator promotes exactly", &
+            rat(a, 1_int64, MIN_I64) == &
+            exact(a, "-1/9223372036854775808"))
     end subroutine test_rational_normalisation
 
     !> Golden values are derived by powers of two, independently of FLINT:
