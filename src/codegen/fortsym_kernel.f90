@@ -57,6 +57,9 @@ module fortsym_kernel
         type(str_t), allocatable :: output_references(:)
         !> Prefix for generated temporaries.
         type(str_t)              :: temp_prefix
+        !> Fortran type used for inputs, outputs, and temporaries. Empty
+        !> defaults to real(dp); complex(dp) supports holomorphic kernels.
+        type(str_t)              :: scalar_type
         !> Name of the module or program that generated this, recorded in the
         !> banner so the file can always be traced back to its generator.
         type(str_t)              :: generator
@@ -493,7 +496,11 @@ contains
         type(kernel_spec_t), intent(in) :: spec
         type(cse_result_t), intent(in) :: res
         type(strbuf_t) :: header
+        character(:), allocatable :: scalar_type
         integer :: k
+
+        scalar_type = chars(spec%scalar_type)
+        if (len(scalar_type) == 0) scalar_type = "real(dp)"
 
         if (spec%pure_procedure) call header%append("pure ")
         if (spec%elemental_procedure) call header%append("elemental ")
@@ -525,20 +532,21 @@ contains
         call b%newline()
 
         if (allocated(spec%arg_shapes)) then
-            call declare(b, "intent(in)", spec%args, spec%arg_shapes)
+            call declare(b, scalar_type, "intent(in)", spec%args, spec%arg_shapes)
         else
-            call declare(b, "intent(in)", spec%args)
+            call declare(b, scalar_type, "intent(in)", spec%args)
         end if
         if (allocated(spec%output_shapes)) then
-            call declare(b, "intent(out)", spec%outputs, spec%output_shapes)
+            call declare( &
+                b, scalar_type, "intent(out)", spec%outputs, spec%output_shapes)
         else
-            call declare(b, "intent(out)", spec%outputs)
+            call declare(b, scalar_type, "intent(out)", spec%outputs)
         end if
 
         if (res%n > 0) then
             ! Temporaries are declared explicitly, never left to an implicit
             ! typing rule.
-            call declare(b, "", res%names(1:res%n))
+            call declare(b, scalar_type, "", res%names(1:res%n))
         end if
 
         call b%newline()
@@ -571,8 +579,9 @@ contains
         end if
     end subroutine append_indented
 
-    subroutine declare(b, attribute, names, shapes)
+    subroutine declare(b, scalar_type, attribute, names, shapes)
         type(strbuf_t), intent(inout) :: b
+        character(*),   intent(in)    :: scalar_type
         character(*),   intent(in)    :: attribute
         type(str_t),    intent(in)    :: names(:)
         type(str_t),    intent(in), optional :: shapes(:)
@@ -581,7 +590,8 @@ contains
 
         if (size(names) == 0) return
 
-        call declaration%append("    real(dp)")
+        call declaration%append("    ")
+        call declaration%append(scalar_type)
         if (len(attribute) > 0) then
             call declaration%append(", ")
             call declaration%append(attribute)
