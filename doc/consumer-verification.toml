@@ -1,0 +1,41 @@
+schema_version = 1
+task_window = "2026-07-29"
+collected_on = "2026-07-30"
+timezone = "Europe/Vienna"
+fortsym_code_revision = "e2b4c90240abfad33395dc844f1e6b525bdca9ad"
+fortsym_repository_revision = "fda6cf3f5db9fa89df172f00bccf0590e9b10615"
+fortsym_code_revision_basis = "Last source-affecting ancestor; the repository revision adds benchmark evidence only."
+
+[FortNum]
+revision = "9655a1db4ed1ef232d72a5616e9401ed5ffe9ad5"
+locked_fortsym_revision = "724baf5b22894bc3e018b0653fac81bbf2f815eb"
+tested_path_revision = "e2b4c90240abfad33395dc844f1e6b525bdca9ad"
+lock_matches_tested_path = false
+verification_scope = "Compatibility probe in a disposable detached worktree; no FortNum source or lock update."
+verification_command = "fo"
+build_targets_passed = 82
+build_targets_total = 82
+behavioral_tests_passed = 95
+behavioral_tests_total = 95
+behavioral_oracle = "FortNum's committed independent reference-data, identity, derivative, and numerical behavior tests."
+
+[FortNum.generated_kernels]
+generated_total = 39
+byte_identical = 6
+reviewed_changed = 33
+changed_line_pairs = 131
+review = "All deltas are deterministic commutative operand/term ordering or corresponding CSE temporary ordering; public procedure signatures are unchanged."
+verification = "All 39 current outputs were substituted for the committed corpus in the disposable worktree before the 82-target build and 95-test behavioral gate."
+provenance_limitation = "The FortNum lock remains on its committed revision, so this probe establishes compatibility with the tested path revision but does not update generated-source provenance."
+
+[MHD1D]
+revision = "c241f125c5d2f37bde29d27bdbbe138813b05ae1"
+verification_command = "fo"
+build = "passed"
+behavioral_tests_passed = 6
+behavioral_tests_total = 6
+behavioral_oracle = "MHD1D's committed analytic values and identities, finite-difference, residual, convergence-order and opt-in invariance checks, and frozen consumer fixture data; the parked fortsym CAS program was excluded."
+parked_screw_pinch_cas_registered = false
+fpm_state = "fpm.toml leaves the fortsym dependency and CAS test disabled and still cites dependency/native-link propagation."
+roadmap_state = "ROADMAP.md says the cited fortsym issue is closed, but instructs registration only when the fortsym worktree is not under another edit so MHD1D can pin an author-chosen state."
+registration_scope = "The compatibility probe did not register or execute the parked CAS test because the fortsym worktree was under active edit; it does not independently establish that the older fpm.toml blocker remains current."

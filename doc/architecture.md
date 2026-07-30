@@ -140,3 +140,7 @@ the following require a FortNum compatibility run:
 FortNum's local generator uses a path dependency while its provenance stamp
 reads a lock file. A regeneration must verify that the dependency checkout
 matches the lock before claiming that revision.
+
+The latest revision-addressed FortNum and MHD1D compatibility probe, including
+reviewed generated-source deltas and any lock or registration limitation, is
+recorded in `consumer-verification.toml`.

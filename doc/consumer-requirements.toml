@@ -27,6 +27,8 @@ priority = "Priority combines observed breadth, FortNum/MHD1D contracts, semanti
 
 [consumers.FortNum]
 source_classes = ["local_code", "github"]
+latest_verification_file = "consumer-verification.toml"
+latest_compatibility = "passed_with_reviewed_codegen_deltas"
 required_operations = [
     "differentiate",
     "parse_print_codegen",
@@ -47,6 +49,8 @@ direct_wolfram_operations_observed = false
 
 [consumers.MHD1D]
 source_classes = ["github"]
+latest_verification_file = "consumer-verification.toml"
+latest_compatibility = "behavioral_suite_passed_cas_test_still_parked"
 required_operations = [
     "assumptions_inequalities",
     "differential_equations",

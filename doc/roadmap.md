@@ -25,6 +25,17 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
   regeneration.
 - Register MHD1D's existing screw-pinch CAS test and replace its manual
   substitution workaround.
+- The latest disposable FortNum compatibility probe built 82/82 targets and
+  passed 95/95 behavioral tests with the current fortsym code. Canonical
+  ordering changed 33 of 39 generated files (131 reviewed line pairs); all 39
+  regenerated outputs were installed for that gate. The committed FortNum lock
+  was not changed, so this is compatibility evidence rather than a provenance
+  update.
+- MHD1D builds and passes 6/6 behavioral tests. Its screw-pinch CAS test remains
+  parked: `fpm.toml` still cites fpm dependency and native-link propagation,
+  while the newer MHD1D roadmap says the cited issue is closed and instructs
+  registration only after the actively edited fortsym worktree can be pinned
+  to an author-chosen state.
 
 ### 2. Native arithmetic and canonical forms
 
