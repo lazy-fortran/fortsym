@@ -17,11 +17,13 @@ module fortsym_arena
     !   - There are no cycles to worry about and nothing to finalize per node.
     !
     ! Canonicalization is deliberately shallow. Sums and products are flattened
-    ! and their operands sorted, so x+y and y+x intern to the same node, but no
-    ! attempt is made to collect like terms or simplify. Algebra is the engines'
-    ! job; this layer only has to be a faithful, shared, comparable structure.
+    ! and their operands put in a structural semantic order, so x+y and y+x
+    ! intern to the same node and construction history cannot change printed or
+    ! generated output. No attempt is made to collect like terms or simplify.
+    ! Algebra is the engines' job; this layer only has to be a faithful, shared,
+    ! comparable structure.
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use fortsym_string, only: str_t, str, chars
+    use fortsym_string, only: str_t, str, chars, compare_str
     implicit none
     private
 
@@ -468,7 +470,7 @@ contains
             idx = flat(1)
             return
         end if
-        call sort_indices(flat)
+        call sort_semantic(self, flat)
         idx = intern(self, NK_ADD, 0_int64, 1_int64, 0.0_dp, 0, flat)
     end function arena_add
 
@@ -482,7 +484,7 @@ contains
             idx = flat(1)
             return
         end if
-        call sort_indices(flat)
+        call sort_semantic(self, flat)
         idx = intern(self, NK_MUL, 0_int64, 1_int64, 0.0_dp, 0, flat)
     end function arena_mul
 
@@ -518,22 +520,153 @@ contains
         end do
     end subroutine flatten
 
-    !> Insertion sort on node indices. Operand lists are short -- a handful of
-    !> terms -- so this beats anything with more bookkeeping.
-    pure subroutine sort_indices(v)
+    !> Bottom-up merge sort by stable structure. Expansion can feed this up to
+    !> the documented term bound, so quadratic insertion sorting is not safe.
+    !> One scratch allocation serves every merge pass.
+    pure subroutine sort_semantic(self, v)
+        class(arena_t), intent(in)    :: self
         integer, intent(inout) :: v(:)
-        integer :: i, j, key
-        do i = 2, size(v)
-            key = v(i)
-            j = i - 1
-            do while (j >= 1)
-                if (v(j) <= key) exit
-                v(j + 1) = v(j)
-                j = j - 1
+        integer, allocatable :: scratch(:)
+        integer :: width, left, middle, right, i, j, out
+
+        if (size(v) < 2) return
+        allocate (scratch(size(v)))
+        width = 1
+        do while (width < size(v))
+            left = 1
+            do while (left <= size(v))
+                middle = left + min(width, size(v) - left + 1)
+                right = middle - 1 + min(width, size(v) - middle + 1)
+                i = left
+                j = middle
+                out = left
+                do while (i < middle .and. j <= right)
+                    if (compare_nodes(self, v(i), v(j)) <= 0) then
+                        scratch(out) = v(i)
+                        i = i + 1
+                    else
+                        scratch(out) = v(j)
+                        j = j + 1
+                    end if
+                    out = out + 1
+                end do
+                do while (i < middle)
+                    scratch(out) = v(i)
+                    i = i + 1
+                    out = out + 1
+                end do
+                do while (j <= right)
+                    scratch(out) = v(j)
+                    j = j + 1
+                    out = out + 1
+                end do
+                left = right + 1
             end do
-            v(j + 1) = key
+            v = scratch
+            if (width > size(v)/2) exit
+            width = 2*width
         end do
-    end subroutine sort_indices
+    end subroutine sort_semantic
+
+    !> Total structural order for nodes in one arena. Node and name-table
+    !> indices are deliberately absent: both depend on construction history.
+    !> The precedence retains fortsym's readable convention of symbols before
+    !> compound terms and numeric coefficients last.
+    recursive pure function compare_nodes(self, left, right) result(relation)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: left, right
+        integer                    :: relation
+        integer(int64) :: left_bits, right_bits
+        integer :: i, left_kind, right_kind, left_rank, right_rank
+
+        relation = 0
+        if (left == right) return
+
+        left_kind = self%nodes(left)%kind
+        right_kind = self%nodes(right)%kind
+        left_rank = semantic_kind_rank(left_kind)
+        right_rank = semantic_kind_rank(right_kind)
+        relation = compare_default_int(left_rank, right_rank)
+        if (relation /= 0) return
+        relation = compare_default_int(left_kind, right_kind)
+        if (relation /= 0) return
+
+        select case (left_kind)
+        case (NK_INT)
+            relation = compare_int64(self%nodes(left)%num, &
+                self%nodes(right)%num)
+            return
+        case (NK_RAT)
+            relation = compare_int64(self%nodes(left)%num, &
+                self%nodes(right)%num)
+            if (relation /= 0) return
+            relation = compare_int64(self%nodes(left)%den, &
+                self%nodes(right)%den)
+            return
+        case (NK_REAL)
+            left_bits = transfer(self%nodes(left)%rval, 0_int64)
+            right_bits = transfer(self%nodes(right)%rval, 0_int64)
+            relation = compare_int64(left_bits, right_bits)
+            return
+        case (NK_SYM, NK_CONST, NK_FUNC)
+            relation = compare_str(self%names(self%nodes(left)%name), &
+                self%names(self%nodes(right)%name))
+            if (relation /= 0) return
+        end select
+
+        do i = 1, min(self%nodes(left)%n_args, self%nodes(right)%n_args)
+            relation = compare_nodes(self, &
+                self%args(self%nodes(left)%first_arg + i - 1), &
+                self%args(self%nodes(right)%first_arg + i - 1))
+            if (relation /= 0) return
+        end do
+        relation = compare_default_int(self%nodes(left)%n_args, &
+            self%nodes(right)%n_args)
+    end function compare_nodes
+
+    pure function semantic_kind_rank(kind) result(rank)
+        integer, intent(in) :: kind
+        integer             :: rank
+
+        select case (kind)
+        case (NK_SYM);   rank = 1
+        case (NK_CONST); rank = 2
+        case (NK_FUNC);  rank = 3
+        case (NK_POW);   rank = 4
+        case (NK_MUL);   rank = 5
+        case (NK_ADD);   rank = 6
+        case (NK_INT);   rank = 7
+        case (NK_RAT);   rank = 8
+        case (NK_REAL);  rank = 9
+        case default;    rank = 10
+        end select
+    end function semantic_kind_rank
+
+    pure function compare_default_int(left, right) result(relation)
+        integer, intent(in) :: left, right
+        integer             :: relation
+
+        if (left < right) then
+            relation = -1
+        else if (left > right) then
+            relation = 1
+        else
+            relation = 0
+        end if
+    end function compare_default_int
+
+    pure function compare_int64(left, right) result(relation)
+        integer(int64), intent(in) :: left, right
+        integer                     :: relation
+
+        if (left < right) then
+            relation = -1
+        else if (left > right) then
+            relation = 1
+        else
+            relation = 0
+        end if
+    end function compare_int64
 
     !> Power is binary and non-commutative, so operands keep their order.
     function arena_pow(self, base, expo) result(idx)

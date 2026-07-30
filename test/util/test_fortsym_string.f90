@@ -2,7 +2,7 @@ program test_fortsym_string
     ! Behavioural checks for str_t and strbuf_t. The oracle is what the string
     ! should contain, stated independently of how the type stores it.
     use, intrinsic :: iso_fortran_env, only: real64, int64
-    use fortsym_string, only: str_t, strbuf_t, str, chars, len_str, &
+    use fortsym_string, only: str_t, strbuf_t, str, chars, len_str, compare_str, &
         operator(//), operator(==), operator(/=), assignment(=)
     implicit none
 
@@ -123,6 +123,21 @@ contains
         a = str("x")
         b = str("x ")
         call check_true("trailing space is significant", a /= b)
+
+        call check_int("lexical equal", compare_str(str("x"), str("x")), 0)
+        call check_int("lexical prefix first", &
+            compare_str(str("x"), str("xx")), -1)
+        call check_int("lexical longer prefix second", &
+            compare_str(str("xx"), str("x")), 1)
+        call check_int("lexical differing byte", &
+            compare_str(str("alpha"), str("beta")), -1)
+        block
+            type(str_t) :: fresh
+            call check_int("unallocated empty sorts before content", &
+                compare_str(fresh, str("x")), -1)
+            call check_int("two unallocated empties compare equal", &
+                compare_str(fresh, fresh), 0)
+        end block
     end subroutine test_compare
 
     subroutine test_query()

@@ -24,6 +24,7 @@ program test_fortsym_roundtrip
     integer :: nfail = 0
 
     call test_printing_shape()
+    call test_construction_history_independence()
     call test_roundtrip_all_dialects()
     call test_dialect_spellings()
     call test_fortran_emission()
@@ -116,6 +117,32 @@ contains
         character(:), allocatable :: s
         s = chars(print_expr(e))
     end function print_text
+
+    subroutine test_construction_history_independence()
+        type(arena_t), target :: a, b
+        type(expr_t) :: ax, ay, bx, by, left, right
+        character(:), allocatable :: left_text, right_text
+
+        call a%init()
+        call b%init()
+
+        ! Reverse symbol insertion and operand construction. Sorting by arena
+        ! indices makes these render differently even though they are the same
+        ! commutative tree; stable structural ordering must erase that history.
+        ax = sym(a, "x")
+        ay = sym(a, "y")
+        by = sym(b, "y")
+        bx = sym(b, "x")
+        left = ax + ay + pi_expr(a) + sin(ax) + ax**2 + ax*ay + 1
+        right = 1 + by*bx + bx**2 + sin(bx) + pi_expr(b) + by + bx
+
+        left_text = print_text(left)
+        right_text = print_text(right)
+        call eq_text("construction histories print identically", left_text, &
+            right_text)
+        call eq_text("semantic ordering has a documented exact form", &
+            left_text, "x + y + pi + sin(x) + x**2 + x*y + 1")
+    end subroutine test_construction_history_independence
 
     !> Print then parse then compare node indices, for every dialect that is
     !> meant to be lossless.

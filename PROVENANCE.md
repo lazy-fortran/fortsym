@@ -21,6 +21,7 @@ documentation.
 | Zero-decision limitation | Richardson, *Journal of Symbolic Logic* 33(4), 1968, DOI 10.2307/2271358 | none | scope source requiring `UNKNOWN` outside proved fragments, not an algorithm source |
 | Exponential-rational zero normal form | standard rational-function normalization; original local composition | SymEngine 0.14.0 `rewrite.cpp`, `functions.cpp`, `expand.cpp`, and `polys/basic_conversions.cpp`, MIT | local fragment guard plus rewrite, normalization, denominator folding, and expanded-numerator decision in `fsym_shim.cpp` |
 | Hash-consed expression DAG | standard structural hashing | SymEngine public headers, MIT | original Fortran arena implementation |
+| Stable expression order | bytewise lexical and recursive structural total ordering | GiNaC 1.8.10 documentation used only to identify its internal order as unsuitable for stable serialization | original Fortran merge sort and comparator; node and name-table indices excluded |
 | Simplification architecture | Caviness, JACM 17, 1970; Moses, CACM 14, 1971 | SymEngine and SymPy public source, MIT and BSD-3-Clause | design references, no copied code |
 | Equality saturation candidate | Willsey et al., PACMPL 5, 2021, DOI 10.1145/3434304 | egg documentation, MIT | roadmap evaluation only |
 | Bounded multinomial expansion | multinomial theorem, NIST DLMF 26.4 | SymEngine 0.14.0 expansion used only as a benchmark baseline | original checked composition enumerator with reusable scratch storage and a 100,000-term cap; bound failures preserve the unexpanded power |

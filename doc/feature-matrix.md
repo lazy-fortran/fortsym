@@ -12,12 +12,12 @@ it.
 
 | Area | Native | SymEngine backend | Other backends | Required next fragment |
 |---|---:|---:|---:|---|
-| Hash-consed scalar expression DAG | yes | conversion | conversion | stable semantic ordering; dynamic bucket growth is implemented |
+| Hash-consed scalar expression DAG | stable structural order | conversion | conversion | persist a versioned cross-process structural digest |
 | Signed 64-bit integers and rationals | yes | yes | yes | checked arithmetic, arbitrary precision |
 | Real literals and real evaluation | yes | yes | partial | high precision and intervals |
 | Complex and algebraic domains | no | conversion only | partial | exact complex and algebraic numbers |
 | Applied functions and Bessel `J` | yes | opaque Bessel head | partial | broader special-function rules |
-| Parse, print, and Fortran dialect | yes | yes | yes | stable serialization |
+| Parse, print, and Fortran dialect | deterministic | yes | yes | versioned serialization format |
 | Structural and simultaneous substitution | yes | conversion | conversion | rule-based applied-function substitution |
 | Differentiation | yes | yes | advertised only | memoization and domain-sensitive rules |
 | Multivariate symbolic partials | yes | opaque | opaque | function assumptions and rewrite rules |

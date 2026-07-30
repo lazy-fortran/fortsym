@@ -39,6 +39,7 @@ program test_fortsym_kernel
     call test_simplified_negative_product_emission()
     call test_pure_procedure()
     call test_ordering_is_topological()
+    call test_codegen_is_construction_history_independent()
     call test_line_wrapping()
     call test_long_interface_wrapping()
     call test_snippet_mode()
@@ -130,6 +131,31 @@ contains
         end do
         call ok("atoms are not given temporaries", .not. named_an_atom)
     end subroutine test_cse_skips_atoms
+
+    subroutine test_codegen_is_construction_history_independent()
+        type(arena_t), target :: a, b
+        type(expr_t) :: ax, ay, bx, by, shared_a, shared_b
+        type(expr_t) :: roots_a(1), roots_b(1)
+        character(:), allocatable :: code_a, code_b
+
+        call a%init()
+        call b%init()
+        ax = sym(a, "x")
+        ay = sym(a, "y")
+        by = sym(b, "y")
+        bx = sym(b, "x")
+        shared_a = sin(ax*ay)
+        shared_b = sin(by*bx)
+        roots_a(1) = shared_a**2 + exp(shared_a) + ax*ay + 1
+        roots_b(1) = 1 + by*bx + exp(shared_b) + shared_b**2
+
+        code_a = chars(emit_kernel(roots_a, &
+            spec_for("stable_k", ["x", "y"], ["r"])))
+        code_b = chars(emit_kernel(roots_b, &
+            spec_for("stable_k", ["x", "y"], ["r"])))
+        call ok("codegen is byte-identical across construction histories", &
+            code_a == code_b)
+    end subroutine test_codegen_is_construction_history_independent
 
     subroutine test_operation_count_uses_shared_dag()
         type(arena_t), target :: a
@@ -315,7 +341,7 @@ contains
         call ok("array output declaration", &
             index(code, "intent(out) :: jvp(1)") > 0)
         call ok("array output reference", &
-            index(code, "jvp(1) = x(1)*v(1)") > 0)
+            index(code, "jvp(1) = v(1)*x(1)") > 0)
 
         open (newunit=unit, file="/tmp/fortsym_gen_array.f90", &
             status="replace", action="write", iostat=ios)

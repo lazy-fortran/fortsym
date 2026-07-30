@@ -24,7 +24,7 @@ module fortsym_string
     private
 
     public :: str_t, strbuf_t
-    public :: str, chars, len_str
+    public :: str, chars, len_str, compare_str
     public :: operator(//), operator(==), operator(/=)
     public :: assignment(=)
 
@@ -184,6 +184,32 @@ contains
         integer                 :: n
         n = s%len()
     end function str_len_fn
+
+    !> Three-way bytewise lexical comparison without materialising CHARACTER
+    !> copies. This is the stable ordering primitive used by expression heads.
+    pure function compare_str(left, right) result(relation)
+        type(str_t), intent(in) :: left, right
+        integer                 :: relation
+        integer :: i, left_len, right_len
+
+        left_len = left%len()
+        right_len = right%len()
+        relation = 0
+        do i = 1, min(left_len, right_len)
+            if (iachar(left%data(i:i)) < iachar(right%data(i:i))) then
+                relation = -1
+                return
+            else if (iachar(left%data(i:i)) > iachar(right%data(i:i))) then
+                relation = 1
+                return
+            end if
+        end do
+        if (left_len < right_len) then
+            relation = -1
+        else if (left_len > right_len) then
+            relation = 1
+        end if
+    end function compare_str
 
     !> The contents, at exactly their own length. An unallocated str_t reads as
     !> empty rather than being an error, so callers need no allocation guard.

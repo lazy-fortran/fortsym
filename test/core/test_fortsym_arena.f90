@@ -19,6 +19,7 @@ program test_fortsym_arena
     call test_interning()
     call test_rational_normalisation()
     call test_commutative_canonicalisation()
+    call test_large_semantic_sort()
     call test_associative_flattening()
     call test_noncommutative_order()
     call test_structural_sharing()
@@ -150,6 +151,28 @@ contains
         call ok("three-way sum order", (x + y + z) == (z + y + x))
         call ok("three-way product order", (x*y*z) == (z*y*x))
     end subroutine test_commutative_canonicalisation
+
+    subroutine test_large_semantic_sort()
+        integer, parameter :: N = 257
+        type(arena_t), target :: a
+        integer :: operands(N), sum_id, i
+        character(16) :: name
+
+        call a%init()
+        do i = 1, N
+            write (name, '("v",i3.3)') N - i + 1
+            operands(i) = a%sym(trim(name))
+        end do
+        sum_id = a%add(operands)
+
+        call ok("large semantic sort keeps every operand", &
+            a%nargs_of(sum_id) == N)
+        do i = 1, N
+            write (name, '("v",i3.3)') i
+            call ok("large semantic sort is lexical", &
+                chars(a%name_of(a%arg_of(sum_id, i))) == trim(name))
+        end do
+    end subroutine test_large_semantic_sort
 
     subroutine test_associative_flattening()
         type(arena_t), target :: a

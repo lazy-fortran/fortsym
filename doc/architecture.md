@@ -43,12 +43,13 @@ approximate real and complex evaluation uses Arb/Acb balls and may not be
 silently converted into an exact result. Calcium predicates are three-valued;
 resource limits or unimplemented functions map to `UNKNOWN`, not false.
 
-Addition and multiplication flatten nested nodes and sort child node indices.
-This provides sharing inside one construction history. Node indices are not a
-cross-arena canonical order. Stable serialization and deterministic semantic
-ordering remain separate work. The replacement order is defined by local node
-kind, exact scalar value, normalized head name, arity, and recursively ordered
-children. It is deliberately not inherited from a backend: GiNaC 1.8.10, for
+Addition and multiplication flatten nested nodes and sort children by a local
+total structural order: kind precedence, exact scalar payload or head name, and
+lexicographically recursive children with arity as the final tie-break. Node
+and name-table indices are excluded because they depend on construction
+history. This makes printing, CSE traversal, and generated Fortran
+byte-identical for identical expression trees constructed in different arenas.
+The order is deliberately not inherited from a backend: GiNaC 1.8.10, for
 example, documents that its internal canonical order is not a stable
 user-visible serialization order.
 

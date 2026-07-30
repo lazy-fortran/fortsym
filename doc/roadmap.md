@@ -40,8 +40,8 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
 - The pinned same-machine diagnostic reduced median cold expansion from
   3.260 ms to 0.412 ms (7.91x); native remains 2.66x slower than SymEngine
   0.14.0 on the isolated `(x + y + c)^7` workload.
-- Replace node-index ordering with a stable semantic order where generated
-  output depends on it.
+- Stable structural ordering excludes arena and name-table indices; independent
+  cross-arena tests require identical printing and byte-identical Fortran.
 - Benchmark construction, interning, simplification, expansion, and memory
   against direct SymEngine calls.
 
