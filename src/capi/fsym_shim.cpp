@@ -74,14 +74,26 @@ const slong kMaxAlgebraicHeightBits = 4096;
 const int64_t kMaxAlgebraicPowExponent = 64;
 const size_t kMaxAlgebraicBytes = 64UL*1024UL;
 
+constexpr bool supported_mpfr_abi(int major, int minor, int patch)
+{
+    /* MPFR 4.2.2 states that its changes from 4.2.1 alter neither ABI nor
+     * API: https://www.mpfr.org/mpfr-4.2.2/.  Patch releases in this line
+     * therefore share the ABI used by the exact-real projection below. */
+    return major == 4 && minor == 2 && patch >= 1;
+}
+
 static_assert(sizeof(slong) >= sizeof(int64_t),
               "fsym_shim: FLINT slong cannot hold the exact-power exponent");
 static_assert(__FLINT_VERSION == 3 && __FLINT_VERSION_MINOR == 6
                   && __FLINT_VERSION_PATCHLEVEL == 0,
               "fsym_shim: fortsym pins the FLINT 3.6.0 C ABI");
-static_assert(MPFR_VERSION_MAJOR == 4 && MPFR_VERSION_MINOR == 2
-                  && MPFR_VERSION_PATCHLEVEL == 2,
-              "fsym_shim: fortsym pins the MPFR 4.2.2 C ABI");
+static_assert(supported_mpfr_abi(4, 2, 1),
+              "fsym_shim: MPFR 4.2.1 must remain accepted");
+static_assert(!supported_mpfr_abi(4, 1, 0),
+              "fsym_shim: older MPFR ABI must remain rejected");
+static_assert(supported_mpfr_abi(MPFR_VERSION_MAJOR, MPFR_VERSION_MINOR,
+                                 MPFR_VERSION_PATCHLEVEL),
+              "fsym_shim: fortsym requires the MPFR 4.2 stable ABI");
 static_assert(std::numeric_limits<double>::is_iec559
                   && std::numeric_limits<double>::digits == 53,
               "fsym_shim: exact real projection requires binary64 double");
