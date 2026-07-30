@@ -35,8 +35,11 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
   binary64; subnormal and overflow-range exact values are refused through the
   checked printing/codegen status channel.
 - The ownership-safe FLINT `fmpq` bridge now supplies canonical normalization,
-  add/subtract/multiply/divide, and resource-bounded signed powers; native
-  coefficient and power simplification promotion onto it remains.
+  add/subtract/multiply/divide, and resource-bounded signed powers. Native
+  addition, numeric-factor multiplication, integer powers, and like-term
+  coefficients use a checked compact fast path and promote coherently onto the
+  bridge; a result beyond the arena scalar budget leaves its operation
+  structural.
 - Add exact complex algebraic values through a bounded `qqbar` representation;
   use Calcium or Arb/Acb only where their three-valued or rigorous enclosure
   semantics are explicit.

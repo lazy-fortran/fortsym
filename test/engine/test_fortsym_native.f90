@@ -4,7 +4,8 @@ program test_fortsym_native
     !     elementary algebra, not copied from the implementation;
     !   * expansion is checked by numeric evaluation at several points;
     !   * differentiation is checked by centered finite differences;
-    !   * the overflow case asserts preservation, never wrapped arithmetic.
+    !   * independently derived large exact values exercise overflow promotion;
+    !   * the resource-limit case asserts preservation, never a partial result.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_ADD
@@ -57,6 +58,7 @@ contains
 
     subroutine test_exact_arithmetic()
         type(engine_result_t) :: r
+        type(expr_t) :: a, b, expected
 
         r = engine%simplify(rat(arena, 1_int64, 2_int64) + &
             rat(arena, 1_int64, 3_int64))
@@ -68,6 +70,61 @@ contains
             rat(arena, 9_int64, 10_int64))
         call check("2/3 * 9/10 = 3/5", &
             r%value == rat(arena, 3_int64, 5_int64))
+
+        ! Let a = 10^20 + 1 and b = 10^20 - 1. These identities are
+        ! independently derived from addition and the difference of squares.
+        a = exact(arena, "100000000000000000001")
+        b = exact(arena, "99999999999999999999")
+        r = engine%simplify(a + b)
+        call check("large exact addition promotes", r%ok)
+        call check("(10^20+1) + (10^20-1) = 2*10^20", &
+            r%value == exact(arena, "200000000000000000000"))
+        r = engine%simplify(a - b)
+        call check("large exact subtraction promotes", r%ok)
+        call check("(10^20+1) - (10^20-1) = 2", &
+            r%value == num(arena, 2))
+
+        r = engine%simplify(a*b)
+        call check("large exact multiplication promotes", r%ok)
+        call check("(10^20+1)*(10^20-1) = 10^40-1", &
+            r%value == exact(arena, &
+            "9999999999999999999999999999999999999999"))
+
+        r = engine%simplify(a**2)
+        call check("large exact power promotes", r%ok)
+        call check("(10^20+1)^2 is exact", &
+            r%value == exact(arena, &
+            "10000000000000000000200000000000000000001"))
+        r = engine%simplify(a**(-2))
+        call check("large negative exact power promotes", r%ok)
+        call check("(10^20+1)^(-2) is the reciprocal square", &
+            r%value == exact(arena, &
+            "1/10000000000000000000200000000000000000001"))
+        r = engine%simplify(a/b)
+        call check("large exact division promotes", r%ok)
+        call check("(10^20+1)/(10^20-1) remains an exact quotient", &
+            r%value == exact(arena, &
+            "100000000000000000001/99999999999999999999"))
+
+        r = engine%simplify(exact(arena, "1/100000000000000000000") + &
+            exact(arena, "3/100000000000000000000"))
+        call check("large rational addition promotes", r%ok)
+        call check("4/10^20 reduces to 1/(25*10^18)", &
+            r%value == exact(arena, "1/25000000000000000000"))
+        r = engine%simplify(rat(arena, huge(0_int64), 2_int64) + &
+            rat(arena, huge(0_int64), 2_int64))
+        call check("overflowing compact rational sum downcasts exactly", &
+            r%value == num(arena, huge(0_int64)))
+        r = engine%simplify(rat(arena, -2_int64, 3_int64)**(-3))
+        call check("negative rational reciprocal power keeps its sign", &
+            r%value == rat(arena, -27_int64, 8_int64))
+
+        expected = exact(arena, "200000000000000000000")*x
+        r = engine%simplify(a*x + b*x)
+        call check("large exact coefficients collect", r%value == expected)
+        r = engine%simplify(a*x - a*x)
+        call check("large exact coefficients cancel", &
+            r%value == num(arena, 0))
     end subroutine test_exact_arithmetic
 
     subroutine test_like_terms_and_powers()
@@ -388,14 +445,47 @@ contains
 
     subroutine test_overflow_preservation()
         type(engine_result_t) :: r
-        type(expr_t) :: e
+        type(expr_t) :: e, left, right, original, addend
+        character(:), allocatable :: huge_left, huge_right, huge_addend
 
         e = num(arena, huge(0_int64)) + 1
         r = engine%simplify(e)
-        call check("overflowing addition is preserved", r%value%kind() == NK_ADD)
-        r = engine%zero_test(e)
-        call check("overflowing addition is not given a verdict", &
-            r%verdict == VERDICT_UNKNOWN)
+        call check("int64 overflow promotes to an exact integer", &
+            r%value == exact(arena, "9223372036854775808"))
+        e = exact(arena, "-9223372036854775808") - 1
+        r = engine%simplify(e)
+        call check("negative int64 overflow promotes exactly", &
+            r%value == exact(arena, "-9223372036854775809"))
+        r = engine%simplify(-exact(arena, "-9223372036854775808"))
+        call check("negating the minimum int64 promotes exactly", &
+            r%value == exact(arena, "9223372036854775808"))
+        ! (3037*10^6 + 500)^2 = 9223372037000250000.
+        r = engine%simplify(num(arena, 3037000500_int64)**2)
+        call check("compact power overflow promotes exactly", &
+            r%value == exact(arena, "9223372037000250000"))
+
+        ! Each factor fits the 1 MiB scalar input budget, but their product has
+        ! 1,050,003 digits. The engine must keep the exact symbolic product when
+        ! that result cannot be interned as one arena scalar.
+        huge_left = "1"//repeat("0", 525000)//"1"
+        huge_right = "1"//repeat("0", 525000)//"2"
+        left = exact(arena, huge_left)
+        right = exact(arena, huge_right)
+        original = left*right
+        r = engine%simplify(original)
+        call check("oversize exact product simplification succeeds", r%ok)
+        call check("oversize exact product is preserved structurally", &
+            r%value == original)
+
+        ! Adding two 1,048,576-digit strings of nines has 1,048,577 digits.
+        ! Coefficient collection must likewise retain the original sum.
+        huge_addend = repeat("9", 1048576)
+        addend = exact(arena, huge_addend)
+        original = addend*x + addend*x
+        r = engine%simplify(original)
+        call check("oversize exact coefficient sum succeeds", r%ok)
+        call check("oversize exact coefficient sum is preserved structurally", &
+            r%value == original)
     end subroutine test_overflow_preservation
 
     subroutine check_values(label, left, right, point, tolerance)

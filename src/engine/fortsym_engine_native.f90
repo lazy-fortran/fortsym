@@ -1,16 +1,18 @@
 module fortsym_engine_native
     ! Native Fortran algebra over fortsym's hash-consed expression DAG.
     !
-    ! This first engine fragment covers checked int64 rational arithmetic,
-    ! collection of like terms and integer powers, bounded polynomial
-    ! expansion, mechanical differentiation, and conservative zero decisions.
-    ! Unsupported forms remain expressions and zero_test returns UNKNOWN.
+    ! Exact scalar operations use checked int64 arithmetic when possible and
+    ! promote to the bounded FLINT bridge on overflow.  The engine also covers
+    ! collection of like terms and integer powers, bounded polynomial expansion,
+    ! mechanical differentiation, and conservative zero decisions. Unsupported
+    ! forms remain expressions and zero_test returns UNKNOWN.
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use fortsym_string, only: str, chars
+    use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
     use fortsym_expr, only: expr_t, num, operator(+), operator(-), operator(*), &
         operator(/), operator(**)
+    use fortsym_exact, only: exact_add, exact_mul, exact_pow
     use fortsym_assume, only: assumption_context_t, FACT_POSITIVE
     use fortsym_diff, only: diff_expr => diff
     use fortsym_subs, only: subs
@@ -27,6 +29,13 @@ module fortsym_engine_native
     integer(int64), parameter :: MIN_I64 = -huge(0_int64) - 1_int64
     integer(int64), parameter :: MAX_EXPAND_POWER = 32_int64
     integer(int64), parameter :: MAX_EXPAND_TERMS = 100000_int64
+
+    type :: exact_coefficient_t
+        logical :: compact = .true.
+        integer(int64) :: numerator = 0_int64
+        integer(int64) :: denominator = 1_int64
+        integer :: id = 0
+    end type exact_coefficient_t
 
     type, extends(engine_t) :: native_engine_t
         type(arena_t), pointer :: home => null()
@@ -513,9 +522,9 @@ contains
         integer,       intent(in)    :: operands(:)
         integer                      :: out
         integer, allocatable :: terms(:), bases(:), result(:), filtered(:)
-        logical, allocatable :: live(:), top_live(:)
-        integer(int64), allocatable :: cnum(:), cden(:)
-        integer(int64) :: n, d, sn, sd, n2, d2
+        type(exact_coefficient_t), allocatable :: coefficients(:)
+        type(exact_coefficient_t) :: coefficient, coefficient2, sum_coefficient
+        logical, allocatable :: top_live(:)
         integer :: flat, i, j, count, base, base2, term, remaining
         logical :: exact, exact2, combined
 
@@ -525,16 +534,18 @@ contains
         allocate (top_live(size(operands)), source=.true.)
         do i = 1, size(operands)
             if (.not. top_live(i)) cycle
-            call split_coefficient(a, operands(i), base, n, d, exact)
+            call split_coefficient(a, operands(i), base, coefficient, exact)
             if (.not. exact) cycle
             do j = i + 1, size(operands)
                 if (.not. top_live(j)) cycle
-                call split_coefficient(a, operands(j), base2, n2, d2, exact2)
+                call split_coefficient(a, operands(j), base2, coefficient2, &
+                    exact2)
                 if (.not. exact2) cycle
                 if (base2 /= base) cycle
-                call fraction_add(n, d, n2, d2, sn, sd, exact2)
+                call coefficient_add(a, coefficient, coefficient2, &
+                    sum_coefficient, exact2)
                 if (.not. exact2) cycle
-                if (sn /= 0_int64) cycle
+                if (.not. coefficient_is_zero(sum_coefficient)) cycle
                 top_live(i) = .false.
                 top_live(j) = .false.
                 exit
@@ -567,25 +578,28 @@ contains
         do i = 1, size(terms)
             terms(i) = a%arg_of(flat, i)
         end do
-        allocate (bases(size(terms)), cnum(size(terms)), cden(size(terms)))
-        allocate (live(size(terms)), source=.false.)
+        allocate (bases(size(terms)), coefficients(size(terms)))
         count = 0
 
         do i = 1, size(terms)
-            call split_coefficient(a, terms(i), base, n, d, exact)
+            call split_coefficient(a, terms(i), base, coefficient, exact)
             if (.not. exact) then
                 base = terms(i)
-                n = 1_int64
-                d = 1_int64
+                coefficient = coefficient_one()
             end if
 
             combined = .false.
             do j = 1, count
                 if (bases(j) /= base) cycle
-                call fraction_add(cnum(j), cden(j), n, d, sn, sd, exact)
-                if (.not. exact) cycle
-                cnum(j) = sn
-                cden(j) = sd
+                call coefficient_add(a, coefficients(j), coefficient, &
+                    sum_coefficient, exact)
+                if (.not. exact) then
+                    ! Do not expose earlier coefficient rewrites when the
+                    ! resource-bounded exact result cannot be interned.
+                    out = flat
+                    return
+                end if
+                coefficients(j) = sum_coefficient
                 combined = .true.
                 exit
             end do
@@ -593,19 +607,16 @@ contains
 
             count = count + 1
             bases(count) = base
-            cnum(count) = n
-            cden(count) = d
-            live(count) = .true.
+            coefficients(count) = coefficient
         end do
 
         allocate (result(count))
         j = 0
         do i = 1, count
-            if (.not. live(i)) cycle
-            if (cnum(i) == 0_int64) cycle
-            term = a%rat(cnum(i), cden(i))
+            if (coefficient_is_zero(coefficients(i))) cycle
+            term = coefficient_node(a, coefficients(i))
             if (bases(i) /= 0) then
-                if (cnum(i) == cden(i)) then
+                if (coefficient_is_one(coefficients(i))) then
                     term = bases(i)
                 else
                     term = a%mul([term, bases(i)])
@@ -622,49 +633,51 @@ contains
         end if
     end function simplify_add
 
-    subroutine split_coefficient(a, id, base, n, d, exact)
+    subroutine split_coefficient(a, id, base, coefficient, exact)
         type(arena_t), intent(inout) :: a
         integer,       intent(in)    :: id
         integer,       intent(out)   :: base
-        integer(int64), intent(out)  :: n, d
+        type(exact_coefficient_t), intent(out) :: coefficient
         logical,       intent(out)   :: exact
         integer, allocatable :: factors(:)
-        integer(int64) :: fn, fd, pn, pd
-        integer :: i, nf
-        logical :: factor_exact, product_ok
+        type(exact_coefficient_t) :: factor_coefficient, product
+        integer :: i, nf, factor
+        logical :: product_ok
 
-        call exact_value(a, id, n, d, exact)
-        if (exact) then
+        if (is_exact_scalar_kind(a%kind_of(id))) then
             base = 0
+            call coefficient_from_node(a, id, coefficient, exact)
             return
         end if
 
         if (a%kind_of(id) /= NK_MUL) then
             base = id
-            n = 1_int64
-            d = 1_int64
+            coefficient = coefficient_one()
             exact = .true.
             return
         end if
 
         allocate (factors(a%nargs_of(id)))
         nf = 0
-        n = 1_int64
-        d = 1_int64
+        coefficient = coefficient_one()
         do i = 1, a%nargs_of(id)
-            call exact_value(a, a%arg_of(id, i), fn, fd, factor_exact)
-            if (factor_exact) then
-                call fraction_mul(n, d, fn, fd, pn, pd, product_ok)
+            factor = a%arg_of(id, i)
+            if (is_exact_scalar_kind(a%kind_of(factor))) then
+                call coefficient_from_node(a, factor, factor_coefficient, &
+                    product_ok)
+                if (product_ok) then
+                    call coefficient_mul(a, coefficient, factor_coefficient, &
+                        product, product_ok)
+                end if
                 if (.not. product_ok) then
                     exact = .false.
                     base = id
                     return
                 end if
-                n = pn
-                d = pd
+                coefficient = product
             else
                 nf = nf + 1
-                factors(nf) = a%arg_of(id, i)
+                factors(nf) = factor
             end if
         end do
 
@@ -682,7 +695,8 @@ contains
         integer                      :: out
         integer, allocatable :: factors(:), bases(:), result(:)
         integer(int64), allocatable :: exponents(:)
-        integer(int64) :: n, d, fn, fd, pn, pd, exponent, sum_exp
+        type(exact_coefficient_t) :: numeric_product, factor_coefficient, product
+        integer(int64) :: exponent, sum_exp
         integer :: flat, i, j, count, base
         logical :: exact, product_ok, combined, power_factor
 
@@ -698,21 +712,23 @@ contains
         end do
         allocate (bases(size(factors)), exponents(size(factors)))
 
-        n = 1_int64
-        d = 1_int64
+        numeric_product = coefficient_one()
         count = 0
         do i = 1, size(factors)
-            call exact_value(a, factors(i), fn, fd, exact)
-            if (exact) then
-                call fraction_mul(n, d, fn, fd, pn, pd, product_ok)
-                if (.not. product_ok) then
-                    count = count + 1
-                    bases(count) = factors(i)
-                    exponents(count) = 1_int64
-                else
-                    n = pn
-                    d = pd
+            if (is_exact_scalar_kind(a%kind_of(factors(i)))) then
+                call coefficient_from_node(a, factors(i), factor_coefficient, &
+                    product_ok)
+                if (product_ok) then
+                    call coefficient_mul(a, numeric_product, factor_coefficient, &
+                        product, product_ok)
                 end if
+                if (.not. product_ok) then
+                    ! Resource refusal is not an algebraic result: retain the
+                    ! original multiplication without partial rewriting.
+                    out = flat
+                    return
+                end if
+                numeric_product = product
                 cycle
             end if
 
@@ -738,16 +754,16 @@ contains
             exponents(count) = exponent
         end do
 
-        if (n == 0_int64) then
+        if (coefficient_is_zero(numeric_product)) then
             out = a%int(0_int64)
             return
         end if
 
         allocate (result(count + 1))
         j = 0
-        if (n /= d) then
+        if (.not. coefficient_is_one(numeric_product)) then
             j = j + 1
-            result(j) = a%rat(n, d)
+            result(j) = coefficient_node(a, numeric_product)
         end if
         do i = 1, count
             if (exponents(i) == 0_int64) cycle
@@ -791,9 +807,9 @@ contains
         integer,       intent(in)    :: base, exponent_id
         integer                      :: out
         integer, allocatable :: factors(:)
-        integer(int64) :: exponent, den, bn, bd, rn, rd, nested, combined
+        integer(int64) :: exponent, den, nested, combined
         integer :: k
-        logical :: exact, base_exact, power_ok, nested_ok
+        logical :: exact, power_ok, nested_ok
 
         call exact_value(a, exponent_id, exponent, den, exact)
         if (.not. exact) then
@@ -830,11 +846,9 @@ contains
             return
         end if
 
-        call exact_value(a, base, bn, bd, base_exact)
-        if (base_exact) then
-            call fraction_power(bn, bd, exponent, rn, rd, power_ok)
+        if (is_exact_scalar_kind(a%kind_of(base))) then
+            out = exact_pow_node(a, base, exponent, power_ok)
             if (power_ok) then
-                out = a%rat(rn, rd)
                 return
             end if
         end if
@@ -1229,6 +1243,215 @@ contains
         end do
         out = a%add(terms)
     end function distribute
+
+    pure function is_exact_scalar_kind(kind) result(exact)
+        integer, intent(in) :: kind
+        logical             :: exact
+        exact = kind == NK_INT .or. kind == NK_RAT .or. &
+            kind == NK_BIG_INT .or. kind == NK_BIG_RAT
+    end function is_exact_scalar_kind
+
+    pure function coefficient_one() result(coefficient)
+        type(exact_coefficient_t) :: coefficient
+        coefficient%numerator = 1_int64
+    end function coefficient_one
+
+    pure function coefficient_is_zero(coefficient) result(zero)
+        type(exact_coefficient_t), intent(in) :: coefficient
+        logical                              :: zero
+        ! Canonical arbitrary-precision zero is always a compact node.
+        zero = coefficient%compact .and. &
+            coefficient%numerator == 0_int64
+    end function coefficient_is_zero
+
+    pure function coefficient_is_one(coefficient) result(one)
+        type(exact_coefficient_t), intent(in) :: coefficient
+        logical                              :: one
+        ! Canonical arbitrary-precision one is always a compact node.
+        one = coefficient%compact .and. &
+            coefficient%numerator == coefficient%denominator
+    end function coefficient_is_one
+
+    subroutine coefficient_from_node(a, id, coefficient, ok)
+        type(arena_t), intent(in)             :: a
+        integer, intent(in)                   :: id
+        type(exact_coefficient_t), intent(out) :: coefficient
+        logical, intent(out)                  :: ok
+
+        call exact_value(a, id, coefficient%numerator, &
+            coefficient%denominator, coefficient%compact)
+        ok = coefficient%compact
+        if (ok) return
+        ok = is_exact_scalar_kind(a%kind_of(id))
+        if (ok) coefficient%id = id
+    end subroutine coefficient_from_node
+
+    function coefficient_node(a, coefficient) result(id)
+        type(arena_t), intent(inout)          :: a
+        type(exact_coefficient_t), intent(in) :: coefficient
+        integer                               :: id
+
+        if (coefficient%compact) then
+            id = a%rat(coefficient%numerator, coefficient%denominator)
+        else
+            id = coefficient%id
+        end if
+    end function coefficient_node
+
+    subroutine coefficient_add(a, left, right, result, ok)
+        type(arena_t), intent(inout)          :: a
+        type(exact_coefficient_t), intent(in) :: left, right
+        type(exact_coefficient_t), intent(out) :: result
+        logical, intent(out)                  :: ok
+        integer :: id
+
+        if (coefficient_is_zero(left)) then
+            result = right
+            ok = .true.
+            return
+        end if
+        if (coefficient_is_zero(right)) then
+            result = left
+            ok = .true.
+            return
+        end if
+        if (left%compact .and. right%compact) then
+            call fraction_add(left%numerator, left%denominator, &
+                right%numerator, right%denominator, result%numerator, &
+                result%denominator, ok)
+            if (ok) return
+        end if
+
+        id = exact_add_node(a, coefficient_node(a, left), &
+            coefficient_node(a, right), ok)
+        if (.not. ok) return
+        call coefficient_from_node(a, id, result, ok)
+    end subroutine coefficient_add
+
+    subroutine coefficient_mul(a, left, right, result, ok)
+        type(arena_t), intent(inout)          :: a
+        type(exact_coefficient_t), intent(in) :: left, right
+        type(exact_coefficient_t), intent(out) :: result
+        logical, intent(out)                  :: ok
+        integer :: id
+
+        if (coefficient_is_zero(left) .or. coefficient_is_one(left)) then
+            if (coefficient_is_zero(left)) then
+                result = left
+            else
+                result = right
+            end if
+            ok = .true.
+            return
+        end if
+        if (coefficient_is_zero(right) .or. coefficient_is_one(right)) then
+            if (coefficient_is_zero(right)) then
+                result = right
+            else
+                result = left
+            end if
+            ok = .true.
+            return
+        end if
+        if (left%compact .and. right%compact) then
+            call fraction_mul(left%numerator, left%denominator, &
+                right%numerator, right%denominator, result%numerator, &
+                result%denominator, ok)
+            if (ok) return
+        end if
+
+        id = exact_mul_node(a, coefficient_node(a, left), &
+            coefficient_node(a, right), ok)
+        if (.not. ok) return
+        call coefficient_from_node(a, id, result, ok)
+    end subroutine coefficient_mul
+
+    function exact_add_node(a, left, right, ok) result(id)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: left, right
+        logical,       intent(out)   :: ok
+        integer                      :: id
+        type(str_t) :: value
+        logical :: inserted
+        integer(int64) :: n1, d1, n2, d2, n, d
+
+        if (a%kind_of(left) == NK_INT .or. a%kind_of(left) == NK_RAT) then
+            if (a%kind_of(right) == NK_INT .or. a%kind_of(right) == NK_RAT) then
+                call exact_value(a, left, n1, d1, ok)
+                call exact_value(a, right, n2, d2, ok)
+                call fraction_add(n1, d1, n2, d2, n, d, ok)
+                if (ok) then
+                    id = a%rat(n, d)
+                    return
+                end if
+            end if
+        end if
+
+        id = 0
+        value = exact_add(chars(a%exact_text_of(left)), &
+            chars(a%exact_text_of(right)), ok)
+        if (.not. ok) return
+        id = a%exact(chars(value), inserted)
+        ok = inserted
+        if (.not. ok) id = 0
+    end function exact_add_node
+
+    function exact_mul_node(a, left, right, ok) result(id)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: left, right
+        logical,       intent(out)   :: ok
+        integer                      :: id
+        type(str_t) :: value
+        logical :: inserted
+        integer(int64) :: n1, d1, n2, d2, n, d
+
+        if (a%kind_of(left) == NK_INT .or. a%kind_of(left) == NK_RAT) then
+            if (a%kind_of(right) == NK_INT .or. a%kind_of(right) == NK_RAT) then
+                call exact_value(a, left, n1, d1, ok)
+                call exact_value(a, right, n2, d2, ok)
+                call fraction_mul(n1, d1, n2, d2, n, d, ok)
+                if (ok) then
+                    id = a%rat(n, d)
+                    return
+                end if
+            end if
+        end if
+
+        id = 0
+        value = exact_mul(chars(a%exact_text_of(left)), &
+            chars(a%exact_text_of(right)), ok)
+        if (.not. ok) return
+        id = a%exact(chars(value), inserted)
+        ok = inserted
+        if (.not. ok) id = 0
+    end function exact_mul_node
+
+    function exact_pow_node(a, base, exponent, ok) result(id)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: base
+        integer(int64), intent(in)   :: exponent
+        logical,       intent(out)   :: ok
+        integer                      :: id
+        type(str_t) :: value
+        logical :: inserted
+        integer(int64) :: bn, bd, n, d
+
+        if (a%kind_of(base) == NK_INT .or. a%kind_of(base) == NK_RAT) then
+            call exact_value(a, base, bn, bd, ok)
+            call fraction_power(bn, bd, exponent, n, d, ok)
+            if (ok) then
+                id = a%rat(n, d)
+                return
+            end if
+        end if
+
+        id = 0
+        value = exact_pow(chars(a%exact_text_of(base)), exponent, ok)
+        if (.not. ok) return
+        id = a%exact(chars(value), inserted)
+        ok = inserted
+        if (.not. ok) id = 0
+    end function exact_pow_node
 
     subroutine exact_value(a, id, n, d, exact)
         type(arena_t), intent(in)  :: a

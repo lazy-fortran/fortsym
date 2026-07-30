@@ -33,10 +33,11 @@ declarations and must not be used for dispatch.
 Exact arena nodes have a compact signed-64-bit representation and an
 arbitrary-precision canonical decimal representation. Construction normalizes
 through FLINT and downcasts every representable result to the compact node, so
-zero, one, and small exponents retain the existing fast path. Code that
-combines only compact nodes must still detect overflow or decline the
-transformation until native simplification uses the arbitrary-precision
-operations throughout. The scalar bridge normalizes and computes base-ten
+zero, one, and small exponents retain the existing fast path. Native
+simplification first combines compact coefficients with checked `int64`
+arithmetic and promotes addition, multiplication, integer powers, and
+like-term coefficients to FLINT on overflow or whenever an arbitrary-precision
+operand participates. The scalar bridge normalizes and computes base-ten
 integer/rational values through the shared FLINT 3.6.0
 `fmpq` C interface pinned in `upstream-baselines.toml`; values return through a
 single-slot thread-local render/fetch boundary and are copied immediately, so
@@ -59,8 +60,9 @@ and `emit_kernel` expose an optional success flag and return an empty string
 when that projection is non-finite; they never emit a plausible wrong value or
 an invalid oversized literal. Exact symbolic work must simplify or select
 another numeric domain before kernel generation when binary64 rounding is
-unacceptable. Promoting native coefficient arithmetic onto the bridge is the
-next exact-domain step. Exact algebraic complex values use bounded
+unacceptable. If a promoted scalar exceeds the arena's 1 MiB payload budget,
+native simplification preserves the structural operation rather than exposing
+a partial rewrite. Exact algebraic complex values use bounded
 `qqbar` objects (minimal polynomial plus isolating enclosure), where the bounds
 are fortsym resource limits rather than an intrinsic restriction of `qqbar`.
 Rigorous

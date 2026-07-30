@@ -12,11 +12,11 @@ integrates and factors but cannot simplify trigonometry. fortsym runs the
 engines that are present, compares their answers, and keeps the one that
 produces the smallest kernel.
 
-The native Fortran backend currently performs checked 64-bit rational
-arithmetic, collection of like terms and integer powers, bounded polynomial
-expansion, differentiation, Taylor coefficients and series, scalar linear
-solving, and conservative zero decisions. Broader domains and assumptions
-remain on the documented roadmap.
+The native Fortran backend currently performs arbitrary-precision integer and
+rational arithmetic with a checked 64-bit fast path, collection of like terms
+and integer powers, bounded polynomial expansion, differentiation, Taylor
+coefficients and series, scalar linear solving, and conservative zero
+decisions. Broader domains remain on the documented roadmap.
 
 Guarded native rewrites accept an explicit `assumption_context_t`. Positive,
 nonnegative, nonzero, and real-valued facts are stored on interned expressions.

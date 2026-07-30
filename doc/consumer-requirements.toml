@@ -90,6 +90,8 @@ semantics = "Exact unbounded integers and normalized rationals; requested-precis
 priority = "P0"
 independent_oracle = "Independently derived large integer/rational identities plus modular residues and exact numerator/denominator reconstruction."
 status = "partial"
+implemented_fragment = "Native arbitrary-precision integer/rational construction, canonicalization, addition, multiplication, signed machine-integer powers, coefficient collection, and deterministic checked binary64 projection."
+remaining_fragment = "Requested-precision real evaluation with explicit precision/accuracy tracking."
 source_classes = ["local_proj", "local_code", "gitlab", "github"]
 
 [[requirement]]
