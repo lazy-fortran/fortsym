@@ -25,8 +25,17 @@ native backend operates on it directly.
 7. `src/codegen` selects shared subexpressions and emits Fortran kernels.
 
 An engine capability is a promise that its corresponding type-bound operation
-is callable. Capability bits without an operation entry point are legacy
-declarations and must not be used for dispatch.
+is callable. A capability bit without an operation entry point is invalid and
+must not be used for dispatch.
+
+Tier-2 adapters accept only plain symbol identifiers, known exact constants,
+and the audited function vocabulary before rendering an expression as CAS
+source. Unsupported names return `UNKNOWN`. SymPy receives an explicit local
+symbol dictionary so Python globals cannot capture free names. Each subprocess
+uses input and output files inside an atomically created mode-0700 temporary
+directory; the directory and its files are removed after the framed reply is
+read. Reply records are accumulated without truncation up to a 16 MiB bound;
+larger records are refused instead of parsing a valid-looking prefix.
 
 ## Representation constraints
 

@@ -50,6 +50,15 @@ int fsym_have_mpfr(void);
 /*! SymEngine's version string. Borrowed, valid for the process lifetime. */
 const char *fsym_symengine_version(void);
 
+/* ----------------------------------------------------------- processes -- */
+
+/*! Atomically create a mode-0700 temporary directory from a fixed fortsym
+ *  template and copy its NUL-terminated path into `path`. */
+int fsym_make_temp_directory(char *path, size_t size);
+
+/*! Remove an empty directory created by fsym_make_temp_directory. */
+int fsym_remove_temp_directory(const char *path);
+
 /* ---------------------------------------------------------------- strings -- */
 
 /*! Text rendering modes for fsym_str_render. */

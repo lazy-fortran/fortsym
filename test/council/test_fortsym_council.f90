@@ -6,15 +6,18 @@ program test_fortsym_council
     ! information. The one thing it will not do is fail because Maxima or SymPy
     ! is missing -- Tier 2 engines are optional by design.
     use, intrinsic :: iso_fortran_env, only: real64
-    use fortsym_string, only: chars
+    use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, operator(-), operator(==)
+    use fortsym_expr, only: expr_t, sym, func, operator(-), operator(==)
     use fortsym_parse, only: parse_expr
     use fortsym_engine, only: VERDICT_TRUE, VERDICT_FALSE, &
-        verdict_name, engine_result_t
+        verdict_name, engine_result_t, CAP_ZERO_TEST, CAP_SIMPLIFY, CAP_DIFF, &
+        CAP_EXPAND, CAP_FACTOR, CAP_INTEGRATE, CAP_LIMIT, CAP_SOLVE
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
-    use fortsym_engine_ext, only: make_maxima_engine, make_sympy_engine
+    use fortsym_engine_ext, only: maxima_engine_t, sympy_engine_t, &
+        make_maxima_engine, make_sympy_engine
     use fortsym_engine_yacas, only: make_yacas_engine
+    use fortsym_proc, only: proc_available, proc_run, MARK_BEGIN, MARK_END
     use fortsym_council
     implicit none
 
@@ -39,6 +42,7 @@ program test_fortsym_council
     call test_true_identities()
     call test_non_identities()
     call test_tournament_is_verified()
+    call test_external_engine_boundary()
 
     print *, ""
     print *, "=== benchmark ==="
@@ -171,6 +175,71 @@ contains
         best = council_best_form(council, e, se)
         call ok("irreducible form is unchanged", best == e)
     end subroutine test_tournament_is_verified
+
+    !> Tier-2 capability bits are a dispatch contract, and arbitrary arena names
+    !> must never become executable Maxima or Python source. These checks do not
+    !> depend on either optional program being installed.
+    subroutine test_external_engine_boundary()
+        type(maxima_engine_t) :: mx
+        type(sympy_engine_t) :: sp
+        type(engine_result_t) :: r
+        type(expr_t) :: unsafe, x
+        type(str_t), allocatable :: lines(:)
+        character(:), allocatable :: script
+        integer :: n
+        logical :: ran, long_reply_ok
+        integer, parameter :: UNBOUND_CAPS = CAP_DIFF + CAP_EXPAND + CAP_FACTOR + &
+            CAP_INTEGRATE + CAP_LIMIT + CAP_SOLVE
+
+        mx = make_maxima_engine(arena)
+        sp = make_sympy_engine(arena)
+        call ok("maxima advertises its two bound operations", &
+            iand(mx%caps, CAP_ZERO_TEST + CAP_SIMPLIFY) == &
+            CAP_ZERO_TEST + CAP_SIMPLIFY)
+        call ok("maxima does not advertise unbound operations", &
+            iand(mx%caps, UNBOUND_CAPS) == 0)
+        call ok("sympy advertises its two bound operations", &
+            iand(sp%caps, CAP_ZERO_TEST + CAP_SIMPLIFY) == &
+            CAP_ZERO_TEST + CAP_SIMPLIFY)
+        call ok("sympy does not advertise unbound operations", &
+            iand(sp%caps, UNBOUND_CAPS) == 0)
+
+        unsafe = sym(arena, "x'); print('injected')")
+        r = sp%simplify(unsafe)
+        call ok("sympy rejects source-bearing symbol names", &
+            .not. r%ok .and. index(chars(r%message), "unsafe") > 0)
+        r = mx%simplify(unsafe)
+        call ok("maxima rejects source-bearing symbol names", &
+            .not. r%ok .and. index(chars(r%message), "unsafe") > 0)
+
+        unsafe = sym(arena, "E")
+        r = sp%simplify(unsafe)
+        call ok("sympy rejects a symbol colliding with its exact constant", &
+            .not. r%ok .and. index(chars(r%message), "unsafe") > 0)
+
+        x = sym(arena, "x")
+        unsafe = func("system", [x])
+        r = sp%simplify(unsafe)
+        call ok("sympy rejects unaudited function heads", &
+            .not. r%ok .and. index(chars(r%message), "unsafe") > 0)
+        r = mx%simplify(unsafe)
+        call ok("maxima rejects unaudited function heads", &
+            .not. r%ok .and. index(chars(r%message), "unsafe") > 0)
+
+        if (proc_available("python3")) then
+            script = "print('"//MARK_BEGIN//"')"//new_line("a")// &
+                "print('7' * 5000)"//new_line("a")// &
+                "print('"//MARK_END//"')"
+            call proc_run("python3", script, lines, n, ran, 5)
+            long_reply_ok = ran .and. n == 1
+            if (long_reply_ok) then
+                long_reply_ok = lines(1)%len() == 5000 .and. &
+                    chars(lines(1)) == repeat("7", 5000)
+            end if
+            call ok("framed transport preserves a 5000-digit reply", &
+                long_reply_ok)
+        end if
+    end subroutine test_external_engine_boundary
 
     function verdict_of(e) result(v)
         type(expr_t), intent(in) :: e

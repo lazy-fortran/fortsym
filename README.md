@@ -23,10 +23,11 @@ nonnegative, nonzero, and real-valued facts are stored on interned expressions.
 For example, `positive(x)` permits `sqrt(x**2)` and `abs(x)` to reduce to `x`;
 without the context the same zero test returns `UNKNOWN`.
 
-Wired: SymEngine and Yacas (linked in-process), SymPy and Maxima (separate
-processes). Each declares what it can do and is only asked for that — Yacas
-does not claim zero testing, because its `Simplify` cannot close trigonometric
-identities and the engine that can should get the work.
+Wired: SymEngine and Yacas (linked in-process), plus SymPy and Maxima
+separate-process simplification/zero-test adapters. Each declares only callable
+operations and is only asked for those — Yacas does not claim zero testing,
+because its `Simplify` cannot close trigonometric identities and the engine
+that can should get the work.
 
 Your code never names an engine.
 

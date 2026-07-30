@@ -17,7 +17,7 @@ module fortsym_engine_ext
     ! reduce this" is not evidence that the expression is non-zero.
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str_t, strbuf_t, str, chars
-    use fortsym_arena, only: arena_t
+    use fortsym_arena, only: arena_t, NK_SYM, NK_CONST, NK_FUNC
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect, DIA_MAXIMA, DIA_SYMPY
     use fortsym_print, only: print_expr_in
@@ -25,8 +25,7 @@ module fortsym_engine_ext
     use fortsym_proc, only: proc_available, proc_run, MARK_BEGIN, MARK_END
     use fortsym_engine, only: engine_t, engine_result_t, wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, &
-        CAP_ZERO_TEST, CAP_SIMPLIFY, CAP_DIFF, CAP_EXPAND, CAP_FACTOR, &
-        CAP_INTEGRATE, CAP_LIMIT, CAP_SOLVE
+        CAP_ZERO_TEST, CAP_SIMPLIFY
     implicit none
     private
 
@@ -61,8 +60,8 @@ contains
         eng%in_process = .false.
         eng%available = proc_available("maxima")
         eng%home => home
-        eng%caps = CAP_ZERO_TEST + CAP_SIMPLIFY + CAP_EXPAND + CAP_FACTOR + &
-            CAP_INTEGRATE + CAP_LIMIT + CAP_SOLVE
+        ! Only methods actually bound on maxima_engine_t may be advertised.
+        eng%caps = CAP_ZERO_TEST + CAP_SIMPLIFY
     end function make_maxima_engine
 
     !> A Maxima script that prints one framed answer.
@@ -100,6 +99,10 @@ contains
         real(dp) :: t0
 
         r%value = e
+        if (.not. external_expression_safe(e)) then
+            r%message = str("maxima: unsafe or unsupported expression")
+            return
+        end if
         if (.not. self%available) then
             r%message = str("maxima: not installed")
             return
@@ -144,8 +147,8 @@ contains
         ! mark the engine available and then fail on every call.
         eng%available = proc_available("python3")
         if (eng%available) eng%available = sympy_importable()
-        eng%caps = CAP_ZERO_TEST + CAP_SIMPLIFY + CAP_DIFF + CAP_EXPAND + &
-            CAP_FACTOR + CAP_INTEGRATE + CAP_LIMIT + CAP_SOLVE
+        ! Only methods actually bound on sympy_engine_t may be advertised.
+        eng%caps = CAP_ZERO_TEST + CAP_SIMPLIFY
     end function make_sympy_engine
 
     function sympy_importable() result(yes)
@@ -163,16 +166,18 @@ contains
     !> identifier becomes a symbol rather than resolving to a Python builtin --
     !> without that, an expression containing `E` or `I` would silently pick up
     !> whatever those names mean in the interpreter.
-    function sympy_script(expr_text, call_text) result(s)
+    function sympy_script(e, expr_text, call_text) result(s)
+        type(expr_t),  intent(in)  :: e
         character(*), intent(in)  :: expr_text, call_text
         character(:), allocatable :: s
         type(strbuf_t) :: b
 
         call b%append("import sympy")
         call b%newline()
-        call b%append("from sympy import *")
+        call b%append("local_dict = {}")
         call b%newline()
-        call b%append("e = sympify('''"//expr_text//"''')")
+        call append_sympy_symbols(b, e)
+        call b%append("e = sympy.sympify('"//expr_text//"', locals=local_dict)")
         call b%newline()
         call b%append("print('"//MARK_BEGIN//"')")
         call b%newline()
@@ -194,6 +199,10 @@ contains
         real(dp) :: t0
 
         r%value = e
+        if (.not. external_expression_safe(e)) then
+            r%message = str("sympy: unsafe or unsupported expression")
+            return
+        end if
         if (.not. self%available) then
             r%message = str("sympy: not installed")
             return
@@ -201,7 +210,8 @@ contains
 
         t0 = wall_seconds()
         text = chars(print_expr_in(e, dialect(DIA_SYMPY)))
-        call proc_run("python3", sympy_script(text, "simplify(e)"), lines, n, ok)
+        call proc_run("python3", &
+            sympy_script(e, text, "sympy.simplify(e)"), lines, n, ok)
         r%seconds = wall_seconds() - t0
 
         if (.not. ok .or. n < 1) then
@@ -223,6 +233,103 @@ contains
     end function sp_zero_test
 
     ! ------------------------------------------------------------ shared --
+
+    !> Tier-2 expressions become source text in another language. Restrict
+    !> names to plain identifiers and function heads to the audited dialect
+    !> vocabulary. Anything else is a conservative refusal, never executable
+    !> input.
+    recursive function external_expression_safe(e) result(safe)
+        type(expr_t), intent(in) :: e
+        logical                  :: safe
+        character(:), allocatable :: name
+        integer :: k
+
+        safe = .true.
+        select case (e%kind())
+        case (NK_SYM)
+            name = chars(e%name())
+            safe = safe_identifier(name)
+        case (NK_CONST)
+            name = chars(e%name())
+            safe = name == "pi" .or. name == "e" .or. name == "i"
+        case (NK_FUNC)
+            name = chars(e%name())
+            safe = safe_function(name)
+        end select
+        if (.not. safe) return
+
+        do k = 1, e%nargs()
+            if (.not. external_expression_safe(e%arg(k))) then
+                safe = .false.
+                return
+            end if
+        end do
+    end function external_expression_safe
+
+    pure function safe_identifier(name) result(safe)
+        character(*), intent(in) :: name
+        logical                  :: safe
+        integer :: k
+
+        safe = len(name) > 0
+        if (.not. safe) return
+        ! These spell exact constants in the SymPy dialect, so the reply parser
+        ! cannot distinguish same-spelled free symbols from those constants.
+        if (name == "E" .or. name == "I" .or. name == "pi") then
+            safe = .false.
+            return
+        end if
+        safe = ascii_letter(name(1:1))
+        if (.not. safe) return
+        do k = 2, len(name)
+            if (.not. (ascii_letter(name(k:k)) .or. &
+                (name(k:k) >= "0" .and. name(k:k) <= "9") .or. &
+                name(k:k) == "_")) then
+                safe = .false.
+                return
+            end if
+        end do
+    end function safe_identifier
+
+    pure function ascii_letter(ch) result(yes)
+        character, intent(in) :: ch
+        logical               :: yes
+        yes = (ch >= "a" .and. ch <= "z") .or. &
+            (ch >= "A" .and. ch <= "Z")
+    end function ascii_letter
+
+    pure function safe_function(name) result(safe)
+        character(*), intent(in) :: name
+        logical                  :: safe
+
+        select case (name)
+        case ("sin", "cos", "tan", "asin", "acos", "atan", "atan2", &
+                "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
+                "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", &
+                "loggamma", "sign", "besselj")
+            safe = .true.
+        case default
+            safe = .false.
+        end select
+    end function safe_function
+
+    recursive subroutine append_sympy_symbols(b, e)
+        type(strbuf_t), intent(inout) :: b
+        type(expr_t),   intent(in)    :: e
+        character(:), allocatable :: name
+        integer :: k
+
+        if (e%kind() == NK_SYM) then
+            name = chars(e%name())
+            call b%append("local_dict['"//name//"'] = sympy.Symbol('"// &
+                name//"')")
+            call b%newline()
+            return
+        end if
+        do k = 1, e%nargs()
+            call append_sympy_symbols(b, e%arg(k))
+        end do
+    end subroutine append_sympy_symbols
 
     !> Turn a simplification into a zero verdict.
     !>

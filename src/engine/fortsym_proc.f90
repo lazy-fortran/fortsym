@@ -17,8 +17,9 @@ module fortsym_proc
     ! banners, load messages and prompts that vary between versions -- Maxima on
     ! ECL announces which FASL files it loaded -- so scraping "the last line" is
     ! not reliable. Everything outside the markers is ignored.
-    use, intrinsic :: iso_fortran_env, only: int64
-    use fortsym_string, only: str_t, str, chars
+    use, intrinsic :: iso_c_binding, only: c_char, c_int, c_null_char, c_size_t
+    use, intrinsic :: iso_fortran_env, only: iostat_end, iostat_eor
+    use fortsym_string, only: str_t, strbuf_t, str, chars
     implicit none
     private
 
@@ -27,9 +28,22 @@ module fortsym_proc
     !> Printed by the engine immediately before and after the answer.
     character(*), parameter, public :: MARK_BEGIN = "<<<FORTSYM"
     character(*), parameter, public :: MARK_END = "FORTSYM>>>"
+    integer, parameter :: MAX_REPLY_LINE_BYTES = 16*1024*1024
 
-    !> Distinguishes temporary files of concurrent runs.
-    integer, save :: call_counter = 0
+    interface
+        function fsym_make_temp_directory(path, size) bind(C) result(ok)
+            import :: c_char, c_int, c_size_t
+            character(c_char), intent(out) :: path(*)
+            integer(c_size_t), value       :: size
+            integer(c_int)                 :: ok
+        end function fsym_make_temp_directory
+
+        function fsym_remove_temp_directory(path) bind(C) result(ok)
+            import :: c_char, c_int
+            character(c_char), intent(in) :: path(*)
+            integer(c_int)                :: ok
+        end function fsym_remove_temp_directory
+    end interface
 
 contains
 
@@ -62,8 +76,9 @@ contains
         logical,                   intent(out) :: ok
         integer, optional,         intent(in)  :: timeout_seconds
 
-        character(:), allocatable :: in_path, out_path, command
+        character(:), allocatable :: directory, in_path, out_path, command
         integer :: unit, ios, stat, cmdstat, limit
+        logical :: made
 
         limit = 30
         if (present(timeout_seconds)) limit = timeout_seconds
@@ -72,11 +87,15 @@ contains
         ok = .false.
         allocate (lines(0))
 
-        call temp_paths(in_path, out_path)
+        call temp_paths(directory, in_path, out_path, made)
+        if (.not. made) return
 
         open (newunit=unit, file=in_path, status="replace", action="write", &
             iostat=ios)
-        if (ios /= 0) return
+        if (ios /= 0) then
+            call remove_directory(directory)
+            return
+        end if
         write (unit, "(a)") input
         close (unit)
 
@@ -91,20 +110,30 @@ contains
 
         call remove_file(in_path)
         call remove_file(out_path)
+        call remove_directory(directory)
     end subroutine proc_run
 
-    !> Unique-enough paths for one call. The clock supplies the entropy and the
-    !> counter separates calls made within one clock tick.
-    subroutine temp_paths(in_path, out_path)
-        character(:), allocatable, intent(out) :: in_path, out_path
-        integer(int64) :: tick
-        character(:), allocatable :: stem
+    !> A private directory created atomically prevents another user from
+    !> replacing either redirection endpoint with a symlink between creation
+    !> and execution.
+    subroutine temp_paths(directory, in_path, out_path, ok)
+        character(:), allocatable, intent(out) :: directory, in_path, out_path
+        logical,                   intent(out) :: ok
+        integer, parameter :: BUFFER_SIZE = 64
+        character(c_char) :: buffer(BUFFER_SIZE)
+        integer :: k
 
-        call system_clock(tick)
-        call_counter = call_counter + 1
-        stem = "/tmp/fortsym_"//chars(str(tick))//"_"//chars(str(call_counter))
-        in_path = stem//".in"
-        out_path = stem//".out"
+        buffer = c_null_char
+        ok = fsym_make_temp_directory(buffer, int(BUFFER_SIZE, c_size_t)) /= 0
+        if (.not. ok) return
+
+        directory = ""
+        do k = 1, BUFFER_SIZE
+            if (buffer(k) == c_null_char) exit
+            directory = directory//achar(iachar(buffer(k)))
+        end do
+        in_path = directory//"/input"
+        out_path = directory//"/output"
     end subroutine temp_paths
 
     !> Collect the lines strictly between the markers.
@@ -115,15 +144,15 @@ contains
         logical,                  intent(out) :: ok
 
         type(str_t), allocatable :: buffer(:), bigger(:)
-        character(len=4096) :: raw
         character(:), allocatable :: text
         integer :: unit, ios, cut
-        logical :: inside
+        logical :: inside, eof, too_long
 
         n_lines = 0
         ok = .false.
         allocate (buffer(32))
         inside = .false.
+        too_long = .false.
 
         open (newunit=unit, file=path, status="old", action="read", iostat=ios)
         if (ios /= 0) then
@@ -132,9 +161,9 @@ contains
         end if
 
         do
-            read (unit, "(a)", iostat=ios) raw
-            if (ios /= 0) exit
-            text = rstrip(raw)
+            call read_record(unit, text, eof, too_long)
+            if (eof .or. too_long) exit
+            text = rstrip(text)
 
             if (index(text, MARK_END) > 0) then
                 ok = .true.
@@ -159,13 +188,54 @@ contains
         end do
 
         close (unit)
+        if (too_long) ok = .false.
 
         allocate (lines(n_lines))
         if (n_lines > 0) lines(1:n_lines) = buffer(1:n_lines)
     end subroutine read_framed
 
-    !> Trailing blanks come from the fixed-length read buffer, not from the
-    !> engine, so they are removed here and nowhere else.
+    !> Read one complete formatted record without truncating it. A bounded
+    !> refusal is safer than returning a valid-looking prefix of a large exact
+    !> integer or expression.
+    subroutine read_record(unit, text, eof, too_long)
+        integer,                   intent(in)  :: unit
+        character(:), allocatable, intent(out) :: text
+        logical,                   intent(out) :: eof, too_long
+        character(len=4096) :: chunk
+        type(strbuf_t) :: b
+        integer :: ios, n
+
+        eof = .false.
+        too_long = .false.
+        do
+            n = 0
+            read (unit, "(a)", advance="no", size=n, iostat=ios) chunk
+            if (n > 0) then
+                if (b%len() > MAX_REPLY_LINE_BYTES - n) then
+                    too_long = .true.
+                    text = ""
+                    return
+                end if
+                call b%append(chunk(1:n))
+            end if
+
+            if (ios == iostat_eor) then
+                text = b%chars()
+                return
+            else if (ios == iostat_end) then
+                text = b%chars()
+                eof = b%len() == 0
+                return
+            else if (ios /= 0) then
+                text = ""
+                eof = .true.
+                return
+            end if
+        end do
+    end subroutine read_record
+
+    !> CAS printers may leave insignificant trailing blanks; remove them here
+    !> and nowhere else.
     pure function rstrip(raw) result(text)
         character(*), intent(in)  :: raw
         character(:), allocatable :: text
@@ -184,5 +254,18 @@ contains
         open (newunit=unit, file=path, status="old", iostat=ios)
         if (ios == 0) close (unit, status="delete")
     end subroutine remove_file
+
+    subroutine remove_directory(path)
+        character(*), intent(in) :: path
+        character(c_char), allocatable :: c_path(:)
+        integer :: k, ignored
+
+        allocate (c_path(len(path) + 1))
+        do k = 1, len(path)
+            c_path(k) = path(k:k)
+        end do
+        c_path(len(path) + 1) = c_null_char
+        ignored = fsym_remove_temp_directory(c_path)
+    end subroutine remove_directory
 
 end module fortsym_proc

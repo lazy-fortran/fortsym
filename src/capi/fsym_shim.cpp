@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cmath>
 #include <charconv>
+#include <cstdlib>
 #include <dlfcn.h>
 #include <limits>
 #include <memory>
@@ -13,6 +14,7 @@
 #include <system_error>
 #include <utility>
 #include <vector>
+#include <unistd.h>
 
 #include <mpfr.h>
 #include <symengine/basic.h>
@@ -555,6 +557,21 @@ try_cancel(const SymEngine::RCP<const SymEngine::Basic> &e)
 } // namespace
 
 extern "C" {
+
+int fsym_make_temp_directory(char *path, size_t size)
+{
+    constexpr char pattern[] = "/tmp/fortsym_XXXXXX";
+    if (path == nullptr || size < sizeof(pattern)) {
+        return 0;
+    }
+    std::memcpy(path, pattern, sizeof(pattern));
+    return ::mkdtemp(path) != nullptr;
+}
+
+int fsym_remove_temp_directory(const char *path)
+{
+    return path != nullptr && ::rmdir(path) == 0;
+}
 
 /* ---------------------------------------------------------------- probes -- */
 
