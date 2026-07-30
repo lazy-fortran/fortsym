@@ -108,6 +108,7 @@ contains
         case (NK_ADD)
             ! Fold left. SymEngine's add is binary at the C ABI even though its
             ! internal representation is n-ary.
+            call basic_free_heap(h)
             h = to_symengine(a, a%arg_of(id, 1))
             do k = 2, a%nargs_of(id)
                 rhs = to_symengine(a, a%arg_of(id, k))
@@ -119,6 +120,7 @@ contains
             end do
 
         case (NK_MUL)
+            call basic_free_heap(h)
             h = to_symengine(a, a%arg_of(id, 1))
             do k = 2, a%nargs_of(id)
                 rhs = to_symengine(a, a%arg_of(id, k))
