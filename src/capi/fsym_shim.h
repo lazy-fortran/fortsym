@@ -17,6 +17,8 @@
  *      Those macros are invisible to Fortran, and referencing a symbol that a
  *      given SymEngine build omits is a link error. The probes report what the
  *      linked library actually supports.
+ *   4. FLINT exact rational and algebraic values need an ownership-safe,
+ *      resource-bounded C surface; no FLINT allocation crosses into Fortran.
  *
  * Every entry point returns symengine_exceptions_t (0 == success) unless it
  * returns a value directly; C++ exceptions are caught at the boundary and never
@@ -112,6 +114,50 @@ int fsym_flint_is_shared(void);
 
 /*! Non-zero only when mpfr_get_d resolves from a shared object. */
 int fsym_mpfr_is_shared(void);
+
+/* ---------------------------------------------------- algebraic numbers -- */
+
+/*! Binary operations accepted by fsym_algebraic_binary. */
+enum {
+    FSYM_ALGEBRAIC_ADD = 1,
+    FSYM_ALGEBRAIC_SUB = 2,
+    FSYM_ALGEBRAIC_MUL = 3,
+    FSYM_ALGEBRAIC_DIV = 4
+};
+
+/*! Unary operations accepted by fsym_algebraic_unary. */
+enum {
+    FSYM_ALGEBRAIC_CONJ = 1,
+    FSYM_ALGEBRAIC_SQRT = 2
+};
+
+/*! Normalize a lossless qqbar1 serialization. Values are represented by their
+ *  primitive minimal-polynomial coefficients and zero-based index in FLINT's
+ *  canonical conjugate-root order. Degree, coefficient height, input, and
+ *  output budgets are enforced before a result is retained. */
+size_t fsym_algebraic_normalize(const char *value);
+
+/*! Construct the imaginary unit, or an exact Gaussian rational from base-ten
+ *  rational real and imaginary parts. */
+size_t fsym_algebraic_i(void);
+size_t fsym_algebraic_from_re_im(const char *real_part,
+                                 const char *imag_part);
+
+/*! Apply bounded exact arithmetic in FLINT's qqbar domain. Division by zero,
+ *  negative powers of zero, and resource-limit crossings fail. Square root
+ *  uses FLINT's documented principal branch. */
+size_t fsym_algebraic_binary(const char *left, const char *right,
+                             int operation);
+size_t fsym_algebraic_unary(const char *value, int operation);
+size_t fsym_algebraic_pow_si(const char *base, int64_t exponent);
+
+/*! Return exact signs of the real and imaginary parts (-1, 0, or +1).
+ *  Malformed or over-budget input returns zero without writing a verdict. */
+int fsym_algebraic_signs(const char *value, int *real_sign, int *imag_sign);
+
+/*! Fetch the pending algebraic serialization. The ownership and immediate
+ *  fetch contract matches fsym_exact_fetch. */
+size_t fsym_algebraic_fetch(char *buf, size_t n);
 
 /* ------------------------------------------------------------- transforms -- */
 

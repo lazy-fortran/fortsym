@@ -114,6 +114,11 @@ capability_notes = [
   "naive Buchberger routines on primitive integer generators representing ideals in Q[X1,...,Xn], with optional resource limits",
   "rigorous arbitrary-precision real and complex ball arithmetic",
 ]
+adaptation_notes = [
+  "fortsym's original qqbar1 wrapper serializes the primitive minimal polynomial plus the zero-based canonical conjugate-root index",
+  "degree, coefficient-height, serialization-size, and exponent bounds are fortsym resource policy; limit refusal is not a mathematical verdict",
+  "qqbar remains behind the shared C boundary and no FLINT allocation or implementation code enters the Fortran representation",
+]
 
 [[upstream]]
 id = "mpfr"

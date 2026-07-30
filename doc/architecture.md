@@ -62,10 +62,17 @@ an invalid oversized literal. Exact symbolic work must simplify or select
 another numeric domain before kernel generation when binary64 rounding is
 unacceptable. If a promoted scalar exceeds the arena's 1 MiB payload budget,
 native simplification preserves the structural operation rather than exposing
-a partial rewrite. Exact algebraic complex values use bounded
-`qqbar` objects (minimal polynomial plus isolating enclosure), where the bounds
-are fortsym resource limits rather than an intrinsic restriction of `qqbar`.
-Rigorous
+a partial rewrite.
+
+The exact algebraic bridge uses FLINT `qqbar` values (minimal polynomial plus
+isolating enclosure) behind an ownership-safe C boundary. Its lossless
+`qqbar1` format stores the primitive minimal-polynomial coefficients and the
+root index in FLINT's canonical conjugate order. Degree 32, coefficient-height
+4096 bits, 64 KiB serialization, and signed-power magnitude 64 are fortsym
+resource limits rather than intrinsic `qqbar` restrictions. Exact Gaussian
+rationals, arithmetic, conjugation, principal square roots, and real/imaginary
+signs are callable; arena nodes and expression-engine promotion remain. The
+format and adaptation are specified in `algebraic-format.md`. Rigorous
 approximate real and complex evaluation uses Arb/Acb balls and may not be
 silently converted into an exact result. Calcium predicates are three-valued;
 resource limits or unimplemented functions map to `UNKNOWN`, not false.

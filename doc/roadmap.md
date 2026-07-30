@@ -51,7 +51,10 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
   coefficients use a checked compact fast path and promote coherently onto the
   bridge; a result beyond the arena scalar budget leaves its operation
   structural.
-- Add exact complex algebraic values through a bounded `qqbar` representation;
+- The ownership-safe bounded `qqbar` bridge now provides a lossless
+  minimal-polynomial/root-index format, Gaussian rationals, exact arithmetic,
+  conjugation, principal square roots, and exact component signs. Promote it
+  into arena nodes, parsing/printing, native expressions, and conversion next;
   use Calcium or Arb/Acb only where their three-valued or rigorous enclosure
   semantics are explicit.
 - Native bottom-up simplification uses DAG memoization; nonnegative powers of

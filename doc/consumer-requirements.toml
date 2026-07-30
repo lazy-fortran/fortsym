@@ -111,7 +111,9 @@ id = "complex_algebraic"
 semantics = "Exact Gaussian rational and algebraic values with explicit principal branches; unsupported root selections return a condition or UNKNOWN."
 priority = "P0"
 independent_oracle = "Minimal-polynomial substitution and isolating numerical enclosures at precision exceeding the construction precision."
-status = "missing"
+status = "partial"
+implemented_fragment = "Bounded exact Gaussian rational and algebraic construction, canonical minimal-polynomial/root-index serialization, arithmetic, conjugation, principal square root, and exact component signs."
+remaining_fragment = "Arena nodes, expression-engine promotion, lossless dialect IO, conversion, code generation, and returned conditions for unsupported branches."
 source_classes = ["local_proj", "gitlab"]
 
 [[requirement]]

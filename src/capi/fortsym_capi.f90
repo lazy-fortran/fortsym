@@ -42,6 +42,12 @@ module fortsym_capi
     integer(c_int), parameter :: FSYM_EXACT_SUB = 2_c_int
     integer(c_int), parameter :: FSYM_EXACT_MUL = 3_c_int
     integer(c_int), parameter :: FSYM_EXACT_DIV = 4_c_int
+    integer(c_int), parameter :: FSYM_ALGEBRAIC_ADD = 1_c_int
+    integer(c_int), parameter :: FSYM_ALGEBRAIC_SUB = 2_c_int
+    integer(c_int), parameter :: FSYM_ALGEBRAIC_MUL = 3_c_int
+    integer(c_int), parameter :: FSYM_ALGEBRAIC_DIV = 4_c_int
+    integer(c_int), parameter :: FSYM_ALGEBRAIC_CONJ = 1_c_int
+    integer(c_int), parameter :: FSYM_ALGEBRAIC_SQRT = 2_c_int
 
     ! Verdicts from fsym_zero_test. UNKNOWN is not a failure: it means the
     ! expression left the fragment the symbolic procedure decides, and the
@@ -695,6 +701,65 @@ module fortsym_capi
             import :: c_int
             integer(c_int) :: shared
         end function fsym_mpfr_is_shared
+
+        function fsym_algebraic_normalize(value) &
+                bind(c, name="fsym_algebraic_normalize") result(n)
+            import :: c_char, c_size_t
+            character(kind=c_char), intent(in) :: value(*)
+            integer(c_size_t)                  :: n
+        end function fsym_algebraic_normalize
+
+        function fsym_algebraic_i() bind(c, name="fsym_algebraic_i") result(n)
+            import :: c_size_t
+            integer(c_size_t) :: n
+        end function fsym_algebraic_i
+
+        function fsym_algebraic_from_re_im(real_part, imag_part) &
+                bind(c, name="fsym_algebraic_from_re_im") result(n)
+            import :: c_char, c_size_t
+            character(kind=c_char), intent(in) :: real_part(*), imag_part(*)
+            integer(c_size_t)                  :: n
+        end function fsym_algebraic_from_re_im
+
+        function fsym_algebraic_binary(left, right, operation) &
+                bind(c, name="fsym_algebraic_binary") result(n)
+            import :: c_char, c_int, c_size_t
+            character(kind=c_char), intent(in) :: left(*), right(*)
+            integer(c_int), value              :: operation
+            integer(c_size_t)                  :: n
+        end function fsym_algebraic_binary
+
+        function fsym_algebraic_unary(value, operation) &
+                bind(c, name="fsym_algebraic_unary") result(n)
+            import :: c_char, c_int, c_size_t
+            character(kind=c_char), intent(in) :: value(*)
+            integer(c_int), value              :: operation
+            integer(c_size_t)                  :: n
+        end function fsym_algebraic_unary
+
+        function fsym_algebraic_pow_si(base, exponent) &
+                bind(c, name="fsym_algebraic_pow_si") result(n)
+            import :: c_char, c_int64_t, c_size_t
+            character(kind=c_char), intent(in) :: base(*)
+            integer(c_int64_t), value          :: exponent
+            integer(c_size_t)                  :: n
+        end function fsym_algebraic_pow_si
+
+        function fsym_algebraic_signs(value, real_sign, imag_sign) &
+                bind(c, name="fsym_algebraic_signs") result(ok)
+            import :: c_char, c_int
+            character(kind=c_char), intent(in) :: value(*)
+            integer(c_int), intent(out)         :: real_sign, imag_sign
+            integer(c_int)                     :: ok
+        end function fsym_algebraic_signs
+
+        function fsym_algebraic_fetch(buf, n) &
+                bind(c, name="fsym_algebraic_fetch") result(m)
+            import :: c_char, c_size_t
+            character(kind=c_char), intent(inout) :: buf(*)
+            integer(c_size_t), value              :: n
+            integer(c_size_t)                     :: m
+        end function fsym_algebraic_fetch
 
         function fsym_series(out, ex, var, prec) bind(c, name="fsym_series") &
                 result(rc)

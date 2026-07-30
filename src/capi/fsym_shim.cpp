@@ -4,10 +4,14 @@
 #include <cstring>
 #include <cstdint>
 #include <cmath>
+#include <charconv>
 #include <dlfcn.h>
 #include <limits>
 #include <memory>
 #include <string>
+#include <string_view>
+#include <system_error>
+#include <utility>
 #include <vector>
 
 #include <mpfr.h>
@@ -24,6 +28,8 @@
 
 #include <flint/flint.h>
 #include <flint/fmpq.h>
+#include <flint/fmpz_poly.h>
+#include <flint/qqbar.h>
 
 #ifdef HAVE_SYMENGINE_FLINT
 #include <symengine/polys/cancel.h>
@@ -57,9 +63,14 @@ namespace
  * overwrite each other's pending fetch. */
 thread_local std::string g_render_buffer;
 thread_local std::string g_exact_buffer;
+thread_local std::string g_algebraic_buffer;
 const int64_t kMaxExactPowExponent = 1000000;
 const size_t kMaxExactInputBytes = 1024UL*1024UL;
 const size_t kMaxExactOutputBytes = 16UL*1024UL*1024UL;
+const slong kMaxAlgebraicDegree = 32;
+const slong kMaxAlgebraicHeightBits = 4096;
+const int64_t kMaxAlgebraicPowExponent = 64;
+const size_t kMaxAlgebraicBytes = 64UL*1024UL;
 
 static_assert(sizeof(slong) >= sizeof(int64_t),
               "fsym_shim: FLINT slong cannot hold the exact-power exponent");
@@ -97,6 +108,61 @@ public:
     mpfr_t value;
 };
 
+class FmpzValue
+{
+public:
+    FmpzValue() { fmpz_init(value); }
+    ~FmpzValue() { fmpz_clear(value); }
+
+    FmpzValue(const FmpzValue &) = delete;
+    FmpzValue &operator=(const FmpzValue &) = delete;
+
+    fmpz_t value;
+};
+
+class FmpzPolyValue
+{
+public:
+    FmpzPolyValue() { fmpz_poly_init(value); }
+    ~FmpzPolyValue() { fmpz_poly_clear(value); }
+
+    FmpzPolyValue(const FmpzPolyValue &) = delete;
+    FmpzPolyValue &operator=(const FmpzPolyValue &) = delete;
+
+    fmpz_poly_t value;
+};
+
+class QqbarValue
+{
+public:
+    QqbarValue() { qqbar_init(value); }
+    ~QqbarValue() { qqbar_clear(value); }
+
+    QqbarValue(const QqbarValue &) = delete;
+    QqbarValue &operator=(const QqbarValue &) = delete;
+
+    qqbar_t value;
+};
+
+class QqbarVector
+{
+public:
+    explicit QqbarVector(slong size)
+        : size_(size), values_(_qqbar_vec_init(size))
+    {
+    }
+    ~QqbarVector() { _qqbar_vec_clear(values_, size_); }
+
+    QqbarVector(const QqbarVector &) = delete;
+    QqbarVector &operator=(const QqbarVector &) = delete;
+
+    qqbar_ptr data() { return values_; }
+
+private:
+    slong size_;
+    qqbar_ptr values_;
+};
+
 struct FlintStringDeleter
 {
     void operator()(char *text) const noexcept
@@ -109,22 +175,25 @@ struct FlintStringDeleter
 
 using FlintString = std::unique_ptr<char, FlintStringDeleter>;
 
-bool parse_exact(FmpqValue &out, const char *text)
+bool bounded_text_length(const char *text, size_t maximum, size_t &length)
 {
-    if (text == nullptr || text[0] == '\0') {
+    length = 0;
+    if (text == nullptr) {
         return false;
     }
-    size_t length = 0;
-    do {
-        if (text[length] == '\0') {
-            break;
-        }
+    while (text[length] != '\0') {
         ++length;
-        if (length > kMaxExactInputBytes) {
+        if (length > maximum) {
             return false;
         }
-    } while (true);
-    if (length == 0) {
+    }
+    return length > 0;
+}
+
+bool parse_exact(FmpqValue &out, const char *text)
+{
+    size_t length = 0;
+    if (!bounded_text_length(text, kMaxExactInputBytes, length)) {
         return false;
     }
     if (fmpq_set_str(out.value, text, 10) != 0) {
@@ -196,6 +265,120 @@ size_t hold_exact(const fmpq_t value)
     }
     g_exact_buffer = text.get();
     return g_exact_buffer.size();
+}
+
+bool algebraic_within_limits(const qqbar_t value)
+{
+    return qqbar_within_limits(value, kMaxAlgebraicDegree,
+                               kMaxAlgebraicHeightBits)
+           != 0;
+}
+
+bool parse_algebraic(QqbarValue &out, const char *text)
+{
+    constexpr std::string_view prefix("qqbar1:");
+    size_t length = 0;
+    if (!bounded_text_length(text, kMaxAlgebraicBytes, length)) {
+        return false;
+    }
+    const std::string_view input(text, length);
+    if (input.substr(0, prefix.size()) != prefix) {
+        return false;
+    }
+    const size_t index_end = input.find(':', prefix.size());
+    if (index_end == std::string_view::npos
+        || index_end == prefix.size()) {
+        return false;
+    }
+
+    size_t root_index = 0;
+    const std::string_view index_text
+        = input.substr(prefix.size(), index_end - prefix.size());
+    const auto parsed_index = std::from_chars(
+        index_text.data(), index_text.data() + index_text.size(), root_index);
+    if (parsed_index.ec != std::errc()
+        || parsed_index.ptr != index_text.data() + index_text.size()) {
+        return false;
+    }
+
+    FmpzPolyValue polynomial;
+    FmpzValue coefficient;
+    const std::string_view coefficients = input.substr(index_end + 1);
+    size_t start = 0;
+    slong count = 0;
+    while (start <= coefficients.size()) {
+        size_t end = coefficients.find(',', start);
+        if (end == std::string_view::npos) {
+            end = coefficients.size();
+        }
+        const std::string_view token = coefficients.substr(start, end - start);
+        if (token.empty() || count > kMaxAlgebraicDegree) {
+            return false;
+        }
+        const std::string token_string(token);
+        if (fmpz_set_str(coefficient.value, token_string.c_str(), 10) != 0
+            || fmpz_bits(coefficient.value) > kMaxAlgebraicHeightBits) {
+            return false;
+        }
+        fmpz_poly_set_coeff_fmpz(polynomial.value, count, coefficient.value);
+        ++count;
+        if (end == coefficients.size()) {
+            break;
+        }
+        start = end + 1;
+    }
+
+    const slong degree = fmpz_poly_degree(polynomial.value);
+    if (degree < 1 || degree > kMaxAlgebraicDegree
+        || count != degree + 1
+        || root_index >= static_cast<size_t>(degree)) {
+        return false;
+    }
+    QqbarVector roots(degree);
+    qqbar_roots_fmpz_poly(roots.data(), polynomial.value, 0);
+    qqbar_set(out.value, roots.data() + root_index);
+    return algebraic_within_limits(out.value);
+}
+
+size_t hold_algebraic(const qqbar_t value)
+{
+    g_algebraic_buffer.clear();
+    if (!algebraic_within_limits(value)) {
+        return 0;
+    }
+
+    const slong degree = qqbar_degree(value);
+    QqbarVector conjugates(degree);
+    qqbar_conjugates(conjugates.data(), value);
+    slong root_index = -1;
+    for (slong i = 0; i < degree; ++i) {
+        if (qqbar_equal(value, conjugates.data() + i)) {
+            root_index = i;
+            break;
+        }
+    }
+    if (root_index < 0) {
+        return 0;
+    }
+
+    std::string serialized = "qqbar1:" + std::to_string(root_index) + ":";
+    FmpzValue coefficient;
+    for (slong i = 0; i <= degree; ++i) {
+        fmpz_poly_get_coeff_fmpz(coefficient.value, QQBAR_POLY(value), i);
+        FlintString text(fmpz_get_str(nullptr, 10, coefficient.value));
+        if (!text) {
+            return 0;
+        }
+        if (i != 0) {
+            serialized.push_back(',');
+        }
+        serialized += text.get();
+        if (serialized.size() > kMaxAlgebraicBytes) {
+            return 0;
+        }
+    }
+    g_algebraic_buffer = std::move(serialized);
+    return g_algebraic_buffer.size();
 }
 
 inline const SymEngine::RCP<const SymEngine::Basic> &deref(const basic s)
@@ -600,6 +783,195 @@ int fsym_mpfr_is_shared(void)
         return path.find(".so") != std::string::npos
                || path.find(".dylib") != std::string::npos;
     } catch (...) {
+        return 0;
+    }
+}
+
+/* ---------------------------------------------------- algebraic numbers -- */
+
+size_t fsym_algebraic_normalize(const char *value)
+{
+    try {
+        QqbarValue parsed;
+        g_algebraic_buffer.clear();
+        if (!parse_algebraic(parsed, value)) {
+            return 0;
+        }
+        return hold_algebraic(parsed.value);
+    } catch (...) {
+        g_algebraic_buffer.clear();
+        return 0;
+    }
+}
+
+size_t fsym_algebraic_i(void)
+{
+    try {
+        QqbarValue value;
+        g_algebraic_buffer.clear();
+        qqbar_i(value.value);
+        return hold_algebraic(value.value);
+    } catch (...) {
+        g_algebraic_buffer.clear();
+        return 0;
+    }
+}
+
+size_t fsym_algebraic_from_re_im(const char *real_part,
+                                 const char *imag_part)
+{
+    try {
+        size_t real_length = 0;
+        size_t imag_length = 0;
+        FmpqValue real_value;
+        FmpqValue imag_value;
+        QqbarValue real_algebraic;
+        QqbarValue imag_algebraic;
+        QqbarValue result;
+        g_algebraic_buffer.clear();
+        if (!bounded_text_length(real_part, kMaxAlgebraicBytes, real_length)
+            || !bounded_text_length(imag_part, kMaxAlgebraicBytes,
+                                    imag_length)
+            || !parse_exact(real_value, real_part)
+            || !parse_exact(imag_value, imag_part)) {
+            return 0;
+        }
+        qqbar_set_fmpq(real_algebraic.value, real_value.value);
+        qqbar_set_fmpq(imag_algebraic.value, imag_value.value);
+        qqbar_set_re_im(result.value, real_algebraic.value,
+                        imag_algebraic.value);
+        return hold_algebraic(result.value);
+    } catch (...) {
+        g_algebraic_buffer.clear();
+        return 0;
+    }
+}
+
+size_t fsym_algebraic_binary(const char *left, const char *right,
+                             int operation)
+{
+    try {
+        QqbarValue lhs;
+        QqbarValue rhs;
+        QqbarValue result;
+        g_algebraic_buffer.clear();
+        if (!parse_algebraic(lhs, left) || !parse_algebraic(rhs, right)
+            || !qqbar_binop_within_limits(lhs.value, rhs.value,
+                                          kMaxAlgebraicDegree,
+                                          kMaxAlgebraicHeightBits)) {
+            return 0;
+        }
+        switch (operation) {
+        case FSYM_ALGEBRAIC_ADD:
+            qqbar_add(result.value, lhs.value, rhs.value);
+            break;
+        case FSYM_ALGEBRAIC_SUB:
+            qqbar_sub(result.value, lhs.value, rhs.value);
+            break;
+        case FSYM_ALGEBRAIC_MUL:
+            qqbar_mul(result.value, lhs.value, rhs.value);
+            break;
+        case FSYM_ALGEBRAIC_DIV:
+            if (qqbar_is_zero(rhs.value)) {
+                return 0;
+            }
+            qqbar_div(result.value, lhs.value, rhs.value);
+            break;
+        default:
+            return 0;
+        }
+        return hold_algebraic(result.value);
+    } catch (...) {
+        g_algebraic_buffer.clear();
+        return 0;
+    }
+}
+
+size_t fsym_algebraic_unary(const char *value, int operation)
+{
+    try {
+        QqbarValue input;
+        QqbarValue result;
+        g_algebraic_buffer.clear();
+        if (!parse_algebraic(input, value)) {
+            return 0;
+        }
+        switch (operation) {
+        case FSYM_ALGEBRAIC_CONJ:
+            qqbar_conj(result.value, input.value);
+            break;
+        case FSYM_ALGEBRAIC_SQRT:
+            if (qqbar_degree(input.value) > kMaxAlgebraicDegree/2) {
+                return 0;
+            }
+            qqbar_sqrt(result.value, input.value);
+            break;
+        default:
+            return 0;
+        }
+        return hold_algebraic(result.value);
+    } catch (...) {
+        g_algebraic_buffer.clear();
+        return 0;
+    }
+}
+
+size_t fsym_algebraic_pow_si(const char *base, int64_t exponent)
+{
+    try {
+        QqbarValue value;
+        QqbarValue result;
+        g_algebraic_buffer.clear();
+        if (!parse_algebraic(value, base)
+            || exponent < -kMaxAlgebraicPowExponent
+            || exponent > kMaxAlgebraicPowExponent
+            || (exponent < 0 && qqbar_is_zero(value.value))) {
+            return 0;
+        }
+        const uint64_t magnitude = exponent < 0
+                                       ? static_cast<uint64_t>(-exponent)
+                                       : static_cast<uint64_t>(exponent);
+        if (magnitude > 0
+            && static_cast<uint64_t>(qqbar_height_bits(value.value))
+                   > static_cast<uint64_t>(kMaxAlgebraicHeightBits)/magnitude) {
+            return 0;
+        }
+        qqbar_pow_si(result.value, value.value, static_cast<slong>(exponent));
+        return hold_algebraic(result.value);
+    } catch (...) {
+        g_algebraic_buffer.clear();
+        return 0;
+    }
+}
+
+int fsym_algebraic_signs(const char *value, int *real_sign, int *imag_sign)
+{
+    try {
+        QqbarValue parsed;
+        if (real_sign == nullptr || imag_sign == nullptr
+            || !parse_algebraic(parsed, value)) {
+            return 0;
+        }
+        *real_sign = qqbar_sgn_re(parsed.value);
+        *imag_sign = qqbar_sgn_im(parsed.value);
+        return 1;
+    } catch (...) {
+        return 0;
+    }
+}
+
+size_t fsym_algebraic_fetch(char *buf, size_t n)
+{
+    try {
+        const size_t count = n < g_algebraic_buffer.size()
+                                 ? n
+                                 : g_algebraic_buffer.size();
+        if (count > 0 && buf != nullptr) {
+            std::memcpy(buf, g_algebraic_buffer.data(), count);
+        }
+        return count;
+    } catch (...) {
+        g_algebraic_buffer.clear();
         return 0;
     }
 }
