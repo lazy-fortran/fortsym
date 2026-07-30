@@ -3,11 +3,14 @@
 
 #include <cstring>
 #include <cstdint>
+#include <cmath>
 #include <dlfcn.h>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include <mpfr.h>
 #include <symengine/basic.h>
 #include <symengine/mul.h>
 #include <symengine/pow.h>
@@ -63,6 +66,12 @@ static_assert(sizeof(slong) >= sizeof(int64_t),
 static_assert(__FLINT_VERSION == 3 && __FLINT_VERSION_MINOR == 6
                   && __FLINT_VERSION_PATCHLEVEL == 0,
               "fsym_shim: fortsym pins the FLINT 3.6.0 C ABI");
+static_assert(MPFR_VERSION_MAJOR == 4 && MPFR_VERSION_MINOR == 2
+                  && MPFR_VERSION_PATCHLEVEL == 2,
+              "fsym_shim: fortsym pins the MPFR 4.2.2 C ABI");
+static_assert(std::numeric_limits<double>::is_iec559
+                  && std::numeric_limits<double>::digits == 53,
+              "fsym_shim: exact real projection requires binary64 double");
 
 class FmpqValue
 {
@@ -74,6 +83,18 @@ public:
     FmpqValue &operator=(const FmpqValue &) = delete;
 
     fmpq_t value;
+};
+
+class MpfrValue
+{
+public:
+    explicit MpfrValue(mpfr_prec_t precision) { mpfr_init2(value, precision); }
+    ~MpfrValue() { mpfr_clear(value); }
+
+    MpfrValue(const MpfrValue &) = delete;
+    MpfrValue &operator=(const MpfrValue &) = delete;
+
+    mpfr_t value;
 };
 
 struct FlintStringDeleter
@@ -509,11 +530,68 @@ size_t fsym_exact_fetch(char *buf, size_t n)
     }
 }
 
+int fsym_exact_get_d(const char *value, double *result)
+{
+    try {
+        FmpqValue parsed;
+        FmpqValue magnitude;
+        FmpqValue minimum_normal;
+        FmpqValue maximum_finite;
+        MpfrValue rounded(53);
+        if (result == nullptr || !parse_exact(parsed, value)) {
+            return 0;
+        }
+        if (fmpq_is_zero(parsed.value)) {
+            *result = 0.0;
+            return 1;
+        }
+        fmpq_abs(magnitude.value, parsed.value);
+        fmpz_one(fmpq_numref(minimum_normal.value));
+        fmpz_one(fmpq_denref(minimum_normal.value));
+        fmpz_mul_2exp(fmpq_denref(minimum_normal.value),
+                      fmpq_denref(minimum_normal.value), 1022);
+        fmpz_one(fmpq_numref(maximum_finite.value));
+        fmpz_mul_2exp(fmpq_numref(maximum_finite.value),
+                      fmpq_numref(maximum_finite.value), 53);
+        fmpz_sub_ui(fmpq_numref(maximum_finite.value),
+                    fmpq_numref(maximum_finite.value), 1);
+        fmpz_mul_2exp(fmpq_numref(maximum_finite.value),
+                      fmpq_numref(maximum_finite.value), 971);
+        fmpz_one(fmpq_denref(maximum_finite.value));
+        if (fmpq_cmp(magnitude.value, minimum_normal.value) < 0
+            || fmpq_cmp(magnitude.value, maximum_finite.value) > 0) {
+            return 0;
+        }
+        fmpq_get_mpfr(rounded.value, parsed.value, MPFR_RNDN);
+        *result = mpfr_get_d(rounded.value, MPFR_RNDN);
+        return std::isfinite(*result) ? 1 : 0;
+    } catch (...) {
+        return 0;
+    }
+}
+
 int fsym_flint_is_shared(void)
 {
     try {
         Dl_info information{};
         void *symbol = dlsym(RTLD_DEFAULT, "fmpq_add");
+        if (symbol == nullptr || dladdr(symbol, &information) == 0
+            || information.dli_fname == nullptr) {
+            return 0;
+        }
+        const std::string path(information.dli_fname);
+        return path.find(".so") != std::string::npos
+               || path.find(".dylib") != std::string::npos;
+    } catch (...) {
+        return 0;
+    }
+}
+
+int fsym_mpfr_is_shared(void)
+{
+    try {
+        Dl_info information{};
+        void *symbol = dlsym(RTLD_DEFAULT, "mpfr_get_d");
         if (symbol == nullptr || dladdr(symbol, &information) == 0
             || information.dli_fname == nullptr) {
             return 0;

@@ -676,11 +676,25 @@ module fortsym_capi
             integer(c_size_t)                     :: m
         end function fsym_exact_fetch
 
+        function fsym_exact_get_d(value, result_value) &
+                bind(c, name="fsym_exact_get_d") result(ok)
+            import :: c_char, c_double, c_int
+            character(kind=c_char), intent(in) :: value(*)
+            real(c_double), intent(out)         :: result_value
+            integer(c_int)                     :: ok
+        end function fsym_exact_get_d
+
         function fsym_flint_is_shared() bind(c, name="fsym_flint_is_shared") &
                 result(shared)
             import :: c_int
             integer(c_int) :: shared
         end function fsym_flint_is_shared
+
+        function fsym_mpfr_is_shared() bind(c, name="fsym_mpfr_is_shared") &
+                result(shared)
+            import :: c_int
+            integer(c_int) :: shared
+        end function fsym_mpfr_is_shared
 
         function fsym_series(out, ex, var, prec) bind(c, name="fsym_series") &
                 result(rc)

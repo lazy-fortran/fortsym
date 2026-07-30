@@ -8,7 +8,7 @@ module fortsym_engine_native
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, &
-        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
     use fortsym_expr, only: expr_t, num, operator(+), operator(-), operator(*), &
         operator(/), operator(**)
     use fortsym_assume, only: assumption_context_t, FACT_POSITIVE
@@ -124,6 +124,9 @@ contains
             else
                 r%verdict = VERDICT_FALSE
             end if
+        case (NK_BIG_INT, NK_BIG_RAT)
+            ! Canonical zero is always downcast to NK_INT.
+            r%verdict = VERDICT_FALSE
         case (NK_REAL)
             if (simplified%value%real_value() == 0.0_dp) then
                 r%verdict = VERDICT_TRUE

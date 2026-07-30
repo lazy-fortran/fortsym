@@ -58,6 +58,7 @@ target_include_directories(fortsym
 
 target_link_libraries(fortsym PUBLIC
     fortsym::symengine
+    fortsym::mpfr
     fortsym::flint
     ${CMAKE_DL_LIBS})
 

@@ -6,21 +6,25 @@ module fortsym_exact
     ! buffer, and this module copies it into fortsym's value string immediately.
     ! There is one pending result per thread: same-thread re-entry before fetch
     ! overwrites it, so the render/fetch pair remains private to these wrappers.
-    use, intrinsic :: iso_c_binding, only: c_char, c_int, c_int64_t, &
+    use, intrinsic :: iso_c_binding, only: c_char, c_double, c_int, c_int64_t, &
         c_null_char, c_size_t
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str
     use fortsym_capi, only: FSYM_EXACT_ADD, FSYM_EXACT_SUB, FSYM_EXACT_MUL, &
         FSYM_EXACT_DIV, fsym_exact_normalize, fsym_exact_binary, &
-        fsym_exact_pow_si, fsym_exact_fetch, fsym_flint_is_shared
+        fsym_exact_pow_si, fsym_exact_fetch, fsym_flint_is_shared, &
+        fsym_mpfr_is_shared, fsym_exact_get_d
     implicit none
     private
 
     public :: exact_normalize
     public :: exact_add, exact_sub, exact_mul, exact_div, exact_pow
+    public :: exact_to_real
     public :: exact_uses_shared_flint
+    public :: exact_uses_shared_mpfr
 
     integer, parameter :: MAX_EXACT_INPUT_BYTES = 1024*1024
+    integer, parameter :: dp = real64
 
 contains
 
@@ -28,6 +32,24 @@ contains
         logical :: shared
         shared = fsym_flint_is_shared() /= 0_c_int
     end function exact_uses_shared_flint
+
+    function exact_uses_shared_mpfr() result(shared)
+        logical :: shared
+        shared = fsym_mpfr_is_shared() /= 0_c_int
+    end function exact_uses_shared_mpfr
+
+    function exact_to_real(value, ok) result(converted)
+        character(*), intent(in) :: value
+        logical,      intent(out) :: ok
+        real(dp)                  :: converted
+        real(c_double) :: c_value
+
+        converted = 0.0_dp
+        ok = valid_input(value)
+        if (.not. ok) return
+        ok = fsym_exact_get_d(c_string(value), c_value) /= 0_c_int
+        if (ok) converted = real(c_value, dp)
+    end function exact_to_real
 
     function exact_normalize(value, ok) result(canonical)
         character(*), intent(in) :: value

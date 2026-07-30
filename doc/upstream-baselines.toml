@@ -116,6 +116,26 @@ capability_notes = [
 ]
 
 [[upstream]]
+id = "mpfr"
+name = "GNU MPFR"
+version = "4.2.2"
+revision = "eaa57b856d814af32f97d5e5eb129fb986235323"
+revision_kind = "peeled-git-tag-4.2.2"
+repository = "https://gitlab.inria.fr/mpfr/mpfr"
+license = "LGPL-3.0-or-later"
+license_role = "direct shared numerical dependency through its C interface; thin original wrappers only"
+official_docs = "https://www.mpfr.org/mpfr-current/mpfr.html"
+inspected_paths = [
+  "COPYING.LESSER",
+  "doc/mpfr.texi",
+  "src/get_d.c",
+]
+capability_notes = [
+  "correctly rounded arbitrary-precision floating-point arithmetic",
+  "explicit MPFR_RNDN nearest-even conversion to binary64",
+]
+
+[[upstream]]
 id = "ginac"
 name = "GiNaC"
 version = "1.8.10"
@@ -197,9 +217,9 @@ id = "exact-rational-bridge"
 status = "implemented-foundation"
 mathematical_source = "Canonical arithmetic in Q"
 source_url = "https://flintlib.org/doc/fmpq.html"
-upstream_context = ["flint"]
-local_adaptation = "Use the version-checked FLINT 3.6.0 fmpq C API behind an original single-slot thread-local render/fetch ownership shim; retain values as canonical base-ten strings, verify shared linkage in both CMake and the fo test gate, preflight input/output and power resource bounds, catch every C++ exception at the C ABI, and do not expose FLINT layouts or allocations to Fortran."
-independent_oracle = "independently derived large integer difference-of-squares, rational reduction and addition, exact division, signed-power values, plus malformed/domain/resource refusal cases"
+upstream_context = ["flint", "mpfr"]
+local_adaptation = "Use the version-checked FLINT 3.6.0 fmpq C API behind an original single-slot thread-local render/fetch ownership shim; retain values as canonical base-ten strings, verify shared linkage in both CMake and the fo test gate, preflight input/output and power resource bounds, catch every C++ exception at the C ABI, and do not expose FLINT layouts or allocations to Fortran. Finite normal real64 projection passes fmpq through a 53-bit MPFR 4.2.2 value with MPFR_RNDN; subnormal and overflow-range values are conservatively refused."
+independent_oracle = "independently derived large integer difference-of-squares, rational reduction and addition, exact division, signed-power values, a ratio whose components overflow binary64 but whose nearest result is exactly one, plus malformed/domain/resource refusal cases"
 
 [[algorithm]]
 id = "multivariate-factorization"

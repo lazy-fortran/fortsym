@@ -89,7 +89,7 @@ id = "arbitrary_precision"
 semantics = "Exact unbounded integers and normalized rationals; requested-precision real evaluation must not silently round through binary64."
 priority = "P0"
 independent_oracle = "Independently derived large integer/rational identities plus modular residues and exact numerator/denominator reconstruction."
-status = "missing"
+status = "partial"
 source_classes = ["local_proj", "local_code", "gitlab", "github"]
 
 [[requirement]]

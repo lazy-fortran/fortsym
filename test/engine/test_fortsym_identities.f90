@@ -61,6 +61,10 @@ program test_fortsym_identities
     call check("1/(x - 1) + 1/(x + 1) - 2*x/(x**2 - 1)", MUST_ZERO)
     call check("(x**3 - y**3)/(x - y) - (x**2 + x*y + y**2)", MUST_ZERO)
     call check("sin(x)*cos(y) - (sin(x + y) + sin(x - y))/2", MUST_ZERO)
+    ! Independent integer oracle: 18446744073709551616 is exactly 2^64.
+    ! SymEngine is only the exercised conversion/decision path, not the source
+    ! of the expected value.
+    call check("18446744073709551616 - 2**64", MUST_ZERO)
 
     print *, ""
     print *, "-- must never be claimed ZERO --"

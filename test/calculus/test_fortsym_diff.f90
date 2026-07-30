@@ -6,7 +6,8 @@ program test_fortsym_diff
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, func, besselj, operator(*), operator(==)
+    use fortsym_expr, only: expr_t, sym, num, exact, func, besselj, operator(*), &
+        operator(==)
     use fortsym_diff, only: diff, partial_derivative
     use fortsym_eval, only: binding_t, eval_expr
     implicit none
@@ -25,6 +26,12 @@ program test_fortsym_diff
     bindings%names = [str("x")]
     bindings%values = [1.25_dp]
     bindings%n = 1
+
+    ! An arbitrary exact scalar is constant by definition; this independently
+    ! pins the new node kinds in the mechanical derivative dispatch.
+    got = diff(exact(arena, "18446744073709551616"), x)
+    call check("arbitrary exact integer derivative is zero", &
+        got == num(arena, 0))
 
     got = diff(besselj(0, x), x)
     point = 1.25_dp

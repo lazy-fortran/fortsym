@@ -6,9 +6,9 @@ program test_fortsym_arena
     ! not. Everything downstream -- equality, CSE, the node-count measure --
     ! rests on that, so it is what these tests pin.
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use fortsym_string, only: chars
+    use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
-        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
     use fortsym_expr
     implicit none
 
@@ -18,6 +18,8 @@ program test_fortsym_arena
     call test_atoms()
     call test_interning()
     call test_rational_normalisation()
+    call test_arbitrary_precision_exact()
+    call test_large_exact_pool()
     call test_commutative_canonicalisation()
     call test_large_semantic_sort()
     call test_associative_flattening()
@@ -135,6 +137,80 @@ contains
         call ok_int("6/3 equals 2", whole%int_value(), 2_int64)
         call ok("6/3 is the integer node", whole == num(a, 2))
     end subroutine test_rational_normalisation
+
+    !> Golden values are derived by powers of two, independently of FLINT:
+    !> 2^64 is 18446744073709551616 and doubling then dividing by two must
+    !> reconstruct the same exact integer node.
+    subroutine test_arbitrary_precision_exact()
+        type(arena_t), target :: a, default_arena
+        type(expr_t) :: power64, reconstructed, fraction, small, invalid
+        logical :: good
+
+        call a%init()
+        power64 = exact(a, "18446744073709551616", good)
+        call ok("2^64 exact input accepted", good)
+        call ok("2^64 uses arbitrary integer node", &
+            power64%kind() == NK_BIG_INT)
+        call ok("2^64 canonical text", &
+            chars(power64%exact_text()) == "18446744073709551616")
+
+        reconstructed = exact(a, "36893488147419103232/2", good)
+        call ok("double divided by two accepted", good)
+        call ok("exact reconstruction interns one node", &
+            reconstructed == power64)
+
+        fraction = exact(a, &
+            "18446744073709551617/18446744073709551616", good)
+        call ok("large coprime rational accepted", good)
+        call ok("large coprime rational kind", fraction%kind() == NK_BIG_RAT)
+        call ok("large rational canonical text", &
+            chars(fraction%exact_text()) == &
+            "18446744073709551617/18446744073709551616")
+
+        small = exact(a, "300000000000000000000/400000000000000000000", good)
+        call ok("large spelling reduces to compact rational", good .and. &
+            small == rat(a, 3_int64, 4_int64))
+
+        invalid = exact(a, "1/0", good)
+        call ok("zero denominator rejected", .not. good)
+        call ok("rejected exact input is invalid", .not. is_valid(invalid))
+
+        power64 = exact(default_arena, "18446744073709551616", good)
+        call ok("exact input initializes a default arena", &
+            good .and. is_valid(power64) .and. default_arena%size() == 1)
+    end subroutine test_arbitrary_precision_exact
+
+    !> Reinsert 2,049 distinct large values after crossing every text-table
+    !> growth boundary. The independent oracle is stable hash-consing: reverse
+    !> lookup must recover every original node without growing the arena.
+    subroutine test_large_exact_pool()
+        integer, parameter :: N = 2049
+        type(arena_t), target :: a
+        type(expr_t), allocatable :: values(:)
+        type(expr_t) :: again
+        character(:), allocatable :: text
+        integer :: i, before
+        logical :: good
+
+        call a%init()
+        allocate (values(N))
+        do i = 1, N
+            text = "10000000000000000000000000000000000000000000000000"//&
+                chars(str(i))
+            values(i) = exact(a, text, good)
+            call ok("large exact pool insertion", good)
+        end do
+        before = a%size()
+        do i = N, 1, -1
+            text = "10000000000000000000000000000000000000000000000000"//&
+                chars(str(i))
+            again = exact(a, text, good)
+            call ok("large exact pool reverse lookup", &
+                good .and. again == values(i))
+        end do
+        call ok("large exact pool lookup does not grow arena", &
+            a%size() == before)
+    end subroutine test_large_exact_pool
 
     subroutine test_commutative_canonicalisation()
         type(arena_t), target :: a

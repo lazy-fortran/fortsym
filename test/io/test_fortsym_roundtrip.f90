@@ -12,7 +12,7 @@ program test_fortsym_roundtrip
     ! lossy. Its output is checked separately, against what a compiler must see.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: chars
-    use fortsym_arena, only: arena_t
+    use fortsym_arena, only: arena_t, NK_MUL
     use fortsym_expr
     use fortsym_dialect, only: dialect_t, dialect, DIA_NATIVE, DIA_SYMENGINE, &
         DIA_YACAS, DIA_SYMPY, DIA_MAXIMA, DIA_FORTRAN
@@ -93,6 +93,10 @@ contains
         call eq_check("negation", print_text(-x), "-x")
         call eq_check("multiple numeric signs", &
             print_text((-2)*(-1)*x), "x*2")
+        call eq_check("large rational coefficient sign", &
+            print_text(x*exact(a, &
+            "-18446744073709551617/18446744073709551616")), &
+            "-(x*(18446744073709551617/18446744073709551616))")
 
         ! A compound base keeps its parentheses under a power.
         call eq_check("compound base", print_text((x + y)**2), "(x + y)**2")
@@ -121,6 +125,7 @@ contains
     subroutine test_construction_history_independence()
         type(arena_t), target :: a, b
         type(expr_t) :: ax, ay, bx, by, left, right
+        type(expr_t) :: abig_i, abig_q, bbig_i, bbig_q
         character(:), allocatable :: left_text, right_text
 
         call a%init()
@@ -131,17 +136,27 @@ contains
         ! commutative tree; stable structural ordering must erase that history.
         ax = sym(a, "x")
         ay = sym(a, "y")
+        abig_i = exact(a, "18446744073709551616")
+        abig_q = exact(a, &
+            "18446744073709551617/18446744073709551616")
+        bbig_q = exact(b, &
+            "18446744073709551617/18446744073709551616")
+        bbig_i = exact(b, "18446744073709551616")
         by = sym(b, "y")
         bx = sym(b, "x")
-        left = ax + ay + pi_expr(a) + sin(ax) + ax**2 + ax*ay + 1
-        right = 1 + by*bx + bx**2 + sin(bx) + pi_expr(b) + by + bx
+        left = ax + ay + pi_expr(a) + sin(ax) + ax**2 + ax*ay + 1 + &
+            abig_i + abig_q
+        right = bbig_q + bbig_i + 1 + by*bx + bx**2 + sin(bx) + &
+            pi_expr(b) + by + bx
 
         left_text = print_text(left)
         right_text = print_text(right)
         call eq_text("construction histories print identically", left_text, &
             right_text)
         call eq_text("semantic ordering has a documented exact form", &
-            left_text, "x + y + pi + sin(x) + x**2 + x*y + 1")
+            left_text, "x + y + pi + sin(x) + x**2 + x*y + 1 + "//&
+            "18446744073709551616 + "//&
+            "18446744073709551617/18446744073709551616")
     end subroutine test_construction_history_independence
 
     !> Print then parse then compare node indices, for every dialect that is
@@ -160,7 +175,7 @@ contains
         integer, intent(in) :: dia
         type(arena_t), target :: a
         type(dialect_t) :: d
-        type(expr_t) :: x, y, z, cases(20)
+        type(expr_t) :: x, y, z, cases(33)
         integer :: k, n
 
         call a%init()
@@ -190,6 +205,29 @@ contains
         n = n + 1; cases(n) = sqrt(x**2 + y**2)
         n = n + 1; cases(n) = pi_expr(a)*x
         n = n + 1; cases(n) = x*y*z - 3*x/(y + 1)
+        ! Independent decimal goldens: 2^64 and the adjacent-over-power ratio.
+        n = n + 1; cases(n) = exact(a, "18446744073709551616")
+        n = n + 1; cases(n) = exact(a, "-18446744073709551616")
+        n = n + 1; cases(n) = exact(a, &
+            "18446744073709551617/18446744073709551616")
+        n = n + 1; cases(n) = exact(a, &
+            "-18446744073709551617/18446744073709551616")
+        n = n + 1; cases(n) = x + exact(a, "-18446744073709551616")
+        n = n + 1; cases(n) = x*exact(a, &
+            "-18446744073709551617/18446744073709551616")
+        ! INT64_MIN cannot be negated in int64; decimal exact arithmetic must
+        ! carry its sign through both atom and sum printing.
+        n = n + 1; cases(n) = exact(a, "-9223372036854775808")
+        n = n + 1; cases(n) = x + exact(a, "-9223372036854775808")
+        n = n + 1; cases(n) = x + exact(a, "-9223372036854775808/3")
+        ! A syntactic subtraction stores a distinct -1 factor; its spelling
+        ! must not collide with a genuinely negative large coefficient.
+        n = n + 1; cases(n) = x - y*exact(a, "18446744073709551616")
+        n = n + 1; cases(n) = x + 2*exact(a, "-18446744073709551616")
+        n = n + 1; cases(n) = x*exact(a, "-18446744073709551616")*&
+            exact(a, "-18446744073709551617/18446744073709551616")
+        n = n + 1; cases(n) = exact(a, "-18446744073709551617")*&
+            exact(a, "18446744073709551616")
 
         do k = 1, n
             call check_roundtrip(a, d, cases(k), k)
@@ -288,6 +326,7 @@ contains
         type(dialect_t) :: d
         type(expr_t) :: x
         character(:), allocatable :: text
+        logical :: good
 
         call a%init()
         d = dialect(DIA_FORTRAN)
@@ -313,6 +352,19 @@ contains
         ! and less accurate operation than x**2.
         text = chars(print_expr_in(x**2, d))
         call eq_text("fortran integer exponent stays integer", text, "x**2")
+
+        text = chars(print_expr_in(exact(a, "18446744073709551616"), d))
+        call eq_text("fortran large integer projects to binary64", text, &
+            "1.8446744073709552E+019_dp")
+
+        text = chars(print_expr_in(exact(a, &
+            "18446744073709551617/18446744073709551616"), d))
+        call eq_text("fortran large rational avoids integer division", text, &
+            "1.0000000000000000E+000_dp")
+
+        text = chars(print_expr_in(exact(a, "1"//repeat("0", 400)), d, good))
+        call ok("out-of-range exact Fortran emission is refused", &
+            .not. good .and. len(text) == 0)
     end subroutine test_fortran_emission
 
     !> Malformed input must be reported, never accepted and never fatal: this
@@ -322,7 +374,8 @@ contains
         type(dialect_t) :: d
         type(expr_t) :: e
         character(:), allocatable :: message
-        logical :: good
+        character(:), allocatable :: huge_left, huge_right
+        logical :: good, valid_expr
 
         call a%init()
         d = dialect(DIA_NATIVE)
@@ -345,6 +398,19 @@ contains
         ! A well-formed input must still succeed after all that.
         e = parse_expr_in(a, "sin(x) + 1", d, good, message)
         call ok("valid input accepted", good)
+
+        ! Each operand is below the 1 MiB input budget, while the canonical
+        ! coprime quotient is above it. The parser must retain a structural
+        ! division instead of returning an invalid expression after the FLINT
+        ! operation produces a result too large for one arena scalar.
+        huge_left = "1"//repeat("0", 525000)//"1"
+        huge_right = "1"//repeat("0", 525000)//"2"
+        e = parse_expr_in(a, huge_left//"/"//huge_right, d, good, message)
+        valid_expr = is_valid(e)
+        call ok("oversize exact quotient remains a valid expression", &
+            good .and. valid_expr)
+        if (good) call ok("oversize exact quotient remains structural", &
+            e%kind() == NK_MUL)
     end subroutine test_parse_errors
 
 end program test_fortsym_roundtrip

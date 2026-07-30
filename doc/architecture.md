@@ -30,18 +30,37 @@ declarations and must not be used for dispatch.
 
 ## Representation constraints
 
-The current arena number nodes use signed 64-bit numerators and denominators.
-Code that combines those nodes must detect overflow or decline the
-transformation. The arbitrary-precision scalar bridge now normalizes and
-computes base-ten integer/rational values through the shared FLINT 3.6.0
+Exact arena nodes have a compact signed-64-bit representation and an
+arbitrary-precision canonical decimal representation. Construction normalizes
+through FLINT and downcasts every representable result to the compact node, so
+zero, one, and small exponents retain the existing fast path. Code that
+combines only compact nodes must still detect overflow or decline the
+transformation until native simplification uses the arbitrary-precision
+operations throughout. The scalar bridge normalizes and computes base-ten
+integer/rational values through the shared FLINT 3.6.0
 `fmpq` C interface pinned in `upstream-baselines.toml`; values return through a
 single-slot thread-local render/fetch boundary and are copied immediately, so
 no FLINT object or allocation enters the Fortran representation. Input,
 rendered-output, and power-exponent budgets bound memory before large powers
-are constructed. The `fo` test gate also resolves FLINT's `fmpq_add` symbol and
-requires it to come from a shared object; CMake rejects a static archive at
-configuration. Promoting arena storage and native simplification onto that
-bridge is the next exact-domain step. Exact algebraic complex values use bounded
+are constructed. A binary operation may render up to 16 MiB, while one arena
+scalar accepts at most 1 MiB; when a result crosses that boundary the parser
+retains the original structural operation instead of creating an invalid or
+partially interned scalar. The `fo` test gate resolves FLINT's `fmpq_add` and
+MPFR's `mpfr_get_d` and requires both providers to be shared objects; CMake
+rejects either static archive at configuration. Parsing, lossless CAS-dialect
+printing, differentiation as
+constants, real probing when representable, and SymEngine conversion accept
+both representations. A real64 Fortran kernel projects an arbitrary exact
+value in the finite normal binary64 range through a 53-bit MPFR 4.2.2 value
+with nearest-even rounding and emits one short typed literal. Subnormal and
+overflow-range projections are conservatively refused. `print_expr_in`,
+`print_expr_sub`, `emit_statements`,
+and `emit_kernel` expose an optional success flag and return an empty string
+when that projection is non-finite; they never emit a plausible wrong value or
+an invalid oversized literal. Exact symbolic work must simplify or select
+another numeric domain before kernel generation when binary64 rounding is
+unacceptable. Promoting native coefficient arithmetic onto the bridge is the
+next exact-domain step. Exact algebraic complex values use bounded
 `qqbar` objects (minimal polynomial plus isolating enclosure), where the bounds
 are fortsym resource limits rather than an intrinsic restriction of `qqbar`.
 Rigorous
@@ -62,6 +81,9 @@ user-visible serialization order.
 The interning bucket table doubles and rehashes existing collision chains
 before its average load exceeds one node per bucket. Rehashing never changes a
 node index or argument slice, so existing `expr_t` handles remain valid.
+The text pool used by symbols, function heads, and arbitrary exact payloads has
+an independent resizing hash table; distinct large coefficients therefore do
+not induce a quadratic linear scan.
 
 Applied functions may have any arity. Native differentiation represents an
 unknown partial derivative as

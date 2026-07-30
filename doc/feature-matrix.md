@@ -13,7 +13,7 @@ it.
 | Area | Native | SymEngine backend | Other backends | Required next fragment |
 |---|---:|---:|---:|---|
 | Hash-consed scalar expression DAG | stable structural order | conversion | conversion | persist a versioned cross-process structural digest |
-| Signed 64-bit integers and rationals | yes | yes | yes | checked arithmetic, arbitrary precision |
+| Arbitrary-precision integers and rationals | arena/IO yes; native arithmetic partial | yes | yes | promote native coefficients and powers |
 | Real literals and real evaluation | yes | yes | partial | high precision and intervals |
 | Complex and algebraic domains | no | conversion only | partial | exact complex and algebraic numbers |
 | Applied functions and Bessel `J` | yes | opaque Bessel head | partial | broader special-function rules |

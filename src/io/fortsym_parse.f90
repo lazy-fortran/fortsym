@@ -16,10 +16,12 @@ module fortsym_parse
     ! where a truncated or unexpected reply is a normal event to be reported and
     ! not a reason to stop the build.
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use fortsym_string, only: chars
-    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL
-    use fortsym_expr, only: expr_t, sym, num, rat, real_expr, const, func, &
+    use fortsym_string, only: str_t, chars
+    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, &
+        NK_BIG_RAT, NK_MUL
+    use fortsym_expr, only: expr_t, sym, num, exact, real_expr, const, func, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
+    use fortsym_exact, only: exact_sub, exact_div
     use fortsym_dialect, only: dialect_t, dialect, fn_canonical, &
         const_canonical, DIA_NATIVE
     implicit none
@@ -48,6 +50,7 @@ module fortsym_parse
         integer                   :: tok = T_END
         character(:), allocatable :: text
         logical                   :: is_real = .false.
+        logical                   :: integer_fits = .true.
         integer(int64)            :: ivalue = 0_int64
         real(dp)                  :: rvalue = 0.0_dp
         ! First error encountered, if any.
@@ -245,13 +248,18 @@ contains
         p%tok = T_NUMBER
         p%text = p%src(start:p%pos - 1)
         p%is_real = seen_point .or. seen_exp
+        p%integer_fits = .true.
 
         if (p%is_real) then
             read (p%text, *, iostat=ios) p%rvalue
+            if (ios /= 0) call fail(p, "malformed number '"//p%text//"'")
         else
             read (p%text, *, iostat=ios) p%ivalue
+            ! The lexer has already proved this token consists only of decimal
+            ! digits. A failed int64 conversion therefore means arbitrary
+            ! precision, not malformed syntax.
+            p%integer_fits = ios == 0
         end if
-        if (ios /= 0) call fail(p, "malformed number '"//p%text//"'")
 
         ! A Fortran kind suffix belongs to the literal, not to the expression.
         call skip_kind_suffix(p)
@@ -273,7 +281,8 @@ contains
         ! A kind-suffixed literal is a real even when written without a point.
         p%is_real = .true.
         if (.not. p%is_real) return
-        read (p%text, *) p%rvalue
+        read (p%text, *, iostat=n) p%rvalue
+        if (n /= 0) call fail(p, "malformed number '"//p%text//"'")
     end subroutine skip_kind_suffix
 
     ! ----------------------------------------------------------- parser --
@@ -331,7 +340,18 @@ contains
 
             select case (op)
             case ("+"); e = e + rhs
-            case ("-"); e = e - rhs
+            case ("-")
+                if (is_exact_kind(rhs%kind())) then
+                    e = e + negate(a, rhs)
+                else if (rhs%kind() == NK_MUL) then
+                    if (has_big_exact_factor(rhs)) then
+                        e = e + negate(a, rhs)
+                    else
+                        e = e - rhs
+                    end if
+                else
+                    e = e - rhs
+                end if
             case ("*"); e = e*rhs
             case ("/"); e = divide(a, e, rhs)
             case ("**", "^"); e = e**rhs
@@ -375,14 +395,63 @@ contains
         type(arena_t), target, intent(inout) :: a
         type(expr_t),          intent(in)    :: e
         type(expr_t)                         :: r
+        type(expr_t) :: child
+        type(str_t) :: value
+        integer, allocatable :: factors(:)
+        integer :: k, target
+        logical :: good, inserted
 
         select case (e%kind())
-        case (NK_INT)
-            r = num(a, -e%int_value())
-        case (NK_RAT)
-            r = rat(a, -e%int_value(), e%den_value())
+        case (NK_INT, NK_RAT, NK_BIG_INT, NK_BIG_RAT)
+            value = exact_sub("0", chars(e%exact_text()), good)
+            if (good) r = exact(a, chars(value), inserted)
+            if (.not. good) r = -e
+            if (good) then
+                if (.not. inserted) r = -e
+            end if
         case (NK_REAL)
             r = real_expr(a, -e%real_value())
+        case (NK_MUL)
+            allocate (factors(e%nargs()))
+            do k = 1, e%nargs()
+                child = e%arg(k)
+                factors(k) = child%id
+            end do
+            target = 0
+            do k = 1, e%nargs()
+                child = e%arg(k)
+                if (child%kind() /= NK_BIG_INT .and. &
+                    child%kind() /= NK_BIG_RAT) cycle
+                target = k
+                exit
+            end do
+            if (target == 0) then
+                do k = 1, e%nargs()
+                    child = e%arg(k)
+                    if (.not. is_exact_kind(child%kind())) cycle
+                    target = k
+                    exit
+                end do
+            end if
+            if (target == 0) then
+                r = -e
+                return
+            end if
+            child = e%arg(target)
+            value = exact_sub("0", chars(child%exact_text()), good)
+            if (.not. good) then
+                r = -e
+                return
+            end if
+            r = exact(a, chars(value), inserted)
+            if (.not. inserted) then
+                r = -e
+                return
+            end if
+            factors(target) = r%id
+            r%a => a
+            r%id = a%mul(factors)
+            return
         case default
             r = -e
         end select
@@ -398,15 +467,41 @@ contains
         type(arena_t), target, intent(inout) :: a
         type(expr_t),          intent(in)    :: x, y
         type(expr_t)                         :: r
+        type(str_t) :: value
+        logical :: good, inserted
 
-        if (x%kind() == NK_INT .and. y%kind() == NK_INT) then
-            if (y%int_value() /= 0_int64) then
-                r = rat(a, x%int_value(), y%int_value())
-                return
+        if (is_exact_kind(x%kind()) .and. is_exact_kind(y%kind())) then
+            value = exact_div(chars(x%exact_text()), chars(y%exact_text()), good)
+            if (good) then
+                r = exact(a, chars(value), inserted)
+                if (inserted) return
             end if
         end if
         r = x/y
     end function divide
+
+    pure function is_exact_kind(kind) result(yes)
+        integer, intent(in) :: kind
+        logical             :: yes
+        yes = kind == NK_INT .or. kind == NK_RAT .or. &
+            kind == NK_BIG_INT .or. kind == NK_BIG_RAT
+    end function is_exact_kind
+
+    function has_big_exact_factor(e) result(yes)
+        type(expr_t), intent(in) :: e
+        type(expr_t)             :: child
+        logical                  :: yes
+        integer :: k, kind
+
+        yes = .false.
+        do k = 1, e%nargs()
+            child = e%arg(k)
+            kind = child%kind()
+            if (kind /= NK_BIG_INT .and. kind /= NK_BIG_RAT) cycle
+            yes = .true.
+            return
+        end do
+    end function has_big_exact_factor
 
     recursive function parse_primary(p, a, d) result(e)
         type(parser_t),        intent(inout) :: p
@@ -422,8 +517,14 @@ contains
         case (T_NUMBER)
             if (p%is_real) then
                 e = real_expr(a, p%rvalue)
-            else
+            else if (p%integer_fits) then
                 e = num(a, p%ivalue)
+            else
+                e = exact(a, p%text, p%integer_fits)
+                if (.not. p%integer_fits) then
+                    call fail(p, "invalid exact integer '"//p%text//"'")
+                    return
+                end if
             end if
             call advance(p, d)
 

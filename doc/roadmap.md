@@ -28,11 +28,15 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
 
 ### 2. Native arithmetic and canonical forms
 
-- Replace signed 64-bit exact storage with arbitrary-precision integer and
-  canonical rational storage using the pinned FLINT shared interface.
+- Arbitrary-precision integers and canonical rationals are now first-class,
+  hash-consed arena nodes using the pinned FLINT shared interface, with compact
+  signed-64-bit nodes retained as a transparent fast representation.
+- Finite normal Fortran projection is pinned to MPFR 4.2.2 nearest-even
+  binary64; subnormal and overflow-range exact values are refused through the
+  checked printing/codegen status channel.
 - The ownership-safe FLINT `fmpq` bridge now supplies canonical normalization,
-  add/subtract/multiply/divide, and resource-bounded signed powers; arena node
-  promotion onto it remains.
+  add/subtract/multiply/divide, and resource-bounded signed powers; native
+  coefficient and power simplification promotion onto it remains.
 - Add exact complex algebraic values through a bounded `qqbar` representation;
   use Calcium or Arb/Acb only where their three-valued or rigorous enclosure
   semantics are explicit.

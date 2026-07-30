@@ -23,13 +23,15 @@ module fortsym_arena
     ! Algebra is the engines' job; this layer only has to be a faithful, shared,
     ! comparable structure.
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use fortsym_string, only: str_t, str, chars, compare_str
+    use fortsym_string, only: str_t, str, chars, compare_str, operator(//), &
+        operator(==)
+    use fortsym_exact, only: exact_normalize
     implicit none
     private
 
     public :: arena_t
     public :: NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, &
-        NK_POW, NK_FUNC
+        NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
     public :: node_kind_name
 
     integer, parameter :: dp = real64
@@ -45,10 +47,13 @@ module fortsym_arena
     integer, parameter :: NK_MUL = 7
     integer, parameter :: NK_POW = 8
     integer, parameter :: NK_FUNC = 9
+    integer, parameter :: NK_BIG_INT = 10
+    integer, parameter :: NK_BIG_RAT = 11
 
     integer, parameter :: INITIAL_NODES = 256
     integer, parameter :: INITIAL_ARGS = 512
     integer, parameter :: INITIAL_NAMES = 32
+    integer, parameter :: INITIAL_NAME_BUCKETS = 64
     !> Bucket count is a power of two so the modulo is a mask.
     integer, parameter :: INITIAL_BUCKETS = 1024
 
@@ -73,6 +78,9 @@ module fortsym_arena
         integer,      allocatable :: args(:)
         integer                   :: n_args = 0
         type(str_t),  allocatable :: names(:)
+        integer(int64), allocatable :: name_hashes(:)
+        integer,      allocatable :: name_next(:)
+        integer,      allocatable :: name_buckets(:)
         integer                   :: n_names = 0
         integer,      allocatable :: buckets(:)
     contains
@@ -82,6 +90,7 @@ module fortsym_arena
 
         procedure :: int => arena_int
         procedure :: rat => arena_rat
+        procedure :: exact => arena_exact
         procedure :: real => arena_real
         procedure :: sym => arena_sym
         procedure :: const => arena_const
@@ -95,6 +104,7 @@ module fortsym_arena
         procedure :: den_of => arena_den_of
         procedure :: real_of => arena_real_of
         procedure :: name_of => arena_name_of
+        procedure :: exact_text_of => arena_exact_text_of
         procedure :: nargs_of => arena_nargs_of
         procedure :: arg_of => arena_arg_of
         procedure :: node_count => arena_node_count
@@ -115,6 +125,8 @@ contains
         case (NK_MUL);   s = str("mul")
         case (NK_POW);   s = str("pow")
         case (NK_FUNC);  s = str("function")
+        case (NK_BIG_INT); s = str("arbitrary-precision integer")
+        case (NK_BIG_RAT); s = str("arbitrary-precision rational")
         case default;    s = str("unknown")
         end select
     end function node_kind_name
@@ -127,6 +139,9 @@ contains
         allocate (self%nodes(INITIAL_NODES))
         allocate (self%args(INITIAL_ARGS))
         allocate (self%names(INITIAL_NAMES))
+        allocate (self%name_hashes(INITIAL_NAMES), source=0_int64)
+        allocate (self%name_next(INITIAL_NAMES), source=0)
+        allocate (self%name_buckets(INITIAL_NAME_BUCKETS), source=0)
         allocate (self%buckets(INITIAL_BUCKETS), source=0)
         self%n_nodes = 0
         self%n_args = 0
@@ -138,6 +153,9 @@ contains
         if (allocated(self%nodes)) deallocate (self%nodes)
         if (allocated(self%args)) deallocate (self%args)
         if (allocated(self%names)) deallocate (self%names)
+        if (allocated(self%name_hashes)) deallocate (self%name_hashes)
+        if (allocated(self%name_next)) deallocate (self%name_next)
+        if (allocated(self%name_buckets)) deallocate (self%name_buckets)
         if (allocated(self%buckets)) deallocate (self%buckets)
         self%n_nodes = 0
         self%n_args = 0
@@ -186,35 +204,88 @@ contains
 
     ! ------------------------------------------------------- name table --
 
-    !> Intern a name, returning its index. Names are few (the symbols and
-    !> function heads of one problem), so a linear scan beats a second hash
-    !> table here.
+    !> Intern a symbol, head, or arbitrary exact payload. Exact coefficients
+    !> need not be few, so the text pool has its own resizing hash table.
     function intern_name(self, name) result(id)
         class(arena_t), intent(inout) :: self
         character(*),   intent(in)    :: name
         integer                       :: id
         type(str_t), allocatable :: bigger(:)
-        integer :: i
+        integer(int64), allocatable :: bigger_hashes(:)
+        integer, allocatable :: bigger_next(:)
+        integer(int64) :: h
+        integer :: i, b
 
-        do i = 1, self%n_names
-            if (chars(self%names(i)) == name) then
-                if (len(chars(self%names(i))) == len(name)) then
+        call ensure_ready(self)
+        h = hash_name(name)
+        b = name_bucket_for_count(h, size(self%name_buckets))
+        i = self%name_buckets(b)
+        do while (i /= 0)
+            if (self%name_hashes(i) == h) then
+                if (self%names(i) == name) then
                     id = i
                     return
                 end if
             end if
+            i = self%name_next(i)
         end do
 
+        if (self%n_names >= size(self%name_buckets)) then
+            call grow_name_buckets(self)
+            b = name_bucket_for_count(h, size(self%name_buckets))
+        end if
         if (self%n_names >= size(self%names)) then
             allocate (bigger(size(self%names)*2))
             bigger(1:self%n_names) = self%names(1:self%n_names)
             call move_alloc(bigger, self%names)
+            allocate (bigger_hashes(size(self%name_hashes)*2), source=0_int64)
+            bigger_hashes(1:self%n_names) = self%name_hashes(1:self%n_names)
+            call move_alloc(bigger_hashes, self%name_hashes)
+            allocate (bigger_next(size(self%name_next)*2), source=0)
+            bigger_next(1:self%n_names) = self%name_next(1:self%n_names)
+            call move_alloc(bigger_next, self%name_next)
         end if
 
         self%n_names = self%n_names + 1
         self%names(self%n_names) = str(name)
+        self%name_hashes(self%n_names) = h
+        self%name_next(self%n_names) = self%name_buckets(b)
+        self%name_buckets(b) = self%n_names
         id = self%n_names
     end function intern_name
+
+    pure function hash_name(name) result(h)
+        character(*), intent(in) :: name
+        integer(int64)           :: h
+        integer(int64), parameter :: OFFSET = -3750763034362895579_int64
+        integer :: i
+
+        h = OFFSET
+        do i = 1, len(name)
+            h = mix(h, int(iachar(name(i:i)), int64))
+        end do
+    end function hash_name
+
+    pure function name_bucket_for_count(h, count) result(b)
+        integer(int64), intent(in) :: h
+        integer,        intent(in) :: count
+        integer                    :: b
+        b = int(iand(ishft(h, -13), int(count - 1, int64))) + 1
+    end function name_bucket_for_count
+
+    subroutine grow_name_buckets(self)
+        class(arena_t), intent(inout) :: self
+        integer, allocatable :: larger(:)
+        integer :: b, i
+
+        allocate (larger(2*size(self%name_buckets)), source=0)
+        do i = 1, self%n_names
+            b = name_bucket_for_count(self%name_hashes(i), size(larger))
+            self%name_next(i) = larger(b)
+            larger(b) = i
+        end do
+        call move_alloc(larger, self%name_buckets)
+    end subroutine grow_name_buckets
 
     ! ------------------------------------------------------------ hashing --
 
@@ -418,6 +489,55 @@ contains
         end if
     end function arena_rat
 
+    !> Canonical exact scalar of arbitrary size. Values representable in the
+    !> compact int64 node kinds retain that fast path; only larger values store
+    !> their canonical FLINT rendering in the arena name table.
+    function arena_exact(self, value, ok) result(idx)
+        class(arena_t), intent(inout) :: self
+        character(*),   intent(in)    :: value
+        logical,        intent(out), optional :: ok
+        integer                       :: idx
+        type(str_t) :: canonical
+        character(:), allocatable :: text, numerator, denominator
+        integer(int64) :: n, d
+        integer :: slash, ios_n, ios_d, name_id
+        integer :: none(0)
+        logical :: valid
+
+        canonical = exact_normalize(value, valid)
+        if (present(ok)) ok = valid
+        if (.not. valid) then
+            idx = 0
+            return
+        end if
+
+        text = chars(canonical)
+        slash = index(text, "/")
+        if (slash == 0) then
+            read (text, *, iostat=ios_n) n
+            if (ios_n == 0) then
+                idx = arena_int(self, n)
+                return
+            end if
+            name_id = intern_name(self, text)
+            idx = intern(self, NK_BIG_INT, 0_int64, 1_int64, 0.0_dp, &
+                name_id, none)
+            return
+        end if
+
+        numerator = text(:slash - 1)
+        denominator = text(slash + 1:)
+        read (numerator, *, iostat=ios_n) n
+        read (denominator, *, iostat=ios_d) d
+        if (ios_n == 0 .and. ios_d == 0) then
+            idx = arena_rat(self, n, d)
+            return
+        end if
+        name_id = intern_name(self, text)
+        idx = intern(self, NK_BIG_RAT, 0_int64, 1_int64, 0.0_dp, &
+            name_id, none)
+    end function arena_exact
+
     pure function gcd_i64(a, b) result(g)
         integer(int64), intent(in) :: a, b
         integer(int64)             :: g
@@ -608,7 +728,7 @@ contains
             right_bits = transfer(self%nodes(right)%rval, 0_int64)
             relation = compare_int64(left_bits, right_bits)
             return
-        case (NK_SYM, NK_CONST, NK_FUNC)
+        case (NK_SYM, NK_CONST, NK_FUNC, NK_BIG_INT, NK_BIG_RAT)
             relation = compare_str(self%names(self%nodes(left)%name), &
                 self%names(self%nodes(right)%name))
             if (relation /= 0) return
@@ -636,9 +756,11 @@ contains
         case (NK_MUL);   rank = 5
         case (NK_ADD);   rank = 6
         case (NK_INT);   rank = 7
-        case (NK_RAT);   rank = 8
-        case (NK_REAL);  rank = 9
-        case default;    rank = 10
+        case (NK_BIG_INT); rank = 8
+        case (NK_RAT);   rank = 9
+        case (NK_BIG_RAT); rank = 10
+        case (NK_REAL);  rank = 11
+        case default;    rank = 12
         end select
     end function semantic_kind_rank
 
@@ -727,6 +849,24 @@ contains
             s = str("")
         end if
     end function arena_name_of
+
+    !> Canonical base-ten spelling for any exact scalar node.
+    pure function arena_exact_text_of(self, idx) result(s)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: idx
+        type(str_t)                :: s
+
+        select case (self%nodes(idx)%kind)
+        case (NK_INT)
+            s = str(self%nodes(idx)%num)
+        case (NK_RAT)
+            s = str(self%nodes(idx)%num)//"/"//str(self%nodes(idx)%den)
+        case (NK_BIG_INT, NK_BIG_RAT)
+            s = self%names(self%nodes(idx)%name)
+        case default
+            s = str("")
+        end select
+    end function arena_exact_text_of
 
     pure function arena_nargs_of(self, idx) result(n)
         class(arena_t), intent(in) :: self

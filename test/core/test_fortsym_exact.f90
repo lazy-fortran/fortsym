@@ -1,14 +1,28 @@
 program test_fortsym_exact
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, chars
     use fortsym_exact, only: exact_normalize, exact_add, exact_sub, exact_mul, &
         exact_div, exact_pow, exact_uses_shared_flint
+    use fortsym_exact, only: exact_uses_shared_mpfr
+    use fortsym_exact, only: exact_to_real
     implicit none
 
     integer :: nfail = 0
     logical :: ok
+    real(real64) :: projected
 
     call check_logical("FLINT is dynamically linked", exact_uses_shared_flint())
+    call check_logical("MPFR is dynamically linked", exact_uses_shared_mpfr())
+
+    projected = exact_to_real("0", ok)
+    call check_logical("exact zero projects exactly", &
+        ok .and. projected == 0.0_real64)
+    projected = exact_to_real("1"//repeat("0", 400)//"/"//&
+        ("1"//repeat("0", 399)//"1"), ok)
+    call check_logical("scaled exact ratio projects nearest to one", &
+        ok .and. projected == 1.0_real64)
+    projected = exact_to_real("1/1"//repeat("0", 400), ok)
+    call check_logical("subnormal exact projection is refused", .not. ok)
 
     block
         type(str_t) :: got

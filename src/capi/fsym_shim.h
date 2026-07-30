@@ -100,9 +100,18 @@ size_t fsym_exact_pow_si(const char *base, int64_t exponent);
  *  fsym_str_fetch: no terminator is written and no FLINT allocation escapes. */
 size_t fsym_exact_fetch(char *buf, size_t n);
 
+/*! Convert an exact integer/rational in the finite normal binary64 range to
+ *  nearest-even binary64 through a 53-bit MPFR value without separately
+ *  overflowing numerator and denominator. Subnormal and overflow-range inputs
+ *  are conservatively refused. */
+int fsym_exact_get_d(const char *value, double *result);
+
 /*! Non-zero only when the dynamically resolved FLINT fmpq_add symbol belongs to a shared
  *  object. The fo test gate uses this to reject a static-only -lflint path. */
 int fsym_flint_is_shared(void);
+
+/*! Non-zero only when mpfr_get_d resolves from a shared object. */
+int fsym_mpfr_is_shared(void);
 
 /* ------------------------------------------------------------- transforms -- */
 

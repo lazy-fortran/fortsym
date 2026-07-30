@@ -13,10 +13,11 @@ module fortsym_kernel
     ! variable into a fresh zero. Every temporary here is declared.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, strbuf_t, str, chars
-    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_ADD, NK_MUL, NK_POW, NK_FUNC
+    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_ADD, NK_MUL, NK_POW, &
+        NK_FUNC
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
-    use fortsym_print, only: print_expr_sub
+    use fortsym_print, only: print_expr_sub, fortran_roots_representable
     implicit none
     private
 
@@ -267,18 +268,31 @@ contains
     end function is_reciprocal_power
 
     !> The assignment statements: every temporary, then every output.
-    function emit_statements(roots, spec, res) result(s)
+    function emit_statements(roots, spec, res, ok, prechecked) result(s)
         type(expr_t),       intent(in) :: roots(:)
         type(kernel_spec_t), intent(in) :: spec
         type(cse_result_t), intent(in) :: res
+        logical, intent(out), optional :: ok
+        logical, intent(in), optional :: prechecked
         type(str_t)                    :: s
 
         type(strbuf_t)  :: b
         type(dialect_t) :: d
         type(expr_t)    :: tmp
         integer :: k
+        logical :: valid
 
         d = dialect(DIA_FORTRAN)
+        if (present(prechecked)) then
+            valid = prechecked
+        else
+            valid = fortran_roots_representable(roots)
+        end if
+        if (present(ok)) ok = valid
+        if (.not. valid) then
+            s = str("")
+            return
+        end if
 
         do k = 1, res%n
             tmp%a => roots(1)%a
@@ -288,18 +302,20 @@ contains
             call append_assignment(b, chars(res%names(k)), &
                 chars(print_expr_sub(tmp, d, &
                 res%ids(1:k - 1), &
-                res%names(1:k - 1))))
+                res%names(1:k - 1), prechecked=.true.)))
         end do
 
         do k = 1, size(roots)
             if (allocated(spec%output_references)) then
                 call append_assignment(b, chars(spec%output_references(k)), &
                     chars(print_expr_sub(roots(k), d, &
-                    res%ids(1:res%n), res%names(1:res%n))))
+                    res%ids(1:res%n), res%names(1:res%n), &
+                    prechecked=.true.)))
             else
                 call append_assignment(b, chars(spec%outputs(k)), &
                     chars(print_expr_sub(roots(k), d, &
-                    res%ids(1:res%n), res%names(1:res%n))))
+                    res%ids(1:res%n), res%names(1:res%n), &
+                    prechecked=.true.)))
             end if
         end do
 
@@ -381,13 +397,22 @@ contains
     end function is_exponent_sign
 
     !> A complete kernel: banner, subroutine header, declarations, body.
-    function emit_kernel(roots, spec) result(s)
+    function emit_kernel(roots, spec, ok) result(s)
         type(expr_t),        intent(in) :: roots(:)
         type(kernel_spec_t), intent(in) :: spec
+        logical, intent(out), optional :: ok
         type(str_t)                     :: s
 
         type(strbuf_t)     :: b, body
         type(cse_result_t) :: res
+        logical :: valid
+
+        valid = fortran_roots_representable(roots)
+        if (present(ok)) ok = valid
+        if (.not. valid) then
+            s = str("")
+            return
+        end if
 
         if (spec%openmp_declare_target) then
             if (len(chars(spec%module_name)) == 0) then
@@ -429,7 +454,8 @@ contains
         if (spec%mode == KERNEL_SNIPPET) then
             ! Bare statements over host-scope names. No header, no declarations:
             ! the including scope owns them.
-            call b%append(chars(emit_statements(roots, spec, res)))
+            call b%append(chars(emit_statements(roots, spec, res, &
+                prechecked=.true.)))
             s = b%to_str()
             return
         end if
@@ -516,7 +542,8 @@ contains
         end if
 
         call b%newline()
-        call b%append(chars(emit_statements(roots, spec, res)))
+        call b%append(chars(emit_statements(roots, spec, res, &
+            prechecked=.true.)))
         call b%newline()
         call b%append("end subroutine ")
         call b%append(chars(spec%name))

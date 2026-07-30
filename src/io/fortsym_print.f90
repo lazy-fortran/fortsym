@@ -15,16 +15,19 @@ module fortsym_print
     ! agreement, and they make emitted kernels hard to review against the
     ! mathematics they came from.
     use, intrinsic :: iso_fortran_env, only: int64, real64
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     use fortsym_string, only: str_t, strbuf_t, str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
-        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
     use fortsym_expr, only: expr_t
+    use fortsym_exact, only: exact_to_real
     use fortsym_dialect, only: dialect_t, dialect, fn_spelling, const_spelling, &
         DIA_NATIVE, DIA_FORTRAN
     implicit none
     private
 
-    public :: print_expr, print_expr_in, print_expr_sub
+    public :: print_expr, print_expr_in, print_expr_sub, fortran_representable
+    public :: fortran_roots_representable
 
     integer, parameter :: dp = real64
 
@@ -51,13 +54,22 @@ contains
     end function print_expr
 
     !> Render in a given dialect.
-    function print_expr_in(e, d) result(s)
+    function print_expr_in(e, d, ok) result(s)
         type(expr_t),    intent(in) :: e
         type(dialect_t), intent(in) :: d
+        logical, intent(out), optional :: ok
         type(str_t)                 :: s
         type(strbuf_t) :: b
         integer :: no_ids(0)
         type(str_t) :: no_names(0)
+        logical :: valid
+        valid = .true.
+        if (d%id == DIA_FORTRAN) valid = fortran_representable(e)
+        if (present(ok)) ok = valid
+        if (.not. valid) then
+            s = str("")
+            return
+        end if
         call emit(b, e%a, e%id, d, PREC_ADD, no_ids, no_names)
         s = b%to_str()
     end function print_expr_in
@@ -69,16 +81,81 @@ contains
     !> name instead of being expanded again. Keeping it here rather than in a
     !> second printer means generated kernels inherit every parenthesisation and
     !> literal-formatting rule automatically.
-    function print_expr_sub(e, d, ids, names) result(s)
+    function print_expr_sub(e, d, ids, names, ok, prechecked) result(s)
         type(expr_t),    intent(in) :: e
         type(dialect_t), intent(in) :: d
         integer,         intent(in) :: ids(:)
         type(str_t),     intent(in) :: names(:)
+        logical, intent(out), optional :: ok
+        logical, intent(in), optional :: prechecked
         type(str_t)                 :: s
         type(strbuf_t) :: b
+        logical :: valid
+        valid = .true.
+        if (d%id == DIA_FORTRAN) then
+            if (present(prechecked)) then
+                valid = prechecked
+            else
+                valid = fortran_representable(e)
+            end if
+        end if
+        if (present(ok)) ok = valid
+        if (.not. valid) then
+            s = str("")
+            return
+        end if
         call emit(b, e%a, e%id, d, PREC_ADD, ids, names)
         s = b%to_str()
     end function print_expr_sub
+
+    !> Whether every arbitrary exact node reachable from e has a finite normal
+    !> nearest-even binary64 projection for a real(dp) Fortran kernel.
+    function fortran_representable(e) result(ok)
+        type(expr_t), intent(in) :: e
+        logical                  :: ok
+        logical, allocatable :: visited(:)
+
+        allocate (visited(e%a%size()), source=.false.)
+        ok = fortran_node_representable(e%a, e%id, visited)
+    end function fortran_representable
+
+    function fortran_roots_representable(roots) result(ok)
+        type(expr_t), intent(in) :: roots(:)
+        logical                  :: ok
+        logical, allocatable :: visited(:)
+        integer :: k
+
+        ok = .true.
+        if (size(roots) == 0) return
+        allocate (visited(roots(1)%a%size()), source=.false.)
+        do k = 1, size(roots)
+            ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited)
+            if (.not. ok) return
+        end do
+    end function fortran_roots_representable
+
+    recursive function fortran_node_representable(a, id, visited) result(ok)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical,       intent(inout) :: visited(:)
+        logical                  :: ok
+        real(dp) :: projected
+        integer :: k
+
+        ok = .true.
+        if (visited(id)) return
+        visited(id) = .true.
+        select case (a%kind_of(id))
+        case (NK_BIG_INT, NK_BIG_RAT)
+            projected = exact_to_real(chars(a%exact_text_of(id)), ok)
+            if (ok) ok = ieee_is_finite(projected)
+            return
+        end select
+        do k = 1, a%nargs_of(id)
+            ok = fortran_node_representable(a, a%arg_of(id, k), visited)
+            if (.not. ok) return
+        end do
+    end function fortran_node_representable
 
     !> Index of `id` in the substitution table, or 0.
     pure function subst_slot(id, ids) result(k)
@@ -119,6 +196,8 @@ contains
             call emit_integer(b, a, id, d, context)
         case (NK_RAT)
             call emit_rational(b, a, id, d, context)
+        case (NK_BIG_INT, NK_BIG_RAT)
+            call emit_big_exact(b, a, id, d, context)
         case (NK_REAL)
             call emit_real(b, a, id, d, context)
         case (NK_SYM)
@@ -181,6 +260,62 @@ contains
         if (d%id == DIA_FORTRAN) call b%append(chars(d%int_real_suffix))
         if (wrap) call b%append(")")
     end subroutine emit_rational
+
+    !> An arbitrary-precision exact scalar. Native and CAS dialects accept the
+    !> canonical decimal spelling directly. Fortran receives real literals so
+    !> the source remains valid even though it has no unbounded integer kind.
+    subroutine emit_big_exact(b, a, id, d, context, magnitude_only)
+        type(strbuf_t),  intent(inout) :: b
+        type(arena_t),   intent(in)    :: a
+        integer,         intent(in)    :: id
+        type(dialect_t), intent(in)    :: d
+        integer,         intent(in)    :: context
+        logical, intent(in), optional :: magnitude_only
+        character(:), allocatable :: text, numerator, denominator
+        integer :: slash, first
+        logical :: negative, magnitude, wrap
+        real(dp) :: projected
+        logical :: converted
+
+        text = chars(a%exact_text_of(id))
+        magnitude = .false.
+        if (present(magnitude_only)) magnitude = magnitude_only
+        if (d%id == DIA_FORTRAN) then
+            projected = exact_to_real(text, converted)
+            if (.not. converted) then
+                return
+            end if
+            converted = ieee_is_finite(projected)
+            if (.not. converted) then
+                return
+            end if
+            if (magnitude) projected = abs(projected)
+            wrap = projected < 0.0_dp .and. context >= PREC_MUL
+            if (wrap) call b%append("(")
+            call b%append(chars(str(projected)))
+            call b%append(chars(d%real_suffix))
+            if (wrap) call b%append(")")
+            return
+        end if
+        negative = text(1:1) == "-"
+        first = 1
+        if (negative .and. magnitude) first = 2
+        slash = index(text, "/")
+        wrap = (negative .and. .not. magnitude .and. context >= PREC_MUL) .or. &
+            (slash > 0 .and. context >= PREC_MUL)
+        if (wrap) call b%append("(")
+
+        if (slash == 0) then
+            call b%append(text(first:))
+        else
+            numerator = text(first:slash - 1)
+            denominator = text(slash + 1:)
+            call b%append(numerator)
+            call b%append("/")
+            call b%append(denominator)
+        end if
+        if (wrap) call b%append(")")
+    end subroutine emit_big_exact
 
     subroutine emit_real(b, a, id, d, context)
         type(strbuf_t),  intent(inout) :: b
@@ -275,13 +410,19 @@ contains
             yes = a%num_of(id) < 0_int64
         case (NK_RAT)
             yes = a%num_of(id) < 0_int64
+        case (NK_BIG_INT, NK_BIG_RAT)
+            yes = exact_is_negative(a, id)
         case (NK_REAL)
             yes = a%real_of(id) < 0.0_dp
         case (NK_MUL)
+            if (count_big_exact_factor(a, id) > 1) return
             do k = 1, a%nargs_of(id)
                 child = a%arg_of(id, k)
                 if (numeric_is_negative(a, child)) yes = .not. yes
             end do
+            if (has_big_exact_factor(a, id)) then
+                if (yes) yes = has_negative_big_exact_factor(a, id)
+            end if
         end select
     end function is_negative_term
 
@@ -303,13 +444,11 @@ contains
             ! No kind suffix: an integer stays an integer, exactly as in
             ! emit_integer. Suffixing here turned a negated -1 into 1.0_dp and
             ! put a real literal where an integer exponent belonged.
-            call b%append(chars(str(-a%num_of(id))))
+            call emit_compact_exact_magnitude(b, a, id, d, context)
         case (NK_RAT)
-            call b%append(chars(str(-a%num_of(id))))
-            if (d%id == DIA_FORTRAN) call b%append(chars(d%int_real_suffix))
-            call b%append("/")
-            call b%append(chars(str(a%den_of(id))))
-            if (d%id == DIA_FORTRAN) call b%append(chars(d%int_real_suffix))
+            call emit_compact_exact_magnitude(b, a, id, d, context)
+        case (NK_BIG_INT, NK_BIG_RAT)
+            call emit_big_exact(b, a, id, d, context, magnitude_only=.true.)
         case (NK_REAL)
             call b%append(chars(str(-a%real_of(id))))
             call b%append(chars(d%real_suffix))
@@ -329,6 +468,38 @@ contains
             call emit(b, a, id, d, context, ids, names)
         end select
     end subroutine emit_negated
+
+    !> Emit the magnitude of a compact exact value without negating int64 in
+    !> Fortran. Decimal slicing is defined even for INT64_MIN.
+    subroutine emit_compact_exact_magnitude(b, a, id, d, context)
+        type(strbuf_t),  intent(inout) :: b
+        type(arena_t),   intent(in)    :: a
+        integer,         intent(in)    :: id
+        type(dialect_t), intent(in)    :: d
+        integer,         intent(in)    :: context
+        character(:), allocatable :: text
+        integer :: slash, first
+        logical :: wrap
+
+        text = chars(a%exact_text_of(id))
+        first = 1
+        if (text(1:1) == "-") first = 2
+        slash = index(text, "/")
+        wrap = slash > 0 .and. context > PREC_MUL
+        if (wrap) call b%append("(")
+        if (slash == 0) then
+            call b%append(text(first:))
+        else
+            call b%append(text(first:slash - 1))
+            if (d%id == DIA_FORTRAN) &
+                call b%append(chars(d%int_real_suffix))
+            call b%append("/")
+            call b%append(text(slash + 1:))
+            if (d%id == DIA_FORTRAN) &
+                call b%append(chars(d%int_real_suffix))
+        end if
+        if (wrap) call b%append(")")
+    end subroutine emit_compact_exact_magnitude
 
     !> A product, split into numerator and denominator. Factors that are powers
     !> with a negative integer exponent move to the denominator with the sign of
@@ -379,7 +550,7 @@ contains
         type(str_t),     intent(in)    :: names(:)
         logical,         intent(in)    :: negate
         integer :: k, nnum, nden, base, expo
-        logical :: wrap, first, negative
+        logical :: wrap, first, negative, structural_sign, preserve_signs
         integer, allocatable :: numer(:), denom(:)
 
         allocate (numer(size(factors)), denom(size(factors)))
@@ -404,7 +575,17 @@ contains
         first = .true.
         negative = product_is_negative(a, factors)
         if (negate) negative = .not. negative
-        if (negative) call b%append("-")
+        structural_sign = negative .and. .not. negate .and. &
+            has_negative_big_exact_in(factors, a) .and. &
+            count_big_exact_in(factors, a) == 1
+        preserve_signs = .not. negate .and. .not. structural_sign .and. &
+            has_big_exact_in(factors, a) .and. &
+            has_negative_numeric_in(factors, a)
+        if (structural_sign) then
+            call b%append("-(")
+        else if (negative .and. .not. preserve_signs) then
+            call b%append("-")
+        end if
 
         if (nnum == 0) then
             ! Everything moved to the denominator, so the numerator is 1.
@@ -413,6 +594,12 @@ contains
             first = .false.
         else
             do k = 1, nnum
+                if (preserve_signs) then
+                    if (.not. first) call b%append("*")
+                    call emit(b, a, numer(k), d, PREC_MUL, ids, names)
+                    first = .false.
+                    cycle
+                end if
                 if (numeric_is_negative(a, numer(k))) then
                     ! The common leading sign already represents this factor's
                     ! sign. Emit its magnitude and drop unit factors.
@@ -452,9 +639,115 @@ contains
             end if
         end do
 
+        if (structural_sign) call b%append(")")
         if (wrap) call b%append(")")
         deallocate (numer, denom)
     end subroutine emit_product_factors
+
+    function has_big_exact_in(factors, a) result(yes)
+        integer,       intent(in) :: factors(:)
+        type(arena_t), intent(in) :: a
+        logical                   :: yes
+        integer :: k, kind
+
+        yes = .false.
+        do k = 1, size(factors)
+            kind = a%kind_of(factors(k))
+            if (kind /= NK_BIG_INT .and. kind /= NK_BIG_RAT) cycle
+            yes = .true.
+            return
+        end do
+    end function has_big_exact_in
+
+    function count_big_exact_in(factors, a) result(count)
+        integer,       intent(in) :: factors(:)
+        type(arena_t), intent(in) :: a
+        integer                   :: count
+        integer :: k, kind
+
+        count = 0
+        do k = 1, size(factors)
+            kind = a%kind_of(factors(k))
+            if (kind /= NK_BIG_INT .and. kind /= NK_BIG_RAT) cycle
+            count = count + 1
+        end do
+    end function count_big_exact_in
+
+    function has_negative_big_exact_in(factors, a) result(yes)
+        integer,       intent(in) :: factors(:)
+        type(arena_t), intent(in) :: a
+        logical                   :: yes
+        integer :: k, kind
+
+        yes = .false.
+        do k = 1, size(factors)
+            kind = a%kind_of(factors(k))
+            if (kind /= NK_BIG_INT .and. kind /= NK_BIG_RAT) cycle
+            if (.not. exact_is_negative(a, factors(k))) cycle
+            yes = .true.
+            return
+        end do
+    end function has_negative_big_exact_in
+
+    function has_negative_numeric_in(factors, a) result(yes)
+        integer,       intent(in) :: factors(:)
+        type(arena_t), intent(in) :: a
+        logical                   :: yes
+        integer :: k
+
+        yes = .false.
+        do k = 1, size(factors)
+            if (.not. numeric_is_negative(a, factors(k))) cycle
+            yes = .true.
+            return
+        end do
+    end function has_negative_numeric_in
+
+    function has_big_exact_factor(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: yes
+        integer :: k, kind
+
+        yes = .false.
+        do k = 1, a%nargs_of(id)
+            kind = a%kind_of(a%arg_of(id, k))
+            if (kind /= NK_BIG_INT .and. kind /= NK_BIG_RAT) cycle
+            yes = .true.
+            return
+        end do
+    end function has_big_exact_factor
+
+    function count_big_exact_factor(a, id) result(count)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        integer                   :: count
+        integer :: k, kind
+
+        count = 0
+        do k = 1, a%nargs_of(id)
+            kind = a%kind_of(a%arg_of(id, k))
+            if (kind /= NK_BIG_INT .and. kind /= NK_BIG_RAT) cycle
+            count = count + 1
+        end do
+    end function count_big_exact_factor
+
+    function has_negative_big_exact_factor(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: yes
+        integer :: k, child, kind
+
+        yes = .false.
+        do k = 1, a%nargs_of(id)
+            child = a%arg_of(id, k)
+            kind = a%kind_of(child)
+            if (kind /= NK_BIG_INT .and. kind /= NK_BIG_RAT) cycle
+            if (.not. exact_is_negative(a, child)) cycle
+            yes = .true.
+            return
+        end do
+    end function has_negative_big_exact_factor
 
     !> True when the node is a power with a negative integer exponent, in which
     !> case it belongs in a denominator. Returns the base and the exponent.
@@ -482,6 +775,7 @@ contains
         integer,       intent(in) :: id
         logical                   :: yes
         yes = a%kind_of(id) == NK_INT .or. a%kind_of(id) == NK_RAT .or. &
+            a%kind_of(id) == NK_BIG_INT .or. a%kind_of(id) == NK_BIG_RAT .or. &
             a%kind_of(id) == NK_REAL
     end function is_numeric
 
@@ -494,10 +788,23 @@ contains
         select case (a%kind_of(id))
         case (NK_INT, NK_RAT)
             yes = a%num_of(id) < 0_int64
+        case (NK_BIG_INT, NK_BIG_RAT)
+            yes = exact_is_negative(a, id)
         case (NK_REAL)
             yes = a%real_of(id) < 0.0_dp
         end select
     end function numeric_is_negative
+
+    function exact_is_negative(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: yes
+        character(:), allocatable :: text
+
+        text = chars(a%exact_text_of(id))
+        yes = len(text) > 0
+        if (yes) yes = text(1:1) == "-"
+    end function exact_is_negative
 
     function is_minus_one(a, id) result(yes)
         type(arena_t), intent(in) :: a

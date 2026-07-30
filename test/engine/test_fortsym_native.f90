@@ -378,6 +378,9 @@ contains
         call check("x-x is decided zero", r%verdict == VERDICT_TRUE)
         r = engine%zero_test(num(arena, 7))
         call check("nonzero exact number is decided", r%verdict == VERDICT_FALSE)
+        r = engine%zero_test(exact(arena, "18446744073709551616"))
+        call check("nonzero arbitrary exact number is decided", &
+            r%verdict == VERDICT_FALSE)
         r = engine%zero_test(sin(x))
         call check("unknown symbolic form stays unknown", &
             r%verdict == VERDICT_UNKNOWN)

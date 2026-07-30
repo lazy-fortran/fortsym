@@ -26,7 +26,7 @@ module fortsym_expr
     private
 
     public :: expr_t
-    public :: sym, num, rat, real_expr, const, func
+    public :: sym, num, rat, exact, real_expr, const, func
     public :: pi_expr, e_expr, i_expr
     public :: is_valid, same_arena
     public :: operator(+), operator(-), operator(*), operator(/), &
@@ -50,6 +50,7 @@ module fortsym_expr
         procedure :: int_value => expr_int_value
         procedure :: den_value => expr_den_value
         procedure :: real_value => expr_real_value
+        procedure :: exact_text => expr_exact_text
         procedure :: node_count => expr_node_count
     end type expr_t
 
@@ -151,6 +152,24 @@ module fortsym_expr
                                                                                         e%a => a
                                                                                         e%id = a%rat(numer, denom)
                                                                                     end function rat
+
+                                                                                    !> Arbitrary-precision exact integer or rational. The
+                                                                                    !> canonical FLINT value is interned; invalid input returns
+                                                                                    !> an invalid expression and reports ok=.false. when asked.
+                                                                                    function exact(a, value, ok) result(e)
+                                                                                        type(arena_t), target, intent(inout) :: a
+                                                                                        character(*),          intent(in)    :: value
+                                                                                        logical, intent(out), optional       :: ok
+                                                                                        type(expr_t)                         :: e
+                                                                                        logical :: valid
+                                                                                        integer :: id
+
+                                                                                        id = a%exact(value, valid)
+                                                                                        if (present(ok)) ok = valid
+                                                                                        if (.not. valid) return
+                                                                                        e%a => a
+                                                                                        e%id = id
+                                                                                    end function exact
 
                                                                                     function real_expr(a, value) result(e)
                                                                                         type(arena_t), target, intent(inout) :: a
@@ -265,6 +284,12 @@ module fortsym_expr
                                                                                         real(dp)                  :: v
                                                                                         v = self%a%real_of(self%id)
                                                                                     end function expr_real_value
+
+                                                                                    function expr_exact_text(self) result(s)
+                                                                                        class(expr_t), intent(in) :: self
+                                                                                        type(str_t)               :: s
+                                                                                        s = self%a%exact_text_of(self%id)
+                                                                                    end function expr_exact_text
 
                                                                                     !> Distinct nodes reachable from this expression. Shared subtrees count
                                                                                     !> once, so this measures the work a kernel does rather than how the

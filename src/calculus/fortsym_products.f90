@@ -17,7 +17,7 @@ module fortsym_products
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
-        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
     use fortsym_expr, only: expr_t, num, func, is_valid, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), sin, cos, tan, exp, log, sqrt, sinh, cosh, tanh
@@ -129,7 +129,7 @@ contains
         end if
 
         select case (e%kind())
-        case (NK_INT, NK_RAT, NK_REAL, NK_CONST)
+        case (NK_INT, NK_RAT, NK_BIG_INT, NK_BIG_RAT, NK_REAL, NK_CONST)
             tangent = num(e%a, 0)
         case (NK_SYM)
             tangent = num(e%a, 0)
@@ -318,6 +318,7 @@ contains
         logical :: constant
 
         constant = kind == NK_INT .or. kind == NK_RAT .or. &
+            kind == NK_BIG_INT .or. kind == NK_BIG_RAT .or. &
             kind == NK_REAL .or. kind == NK_CONST
     end function is_constant_kind
 

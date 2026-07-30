@@ -25,6 +25,8 @@ program test_fortsym_kernel
     call test_cse_finds_sharing()
     call test_cse_skips_atoms()
     call test_operation_count_uses_shared_dag()
+    call test_projected_exact_operation_count()
+    call test_unrepresentable_exact_is_refused()
     call test_temporaries_are_declared()
     call test_default_temporary_prefix()
     call test_explicit_regeneration_command()
@@ -175,6 +177,41 @@ contains
         call ok("operation count functions", counts%functions == 2)
         call ok("operation count total", counts%total == 4)
     end subroutine test_operation_count_uses_shared_dag
+
+    !> A large rational is projected once to a real64 literal, so the generated
+    !> arithmetic and its independently counted work both contain no division.
+    subroutine test_projected_exact_operation_count()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(operation_count_t) :: counts
+        character(:), allocatable :: code
+
+        call a%init()
+        roots(1) = parsed(a, &
+            "18446744073709551617/18446744073709551616")
+        counts = count_operations(roots)
+        code = chars(emit_kernel(roots, &
+            spec_for("exact_k", ["x"], ["r"])))
+        call ok("projected exact count has no division", &
+            counts%divisions == 0 .and. counts%total == 0)
+        call ok("projected exact code is one literal", &
+            index(code, "1.0000000000000000E+000_dp") > 0)
+    end subroutine test_projected_exact_operation_count
+
+    subroutine test_unrepresentable_exact_is_refused()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        character(:), allocatable :: code
+        logical :: good
+
+        call a%init()
+        roots(1) = exact(a, "1"//repeat("0", 400))
+        code = chars(emit_kernel(roots, &
+            spec_for("too_large_k", ["x"], ["r"]), good))
+        call ok("non-finite exact kernel reports refusal", .not. good)
+        call ok("non-finite exact kernel emits no partial source", &
+            len(code) == 0)
+    end subroutine test_unrepresentable_exact_is_refused
 
     subroutine test_temporaries_are_declared()
         type(arena_t), target :: a
@@ -764,10 +801,25 @@ contains
         real(dp) :: got, want, xv, yv
         integer :: k
         logical :: agreed
+        character(:), allocatable :: huge_numerator, huge_denominator
 
         call a%init()
         roots(1) = parsed(a, &
             "sin(x*y)**2 + cos(x*y) + exp(x)/(1 + y**2) - 3*x/(y + 1)")
+        ! Independent exact projections: (-2^64)*2^-64 = -1, while
+        ! -10^400/(10^400+1) rounds nearest-even to -1. Their product, scaled
+        ! by 2^-64, is +1, independently checking even sign parity. This
+        ! exercises negative arbitrary integers and rationals through emitted,
+        ! compiled Fortran rather than comparing source text.
+        huge_numerator = "1"//repeat("0", 400)
+        huge_denominator = "1"//repeat("0", 399)//"1"
+        roots(1) = roots(1) + &
+            exact(a, "-18446744073709551616")*&
+            real_expr(a, 2.0_dp**(-64)) + &
+            exact(a, "-"//huge_numerator//"/"//huge_denominator) + &
+            exact(a, "-18446744073709551616")*&
+            exact(a, "-"//huge_numerator//"/"//huge_denominator)*&
+            real_expr(a, 2.0_dp**(-64))
         code = chars(emit_kernel(roots, spec_for("k", ["x", "y"], ["r"])))
 
         open (newunit=unit, file="/tmp/fortsym_gen_kernel.f90", &
@@ -823,7 +875,7 @@ contains
             xv = 0.1_dp*(1 + (k - 1)/5)
             yv = 0.1_dp*(1 + mod(k - 1, 5))
             want = sin(xv*yv)**2 + cos(xv*yv) + exp(xv)/(1 + yv**2) &
-                - 3*xv/(yv + 1)
+                - 3*xv/(yv + 1) - 1.0_dp
             if (abs(got - want) > 1.0e-13_dp*max(1.0_dp, abs(want))) then
                 agreed = .false.
                 print *, "   mismatch at x=", xv, " y=", yv

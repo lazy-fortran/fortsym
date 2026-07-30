@@ -92,6 +92,7 @@ contains
         type(binding_t) :: b
         real(dp) :: v
         logical :: defined
+        character(:), allocatable :: numerator, denominator
 
         b = bind1("x", 2.0_dp)
 
@@ -105,6 +106,20 @@ contains
         ! its way through the arena.
         v = eval_expr(parsed("1/4"), b, defined)
         call ok("rational is exact", defined .and. abs(v - 0.25_dp) < 1.0e-14_dp)
+
+        ! Independent exact oracle: the decimal literal is 2^64, which is
+        ! exactly representable as a binary64 value.
+        v = eval_expr(parsed("18446744073709551616"), b, defined)
+        call ok("evaluates arbitrary integer", defined .and. v == 2.0_dp**64)
+
+        ! Both components overflow binary64 separately, but the exact ratio is
+        ! in (1-1e-400, 1), so nearest-even binary64 is independently known to
+        ! be exactly one.
+        numerator = "1"//repeat("0", 400)
+        denominator = "1"//repeat("0", 399)//"1"
+        v = eval_expr(parsed(numerator//"/"//denominator), b, defined)
+        call ok("large exact ratio scales before real conversion", &
+            defined .and. v == 1.0_dp)
 
         v = eval_expr(parsed("sin(x)**2 + cos(x)**2"), b, defined)
         call ok("evaluates functions", defined .and. abs(v - 1.0_dp) < 1.0e-14_dp)
