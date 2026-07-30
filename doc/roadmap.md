@@ -62,6 +62,9 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
   no-text floor; a near-64-KiB height refusal completed in 1.50 ms.
 - Native bottom-up simplification uses DAG memoization; nonnegative powers of
   sums use checked, bounded multinomial composition enumeration.
+- Rewrites that change an expression containing a symbolic negative integer
+  power return the condition that cancelled denominator bases must be nonzero,
+  including on cached simplification paths.
 - Collect numeric factors, like terms, and integer powers.
 - Hash tables now resize before their average chain exceeds one node.
 - The pinned same-machine diagnostic reduced median cold expansion from

@@ -89,6 +89,7 @@ contains
             if (self%simplify_cache(e%id) /= 0) then
                 r%value%id = self%simplify_cache(e%id)
                 r%ok = .true.
+                call set_simplify_condition(e, r%value%id, r)
                 r%seconds = wall_seconds() - started
                 return
             end if
@@ -109,11 +110,23 @@ contains
         end if
         r%value%id = simplified_id
         r%ok = .true.
+        call set_simplify_condition(e, simplified_id, r)
         if (.not. associated(self%assumptions)) then
             self%simplify_cache(e%id) = simplified_id
         end if
         r%seconds = wall_seconds() - started
     end function native_simplify
+
+    subroutine set_simplify_condition(original, simplified_id, result)
+        type(expr_t),        intent(in)    :: original
+        integer,             intent(in)    :: simplified_id
+        type(engine_result_t), intent(inout) :: result
+
+        if (simplified_id == original%id) return
+        if (.not. has_symbolic_denominator(original%a, original%id)) return
+        result%conditional = .true.
+        result%condition = str("cancelled denominator bases must be nonzero")
+    end subroutine set_simplify_condition
 
     function native_zero_test(self, e) result(r)
         class(native_engine_t), intent(inout) :: self
@@ -1473,6 +1486,66 @@ contains
             exact = .false.
         end select
     end subroutine exact_value
+
+    function has_symbolic_denominator(a, id) result(found)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: found
+        logical, allocatable :: seen(:)
+
+        allocate (seen(a%size()), source=.false.)
+        found = .false.
+        call find_symbolic_denominator(a, id, seen, found)
+    end function has_symbolic_denominator
+
+    recursive subroutine find_symbolic_denominator(a, id, seen, found)
+        type(arena_t), intent(in)    :: a
+        integer,       intent(in)    :: id
+        logical,       intent(inout) :: seen(:), found
+        integer(int64) :: exponent, denominator
+        integer :: base, k
+        logical :: exact
+
+        if (found) return
+        if (seen(id)) return
+        seen(id) = .true.
+
+        if (a%kind_of(id) == NK_POW) then
+            call exact_value(a, a%arg_of(id, 2), exponent, denominator, exact)
+            if (exact) then
+                if (denominator == 1_int64 .and. exponent < 0_int64) then
+                    base = a%arg_of(id, 1)
+                    if (.not. definitely_nonzero(a, base)) then
+                        found = .true.
+                        return
+                    end if
+                end if
+            end if
+        end if
+
+        do k = 1, a%nargs_of(id)
+            call find_symbolic_denominator(a, a%arg_of(id, k), seen, found)
+            if (found) return
+        end do
+    end subroutine find_symbolic_denominator
+
+    function definitely_nonzero(a, id) result(nonzero)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: nonzero
+
+        select case (a%kind_of(id))
+        case (NK_INT, NK_RAT)
+            nonzero = a%num_of(id) /= 0_int64
+        case (NK_BIG_INT, NK_BIG_RAT)
+            ! Canonical zero always downcasts to NK_INT.
+            nonzero = .true.
+        case (NK_REAL)
+            nonzero = a%real_of(id) /= 0.0_dp
+        case default
+            nonzero = .false.
+        end select
+    end function definitely_nonzero
 
     function is_zero_id(a, id) result(yes)
         type(arena_t), intent(in) :: a

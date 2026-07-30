@@ -119,6 +119,12 @@ External engines remain optional. A native operation must not silently invoke
 an external engine. Benchmarks record native operation time, conversion time,
 and total dispatch time separately.
 
+Native simplification reports a nonzero-denominator condition whenever a
+rewrite changes an expression containing a symbolic negative integer power.
+This conservative guard covers cancellation such as `x*x**(-1) -> 1`; the
+condition is reconstructed on cache hits rather than being lost with the
+cached expression identifier.
+
 ## Verification
 
 The engine that proposes a simplification cannot be its sole verifier.

@@ -39,6 +39,7 @@ program test_fortsym_native
     call test_series()
     call test_linear_solve()
     call test_assumptions()
+    call test_domain_conditions()
     call test_verdicts()
     call test_overflow_preservation()
 
@@ -427,6 +428,33 @@ contains
             print *, "  compound residual: ", chars(print_expr(r%value))
         end if
     end subroutine test_assumptions
+
+    subroutine test_domain_conditions()
+        type(engine_result_t) :: r
+        type(binding_t) :: bindings
+        type(expr_t) :: original
+        real(dp) :: value
+        logical :: defined
+
+        bindings%names = [str("x")]
+        bindings%values = [0.0_dp]
+        bindings%n = 1
+
+        original = x*x**(-1)
+        value = eval_expr(original, bindings, defined)
+        call check("reciprocal cancellation oracle is undefined at zero", &
+            .not. defined)
+        r = engine%simplify(original)
+        call check("reciprocal cancellation produces one away from zero", &
+            r%value == num(arena, 1))
+        call check("reciprocal cancellation reports its nonzero condition", &
+            r%conditional .and. chars(r%condition) == &
+            "cancelled denominator bases must be nonzero")
+        r = engine%simplify(original)
+        call check("cached cancellation retains its nonzero condition", &
+            r%conditional .and. chars(r%condition) == &
+            "cancelled denominator bases must be nonzero")
+    end subroutine test_domain_conditions
 
     subroutine test_verdicts()
         type(engine_result_t) :: r
