@@ -251,10 +251,34 @@ contains
         class(arena_t), intent(in) :: self
         integer(int64), intent(in) :: h
         integer                    :: b
+        b = bucket_for_count(h, size(self%buckets))
+    end function bucket_of
+
+    pure function bucket_for_count(h, count) result(b)
+        integer(int64), intent(in) :: h
+        integer,        intent(in) :: count
+        integer                    :: b
         ! Bucket count is a power of two, so masking replaces a modulo. The
         ! shift first discards the low bits, which FNV mixes least.
-        b = int(iand(ishft(h, -13), int(size(self%buckets) - 1, int64))) + 1
-    end function bucket_of
+        b = int(iand(ishft(h, -13), int(count - 1, int64))) + 1
+    end function bucket_for_count
+
+    !> Double and rebuild the bucket table before its average chain exceeds
+    !> one node. Node indices and argument slices stay unchanged; only the
+    !> collision links are reconstructed.
+    subroutine grow_buckets(self)
+        class(arena_t), intent(inout) :: self
+        integer, allocatable :: larger(:)
+        integer :: b, i
+
+        allocate (larger(2*size(self%buckets)), source=0)
+        do i = 1, self%n_nodes
+            b = bucket_for_count(self%nodes(i)%hash, size(larger))
+            self%nodes(i)%next = larger(b)
+            larger(b) = i
+        end do
+        call move_alloc(larger, self%buckets)
+    end subroutine grow_buckets
 
     !> Structural identity for interning.
     pure function node_equal(self, idx, kind, num, den, rval, name, argv) &
@@ -313,6 +337,11 @@ contains
             end if
             cur = self%nodes(cur)%next
         end do
+
+        if (self%n_nodes >= size(self%buckets)) then
+            call grow_buckets(self)
+            b = bucket_of(self, h)
+        end if
 
         call grow_nodes(self)
         call grow_args(self, size(argv))

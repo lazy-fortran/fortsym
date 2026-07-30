@@ -84,8 +84,13 @@ contains
 
     subroutine test_expansion()
         type(engine_result_t) :: r
-        type(expr_t) :: original, expected
+        type(expr_t) :: original, expected, y
+        type(binding_t) :: bindings
         real(dp), parameter :: points(*) = [-2.5_dp, -0.25_dp, 1.5_dp, 4.0_dp]
+        real(dp), parameter :: xpoints(*) = [-2.0_dp, -0.5_dp, 0.0_dp, 1.5_dp]
+        real(dp), parameter :: ypoints(*) = [1.0_dp, 0.25_dp, -3.0_dp, 2.0_dp]
+        real(dp) :: expanded_value, expected_value, scale
+        logical :: defined
         integer :: k
 
         original = (x + 2)*(x - 3)
@@ -96,6 +101,35 @@ contains
         do k = 1, size(points)
             call check_values("expanded polynomial agrees numerically", &
                 r%value, expected, points(k), 1.0e-13_dp)
+        end do
+
+        ! C(7 + 2, 2) = 36 independently gives the number of monomials of
+        ! total degree at most seven in x and y. Direct evaluation of the
+        ! binomial power is a separate oracle from the distribution algorithm.
+        y = sym(arena, "y")
+        original = (x + y + 1)**7
+        r = engine%expand(original)
+        call check("seventh-power multinomial expansion succeeds", r%ok)
+        call check("seventh-power expansion is a sum", r%value%kind() == NK_ADD)
+        if (r%value%kind() == NK_ADD) then
+            call check("seventh-power expansion has 36 monomials", &
+                r%value%nargs() == 36)
+        end if
+
+        allocate (bindings%names(2))
+        bindings%names(1) = str("x")
+        bindings%names(2) = str("y")
+        allocate (bindings%values(2))
+        bindings%n = 2
+        do k = 1, size(xpoints)
+            bindings%values(1) = xpoints(k)
+            bindings%values(2) = ypoints(k)
+            expanded_value = eval_expr(r%value, bindings, defined)
+            call check("multinomial expansion evaluates", defined)
+            expected_value = (xpoints(k) + ypoints(k) + 1.0_dp)**7
+            scale = max(1.0_dp, abs(expanded_value), abs(expected_value))
+            call check("multinomial expansion agrees with direct power", &
+                abs(expanded_value - expected_value) <= 1.0e-13_dp*scale)
         end do
     end subroutine test_expansion
 

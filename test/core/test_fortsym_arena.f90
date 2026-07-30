@@ -262,11 +262,16 @@ contains
 
     subroutine test_growth()
         type(arena_t), target :: a
-        type(expr_t) :: acc, xi
+        type(expr_t) :: acc, xi, composite, rebuilt
         character(len=16) :: nm
-        integer :: i
+        integer :: i, before
 
         call a%init()
+
+        ! Preserve a composite made before any growth. Reconstructing this
+        ! exact shape after rehashing proves that old collision chains were
+        ! rebuilt rather than merely that new post-growth nodes can intern.
+        composite = (sym(a, "v1") + rat(a, 2_int64, 3_int64))*sym(a, "v2")
 
         ! Push well past the initial capacities so every growth path runs, and
         ! confirm the structure survives reallocation of nodes, args and names.
@@ -277,11 +282,16 @@ contains
             acc = acc + xi*i
         end do
 
-        call ok("grown arena is populated", a%size() > 400)
+        call ok("grown arena passes initial bucket count", a%size() > 1024)
 
         ! Interning still works after the tables moved.
         call ok("interning survives growth", sym(a, "v1") == sym(a, "v1"))
         call ok("distinct names survive growth", sym(a, "v1") /= sym(a, "v2"))
+
+        before = a%size()
+        rebuilt = sym(a, "v2")*(rat(a, 2_int64, 3_int64) + sym(a, "v1"))
+        call ok("pre-growth composite survives bucket rehash", rebuilt == composite)
+        call ok("pre-growth rebuild allocates nothing", a%size() == before)
     end subroutine test_growth
 
     !> Exact-length name for the growth loop, without relying on TRIM semantics.

@@ -52,6 +52,10 @@ children. It is deliberately not inherited from a backend: GiNaC 1.8.10, for
 example, documents that its internal canonical order is not a stable
 user-visible serialization order.
 
+The interning bucket table doubles and rehashes existing collision chains
+before its average load exceeds one node per bucket. Rehashing never changes a
+node index or argument slice, so existing `expr_t` handles remain valid.
+
 Applied functions may have any arity. Native differentiation represents an
 unknown partial derivative as
 `DerivativeN(head, i1, ..., iN, arg1, ..., argM)`. Sorted derivative indices

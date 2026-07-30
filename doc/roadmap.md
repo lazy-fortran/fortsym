@@ -35,8 +35,9 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
   semantics are explicit.
 - Implement native bottom-up simplification and expansion with DAG memoization.
 - Collect numeric factors, like terms, and integer powers.
-- Resize hash tables and replace node-index ordering with a stable semantic
-  order where generated output depends on it.
+- Hash tables now resize before their average chain exceeds one node.
+- Replace node-index ordering with a stable semantic order where generated
+  output depends on it.
 - Benchmark construction, interning, simplification, expansion, and memory
   against direct SymEngine calls.
 

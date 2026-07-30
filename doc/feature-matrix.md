@@ -12,7 +12,7 @@ it.
 
 | Area | Native | SymEngine backend | Other backends | Required next fragment |
 |---|---:|---:|---:|---|
-| Hash-consed scalar expression DAG | yes | conversion | conversion | stable semantic ordering, resized hash table |
+| Hash-consed scalar expression DAG | yes | conversion | conversion | stable semantic ordering; dynamic bucket growth is implemented |
 | Signed 64-bit integers and rationals | yes | yes | yes | checked arithmetic, arbitrary precision |
 | Real literals and real evaluation | yes | yes | partial | high precision and intervals |
 | Complex and algebraic domains | no | conversion only | partial | exact complex and algebraic numbers |

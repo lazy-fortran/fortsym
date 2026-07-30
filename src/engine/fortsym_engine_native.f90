@@ -897,8 +897,8 @@ contains
         logical,       intent(inout) :: done(:)
         integer                      :: out
         integer, allocatable :: children(:)
-        integer(int64) :: exponent, den
-        integer :: k, base, acc
+        integer(int64) :: exponent, den, remaining
+        integer :: k, base, acc, factor
         logical :: exact
 
         if (done(id)) then
@@ -933,9 +933,18 @@ contains
             end if
             if (exact) then
                 acc = a%int(1_int64)
-                do k = 1, int(exponent)
-                    acc = distribute(a, acc, base)
-                    acc = simplify_root_id(a, acc)
+                factor = base
+                remaining = exponent
+                do while (remaining > 0_int64)
+                    if (mod(remaining, 2_int64) == 1_int64) then
+                        acc = distribute(a, acc, factor)
+                        acc = simplify_root_id(a, acc)
+                    end if
+                    remaining = remaining/2_int64
+                    if (remaining > 0_int64) then
+                        factor = distribute(a, factor, factor)
+                        factor = simplify_root_id(a, factor)
+                    end if
                 end do
                 out = acc
             else
