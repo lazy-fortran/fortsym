@@ -82,11 +82,24 @@ constexpr bool supported_mpfr_abi(int major, int minor, int patch)
     return major == 4 && minor == 2 && patch >= 1;
 }
 
+constexpr bool supported_flint_api(int major, int minor)
+{
+    /* FortSym uses FLINT's public fmpq, fmpz_poly, and qqbar interfaces.
+     * FLINT publishes 3.0.0 through 3.6.0 as one 3.x release series:
+     * https://flintlib.org/downloads.html.  The official python-flint
+     * bindings likewise support every available FLINT version from 3.0:
+     * https://github.com/flintlib/python-flint#compatibility-table. */
+    return major == 3 && minor >= 0;
+}
+
 static_assert(sizeof(slong) >= sizeof(int64_t),
               "fsym_shim: FLINT slong cannot hold the exact-power exponent");
-static_assert(__FLINT_VERSION == 3 && __FLINT_VERSION_MINOR == 6
-                  && __FLINT_VERSION_PATCHLEVEL == 0,
-              "fsym_shim: fortsym pins the FLINT 3.6.0 C ABI");
+static_assert(supported_flint_api(3, 0),
+              "fsym_shim: FLINT 3.0 must remain accepted");
+static_assert(!supported_flint_api(2, 9),
+              "fsym_shim: FLINT 2.x must remain rejected");
+static_assert(supported_flint_api(__FLINT_VERSION, __FLINT_VERSION_MINOR),
+              "fsym_shim: fortsym requires the FLINT 3.x public API");
 static_assert(supported_mpfr_abi(4, 2, 1),
               "fsym_shim: MPFR 4.2.1 must remain accepted");
 static_assert(!supported_mpfr_abi(4, 1, 0),
