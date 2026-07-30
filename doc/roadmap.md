@@ -57,6 +57,9 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
   into arena nodes, parsing/printing, native expressions, and conversion next;
   use Calcium or Arb/Acb only where their three-valued or rigorous enclosure
   semantics are explicit.
+- Its pinned 45-row diagnostic passed every exact oracle. Warm end-to-end
+  add/multiply/divide were 1.34x/1.47x/1.16x the separately scoped direct-FLINT
+  no-text floor; a near-64-KiB height refusal completed in 1.50 ms.
 - Native bottom-up simplification uses DAG memoization; nonnegative powers of
   sums use checked, bounded multinomial composition enumeration.
 - Collect numeric factors, like terms, and integer powers.

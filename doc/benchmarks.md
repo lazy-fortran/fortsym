@@ -133,3 +133,17 @@ cannot separate implementation cost from machine variation and does not
 support a release performance claim. The metadata records replay commands and
 SHA-256 hashes for both raw harness outputs; the combined CSV preserves every
 raw measurement field and adds the revision labels.
+
+The pinned `2026-07-29-ryzen5950x-gcc16-algebraic` diagnostic covers all eleven
+successful algebraic workloads plus the bridge-only resource refusal. Every
+one of its 45 rows passed. Warm end-to-end add, multiply, and divide took
+1.34x, 1.47x, and 1.16x the separately scoped direct-FLINT no-text floor.
+The full text/serialization/ABI wrapper gap was larger for small branch
+queries: principal square root and component-sign rows were 16.57x and 27.73x
+the direct kernel floor, but the run does not isolate individual overheads.
+The near-64-KiB height refusal completed in 1.50 ms. GNU `time` recorded
+42,760 KiB command-level RSS for the `fo exec` driver plus bridge child and
+11,724 KiB for the direct executable; these scopes are not comparable.
+Affinity was fixed and the `powersave` governor was not controlled, so these
+measurements are diagnostic and do not establish performance parity or a
+general resource bound.

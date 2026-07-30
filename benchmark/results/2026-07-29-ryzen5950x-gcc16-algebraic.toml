@@ -1,0 +1,109 @@
+schema = 2
+date = "2026-07-29"
+date_basis = "task-window label; measurements collected after local midnight on 2026-07-30 Europe/Vienna"
+revision = "9c46dbc70bcf9dffddeb0f0c54bcb4fc468d48b4"
+operating_system = "Linux 7.1.3-2-cachyos x86_64 GNU/Linux"
+cpu = "AMD Ryzen 9 5950X 16-Core Processor"
+logical_cpus = 32
+fortran_compiler = "GNU Fortran (GCC) 16.1.1 20260625"
+cxx_compiler = "GCC 16.1.1 20260625"
+fo_version = "0.3.2"
+fo_backend = "native"
+fortran_compile_flags = [
+  "-ffree-line-length-none",
+  "-fimplicit-none",
+  "-Werror=implicit-interface",
+  "-ffree-form",
+  "-Warray-temporaries",
+]
+cxx_compile_flags = ["-std=gnu++17", "-fPIE"]
+optimization_flags = []
+bridge_link_libraries = ["symengine", "flint", "mpfr", "gmp", "stdc++"]
+direct_link_libraries = ["flint", "mpfr", "gmp", "stdc++"]
+symengine = "0.14.0-10.1"
+flint = "3.6.0-1.1"
+gmp = "6.3.0-3.1"
+mpfr = "4.2.2-1.1"
+controlled_affinity = true
+affinity = "logical CPU 0"
+controlled_governor = false
+observed_governor = "powersave"
+scaling_driver = "amd-pstate-epp"
+concurrent_benchmark_processes = 1
+claim_scope = "Diagnostic bridge end-to-end versus direct-FLINT no-text kernel floor; asymmetric scopes and uncontrolled governor preclude a parity claim."
+correctness = "All 45 persisted rows pass exact independently derived minimal-polynomial, trace, norm, defining-identity, branch-sign, or resource-refusal oracles."
+
+[protocol]
+bridge_raw_file = "/tmp/fortsym-algebraic-bridge-9c46dbc.csv"
+direct_raw_file = "/tmp/fortsym-algebraic-direct-9c46dbc.csv"
+bridge_time_raw_file = "/tmp/fortsym-algebraic-bridge.time"
+direct_time_raw_file = "/tmp/fortsym-algebraic-direct.time"
+bridge_raw_sha256 = "3808046e7987893304f543ccd2ea941462cb27f3fd05d40135f66472f0f09685"
+direct_raw_sha256 = "5ca4ebc9a132c082c4af049c4aa4157c04649f297bfee0333bce9b46ab54ef6b"
+bridge_time_raw_sha256 = "df841e76ce1af0635fc7f91141a0cf7baaa9553b0256399b8bb9fe24501e3c2a"
+direct_time_raw_sha256 = "3ec58a96192babb37711f4e341084afb525b56db6379626114f3b64940814396"
+raw_hash_role = "Hashes identify the two raw CSV outputs and GNU time -v records transcribed into this result; timing replays are not expected to reproduce them."
+bridge_reproduction_commands = [
+  "git worktree add --detach /tmp/fortsym-algebraic 9c46dbc70bcf9dffddeb0f0c54bcb4fc468d48b4",
+  "cd /tmp/fortsym-algebraic && fo build",
+  "cd /tmp/fortsym-algebraic && taskset -c 0 /usr/bin/time -v -o /tmp/fortsym-algebraic-bridge.time fo exec --no-build bench_algebraic > /tmp/fortsym-algebraic-bridge-9c46dbc.csv",
+]
+direct_reproduction_commands = [
+  "direct_build=$(mktemp -d /tmp/fortsym-qqbar-direct-XXXXXX)",
+  "cmake -S /tmp/fortsym-algebraic -B \"$direct_build\" -DFORTSYM_BUILD_TESTING=OFF",
+  "cmake --build \"$direct_build\" --target bench_qqbar_direct -j2",
+  "taskset -c 0 /usr/bin/time -v -o /tmp/fortsym-algebraic-direct.time \"$direct_build/bin/bench_qqbar_direct\" > /tmp/fortsym-algebraic-direct-9c46dbc.csv",
+]
+csv_assembly = "Preserve the bridge header and every raw bridge row, then append every direct row except its duplicate header; whitespace around numeric fields is immaterial."
+clock = "Both harnesses use a monotonic clock."
+percentile = "After sorting n samples, select the one-based sample at 1 + floor(p*(n-1)); no interpolation."
+
+[workloads]
+semantic_domain = "Exact real and complex algebraic numbers over Q, bounded to degree 32 and coefficient height 4096 bits by the bridge."
+normalization = "Irreducible x^2-2, reducible (x^2-2)(x-3), and repeated (x-1)^2 inputs. Oracle: exact reduced minimal polynomial/root or defining equation plus exact signs."
+gaussian_construct = "1/2 + 3i/4. Oracle: minimal polynomial 16x^2-16x+13; direct row uses trace 1, norm 13/16, and positive component signs."
+arithmetic = "Trace z+conj(z)=1, norm z*conj(z)=13/16, and (1+i)/(1-i)=i."
+conjugate = "1/2-3i/4. Oracle: exact trace 1 and product 13/16 with positive real and negative imaginary signs."
+signed_power = "(1+i)^8=16."
+principal_sqrt = "sqrt(-2) squares to -2 and has zero real, positive imaginary component."
+component_signs = "Exact component signs of principal sqrt(-2) are (0,+1)."
+resource_refusal = "A 65,501-digit real component is below the 64 KiB text cap but above the 4096-bit algebraic-height cap; the bridge must return empty with ok=false."
+output_coverage = "Each timed bridge call includes text validation, FLINT reconstruction, operation, canonical serialization, and immediate fetch; its independent oracle runs outside the timed region. Direct rows omit text and ABI work. Every persisted row reports correct=true."
+
+[warm_same_value]
+warmups = 3
+repetitions = 21
+batch = 10
+
+[cold_distinct_encoding]
+warmups = 0
+repetitions = 11
+batch = 1
+description = "Each repetition scales a defining polynomial or rational encoding without changing the represented exact value."
+
+[memory]
+measurement = "GNU time 1.9 command-level maximum resident set size for each complete suite, not per workload."
+bridge_peak_rss_kib = 42760
+direct_peak_rss_kib = 11724
+bridge_elapsed_seconds = 0.17
+direct_elapsed_seconds = 0.08
+bridge_command_scope = "fo exec driver plus its benchmark child."
+direct_command_scope = "Direct benchmark executable."
+rss_comparable = false
+
+[summary]
+statistic = "median per-call monotonic wall time"
+warm_add_bridge_seconds = 9.47043998e-5
+warm_add_direct_seconds = 7.08464999e-5
+warm_add_ratio = 1.3368
+warm_multiply_bridge_seconds = 1.08370103e-4
+warm_multiply_direct_seconds = 7.37900031e-5
+warm_multiply_ratio = 1.4686
+warm_divide_bridge_seconds = 1.14135002e-4
+warm_divide_direct_seconds = 9.83423088e-5
+warm_divide_ratio = 1.1606
+warm_irreducible_normalize_ratio = 2.4564
+warm_principal_sqrt_ratio = 16.5685
+warm_component_signs_ratio = 27.7323
+resource_refusal_seconds = 1.504955e-3
+finding = "For end-to-end arithmetic, the bridge was 1.16x to 1.47x the separately scoped no-text FLINT floor. The full text/serialization/ABI wrapper gap was largest for small branch and sign kernels, but this run does not isolate its components. The near-limit refusal completed in 1.50 ms in this diagnostic; it does not establish a general latency or memory bound."
