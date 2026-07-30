@@ -19,7 +19,7 @@ auto-tests = true
 # FLINT provides the polynomial GCD behind rational cancellation in the shim,
 # and MPFR backs high-precision evaluation. Both are already SymEngine
 # dependencies; they are named here because the fpm/fo link line is explicit.
-link = ["symengine", "flint", "mpfr", "gmp", "stdc++"]
+link = ["symengine", "flint", "mpfr", "gmp", "stdc++", "dl"]
 
 [fortran]
 implicit-typing = false

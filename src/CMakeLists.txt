@@ -12,6 +12,7 @@ target_sources(fortsym PRIVATE
     util/fortsym_string.f90
 
     # core representation
+    core/fortsym_exact.f90
     core/fortsym_arena.f90
     core/fortsym_expr.f90
     core/fortsym_assume.f90
@@ -55,7 +56,10 @@ target_include_directories(fortsym
     PUBLIC ${CMAKE_Fortran_MODULE_DIRECTORY}
     PRIVATE ${PROJECT_SOURCE_DIR}/src/capi)
 
-target_link_libraries(fortsym PUBLIC fortsym::symengine)
+target_link_libraries(fortsym PUBLIC
+    fortsym::symengine
+    fortsym::flint
+    ${CMAKE_DL_LIBS})
 
 # Yacas is optional at configure time; when present its shim and backend join
 # the library and the scripts path is compiled in.

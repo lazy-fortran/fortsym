@@ -30,6 +30,9 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
 
 - Replace signed 64-bit exact storage with arbitrary-precision integer and
   canonical rational storage using the pinned FLINT shared interface.
+- The ownership-safe FLINT `fmpq` bridge now supplies canonical normalization,
+  add/subtract/multiply/divide, and resource-bounded signed powers; arena node
+  promotion onto it remains.
 - Add exact complex algebraic values through a bounded `qqbar` representation;
   use Calcium or Arb/Acb only where their three-valued or rigorous enclosure
   semantics are explicit.

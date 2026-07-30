@@ -2,6 +2,9 @@
  * each entry point exists. */
 
 #include <cstring>
+#include <cstdint>
+#include <dlfcn.h>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -15,6 +18,9 @@
 #include <symengine/symengine_casts.h>
 #include <symengine/symengine_exception.h>
 #include <symengine/visitor.h>
+
+#include <flint/flint.h>
+#include <flint/fmpq.h>
 
 #ifdef HAVE_SYMENGINE_FLINT
 #include <symengine/polys/cancel.h>
@@ -47,6 +53,129 @@ namespace
 /* Rendered-text buffer. Thread-local so concurrent Fortran callers cannot
  * overwrite each other's pending fetch. */
 thread_local std::string g_render_buffer;
+thread_local std::string g_exact_buffer;
+const int64_t kMaxExactPowExponent = 1000000;
+const size_t kMaxExactInputBytes = 1024UL*1024UL;
+const size_t kMaxExactOutputBytes = 16UL*1024UL*1024UL;
+
+static_assert(sizeof(slong) >= sizeof(int64_t),
+              "fsym_shim: FLINT slong cannot hold the exact-power exponent");
+static_assert(__FLINT_VERSION == 3 && __FLINT_VERSION_MINOR == 6
+                  && __FLINT_VERSION_PATCHLEVEL == 0,
+              "fsym_shim: fortsym pins the FLINT 3.6.0 C ABI");
+
+class FmpqValue
+{
+public:
+    FmpqValue() { fmpq_init(value); }
+    ~FmpqValue() { fmpq_clear(value); }
+
+    FmpqValue(const FmpqValue &) = delete;
+    FmpqValue &operator=(const FmpqValue &) = delete;
+
+    fmpq_t value;
+};
+
+struct FlintStringDeleter
+{
+    void operator()(char *text) const noexcept
+    {
+        if (text != nullptr) {
+            flint_free(text);
+        }
+    }
+};
+
+using FlintString = std::unique_ptr<char, FlintStringDeleter>;
+
+bool parse_exact(FmpqValue &out, const char *text)
+{
+    if (text == nullptr || text[0] == '\0') {
+        return false;
+    }
+    size_t length = 0;
+    do {
+        if (text[length] == '\0') {
+            break;
+        }
+        ++length;
+        if (length > kMaxExactInputBytes) {
+            return false;
+        }
+    } while (true);
+    if (length == 0) {
+        return false;
+    }
+    if (fmpq_set_str(out.value, text, 10) != 0) {
+        return false;
+    }
+    if (fmpz_is_zero(fmpq_denref(out.value))) {
+        return false;
+    }
+    fmpq_canonicalise(out.value);
+    return true;
+}
+
+bool exact_output_fits(const fmpq_t value)
+{
+    size_t bytes = fmpz_sizeinbase(fmpq_numref(value), 10);
+    if (fmpz_sgn(fmpq_numref(value)) < 0) {
+        ++bytes;
+    }
+    if (!fmpz_is_one(fmpq_denref(value))) {
+        const size_t denominator
+            = fmpz_sizeinbase(fmpq_denref(value), 10);
+        if (bytes > kMaxExactOutputBytes - 1
+            || denominator > kMaxExactOutputBytes - bytes - 1) {
+            return false;
+        }
+        bytes += denominator + 1;
+    }
+    return bytes <= kMaxExactOutputBytes;
+}
+
+bool exact_power_fits(const fmpq_t value, int64_t exponent)
+{
+    if (exponent == 0) {
+        return true;
+    }
+    const uint64_t magnitude = exponent < 0
+                                   ? static_cast<uint64_t>(-exponent)
+                                   : static_cast<uint64_t>(exponent);
+    size_t numerator = fmpz_sizeinbase(fmpq_numref(value), 10);
+    size_t denominator = fmpz_sizeinbase(fmpq_denref(value), 10);
+    if (exponent < 0) {
+        const size_t temporary = numerator;
+        numerator = denominator;
+        denominator = temporary;
+    }
+    if (numerator > kMaxExactOutputBytes/magnitude
+        || denominator > kMaxExactOutputBytes/magnitude) {
+        return false;
+    }
+    const size_t numerator_result = numerator*magnitude;
+    const size_t denominator_result = denominator*magnitude;
+    if (numerator_result > kMaxExactOutputBytes - 2) {
+        return false;
+    }
+    return denominator_result
+           <= kMaxExactOutputBytes - numerator_result - 2;
+}
+
+size_t hold_exact(const fmpq_t value)
+{
+    if (!exact_output_fits(value)) {
+        g_exact_buffer.clear();
+        return 0;
+    }
+    FlintString text(fmpq_get_str(nullptr, 10, value));
+    if (!text) {
+        g_exact_buffer.clear();
+        return 0;
+    }
+    g_exact_buffer = text.get();
+    return g_exact_buffer.size();
+}
 
 inline const SymEngine::RCP<const SymEngine::Basic> &deref(const basic s)
 {
@@ -282,6 +411,119 @@ size_t fsym_str_fetch(char *buf, size_t n)
         std::memcpy(buf, g_render_buffer.data(), count);
     }
     return count;
+}
+
+/* ------------------------------------------------------ exact arithmetic -- */
+
+size_t fsym_exact_normalize(const char *value)
+{
+    try {
+        FmpqValue parsed;
+        g_exact_buffer.clear();
+        if (!parse_exact(parsed, value)) {
+            return 0;
+        }
+        return hold_exact(parsed.value);
+    } catch (...) {
+        g_exact_buffer.clear();
+        return 0;
+    }
+}
+
+size_t fsym_exact_binary(const char *left, const char *right, int operation)
+{
+    try {
+        FmpqValue lhs;
+        FmpqValue rhs;
+        FmpqValue result;
+        g_exact_buffer.clear();
+        if (!parse_exact(lhs, left) || !parse_exact(rhs, right)) {
+            return 0;
+        }
+
+        switch (operation) {
+        case FSYM_EXACT_ADD:
+            fmpq_add(result.value, lhs.value, rhs.value);
+            break;
+        case FSYM_EXACT_SUB:
+            fmpq_sub(result.value, lhs.value, rhs.value);
+            break;
+        case FSYM_EXACT_MUL:
+            fmpq_mul(result.value, lhs.value, rhs.value);
+            break;
+        case FSYM_EXACT_DIV:
+            if (fmpq_is_zero(rhs.value)) {
+                return 0;
+            }
+            fmpq_div(result.value, lhs.value, rhs.value);
+            break;
+        default:
+            return 0;
+        }
+        return hold_exact(result.value);
+    } catch (...) {
+        g_exact_buffer.clear();
+        return 0;
+    }
+}
+
+size_t fsym_exact_pow_si(const char *base, int64_t exponent)
+{
+    try {
+        FmpqValue value;
+        FmpqValue result;
+        g_exact_buffer.clear();
+        if (!parse_exact(value, base)) {
+            return 0;
+        }
+        if (exponent < -kMaxExactPowExponent
+            || exponent > kMaxExactPowExponent) {
+            return 0;
+        }
+        if (exponent < 0 && fmpq_is_zero(value.value)) {
+            return 0;
+        }
+        if (!exact_power_fits(value.value, exponent)) {
+            return 0;
+        }
+        fmpq_pow_si(result.value, value.value, static_cast<slong>(exponent));
+        return hold_exact(result.value);
+    } catch (...) {
+        g_exact_buffer.clear();
+        return 0;
+    }
+}
+
+size_t fsym_exact_fetch(char *buf, size_t n)
+{
+    try {
+        const size_t count
+            = n < g_exact_buffer.size() ? n : g_exact_buffer.size();
+        if (count > 0 && buf != nullptr) {
+            std::memcpy(buf, g_exact_buffer.data(), count);
+        }
+        return count;
+    } catch (...) {
+        g_exact_buffer.clear();
+        return 0;
+    }
+}
+
+int fsym_flint_is_shared(void)
+{
+    try {
+        Dl_info information{};
+        void *symbol = dlsym(RTLD_DEFAULT, "fmpq_add");
+        if (symbol == nullptr || dladdr(symbol, &information) == 0
+            || information.dli_fname == nullptr) {
+            return 0;
+        }
+        const std::string path(information.dli_fname);
+        return path.find(".so") != std::string::npos
+               || path.find(".dylib") != std::string::npos;
+    } catch (...) {
+        return 0;
+    }
 }
 
 /* ------------------------------------------------------------- transforms -- */

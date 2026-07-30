@@ -42,6 +42,7 @@ set(CMAKE_Fortran_MODULE_DIRECTORY ${PROJECT_BINARY_DIR}/include)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 include(cmake/deps/symengine.cmake)
+include(cmake/deps/flint.cmake)
 include(cmake/deps/yacas.cmake)
 
 add_subdirectory(src)

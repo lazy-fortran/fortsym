@@ -27,6 +27,7 @@
 #define FSYM_SHIM_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include <symengine/cwrapper.h>
 
@@ -67,6 +68,41 @@ size_t fsym_str_render(const basic s, int mode);
  *  is written: Fortran sizes the destination from fsym_str_render's return
  *  value. Returns the number of bytes copied. */
 size_t fsym_str_fetch(char *buf, size_t n);
+
+/* ------------------------------------------------------ exact arithmetic -- */
+
+/*! Binary operations accepted by fsym_exact_binary. */
+enum {
+    FSYM_EXACT_ADD = 1,
+    FSYM_EXACT_SUB = 2,
+    FSYM_EXACT_MUL = 3,
+    FSYM_EXACT_DIV = 4
+};
+
+/*! Parse and canonicalize a base-ten integer or rational using FLINT fmpq.
+ *  The result is retained in one thread-local pending-result slot for
+ *  fsym_exact_fetch. A second exact operation on the same thread overwrites
+ *  that slot, so callers must fetch immediately and must not re-enter an exact
+ *  operation between render and fetch. Returns its byte length, or zero for
+ *  malformed input, zero denominator, or the local byte budget. */
+size_t fsym_exact_normalize(const char *value);
+
+/*! Apply an exact binary operation to canonical or noncanonical base-ten
+ *  integer/rational strings. Division by zero and malformed input fail. */
+size_t fsym_exact_binary(const char *left, const char *right, int operation);
+
+/*! Raise an exact integer/rational to a signed machine exponent. A negative
+ *  power of zero fails instead of entering FLINT with an invalid denominator.
+ *  Absolute exponents above the local one-million resource bound fail. */
+size_t fsym_exact_pow_si(const char *base, int64_t exponent);
+
+/*! Fetch the pending exact result. The ownership contract matches
+ *  fsym_str_fetch: no terminator is written and no FLINT allocation escapes. */
+size_t fsym_exact_fetch(char *buf, size_t n);
+
+/*! Non-zero only when the dynamically resolved FLINT fmpq_add symbol belongs to a shared
+ *  object. The fo test gate uses this to reject a static-only -lflint path. */
+int fsym_flint_is_shared(void);
 
 /* ------------------------------------------------------------- transforms -- */
 

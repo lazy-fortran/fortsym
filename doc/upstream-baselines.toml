@@ -193,6 +193,15 @@ local_adaptation = "Preflight checked multinomial coefficients, enumerate each f
 independent_oracle = "the combinatorial monomial count C(n+m-1,m-1) plus direct numerical evaluation of the unexpanded power at safe points"
 
 [[algorithm]]
+id = "exact-rational-bridge"
+status = "implemented-foundation"
+mathematical_source = "Canonical arithmetic in Q"
+source_url = "https://flintlib.org/doc/fmpq.html"
+upstream_context = ["flint"]
+local_adaptation = "Use the version-checked FLINT 3.6.0 fmpq C API behind an original single-slot thread-local render/fetch ownership shim; retain values as canonical base-ten strings, verify shared linkage in both CMake and the fo test gate, preflight input/output and power resource bounds, catch every C++ exception at the C ABI, and do not expose FLINT layouts or allocations to Fortran."
+independent_oracle = "independently derived large integer difference-of-squares, rational reduction and addition, exact division, signed-power values, plus malformed/domain/resource refusal cases"
+
+[[algorithm]]
 id = "multivariate-factorization"
 status = "planned"
 mathematical_source = "Paul S. Wang, An Improved Multivariate Polynomial Factoring Algorithm, Mathematics of Computation 32(144), 1978"

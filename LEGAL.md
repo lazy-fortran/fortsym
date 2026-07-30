@@ -60,7 +60,11 @@ despite not being packaged.
 FLINT, GMP and MPFR are LGPL. The LGPL permits a differently licensed program
 to link them provided the recipient can replace the library with a modified
 version. fortsym satisfies that by linking them **dynamically**, which is also
-how the distribution packages ship them. Two obligations follow and are binding
+how the distribution packages ship them. The CMake dependency check rejects a
+FLINT static archive. The `fo`/fpm test
+gate dynamically resolves FLINT's `fmpq_add` and requires its provider path to
+be a shared object, preventing `-lflint` from silently passing against a
+static-only development installation. Two obligations follow and are binding
 on anyone redistributing a fortsym build:
 
 1. Do not statically link FLINT, GMP or MPFR into a distributed binary without
