@@ -33,7 +33,7 @@ it.
 | Integration | no | no generic operation | Yacas concrete method | rational integration first |
 | Limits and asymptotics | no | no public operation | Yacas concrete method | Taylor limits, then Gruntz scales |
 | CSE and Fortran kernel generation | yes | candidate source | candidate source | runtime-aware cost model |
-| Symbolic matrices and tensors | arrays in chart tools | no public nodes | no | exact linear algebra if consumers require it |
+| Symbolic matrices and tensors | exact dense rational systems over `expr_t` arrays | no public nodes | no | conditional symbolic pivots and broader matrix operations |
 
 FortNum's required surface is construction, elementary functions, substitution,
 differentiation products, verification, CSE, Fortran emission, stability

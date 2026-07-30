@@ -116,6 +116,11 @@ an arbitrary subexpression. `subs_many(expression, old, new)` applies all
 pairwise replacements simultaneously, so swaps and coupled governing-equation
 substitutions do not cascade through replacement expressions.
 
+**Solve exact dense rational systems.** `solve_exact_linear_system` accepts an
+`expr_t` coefficient matrix and one or more right-hand sides. It uses
+deterministic exact elimination, rejects unsupported symbolic pivots rather
+than guessing, and reconstructs every residual before returning a solution.
+
 **Differentiate Bessel functions.** `besselj(n, x)` represents the Bessel
 function of the first kind and native differentiation uses the standard
 order recurrence, including the chain rule. Generated Fortran spells it as the

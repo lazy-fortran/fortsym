@@ -20,9 +20,11 @@ native backend operates on it directly.
 3. `src/calculus` implements mechanical differentiation and contracted
    derivative products.
 4. `src/engine` declares operations and wraps native or external algorithms.
-5. `src/council` compares supported engine answers and records disagreement.
-6. `src/verify` supplies independent real evaluation and three-valued checks.
-7. `src/codegen` selects shared subexpressions and emits Fortran kernels.
+5. `src/algebra` implements deterministic exact operations over expression
+   arrays, beginning with dense rational linear systems.
+6. `src/council` compares supported engine answers and records disagreement.
+7. `src/verify` supplies independent real evaluation and three-valued checks.
+8. `src/codegen` selects shared subexpressions and emits Fortran kernels.
 
 An engine capability is a promise that its corresponding type-bound operation
 is callable. A capability bit without an operation entry point is invalid and
