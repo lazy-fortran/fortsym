@@ -1,0 +1,75 @@
+schema = 2
+date = "2026-07-29"
+date_basis = "task-window label; measurements collected after local midnight on 2026-07-30 Europe/Vienna"
+before_revision = "bf466b0851f79fa4fd1f81bcfb76a0eedfba770f"
+after_revision = "e2b4c90240abfad33395dc844f1e6b525bdca9ad"
+operating_system = "Linux 7.1.3-2-cachyos x86_64 GNU/Linux"
+cpu = "AMD Ryzen 9 5950X 16-Core Processor"
+logical_cpus = 32
+compiler = "GNU Fortran (GCC) 16.1.1 20260625"
+fo_version = "0.3.2"
+fo_backend = "native"
+fortran_compile_flags = [
+  "-ffree-line-length-none",
+  "-fimplicit-none",
+  "-fimplicit-none",
+  "-Werror=implicit-interface",
+  "-ffree-form",
+  "-Warray-temporaries",
+]
+optimization_flags = []
+link_libraries = ["symengine", "flint", "mpfr", "gmp", "stdc++"]
+symengine = "0.14.0-10.1"
+flint = "3.6.0-1.1"
+gmp = "6.3.0-3.1"
+mpfr = "4.2.2-1.1"
+controlled_affinity = true
+affinity = "logical CPU 0"
+controlled_governor = false
+observed_governor = "powersave"
+claim_scope = "diagnostic same-machine before/after result; no release parity claim"
+correctness = "Harness exact expected result or independent numeric evaluation; all rows passed."
+
+[protocol]
+description = "Unmodified committed benchmark application at each revision; native and SymEngine each run the same suite in a separate fresh arena."
+before_raw_sha256 = "1b27519e496d1a9a18283ced346893bb67d27b9fd2234dc66ffcfe4e6301898e"
+after_raw_sha256 = "ba8681a582bfd438b793805eee69b2e04699ec6d4cc1ad8d247fb68ba7fa5001"
+raw_hash_role = "Hashes identify the source outputs transcribed into the combined CSV; timing replays are not expected to reproduce them."
+before_reproduction_commands = [
+  "git worktree add --detach /tmp/fortsym-native-exact-before bf466b0851f79fa4fd1f81bcfb76a0eedfba770f",
+  "cd /tmp/fortsym-native-exact-before && taskset -c 0 fo exec bench_native > /tmp/fortsym-native-bf466b0.csv",
+]
+after_reproduction_commands = [
+  "git worktree add --detach /tmp/fortsym-native-exact-after e2b4c90240abfad33395dc844f1e6b525bdca9ad",
+  "cd /tmp/fortsym-native-exact-after && taskset -c 0 fo exec bench_native > /tmp/fortsym-native-e2b4c90.csv",
+]
+csv_assembly = "Preserve every raw measurement field, replace schema=1 with schema=2, and prefix each row with variant and its worktree revision."
+
+[workloads]
+semantic_domain = "Commutative scalar expressions over exact rationals and real64 shifts; no assumptions."
+simplify_collect = "Warm input x+x+2*x-4*x+1/2+1/3-5/6; cold inputs add a distinct symbol and its negation. Oracle: exact zero node."
+differentiate_power = "Warm input (x+1)^8; cold inputs (x+k*1e-6)^8. Oracle: centered finite difference at x=0.375, y=-0.5 with relative tolerance 1e-7."
+expand_power = "Warm input (x+y+1)^7; cold inputs (x+y+k*1e-6)^7. Oracle: independent evaluation of input and expansion at x=0.375, y=-0.5 with relative tolerance 1e-12."
+output_coverage = "One result expression per invocation; every persisted row reports a successful operation and a passing oracle."
+
+[warm_same_expression]
+warmups = 5
+repetitions = 31
+batch = 50
+
+[cold_distinct_expression]
+warmups = 2
+repetitions = 11
+batch = 10
+
+[summary]
+statistic = "median and minimum per-call wall time"
+cold_native_before_seconds = 5.99755801e-4
+cold_native_after_seconds = 6.32775109e-4
+cold_native_change_percent = 5.505459
+cold_symengine_before_seconds = 2.67486891e-4
+cold_symengine_after_seconds = 2.83784699e-4
+native_to_symengine_ratio_before = 2.242188
+native_to_symengine_ratio_after = 2.229772
+relative_ratio_change_percent = -0.553739
+finding = "Cold native expansion rose 5.51% in an uncontrolled-governor diagnostic. The native-to-SymEngine ratio was 0.55% lower, but the unchanged SymEngine row moved 6.09%, so neither delta isolates implementation cost."

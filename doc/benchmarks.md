@@ -97,3 +97,16 @@ baseline patch, separate replay commands, `fo` version/backend, compile flags,
 link libraries, affinity, and observed governor. The CSV identifies patched
 baseline rows by both base revision and patch hash rather than presenting the
 modified source tree as an unmodified Git revision.
+
+The pinned `2026-07-29-ryzen5950x-gcc16-native-exact` diagnostic measures the
+subsequent promotion of native scalar arithmetic from checked `int64` to a
+lazy compact coefficient with bounded FLINT fallback. Against its immediate
+committed parent, median cold expansion moved from 0.600 ms to 0.633 ms
+(5.51% slower). SymEngine moved from 0.267 ms to 0.284 ms in the paired
+processes, so the native/SymEngine ratio changed from 2.242x to 2.230x
+(0.55% lower). Affinity was fixed, but the `powersave` governor was not.
+The unchanged SymEngine row moved 6.09% between runs, so this diagnostic
+cannot separate implementation cost from machine variation and does not
+support a release performance claim. The metadata records replay commands and
+SHA-256 hashes for both raw harness outputs; the combined CSV preserves every
+raw measurement field and adds the revision labels.

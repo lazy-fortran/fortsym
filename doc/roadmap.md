@@ -50,6 +50,11 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
 - The pinned same-machine diagnostic reduced median cold expansion from
   3.260 ms to 0.412 ms (7.91x); native remains 2.66x slower than SymEngine
   0.14.0 on the isolated `(x + y + c)^7` workload.
+- The subsequent pinned exact-arithmetic diagnostic measured 0.600 ms before
+  and 0.633 ms after promotion (+5.51%) under an uncontrolled `powersave`
+  governor. The paired native/SymEngine ratio decreased from 2.242x to 2.230x,
+  while the unchanged SymEngine row moved 6.09%; neither change isolates
+  implementation cost.
 - Stable structural ordering excludes arena and name-table indices; independent
   cross-arena tests require identical printing and byte-identical Fortran.
 - Benchmark construction, interning, simplification, expansion, and memory
