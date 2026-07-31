@@ -376,6 +376,10 @@ contains
             c = text(k:k)
             if (c == "+" .or. c == "-" .or. c == "*" .or. c == "/" .or. &
                 c == "," .or. c == ")") then
+                ! The exponentiation operator is one two-character token.
+                ! Never place a continuation between its two asterisks.
+                if (c == "*" .and. ((k > from .and. text(k - 1:k - 1) == "*") .or. &
+                    (k < len(text) .and. text(k + 1:k + 1) == "*"))) cycle
                 ! A sign belonging to an exponent is part of the literal.
                 if ((c == "+" .or. c == "-") .and. k > from) then
                     if (is_exponent_sign(text, k)) cycle
