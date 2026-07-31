@@ -16,6 +16,7 @@ program test_fortsym_kernel
     use fortsym_products, only: jvp, vjp
     use fortsym_kernel
     use fortsym_engine, only: engine_result_t
+    use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     implicit none
 
@@ -753,8 +754,11 @@ contains
     subroutine test_line_wrapping()
         type(arena_t), target :: a
         type(expr_t) :: roots(1)
+        type(expr_t) :: variables(5), values(4), cotangents(4), products(5)
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: simplified
         character(:), allocatable :: code
-        integer :: longest
+        integer :: longest, k
 
         call a%init()
         roots(1) = parsed(a, &
@@ -776,6 +780,45 @@ contains
         code = chars(emit_kernel(roots, spec_for("k", ["aaaa"], ["r"])))
         call ok("never breaks inside an exponent", index(code, "e- &") == 0)
         call ok("never breaks after an exponent sign", index(code, "e-&") == 0)
+
+        ! The power operator is a two-character token.  Splitting it would
+        ! turn valid `x**2` into the invalid continuation `x* &` / `*2`.
+        call a%clear()
+        call a%init()
+        variables = [sym(a, "target"), sym(a, "node_1"), sym(a, "node_2"), &
+            sym(a, "node_3"), sym(a, "node_4")]
+        values = [ &
+            (variables(1) - variables(3))*(variables(1) - variables(4))* &
+            (variables(1) - variables(5))/ &
+            ((variables(2) - variables(3))*(variables(2) - variables(4))* &
+            (variables(2) - variables(5))), &
+            (variables(1) - variables(2))*(variables(1) - variables(4))* &
+            (variables(1) - variables(5))/ &
+            ((variables(3) - variables(2))*(variables(3) - variables(4))* &
+            (variables(3) - variables(5))), &
+            (variables(1) - variables(2))*(variables(1) - variables(3))* &
+            (variables(1) - variables(5))/ &
+            ((variables(4) - variables(2))*(variables(4) - variables(3))* &
+            (variables(4) - variables(5))), &
+            (variables(1) - variables(2))*(variables(1) - variables(3))* &
+            (variables(1) - variables(4))/ &
+            ((variables(5) - variables(2))*(variables(5) - variables(3))* &
+            (variables(5) - variables(4)))]
+        cotangents = [sym(a, "weight_1_bar"), sym(a, "weight_2_bar"), &
+            sym(a, "weight_3_bar"), sym(a, "weight_4_bar")]
+        products = vjp(values, variables, cotangents)
+        engine = make_native_engine(a)
+        do k = 1, size(products)
+            simplified = engine%simplify(products(k))
+            call ok("cubic VJP simplification succeeds", simplified%ok)
+            if (simplified%ok) products(k) = simplified%value
+        end do
+        code = chars(emit_kernel(products, spec_for("k", &
+            ["target", "node_1", "node_2", "node_3", "node_4"], &
+            ["target_bar", "node_1_bar", "node_2_bar", "node_3_bar", &
+            "node_4_bar"])))
+        call ok("power operator is exercised", index(code, "**") > 0)
+        call ok("never splits the power operator", .not. contains_split_power(code))
     end subroutine test_line_wrapping
 
     subroutine test_long_interface_wrapping()
@@ -817,6 +860,32 @@ contains
         end do
         n = max(n, len(text) - start + 1)
     end function longest_line
+
+    !> Detect a continuation placed between the two characters of `**`, without
+    !> depending on the emitter's current continuation indentation.
+    logical function contains_split_power(text) result(found)
+        character(*), intent(in) :: text
+        integer :: start, mark, k
+
+        found = .false.
+        start = 1
+        do
+            mark = index(text(start:), "* &")
+            if (mark == 0) return
+            k = start + mark + 2
+            do while (k <= len(text) .and. text(k:k) == new_line("a"))
+                k = k + 1
+            end do
+            do while (k <= len(text) .and. text(k:k) == " ")
+                k = k + 1
+            end do
+            if (k <= len(text) .and. text(k:k) == "*") then
+                found = .true.
+                return
+            end if
+            start = start + mark + 2
+        end do
+    end function contains_split_power
 
     subroutine test_snippet_mode()
         type(arena_t), target :: a
