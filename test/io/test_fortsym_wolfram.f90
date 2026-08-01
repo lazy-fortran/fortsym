@@ -27,6 +27,8 @@ program test_fortsym_wolfram
     call test_arctan_arity()
     call test_lists_survive()
     call test_roundtrip()
+    call test_failure_is_reported_not_crashed()
+    call test_juxtaposition()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wolfram"
@@ -156,6 +158,65 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_lists_survive
+
+    !> A malformed operand must produce an error, never a crash.
+    !>
+    !> Regression: "-Inverse[g] . c" segfaulted. The parser negated a term it
+    !> had already failed to build, walking a node whose arena pointer was
+    !> never set. A parser that dies on bad input cannot report which corpus
+    !> construct it lacks, which is the only thing the refusal path is for.
+    subroutine test_failure_is_reported_not_crashed()
+        type(arena_t), target :: a
+        type(expr_t) :: got
+        logical :: ok
+        character(:), allocatable :: message
+        character(*), parameter :: bad(*) = [character(24) :: &
+            "Sin[x                   ", &
+            "*                       ", &
+            "1 + + *                 ", &
+            "-a[b] @ c               ", &
+            "x #                     "]
+        integer :: k
+
+        call a%init()
+        do k = 1, size(bad)
+            got = parse_expr_in(a, trim(bad(k)), dialect(DIA_WOLFRAM), ok, message)
+            if (ok) then
+                print *, "FAIL malformed accepted: ", trim(bad(k))
+                nfail = nfail + 1
+            end if
+        end do
+
+        ! The construct that triggered the crash. It is well formed -- Dot is a
+        ! real operator -- so it must parse; refusing Inverse is the evaluator's
+        ! job, not the parser's.
+        got = parse_expr_in(a, "-Inverse[g] . c", dialect(DIA_WOLFRAM), ok, message)
+        if (.not. ok) then
+            print *, "FAIL dot after unary minus: ", message
+            nfail = nfail + 1
+        end if
+    end subroutine test_failure_is_reported_not_crashed
+
+    subroutine test_juxtaposition()
+        type(arena_t), target :: a
+        type(expr_t) :: x, y, r
+
+        call a%init()
+        x = sym(a, "x")
+        y = sym(a, "y")
+        r = sym(a, "r")
+
+        ! Wolfram writes products with nothing between the factors.
+        call same("juxtaposed", a, "x y", x*y)
+        call same("coefficient", a, "2 x", num(a, 2)*x)
+        call same("mixed juxtaposition", a, "2 Sin[x] Cos[x]", &
+            num(a, 2)*sin(x)*cos(x))
+        call same("juxtaposed call", a, "(x/y) Sin[r]", (x/y)*sin(r))
+        ! A binary minus must survive: treating the next token as the start of
+        ! a factor would turn this into a product and swallow the operator.
+        call same("minus not product", a, "x - y", x - y)
+        call same("plus not product", a, "x + y", x + y)
+    end subroutine test_juxtaposition
 
     subroutine test_roundtrip()
         type(arena_t), target :: a
