@@ -22,7 +22,7 @@ module fortsym_parse
     use fortsym_expr, only: expr_t, sym, num, exact, real_expr, const, func, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_exact, only: exact_sub, exact_div
-    use fortsym_dialect, only: dialect_t, dialect, fn_canonical, &
+    use fortsym_dialect, only: dialect_t, dialect, fn_canonical, DIA_WOLFRAM, &
         const_canonical, DIA_NATIVE
     implicit none
     private
@@ -40,6 +40,11 @@ module fortsym_parse
     integer, parameter :: T_RPAREN = 5
     integer, parameter :: T_COMMA = 6
     integer, parameter :: T_ERROR = 7
+    ! Wolfram applies functions with brackets and writes lists with braces.
+    integer, parameter :: T_LBRACKET = 8
+    integer, parameter :: T_RBRACKET = 9
+    integer, parameter :: T_LBRACE = 10
+    integer, parameter :: T_RBRACE = 11
 
     !> Parser state. Kept in one object so the recursive descent needs no
     !> module-level variables and two parses can never interfere.
@@ -138,10 +143,7 @@ contains
 
         n = len(p%src)
 
-        do while (p%pos <= n)
-            if (p%src(p%pos:p%pos) /= " ") exit
-            p%pos = p%pos + 1
-        end do
+        call skip_trivia(p, n)
 
         if (p%pos > n) then
             p%tok = T_END
@@ -168,6 +170,22 @@ contains
         end if
 
         select case (c)
+        case ("[")
+            p%tok = T_LBRACKET
+            p%text = "["
+            p%pos = p%pos + 1
+        case ("]")
+            p%tok = T_RBRACKET
+            p%text = "]"
+            p%pos = p%pos + 1
+        case ("{")
+            p%tok = T_LBRACE
+            p%text = "{"
+            p%pos = p%pos + 1
+        case ("}")
+            p%tok = T_RBRACE
+            p%text = "}"
+            p%pos = p%pos + 1
         case ("(")
             p%tok = T_LPAREN
             p%text = "("
@@ -206,6 +224,50 @@ contains
             call fail(p, "unexpected character '"//c//"'")
         end select
     end subroutine advance
+
+    !> Whitespace and comments, skipped together.
+    !>
+    !> Wolfram nests (* ... *) comments, so a depth counter is required: a
+    !> single scan for the first "*)" would end the comment early and dump the
+    !> remainder of the inner comment into the token stream as code.
+    subroutine skip_trivia(p, n)
+        type(parser_t), intent(inout) :: p
+        integer,        intent(in)    :: n
+        integer :: depth
+        character :: c
+
+        do while (p%pos <= n)
+            c = p%src(p%pos:p%pos)
+            if (c == " " .or. c == char(9) .or. c == char(10) &
+                .or. c == char(13)) then
+                p%pos = p%pos + 1
+                cycle
+            end if
+            if (c == "(" .and. p%pos < n) then
+                if (p%src(p%pos + 1:p%pos + 1) == "*") then
+                    depth = 0
+                    do while (p%pos <= n)
+                        if (p%pos < n) then
+                            if (p%src(p%pos:p%pos + 1) == "(*") then
+                                depth = depth + 1
+                                p%pos = p%pos + 2
+                                cycle
+                            end if
+                            if (p%src(p%pos:p%pos + 1) == "*)") then
+                                depth = depth - 1
+                                p%pos = p%pos + 2
+                                if (depth <= 0) exit
+                                cycle
+                            end if
+                        end if
+                        p%pos = p%pos + 1
+                    end do
+                    cycle
+                end if
+            end if
+            exit
+        end do
+    end subroutine skip_trivia
 
     !> A numeric literal. Anything with a point or an exponent is a real;
     !> everything else stays an exact integer, because turning 3 into 3.0 would
@@ -531,9 +593,25 @@ contains
         case (T_NAME)
             name = p%text
             call advance(p, d)
-            if (p%tok == T_LPAREN) then
+            if (p%tok == T_LBRACKET) then
                 call advance(p, d)
-                call parse_arg_list(p, a, d, fargs, nargs)
+                call parse_arg_list(p, a, d, fargs, nargs, T_RBRACKET)
+                if (p%failed) return
+                canon = chars(fn_canonical(d, name))
+                ! Wolfram overloads ArcTan on arity, so the parser resolves it
+                ! rather than the name table: two arguments is atan2, and its
+                ! argument order is what decides the quadrant.
+                if (name == "ArcTan") then
+                    if (nargs == 2) then
+                        canon = "atan2"
+                    else
+                        canon = "atan"
+                    end if
+                end if
+                e = func(canon, fargs(1:nargs))
+            else if (p%tok == T_LPAREN) then
+                call advance(p, d)
+                call parse_arg_list(p, a, d, fargs, nargs, T_RPAREN)
                 if (p%failed) return
                 canon = chars(fn_canonical(d, name))
                 e = func(canon, fargs(1:nargs))
@@ -559,6 +637,15 @@ contains
             end if
             call advance(p, d)
 
+        case (T_LBRACE)
+            ! A list becomes an opaque List application, so {x, 0, 5} survives
+            ! as a structured argument for Series and friends instead of being
+            ! flattened into something the lowering layer cannot read back.
+            call advance(p, d)
+            call parse_arg_list(p, a, d, fargs, nargs, T_RBRACE)
+            if (p%failed) return
+            e = func("List", fargs(1:nargs))
+
         case (T_END)
             call fail(p, "unexpected end of input")
 
@@ -567,20 +654,21 @@ contains
         end select
     end function parse_primary
 
-    recursive subroutine parse_arg_list(p, a, d, fargs, nargs)
+    recursive subroutine parse_arg_list(p, a, d, fargs, nargs, closer)
         type(parser_t),            intent(inout) :: p
         type(arena_t), target,     intent(inout) :: a
         type(dialect_t),           intent(in)    :: d
         type(expr_t), allocatable, intent(out)   :: fargs(:)
         integer,                   intent(out)   :: nargs
+        integer,                   intent(in)    :: closer
         integer, parameter :: MAX_ARGS = 16
 
         allocate (fargs(MAX_ARGS))
         nargs = 0
 
-        if (p%tok == T_RPAREN) then
+        if (p%tok == closer) then
             call advance(p, d)
-            call fail(p, "function call with no arguments")
+            call fail(p, "call with no arguments")
             return
         end if
 
@@ -600,8 +688,8 @@ contains
             exit
         end do
 
-        if (p%tok /= T_RPAREN) then
-            call fail(p, "expected ')' closing argument list")
+        if (p%tok /= closer) then
+            call fail(p, "expected closing bracket on argument list")
             return
         end if
         call advance(p, d)
