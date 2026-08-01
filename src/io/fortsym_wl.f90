@@ -18,8 +18,8 @@ module fortsym_wl
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
-    use fortsym_expr, only: expr_t, sym, num, func, func_in, operator(+), &
-        operator(*), operator(**)
+    use fortsym_expr, only: expr_t, sym, num, func, func_in, real_expr, &
+        operator(+), operator(*), operator(**)
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
     use fortsym_parse, only: parse_expr_in
     use fortsym_subs, only: subs
@@ -29,6 +29,7 @@ module fortsym_wl
     use fortsym_matrix, only: matrix_transpose, matrix_dot, matrix_det, &
         matrix_inverse, is_matrix, is_list
     use fortsym_plot, only: plot_expression, plot_spec_t, read_plot_range
+    use fortsym_numeric, only: numeric_value
     implicit none
     private
 
@@ -411,6 +412,8 @@ contains
         logical :: arg_ok
         type(str_t) :: arg_message
         integer :: order, k, j
+        real(dp) :: value
+        character(:), allocatable :: why
 
         ok = .true.
         message = str("")
@@ -565,6 +568,22 @@ contains
         ! genuine shape error -- ragged rows, mismatched dimensions -- still
         ! refuses, because that is a mistake in the source rather than a
         ! symbol standing in for a matrix.
+        case ("N")
+            ! Only the one-argument form. N[expr, precision] asks for a
+            ! requested-precision result, and fortsym evaluates in real64 --
+            ! answering a 30-digit request with 16 digits would be a wrong
+            ! answer wearing the right shape. Refused until #37 lands.
+            if (r%nargs() /= 1) then
+                call refuse(ok, message, "N with a requested precision")
+                return
+            end if
+            call numeric_value(r%arg(1), value, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "N: "//why)
+                return
+            end if
+            r = real_expr(s%a, value)
+
         case ("Plot")
             if (r%nargs() < 2) then
                 call refuse(ok, message, "Plot needs an expression and a range")
@@ -680,7 +699,7 @@ contains
         case ("Piecewise", "Boole", "If", "Which")
             yes = .true.
         ! Numerics (#37)
-        case ("N", "SetPrecision", "Interpolation", "Fit", "Chop")
+        case ("SetPrecision", "Interpolation", "Fit", "Chop")
             yes = .true.
         ! Plotting, through fortplot (#44)
         case ("Plot3D", "ContourPlot", "ParametricPlot", "ListPlot", &
