@@ -26,6 +26,7 @@ module fortsym_wl
     use fortsym_assume, only: assumption_context_t
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
+    use fortsym_eval, only: free_symbols_of
     use fortsym_engine, only: engine_result_t, wall_seconds
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_matrix, only: matrix_transpose, matrix_dot, matrix_det, &
@@ -40,6 +41,11 @@ module fortsym_wl
     use fortsym_wl_num, only: wl_n, wl_chop, wl_identity_matrix, wl_cross, &
         wl_trace, CHOP_DEFAULT
     use fortsym_integrate, only: integrate
+    use fortsym_defint, only: definite_integral
+    use fortsym_poly, only: poly_together, poly_cancel, poly_apart, &
+        poly_factor, poly_coefficient, poly_coefficient_list, poly_collect, &
+        poly_exponent, poly_gcd_expr, poly_divide, poly_numerator, &
+        poly_denominator
     use fortsym_polysolve, only: solve_polynomial
     use fortsym_complexdom, only: re_part, im_part, conjugate, arg_of, &
         complex_expand
@@ -784,7 +790,7 @@ contains
 
         character(:), allocatable :: head
         type(engine_result_t) :: res
-        type(expr_t) :: var, point, target, inner
+        type(expr_t) :: var, point, target, inner, placeholder
         type(expr_t), allocatable :: args(:)
         logical :: arg_ok
         type(str_t) :: arg_message
@@ -869,8 +875,20 @@ contains
                 var = r%arg(k)
                 if (var%kind() == NK_FUNC) then
                     if (chars(var%name()) /= "List") then
-                        call refuse(ok, message, "D with a computed variable")
-                        return
+                        ! An opaque application such as q[t] is an independent
+                        ! coordinate for a partial derivative. Rename it to a
+                        ! fresh symbol, differentiate, then restore the node.
+                        if (.not. is_opaque_application(var)) then
+                            call refuse(ok, message, "D with a computed "// &
+                                        "variable: "//chars(var%name())// &
+                                        " is not an independent coordinate")
+                            return
+                        end if
+                        placeholder = fresh_symbol(s%a, r)
+                        inner = subs(inner, var, placeholder)
+                        inner = diff(inner, placeholder)
+                        inner = subs(inner, placeholder, var)
+                        cycle
                     end if
                     if (var%nargs() /= 2) then
                         call refuse(ok, message, &
@@ -1128,25 +1146,8 @@ contains
             end if
 
         case ("Integrate")
-            ! Indefinite only. Integrate[f, {x, a, b}] is a definite integral,
-            ! and evaluating the antiderivative at the endpoints is wrong
-            ! whenever the integrand has a singularity between them -- which is
-            ! not decided here, so the definite form refuses.
-            if (r%nargs() /= 2) then
-                call refuse(ok, message, "definite or multiple Integrate")
-                return
-            end if
-            var = r%arg(2)
-            if (var%kind() /= NK_SYM) then
-                call refuse(ok, message, "Integrate needs a plain variable")
-                return
-            end if
-            inner = integrate(s%a, r%arg(1), var, ok, why)
-            if (.not. ok) then
-                call refuse(ok, message, "Integrate: "//why)
-                return
-            end if
-            r = inner
+            r = lower_integrate(s, r, ok, message)
+            if (.not. ok) return
 
         case ("Limit")
             r = lower_limit(s, r, ok, message)
@@ -1168,6 +1169,26 @@ contains
               "PowerExpand")
             r = lower_rewrite(s, r, head, ok, message)
             if (.not. ok) return
+
+        case ("Together", "Cancel", "Factor", "Apart", "Collect", &
+              "Coefficient", "CoefficientList", "Exponent", &
+              "PolynomialGCD", "PolynomialQuotient", "PolynomialRemainder")
+            r = lower_polynomial(s, r, head, ok, message)
+            if (.not. ok) return
+
+        case ("Numerator")
+            if (r%nargs() /= 1) then
+                call refuse(ok, message, "Numerator takes one argument")
+                return
+            end if
+            r = poly_numerator(s%a, r%arg(1))
+
+        case ("Denominator")
+            if (r%nargs() /= 1) then
+                call refuse(ok, message, "Denominator takes one argument")
+                return
+            end if
+            r = poly_denominator(s%a, r%arg(1))
 
         case ("Plus", "Times", "Power", "List", "Rule", "Equal")
             ! Structural heads the parser already built. Nothing to lower.
@@ -1193,6 +1214,83 @@ contains
 
         end select
     end function wl_eval
+
+    !> Integrate[f, spec, ...]. A spec is a bare variable x, a {x} that means
+    !> the same, or a {x, a, b} that asks for a definite integral.
+    !>
+    !> Multiple specs are nested, with the last spec innermost. This preserves
+    !> limits that refer to an outer integration variable.
+    function lower_integrate(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(expr_t) :: spec, var, inner, stage
+        character(:), allocatable :: why
+        integer :: k
+
+        ok = .true.
+        message = str("")
+        r = e
+
+        if (e%nargs() < 2) then
+            call refuse(ok, message, "Integrate needs an expression and a "// &
+                        "variable")
+            return
+        end if
+
+        inner = e%arg(1)
+        do k = e%nargs(), 2, -1
+            spec = e%arg(k)
+
+            if (spec%kind() == NK_SYM) then
+                inner = integrate(s%a, inner, spec, ok, why)
+                if (.not. ok) then
+                    call refuse(ok, message, "Integrate: "//why)
+                    return
+                end if
+                cycle
+            end if
+
+            if (spec%kind() /= NK_FUNC .or. chars(spec%name()) /= "List") then
+                call refuse(ok, message, "Integrate needs a variable or a "// &
+                            "{var, a, b} range")
+                return
+            end if
+
+            var = spec%arg(1)
+            if (var%kind() /= NK_SYM) then
+                call refuse(ok, message, "Integrate needs a plain variable")
+                return
+            end if
+
+            select case (spec%nargs())
+            case (1)
+                inner = integrate(s%a, inner, var, ok, why)
+                if (.not. ok) then
+                    call refuse(ok, message, "Integrate: "//why)
+                    return
+                end if
+            case (3)
+                ! Use a temporary because the definite-integral routine has an
+                ! intent(out) result and must read the integrand first.
+                call definite_integral(s%a, inner, var, spec%arg(2), &
+                                       spec%arg(3), stage, ok, why)
+                if (.not. ok) then
+                    call refuse(ok, message, "definite Integrate: "//why)
+                    return
+                end if
+                inner = stage
+            case default
+                call refuse(ok, message, "Integrate range must be {var} or "// &
+                            "{var, a, b}")
+                return
+            end select
+        end do
+
+        r = inner
+    end function lower_integrate
 
     !> True when a positional pattern definition matches this call shape.
     function has_function_definition(s, name, nargs) result(yes)
@@ -1647,6 +1745,149 @@ contains
         r = out
     end function lower_rewrite
 
+    !> Polynomial and rational-function heads, over exact rationals.
+    !>
+    !> Every one of these either produces a result fortsym_poly has checked --
+    !> a cancelled fraction, a factorisation that multiplies back, a partial
+    !> fraction expansion that recombines to the input -- or refuses with the
+    !> reason. Nothing here falls through to the unevaluated form, which would
+    !> print Factor[x^2 - 1] as though that were the factorisation.
+    function lower_polynomial(s, e, head, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        character(*),        intent(in)   :: head
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(expr_t), allocatable :: list(:)
+        type(expr_t) :: var, out
+        character(:), allocatable :: why
+        integer :: order
+
+        r = e
+        ok = .true.
+        message = str("")
+
+        select case (head)
+
+        case ("Together")
+            if (e%nargs() /= 1) then
+                call refuse(ok, message, "Together takes one argument")
+                return
+            end if
+            call poly_together(s%a, e%arg(1), out, ok, why)
+
+        case ("Cancel")
+            if (e%nargs() /= 1) then
+                call refuse(ok, message, "Cancel takes one argument")
+                return
+            end if
+            call poly_cancel(s%a, e%arg(1), out, ok, why)
+
+        case ("Factor")
+            if (e%nargs() /= 1) then
+                call refuse(ok, message, "Factor takes one argument")
+                return
+            end if
+            call poly_factor(s%a, e%arg(1), out, ok, why)
+
+        case ("Apart")
+            if (e%nargs() < 1 .or. e%nargs() > 2) then
+                call refuse(ok, message, "Apart takes one or two arguments")
+                return
+            end if
+            if (e%nargs() == 2) then
+                call poly_apart(s%a, e%arg(1), e%arg(2), .true., out, ok, why)
+            else
+                var = e%arg(1)
+                call poly_apart(s%a, e%arg(1), var, .false., out, ok, why)
+            end if
+
+        case ("Collect")
+            if (e%nargs() /= 2) then
+                call refuse(ok, message, &
+                    "Collect here takes an expression and one variable")
+                return
+            end if
+            call poly_collect(s%a, e%arg(1), e%arg(2), out, ok, why)
+
+        case ("Exponent")
+            if (e%nargs() /= 2) then
+                call refuse(ok, message, "Exponent takes two arguments")
+                return
+            end if
+            call poly_exponent(s%a, e%arg(1), e%arg(2), out, ok, why)
+
+        case ("Coefficient")
+            if (e%nargs() < 2 .or. e%nargs() > 3) then
+                call refuse(ok, message, "Coefficient takes two or three "// &
+                    "arguments")
+                return
+            end if
+            order = 1
+            if (e%nargs() == 3) then
+                if (.not. exact_small_int(e%arg(3), order)) then
+                    call refuse(ok, message, &
+                        "Coefficient with a symbolic or negative power")
+                    return
+                end if
+            end if
+            var = e%arg(2)
+            ! Coefficient[e, x^n] names the power in the form itself.
+            if (var%kind() == NK_POW) then
+                if (.not. exact_small_int(var%arg(2), order)) then
+                    call refuse(ok, message, &
+                        "Coefficient with a symbolic power")
+                    return
+                end if
+                var = var%arg(1)
+            end if
+            call poly_coefficient(s%a, e%arg(1), var, order, out, ok, why)
+
+        case ("CoefficientList")
+            if (e%nargs() /= 2) then
+                call refuse(ok, message, &
+                    "CoefficientList here takes an expression and one "// &
+                    "variable")
+                return
+            end if
+            call poly_coefficient_list(s%a, e%arg(1), e%arg(2), list, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, head//": "//why)
+                return
+            end if
+            r = func("List", list)
+            return
+
+        case ("PolynomialGCD")
+            if (e%nargs() /= 2) then
+                call refuse(ok, message, &
+                    "PolynomialGCD here takes two polynomials")
+                return
+            end if
+            call poly_gcd_expr(s%a, e%arg(1), e%arg(2), out, ok, why)
+
+        case ("PolynomialQuotient", "PolynomialRemainder")
+            if (e%nargs() /= 3) then
+                call refuse(ok, message, &
+                    head//" takes two polynomials and a variable")
+                return
+            end if
+            call poly_divide(s%a, e%arg(1), e%arg(2), e%arg(3), &
+                             head == "PolynomialQuotient", out, ok, why)
+
+        case default
+            call refuse(ok, message, head//" is not implemented")
+            return
+        end select
+
+        if (.not. ok) then
+            call refuse(ok, message, head//": "//why)
+            return
+        end if
+        r = out
+    end function lower_polynomial
+
     !> A zero-argument application of the given name, such as Infinity.
     function is_named(e, name) result(yes)
         type(expr_t), intent(in) :: e
@@ -1688,9 +1929,6 @@ contains
         ! Integration and limits (#31, #32)
         case ("NIntegrate")
             yes = .true.
-        ! Polynomial and rational algebra (#28)
-        case ("Factor", "Together", "Apart", "Cancel", "Collect", "PolynomialGCD")
-            yes = .true.
         ! Assumptions (#29)
         case ("Refine", "Assuming", "Simplify2", "Element")
             yes = .true.
@@ -1701,7 +1939,7 @@ contains
         case ("Reduce", "NSolve", "FindRoot", "Eliminate", "Roots", "ToRadicals")
             yes = .true.
         ! Series and sums (#35, #39)
-        case ("SeriesCoefficient", "Coefficient", "CoefficientList")
+        case ("SeriesCoefficient")
             yes = .true.
         ! Trig and power rewrites (#40)
         case ("Simplify3")
@@ -1726,6 +1964,104 @@ contains
             yes = .false.
         end select
     end function is_known_command
+
+    !> Is `e` an application fortsym has no meaning for, and can therefore
+    !> treat as an independent coordinate?
+    function is_opaque_application(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+        character(:), allocatable :: name
+        integer :: k
+        character :: c
+
+        yes = .false.
+        if (e%kind() /= NK_FUNC) return
+        if (e%nargs() < 1) return
+
+        name = chars(e%name())
+        if (len(name) == 0) return
+        c = name(1:1)
+        if (.not. is_letter(c)) return
+        do k = 2, len(name)
+            c = name(k:k)
+            if (is_letter(c)) cycle
+            if (c >= "0" .and. c <= "9") cycle
+            return
+        end do
+
+        if (is_known_command(name)) return
+        if (has_differentiation_rule(name)) return
+        select case (name)
+        case ("List", "Rule", "Equal", "Plus", "Times", "Power", "Derivative", &
+              "Part", "Slot", "Function", "D", "Integrate", "Sum", "Product", &
+              "Limit", "Series", "Solve", "Simplify", "FullSimplify")
+            return
+        end select
+
+        yes = .true.
+    end function is_opaque_application
+
+    pure function is_letter(c) result(yes)
+        character, intent(in) :: c
+        logical               :: yes
+
+        yes = (c >= "a" .and. c <= "z")
+        if (yes) return
+        yes = (c >= "A" .and. c <= "Z")
+    end function is_letter
+
+    !> The canonical names fortsym differentiates through. An application with
+    !> one of these heads is a function of its argument, not a coordinate.
+    pure function has_differentiation_rule(name) result(yes)
+        character(*), intent(in) :: name
+        logical                  :: yes
+
+        select case (name)
+        case ("sin", "cos", "tan", "asin", "acos", "atan", "atan2", &
+              "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
+              "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", &
+              "loggamma", "polygamma", "besselj", "legendrep", "legendreq", &
+              "re", "im", "conjugate", "arg")
+            yes = .true.
+        case default
+            yes = .false.
+        end select
+    end function has_differentiation_rule
+
+    !> A symbol name that occurs nowhere in `e`, for use as a stand-in during
+    !> a substitute-differentiate-substitute round trip.
+    function fresh_symbol(a, e) result(v)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t),          intent(in)    :: e
+        type(expr_t)                         :: v
+        type(str_t), allocatable :: names(:)
+        character(:), allocatable :: candidate
+        integer :: attempt, k
+        logical :: taken
+
+        names = free_symbols_of(e)
+        do attempt = 0, 999
+            candidate = "fortsymCoordinate"//itoa(attempt)
+            taken = .false.
+            do k = 1, size(names)
+                if (chars(names(k)) == candidate) then
+                    taken = .true.
+                    exit
+                end if
+            end do
+            if (.not. taken) exit
+        end do
+        v = sym(a, candidate)
+    end function fresh_symbol
+
+    function itoa(n) result(text)
+        integer, intent(in) :: n
+        character(:), allocatable :: text
+        character(len=16) :: buf
+
+        write (buf, '(i0)') n
+        text = trim(buf)
+    end function itoa
 
     !> Name the next output file. A script plotting twenty curves must not
     !> overwrite one file nineteen times.
