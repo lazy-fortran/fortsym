@@ -66,6 +66,10 @@ module fortsym_dialect
         !> for comparing against a CAS, wrong for generated Fortran where a
         !> dropped digit changes the compiled constant.
         logical     :: compact_reals = .false.
+        !> True for syntax that exists only in the Wolfram subset: prefix
+        !> application with @, and \[Name] named characters. Gated because
+        !> another dialect must still reject them as the errors they are there.
+        logical     :: wolfram_syntax = .false.
     end type dialect_t
 
 contains
@@ -102,6 +106,7 @@ contains
             d%bracket_application = .true.
             d%implicit_multiplication = .true.
             d%compact_reals = .true.
+            d%wolfram_syntax = .true.
         case (DIA_FORTRAN)
             d%name = str("fortran")
             d%real_suffix = str("_dp")
