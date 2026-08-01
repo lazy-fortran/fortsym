@@ -55,13 +55,13 @@ Latest corpus-wide measurement, 2026-08-01, `fortsym-bench` at 384 scripts
 | scripts exceeding the time budget | 1 |
 | crashes | **0** |
 | cold two-oracle audit after translator refresh | 4:54 |
-| warm compact raw-output and verdict audit | about 2.1 s |
+| warm compact raw-output and verdict audit | about 2 s |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The final binding-level audit reports 2,960 agreements, 934 declared
-differences, 20 unsupported outcomes, 40 timeouts, 135 errors, 207 oracle
+The final binding-level audit reports 2,992 agreements, 908 declared
+differences, 20 unsupported outcomes, 40 timeouts, 135 errors, 201 oracle
 disagreements, and 799 oracle-missing bindings. The target remains open until
 the declared native subset and the available oracle overlap agree.
 
@@ -94,7 +94,7 @@ claims.
 The current cold figure includes the SymPy refresh required by the translator
 cache-version change and the native refresh required by the rebuilt binary.
 Once raw results and comparison verdicts are cached, the same full audit takes
-about 2.1 seconds. These are harness measurements, not a capability
+about 2 seconds. These are harness measurements, not a capability
 comparison: Mathics evaluates integrals fortsym refuses, and the native path
 still has one 60-second timeout.
 
