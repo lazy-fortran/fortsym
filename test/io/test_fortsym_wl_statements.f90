@@ -26,6 +26,7 @@ program test_fortsym_wl_statements
     call test_explicit_trig_simplify()
     call test_recursive_function()
     call test_pure_map_apply_replace()
+    call test_list_threading()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_statements"
@@ -185,5 +186,24 @@ contains
             "value = {x, y} /. {x -> 2, y -> 3}"//char(10), &
             "value", "List(2, 3)")
     end subroutine test_pure_map_apply_replace
+
+    !> Arithmetic on lists is threaded element by element in Wolfram.
+    !> These are independent hand calculations, not assertions about the
+    !> evaluator's internal list representation.
+    subroutine test_list_threading()
+        call expect("list Times", "value = {1, 2}*{3, 4}"//char(10), &
+            "value", "List(3, 8)")
+        call expect("scalar list Plus", "value = {1, 2} + 3"//char(10), &
+            "value", "List(4, 5)")
+        call expect("list Power", "value = {1, 2}^2"//char(10), &
+            "value", "List(1, 4)")
+        call expect("Thread equal", &
+            "value = Thread[Equal[{x, y}, {a, b}]]"//char(10), &
+            "value", "List(Equal(x, a), Equal(y, b))")
+        call expect("Thread bound equal", &
+            "lhs = {x, y}"//char(10)//"rhs = {a, b}"//char(10)// &
+            "value = Thread[Equal[lhs, rhs]]"//char(10), &
+            "value", "List(Equal(x, a), Equal(y, b))")
+    end subroutine test_list_threading
 
 end program test_fortsym_wl_statements
