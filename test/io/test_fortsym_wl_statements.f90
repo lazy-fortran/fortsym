@@ -116,6 +116,10 @@ contains
         call expect("two-parameter function", &
                     "f[i_, j_] = i/j"//char(10)// &
                     "value = f[2, 4]"//char(10), "value", "1/2")
+        call expect("table local shadows global", &
+                    "i = 99"//char(10)//"n = 3"//char(10)// &
+                    "values = Table[i + n, {i, n}]"//char(10), &
+                    "values", "List(4, 5, 6)")
     end subroutine test_table_evaluation
 
     !> Clear removes an earlier value, and a top-level comma keeps compound

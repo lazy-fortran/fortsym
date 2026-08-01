@@ -720,7 +720,15 @@ contains
             return
         end if
 
-        value = wl_eval(s, apply_bindings(s, parsed), ok, message)
+        ! Table owns its iterator symbols. Applying global bindings first would
+        ! turn Table[i, {i, 3}] into Table[99, {99, 3}] when a script happened
+        ! to use i earlier; resolve other globals after each local index has
+        ! been substituted instead.
+        if (parsed%kind() == NK_FUNC .and. chars(parsed%name()) == "Table") then
+            value = wl_eval(s, parsed, ok, message)
+        else
+            value = wl_eval(s, apply_bindings(s, parsed), ok, message)
+        end if
     end subroutine wl_eval_text
 
     !> Replace bound symbols by their values.
@@ -1153,7 +1161,7 @@ contains
         r = body
 
         if (level > table%nargs()) then
-            r = wl_eval(s, body, ok, message)
+            r = wl_eval(s, apply_bindings(s, body), ok, message)
             if (ok) r = auto_evaluate(s, r)
             return
         end if
@@ -1165,7 +1173,7 @@ contains
         do k = 1, size(values)
             next_body = subs(body, var, values(k))
             if (level == table%nargs()) then
-                cell = wl_eval(s, next_body, ok, message)
+                cell = wl_eval(s, apply_bindings(s, next_body), ok, message)
                 if (ok) cell = auto_evaluate(s, cell)
             else
                 cell = lower_table_level(s, next_body, table, level + 1, &
@@ -1195,6 +1203,7 @@ contains
         type(str_t),        intent(out)   :: message
 
         type(expr_t) :: explicit_values, item
+        type(expr_t) :: bound
         integer(int64) :: lo, hi, step, count64, k64
         integer :: k
         type(str_t) :: why
@@ -1222,7 +1231,8 @@ contains
         ! scripts and costs no symbolic inference: evaluate each supplied
         ! value independently, then substitute it exactly as a range value.
         if (spec%nargs() == 2) then
-            explicit_values = spec%arg(2)
+            bound = apply_bindings(s, spec%arg(2))
+            explicit_values = bound
             if (explicit_values%kind() == NK_FUNC .and. &
                 chars(explicit_values%name()) == "List") then
                 if (explicit_values%nargs() > MAX_TABLE_ITEMS) then
@@ -1242,21 +1252,27 @@ contains
                 return
             end if
 
-            if (.not. exact_integer(explicit_values, hi)) then
+            if (.not. exact_integer(bound, hi)) then
                 call refuse(ok, message, "Table needs an integer upper bound")
                 return
             end if
             lo = 1_int64
             step = 1_int64
         else
-            if (.not. exact_integer(spec%arg(2), lo) .or. &
-                .not. exact_integer(spec%arg(3), hi)) then
+            bound = apply_bindings(s, spec%arg(2))
+            if (.not. exact_integer(bound, lo)) then
+                call refuse(ok, message, "Table needs integer range bounds")
+                return
+            end if
+            bound = apply_bindings(s, spec%arg(3))
+            if (.not. exact_integer(bound, hi)) then
                 call refuse(ok, message, "Table needs integer range bounds")
                 return
             end if
             step = 1_int64
             if (spec%nargs() == 4) then
-                if (.not. exact_integer(spec%arg(4), step)) then
+                bound = apply_bindings(s, spec%arg(4))
+                if (.not. exact_integer(bound, step)) then
                     call refuse(ok, message, "Table needs an integer step")
                     return
                 end if
