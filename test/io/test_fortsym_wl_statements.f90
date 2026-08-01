@@ -108,6 +108,13 @@ contains
         call expect("nested table", &
                     "grid = Table[i + j, {i, 2}, {j, 3}]"//char(10), &
                     "grid", "List(List(2, 3, 4), List(3, 4, 5))")
+        call expect("pattern function in table", &
+                    "f[i_] := i^2"//char(10)// &
+                    "values = Table[f[i], {i, 3}]"//char(10), &
+                    "values", "List(1, 4, 9)")
+        call expect("two-parameter function", &
+                    "f[i_, j_] = i/j"//char(10)// &
+                    "value = f[2, 4]"//char(10), "value", "1/2")
     end subroutine test_table_evaluation
 
 end program test_fortsym_wl_statements

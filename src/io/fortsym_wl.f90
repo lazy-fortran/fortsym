@@ -4,9 +4,10 @@ module fortsym_wl
     ! This is the layer above the parser: it splits a script into statements,
     ! keeps a binding table, and lowers the command heads fortsym actually
     ! supports onto native operations. It is not an interpreter for the
-    ! language, and does not pretend to be -- there is no pattern matcher, no
-    ! rule system and no evaluator loop. Anything outside the supported set is
-    ! reported by name as unsupported.
+    ! language, and does not pretend to be -- there is no general pattern
+    ! matcher, rule system or evaluator loop. A bounded subset of ordinary
+    ! named pattern definitions is supported because generated tables use it;
+    ! anything outside that subset is reported by name as unsupported.
     !
     ! The refusal is the point. A compatibility layer that guesses is worse than
     ! one that declines, because a plausible wrong answer gets acted on. Every
@@ -49,6 +50,8 @@ module fortsym_wl
     public :: wl_split_statements
 
     integer, parameter :: MAX_BINDINGS = 512
+    integer, parameter :: MAX_FUNCTIONS = 256
+    integer, parameter :: MAX_FUNCTION_ARGS = 16
     integer, parameter :: MAX_TABLE_ITEMS = 10000
     integer, parameter :: dp = real64
 
@@ -63,11 +66,27 @@ module fortsym_wl
         type(str_t)  :: message
     end type wl_binding_t
 
+    !> One simple f[x_, y_] := body definition.
+    !>
+    !> This is intentionally not a general DownValues implementation. The
+    !> corpus uses named positional patterns for reusable algebraic bodies;
+    !> storing those directly lets Table substitute concrete arguments without
+    !> pretending to support conditions, defaults or sequence patterns.
+    type :: wl_function_t
+        type(str_t)  :: name
+        type(str_t)  :: params(MAX_FUNCTION_ARGS)
+        type(expr_t) :: body
+        integer      :: nparams = 0
+        logical      :: defined = .false.
+    end type wl_function_t
+
     type :: wl_session_t
         type(arena_t), pointer :: a => null()
         type(native_engine_t)  :: engine
         type(wl_binding_t)     :: bindings(MAX_BINDINGS)
+        type(wl_function_t)    :: functions(MAX_FUNCTIONS)
         integer                :: n = 0
+        integer                :: nfunctions = 0
         !> Wall-clock budget for the whole script, in seconds. A script that
         !> exceeds it stops and says so. Hanging is the one outcome a
         !> verification tool must never have: a refusal names the construct
@@ -88,6 +107,8 @@ contains
         s%a => a
         s%engine = make_native_engine(a)
         s%n = 0
+        s%nfunctions = 0
+        s%functions(:)%defined = .false.
         s%started = wall_seconds()
     end subroutine wl_session_begin
 
@@ -305,19 +326,30 @@ contains
         type(wl_session_t), intent(inout) :: s
         character(*),       intent(in)    :: text
 
-        integer :: eq
-        character(:), allocatable :: name, rhs
+        integer :: eq, lhs_end
+        character(:), allocatable :: name, rhs, function_name
         type(expr_t) :: value
-        logical :: ok
+        logical :: ok, function_lhs_ok
         type(str_t) :: message
 
         eq = assignment_split(text)
         if (eq <= 0) return
 
-        name = trim(adjustl(text(1:eq - 1)))
-        if (.not. is_plain_name(name)) return
+        lhs_end = eq - 1
+        if (lhs_end > 0) then
+            if (text(lhs_end:lhs_end) == ":") lhs_end = lhs_end - 1
+        end if
+        name = trim(adjustl(text(1:lhs_end)))
 
         rhs = text(eq + assignment_width(text, eq):)
+
+        if (.not. is_plain_name(name)) then
+            function_lhs_ok = function_lhs_name(name, function_name)
+            if (.not. function_lhs_ok) return
+            call define_function(s, name, rhs, ok, message)
+            return
+        end if
+
         call wl_eval_text(s, rhs, value, ok, message)
         if (ok) value = auto_evaluate(s, value)
 
@@ -373,9 +405,10 @@ contains
         end if
     end function assignment_width
 
-    !> A bare symbol name, with no brackets. Definitions like f[x_] := ... carry
-    !> a pattern fortsym has no matcher for, so they are skipped rather than
-    !> bound to something that would later be substituted wrongly.
+    !> A bare symbol name, with no brackets. Pattern definitions are parsed by
+    !> the separate bounded positional-definition path below; this predicate
+    !> remains strict so a function definition is never mistaken for a value
+    !> binding.
     pure function is_plain_name(name) result(yes)
         character(*), intent(in) :: name
         logical                  :: yes
@@ -397,6 +430,146 @@ contains
             return
         end do
     end function is_plain_name
+
+    !> Validate f[x_, y_] and return its bare function name.
+    function function_lhs_name(lhs, base) result(yes)
+        character(*), intent(in) :: lhs
+        character(:), allocatable, intent(out) :: base
+        logical :: yes
+        integer :: open, close, start, i
+        character(:), allocatable :: pattern
+
+        yes = .false.
+        base = ""
+        open = index(lhs, "[")
+        close = len_trim(lhs)
+        if (open <= 1 .or. close <= open) return
+        if (lhs(close:close) /= "]") return
+        if (scan(lhs(open + 1:close - 1), "[]") /= 0) return
+
+        base = trim(adjustl(lhs(1:open - 1)))
+        if (.not. is_plain_name(base)) then
+            base = ""
+            return
+        end if
+
+        start = open + 1
+        do i = open + 1, close - 1
+            if (lhs(i:i) /= ",") cycle
+            if (.not. pattern_name(lhs, start, i - 1, pattern)) then
+                base = ""
+                return
+            end if
+            start = i + 1
+        end do
+        if (.not. pattern_name(lhs, start, close - 1, pattern)) then
+            base = ""
+            return
+        end if
+        yes = .true.
+    end function function_lhs_name
+
+    !> Extract the name from one ordinary name-pattern, such as x_.
+    function pattern_name(text, from, to, name) result(yes)
+        character(*), intent(in) :: text
+        integer,      intent(in) :: from, to
+        character(:), allocatable, intent(out) :: name
+        logical :: yes
+        character(:), allocatable :: piece
+        integer :: n
+
+        yes = .false.
+        name = ""
+        if (to < from) return
+        piece = trim(adjustl(text(from:to)))
+        n = len(piece)
+        if (n < 2) return
+        if (piece(n:n) /= "_") return
+        if (n > 2) then
+            if (piece(n - 1:n - 1) == "_") return
+        end if
+        name = piece(1:n - 1)
+        if (.not. is_plain_name(name)) then
+            name = ""
+            return
+        end if
+        yes = .true.
+    end function pattern_name
+
+    !> Store a bounded positional pattern definition without adding a fake
+    !> value binding to the result stream.
+    subroutine define_function(s, lhs, rhs, ok, message)
+        type(wl_session_t), intent(inout) :: s
+        character(*),        intent(in)    :: lhs, rhs
+        logical,             intent(out)   :: ok
+        type(str_t),         intent(out)   :: message
+
+        character(:), allocatable :: base, pattern
+        type(expr_t) :: body
+        logical :: parsed_ok, lhs_ok
+        character(:), allocatable :: why
+        integer :: open, close, start, i, nparams, slot, k
+
+        ok = .false.
+        message = str("")
+        lhs_ok = function_lhs_name(lhs, base)
+        if (.not. lhs_ok) then
+            call refuse(ok, message, "unsupported function definition")
+            return
+        end if
+
+        open = index(lhs, "[")
+        close = len_trim(lhs)
+        nparams = 1
+        do i = open + 1, close - 1
+            if (lhs(i:i) == ",") nparams = nparams + 1
+        end do
+        if (nparams > MAX_FUNCTION_ARGS) then
+            call refuse(ok, message, "function definition has too many patterns")
+            return
+        end if
+
+        body = parse_expr_in(s%a, rhs, dialect(DIA_WOLFRAM), parsed_ok, why)
+        if (.not. parsed_ok) then
+            call refuse(ok, message, "function definition: "//why)
+            return
+        end if
+
+        slot = 0
+        do k = s%nfunctions, 1, -1
+            if (.not. s%functions(k)%defined) cycle
+            if (chars(s%functions(k)%name) /= base) cycle
+            if (s%functions(k)%nparams /= nparams) cycle
+            slot = k
+            exit
+        end do
+        if (slot == 0) then
+            if (s%nfunctions >= MAX_FUNCTIONS) then
+                call refuse(ok, message, "too many function definitions")
+                return
+            end if
+            s%nfunctions = s%nfunctions + 1
+            slot = s%nfunctions
+        end if
+
+        s%functions(slot)%name = str(base)
+        s%functions(slot)%body = body
+        s%functions(slot)%nparams = nparams
+        s%functions(slot)%defined = .true.
+        start = open + 1
+        k = 1
+        do i = open + 1, close - 1
+            if (lhs(i:i) /= ",") cycle
+            lhs_ok = pattern_name(lhs, start, i - 1, pattern)
+            s%functions(slot)%params(k) = str(pattern)
+            k = k + 1
+            start = i + 1
+        end do
+        lhs_ok = pattern_name(lhs, start, close - 1, pattern)
+        s%functions(slot)%params(k) = str(pattern)
+
+        ok = .true.
+    end subroutine define_function
 
     !> Fold what Wolfram folds on its own.
     !>
@@ -759,6 +932,11 @@ contains
             ! Structural heads the parser already built. Nothing to lower.
 
         case default
+            if (has_function_definition(s, head, r%nargs())) then
+                r = lower_user_function(s, r, ok, message)
+                if (.not. ok) return
+                return
+            end if
             ! A head fortsym recognises but has not implemented must refuse.
             ! Letting it fall through would print Integrate[x^2, x] as though it
             ! were the answer, and the harness would score that against the
@@ -774,6 +952,59 @@ contains
 
         end select
     end function wl_eval
+
+    !> True when a positional pattern definition matches this call shape.
+    function has_function_definition(s, name, nargs) result(yes)
+        type(wl_session_t), intent(in) :: s
+        character(*),        intent(in) :: name
+        integer,             intent(in) :: nargs
+        logical :: yes
+        integer :: k
+
+        yes = .false.
+        do k = s%nfunctions, 1, -1
+            if (.not. s%functions(k)%defined) cycle
+            if (chars(s%functions(k)%name) /= name) cycle
+            if (s%functions(k)%nparams /= nargs) cycle
+            yes = .true.
+            return
+        end do
+    end function has_function_definition
+
+    !> Substitute a matched call into the stored body and evaluate it.
+    function lower_user_function(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, body
+        integer :: slot, k
+
+        ok = .false.
+        message = str("")
+        r = e
+        slot = 0
+        do k = s%nfunctions, 1, -1
+            if (.not. s%functions(k)%defined) cycle
+            if (chars(s%functions(k)%name) /= chars(e%name())) cycle
+            if (s%functions(k)%nparams /= e%nargs()) cycle
+            slot = k
+            exit
+        end do
+        if (slot == 0) then
+            call refuse(ok, message, "no matching function definition")
+            return
+        end if
+
+        body = s%functions(slot)%body
+        do k = 1, e%nargs()
+            body = subs(body, sym(s%a, chars(s%functions(slot)%params(k))), &
+                        e%arg(k))
+        end do
+        body = apply_bindings(s, body)
+        r = wl_eval(s, body, ok, message)
+        if (ok) r = auto_evaluate(s, r)
+    end function lower_user_function
 
     !> Table[body, {i, n}], Table[body, {i, lo, hi}] and nested ranges.
     !>
