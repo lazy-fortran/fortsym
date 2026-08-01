@@ -18,7 +18,7 @@ module fortsym_parse
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, &
-        NK_BIG_RAT, NK_MUL, NK_SYM
+        NK_BIG_RAT, NK_MUL, NK_SYM, NK_FUNC
     use fortsym_expr, only: expr_t, sym, num, exact, real_expr, const, func, &
         func_in, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
@@ -46,6 +46,9 @@ module fortsym_parse
     integer, parameter :: T_RBRACKET = 9
     integer, parameter :: T_LBRACE = 10
     integer, parameter :: T_RBRACE = 11
+    !> A pure-function slot: #, #1, ## or ##1. The index rides in ivalue and
+    !> the head ("Slot" or "SlotSequence") in text.
+    integer, parameter :: T_SLOT = 12
 
     !> Parser state. Kept in one object so the recursive descent needs no
     !> module-level variables and two parses can never interfere.
@@ -270,9 +273,19 @@ contains
             p%text = "-"
             p%pos = p%pos + 1
         case ("/")
+            ! Longest match first. "//." read as "//" then "." would turn a
+            ! ReplaceRepeated into a postfix application of a Dot product.
+            if (p%pos + 2 <= n) then
+                if (p%src(p%pos:p%pos + 2) == "//.") then
+                    p%tok = T_OP
+                    p%text = "//."
+                    p%pos = p%pos + 3
+                    return
+                end if
+            end if
             if (p%pos < n) then
                 select case (p%src(p%pos:p%pos + 1))
-                case ("/.", "/;")
+                case ("/.", "/;", "/@", "//")
                     p%tok = T_OP
                     p%text = p%src(p%pos:p%pos + 1)
                     p%pos = p%pos + 2
@@ -282,6 +295,32 @@ contains
             p%tok = T_OP
             p%text = "/"
             p%pos = p%pos + 1
+        case ("#")
+            if (.not. d%wolfram_syntax) then
+                p%tok = T_ERROR
+                p%text = c
+                p%pos = p%pos + 1
+                call fail(p, "unexpected character '"//c//"'")
+                return
+            end if
+            call lex_slot(p, n)
+        case (";")
+            if (.not. d%wolfram_syntax) then
+                p%tok = T_ERROR
+                p%text = c
+                p%pos = p%pos + 1
+                call fail(p, "unexpected character '"//c//"'")
+                return
+            end if
+            p%tok = T_OP
+            p%text = ";"
+            p%pos = p%pos + 1
+            if (p%pos <= n) then
+                if (p%src(p%pos:p%pos) == ";") then
+                    p%text = ";;"
+                    p%pos = p%pos + 1
+                end if
+            end if
         case ("@")
             if (.not. d%wolfram_syntax) then
                 p%tok = T_ERROR
@@ -293,6 +332,18 @@ contains
             p%tok = T_OP
             p%text = "@"
             p%pos = p%pos + 1
+            if (p%pos <= n) then
+                if (p%src(p%pos:p%pos) == "@") then
+                    p%text = "@@"
+                    p%pos = p%pos + 1
+                    if (p%pos <= n) then
+                        if (p%src(p%pos:p%pos) == "@") then
+                            p%text = "@@@"
+                            p%pos = p%pos + 1
+                        end if
+                    end if
+                end if
+            end if
         case ("\")
             if (.not. d%wolfram_syntax) then
                 p%tok = T_ERROR
@@ -318,6 +369,51 @@ contains
             call fail(p, "unexpected character '"//c//"'")
         end select
     end subroutine advance
+
+    !> A pure-function slot: #, #1, ## or ##2.
+    !>
+    !> A named slot such as #name belongs to an Association and denotes a
+    !> lookup by key, not a positional argument. There is no key here to look
+    !> up, so it is rejected by name rather than silently read as slot one.
+    subroutine lex_slot(p, n)
+        type(parser_t), intent(inout) :: p
+        integer,        intent(in)    :: n
+        integer :: start, ios
+
+        p%pos = p%pos + 1
+        p%text = "Slot"
+        if (p%pos <= n) then
+            if (p%src(p%pos:p%pos) == "#") then
+                p%text = "SlotSequence"
+                p%pos = p%pos + 1
+            end if
+        end if
+
+        start = p%pos
+        do while (p%pos <= n)
+            if (.not. is_digit(p%src(p%pos:p%pos))) exit
+            p%pos = p%pos + 1
+        end do
+
+        if (p%pos == start) then
+            if (p%pos <= n) then
+                if (is_alpha(p%src(p%pos:p%pos))) then
+                    p%tok = T_ERROR
+                    call fail(p, "named slot #name")
+                    return
+                end if
+            end if
+            p%ivalue = 1_int64
+        else
+            read (p%src(start:p%pos - 1), *, iostat=ios) p%ivalue
+            if (ios /= 0) then
+                p%tok = T_ERROR
+                call fail(p, "malformed slot number")
+                return
+            end if
+        end if
+        p%tok = T_SLOT
+    end subroutine lex_slot
 
     !> A Wolfram named character such as \[Alpha], lexed as one identifier.
     subroutine lex_named_character(p, n)
@@ -391,7 +487,7 @@ contains
         if (p%pos < n) pair = p%src(p%pos:p%pos + 1)
 
         select case (pair)
-        case ("==", "!=", "<=", ">=", "&&", "||", ":>")
+        case ("==", "!=", "<=", ">=", "&&", "||", ":>", ":=", "<>")
             p%tok = T_OP
             p%text = pair
             p%pos = p%pos + 2
@@ -399,6 +495,20 @@ contains
         end select
 
         select case (c)
+        case ("&")
+            ! A lone "&" is the postfix that closes a pure function. Only
+            ! Wolfram spells it that way; in the native dialect it stays an
+            ! error rather than becoming a silent no-op.
+            if (.not. p%wolfram) then
+                p%tok = T_ERROR
+                p%text = c
+                p%pos = p%pos + 1
+                call fail(p, "unexpected character '"//c//"'")
+                return
+            end if
+            p%tok = T_OP
+            p%text = "&"
+            p%pos = p%pos + 1
         case ("<", ">")
             p%tok = T_OP
             p%text = c
@@ -559,33 +669,70 @@ contains
         type(parser_t), intent(in) :: p
         logical                    :: yes
         yes = p%tok == T_NUMBER .or. p%tok == T_NAME .or. &
-              p%tok == T_LPAREN .or. p%tok == T_LBRACE
+              p%tok == T_LPAREN .or. p%tok == T_LBRACE .or. p%tok == T_SLOT
     end function starts_primary
 
+    !> True when the current token could begin a whole operand, including a
+    !> signed one. Used where an operand is optional -- a[[2 ;; -1]] has one
+    !> and a[[2 ;;]] does not -- and a bare starts_primary would read the
+    !> minus of the first as the start of a subtraction that is not there.
+    pure function starts_expression(p) result(yes)
+        type(parser_t), intent(in) :: p
+        logical                    :: yes
+        yes = starts_primary(p)
+        if (yes) return
+        if (p%tok /= T_OP) return
+        yes = p%text == "-" .or. p%text == "+"
+    end function starts_expression
+
+    !> Binding powers in Wolfram's own order.
+    !>
+    !> The relative order is what decides meaning, and getting one pair wrong
+    !> reassociates an expression into a different one that still parses --
+    !> the worst kind of error here, because nothing reports it. So the table
+    !> mirrors Wolfram's documented precedence rather than convenience:
+    !> application forms (@, /@, @@) bind tighter than Power, Dot sits between
+    !> Times and Power, Span sits just under Plus, and the pure-function "&"
+    !> binds looser than everything except the postfix //, assignment and ";".
     pure function binding_power(op) result(bp)
         character(*), intent(in) :: op
         integer                  :: bp
         select case (op)
-        case ("="); bp = 1
-        case ("@"); bp = 2
-        case ("/.", "/;"); bp = 3
-        case ("->", ":>"); bp = 4
-        case ("||"); bp = 4
-        case ("&&"); bp = 4
-        case ("."); bp = 9
-        case ("==", "!=", "<", ">", "<=", ">="); bp = 5
-        case ("+", "-"); bp = 6
-        case ("*", "/"); bp = 7
-        case ("**", "^"); bp = 8
+        case (";"); bp = 1
+        case ("=", ":="); bp = 2
+        case ("//"); bp = 3
+        case ("&"); bp = 4
+        case ("/.", "//."); bp = 5
+        case ("->", ":>"); bp = 6
+        case ("/;"); bp = 7
+        case ("||"); bp = 8
+        case ("&&"); bp = 9
+        case ("==", "!=", "<", ">", "<=", ">="); bp = 10
+        case ("<>"); bp = 11
+        case (";;"); bp = 12
+        case ("+", "-"); bp = 13
+        case ("*", "/"); bp = 14
+        case ("."); bp = 15
+        case ("**", "^"); bp = 16
+        case ("@", "/@", "@@", "@@@"); bp = 17
         case default; bp = -1
         end select
     end function binding_power
 
+    !> Binding power of the factor level, used by unary minus and by the
+    !> implicit multiplication of juxtaposed operands.
+    pure function bp_times() result(bp)
+        integer :: bp
+        bp = binding_power("*")
+    end function bp_times
+
     pure function is_right_assoc(op) result(yes)
         character(*), intent(in) :: op
         logical                  :: yes
-        ! Only exponentiation associates to the right: a**b**c is a**(b**c).
-        yes = op == "**" .or. op == "^" .or. op == "@"
+        ! Exponentiation and the application forms associate to the right:
+        ! a**b**c is a**(b**c) and f /@ g /@ x is f /@ (g /@ x).
+        yes = op == "**" .or. op == "^" .or. op == "@" .or. op == "/@" &
+              .or. op == "@@" .or. op == "@@@" .or. op == "->" .or. op == ":>"
     end function is_right_assoc
 
     !> Precedence climbing. Parses a unary/primary term, then folds in binary
@@ -614,8 +761,8 @@ contains
             ! Handled before the operator test because there is no token to
             ! test -- the absence of one is the operator.
             if (d%implicit_multiplication .and. starts_primary(p)) then
-                if (binding_power("*") < min_bp) exit
-                rhs = parse_binary(p, a, d, binding_power("*") + 1)
+                if (bp_times() < min_bp) exit
+                rhs = parse_binary(p, a, d, bp_times() + 1)
                 if (p%failed) return
                 e = e*rhs
                 cycle
@@ -624,6 +771,42 @@ contains
             op = p%text
             bp = binding_power(op)
             if (bp < min_bp .or. bp < 0) exit
+
+            ! Postfix "&" closes a pure function: it takes the whole
+            ! expression to its left as the body and has no right operand.
+            if (op == "&") then
+                call advance(p, d)
+                e = func("Function", [e])
+                cycle
+            end if
+
+            ! Span has an optional right end -- a[[2 ;;]] is "from 2 to the
+            ! end" -- so the right operand is read only when one is there.
+            if (op == ";;") then
+                call advance(p, d)
+                if (.not. starts_expression(p)) then
+                    e = func("Span", [e])
+                    cycle
+                end if
+                rhs = parse_binary(p, a, d, bp + 1)
+                if (p%failed) return
+                e = func("Span", [e, rhs])
+                cycle
+            end if
+
+            ! A trailing ";" inside brackets -- Module[{}, a; b;] -- ends the
+            ! sequence rather than introducing another expression.
+            if (op == ";") then
+                call advance(p, d)
+                if (.not. starts_expression(p)) then
+                    e = func("CompoundExpression", [e])
+                    cycle
+                end if
+                rhs = parse_binary(p, a, d, bp + 1)
+                if (p%failed) return
+                e = func("CompoundExpression", [e, rhs])
+                cycle
+            end if
 
             call advance(p, d)
 
@@ -676,7 +859,20 @@ contains
             ! node keeps one representation for application, so Simplify @ e
             ! reaches the same lowering as Simplify[e].
             case ("@"); e = apply_head(a, d, e, rhs)
+            ! x // f is f[x]: the same application, written the other way
+            ! round, so it lowers through the same path as f @ x.
+            case ("//"); e = apply_head(a, d, rhs, e)
+            ! Map, Apply and MapApply stay structural. Each one needs the
+            ! argument's list structure at evaluation time, and this subset has
+            ! no evaluator for them, so they are heads that refuse by name
+            ! rather than results.
+            case ("/@"); e = func("Map", [e, rhs])
+            case ("@@"); e = func("Apply", [e, rhs])
+            case ("@@@"); e = func("MapApply", [e, rhs])
+            case ("//."); e = func("ReplaceRepeated", [e, rhs])
+            case ("<>"); e = func("StringJoin", [e, rhs])
             case ("="); e = func("Set", [e, rhs])
+            case (":="); e = func("SetDelayed", [e, rhs])
             case default
                 call fail(p, "unknown operator '"//op//"'")
                 return
@@ -691,11 +887,22 @@ contains
         type(expr_t)                         :: e
 
         if (p%tok == T_OP) then
-            if (p%text == "-") then
+            if (p%text == ";;") then
+                ! Leading Span: a[[;; 3]] runs from the first part to three.
+                call advance(p, d)
+                if (.not. starts_expression(p)) then
+                    e = func_in(a, "Span")
+                    return
+                end if
+                e = parse_binary(p, a, d, binding_power(";;") + 1)
+                if (p%failed) return
+                e = func("Span", [num(a, 1_int64), e])
+                return
+            else if (p%text == "-") then
                 call advance(p, d)
                 ! Unary minus binds tighter than +/- but looser than **, so -x**2
                 ! is -(x**2), matching Fortran and every engine here.
-                e = parse_binary(p, a, d, 7)
+                e = parse_binary(p, a, d, bp_times())
                 ! Negating a failed parse walks a partially built node whose
                 ! arena pointer was never set, which segfaults instead of
                 ! reporting the error that already happened.
@@ -704,7 +911,7 @@ contains
                 return
             else if (p%text == "+") then
                 call advance(p, d)
-                e = parse_binary(p, a, d, 7)
+                e = parse_binary(p, a, d, bp_times())
                 return
             end if
         end if
@@ -952,6 +1159,15 @@ contains
                 end if
             end if
 
+        case (T_SLOT)
+            ! Slot[n] stays structural: it only means something inside the
+            ! Function that binds it, and this subset has no applier for one.
+            e = func("Slot", [num(a, p%ivalue)])
+            if (p%text == "SlotSequence") e = func("SlotSequence", [num(a, p%ivalue)])
+            call advance(p, d)
+            e = parse_postfix(p, a, d, e)
+            return
+
         case (T_LPAREN)
             call advance(p, d)
             e = parse_binary(p, a, d, 0)
@@ -961,6 +1177,9 @@ contains
                 return
             end if
             call advance(p, d)
+            ! (expr)[[k]] and (f)[x] apply to the parenthesised group.
+            e = parse_postfix(p, a, d, e)
+            return
 
         case (T_LBRACE)
             ! A list becomes an opaque List application, so {x, 0, 5} survives
@@ -974,6 +1193,11 @@ contains
             else
                 e = func("List", fargs(1:nargs))
             end if
+            ! {a, b, c}[[k]] indexes the list. Without this the [[k]] group is
+            ! left in the stream and the enclosing argument list reports a
+            ! missing closing bracket.
+            e = parse_postfix(p, a, d, e)
+            return
 
         case (T_END)
             call fail(p, "unexpected end of input")
@@ -1046,10 +1270,20 @@ contains
         type(expr_t)                         :: e
         type(expr_t), allocatable :: parts(:)
         integer :: k
+        logical :: matched
 
         if (head%kind() == NK_SYM) then
             e = func(chars(head%name()), args(1:nargs))
             return
+        end if
+        ! Derivative[n][f][x] is the same thing as f'[x], written the long
+        ! way. Left as a chain of applications it printed back as
+        ! Apply[Apply[Derivative[1], f], x], which reads like an answer and is
+        ! not one. Only the exact shape is recognised: one order, one function
+        ! symbol, one argument. Anything else stays an unevaluated Apply.
+        if (nargs == 1) then
+            e = derivative_operator(a, head, args(1), matched)
+            if (matched) return
         end if
         allocate (parts(nargs + 1))
         parts(1) = head
@@ -1058,6 +1292,50 @@ contains
         end do
         e = func("Apply", parts)
     end function build_apply
+
+    !> The two stages of Derivative[n][f][x].
+    !>
+    !> Stage one turns Derivative[n] applied to a symbol into a marker node;
+    !> stage two turns that marker applied to one argument into the same
+    !> Derivative1 node fortsym's own differentiation and the f'[x] postfix
+    !> both produce, so all three spellings are one expression.
+    function derivative_operator(a, head, argument, matched) result(e)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t),          intent(in)    :: head
+        type(expr_t),          intent(in)    :: argument
+        logical,               intent(out)   :: matched
+        type(expr_t)                         :: e
+        type(expr_t) :: order, target_fn
+        type(expr_t) :: parts(3)
+
+        matched = .false.
+        e = head
+        if (head%kind() /= NK_FUNC) return
+
+        if (chars(head%name()) == "Derivative") then
+            if (head%nargs() /= 1) return
+            order = head%arg(1)
+            ! A symbolic or fractional order is a different concept, and a
+            ! multi-index Derivative[m, n] differentiates a function of
+            ! several variables. Neither is what Derivative1 records.
+            if (order%kind() /= NK_INT) return
+            if (argument%kind() /= NK_SYM) return
+            matched = .true.
+            e = func("DerivativeOperator", [argument, order])
+            return
+        end if
+
+        if (chars(head%name()) == "DerivativeOperator") then
+            if (head%nargs() /= 2) return
+            target_fn = head%arg(1)
+            order = head%arg(2)
+            matched = .true.
+            parts(1) = target_fn
+            parts(2) = order
+            parts(3) = argument
+            e = func("Derivative1", parts)
+        end if
+    end function derivative_operator
 
     !> Apply a head to one argument, as f @ x does.
     function apply_head(a, d, head, argument) result(e)
@@ -1105,7 +1383,9 @@ contains
         type(expr_t), allocatable, intent(out)   :: fargs(:)
         integer,                   intent(out)   :: nargs
         integer,                   intent(in)    :: closer
-        integer, parameter :: MAX_ARGS = 16
+        ! Corpus scripts write literal tables of coefficients; eighteen entries
+        ! is an ordinary list, not a sign of a runaway parse.
+        integer, parameter :: MAX_ARGS = 256
 
         allocate (fargs(MAX_ARGS))
         nargs = 0

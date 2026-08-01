@@ -224,7 +224,10 @@ contains
             end select
 
             if (depth == 0) then
-                if (c == ";") then
+                ! Notebook exports sometimes join cells with `, Null,` at
+                ! top level. Commas inside brackets remain argument
+                ! separators; only a depth-zero comma can delimit cells.
+                if (c == ";" .or. c == ",") then
                     call push_statement(source, starts, ends, n, begin, i - 1)
                     begin = i + 1
                 else if (c == char(10)) then
@@ -1170,6 +1173,10 @@ contains
             r = lower_rewrite(s, r, head, ok, message)
             if (.not. ok) return
 
+        case ("Part")
+            r = lower_part(s, r, ok, message)
+            if (.not. ok) return
+
         case ("Together", "Cancel", "Factor", "Apart", "Collect", &
               "Coefficient", "CoefficientList", "Exponent", &
               "PolynomialGCD", "PolynomialQuotient", "PolynomialRemainder")
@@ -1745,6 +1752,44 @@ contains
         r = out
     end function lower_rewrite
 
+    !> Part[expr, i, j, ...] on explicit lists only. Indexing a literal list
+    !> by positive integers is unambiguous; unsupported spans and non-lists
+    !> refuse instead of being printed as a computed value.
+    function lower_part(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        integer :: k, index
+
+        ok = .true.
+        message = str("")
+        r = e
+
+        if (e%nargs() < 2) then
+            call refuse(ok, message, "Part without an index")
+            return
+        end if
+
+        r = e%arg(1)
+        do k = 2, e%nargs()
+            if (r%kind() /= NK_FUNC .or. chars(r%name()) /= "List") then
+                call refuse(ok, message, "Part of a non-list")
+                return
+            end if
+            if (.not. exact_small_int(e%arg(k), index)) then
+                call refuse(ok, message, "Part with a non-literal index")
+                return
+            end if
+            if (index < 1 .or. index > r%nargs()) then
+                call refuse(ok, message, "Part index out of range")
+                return
+            end if
+            r = r%arg(index)
+        end do
+    end function lower_part
+
     !> Polynomial and rational-function heads, over exact rationals.
     !>
     !> Every one of these either produces a result fortsym_poly has checked --
@@ -1959,6 +2004,13 @@ contains
               "LogPlot", "LogLogPlot", "Show", "Graphics", "Graphics3D", &
               "GraphicsRow", "GraphicsGrid", "GraphicsArray", "Export", &
               "Legended")
+            yes = .true.
+        ! Constructs the parser can represent but the evaluator does not
+        ! implement. They must refuse rather than print an unevaluated form as
+        ! though it were a result.
+        case ("Map", "Apply", "MapApply", "Function", "Slot", "SlotSequence", &
+              "Span", "SetDelayed", "CompoundExpression", "StringJoin", &
+              "ReplaceRepeated", "Condition", "DerivativeOperator")
             yes = .true.
         case default
             yes = .false.
