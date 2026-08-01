@@ -49,6 +49,7 @@ module fortsym_wl
     public :: wl_split_statements
 
     integer, parameter :: MAX_BINDINGS = 512
+    integer, parameter :: MAX_TABLE_ITEMS = 10000
     integer, parameter :: dp = real64
 
     !> One top-level assignment produced by a script.
@@ -510,6 +511,17 @@ contains
         end select
         head = chars(e%name())
 
+        ! Table needs its iterator variables substituted before the body is
+        ! evaluated. Running the generic innermost-out walk first would make
+        ! Table[If[...], {i, 3}] refuse on If before it ever sees a value for
+        ! i. The lowering routine is deliberately bounded: a verification
+        ! frontend must decline a huge expansion rather than turn one source
+        ! line into an accidental memory/time bomb.
+        if (head == "Table") then
+            r = lower_table(s, e, ok, message)
+            return
+        end if
+
         ! Evaluate arguments first. Wolfram evaluates innermost-out, and
         ! dispatching only on the outer head leaves Simplify[D[f, x]] holding an
         ! unevaluated D -- which then prints as though the derivative had been
@@ -762,6 +774,203 @@ contains
 
         end select
     end function wl_eval
+
+    !> Table[body, {i, n}], Table[body, {i, lo, hi}] and nested ranges.
+    !>
+    !> This is explicit enumeration, not a symbolic summation engine. It is
+    !> the useful and defensible subset for a reference runner: every index
+    !> value is substituted into the body and then sent through the same
+    !> evaluator as a top-level expression. Unsupported bounds or a requested
+    !> expansion beyond MAX_TABLE_ITEMS are refused rather than approximated.
+    function lower_table(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+
+        ok = .true.
+        message = str("")
+        r = e
+
+        if (e%nargs() < 2) then
+            call refuse(ok, message, "Table needs a body and an iterator")
+            return
+        end if
+
+        r = lower_table_level(s, e%arg(1), e, 2, ok, message)
+    end function lower_table
+
+    !> Lower one iterator and recurse through the remaining iterator specs.
+    recursive function lower_table_level(s, body, table, level, ok, message) &
+        result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: body, table
+        integer,            intent(in)    :: level
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(expr_t), allocatable :: values(:), entries(:)
+        type(expr_t) :: var, next_body, cell
+        integer :: k
+
+        ok = .true.
+        message = str("")
+        r = body
+
+        if (level > table%nargs()) then
+            r = wl_eval(s, body, ok, message)
+            if (ok) r = auto_evaluate(s, r)
+            return
+        end if
+
+        call table_values(s, table%arg(level), var, values, ok, message)
+        if (.not. ok) return
+
+        allocate (entries(size(values)))
+        do k = 1, size(values)
+            next_body = subs(body, var, values(k))
+            if (level == table%nargs()) then
+                cell = wl_eval(s, next_body, ok, message)
+                if (ok) cell = auto_evaluate(s, cell)
+            else
+                cell = lower_table_level(s, next_body, table, level + 1, &
+                                         ok, message)
+            end if
+            if (.not. ok) then
+                r = body
+                return
+            end if
+            entries(k) = cell
+        end do
+
+        if (size(entries) == 0) then
+            r = func_in(s%a, "List")
+        else
+            r = func("List", entries)
+        end if
+    end function lower_table_level
+
+    !> Turn one Table iterator specification into its concrete values.
+    subroutine table_values(s, spec, var, values, ok, message)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: spec
+        type(expr_t),       intent(out)   :: var
+        type(expr_t), allocatable, intent(out) :: values(:)
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+
+        type(expr_t) :: explicit_values, item
+        integer(int64) :: lo, hi, step, count64, k64
+        integer :: k
+        type(str_t) :: why
+
+        ok = .false.
+        message = str("")
+        var = spec
+
+        if (spec%kind() /= NK_FUNC .or. chars(spec%name()) /= "List") then
+            call refuse(ok, message, "Table needs a {var, range} iterator")
+            return
+        end if
+        if (spec%nargs() < 2 .or. spec%nargs() > 4) then
+            call refuse(ok, message, "Table iterator has an unsupported shape")
+            return
+        end if
+
+        var = spec%arg(1)
+        if (var%kind() /= NK_SYM) then
+            call refuse(ok, message, "Table needs a plain index variable")
+            return
+        end if
+
+        ! The explicit-value form, {i, {a, b, c}}, is common in generated
+        ! scripts and costs no symbolic inference: evaluate each supplied
+        ! value independently, then substitute it exactly as a range value.
+        if (spec%nargs() == 2) then
+            explicit_values = spec%arg(2)
+            if (explicit_values%kind() == NK_FUNC .and. &
+                chars(explicit_values%name()) == "List") then
+                if (explicit_values%nargs() > MAX_TABLE_ITEMS) then
+                    call refuse(ok, message, "Table expansion exceeds its bound")
+                    return
+                end if
+                allocate (values(explicit_values%nargs()))
+                do k = 1, explicit_values%nargs()
+                    item = wl_eval(s, explicit_values%arg(k), ok, why)
+                    if (.not. ok) then
+                        call refuse(ok, message, "Table value: "//chars(why))
+                        return
+                    end if
+                    values(k) = item
+                end do
+                ok = .true.
+                return
+            end if
+
+            if (.not. exact_integer(explicit_values, hi)) then
+                call refuse(ok, message, "Table needs an integer upper bound")
+                return
+            end if
+            lo = 1_int64
+            step = 1_int64
+        else
+            if (.not. exact_integer(spec%arg(2), lo) .or. &
+                .not. exact_integer(spec%arg(3), hi)) then
+                call refuse(ok, message, "Table needs integer range bounds")
+                return
+            end if
+            step = 1_int64
+            if (spec%nargs() == 4) then
+                if (.not. exact_integer(spec%arg(4), step)) then
+                    call refuse(ok, message, "Table needs an integer step")
+                    return
+                end if
+            end if
+        end if
+
+        if (step == 0_int64) then
+            call refuse(ok, message, "Table step cannot be zero")
+            return
+        end if
+
+        if ((step > 0_int64 .and. lo > hi) .or. &
+            (step < 0_int64 .and. lo < hi)) then
+            count64 = 0_int64
+        else if (step > 0_int64) then
+            count64 = (hi - lo)/step + 1_int64
+        else
+            count64 = (lo - hi)/(-step) + 1_int64
+        end if
+
+        if (count64 < 0_int64 .or. count64 > int(MAX_TABLE_ITEMS, int64)) then
+            call refuse(ok, message, "Table expansion exceeds its bound")
+            return
+        end if
+
+        allocate (values(int(count64)))
+        do k = 1, size(values)
+            k64 = int(k - 1, int64)
+            values(k) = num(s%a, lo + k64*step)
+        end do
+        ok = .true.
+    end subroutine table_values
+
+    !> Read an exact integer literal without accepting a floating approximation.
+    function exact_integer(e, value) result(good)
+        type(expr_t), intent(in) :: e
+        integer(int64), intent(out) :: value
+        logical :: good
+        character(:), allocatable :: text
+        integer :: ios
+
+        value = 0_int64
+        good = .false.
+        text = chars(e%exact_text())
+        if (len_trim(text) == 0) return
+        read (text, *, iostat=ios) value
+        good = ios == 0
+    end function exact_integer
 
     !> Limit[f, x -> a]. Only the two-sided form: Wolfram's Direction option
     !> selects a side, and answering a one-sided request with the two-sided
