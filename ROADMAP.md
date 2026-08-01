@@ -18,6 +18,26 @@ reproducible benchmark row, and a measurable rise in corpus coverage. A
 capability bit is added only with the operation it describes. Unsupported input
 returns a diagnostic or `UNKNOWN` — never a guess.
 
+### Regression gate
+
+Every change follows the same evidence path:
+
+1. State the supported semantics and the refusal boundary.
+2. Add an independently derived behavioral test. A test that only reproduces
+   the implementation's output is insufficient.
+3. Add adversarial cases for wrong signs, domains, singularities, precision,
+   shape, and resource limits when they apply.
+4. Run the focused native tests, the required `fo` pipeline, and the affected
+   corpus slice against SymPy and Mathics.
+5. Compare agreement, disagreement, refusal, timeout, error, and runtime counts
+   with the committed baseline.
+6. Update cache scope or versioning when semantics change. Keep cached results
+   for unaffected features.
+
+A milestone cannot merge if it introduces a silent fallback, a new hang, a
+loss of exactness, or an unexplained coverage regression. Oracle disagreement
+remains a diagnostic outcome. It is never converted into native agreement.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.
@@ -41,10 +61,35 @@ Rules that follow from that contract:
   fixed CPU affinity and a documented frequency governor. A run without those is
   diagnostic and cannot support a release statement (`doc/benchmarks.md`).
 
+## Architecture and routing
+
+Best-of-breed means choosing the strongest appropriate engine for each domain.
+The native evaluator remains the exact expression and dispatch layer. It does
+not absorb numerical algorithms that belong in a numerical library.
+
+| Domain | Owner | Boundary |
+|---|---|---|
+| exact expressions and algebraic normalization | fortsym arena and native engine | preserves exact nodes and explicit refusal |
+| sparse and dense polynomial algebra | modular algorithms with FLINT-backed kernels | promoted only after independent polynomial identities pass |
+| exact elementary integration | native integration modules | bounded rules first, Hermite and Risch-class work next |
+| numerical integration and fitting | fortnum | exposed through `NIntegrate`, `FindRoot`, `Interpolation`, and `Fit` adapters |
+| arbitrary-precision and certified numerics | Arb or MPFR-backed numerical layer | values carry precision or error information |
+| plotting and rendering | fortplot | fortsym samples expressions and passes structured data |
+| differential comparison | SymPy and Mathics subprocess oracles | raw outputs and verdicts are cached separately |
+
+The boundary is semantic. `Integrate` must preserve symbolic parameters and
+exact identities. `NIntegrate` may dispatch to fortnum only after the expression,
+domain, parameters, precision, and error policy are numeric and explicit.
+
 ## Measured state
 
 Latest corpus-wide measurement, 2026-08-01, `fortsym-bench` at 384 scripts
 (`--jobs 4`, with the final SymPy, Mathics, and native rows cached):
+
+This table is a committed native baseline. It is updated only after the root
+backend and benchmark harness revisions used to produce it have been committed.
+Interrupted experiments and uncommitted generated artifacts do not change the
+reported state.
 
 | | |
 |---|---:|
@@ -223,11 +268,13 @@ Legendre.
 
 ### M7 — Integration (#31) · 350 sites
 
+- Current native work covers bounded exact rules and guarded definite
+  integration. It must retain the explicit refusal boundary while it grows.
 - Rational part: **Hermite reduction** then **Lazard–Rioboo–Trager** for the
   logarithmic part. Bronstein, *Symbolic Integration I* (2005), is the reference
   implementation guide.
-- Then the **Risch** algorithm for elementary extensions, in the decision-
-  procedure form, not a heuristic table.
+- Then the **Risch** algorithm for elementary extensions, in decision-procedure
+  form with domain-aware tests.
 - Oracle: differentiate the answer and decide zero.
 
 ### M8 — Solving (#36) · 76 sites
@@ -253,6 +300,11 @@ fortnum, not here** — quadrature, root finding, interpolation and fitting are
 fortnum's subject. fortsym contributes only the evaluator that turns an
 expression into a callable, plus the bridge. Work lands in fortnum when the
 corpus demands a routine fortnum lacks, and nowhere else.
+
+The adapter must reject symbolic or under-specified calls before entering
+fortnum. Each numeric result carries its requested precision, estimated error,
+domain transformations, and failure status so a plausible floating value
+cannot masquerade as an exact proof.
 
 - Ball arithmetic through **Arb**; adaptive quadrature via
   **Gauss–Kronrod** with the Petras/Molin rigorous-error treatment for the cases
@@ -284,6 +336,25 @@ Binding opaque applied functions and their `Derivative` nodes to
 consumer-supplied procedures, and mapping special-function heads to a Fortran
 runtime. #41 is what unblocks SIMPLE's canonical-field Hessians; #42 is what
 lets KiLCA's orphaned generated kernels be regenerated.
+
+## Roadmap maintenance
+
+The top-level roadmap is the release-level plan. `doc/roadmap.md` holds the
+operational checklist and `doc/provenance.md` holds algorithm references. A
+milestone changes in one commit with its implementation, independent tests,
+benchmark evidence, and documentation.
+
+After each committed change:
+
+```bash
+fo
+fortsym-bench run corpus --backend sympy mathics fortsym-wl --jobs 4 \
+  --timeout 60 --report /tmp/fortsym-corpus.json
+```
+
+The report is the source of truth for measured counts. The roadmap records the
+commit, date, cache state, and remaining gap. It does not claim 100% parity
+until every overlapping binding agrees or has a documented oracle limitation.
 
 ## Simplification strategy
 
