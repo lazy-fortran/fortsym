@@ -146,7 +146,7 @@ contains
         ! $InputFileName -- and " ` " separates contexts. Rejecting either
         ! turns a legitimate name into a lexical error mid-expression.
         yes = is_alpha(c) .or. is_digit(c) .or. c == "$" .or. c == "`" &
-              .or. is_extended(c)
+            .or. is_extended(c)
     end function is_name_char
 
     !> Any byte above ASCII, treated as part of an identifier.
@@ -684,8 +684,8 @@ contains
         type(parser_t), intent(in) :: p
         logical                    :: yes
         yes = p%tok == T_NUMBER .or. p%tok == T_NAME .or. &
-              p%tok == T_LPAREN .or. p%tok == T_LBRACE .or. &
-              p%tok == T_LASSOC .or. p%tok == T_SLOT
+            p%tok == T_LPAREN .or. p%tok == T_LBRACE .or. &
+            p%tok == T_LASSOC .or. p%tok == T_SLOT
     end function starts_primary
 
     !> True when the current token could begin a whole operand, including a
@@ -748,7 +748,7 @@ contains
         ! Exponentiation and the application forms associate to the right:
         ! a**b**c is a**(b**c) and f /@ g /@ x is f /@ (g /@ x).
         yes = op == "**" .or. op == "^" .or. op == "@" .or. op == "/@" &
-              .or. op == "@@" .or. op == "@@@" .or. op == "->" .or. op == ":>"
+            .or. op == "@@" .or. op == "@@@" .or. op == "->" .or. op == ":>"
     end function is_right_assoc
 
     !> Precedence climbing. Parses a unary/primary term, then folds in binary
@@ -852,9 +852,9 @@ contains
             case ("*"); e = e*rhs
             case ("/"); e = divide(a, e, rhs)
             case ("**", "^"); e = e**rhs
-            ! Relations stay structural. Deciding x > 0 needs an assumption
-            ! context, and folding it to a boolean here would answer a question
-            ! nobody asked with information nobody supplied.
+                ! Relations stay structural. Deciding x > 0 needs an assumption
+                ! context, and folding it to a boolean here would answer a question
+                ! nobody asked with information nobody supplied.
             case ("=="); e = func("Equal", [e, rhs])
             case ("!="); e = func("Unequal", [e, rhs])
             case ("<"); e = func("Less", [e, rhs])
@@ -867,21 +867,21 @@ contains
             case (":>"); e = func("RuleDelayed", [e, rhs])
             case ("/."); e = func("ReplaceAll", [e, rhs])
             case ("/;"); e = func("Condition", [e, rhs])
-            ! Dot is non-commutative matrix product, so it stays a structural
-            ! head rather than becoming Times: folding it would let the
-            ! simplifier reorder factors and silently transpose the result.
+                ! Dot is non-commutative matrix product, so it stays a structural
+                ! head rather than becoming Times: folding it would let the
+                ! simplifier reorder factors and silently transpose the result.
             case ("."); e = func("Dot", [e, rhs])
-            ! f @ x is f[x]. Applying the head rather than building an operator
-            ! node keeps one representation for application, so Simplify @ e
-            ! reaches the same lowering as Simplify[e].
+                ! f @ x is f[x]. Applying the head rather than building an operator
+                ! node keeps one representation for application, so Simplify @ e
+                ! reaches the same lowering as Simplify[e].
             case ("@"); e = apply_head(a, d, e, rhs)
-            ! x // f is f[x]: the same application, written the other way
-            ! round, so it lowers through the same path as f @ x.
+                ! x // f is f[x]: the same application, written the other way
+                ! round, so it lowers through the same path as f @ x.
             case ("//"); e = apply_head(a, d, rhs, e)
-            ! Map, Apply and MapApply stay structural. Each one needs the
-            ! argument's list structure at evaluation time, and this subset has
-            ! no evaluator for them, so they are heads that refuse by name
-            ! rather than results.
+                ! Map, Apply and MapApply stay structural. Each one needs the
+                ! argument's list structure at evaluation time, and this subset has
+                ! no evaluator for them, so they are heads that refuse by name
+                ! rather than results.
             case ("/@"); e = func("Map", [e, rhs])
             case ("@@"); e = func("Apply", [e, rhs])
             case ("@@@"); e = func("MapApply", [e, rhs])
@@ -1147,7 +1147,21 @@ contains
                 ! "unexpected trailing input".
                 e = parse_postfix(p, a, d, e)
                 return
-            else if (p%tok == T_LPAREN) then
+            else if (p%tok == T_LPAREN .and. d%wolfram_syntax .and. &
+                    empty_parentheses(p)) then
+                ! Empty parenthesised calls are retained for compatibility
+                ! with the corpus' Out() spelling. Non-empty parentheses in
+                ! Wolfram syntax are handled below as implicit multiplication.
+                call advance(p, d)
+                if (p%failed) return
+                if (p%tok /= T_RPAREN) then
+                    call fail(p, "expected ')' closing an empty call")
+                    return
+                end if
+                call advance(p, d)
+                canon = chars(fn_canonical(d, name))
+                e = func_in(a, canon)
+            else if (p%tok == T_LPAREN .and. .not. d%wolfram_syntax) then
                 call advance(p, d)
                 call parse_arg_list(p, a, d, fargs, nargs, T_RPAREN)
                 if (p%failed) return
@@ -1242,6 +1256,24 @@ contains
             call fail(p, "unexpected token '"//p%text//"'")
         end select
     end function parse_primary
+
+    !> Look ahead from just after an opening parenthesis without consuming it.
+    function empty_parentheses(p) result(yes)
+        type(parser_t), intent(in) :: p
+        logical :: yes
+        integer :: index, n
+
+        n = len(p%src)
+        index = p%pos
+        do while (index <= n)
+            if (p%src(index:index) /= " " .and. &
+                p%src(index:index) /= char(9) .and. &
+                p%src(index:index) /= char(10) .and. &
+                p%src(index:index) /= char(13)) exit
+            index = index + 1
+        end do
+        yes = index <= n .and. p%src(index:index) == ")"
+    end function empty_parentheses
 
     !> Trailing [[...]] and [...] groups after a primary.
     recursive function parse_postfix(p, a, d, base) result(e)
@@ -1452,7 +1484,7 @@ contains
 
         if (p%tok /= closer) then
             call fail(p, "expected closing bracket on argument list, got '"// &
-                      p%text//"'")
+                p%text//"'")
             return
         end if
         call advance(p, d)

@@ -6,10 +6,8 @@ program test_fortsym_wl_statements
     ! agrees with, and a wrong split produces either a refusal or a different
     ! number. Asserting on statement offsets would only prove the splitter
     ! agrees with whoever wrote the expectation down.
-    use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t
     use fortsym_print, only: print_expr
     use fortsym_wl, only: wl_session_t, wl_session_begin, wl_run_source, &
         wl_binding_count, wl_binding_at, wl_binding_t
@@ -28,6 +26,7 @@ program test_fortsym_wl_statements
     call test_pure_map_apply_replace()
     call test_list_threading()
     call test_list_child_evaluation()
+    call test_parenthesized_wolfram_multiplication()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_statements"
@@ -215,5 +214,13 @@ contains
             "values = {D[x^2, x], D[Sin[x], x]}"//char(10), &
             "values", "List(x*2, cos(x))")
     end subroutine test_list_child_evaluation
+
+    !> Wolfram calls use square brackets. Parentheses after a symbol are
+    !> implicit multiplication, so rho (x + 1) is rho*(x + 1), not rho[x+1].
+    subroutine test_parenthesized_wolfram_multiplication()
+        call expect("parenthesized multiplication", &
+            "value = rho (x + 1)"//char(10), &
+            "value", "rho*(x + 1)")
+    end subroutine test_parenthesized_wolfram_multiplication
 
 end program test_fortsym_wl_statements
