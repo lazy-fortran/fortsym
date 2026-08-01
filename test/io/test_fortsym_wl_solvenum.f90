@@ -1,5 +1,6 @@
 program test_fortsym_wl_solvenum
-    ! Solve, N, Chop, IdentityMatrix, Cross and Tr in the Wolfram subset.
+    ! Solve, N, Chop, IdentityMatrix, Cross, Tr, Range and DiagonalMatrix in
+    ! the Wolfram subset.
     !
     ! Nothing here compares against a string this program's author copied out
     ! of fortsym's own output. Each check is a property the implementation
@@ -19,7 +20,7 @@ program test_fortsym_wl_solvenum
     !     satisfies for a generic pair.
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: chars
-    use fortsym_arena, only: arena_t, NK_FUNC, NK_INT, NK_REAL
+    use fortsym_arena, only: arena_t, NK_FUNC, NK_INT, NK_RAT, NK_REAL
     use fortsym_expr, only: expr_t, sym, num, operator(-), operator(*), &
         operator(+)
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE
@@ -46,6 +47,7 @@ program test_fortsym_wl_solvenum
     call test_chop()
     call test_identity_cross_trace()
     call test_array_collections()
+    call test_range_and_diagonal_matrix()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_solvenum"
@@ -681,6 +683,108 @@ contains
             end do
         end if
     end subroutine test_array_collections
+
+    !> Range is an arithmetic progression and DiagonalMatrix is a structural
+    !> embedding. These checks derive the expected entries from those
+    !> definitions, rather than copying the native printer's output.
+    subroutine test_range_and_diagonal_matrix()
+        type(arena_t), target :: a
+        type(expr_t) :: value, item, row, x
+        logical :: ok
+        character(:), allocatable :: message
+        integer :: i, j
+
+        call a%init()
+        call run_one(a, "v = Range[2, 8, 2]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("range integers", "refused: "//message)
+        else if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
+                value%nargs() /= 4) then
+            call fail("range integers", "wrong length or result head")
+        else
+            do i = 1, value%nargs()
+                item = value%arg(i)
+                if (item%kind() /= NK_INT .or. item%int_value() /= int(2*i)) &
+                    call fail("range integers", "wrong arithmetic-progression entry")
+            end do
+        end if
+
+        call a%init()
+        call run_one(a, "v = Range[1, 1/2, -1/4]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("range rationals", "refused: "//message)
+        else if (value%kind() /= NK_FUNC .or. value%nargs() /= 3) then
+            call fail("range rationals", "wrong length")
+        else
+            item = value%arg(1)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 1) &
+                call fail("range rationals", "wrong first entry")
+            item = value%arg(2)
+            if (item%kind() /= NK_RAT .or. item%int_value() /= 3 .or. &
+                    item%den_value() /= 4) &
+                call fail("range rationals", "wrong middle entry")
+            item = value%arg(3)
+            if (item%kind() /= NK_RAT .or. item%int_value() /= 1 .or. &
+                    item%den_value() /= 2) &
+                call fail("range rationals", "wrong final entry")
+        end if
+
+        call a%init()
+        call run_one(a, "v = Range[5, 1]"//nl(), "v", value, ok, message)
+        if (.not. ok .or. value%kind() /= NK_FUNC .or. value%nargs() /= 0) &
+            call fail("range empty", "descending unit range is not empty")
+
+        call a%init()
+        call run_one(a, "v = Range[1, 65]"//nl(), "v", value, ok, message)
+        if (.not. ok .or. value%kind() /= NK_FUNC .or. &
+                chars(value%name()) /= "Range") &
+            call fail("range bound", "large valid range was expanded past the safety bound")
+
+        call a%init()
+        call run_one(a, "v = Range[0, 2*Pi, Pi/2]"//nl(), "v", value, ok, message)
+        if (.not. ok .or. value%kind() /= NK_FUNC .or. &
+                chars(value%name()) /= "Range") &
+            call fail("range exact symbolic", "exact symbolic range was approximated")
+        call expect_refusal("range zero step", "v = Range[1, 3, 0]"//nl(), "v")
+
+        call a%init()
+        call run_one(a, "v = DiagonalMatrix[{2, x, 0}]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("diagonal matrix", "refused: "//message)
+            return
+        end if
+        if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
+                value%nargs() /= 3) then
+            call fail("diagonal matrix", "wrong matrix shape")
+            return
+        end if
+        x = sym(a, "x")
+        do i = 1, 3
+            row = value%arg(i)
+            if (row%kind() /= NK_FUNC .or. chars(row%name()) /= "List" .or. &
+                    row%nargs() /= 3) then
+                call fail("diagonal matrix", "row has wrong shape")
+                cycle
+            end if
+            do j = 1, 3
+                item = row%arg(j)
+                if (i == j) then
+                    if (i == 1) then
+                        if (item%kind() /= NK_INT .or. item%int_value() /= 2) &
+                            call fail("diagonal matrix", "first diagonal entry is wrong")
+                    else if (i == 2) then
+                        if (item%id /= x%id) &
+                            call fail("diagonal matrix", "symbolic diagonal entry is wrong")
+                    else if (item%kind() /= NK_INT .or. item%int_value() /= 0) then
+                        call fail("diagonal matrix", "zero diagonal entry is wrong")
+                    end if
+                else if (item%kind() /= NK_INT .or. item%int_value() /= 0) then
+                    call fail("diagonal matrix", "off-diagonal entry is not zero")
+                end if
+            end do
+        end do
+        call expect_refusal("diagonal matrix non-list", "v = DiagonalMatrix[x]"//nl(), "v")
+    end subroutine test_range_and_diagonal_matrix
 
     pure function nl() result(c)
         character(1) :: c

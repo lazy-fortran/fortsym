@@ -169,9 +169,11 @@ two unsupported constructs. It did not crash. The benchmark cache served all
 384 SymPy, all 384 Mathics, and all 384 native rows. A native refresh with the
 two oracle caches warm took about 74 seconds with four workers. A fully warm
 audit takes about 1.8 seconds and starts no backend subprocesses. The final
-binding-level tally is 3,057 agreements, 849 declared differences, 20
+binding-level tally is 3,102 agreements, 806 declared differences, 20
 unsupported outcomes, 40 timeouts, 135 errors, 197 oracle disagreements, and
-798 oracle-missing bindings.
+802 oracle-missing bindings. The native collection slice now also evaluates
+bounded exact `Range` and `DiagonalMatrix` forms; the change introduced no
+regression from a prior agreement and moved 41 prior differences to agreement.
 
 ## Build
 

@@ -12,10 +12,11 @@ module fortsym_wl_num
     ! Chop drops approximate numbers below a threshold. Only NK_REAL leaves are
     ! chopped: an exact rational is not an artefact of floating point and
     ! removing it would change the mathematics rather than clean it up.
-    use, intrinsic :: iso_fortran_env, only: real64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: chars
-    use fortsym_arena, only: arena_t, NK_FUNC, NK_REAL, NK_ADD, NK_MUL, NK_POW
-    use fortsym_expr, only: expr_t, num, func, real_expr, is_valid, &
+    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_FUNC, NK_REAL, &
+        NK_ADD, NK_MUL, NK_POW
+    use fortsym_expr, only: expr_t, num, rat, func, func_in, real_expr, is_valid, &
         operator(+), operator(-), operator(*), operator(**)
     use fortsym_matrix, only: is_matrix, matrix_shape, to_matrix
     use fortsym_numeric, only: numeric_value
@@ -23,6 +24,7 @@ module fortsym_wl_num
     private
 
     public :: wl_n, wl_chop, wl_identity_matrix, wl_cross, wl_trace
+    public :: wl_range, wl_diagonal_matrix
     public :: N_MAX_DIGITS, CHOP_DEFAULT
 
     integer, parameter :: dp = real64
@@ -40,6 +42,23 @@ module fortsym_wl_num
     integer, parameter :: MAX_DECADE = 300
 
     integer, parameter :: MAX_IDENTITY = 512
+    !> Keep a valid but large range opaque. Expanding it is mathematically
+    !> straightforward, but downstream symbolic consumers can turn a modest
+    !> scan into a multi-megabyte expression before they have a rule for the
+    !> consumer head. The caller can still carry the original Range node.
+    integer, parameter :: MAX_RANGE_ITEMS = 64
+
+    integer(int64), parameter :: MAX_I64 = huge(0_int64)
+    integer(int64), parameter :: MIN_I64 = -huge(0_int64) - 1_int64
+
+    !> A small exact rational used only while constructing Range. The arena
+    !> remains the public representation; keeping the loop counter here avoids
+    !> building unevaluated `start + k step` trees for a list that Wolfram
+    !> evaluates element by element.
+    type :: fraction_t
+        integer(int64) :: n = 0_int64
+        integer(int64) :: d = 1_int64
+    end type fraction_t
 
 contains
 
@@ -275,6 +294,407 @@ contains
         end do
         ok = .true.
     end function wl_trace
+
+    !> Range[n], Range[lo, hi] and Range[lo, hi, step] for finite exact
+    !> integer/rational endpoints. A machine-real form is accepted as well,
+    !> but only when a machine-real argument is present; evaluating exact
+    !> constants such as Pi to a double would silently change the exact list.
+    !>
+    !> A symbolic or otherwise non-machine numeric range is preserved as an
+    !> opaque application. That is the same boundary as the rest of the
+    !> Wolfram frontend: an unevaluated valid construct is safer than a
+    !> plausible list made from an arbitrary substitution.
+    function wl_range(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(fraction_t) :: lo, hi, step, current
+        type(expr_t), allocatable :: items(:)
+        real(dp) :: xlo, xhi, xstep
+        integer :: narg, n, k
+        logical :: exact_form, machine_form, good, valid
+        type(expr_t) :: item
+
+        r = e
+        ok = .false.
+        why = ""
+        narg = e%nargs()
+        if (narg < 1 .or. narg > 3) then
+            why = "Range takes one to three arguments"
+            return
+        end if
+
+        exact_form = .true.
+        machine_form = .false.
+        do k = 1, narg
+            item = e%arg(k)
+            if (item%kind() == NK_REAL) machine_form = .true.
+            valid = fraction_of(item, current, good)
+            if (.not. valid) exact_form = .false.
+        end do
+
+        if (exact_form) then
+            if (narg == 1) then
+                lo = fraction_of_expr(1_int64)
+                hi = current
+                step = fraction_of_expr(1_int64)
+                good = fraction_of(e%arg(1), hi, valid)
+            else
+                good = fraction_of(e%arg(1), lo, valid)
+                good = fraction_of(e%arg(2), hi, valid)
+                if (narg == 3) then
+                    good = fraction_of(e%arg(3), step, valid)
+                else
+                    step = fraction_of_expr(1_int64)
+                end if
+            end if
+            if (.not. good) then
+                why = "Range contains an unsupported exact number"
+                return
+            end if
+            call normalize_fraction(lo)
+            call normalize_fraction(hi)
+            call normalize_fraction(step)
+            call build_exact_range(a, e, lo, hi, step, r, ok, why)
+            return
+        end if
+
+        if (.not. machine_form) then
+            ! Keep exact symbolic forms, for example Range[0, 2 Pi, Pi/2],
+            ! unevaluated instead of replacing Pi by a binary64 approximation.
+            ok = .true.
+            return
+        end if
+
+        if (narg == 1) then
+            call numeric_value(e%arg(1), xhi, good, why)
+            xlo = 1.0_dp
+            xstep = 1.0_dp
+        else
+            call numeric_value(e%arg(1), xlo, good, why)
+            if (good) call numeric_value(e%arg(2), xhi, good, why)
+            xstep = 1.0_dp
+            if (good .and. narg == 3) call numeric_value(e%arg(3), xstep, good, why)
+        end if
+        if (.not. good) then
+            ok = .true.
+            return
+        end if
+        call build_real_range(a, e, xlo, xhi, xstep, r, ok, why)
+    end function wl_range
+
+    !> DiagonalMatrix[v] as a square nested List. Entries remain arbitrary
+    !> expressions; only the vector shape and the zero off the diagonal are
+    !> structural facts required by the constructor.
+    function wl_diagonal_matrix(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t), allocatable :: rows(:), entries(:)
+        type(expr_t) :: vector
+        integer :: n, i, j
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() /= 1) then
+            why = "DiagonalMatrix here takes one vector"
+            return
+        end if
+        vector = e%arg(1)
+        if (vector%kind() /= NK_FUNC .or. chars(vector%name()) /= "List") then
+            why = "DiagonalMatrix needs a list"
+            return
+        end if
+        n = vector%nargs()
+        if (n == 0) then
+            r = func_in(a, "List")
+            ok = .true.
+            return
+        end if
+        if (n > MAX_IDENTITY) then
+            why = "DiagonalMatrix exceeds the built-in dimension bound"
+            return
+        end if
+
+        allocate (rows(n), entries(n))
+        do i = 1, n
+            do j = 1, n
+                if (i == j) then
+                    entries(j) = vector%arg(i)
+                else
+                    entries(j) = num(a, 0_int64)
+                end if
+            end do
+            rows(i) = func("List", entries)
+        end do
+        r = func("List", rows)
+        ok = .true.
+    end function wl_diagonal_matrix
+
+    subroutine build_exact_range(a, source, lo, hi, step, r, ok, why)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: source
+        type(fraction_t),          intent(in)    :: lo, hi, step
+        type(expr_t),              intent(out)   :: r
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(fraction_t) :: current, next
+        type(expr_t), allocatable :: items(:)
+        integer :: n, cmp, good
+
+        r = source
+        ok = .false.
+        why = ""
+        if (step%n == 0_int64) then
+            why = "Range has a zero step"
+            return
+        end if
+        allocate (items(MAX_RANGE_ITEMS))
+        current = lo
+        n = 0
+        do
+            call compare_fraction(current, hi, cmp, good)
+            if (good == 0) then
+                why = "Range endpoints exceed exact integer capacity"
+                return
+            end if
+            if ((step%n > 0_int64 .and. cmp > 0) .or. &
+                    (step%n < 0_int64 .and. cmp < 0)) exit
+            if (n == MAX_RANGE_ITEMS) then
+                r = source
+                ok = .true.
+                return
+            end if
+            n = n + 1
+            items(n) = fraction_expr(a, current)
+            call add_fraction(current, step, next, good)
+            if (good == 0) then
+                r = source
+                ok = .true.
+                return
+            end if
+            current = next
+        end do
+
+        if (n == 0) then
+            r = func_in(a, "List")
+        else
+            r = func("List", items(1:n))
+        end if
+        ok = .true.
+    end subroutine build_exact_range
+
+    subroutine build_real_range(a, source, lo, hi, step, r, ok, why)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: source
+        real(dp),                 intent(in)     :: lo, hi, step
+        type(expr_t),              intent(out)   :: r
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t), allocatable :: items(:)
+        real(dp) :: span, estimate, value
+        integer :: n, k
+
+        r = source
+        ok = .false.
+        why = ""
+        if (step == 0.0_dp) then
+            why = "Range has a zero step"
+            return
+        end if
+        if ((step > 0.0_dp .and. lo > hi) .or. &
+                (step < 0.0_dp .and. lo < hi)) then
+            r = func_in(a, "List")
+            ok = .true.
+            return
+        end if
+        span = (hi - lo)/step
+        estimate = floor(span + 1.0e-12_dp) + 1.0_dp
+        if (estimate < 0.0_dp .or. estimate > real(MAX_RANGE_ITEMS, dp)) then
+            r = source
+            ok = .true.
+            return
+        end if
+        n = int(estimate)
+        allocate (items(n))
+        do k = 1, n
+            value = lo + real(k - 1, dp)*step
+            if (abs(value - hi) <= 1.0e-12_dp*max(1.0_dp, abs(hi))) value = hi
+            items(k) = real_expr(a, value)
+        end do
+        if (n == 0) then
+            r = func_in(a, "List")
+        else
+            r = func("List", items)
+        end if
+        ok = .true.
+    end subroutine build_real_range
+
+    function fraction_of(e, f, ok) result(good)
+        type(expr_t),     intent(in)  :: e
+        type(fraction_t), intent(out) :: f
+        logical,          intent(out) :: ok
+        logical                       :: good
+
+        f = fraction_of_expr(0_int64)
+        ok = .false.
+        good = .false.
+        select case (e%kind())
+        case (NK_INT)
+            f%n = e%int_value()
+            f%d = 1_int64
+            ok = .true.
+        case (NK_RAT)
+            f%n = e%int_value()
+            f%d = e%den_value()
+            ok = f%d > 0_int64
+        end select
+        good = ok
+    end function fraction_of
+
+    function fraction_of_expr(n) result(f)
+        integer(int64), intent(in) :: n
+        type(fraction_t)             :: f
+        f%n = n
+        f%d = 1_int64
+    end function fraction_of_expr
+
+    function fraction_expr(a, f) result(e)
+        type(arena_t), target, intent(inout) :: a
+        type(fraction_t),      intent(in)    :: f
+        type(expr_t)                         :: e
+        if (f%d == 1_int64) then
+            e = num(a, f%n)
+        else
+            e = rat(a, f%n, f%d)
+        end if
+    end function fraction_expr
+
+    subroutine normalize_fraction(f)
+        type(fraction_t), intent(inout) :: f
+        integer(int64) :: g, rem
+
+        if (f%n == 0_int64) then
+            f%d = 1_int64
+            return
+        end if
+        rem = modulo(f%n, f%d)
+        if (rem < 0_int64) rem = -rem
+        g = gcd_positive(rem, f%d)
+        if (g > 1_int64) then
+            f%n = f%n/g
+            f%d = f%d/g
+        end if
+    end subroutine normalize_fraction
+
+    subroutine compare_fraction(x, y, cmp, good)
+        type(fraction_t), intent(in)  :: x, y
+        integer,          intent(out) :: cmp
+        integer,          intent(out) :: good
+        integer(int64) :: left, right
+
+        call checked_mul(x%n, y%d, left, good)
+        if (good == 0) then
+            cmp = 0
+            return
+        end if
+        call checked_mul(y%n, x%d, right, good)
+        if (good == 0) then
+            cmp = 0
+            return
+        end if
+        cmp = 0
+        if (left < right) cmp = -1
+        if (left > right) cmp = 1
+    end subroutine compare_fraction
+
+    subroutine add_fraction(x, y, z, good)
+        type(fraction_t), intent(in)  :: x, y
+        type(fraction_t), intent(out) :: z
+        integer,          intent(out) :: good
+        integer(int64) :: g, qx, qy, left, right, n, d
+
+        good = 1
+        g = gcd_positive(x%d, y%d)
+        qx = x%d/g
+        qy = y%d/g
+        call checked_mul(x%n, qy, left, good)
+        if (good == 0) return
+        call checked_mul(y%n, qx, right, good)
+        if (good == 0) return
+        call checked_add(left, right, n, good)
+        if (good == 0) return
+        call checked_mul(qx, y%d, d, good)
+        if (good == 0) return
+        z%n = n
+        z%d = d
+        call normalize_fraction(z)
+    end subroutine add_fraction
+
+    function gcd_positive(x, y) result(g)
+        integer(int64), intent(in) :: x, y
+        integer(int64)              :: g, a0, b0, t
+        a0 = x
+        b0 = y
+        do while (b0 /= 0_int64)
+            t = modulo(a0, b0)
+            a0 = b0
+            b0 = t
+        end do
+        g = a0
+        if (g < 1_int64) g = 1_int64
+    end function gcd_positive
+
+    subroutine checked_add(x, y, z, good)
+        integer(int64), intent(in)  :: x, y
+        integer(int64), intent(out) :: z
+        integer,          intent(out) :: good
+        good = 1
+        if (y > 0_int64) then
+            if (x > MAX_I64 - y) then
+                good = 0
+                z = 0_int64
+                return
+            end if
+        else if (y < 0_int64) then
+            if (x < MIN_I64 - y) then
+                good = 0
+                z = 0_int64
+                return
+            end if
+        end if
+        z = x + y
+    end subroutine checked_add
+
+    subroutine checked_mul(x, y, z, good)
+        integer(int64), intent(in)  :: x, y
+        integer(int64), intent(out) :: z
+        integer,          intent(out) :: good
+        good = 1
+        if (x == 0_int64 .or. y == 0_int64) then
+            z = 0_int64
+            return
+        end if
+        if (x > 0_int64 .and. y > 0_int64) then
+            if (x > MAX_I64/y) good = 0
+        else if (x > 0_int64 .and. y < 0_int64) then
+            if (y < MIN_I64/x) good = 0
+        else if (x < 0_int64 .and. y > 0_int64) then
+            if (x < MIN_I64/y) good = 0
+        else
+            if (x < MAX_I64/y) good = 0
+        end if
+        if (good == 0) then
+            z = 0_int64
+        else
+            z = x*y
+        end if
+    end subroutine checked_mul
 
     function is_vector3(e) result(yes)
         type(expr_t), intent(in) :: e

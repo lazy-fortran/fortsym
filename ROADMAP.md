@@ -106,19 +106,22 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The final binding-level audit reports 3,057 agreements, 849 declared
+The final binding-level audit reports 3,102 agreements, 806 declared
 differences, 20 unsupported outcomes, 40 timeouts, 135 errors, 197 oracle
-disagreements, and 798 oracle-missing bindings. The target remains open until
+disagreements, and 802 oracle-missing bindings. The target remains open until
 the declared native subset and the available oracle overlap agree.
 
 The current native collection slice includes bounded `Array`, `ConstantArray`,
-and `Outer` expansion, dynamic exact dimensions, and opaque preservation for
-unsupported dimensions or computed heads. The independent test covers literal,
-dynamic, and preserved forms. The change moved 46 binding results from
-`differ` to `agree` in the full baseline without dropping a binding. It does
-not close the remaining parity gap. The highest-impact work remains the
-plotting family, `Solve` beyond scalar linear cases, definite and multiple
-`Integrate`, requested-precision `N`, polynomial heads, and `DSolve`/`NDSolve`.
+and `Outer` expansion, bounded exact `Range` and `DiagonalMatrix`, dynamic
+exact dimensions, and opaque preservation for unsupported dimensions or
+computed heads. The independent tests cover literal, rational, symbolic, and
+bounded-preserved forms. The latest change moved 41 prior binding results from
+`differ` to `agree` in the full baseline without regressing an earlier
+agreement; four additional agreed bindings were newly exposed by the expanded
+collection path. It does not close the remaining parity gap. The highest-impact
+work remains the plotting family, `Solve` beyond scalar linear cases, definite
+and multiple `Integrate`, requested-precision `N`, polynomial heads, and
+`DSolve`/`NDSolve`.
 
 ### The oracle ceiling (#47)
 

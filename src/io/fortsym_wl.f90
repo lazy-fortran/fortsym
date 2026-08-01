@@ -39,7 +39,7 @@ module fortsym_wl
     use fortsym_numeric, only: numeric_value
     use fortsym_wl_solve, only: wl_solve
     use fortsym_wl_num, only: wl_n, wl_chop, wl_identity_matrix, wl_cross, &
-        wl_trace, CHOP_DEFAULT
+        wl_trace, wl_range, wl_diagonal_matrix, CHOP_DEFAULT
     use fortsym_integrate, only: integrate
     use fortsym_defint, only: definite_integral
     use fortsym_poly, only: poly_together, poly_cancel, poly_apart, &
@@ -1252,6 +1252,20 @@ contains
                     return
                 end if
                 r = inner
+            end if
+
+        case ("Range")
+            r = wl_range(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Range: "//why)
+                return
+            end if
+
+        case ("DiagonalMatrix")
+            r = wl_diagonal_matrix(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "DiagonalMatrix: "//why)
+                return
             end if
 
         case ("Integrate")
