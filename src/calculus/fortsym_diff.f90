@@ -126,12 +126,27 @@ contains
         type(expr_t), intent(in) :: e, v
         type(expr_t)             :: d
         type(expr_t) :: x, dx, y, dy, denom, term
+        type(expr_t), allocatable :: list_args(:)
         type(arena_t), pointer :: a
         character(:), allocatable :: name
         integer :: k, order, first_arg
 
         a => e%a
         name = chars(e%name())
+
+        ! List is a container, not a mathematical function of its elements.
+        ! Differentiating it componentwise preserves the Wolfram rule
+        ! D[{f, g}, x] == {D[f, x], D[g, x]}; treating List as an opaque
+        ! applied function instead manufactures Derivative[List, ...] nodes
+        ! and prevents later Dot/Cross/Transpose evaluation.
+        if (name == "List") then
+            allocate (list_args(e%nargs()))
+            do k = 1, e%nargs()
+                list_args(k) = diff(e%arg(k), v)
+            end do
+            d = func("List", list_args)
+            return
+        end if
 
         if (derivative_order(name, order)) then
             first_arg = order + 2
