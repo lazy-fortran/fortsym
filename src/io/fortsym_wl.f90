@@ -1676,6 +1676,11 @@ contains
             return
         end if
         r = apply_bindings(s, e%arg(1))
+        r = wl_eval(s, r, item_ok, item_message)
+        if (.not. item_ok) then
+            call refuse(ok, message, chars(item_message))
+            return
+        end if
         rules = e%arg(2)
         if (rules%kind() == NK_FUNC .and. chars(rules%name()) == "List") then
             do k = 1, rules%nargs()

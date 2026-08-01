@@ -225,6 +225,9 @@ contains
         call expect("derivative of list", &
             "values = D[{x^2, Sin[x]}, x]"//char(10), &
             "values", "List(x*2, cos(x))")
+        call expect("replace after derivative", &
+            "values = D[{x^2, x*y}, x] /. x -> 0"//char(10), &
+            "values", "List(0, y)")
     end subroutine test_list_child_evaluation
 
     !> Wolfram calls use square brackets. Parentheses after a symbol are
