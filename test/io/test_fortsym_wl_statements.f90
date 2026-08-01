@@ -20,6 +20,7 @@ program test_fortsym_wl_statements
     call test_continuation_lines()
     call test_complete_lines_still_separate()
     call test_postfix_ends_a_line()
+    call test_table_evaluation()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_statements"
@@ -97,5 +98,16 @@ contains
         call expect("factorial then assignment", &
                     "u = 3!"//char(10)//"v = 7"//char(10), "v", "7")
     end subroutine test_postfix_ends_a_line
+
+    !> A Table is checked against hand-evaluated values, including nested
+    !> iterators. This is a behavioral oracle: it does not inspect the source
+    !> or the evaluator's internal nodes.
+    subroutine test_table_evaluation()
+        call expect("table squares", "values = Table[i^2, {i, 3}]"//char(10), &
+                    "values", "List(1, 4, 9)")
+        call expect("nested table", &
+                    "grid = Table[i + j, {i, 2}, {j, 3}]"//char(10), &
+                    "grid", "List(List(2, 3, 4), List(3, 4, 5))")
+    end subroutine test_table_evaluation
 
 end program test_fortsym_wl_statements
