@@ -131,7 +131,10 @@ contains
     pure function is_name_char(c) result(yes)
         character, intent(in) :: c
         logical               :: yes
-        yes = is_alpha(c) .or. is_digit(c)
+        ! $ is an ordinary symbol character in Wolfram -- $Assumptions,
+        ! $InputFileName -- and " ` " separates contexts. Rejecting either
+        ! turns a legitimate name into a lexical error mid-expression.
+        yes = is_alpha(c) .or. is_digit(c) .or. c == "$" .or. c == "`"
     end function is_name_char
 
     !> Read the next token into the parser state.
@@ -158,7 +161,7 @@ contains
             return
         end if
 
-        if (is_alpha(c)) then
+        if (is_alpha(c) .or. c == "$") then
             start = p%pos
             do while (p%pos <= n)
                 if (.not. is_name_char(p%src(p%pos:p%pos))) exit
@@ -213,10 +216,46 @@ contains
             p%tok = T_OP
             p%text = "*"
             p%pos = p%pos + 1
-        case ("+", "-", "/", "^")
+        case ("'")
+            ! Wolfram's derivative postfix: f'[r]. Handled by parse_postfix.
+            p%tok = T_OP
+            p%text = "'"
+            p%pos = p%pos + 1
+        case ("=", "<", ">", "!", "&", "|", ":")
+            call lex_relational(p, n, c)
+        case ("-")
+            ! -> is a rule, not a subtraction of something negative. Lexing it
+            ! as two tokens turns {x -> 1} into a subtraction and a stray >.
+            if (p%pos < n) then
+                if (p%src(p%pos + 1:p%pos + 1) == ">") then
+                    p%tok = T_OP
+                    p%text = "->"
+                    p%pos = p%pos + 2
+                    return
+                end if
+            end if
+            p%tok = T_OP
+            p%text = "-"
+            p%pos = p%pos + 1
+        case ("/")
+            if (p%pos < n) then
+                select case (p%src(p%pos:p%pos + 1))
+                case ("/.", "/;")
+                    p%tok = T_OP
+                    p%text = p%src(p%pos:p%pos + 1)
+                    p%pos = p%pos + 2
+                    return
+                end select
+            end if
+            p%tok = T_OP
+            p%text = "/"
+            p%pos = p%pos + 1
+        case ("+", "^")
             p%tok = T_OP
             p%text = c
             p%pos = p%pos + 1
+        case ("""")
+            call lex_string(p, n)
         case default
             p%tok = T_ERROR
             p%text = c
@@ -224,6 +263,80 @@ contains
             call fail(p, "unexpected character '"//c//"'")
         end select
     end subroutine advance
+
+    !> A string literal, kept whole and opaque.
+    !>
+    !> Strings in this corpus are labels and file paths, never operands, so the
+    !> subset carries them as inert names rather than adding a string type the
+    !> algebra would then have to reason about. The quotes stay part of the
+    !> name so printing reproduces the literal exactly.
+    subroutine lex_string(p, n)
+        type(parser_t), intent(inout) :: p
+        integer,        intent(in)    :: n
+        integer :: start
+
+        start = p%pos
+        p%pos = p%pos + 1
+        do while (p%pos <= n)
+            if (p%src(p%pos:p%pos) == "\\") then
+                p%pos = p%pos + 2
+                cycle
+            end if
+            if (p%src(p%pos:p%pos) == """") then
+                p%pos = p%pos + 1
+                p%tok = T_NAME
+                p%text = p%src(start:p%pos - 1)
+                return
+            end if
+            p%pos = p%pos + 1
+        end do
+        p%tok = T_ERROR
+        p%text = ""
+        call fail(p, "unterminated string")
+    end subroutine lex_string
+
+    !> Relational, logical and rule operators.
+    !>
+    !> Two characters where there are two: reading "==" as two "=" tokens turns
+    !> an equation into an assignment, which is how Solve[x == 1, x] silently
+    !> becomes a binding of x with the equation deleted.
+    subroutine lex_relational(p, n, c)
+        type(parser_t), intent(inout) :: p
+        integer,        intent(in)    :: n
+        character,      intent(in)    :: c
+        character(2) :: pair
+
+        pair = "  "
+        if (p%pos < n) pair = p%src(p%pos:p%pos + 1)
+
+        select case (pair)
+        case ("==", "!=", "<=", ">=", "&&", "||", ":>")
+            p%tok = T_OP
+            p%text = pair
+            p%pos = p%pos + 2
+            return
+        end select
+
+        select case (c)
+        case ("<", ">")
+            p%tok = T_OP
+            p%text = c
+            p%pos = p%pos + 1
+        case ("=")
+            ! A lone "=" is assignment, which is a statement form and never
+            ! part of an expression. Reaching here means the splitter missed
+            ! it, so say so rather than inventing an operator.
+            p%tok = T_ERROR
+            p%text = c
+            p%pos = p%pos + 1
+            call fail(p, "assignment inside an expression")
+        case default
+            p%tok = T_ERROR
+            p%text = c
+            p%pos = p%pos + 1
+            call fail(p, "unexpected character '"//c//"'")
+        end select
+    end subroutine lex_relational
 
     !> Whitespace and comments, skipped together.
     !>
@@ -354,9 +467,14 @@ contains
         character(*), intent(in) :: op
         integer                  :: bp
         select case (op)
-        case ("+", "-"); bp = 1
-        case ("*", "/"); bp = 2
-        case ("**", "^"); bp = 3
+        case ("/.", "/;"); bp = 1
+        case ("->", ":>"); bp = 2
+        case ("||"); bp = 3
+        case ("&&"); bp = 4
+        case ("==", "!=", "<", ">", "<=", ">="); bp = 5
+        case ("+", "-"); bp = 6
+        case ("*", "/"); bp = 7
+        case ("**", "^"); bp = 8
         case default; bp = -1
         end select
     end function binding_power
@@ -417,6 +535,21 @@ contains
             case ("*"); e = e*rhs
             case ("/"); e = divide(a, e, rhs)
             case ("**", "^"); e = e**rhs
+            ! Relations stay structural. Deciding x > 0 needs an assumption
+            ! context, and folding it to a boolean here would answer a question
+            ! nobody asked with information nobody supplied.
+            case ("=="); e = func("Equal", [e, rhs])
+            case ("!="); e = func("Unequal", [e, rhs])
+            case ("<"); e = func("Less", [e, rhs])
+            case (">"); e = func("Greater", [e, rhs])
+            case ("<="); e = func("LessEqual", [e, rhs])
+            case (">="); e = func("GreaterEqual", [e, rhs])
+            case ("&&"); e = func("And", [e, rhs])
+            case ("||"); e = func("Or", [e, rhs])
+            case ("->"); e = func("Rule", [e, rhs])
+            case (":>"); e = func("RuleDelayed", [e, rhs])
+            case ("/."); e = func("ReplaceAll", [e, rhs])
+            case ("/;"); e = func("Condition", [e, rhs])
             case default
                 call fail(p, "unknown operator '"//op//"'")
                 return
@@ -435,11 +568,11 @@ contains
                 call advance(p, d)
                 ! Unary minus binds tighter than +/- but looser than **, so -x**2
                 ! is -(x**2), matching Fortran and every engine here.
-                e = negate(a, parse_binary(p, a, d, 2))
+                e = negate(a, parse_binary(p, a, d, 7))
                 return
             else if (p%text == "+") then
                 call advance(p, d)
-                e = parse_binary(p, a, d, 2)
+                e = parse_binary(p, a, d, 7)
                 return
             end if
         end if
@@ -572,7 +705,7 @@ contains
         type(expr_t)                         :: e
         character(:), allocatable :: name, canon
         type(expr_t), allocatable :: fargs(:)
-        integer :: nargs
+        integer :: nargs, nprimes
 
         select case (p%tok)
 
@@ -593,6 +726,33 @@ contains
         case (T_NAME)
             name = p%text
             call advance(p, d)
+            ! Wolfram writes the derivative of an unspecified function as a
+            ! postfix prime: Bz'[r]. Counting the primes and emitting the same
+            ! Derivative<n> head that fortsym's own differentiation produces
+            ! keeps one representation for the concept -- otherwise a corpus
+            ! script's Bz'[r] and fortsym's D[Bz[r], r] would be different
+            ! expressions that print identically.
+            nprimes = 0
+            do while (p%tok == T_OP)
+                if (p%text /= "'") exit
+                nprimes = nprimes + 1
+                call advance(p, d)
+            end do
+            if (nprimes > 0) then
+                if (p%tok /= T_LBRACKET) then
+                    call fail(p, "prime must be followed by an argument list")
+                    return
+                end if
+                call advance(p, d)
+                call parse_arg_list(p, a, d, fargs, nargs, T_RBRACKET)
+                if (p%failed) return
+                if (nargs /= 1) then
+                    call fail(p, "prime on a function of several variables")
+                    return
+                end if
+                e = prime_derivative(a, name, fargs(1), nprimes)
+                return
+            end if
             if (p%tok == T_LBRACKET) then
                 call advance(p, d)
                 call parse_arg_list(p, a, d, fargs, nargs, T_RBRACKET)
@@ -653,6 +813,25 @@ contains
             call fail(p, "unexpected token '"//p%text//"'")
         end select
     end function parse_primary
+
+    !> f'[x] as the Derivative<n> node fortsym's own diff would produce.
+    !>
+    !> The multi-index is all-in-the-first-argument because a primed function
+    !> has exactly one argument; a several-variable function has no prime form
+    !> in Wolfram either.
+    function prime_derivative(a, name, argument, order) result(e)
+        type(arena_t), target, intent(inout) :: a
+        character(*),          intent(in)    :: name
+        type(expr_t),          intent(in)    :: argument
+        integer,               intent(in)    :: order
+        type(expr_t)                         :: e
+        type(expr_t) :: parts(3)
+
+        parts(1) = sym(a, name)
+        parts(2) = num(a, int(order, int64))
+        parts(3) = argument
+        e = func("Derivative1", parts)
+    end function prime_derivative
 
     recursive subroutine parse_arg_list(p, a, d, fargs, nargs, closer)
         type(parser_t),            intent(inout) :: p

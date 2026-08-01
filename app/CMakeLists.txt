@@ -18,5 +18,9 @@ target_link_libraries(bench_native PRIVATE fortsym)
 add_executable(bench_algebraic bench_algebraic.f90)
 target_link_libraries(bench_algebraic PRIVATE fortsym)
 
-add_executable(bench_qqbar_direct bench_qqbar_direct.cpp)
+# Lives under benchmark/harnesses rather than app/ because fpm treats every
+# file in app/ as a program and links their objects together, so a C++ main
+# here collides with every Fortran app's main and breaks `fo install`.
+add_executable(bench_qqbar_direct
+    ${CMAKE_SOURCE_DIR}/benchmark/harnesses/bench_qqbar_direct.cpp)
 target_link_libraries(bench_qqbar_direct PRIVATE fortsym::flint)
