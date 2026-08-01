@@ -893,6 +893,10 @@ contains
             r = lower_compound(s, e, ok, message)
             return
         end if
+        if (head == "Thread") then
+            r = lower_thread(s, e, ok, message)
+            return
+        end if
 
         ! Evaluate arguments first. Wolfram evaluates innermost-out, and
         ! dispatching only on the outer head leaves Simplify[D[f, x]] holding an
@@ -1728,6 +1732,76 @@ contains
             if (.not. ok) return
         end do
     end function lower_compound
+
+    !> Thread a single expression over its List arguments.
+    !>
+    !> Thread[Equal[{a, b}, {c, d}]] is {Equal[a, c], Equal[b, d]}.
+    !> Only the ordinary one-argument form is lowered; an explicit alternate
+    !> head changes the language semantics and remains a named refusal until it
+    !> has a separate behavioural test.
+    recursive function lower_thread(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, inner, item
+        type(expr_t), allocatable         :: args(:), values(:)
+        integer :: k, j, n, list_count
+        logical :: item_ok
+        type(str_t) :: item_message
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() /= 1) then
+            call refuse(ok, message, "Thread takes one expression")
+            return
+        end if
+
+        inner = wl_eval(s, apply_bindings(s, e%arg(1)), item_ok, item_message)
+        if (.not. item_ok) then
+            call refuse(ok, message, chars(item_message))
+            return
+        end if
+        if (inner%kind() /= NK_FUNC) return
+        list_count = 0
+        n = 0
+        do k = 1, inner%nargs()
+            item = inner%arg(k)
+            if (.not. is_list(item)) cycle
+            list_count = list_count + 1
+            if (n == 0) then
+                n = item%nargs()
+            else if (item%nargs() /= n) then
+                call refuse(ok, message, "Thread has mismatched list lengths")
+                return
+            end if
+        end do
+        if (list_count == 0) then
+            r = inner
+            return
+        end if
+
+        allocate (values(n))
+        allocate (args(inner%nargs()))
+        do j = 1, n
+            do k = 1, inner%nargs()
+                item = inner%arg(k)
+                if (is_list(item)) then
+                    args(k) = item%arg(j)
+                else
+                    args(k) = item
+                end if
+            end do
+            item = func(chars(inner%name()), args)
+            values(j) = wl_eval(s, item, item_ok, item_message)
+            if (.not. item_ok) then
+                call refuse(ok, message, chars(item_message))
+                return
+            end if
+        end do
+        r = make_list(s, values)
+    end function lower_thread
 
     recursive function contains_slot_sequence(e) result(yes)
         type(expr_t), intent(in) :: e
@@ -3243,13 +3317,98 @@ contains
                 r = child
                 cycle
             end if
-            select case (e%kind())
-            case (NK_ADD); r = r + child
-            case (NK_MUL); r = r*child
-            case (NK_POW); r = r**child
-            end select
+            r = elementwise_arithmetic(s, r, child, e%kind(), ok, message)
+            if (.not. ok) return
         end do
     end function eval_children
+
+    !> Apply Wolfram's automatic list threading for arithmetic.
+    !>
+    !> Plus, Times, and Power thread over Lists, including a scalar paired with
+    !> a list. Leaving the list as an operand of a scalar product is a tempting
+    !> structural shortcut, but it is a different value: {1, 1, 1} Exp[-x^2]
+    !> is three scalar products in Wolfram, not one opaque product with a list.
+    !> Shape mismatches refuse rather than truncating or padding the result.
+    recursive function elementwise_arithmetic(s, left, right, kind, ok, &
+            message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: left, right
+        integer,            intent(in)    :: kind
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)  :: message
+        type(expr_t)                     :: r, value
+        type(expr_t), allocatable        :: values(:)
+        logical :: left_is_list, right_is_list
+        integer :: k
+
+        ok = .true.
+        message = str("")
+        left_is_list = is_list(left)
+        right_is_list = is_list(right)
+
+        if (.not. left_is_list) then
+            if (.not. right_is_list) then
+                select case (kind)
+                case (NK_ADD)
+                    r = left + right
+                case (NK_MUL)
+                    r = left*right
+                case (NK_POW)
+                    r = left**right
+                end select
+                return
+            end if
+            allocate (values(right%nargs()))
+            do k = 1, right%nargs()
+                values(k) = elementwise_arithmetic(s, left, right%arg(k), &
+                    kind, ok, message)
+                if (.not. ok) return
+            end do
+            r = make_list(s, values)
+            return
+        end if
+
+        allocate (values(left%nargs()))
+        if (right_is_list) then
+            if (left%nargs() /= right%nargs()) then
+                call refuse(ok, message, "threaded arithmetic has mismatched "// &
+                    "list lengths")
+                r = left
+                return
+            end if
+            do k = 1, left%nargs()
+                value = elementwise_arithmetic(s, left%arg(k), right%arg(k), &
+                    kind, ok, message)
+                if (.not. ok) then
+                    r = left
+                    return
+                end if
+                values(k) = value
+            end do
+        else
+            do k = 1, left%nargs()
+                values(k) = elementwise_arithmetic(s, left%arg(k), right, &
+                    kind, ok, message)
+                if (.not. ok) return
+            end do
+        end if
+        r = make_list(s, values)
+    end function elementwise_arithmetic
+
+    !> Build a List without asking func() to inspect a nonexistent first item.
+    !> Empty lists occur in real corpus data, and func() obtains its arena from
+    !> fargs(1), so the zero-argument case needs the explicit arena form.
+    function make_list(s, values) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: values(:)
+        type(expr_t)                      :: r
+
+        if (size(values) == 0) then
+            r = func_in(s%a, "List")
+        else
+            r = func("List", values)
+        end if
+    end function make_list
 
     !> Recognise only the assumption-free identity sin(u)^2 + cos(u)^2 = 1.
     !>
