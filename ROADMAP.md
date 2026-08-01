@@ -1,0 +1,186 @@
+# fortsym roadmap
+
+The target is **100% coverage of the fortsym-bench corpus**: 359 Wolfram-language
+derivations across 50 projects, every result either agreeing with an open-source
+oracle or refused with a named construct. Nothing here is scheduled by taste —
+each milestone is ordered by how many corpus scripts it unblocks, and every
+method is chosen from the literature and cited.
+
+Operational rules live in `doc/roadmap.md`. Licences and clean-room boundaries
+live in `LEGAL.md` and `COMPATIBILITY.md`. Method provenance lives in
+`doc/provenance.md`, and every algorithm below has an entry there.
+
+## Acceptance
+
+A milestone is done when it has a callable public operation, an **independent**
+behavioural oracle (not another CAS agreeing with it), documentation, a
+reproducible benchmark row, and a measurable rise in corpus coverage. A
+capability bit is added only with the operation it describes. Unsupported input
+returns a diagnostic or `UNKNOWN` — never a guess.
+
+## Performance contract
+
+Performance is a release criterion, not a follow-up.
+
+| Workload | Target | Current |
+|---|---|---|
+| expand, diff, simplify on the SymEngine benchmark inputs | within **1.5×** of SymEngine 0.14.0 | 2.66× on `(x+y+c)^7` |
+| any corpus script | faster than SymPy on the same input | not yet measured |
+| generated kernel runtime | at or below the hand-written routine it replaces | not yet measured |
+
+Rules that follow from that contract:
+
+- Sparse multivariate arithmetic uses **heap-based multiplication and division**
+  (Monagan & Pearce 2007, 2010), which is the current state of the art for
+  sparse distributed polynomials and beats geobucket at the sizes the corpus
+  reaches. Dense univariate falls back to **Kronecker substitution** onto FLINT
+  `fmpz_poly`.
+- The arena stays hash-consed with cache-dense node layout. No allocation in
+  inner loops; memoisation keyed on interned ids.
+- Every claim cites a pinned result file under `benchmark/results` produced with
+  fixed CPU affinity and a documented frequency governor. A run without those is
+  diagnostic and cannot support a release statement (`doc/benchmarks.md`).
+
+## Milestones
+
+Ordered by corpus impact. Counts are call sites across the 359-script corpus.
+
+### M1 — Polynomial and rational core (#28) · 2189 sites
+
+Content, primitive part, exact division, GCD, square-free decomposition,
+resultant, `cancel`, `together`, `apart`, `factor`.
+
+- GCD: **sparse modular** (Zippel 1979) with **dense modular** (Brown 1971) for
+  low variable counts, and **GCDHEU** (Char, Geddes & Gonnet 1989) as the fast
+  path for small inputs. Monagan & Wittkopf (2000) for the sparse-modular
+  refinements.
+- Univariate factorisation: **Zassenhaus** with **van Hoeij lattice
+  reduction** (van Hoeij 2002) to kill the exponential recombination case.
+- Multivariate factorisation: **EEZ / Wang** multivariate Hensel lifting
+  (Wang 1978).
+- Oracle: divisibility, Bezout, and finite-field evaluation — not another CAS.
+
+### M2 — Assumptions (#29) · 895 sites
+
+Inequality ranges, domain membership, scoped contexts, `refine`, compound
+inference.
+
+- Representation: an immutable fact set with a **congruence-closure**-style
+  propagation over interned expressions (Nelson & Oppen 1980).
+- Oracle: sampling within the declared domain; a rewrite must hold at sampled
+  admissible points and be refused outside them.
+
+### M3 — Series (#35) · 321 sites
+
+Laurent series, expansion at infinity and at singular points, composition,
+inversion, series of special functions.
+
+- **Lazy/recursive power series** with Newton iteration for reciprocal and
+  reversion; **Brent & Kung (1978)** for composition.
+- Order convention documented and identical in both frontends. Wolfram's
+  `Series[f,{x,0,n}]` includes `x^n`; SymPy's `series(f,x,0,n)` does not.
+  fortsym-bench found this on its first corpus entry.
+
+### M4 — Limits (#32) · 137 sites
+
+- **Gruntz's algorithm** (Gruntz 1996) over most-rapidly-varying subexpressions.
+  It is the only method in wide use that is correct on nested exponentials, and
+  it is what SymPy implements.
+- Taylor-derived limits first for the cheap finite cases.
+
+### M5 — Complex domain (#33) · 782 sites
+
+`re`, `im`, `conjugate`, `arg`, guarded `abs`, `complex_expand`, and promotion
+of the bounded `qqbar` bridge into arena nodes.
+
+- Exact algebraic numbers through **FLINT `qqbar`** (Johansson 2020), already
+  pinned as a dependency.
+- Oracle: high-precision evaluation and `z * conj(z) == abs(z)^2`.
+
+### M6 — Special functions (#34) · 1040 sites
+
+Bessel `J`,`Y`,`I`,`K`; gamma family; `erf`/`erfc`; elliptic `K`,`E`,`F`;
+Legendre.
+
+- Numerics through **Arb** ball arithmetic (Johansson 2017), which gives
+  rigorous enclosures rather than best-effort floats.
+- Symbolic relations from **DLMF** (Olver et al.), cited per rule.
+- Unblocks KiLCA, whose entire conductivity tensor is Bessel and gamma.
+
+### M7 — Integration (#31) · 350 sites
+
+- Rational part: **Hermite reduction** then **Lazard–Rioboo–Trager** for the
+  logarithmic part. Bronstein, *Symbolic Integration I* (2005), is the reference
+  implementation guide.
+- Then the **Risch** algorithm for elementary extensions, in the decision-
+  procedure form, not a heuristic table.
+- Oracle: differentiate the answer and decide zero.
+
+### M8 — Solving (#36) · 76 sites
+
+Univariate roots by radicals to degree four, `RootOf` representation above,
+elimination for systems, Gröbner only where a traced case needs it
+(**F4**, Faugère 1999; bounded Buchberger otherwise).
+
+### M9 — Matrices (#30) · 589 sites
+
+- Determinant and linear solve by **fraction-free Bareiss** (Bareiss 1968).
+- Rational systems by **Dixon p-adic lifting** (Dixon 1982), which is the fast
+  path and what makes large exact systems tractable.
+- Eigenvalues via characteristic polynomial through M8.
+
+### M10 — Numerics and the fortnum boundary (#37) · 686 sites
+
+Requested-precision real and complex evaluation, `NIntegrate`, `FindRoot`,
+`Interpolation`, `Fit`.
+
+**Anything numerical that is not symbolic-expression evaluation belongs in
+fortnum, not here** — quadrature, root finding, interpolation and fitting are
+fortnum's subject. fortsym contributes only the evaluator that turns an
+expression into a callable, plus the bridge. Work lands in fortnum when the
+corpus demands a routine fortnum lacks, and nowhere else.
+
+- Ball arithmetic through **Arb**; adaptive quadrature via
+  **Gauss–Kronrod** with the Petras/Molin rigorous-error treatment for the cases
+  that need certification.
+
+### M11 — Plotting through fortplot (#44) · 2794 sites
+
+`Plot`, `Plot3D`, `ContourPlot`, `ParametricPlot`, `ListPlot`, `StreamPlot`,
+`DensityPlot`, `VectorPlot`, `LogPlot`, `Show`, `GraphicsGrid`, `PlotLegends`.
+
+Plotting was a deferred area. The corpus makes it the **single largest
+construct family**, mostly from the teaching material, so it is scheduled.
+
+fortsym does not gain a plotting implementation. It gains a **dependency on
+fortplot**, which already provides plot, contour, contourf, pcolormesh, surface,
+3-D, scatter, streamplot, quiver, errorbar, subplots and legends. fortsym's job
+is sampling an expression into arrays and mapping options; anything missing is
+fixed **in fortplot**, upstream, not worked around here.
+
+### M12 — Sums, piecewise, trig rewrites, ODEs (#38, #39, #40, #43)
+
+Indexed sums (**Gosper 1978**, **Zeilberger 1990** for the hypergeometric
+cases), piecewise with branch emission, public trig/power rewrites, and finally
+`DSolve`.
+
+### M13 — Codegen completion (#41, #42)
+
+Binding opaque applied functions and their `Derivative` nodes to
+consumer-supplied procedures, and mapping special-function heads to a Fortran
+runtime. #41 is what unblocks SIMPLE's canonical-field Hessians; #42 is what
+lets KiLCA's orphaned generated kernels be regenerated.
+
+## Simplification strategy
+
+Candidate ranking stays the mechanism: generate candidates, verify equivalence,
+rank by operation count after CSE. Beyond that, **bounded equality saturation**
+over an e-graph (Willsey et al., *egg*, POPL 2021) is evaluated only once M2's
+domain guards exist — an e-graph that rewrites without guards will happily prove
+something false on a restricted domain.
+
+## What stays out
+
+Units, geometry, combinatorics and broad theorem proving remain outside the
+corpus and therefore outside the plan. New corpus evidence can promote any of
+them.
