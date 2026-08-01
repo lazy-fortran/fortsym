@@ -322,18 +322,32 @@ contains
     !> corpus reports through named variables, so an unnamed value has nothing
     !> to be compared against and inventing a name for it would fabricate a
     !> result the oracle never produced.
-    subroutine wl_run_statement(s, text)
+    recursive subroutine wl_run_statement(s, text)
         type(wl_session_t), intent(inout) :: s
         character(*),       intent(in)    :: text
 
-        integer :: eq, lhs_end
+        integer :: comma, eq, lhs_end
         character(:), allocatable :: name, rhs, function_name
         type(expr_t) :: value
         logical :: ok, function_lhs_ok
         type(str_t) :: message
 
+        ! A top-level comma is Wolfram's compound-expression separator. Commas
+        ! inside calls and lists are protected by the same nesting depth that
+        ! protects statement newlines, so recursively processing the pieces
+        ! preserves left-to-right side effects such as Clear[..., Null, x=1].
+        comma = top_level_comma(text)
+        if (comma > 0) then
+            call wl_run_statement(s, text(1:comma - 1))
+            call wl_run_statement(s, text(comma + 1:))
+            return
+        end if
+
         eq = assignment_split(text)
-        if (eq <= 0) return
+        if (eq <= 0) then
+            call wl_run_command(s, text)
+            return
+        end if
 
         lhs_end = eq - 1
         if (lhs_end > 0) then
@@ -359,6 +373,95 @@ contains
         s%bindings(s%n)%ok = ok
         s%bindings(s%n)%message = message
     end subroutine wl_run_statement
+
+    !> Run the small set of bare commands with session-level side effects.
+    subroutine wl_run_command(s, text)
+        type(wl_session_t), intent(inout) :: s
+        character(*),       intent(in)    :: text
+        type(expr_t) :: parsed
+        logical :: ok
+        character(:), allocatable :: why
+
+        parsed = parse_expr_in(s%a, text, dialect(DIA_WOLFRAM), ok, why)
+        if (.not. ok) return
+        if (parsed%kind() /= NK_FUNC) return
+
+        select case (chars(parsed%name()))
+        case ("Clear", "Remove")
+            call clear_names(s, parsed)
+        case default
+            ! Bare expressions are deliberately discarded. Only named
+            ! assignments are part of the benchmark output protocol.
+        end select
+    end subroutine wl_run_command
+
+    !> Remove value and positional-function definitions for each named symbol.
+    subroutine clear_names(s, command)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: command
+        type(expr_t) :: item
+        character(:), allocatable :: name
+        integer :: k, j
+
+        do k = 1, command%nargs()
+            item = command%arg(k)
+            if (item%kind() /= NK_SYM) cycle
+            name = chars(item%name())
+
+            j = 1
+            do while (j <= s%n)
+                if (chars(s%bindings(j)%name) == name) then
+                    if (j < s%n) s%bindings(j:s%n - 1) = s%bindings(j + 1:s%n)
+                    s%n = s%n - 1
+                else
+                    j = j + 1
+                end if
+            end do
+
+            do j = 1, s%nfunctions
+                if (s%functions(j)%defined) then
+                    if (chars(s%functions(j)%name) == name) then
+                        s%functions(j)%defined = .false.
+                    end if
+                end if
+            end do
+        end do
+    end subroutine clear_names
+
+    !> Position of the first comma outside brackets, braces and parentheses.
+    function top_level_comma(text) result(pos)
+        character(*), intent(in) :: text
+        integer                  :: pos
+        integer :: i, depth
+        logical :: in_string
+        character :: c
+
+        pos = 0
+        depth = 0
+        in_string = .false.
+        do i = 1, len(text)
+            c = text(i:i)
+            if (in_string) then
+                if (c == """") in_string = .false.
+                cycle
+            end if
+            if (c == """") then
+                in_string = .true.
+                cycle
+            end if
+            select case (c)
+            case ("[", "{", "(")
+                depth = depth + 1
+            case ("]", "}", ")")
+                depth = depth - 1
+            case (",")
+                if (depth == 0) then
+                    pos = i
+                    return
+                end if
+            end select
+        end do
+    end function top_level_comma
 
     !> Position of a top-level assignment operator, or 0.
     !>
