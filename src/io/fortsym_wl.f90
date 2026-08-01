@@ -19,9 +19,10 @@ module fortsym_wl
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
     use fortsym_expr, only: expr_t, sym, num, func, func_in, real_expr, &
-        operator(+), operator(*), operator(**)
+        operator(+), operator(-), operator(*), operator(**)
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
     use fortsym_parse, only: parse_expr_in
+    use fortsym_assume, only: assumption_context_t
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
     use fortsym_engine, only: engine_result_t, wall_seconds
@@ -30,6 +31,16 @@ module fortsym_wl
         matrix_inverse, is_matrix, is_list
     use fortsym_plot, only: plot_expression, plot_spec_t, read_plot_range
     use fortsym_numeric, only: numeric_value
+    use fortsym_integrate, only: integrate
+    use fortsym_polysolve, only: solve_polynomial
+    use fortsym_complexdom, only: re_part, im_part, conjugate, arg_of, &
+        complex_expand
+    use fortsym_sums, only: sum_closed_form, product_closed_form
+    use fortsym_trigrewrite, only: trig_expand, trig_reduce, trig_to_exp, &
+        exp_to_trig, power_expand
+    use fortsym_limits, only: limit_of, limit_value_t, finite_point, &
+        plus_infinity, minus_infinity, TWO_SIDED, LIMIT_FINITE, &
+        LIMIT_PLUS_INF
     implicit none
     private
 
@@ -634,6 +645,48 @@ contains
             call refuse(ok, message, "IdentityMatrix is not implemented")
             return
 
+        case ("Integrate")
+            ! Indefinite only. Integrate[f, {x, a, b}] is a definite integral,
+            ! and evaluating the antiderivative at the endpoints is wrong
+            ! whenever the integrand has a singularity between them -- which is
+            ! not decided here, so the definite form refuses.
+            if (r%nargs() /= 2) then
+                call refuse(ok, message, "definite or multiple Integrate")
+                return
+            end if
+            var = r%arg(2)
+            if (var%kind() /= NK_SYM) then
+                call refuse(ok, message, "Integrate needs a plain variable")
+                return
+            end if
+            inner = integrate(s%a, r%arg(1), var, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Integrate: "//why)
+                return
+            end if
+            r = inner
+
+        case ("Limit")
+            r = lower_limit(s, r, ok, message)
+            if (.not. ok) return
+
+        case ("Sum", "Product")
+            r = lower_sum(s, r, head == "Sum", ok, message)
+            if (.not. ok) return
+
+        ! Lower case: the parser canonicalises Wolfram spellings to fortsym's
+        ! own names, and the printer spells them back. Matching "Re" here fired
+        ! never, and because the printer restored the Wolfram spelling the
+        ! unevaluated result read exactly like a correct one.
+        case ("re", "im", "conjugate", "arg", "ComplexExpand")
+            r = lower_complex(s, r, head, ok, message)
+            if (.not. ok) return
+
+        case ("TrigExpand", "TrigReduce", "TrigToExp", "ExpToTrig", &
+              "PowerExpand")
+            r = lower_rewrite(s, r, head, ok, message)
+            if (.not. ok) return
+
         case ("Plus", "Times", "Power", "List", "Rule", "Equal")
             ! Structural heads the parser already built. Nothing to lower.
 
@@ -654,6 +707,228 @@ contains
         end select
     end function wl_eval
 
+    !> Limit[f, x -> a]. Only the two-sided form: Wolfram's Direction option
+    !> selects a side, and answering a one-sided request with the two-sided
+    !> limit is right only when both agree, which is the very thing a
+    !> one-sided request suspects. So the option refuses.
+    function lower_limit(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(limit_value_t) :: lv
+        type(expr_t) :: rule, var, point
+        character(:), allocatable :: why
+
+        ok = .true.
+        message = str("")
+        r = e
+
+        if (e%nargs() /= 2) then
+            call refuse(ok, message, "Limit with options such as Direction")
+            return
+        end if
+        rule = e%arg(2)
+        if (rule%kind() /= NK_FUNC) then
+            call refuse(ok, message, "Limit needs a x -> a rule")
+            return
+        end if
+        if (chars(rule%name()) /= "Rule") then
+            call refuse(ok, message, "Limit needs a x -> a rule")
+            return
+        end if
+        var = rule%arg(1)
+        point = rule%arg(2)
+        if (var%kind() /= NK_SYM) then
+            call refuse(ok, message, "Limit needs a plain variable")
+            return
+        end if
+
+        if (is_named(point, "Infinity")) then
+            lv = limit_of(s%a, e%arg(1), var, plus_infinity(), TWO_SIDED, &
+                          ok, why)
+        else if (is_negative_infinity(point)) then
+            lv = limit_of(s%a, e%arg(1), var, minus_infinity(), TWO_SIDED, &
+                          ok, why)
+        else
+            lv = limit_of(s%a, e%arg(1), var, finite_point(point), TWO_SIDED, &
+                          ok, why)
+        end if
+
+        if (.not. ok) then
+            call refuse(ok, message, "Limit: "//why)
+            return
+        end if
+
+        ! An infinite limit is reported as Wolfram spells it, not as a large
+        ! number: a caller that cannot tell Infinity from a float will use it
+        ! in arithmetic.
+        select case (lv%kind)
+        case (LIMIT_FINITE)
+            r = lv%value
+        case (LIMIT_PLUS_INF)
+            r = func_in(s%a, "Infinity")
+        case default
+            r = -func_in(s%a, "Infinity")
+        end select
+    end function lower_limit
+
+    !> Sum[body, {k, lo, hi}] and Product likewise.
+    function lower_sum(s, e, is_sum, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(in)    :: is_sum
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(expr_t) :: spec, var
+        character(:), allocatable :: why
+
+        ok = .true.
+        message = str("")
+        r = e
+
+        ! A multi-index Sum has more than one iterator spec; nesting them here
+        ! would need each inner closed form to survive the outer summation,
+        ! which is not established, so it refuses.
+        if (e%nargs() /= 2) then
+            call refuse(ok, message, "Sum or Product over several indices")
+            return
+        end if
+        spec = e%arg(2)
+        if (spec%kind() /= NK_FUNC) then
+            call refuse(ok, message, "Sum needs a {k, lo, hi} range")
+            return
+        end if
+        if (chars(spec%name()) /= "List" .or. spec%nargs() /= 3) then
+            call refuse(ok, message, "Sum needs a {k, lo, hi} range")
+            return
+        end if
+        var = spec%arg(1)
+        if (var%kind() /= NK_SYM) then
+            call refuse(ok, message, "Sum needs a plain index variable")
+            return
+        end if
+
+        if (is_sum) then
+            r = sum_closed_form(s%a, e%arg(1), var, spec%arg(2), spec%arg(3), &
+                                ok, why)
+        else
+            r = product_closed_form(s%a, e%arg(1), var, spec%arg(2), &
+                                    spec%arg(3), ok, why)
+        end if
+        if (.not. ok) then
+            call refuse(ok, message, "Sum: "//why)
+            return
+        end if
+    end function lower_sum
+
+    !> Re, Im, Conjugate, Arg and ComplexExpand.
+    !>
+    !> The assumption context is empty, which is the whole difficulty: a bare
+    !> symbol has unknown reality, so Re[x] refuses rather than returning x.
+    !> Wolfram's ComplexExpand assumes every symbol real by default; copying
+    !> that would make fortsym agree with the oracle by sharing its unsoundness,
+    !> and the disagreement is the honest outcome until #29 carries assumptions
+    !> in from the script.
+    function lower_complex(s, e, head, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        character(*),       intent(in)    :: head
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(assumption_context_t) :: facts
+        type(expr_t) :: out
+        character(:), allocatable :: why
+
+        ok = .true.
+        message = str("")
+        r = e
+
+        if (e%nargs() /= 1) then
+            call refuse(ok, message, head//" takes one argument here")
+            return
+        end if
+
+        select case (head)
+        case ("re");           call re_part(e%arg(1), facts, out, ok, why)
+        case ("im");           call im_part(e%arg(1), facts, out, ok, why)
+        case ("conjugate");    call conjugate(e%arg(1), facts, out, ok, why)
+        case ("arg");          call arg_of(e%arg(1), facts, out, ok, why)
+        case default;          call complex_expand(e%arg(1), facts, out, ok, why)
+        end select
+
+        if (.not. ok) then
+            call refuse(ok, message, head//": "//why)
+            return
+        end if
+        r = out
+    end function lower_complex
+
+    !> The trig and power rewrite family.
+    function lower_rewrite(s, e, head, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        character(*),       intent(in)    :: head
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(expr_t) :: out
+        character(:), allocatable :: why
+
+        ok = .true.
+        message = str("")
+        r = e
+
+        if (e%nargs() /= 1) then
+            call refuse(ok, message, head//" takes one argument here")
+            return
+        end if
+
+        select case (head)
+        case ("TrigExpand");  call trig_expand(e%arg(1), out, ok, why)
+        case ("TrigReduce");  call trig_reduce(e%arg(1), out, ok, why)
+        case ("TrigToExp");   call trig_to_exp(e%arg(1), out, ok, why)
+        case ("ExpToTrig");   call exp_to_trig(e%arg(1), out, ok, why)
+        case default;         call power_expand(e%arg(1), out, ok, why)
+        end select
+
+        if (.not. ok) then
+            call refuse(ok, message, head//": "//why)
+            return
+        end if
+        r = out
+    end function lower_rewrite
+
+    !> A zero-argument application of the given name, such as Infinity.
+    function is_named(e, name) result(yes)
+        type(expr_t), intent(in) :: e
+        character(*), intent(in) :: name
+        logical                  :: yes
+
+        yes = .false.
+        if (e%kind() /= NK_FUNC) return
+        yes = chars(e%name()) == name
+    end function is_named
+
+    !> -Infinity, which the parser builds as a negation rather than a head.
+    function is_negative_infinity(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+        integer :: k
+
+        yes = .false.
+        if (e%kind() /= NK_MUL) return
+        do k = 1, e%nargs()
+            if (is_named(e%arg(k), "Infinity")) then
+                yes = .true.
+                return
+            end if
+        end do
+    end function is_negative_infinity
+
     !> Wolfram command heads fortsym knows about but cannot yet evaluate.
     !>
     !> Kept explicit rather than inferred: the distinction that matters is
@@ -666,7 +941,7 @@ contains
 
         select case (head)
         ! Integration and limits (#31, #32)
-        case ("Integrate", "NIntegrate", "Limit")
+        case ("NIntegrate")
             yes = .true.
         ! Polynomial and rational algebra (#28)
         case ("Factor", "Together", "Apart", "Cancel", "Collect", "PolynomialGCD")
@@ -682,15 +957,10 @@ contains
         case ("Reduce", "NSolve", "FindRoot", "Eliminate", "Roots", "ToRadicals")
             yes = .true.
         ! Series and sums (#35, #39)
-        case ("SeriesCoefficient", "Sum", "Product", "Coefficient", &
-              "CoefficientList")
-            yes = .true.
-        ! Complex domain (#33)
-        case ("ComplexExpand", "Re", "Im", "Conjugate", "Arg")
+        case ("SeriesCoefficient", "Coefficient", "CoefficientList")
             yes = .true.
         ! Trig and power rewrites (#40)
-        case ("TrigExpand", "TrigReduce", "TrigToExp", "ExpToTrig", &
-              "PowerExpand", "Simplify3")
+        case ("Simplify3")
             yes = .true.
         ! Differential equations (#43)
         case ("DSolve", "NDSolve")
