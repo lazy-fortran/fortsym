@@ -26,6 +26,8 @@ module fortsym_wl
     use fortsym_diff, only: diff
     use fortsym_engine, only: engine_result_t, wall_seconds
     use fortsym_engine_native, only: native_engine_t, make_native_engine
+    use fortsym_matrix, only: matrix_transpose, matrix_dot, matrix_det, &
+        matrix_inverse, is_matrix, is_list
     implicit none
     private
 
@@ -552,6 +554,37 @@ contains
             end if
             r = res%value
 
+        case ("Transpose")
+            r = matrix_transpose(s%a, r%arg(1), ok)
+            if (.not. ok) then
+                call refuse(ok, message, "Transpose of something that is not a matrix")
+                return
+            end if
+
+        case ("Dot")
+            if (r%nargs() < 2) then
+                call refuse(ok, message, "Dot needs two operands")
+                return
+            end if
+            inner = r%arg(1)
+            do k = 2, r%nargs()
+                inner = matrix_dot(s%a, inner, r%arg(k), ok, message)
+                if (.not. ok) return
+            end do
+            r = inner
+
+        case ("Det")
+            r = matrix_det(s%a, r%arg(1), ok, message)
+            if (.not. ok) return
+
+        case ("Inverse")
+            r = matrix_inverse(s%a, r%arg(1), ok, message)
+            if (.not. ok) return
+
+        case ("IdentityMatrix")
+            call refuse(ok, message, "IdentityMatrix is not implemented")
+            return
+
         case ("Plus", "Times", "Power", "List", "Rule", "Equal")
             ! Structural heads the parser already built. Nothing to lower.
 
@@ -593,8 +626,8 @@ contains
         case ("Refine", "Assuming", "Simplify2", "Element")
             yes = .true.
         ! Matrices (#30)
-        case ("Det", "Inverse", "Transpose", "Dot", "Cross", "Eigenvalues", &
-              "LinearSolve", "MatrixPower", "Tr")
+        case ("Cross", "Eigenvalues", "LinearSolve", "MatrixPower", "Tr", &
+              "IdentityMatrix", "MatrixForm")
             yes = .true.
         ! Solving beyond the scalar linear case (#36)
         case ("Reduce", "NSolve", "FindRoot", "Eliminate", "Roots", "ToRadicals")
