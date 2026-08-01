@@ -554,11 +554,20 @@ contains
             end if
             r = res%value
 
+        ! Matrix heads on operands that are not concrete matrices stay
+        ! unevaluated rather than refusing. That is not a guess: Transpose[jac]
+        ! where jac is a symbol is exactly what Mathics returns too, so
+        ! refusing would disagree with the oracle on a correct answer. A
+        ! genuine shape error -- ragged rows, mismatched dimensions -- still
+        ! refuses, because that is a mistake in the source rather than a
+        ! symbol standing in for a matrix.
         case ("Transpose")
-            r = matrix_transpose(s%a, r%arg(1), ok)
-            if (.not. ok) then
-                call refuse(ok, message, "Transpose of something that is not a matrix")
-                return
+            if (is_matrix(r%arg(1))) then
+                r = matrix_transpose(s%a, r%arg(1), ok)
+                if (.not. ok) then
+                    call refuse(ok, message, "Transpose of a ragged matrix")
+                    return
+                end if
             end if
 
         case ("Dot")
@@ -568,18 +577,27 @@ contains
             end if
             inner = r%arg(1)
             do k = 2, r%nargs()
+                if (.not. dottable(inner) .or. .not. dottable(r%arg(k))) then
+                    ! One operand is symbolic, so the product cannot be formed
+                    ! and the whole application stays as written.
+                    return
+                end if
                 inner = matrix_dot(s%a, inner, r%arg(k), ok, message)
                 if (.not. ok) return
             end do
             r = inner
 
         case ("Det")
-            r = matrix_det(s%a, r%arg(1), ok, message)
-            if (.not. ok) return
+            if (is_matrix(r%arg(1))) then
+                r = matrix_det(s%a, r%arg(1), ok, message)
+                if (.not. ok) return
+            end if
 
         case ("Inverse")
-            r = matrix_inverse(s%a, r%arg(1), ok, message)
-            if (.not. ok) return
+            if (is_matrix(r%arg(1))) then
+                r = matrix_inverse(s%a, r%arg(1), ok, message)
+                if (.not. ok) return
+            end if
 
         case ("IdentityMatrix")
             call refuse(ok, message, "IdentityMatrix is not implemented")
@@ -662,6 +680,13 @@ contains
             yes = .false.
         end select
     end function is_known_command
+
+    !> True when Dot can actually form a product with this operand.
+    function dottable(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+        yes = is_list(e)
+    end function dottable
 
     !> Substitute a scoping construct's local initialisers into its body.
     !>
