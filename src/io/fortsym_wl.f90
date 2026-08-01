@@ -17,8 +17,9 @@ module fortsym_wl
     ! No Wolfram product is involved; see LEGAL.md section 5.1.
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: str_t, str, chars
-    use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM
-    use fortsym_expr, only: expr_t, sym, num, func
+    use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
+    use fortsym_expr, only: expr_t, sym, num, func, operator(+), operator(*), &
+        operator(**)
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
     use fortsym_parse, only: parse_expr_in
     use fortsym_subs, only: subs
@@ -389,7 +390,19 @@ contains
         message = str("")
         r = e
 
-        if (e%kind() /= NK_FUNC) return
+        ! Walk arithmetic nodes too. Dispatching only on NK_FUNC let an
+        ! unimplemented head hide inside a sum or product: -Inverse[g] . r has
+        ! Times at the top, so Dot was never examined and its unevaluated form
+        ! was reported as though it were the answer.
+        select case (e%kind())
+        case (NK_ADD, NK_MUL, NK_POW)
+            r = eval_children(s, e, ok, message)
+            return
+        case (NK_FUNC)
+            ! fall through to the command table
+        case default
+            return
+        end select
         head = chars(e%name())
 
         ! Evaluate arguments first. Wolfram evaluates innermost-out, and
@@ -557,6 +570,41 @@ contains
             yes = .false.
         end select
     end function is_known_command
+
+    !> Rebuild an arithmetic node from evaluated children.
+    !>
+    !> Folded with the arena's own operators rather than by index surgery, so
+    !> the result is interned exactly as if it had been built directly and the
+    !> structural comparison in the tests stays meaningful.
+    recursive function eval_children(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(expr_t) :: child
+        integer :: k
+
+        ok = .true.
+        message = str("")
+
+        do k = 1, e%nargs()
+            child = wl_eval(s, e%arg(k), ok, message)
+            if (.not. ok) then
+                r = e
+                return
+            end if
+            if (k == 1) then
+                r = child
+                cycle
+            end if
+            select case (e%kind())
+            case (NK_ADD); r = r + child
+            case (NK_MUL); r = r*child
+            case (NK_POW); r = r**child
+            end select
+        end do
+    end function eval_children
 
     subroutine refuse(ok, message, why)
         logical,      intent(out) :: ok

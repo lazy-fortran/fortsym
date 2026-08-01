@@ -156,8 +156,22 @@ contains
 
         c = p%src(p%pos:p%pos)
 
-        if (is_digit(c) .or. (c == "." .and. p%pos < n)) then
+        if (is_digit(c)) then
             call lex_number(p)
+            return
+        end if
+
+        if (c == "." .and. p%pos < n) then
+            ! A dot followed by a digit starts a number; otherwise it is the
+            ! Dot product. Treating every dot as a number turns "a . b" into a
+            ! malformed literal and loses the operator entirely.
+            if (is_digit(p%src(p%pos + 1:p%pos + 1))) then
+                call lex_number(p)
+            else
+                p%tok = T_OP
+                p%text = "."
+                p%pos = p%pos + 1
+            end if
             return
         end if
 
@@ -483,6 +497,7 @@ contains
         case ("->", ":>"); bp = 2
         case ("||"); bp = 3
         case ("&&"); bp = 4
+        case ("."); bp = 9
         case ("==", "!=", "<", ">", "<=", ">="); bp = 5
         case ("+", "-"); bp = 6
         case ("*", "/"); bp = 7
@@ -514,6 +529,11 @@ contains
         if (p%failed) return
 
         do
+            ! Stop at the first failure. Without this the loop keeps folding
+            ! operators onto an operand that was never built, and an expr_t
+            ! with a null arena pointer segfaults rather than reporting the
+            ! parse error that already happened.
+            if (p%failed) return
             ! Juxtaposition is multiplication in Wolfram: "a1 r" and
             ! "(c/(4 Pi)) Bz'[r]" are products with no operator between them.
             ! Handled before the operator test because there is no token to
@@ -573,6 +593,10 @@ contains
             case (":>"); e = func("RuleDelayed", [e, rhs])
             case ("/."); e = func("ReplaceAll", [e, rhs])
             case ("/;"); e = func("Condition", [e, rhs])
+            ! Dot is non-commutative matrix product, so it stays a structural
+            ! head rather than becoming Times: folding it would let the
+            ! simplifier reorder factors and silently transpose the result.
+            case ("."); e = func("Dot", [e, rhs])
             case default
                 call fail(p, "unknown operator '"//op//"'")
                 return
@@ -591,7 +615,12 @@ contains
                 call advance(p, d)
                 ! Unary minus binds tighter than +/- but looser than **, so -x**2
                 ! is -(x**2), matching Fortran and every engine here.
-                e = negate(a, parse_binary(p, a, d, 7))
+                e = parse_binary(p, a, d, 7)
+                ! Negating a failed parse walks a partially built node whose
+                ! arena pointer was never set, which segfaults instead of
+                ! reporting the error that already happened.
+                if (p%failed) return
+                e = negate(a, e)
                 return
             else if (p%text == "+") then
                 call advance(p, d)
