@@ -54,6 +54,10 @@ module fortsym_dialect
         !> True when the dialect has no symbolic constants and pi must be
         !> emitted as a literal.
         logical     :: numeric_constants = .false.
+        !> True when function application is written Head[args] rather than
+        !> Head(args). Only Wolfram does; getting it wrong makes output that
+        !> the same dialect's parser cannot read back.
+        logical     :: bracket_application = .false.
     end type dialect_t
 
 contains
@@ -84,6 +88,10 @@ contains
         case (DIA_MAXIMA)
             d%name = str("maxima")
             d%power = str("^")
+        case (DIA_WOLFRAM)
+            d%name = str("wolfram")
+            d%power = str("^")
+            d%bracket_application = .true.
         case (DIA_FORTRAN)
             d%name = str("fortran")
             d%real_suffix = str("_dp")

@@ -844,14 +844,25 @@ contains
         integer :: k
 
         call b%append(chars(fn_spelling(d, chars(a%name_of(id)))))
-        call b%append("(")
+        ! Wolfram applies with brackets. Emitting parentheses here would produce
+        ! text this dialect's own parser reads as a product, so the round trip
+        ! would silently change the expression instead of failing.
+        if (d%bracket_application) then
+            call b%append("[")
+        else
+            call b%append("(")
+        end if
         do k = 1, a%nargs_of(id)
             if (k > 1) call b%append(", ")
-            ! Arguments sit inside parentheses already, so they need none of
+            ! Arguments sit inside brackets already, so they need none of
             ! their own whatever their precedence.
             call emit(b, a, a%arg_of(id, k), d, PREC_ADD, ids, names)
         end do
-        call b%append(")")
+        if (d%bracket_application) then
+            call b%append("]")
+        else
+            call b%append(")")
+        end if
     end subroutine emit_function
 
 end module fortsym_print
