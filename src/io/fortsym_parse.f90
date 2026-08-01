@@ -935,7 +935,17 @@ contains
                 ! an ordinary symbol otherwise. Getting this wrong is how
                 ! Euler's number becomes a free variable.
                 canon = chars(const_canonical(d, name))
-                if (canon == "pi" .or. canon == "e" .or. canon == "i") then
+                ! Wolfram names are case-sensitive: lowercase i is a common
+                ! summation/index variable, while only uppercase I is the
+                ! imaginary unit. Testing the canonical spelling alone would
+                ! turn that ordinary symbol into I before evaluation.
+                if (d%id == DIA_WOLFRAM) then
+                    if (name == "Pi" .or. name == "E" .or. name == "I") then
+                        e = const(a, canon)
+                    else
+                        e = sym(a, name)
+                    end if
+                else if (canon == "pi" .or. canon == "e" .or. canon == "i") then
                     e = const(a, canon)
                 else
                     e = sym(a, name)
