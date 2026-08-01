@@ -79,7 +79,10 @@ program fortsym_wl_run
         if (refused == 0) then
             write (error_unit, "(a)") "UNSUPPORTED: no top-level assignments"
         end if
-        error stop 1
+        ! Plain stop, not error stop: the latter prints a backtrace that the
+        ! harness reads as the failure detail, so an honest refusal arrives
+        ! looking like a segfault.
+        stop 1
     end if
 
 contains

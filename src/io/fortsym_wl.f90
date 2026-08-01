@@ -292,6 +292,9 @@ contains
             c = name(i:i)
             if (c >= "a" .and. c <= "z") cycle
             if (c >= "A" .and. c <= "Z") cycle
+            ! A leading $ is ordinary in Wolfram -- $Assumptions, $failCount --
+            ! and rejecting it drops those bindings silently.
+            if (c == "$") cycle
             if (c >= "0" .and. c <= "9" .and. i > 1) cycle
             if (c == "_" .and. i > 1) cycle
             yes = .false.
