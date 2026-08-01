@@ -1,6 +1,6 @@
 # fortsym roadmap
 
-The target is **100% coverage of the fortsym-bench corpus**: 359 Wolfram-language
+The target is **100% coverage of the fortsym-bench corpus**: 384 Wolfram-language
 derivations across 50 projects, every result either agreeing with an open-source
 oracle or refused with a named construct. Nothing here is scheduled by taste —
 each milestone is ordered by how many corpus scripts it unblocks, and every
@@ -43,17 +43,18 @@ Rules that follow from that contract:
 
 ## Measured state
 
-First corpus-wide measurement, 2026-08-01, `fortsym-bench` at 384 scripts:
+Latest corpus-wide measurement, 2026-08-01, `fortsym-bench` at 384 scripts
+(`--jobs 4`, with SymPy and Mathics outcomes served from cache):
 
 | | |
 |---|---:|
-| scripts producing at least one result | **316 / 384 (82%)** |
-| scripts refusing with a named construct | 66 |
-| scripts exceeding the time budget | 2 |
+| scripts producing at least one native result | **382 / 384 (99%)** |
+| scripts refusing with a named construct | 1 |
+| scripts exceeding the time budget | 1 |
 | crashes | **0** |
-| whole-corpus wall time | 0.38 s |
+| whole-corpus wall time | about 64 s |
 
-Read that honestly: 83% is *scripts that ran and emitted bindings*, not
+Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
 ### The oracle ceiling (#47)
@@ -62,25 +63,27 @@ That number is now established, and it changes the target.
 
 | | scripts | share |
 |---|---:|---:|
-| Mathics produces results | 203 | 53% |
-| fortsym-wl produces results | 320 | 83% |
-| **both — the scorable set** | **150** | **39%** |
+| Mathics produces results | 238 | 62% |
+| fortsym-wl produces results | 382 | 99% |
+| **both — the scorable set** | **237** | **62%** |
 
-Mathics fails on 181 scripts: 111 errors, of which **41 are internal
-`AttributeError`s** rather than unsupported constructs, plus 70 timeouts.
+Mathics fails on 146 scripts: 114 errors and 32 timeouts. Those outcomes are
+cached by source digest and Mathics runner version, so later native audits do
+not rerun the oracle.
 
 **100% coverage is unreachable with Mathics as the sole oracle**, and no amount
-of fortsym work changes that: for 170 scripts there is nothing to compare
-against. Raising the ceiling means translating the corpus to SymPy (#27),
-reporting the Mathics defects upstream, or adding a third oracle for the
-overlap.
+of fortsym work changes that: 145 native-producing scripts currently have no
+successful Mathics result to compare against. Raising the ceiling means
+completing the SymPy translation/runtime, reporting the Mathics defects
+upstream, or adding a third oracle for the overlap.
 
-Until it moves, every coverage number states its denominator. "83% produce
-results" and "39% can be scored" are different claims.
+Until it moves, every coverage number states its denominator. "99% produce
+native results" and "62% share a successful Mathics result" are different
+claims.
 
-Timing on the same corpus, with the caveat that the two are not doing equal
-work — Mathics evaluates integrals fortsym refuses — so this is robustness and
-startup, not capability: Mathics 254 s total, fortsym-wl 0.38 s.
+The current 64-second figure is harness wall time with four native workers and
+cached references, not a capability comparison: Mathics evaluates integrals
+fortsym refuses, and the native path still has one 60-second timeout.
 
 What running the corpus has already bought, none of which was found by tests:
 
@@ -94,7 +97,8 @@ What running the corpus has already bought, none of which was found by tests:
 - Refusing `Transpose[jac]` for a symbolic `jac`, which disagreed with the
   oracle on a *correct* answer — Mathics leaves it unevaluated too.
 
-Corpus refusals have gone 2313 → 1682 → 1465 as these landed.
+The current native baseline is 1 named refusal and 1 timeout at script level;
+binding-level unsupported constructs remain tracked by the benchmark report.
 
 ### What the corpus says to build next
 
@@ -140,7 +144,7 @@ pass is not optional.
 
 ## Milestones
 
-Ordered by corpus impact. Counts are call sites across the 359-script corpus.
+Ordered by corpus impact. Counts are call sites across the 384-script corpus.
 
 ### M1 — Polynomial and rational core (#28) · 2189 sites
 
