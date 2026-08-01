@@ -166,8 +166,11 @@ On the 384-file corpus sweep recorded 2026-08-01, the native runner completed
 381 scripts (343 with non-empty results and 38 valid empty result sets), timed
 out on one heavy script at the external 60-second limit, and explicitly refused
 two unsupported constructs. It did not crash. The benchmark cache served all
-384 SymPy and all 384 Mathics reference outcomes without rerunning either
-oracle; the warm two-oracle comparison pass takes about 1.2 seconds.
+384 SymPy, all 384 Mathics, and all 384 native rows. After compaction, the
+warm two-oracle audit takes about 2.1 seconds. The final binding-level tally is
+2,960 agreements, 934 declared differences, 20 unsupported outcomes, 40
+timeouts, 135 errors, 207 oracle disagreements, and 799 oracle-missing
+bindings.
 
 ## Build
 
