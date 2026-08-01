@@ -44,7 +44,7 @@ Rules that follow from that contract:
 ## Measured state
 
 Latest corpus-wide measurement, 2026-08-01, `fortsym-bench` at 384 scripts
-(`--jobs 4`, with SymPy and Mathics outcomes served from cache):
+(`--jobs 4`, with the final SymPy, Mathics, and native rows cached):
 
 | | |
 |---|---:|
@@ -54,11 +54,16 @@ Latest corpus-wide measurement, 2026-08-01, `fortsym-bench` at 384 scripts
 | scripts refusing with a named construct | 2 |
 | scripts exceeding the time budget | 1 |
 | crashes | **0** |
-| cold native refill, four workers | about 69 s |
-| warm raw-output and verdict audit | about 1.2 s |
+| cold two-oracle audit after translator refresh | 4:54 |
+| warm compact raw-output and verdict audit | about 2.1 s |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
+
+The final binding-level audit reports 2,960 agreements, 934 declared
+differences, 20 unsupported outcomes, 40 timeouts, 135 errors, 207 oracle
+disagreements, and 799 oracle-missing bindings. The target remains open until
+the declared native subset and the available oracle overlap agree.
 
 ### The oracle ceiling (#47)
 
@@ -66,11 +71,11 @@ That number is now established, and it changes the target.
 
 | | scripts | share |
 |---|---:|---:|
-| Mathics produces results | 238 | 62% |
+| Mathics produces results | 235 | 61% |
 | fortsym-wl completes | 381 | 99% |
-| **Mathics and fortsym-wl both complete** | **236** | **61%** |
+| **Mathics and fortsym-wl both complete** | **233** | **61%** |
 
-Mathics fails on 146 scripts: 114 errors and 32 timeouts. Those outcomes are
+Mathics fails on 149 scripts: 117 errors and 32 timeouts. Those outcomes are
 cached by source digest and Mathics runner version, so later native audits do
 not rerun the oracle.
 
@@ -86,11 +91,12 @@ Until it moves, every coverage number states its denominator. "99% complete
 natively" and "61% share a successful Mathics result" are different
 claims.
 
-The current 69-second figure is the cold native refill with four workers and
-cached references. Once raw results and comparison verdicts are cached, the
-same full audit takes about 1.2 seconds. These are harness measurements, not a
-capability comparison: Mathics evaluates integrals fortsym refuses, and the
-native path still has one 60-second timeout.
+The current cold figure includes the SymPy refresh required by the translator
+cache-version change and the native refresh required by the rebuilt binary.
+Once raw results and comparison verdicts are cached, the same full audit takes
+about 2.1 seconds. These are harness measurements, not a capability
+comparison: Mathics evaluates integrals fortsym refuses, and the native path
+still has one 60-second timeout.
 
 What running the corpus has already bought, none of which was found by tests:
 
