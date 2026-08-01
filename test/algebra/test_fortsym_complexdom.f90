@@ -1,0 +1,503 @@
+program test_fortsym_complexdom
+    ! The complex domain, checked against double-precision complex arithmetic.
+    !
+    ! The oracle is the small evaluator at the bottom of this file. It walks the
+    ! expression DAG in complex(dp) and knows nothing about fortsym_complexdom:
+    ! it does not split anything, it just multiplies and adds. So the identities
+    ! below are properties the module cannot satisfy by accident.
+    !
+    !   * Re[e] + i Im[e] evaluates to the same complex number as e.
+    !   * Re[e] and Im[e] evaluate with an imaginary part of exactly zero. This
+    !     is the check that catches the failure this module is built around --
+    !     a "real part" that still secretly contains i.
+    !   * conj(e) evaluates to the conjugate of e, and e*conj(e) = |e|^2.
+    !   * |e| exp(i Arg[e]) = e, which pins both the modulus and the branch.
+    !
+    ! Sample points are chosen with both coordinates nonzero and of mixed sign,
+    ! because a symbol that happens to be sampled on the real axis would let a
+    ! wrong split pass.
+    use, intrinsic :: iso_fortran_env, only: real64, int64
+    use fortsym_string, only: chars
+    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
+    use fortsym_expr, only: expr_t, sym, num, rat, i_expr, func, &
+        operator(+), operator(-), operator(*), operator(/), operator(**)
+    use fortsym_assume, only: assumption_context_t, assume, real_valued
+    use fortsym_complexdom, only: re_part, im_part, conjugate, arg_of, &
+        abs_of, complex_expand, complex_split
+    implicit none
+
+    integer, parameter :: dp = real64
+    integer, parameter :: NPOINT = 4
+    real(dp), parameter :: TOL = 1.0e-9_dp
+
+    ! Genuinely complex sample points: no coordinate is zero, and the signs
+    ! differ, so nothing here is accidentally real.
+    real(dp), parameter :: XS(NPOINT) = [0.3_dp, -1.2_dp, 2.0_dp, 0.75_dp]
+    real(dp), parameter :: YS(NPOINT) = [0.7_dp, 0.5_dp, -1.3_dp, -0.4_dp]
+
+    type(arena_t), target :: arena
+    type(assumption_context_t) :: facts
+    type(expr_t) :: x, y, z
+    integer :: nfail = 0
+
+    call arena%init()
+    call facts%init(arena)
+    x = sym(arena, "x")
+    y = sym(arena, "y")
+    call assume(facts, real_valued(x))
+    call assume(facts, real_valued(y))
+    z = x + i_expr(arena)*y
+
+    call test_split_reconstructs()
+    call test_parts_are_real()
+    call test_conjugate_matches()
+    call test_modulus_and_argument()
+    call test_expand_matches()
+    call test_literals_and_unit()
+    call test_unknown_reality_refused()
+    call test_branch_cases_refused()
+    call test_unknown_heads_refused()
+
+    if (nfail /= 0) then
+        print *, "test_fortsym_complexdom: ", nfail, " check(s) FAILED"
+        error stop 1
+    end if
+    print *, "test_fortsym_complexdom: all checks passed"
+
+contains
+
+    subroutine ok(label, cond)
+        character(*), intent(in) :: label
+        logical,      intent(in) :: cond
+        if (cond) then
+            print *, "  ok   ", label
+        else
+            print *, "  FAIL ", label
+            nfail = nfail + 1
+        end if
+    end subroutine ok
+
+    !> The expressions every property is checked on. Each mixes a construction
+    !> the module handles with one it has to recurse through.
+    function probe(k) result(e)
+        integer, intent(in) :: k
+        type(expr_t)        :: e
+
+        select case (k)
+        case (1); e = z**num(arena, 3)
+        case (2); e = (num(arena, 2) + i_expr(arena))*z
+        case (3); e = func("exp", [z])
+        case (4); e = func("sin", [z])
+        case (5); e = func("cos", [z])
+        case (6); e = z**num(arena, -2)
+        case (7); e = func("exp", [z])*func("sin", [z]) + z**num(arena, 4)
+        case (8)
+            e = z**num(arena, 2) - num(arena, 3)*z &
+                + rat(arena, 1_int64, 3_int64)
+        case (9); e = func("cos", [z**num(arena, 2)])*z
+        end select
+    end function probe
+
+    integer function nprobe()
+        nprobe = 9
+    end function nprobe
+
+    !> Re[e] + i Im[e] must be e, numerically, at every sample point.
+    subroutine test_split_reconstructs()
+        type(expr_t) :: e, re, im
+        complex(dp) :: ze, zre, zim
+        logical :: good, allgood
+        character(:), allocatable :: why
+        integer :: k, p
+
+        do k = 1, nprobe()
+            e = probe(k)
+            call re_part(e, facts, re, good, why)
+            call ok("re_part accepts probe", good)
+            if (.not. good) cycle
+            call im_part(e, facts, im, good, why)
+            if (.not. good) then
+                call ok("im_part accepts probe", .false.)
+                cycle
+            end if
+            allgood = .true.
+            do p = 1, NPOINT
+                ze = at(e, p)
+                zre = at(re, p)
+                zim = at(im, p)
+                if (abs(ze - (zre + cmplx(0.0_dp, 1.0_dp, dp)*zim)) &
+                    > TOL*(1.0_dp + abs(ze))) allgood = .false.
+            end do
+            call ok("re + i*im reproduces the probe", allgood)
+        end do
+    end subroutine test_split_reconstructs
+
+    !> The parts must be free of i. Evaluated at real symbol values their
+    !> imaginary component is exactly zero if and only if no i survived.
+    subroutine test_parts_are_real()
+        type(expr_t) :: e, re, im
+        logical :: good, allgood
+        character(:), allocatable :: why
+        integer :: k, p
+
+        do k = 1, nprobe()
+            e = probe(k)
+            call re_part(e, facts, re, good, why)
+            if (.not. good) cycle
+            call im_part(e, facts, im, good, why)
+            if (.not. good) cycle
+            allgood = .true.
+            do p = 1, NPOINT
+                if (aimag(at(re, p)) /= 0.0_dp) allgood = .false.
+                if (aimag(at(im, p)) /= 0.0_dp) allgood = .false.
+            end do
+            call ok("both parts are exactly real", allgood)
+        end do
+    end subroutine test_parts_are_real
+
+    !> conj(e) = conjg(e) numerically, and e*conj(e) = |e|^2.
+    subroutine test_conjugate_matches()
+        type(expr_t) :: e, c, m
+        complex(dp) :: ze, zc, zm
+        logical :: good, allgood, modgood
+        character(:), allocatable :: why
+        integer :: k, p
+
+        do k = 1, nprobe()
+            e = probe(k)
+            call conjugate(e, facts, c, good, why)
+            call ok("conjugate accepts probe", good)
+            if (.not. good) cycle
+            call abs_of(e, facts, m, good, why)
+            if (.not. good) cycle
+            allgood = .true.
+            modgood = .true.
+            do p = 1, NPOINT
+                ze = at(e, p)
+                zc = at(c, p)
+                zm = at(m, p)
+                if (abs(zc - conjg(ze)) > TOL*(1.0_dp + abs(ze))) &
+                    allgood = .false.
+                if (abs(ze*zc - zm*zm) > TOL*(1.0_dp + abs(ze*ze))) &
+                    modgood = .false.
+            end do
+            call ok("conjugate agrees with conjg", allgood)
+            call ok("z*conj(z) equals abs(z)**2", modgood)
+        end do
+    end subroutine test_conjugate_matches
+
+    !> |e| exp(i Arg[e]) = e. Catches a wrong modulus and a wrong branch in one
+    !> identity, which atan2 gets right and a naive atan(im/re) does not.
+    subroutine test_modulus_and_argument()
+        type(expr_t) :: e, m, g
+        complex(dp) :: ze, rebuilt
+        real(dp) :: modulus, angle
+        logical :: good, allgood
+        character(:), allocatable :: why
+        integer :: k, p
+
+        do k = 1, nprobe()
+            e = probe(k)
+            call abs_of(e, facts, m, good, why)
+            if (.not. good) cycle
+            call arg_of(e, facts, g, good, why)
+            call ok("arg_of accepts probe", good)
+            if (.not. good) cycle
+            allgood = .true.
+            do p = 1, NPOINT
+                ze = at(e, p)
+                modulus = real(at(m, p), dp)
+                angle = real(at(g, p), dp)
+                if (abs(modulus - abs(ze)) > TOL*(1.0_dp + abs(ze))) &
+                    allgood = .false.
+                rebuilt = modulus*exp(cmplx(0.0_dp, angle, dp))
+                if (abs(rebuilt - ze) > TOL*(1.0_dp + abs(ze))) &
+                    allgood = .false.
+            end do
+            call ok("abs and arg rebuild the value", allgood)
+        end do
+    end subroutine test_modulus_and_argument
+
+    subroutine test_expand_matches()
+        type(expr_t) :: e, w
+        logical :: good, allgood
+        character(:), allocatable :: why
+        integer :: k, p
+
+        do k = 1, nprobe()
+            e = probe(k)
+            call complex_expand(e, facts, w, good, why)
+            if (.not. good) cycle
+            allgood = .true.
+            do p = 1, NPOINT
+                if (abs(at(w, p) - at(e, p)) &
+                    > TOL*(1.0_dp + abs(at(e, p)))) allgood = .false.
+            end do
+            call ok("complex_expand preserves the value", allgood)
+        end do
+    end subroutine test_expand_matches
+
+    !> The base cases, checked against arithmetic done by hand: 7/2 is real, i
+    !> splits as (0,1), and conj(i) is -i.
+    subroutine test_literals_and_unit()
+        type(expr_t) :: e, re, im, c
+        logical :: good
+        character(:), allocatable :: why
+
+        e = rat(arena, 7_int64, 2_int64)
+        call complex_split(e, facts, re, im, good, why)
+        call ok("7/2 splits", good)
+        call ok("7/2 has real part 7/2", at(re, 1) == cmplx(3.5_dp, 0.0_dp, dp))
+        call ok("7/2 has zero imaginary part", at(im, 1) == (0.0_dp, 0.0_dp))
+
+        e = i_expr(arena)
+        call complex_split(e, facts, re, im, good, why)
+        call ok("i splits", good)
+        call ok("i has real part 0", at(re, 1) == (0.0_dp, 0.0_dp))
+        call ok("i has imaginary part 1", at(im, 1) == (1.0_dp, 0.0_dp))
+
+        call conjugate(e, facts, c, good, why)
+        call ok("conj(i) is -i", good .and. &
+                at(c, 1) == cmplx(0.0_dp, -1.0_dp, dp))
+
+        call arg_of(num(arena, 0), facts, e, good, why)
+        call ok("Arg at zero is refused", .not. good)
+    end subroutine test_literals_and_unit
+
+    !> The point of the module: a symbol of unknown reality is refused, not
+    !> assumed real.
+    subroutine test_unknown_reality_refused()
+        type(expr_t) :: u, e, out
+        logical :: good
+        character(:), allocatable :: why
+
+        u = sym(arena, "u")
+
+        call re_part(u, facts, out, good, why)
+        call ok("Re of an unassumed symbol is refused", .not. good)
+        call ok("refusal names the symbol", index(why, "symbol u") > 0)
+
+        call im_part(u, facts, out, good, why)
+        call ok("Im of an unassumed symbol is refused", .not. good)
+
+        call conjugate(u, facts, out, good, why)
+        call ok("conj of an unassumed symbol is refused", .not. good)
+
+        e = u + i_expr(arena)*y
+        call re_part(e, facts, out, good, why)
+        call ok("a sum containing it is refused too", .not. good)
+
+        e = func("exp", [u])
+        call abs_of(e, facts, out, good, why)
+        call ok("Abs of exp(u) is refused", .not. good)
+
+        e = func("zeta", [num(arena, 2)])
+        call re_part(e, facts, out, good, why)
+        call ok("Re of an unknown constant head is refused", .not. good)
+    end subroutine test_unknown_reality_refused
+
+    subroutine test_branch_cases_refused()
+        type(expr_t) :: e, out
+        logical :: good
+        character(:), allocatable :: why
+
+        e = z**rat(arena, 1_int64, 2_int64)
+        call re_part(e, facts, out, good, why)
+        call ok("fractional power is refused", .not. good)
+
+        e = z**x
+        call re_part(e, facts, out, good, why)
+        call ok("symbolic exponent is refused", .not. good)
+
+        e = func("log", [z])
+        call re_part(e, facts, out, good, why)
+        call ok("log is refused", .not. good)
+
+        e = func("sqrt", [z])
+        call conjugate(e, facts, out, good, why)
+        call ok("conj of sqrt is refused", .not. good)
+
+        e = z**num(arena, 0)
+        call re_part(e, facts, out, good, why)
+        call ok("zeroth power is refused", .not. good)
+
+        e = z**num(arena, 100)
+        call re_part(e, facts, out, good, why)
+        call ok("an oversized power is refused", .not. good)
+    end subroutine test_branch_cases_refused
+
+    subroutine test_unknown_heads_refused()
+        type(expr_t) :: e, out
+        logical :: good
+        character(:), allocatable :: why
+
+        e = func("tan", [z])
+        call re_part(e, facts, out, good, why)
+        call ok("tan has no split rule", .not. good)
+        call ok("refusal names the head", index(why, "tan") > 0)
+
+        e = func("besselj", [num(arena, 0), z])
+        call conjugate(e, facts, out, good, why)
+        call ok("besselj has no conjugation rule", .not. good)
+    end subroutine test_unknown_heads_refused
+
+    ! ----------------------------------------------------- the oracle --
+
+    !> Evaluate at sample point p, with x -> XS(p) and y -> YS(p).
+    function at(e, p) result(v)
+        type(expr_t), intent(in) :: e
+        integer,      intent(in) :: p
+        complex(dp)              :: v
+        logical :: good
+
+        v = ceval(e, XS(p), YS(p), good)
+        if (.not. good) then
+            print *, "  oracle could not evaluate a sample point"
+            nfail = nfail + 1
+            v = (0.0_dp, 0.0_dp)
+        end if
+    end function at
+
+    !> A plain complex walker over the DAG. Deliberately independent of the
+    !> module under test: it never splits anything.
+    recursive function ceval(e, xv, yv, good) result(v)
+        type(expr_t), intent(in)  :: e
+        real(dp),     intent(in)  :: xv, yv
+        logical,      intent(out) :: good
+        complex(dp)               :: v
+        complex(dp) :: a, b
+        character(:), allocatable :: name
+        integer :: k
+        integer(int64) :: n
+
+        v = (0.0_dp, 0.0_dp)
+        good = .true.
+
+        select case (e%kind())
+        case (NK_INT)
+            v = cmplx(real(e%int_value(), dp), 0.0_dp, dp)
+        case (NK_RAT)
+            v = cmplx(real(e%int_value(), dp)/real(e%den_value(), dp), &
+                      0.0_dp, dp)
+        case (NK_REAL)
+            v = cmplx(e%real_value(), 0.0_dp, dp)
+        case (NK_SYM)
+            name = chars(e%name())
+            if (name == "x") then
+                v = cmplx(xv, 0.0_dp, dp)
+            else if (name == "y") then
+                v = cmplx(yv, 0.0_dp, dp)
+            else
+                good = .false.
+            end if
+        case (NK_CONST)
+            name = chars(e%name())
+            select case (name)
+            case ("i"); v = (0.0_dp, 1.0_dp)
+            case ("pi"); v = cmplx(acos(-1.0_dp), 0.0_dp, dp)
+            case ("e"); v = cmplx(exp(1.0_dp), 0.0_dp, dp)
+            case default; good = .false.
+            end select
+        case (NK_ADD)
+            v = (0.0_dp, 0.0_dp)
+            do k = 1, e%nargs()
+                a = ceval(e%arg(k), xv, yv, good)
+                if (.not. good) return
+                v = v + a
+            end do
+        case (NK_MUL)
+            v = (1.0_dp, 0.0_dp)
+            do k = 1, e%nargs()
+                a = ceval(e%arg(k), xv, yv, good)
+                if (.not. good) return
+                v = v*a
+            end do
+        case (NK_POW)
+            a = ceval(e%arg(1), xv, yv, good)
+            if (.not. good) return
+            b = ceval(e%arg(2), xv, yv, good)
+            if (.not. good) return
+            if (aimag(b) == 0.0_dp .and. real(b, dp) == anint(real(b, dp))) then
+                n = int(anint(real(b, dp)), int64)
+                if (a == (0.0_dp, 0.0_dp)) then
+                    good = n > 0_int64
+                    if (.not. good) return
+                end if
+                v = a**int(n)
+            else
+                if (a == (0.0_dp, 0.0_dp)) then
+                    good = .false.
+                    return
+                end if
+                v = exp(b*log(a))
+            end if
+        case (NK_FUNC)
+            v = ceval_func(e, xv, yv, good)
+        case default
+            good = .false.
+        end select
+    end function ceval
+
+    recursive function ceval_func(e, xv, yv, good) result(v)
+        type(expr_t), intent(in)  :: e
+        real(dp),     intent(in)  :: xv, yv
+        logical,      intent(out) :: good
+        complex(dp)               :: v
+        complex(dp) :: a, b
+        character(:), allocatable :: name
+
+        v = (0.0_dp, 0.0_dp)
+        good = .true.
+        name = chars(e%name())
+
+        if (name == "atan2") then
+            if (e%nargs() /= 2) then
+                good = .false.
+                return
+            end if
+            a = ceval(e%arg(1), xv, yv, good)
+            if (.not. good) return
+            b = ceval(e%arg(2), xv, yv, good)
+            if (.not. good) return
+            ! atan2 is real-only, so a complex argument here would mean the
+            ! module produced an argument it had no right to.
+            if (aimag(a) /= 0.0_dp .or. aimag(b) /= 0.0_dp) then
+                good = .false.
+                return
+            end if
+            if (real(a, dp) == 0.0_dp .and. real(b, dp) == 0.0_dp) then
+                good = .false.
+                return
+            end if
+            v = cmplx(atan2(real(a, dp), real(b, dp)), 0.0_dp, dp)
+            return
+        end if
+
+        if (e%nargs() /= 1) then
+            good = .false.
+            return
+        end if
+        a = ceval(e%arg(1), xv, yv, good)
+        if (.not. good) return
+
+        select case (name)
+        case ("exp"); v = exp(a)
+        case ("sin"); v = sin(a)
+        case ("cos"); v = cos(a)
+        case ("tan"); v = sin(a)/cos(a)
+        case ("sinh"); v = sinh(a)
+        case ("cosh"); v = cosh(a)
+        case ("sqrt"); v = sqrt(a)
+        case ("log")
+            if (a == (0.0_dp, 0.0_dp)) then
+                good = .false.
+            else
+                v = log(a)
+            end if
+        case default
+            good = .false.
+        end select
+    end function ceval_func
+
+end program test_fortsym_complexdom
