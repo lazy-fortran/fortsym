@@ -53,11 +53,34 @@ First corpus-wide measurement, 2026-08-01, `fortsym-bench` at 384 scripts:
 | crashes | **0** |
 | whole-corpus wall time | 0.38 s |
 
-Read that honestly: 82% is *scripts that ran and emitted bindings*, not
-correctness. Scoring against an oracle is what makes it coverage, and that is
-blocked on the oracle itself — Mathics crashes on the mhd1d derivations with
-`RecursionError` and `Invalid NaN comparison`. How much of the corpus Mathics
-can serve as oracle for is the next number to establish.
+Read that honestly: 83% is *scripts that ran and emitted bindings*, not
+correctness. Scoring against an oracle is what makes it coverage.
+
+### The oracle ceiling (#47)
+
+That number is now established, and it changes the target.
+
+| | scripts | share |
+|---|---:|---:|
+| Mathics produces results | 203 | 53% |
+| fortsym-wl produces results | 320 | 83% |
+| **both — the scorable set** | **150** | **39%** |
+
+Mathics fails on 181 scripts: 111 errors, of which **41 are internal
+`AttributeError`s** rather than unsupported constructs, plus 70 timeouts.
+
+**100% coverage is unreachable with Mathics as the sole oracle**, and no amount
+of fortsym work changes that: for 170 scripts there is nothing to compare
+against. Raising the ceiling means translating the corpus to SymPy (#27),
+reporting the Mathics defects upstream, or adding a third oracle for the
+overlap.
+
+Until it moves, every coverage number states its denominator. "83% produce
+results" and "39% can be scored" are different claims.
+
+Timing on the same corpus, with the caveat that the two are not doing equal
+work — Mathics evaluates integrals fortsym refuses — so this is robustness and
+startup, not capability: Mathics 254 s total, fortsym-wl 0.38 s.
 
 What running the corpus has already bought, none of which was found by tests:
 
@@ -68,6 +91,10 @@ What running the corpus has already bought, none of which was found by tests:
   nested in arithmetic now refuse.
 - The `Series` order convention, off by one against Mathics in both directions.
 - Implicit multiplication, the single largest parse-refusal cause.
+- Refusing `Transpose[jac]` for a symbolic `jac`, which disagreed with the
+  oracle on a *correct* answer — Mathics leaves it unevaluated too.
+
+Corpus refusals have gone 2313 → 1682 as these landed.
 
 ## Milestones
 
