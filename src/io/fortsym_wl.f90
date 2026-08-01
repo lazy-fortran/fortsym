@@ -170,15 +170,71 @@ contains
                 depth = depth - 1
             end select
 
-            if (depth == 0 .and. (c == ";" .or. c == char(10))) then
-                call push_statement(source, starts, ends, n, begin, i - 1)
-                begin = i + 1
+            if (depth == 0) then
+                if (c == ";") then
+                    call push_statement(source, starts, ends, n, begin, i - 1)
+                    begin = i + 1
+                else if (c == char(10)) then
+                    ! A newline ends a statement only when what precedes it can
+                    ! stand alone. Wolfram continues a line that is still
+                    ! waiting for a right operand, and the corpus is written
+                    ! that way: long derivations are broken after a trailing
+                    ! "+" or ",". Splitting unconditionally truncated those
+                    ! into a prefix that still parsed as something else, so the
+                    ! reported failure was "unexpected end of input" on a
+                    ! script that was perfectly well formed.
+                    if (.not. awaits_operand(source, begin, i - 1)) then
+                        call push_statement(source, starts, ends, n, begin, &
+                                            i - 1)
+                        begin = i + 1
+                    end if
+                end if
             end if
             i = i + 1
         end do
 
         call push_statement(source, starts, ends, n, begin, len_src)
     end subroutine wl_split_statements
+
+    !> True when the text so far ends with something that needs a right
+    !> operand, so the following newline continues the statement.
+    !>
+    !> Decided from the last significant character rather than by trial
+    !> parsing. That is the conservative direction for this particular choice:
+    !> a character that cannot end an expression is unambiguous evidence of
+    !> continuation, whereas guessing from a failed parse would join two
+    !> genuinely separate statements into one and change what the script means.
+    !> A line ending in a closing bracket, a name or a number therefore always
+    !> terminates, which is the common case.
+    function awaits_operand(source, from, to) result(yes)
+        character(*), intent(in) :: source
+        integer,      intent(in) :: from, to
+        logical                  :: yes
+        integer :: k
+        character :: c
+
+        yes = .false.
+        k = to
+        do while (k >= from)
+            c = source(k:k)
+            if (c /= " " .and. c /= char(9) .and. c /= char(13)) exit
+            k = k - 1
+        end do
+        if (k < from) return
+
+        c = source(k:k)
+        select case (c)
+        ! Binary and prefix operators, an open bracket, and a comma: each one
+        ! has a right-hand side that has not arrived yet.
+        ! "&" and "!" are deliberately absent: both are postfix in Wolfram --
+        ! "&" closes a pure function and "!" is factorial -- so a line ending
+        ! in either is complete, and continuing it would glue the next
+        ! statement on.
+        case ("+", "-", "*", "/", "^", ",", "=", "<", ">", "|", &
+              "@", ":", "~", "(", "[", "{")
+            yes = .true.
+        end select
+    end function awaits_operand
 
     !> Record a statement unless it is blank once trimmed.
     subroutine push_statement(source, starts, ends, n, from, to)
