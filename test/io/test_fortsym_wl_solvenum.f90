@@ -20,7 +20,7 @@ program test_fortsym_wl_solvenum
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_FUNC, NK_INT, NK_REAL
-    use fortsym_expr, only: expr_t, sym, num, func, operator(-), operator(*), &
+    use fortsym_expr, only: expr_t, sym, num, operator(-), operator(*), &
         operator(+)
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -45,6 +45,7 @@ program test_fortsym_wl_solvenum
     call test_n_precision()
     call test_chop()
     call test_identity_cross_trace()
+    call test_array_collections()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_solvenum"
@@ -573,6 +574,113 @@ contains
             call fail("trace value", "trace disagrees with the hand calculation")
         end if
     end subroutine test_identity_cross_trace
+
+    subroutine test_array_collections()
+        type(arena_t), target :: a
+        type(expr_t) :: value, item, row
+        logical :: ok
+        character(:), allocatable :: message
+        integer :: i, j
+        integer, parameter :: expected_outer(2, 2) = reshape([3, 6, 4, 8], [2, 2])
+
+        ! Array applies a named definition to one-based indices. The expected
+        ! squares are computed here independently of the evaluator's expansion.
+        call a%init()
+        call run_one(a, "g[i_] := i^2"//nl()//"v = Array[g, 3]"//nl(), "v", &
+                     value, ok, message)
+        if (.not. ok) then
+            call fail("array", "refused: "//message)
+        else if (chars(value%name()) /= "List" .or. value%nargs() /= 3) then
+            call fail("array", "result is not a three-element list")
+        else
+            do i = 1, 3
+                item = value%arg(i)
+                if (item%kind() /= NK_INT .or. item%int_value() /= int(i*i)) &
+                    call fail("array", "generated index does not produce its square")
+            end do
+        end if
+
+        ! ConstantArray preserves the requested nested shape and value.
+        call a%init()
+        call run_one(a, "v = ConstantArray[7, {2, 2}]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("constant array", "refused: "//message)
+        else if (chars(value%name()) /= "List" .or. value%nargs() /= 2) then
+            call fail("constant array", "result is not a 2x2 list")
+        else
+            do i = 1, 2
+                row = value%arg(i)
+                if (row%kind() /= NK_FUNC .or. &
+                    chars(row%name()) /= "List" .or. row%nargs() /= 2) then
+                    call fail("constant array", "nested shape is not 2x2")
+                    cycle
+                end if
+                do j = 1, 2
+                    item = row%arg(j)
+                    if (item%kind() /= NK_INT .or. item%int_value() /= 7) &
+                        call fail("constant array", "entry is not the repeated value")
+                end do
+            end do
+        end if
+
+        ! Dimension expressions are evaluated before the constructor expands;
+        ! this exercises the same bound-resolution path used by a corpus script.
+        call a%init()
+        call run_one(a, "n = 3"//nl()// &
+                     "v = ConstantArray[0, {2*n, 2*n}]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("dynamic constant array", "refused: "//message)
+        else if (chars(value%name()) /= "List" .or. value%nargs() /= 6) then
+            call fail("dynamic constant array", "result does not have six rows")
+        else
+            do i = 1, 6
+                row = value%arg(i)
+                if (row%kind() /= NK_FUNC .or. chars(row%name()) /= "List" .or. &
+                    row%nargs() /= 6) then
+                    call fail("dynamic constant array", "result does not have six columns")
+                end if
+            end do
+        end if
+
+        ! Unsupported dimensions remain an unevaluated constructor, matching
+        ! the oracle's boundary without dropping the named result.
+        call a%init()
+        call run_one(a, "v = Array[f, n]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("opaque array", "refused instead of preserving the constructor")
+        else if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "Array") then
+            call fail("opaque array", "unsupported dimensions were not preserved")
+        end if
+
+        call a%init()
+        call run_one(a, "v = Array[term[1], {2, 2}]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("computed array head", "refused instead of preserving the constructor")
+        else if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "Array") then
+            call fail("computed array head", "unsupported head was not preserved")
+        end if
+
+        ! Outer[Times] is the Cartesian product, i.e. the outer product of
+        ! the two vectors. These four products are an independent oracle.
+        call a%init()
+        call run_one(a, "v = Outer[Times, {1, 2}, {3, 4}]"//nl(), "v", &
+                     value, ok, message)
+        if (.not. ok) then
+            call fail("outer", "refused: "//message)
+        else if (chars(value%name()) /= "List" .or. value%nargs() /= 2) then
+            call fail("outer", "result is not a 2x2 list")
+        else
+            do i = 1, 2
+                row = value%arg(i)
+                do j = 1, 2
+                    item = row%arg(j)
+                    if (item%kind() /= NK_INT .or. &
+                        item%int_value() /= expected_outer(i, j)) &
+                        call fail("outer", "outer product entry is incorrect")
+                end do
+            end do
+        end if
+    end subroutine test_array_collections
 
     pure function nl() result(c)
         character(1) :: c
