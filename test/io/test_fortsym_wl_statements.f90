@@ -21,6 +21,7 @@ program test_fortsym_wl_statements
     call test_complete_lines_still_separate()
     call test_postfix_ends_a_line()
     call test_table_evaluation()
+    call test_clear_and_compound_expression()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_statements"
@@ -116,5 +117,17 @@ contains
                     "f[i_, j_] = i/j"//char(10)// &
                     "value = f[2, 4]"//char(10), "value", "1/2")
     end subroutine test_table_evaluation
+
+    !> Clear removes an earlier value, and a top-level comma keeps compound
+    !> expressions in their written order. The expected result must therefore
+    !> retain the symbol rather than the stale numeric binding.
+    subroutine test_clear_and_compound_expression()
+        call expect("clear binding", &
+                    "a = 2"//char(10)//"Clear[a]"//char(10)// &
+                    "value = a + 1"//char(10), "value", "a + 1")
+        call expect("compound clear", &
+                    "a = 2"//char(10)//"Clear[a], Null, a = 3"//char(10), &
+                    "a", "3")
+    end subroutine test_clear_and_compound_expression
 
 end program test_fortsym_wl_statements
