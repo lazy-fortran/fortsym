@@ -59,6 +59,9 @@ module fortsym_parse
         logical                   :: integer_fits = .true.
         integer(int64)            :: ivalue = 0_int64
         real(dp)                  :: rvalue = 0.0_dp
+        !> Cached dialect flag: the lexer needs it and takes no dialect
+        !> argument on every path.
+        logical                   :: wolfram = .false.
         ! First error encountered, if any.
         logical                   :: failed = .false.
         character(:), allocatable :: message
@@ -88,6 +91,7 @@ contains
 
         p%src = text
         p%pos = 1
+        p%wolfram = d%wolfram_syntax
         p%failed = .false.
         p%message = ""
         call advance(p, d)
@@ -400,9 +404,15 @@ contains
             p%text = c
             p%pos = p%pos + 1
         case ("=")
-            ! A lone "=" is assignment, which is a statement form and never
-            ! part of an expression. Reaching here means the splitter missed
-            ! it, so say so rather than inventing an operator.
+            ! A nested "=" is a local initialiser: Module[{ok = 1}, body]. The
+            ! statement splitter has already taken any top-level assignment, so
+            ! one reaching here is inside brackets and is structural.
+            if (p%wolfram) then
+                p%tok = T_OP
+                p%text = "="
+                p%pos = p%pos + 1
+                return
+            end if
             p%tok = T_ERROR
             p%text = c
             p%pos = p%pos + 1
@@ -556,9 +566,10 @@ contains
         character(*), intent(in) :: op
         integer                  :: bp
         select case (op)
-        case ("@"); bp = 1
-        case ("/.", "/;"); bp = 2
-        case ("->", ":>"); bp = 3
+        case ("="); bp = 1
+        case ("@"); bp = 2
+        case ("/.", "/;"); bp = 3
+        case ("->", ":>"); bp = 4
         case ("||"); bp = 4
         case ("&&"); bp = 4
         case ("."); bp = 9
@@ -665,6 +676,7 @@ contains
             ! node keeps one representation for application, so Simplify @ e
             ! reaches the same lowering as Simplify[e].
             case ("@"); e = apply_head(a, d, e, rhs)
+            case ("="); e = func("Set", [e, rhs])
             case default
                 call fail(p, "unknown operator '"//op//"'")
                 return

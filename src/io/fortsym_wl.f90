@@ -18,8 +18,8 @@ module fortsym_wl
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
-    use fortsym_expr, only: expr_t, sym, num, func, operator(+), operator(*), &
-        operator(**)
+    use fortsym_expr, only: expr_t, sym, num, func, func_in, operator(+), &
+        operator(*), operator(**)
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
     use fortsym_parse, only: parse_expr_in
     use fortsym_subs, only: subs
@@ -404,7 +404,7 @@ contains
         type(expr_t), allocatable :: args(:)
         logical :: arg_ok
         type(str_t) :: arg_message
-        integer :: order, k
+        integer :: order, k, j
 
         ok = .true.
         message = str("")
@@ -438,7 +438,10 @@ contains
         ! dispatching only on the outer head leaves Simplify[D[f, x]] holding an
         ! unevaluated D -- which then prints as though the derivative had been
         ! declined rather than never attempted.
-        if (head /= "List") then
+        ! A zero-argument application such as Directory[] has nothing to
+        ! evaluate, and rebuilding it through func() would take the arena from
+        ! an argument that does not exist.
+        if (head /= "List" .and. e%nargs() > 0) then
             allocate (args(e%nargs()))
             do k = 1, e%nargs()
                 inner = wl_eval(s, e%arg(k), arg_ok, arg_message)
@@ -460,16 +463,43 @@ contains
                 call refuse(ok, message, "D needs an expression and a variable")
                 return
             end if
-            var = r%arg(2)
-            ! D[f, {x, n}] is the n-th derivative. Ignoring the list form would
-            ! differentiate once and report a wrong order as a right answer.
-            if (var%kind() == NK_FUNC) then
-                if (chars(var%name()) == "List") then
-                    call refuse(ok, message, "D with a {var, order} specification")
-                    return
+            inner = r%arg(1)
+            ! Every argument after the first is a differentiation
+            ! specification: D[f, x, y] is a mixed partial and D[f, {x, n}] is
+            ! the n-th derivative. Taking only the second argument would
+            ! differentiate once and report a lower order as the right answer.
+            do k = 2, r%nargs()
+                var = r%arg(k)
+                if (var%kind() == NK_FUNC) then
+                    if (chars(var%name()) /= "List") then
+                        call refuse(ok, message, "D with a computed variable")
+                        return
+                    end if
+                    if (var%nargs() /= 2) then
+                        call refuse(ok, message, &
+                            "D with a {var, order} of unexpected shape")
+                        return
+                    end if
+                    if (.not. exact_small_int(var%arg(2), order)) then
+                        call refuse(ok, message, "D with a symbolic order")
+                        return
+                    end if
+                    do j = 1, order
+                        inner = diff(inner, var%arg(1))
+                    end do
+                    cycle
                 end if
+                inner = diff(inner, var)
+            end do
+            r = inner
+
+        case ("Module", "Block", "With")
+            if (r%nargs() < 2) then
+                call refuse(ok, message, head//" needs locals and a body")
+                return
             end if
-            r = diff(r%arg(1), var)
+            r = scoped_body(s, r, ok, message)
+            if (.not. ok) return
 
         case ("Simplify", "FullSimplify")
             res = s%engine%simplify(r%arg(1))
@@ -599,6 +629,44 @@ contains
             yes = .false.
         end select
     end function is_known_command
+
+    !> Substitute a scoping construct's local initialisers into its body.
+    !>
+    !> Returning the body untouched would be a wrong answer, not a refusal:
+    !> Module[{ok = 1}, ok + 2] would report "ok + 2" as though that were the
+    !> value. An uninitialised local is refused instead, because it names a
+    !> fresh variable in a scope fortsym does not model, and treating it as the
+    !> outer symbol of the same name silently resolves a shadow the wrong way.
+    function scoped_body(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(expr_t) :: locals, item
+        integer :: k
+
+        ok = .true.
+        message = str("")
+        r = e%arg(e%nargs())
+        locals = e%arg(1)
+
+        if (locals%kind() /= NK_FUNC) return
+        if (chars(locals%name()) /= "List") return
+
+        do k = 1, locals%nargs()
+            item = locals%arg(k)
+            if (item%kind() == NK_FUNC) then
+                if (chars(item%name()) == "Set") then
+                    r = subs(r, item%arg(1), item%arg(2))
+                    cycle
+                end if
+            end if
+            call refuse(ok, message, &
+                "scoping construct with an uninitialised local")
+            return
+        end do
+    end function scoped_body
 
     !> Rebuild an arithmetic node from evaluated children.
     !>

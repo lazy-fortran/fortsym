@@ -234,6 +234,10 @@ contains
         ! An empty list is legal and common: a script builds one before a loop
         ! fills it. Rejecting it lost every such statement.
         call same("empty list", a, "{}", func_in(a, "List"))
+        ! Regression: a zero-argument call crashed the evaluator, which rebuilt
+        ! it through func() and took the arena from an argument that does not
+        ! exist. Nine corpus scripts died on Directory[].
+        call same("empty call", a, "Directory[]", func_in(a, "Directory"))
         ! A named character is one identifier. Splitting it scatters brackets
         ! into the token stream and derails the rest of the expression.
         call same("named character", a, "Sin[\[Alpha]]", &
