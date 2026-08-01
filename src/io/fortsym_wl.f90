@@ -904,8 +904,10 @@ contains
         ! declined rather than never attempted.
         ! A zero-argument application such as Directory[] has nothing to
         ! evaluate, and rebuilding it through func() would take the arena from
-        ! an argument that does not exist.
-        if (head /= "List" .and. e%nargs() > 0) then
+        ! an argument that does not exist. Lists are included here: Wolfram
+        ! evaluates expressions nested in a list, and skipping them leaves
+        ! corpus results such as {D[f[x], x], ...} unevaluated.
+        if (e%nargs() > 0) then
             allocate (args(e%nargs()))
             do k = 1, e%nargs()
                 inner = wl_eval(s, e%arg(k), arg_ok, arg_message)
