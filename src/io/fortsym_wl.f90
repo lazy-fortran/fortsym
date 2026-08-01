@@ -28,6 +28,7 @@ module fortsym_wl
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_matrix, only: matrix_transpose, matrix_dot, matrix_det, &
         matrix_inverse, is_matrix, is_list
+    use fortsym_plot, only: plot_expression, plot_spec_t, read_plot_range
     implicit none
     private
 
@@ -61,6 +62,9 @@ module fortsym_wl
         !> killed by a harness timeout that records nothing.
         real(dp)               :: budget_seconds = 20.0_dp
         real(dp)               :: started = 0.0_dp
+        !> Plots written so far, used to name the output files. A script
+        !> plotting twenty curves must not overwrite one file nineteen times.
+        integer                :: plot_count = 0
     end type wl_session_t
 
 contains
@@ -561,6 +565,14 @@ contains
         ! genuine shape error -- ragged rows, mismatched dimensions -- still
         ! refuses, because that is a mistake in the source rather than a
         ! symbol standing in for a matrix.
+        case ("Plot")
+            if (r%nargs() < 2) then
+                call refuse(ok, message, "Plot needs an expression and a range")
+                return
+            end if
+            r = render_plot(s, r, ok, message)
+            if (.not. ok) return
+
         case ("Transpose")
             if (is_matrix(r%arg(1))) then
                 r = matrix_transpose(s%a, r%arg(1), ok)
@@ -671,7 +683,7 @@ contains
         case ("N", "SetPrecision", "Interpolation", "Fit", "Chop")
             yes = .true.
         ! Plotting, through fortplot (#44)
-        case ("Plot", "Plot3D", "ContourPlot", "ParametricPlot", "ListPlot", &
+        case ("Plot3D", "ContourPlot", "ParametricPlot", "ListPlot", &
               "DensityPlot", "StreamPlot", "VectorPlot", "LogPlot", &
               "LogLogPlot", "Show", "Graphics", "GraphicsGrid", "Export", &
               "Legended")
@@ -680,6 +692,38 @@ contains
             yes = .false.
         end select
     end function is_known_command
+
+    !> Render Plot[f, {x, a, b}] and return the file it wrote.
+    !>
+    !> The returned value is the filename rather than a graphics object.
+    !> fortsym has no graphics representation and inventing one would let a
+    !> script compare two plots as though they were expressions.
+    function render_plot(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(plot_spec_t) :: spec
+        character(16) :: tag
+
+        r = e
+        if (.not. read_plot_range(e%arg(2), spec)) then
+            call refuse(ok, message, "Plot needs a {var, lower, upper} range")
+            return
+        end if
+
+        s%plot_count = s%plot_count + 1
+        write (tag, "(i0)") s%plot_count
+        spec%file = str("fortsym-plot-"//trim(tag)//".png")
+
+        ok = plot_expression(e%arg(1), spec, message)
+        if (.not. ok) then
+            message = str("Plot: "//chars(message))
+            return
+        end if
+        r = sym(s%a, chars(spec%file))
+    end function render_plot
 
     !> True when Dot can actually form a product with this operand.
     function dottable(e) result(yes)
