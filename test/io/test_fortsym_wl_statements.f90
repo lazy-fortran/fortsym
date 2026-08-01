@@ -16,6 +16,7 @@ program test_fortsym_wl_statements
     integer :: nfail = 0
 
     call test_continuation_lines()
+    call test_leading_continuation_operators()
     call test_complete_lines_still_separate()
     call test_postfix_ends_a_line()
     call test_table_evaluation()
@@ -87,6 +88,14 @@ contains
         call expect("trailing times", "b = 2 *"//char(10)//"  3"//char(10), &
             "b", "6")
     end subroutine test_continuation_lines
+
+    !> A continuation operator may be written at the start of the next line.
+    subroutine test_leading_continuation_operators()
+        call expect("leading plus", "a = 1"//char(10)//"  + 2"//char(10), &
+            "a", "3")
+        call expect("leading times", "b = 2"//char(10)//"  * 3"//char(10), &
+            "b", "6")
+    end subroutine test_leading_continuation_operators
 
     !> Two complete lines stay two statements. The continuation rule must not
     !> glue independent assignments together.
