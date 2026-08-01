@@ -19,7 +19,7 @@ module fortsym_wl
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
-    use fortsym_expr, only: expr_t, sym, num, func, func_in, real_expr, &
+    use fortsym_expr, only: expr_t, sym, num, func, func_in, &
         operator(+), operator(-), operator(*), operator(**)
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
     use fortsym_parse, only: parse_expr_in
@@ -31,7 +31,7 @@ module fortsym_wl
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_matrix, only: matrix_transpose, matrix_dot, matrix_det, &
         matrix_inverse, is_matrix, is_list
-    use fortsym_plot, only: plot_expression, plot_spec_t, read_plot_range, &
+    use fortsym_plot, only: plot_spec_t, read_plot_range, &
         plot_constant, curve_t, figure_data_t, CURVE_LINE, CURVE_POINTS, &
         sample_curve, sample_parametric_curve, render_figure, render_panels, &
         render_surface, render_contour, render_density, render_stream, &
@@ -46,7 +46,6 @@ module fortsym_wl
         poly_factor, poly_coefficient, poly_coefficient_list, poly_collect, &
         poly_exponent, poly_gcd_expr, poly_divide, poly_numerator, &
         poly_denominator
-    use fortsym_polysolve, only: solve_polynomial
     use fortsym_complexdom, only: re_part, im_part, conjugate, arg_of, &
         complex_expand
     use fortsym_sums, only: sum_closed_form, product_closed_form
@@ -925,6 +924,18 @@ contains
         end if
         if (head == "Thread") then
             r = lower_thread(s, e, ok, message)
+            return
+        end if
+        if (head == "Array") then
+            r = lower_array(s, e, ok, message)
+            return
+        end if
+        if (head == "ConstantArray") then
+            r = lower_constant_array(s, e, ok, message)
+            return
+        end if
+        if (head == "Outer") then
+            r = lower_outer(s, e, ok, message)
             return
         end if
 
@@ -1987,6 +1998,342 @@ contains
         end if
     end function lower_table_level
 
+    !> Array[f, dims, origin] with bounded explicit expansion.
+    !>
+    !> Array is a constructor, not an ordinary function call: its first
+    !> argument is a head that must be applied to the generated indices.  The
+    !> expansion is deliberately bounded by the same cap as Table, because a
+    !> verifier must refuse a large request rather than turn one line into an
+    !> accidental memory bomb.
+    recursive function lower_array(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, inner, array_head
+        type(expr_t), allocatable :: indices(:)
+        integer, allocatable :: dimensions(:)
+        integer(int64) :: origin
+        logical :: value_ok, dimensions_resolved
+        type(str_t) :: value_message
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() < 2 .or. e%nargs() > 3) then
+            call refuse(ok, message, "Array needs a head, dimensions, and optional origin")
+            return
+        end if
+
+        ! A computed head such as term[1] is legal Wolfram syntax, but it is
+        ! not the named/pure mapper subset lowered by apply_collection_head.
+        ! Preserve that constructor rather than dropping the containing
+        ! binding when its head cannot be expanded safely.
+        array_head = e%arg(1)
+        if (array_head%kind() == NK_FUNC .and. &
+            chars(array_head%name()) /= "Function") return
+
+        call collection_dimensions(s, e%arg(2), dimensions, dimensions_resolved, &
+            ok, message)
+        if (.not. ok) return
+        if (.not. dimensions_resolved) return
+
+        origin = 1_int64
+        if (e%nargs() == 3) then
+            inner = wl_eval(s, apply_bindings(s, e%arg(3)), value_ok, value_message)
+            if (value_ok) inner = auto_evaluate(s, inner)
+            if (.not. value_ok .or. .not. exact_integer(inner, origin)) then
+                return
+            end if
+        end if
+
+        allocate (indices(0))
+        r = array_level(s, e%arg(1), dimensions, origin, 1, indices, ok, message)
+    end function lower_array
+
+    !> ConstantArray[value, dims] with the same bounded shape expansion.
+    recursive function lower_constant_array(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, value, dimensions_value
+        integer, allocatable :: shape(:)
+        logical :: value_ok, dimensions_resolved
+        type(str_t) :: value_message
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() /= 2) then
+            call refuse(ok, message, "ConstantArray needs a value and dimensions")
+            return
+        end if
+
+        dimensions_value = apply_bindings(s, e%arg(2))
+        call collection_dimensions(s, dimensions_value, shape, dimensions_resolved, &
+            ok, message)
+        if (.not. ok) return
+        if (.not. dimensions_resolved) return
+
+        value = wl_eval(s, apply_bindings(s, e%arg(1)), value_ok, value_message)
+        if (.not. value_ok) then
+            call refuse(ok, message, "ConstantArray value: "//chars(value_message))
+            return
+        end if
+
+        r = constant_array_level(s, value, shape, 1)
+    end function lower_constant_array
+
+    !> Outer[head, list1, list2, ...] over explicitly available lists.
+    recursive function lower_outer(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, item
+        type(expr_t), allocatable :: lists(:), indices(:)
+        integer, allocatable :: dimensions(:)
+        logical :: item_ok
+        type(str_t) :: item_message
+        integer :: k
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() < 3) then
+            call refuse(ok, message, "Outer needs a head and at least two lists")
+            return
+        end if
+
+        allocate (lists(e%nargs() - 1), dimensions(e%nargs() - 1))
+        do k = 1, size(lists)
+            item = wl_eval(s, apply_bindings(s, e%arg(k + 1)), item_ok, item_message)
+            if (.not. item_ok) then
+                call refuse(ok, message, "Outer list: "//chars(item_message))
+                return
+            end if
+            if (.not. is_list(item)) then
+                return
+            end if
+            lists(k) = item
+            dimensions(k) = item%nargs()
+        end do
+        call check_collection_size(dimensions, ok, message)
+        if (.not. ok) return
+
+        allocate (indices(0))
+        r = outer_level(s, e%arg(1), lists, dimensions, 1, indices, ok, message)
+    end function lower_outer
+
+    !> Recursively enumerate Array indices, preserving Wolfram's 1-based order.
+    recursive function array_level(s, head, dimensions, origin, level, indices, &
+            ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: head
+        integer,            intent(in)    :: dimensions(:), level
+        integer(int64),     intent(in)    :: origin
+        type(expr_t),       intent(in)    :: indices(:)
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(expr_t), allocatable :: entries(:), next_indices(:)
+        integer :: k
+
+        ok = .true.
+        message = str("")
+        if (level > size(dimensions)) then
+            r = apply_collection_head(s, head, indices, ok, message)
+            return
+        end if
+
+        allocate (entries(dimensions(level)))
+        do k = 1, size(entries)
+            allocate (next_indices(size(indices) + 1))
+            if (size(indices) > 0) next_indices(:size(indices)) = indices
+            next_indices(size(indices) + 1) = num(s%a, origin + int(k - 1, int64))
+            entries(k) = array_level(s, head, dimensions, origin, level + 1, &
+                next_indices, ok, message)
+            deallocate (next_indices)
+            if (.not. ok) then
+                r = func_in(s%a, "List")
+                return
+            end if
+        end do
+        r = make_list(s, entries)
+    end function array_level
+
+    !> Recursively build a nested ConstantArray value.
+    recursive function constant_array_level(s, value, dimensions, level) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: value
+        integer,            intent(in)    :: dimensions(:), level
+        type(expr_t)                      :: r
+        type(expr_t), allocatable :: entries(:)
+        integer :: k
+
+        if (level > size(dimensions)) then
+            r = value
+            return
+        end if
+        allocate (entries(dimensions(level)))
+        do k = 1, size(entries)
+            entries(k) = constant_array_level(s, value, dimensions, level + 1)
+        end do
+        r = make_list(s, entries)
+    end function constant_array_level
+
+    !> Recursively enumerate the Cartesian product for Outer.
+    recursive function outer_level(s, head, lists, dimensions, level, indices, &
+            ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: head
+        type(expr_t),       intent(in)    :: lists(:)
+        integer,            intent(in)    :: dimensions(:), level
+        type(expr_t),       intent(in)    :: indices(:)
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)  :: message
+        type(expr_t)                     :: r
+        type(expr_t), allocatable :: entries(:), next_indices(:)
+        integer :: k
+
+        ok = .true.
+        message = str("")
+        if (level > size(lists)) then
+            r = apply_collection_head(s, head, indices, ok, message)
+            return
+        end if
+
+        allocate (entries(dimensions(level)))
+        do k = 1, size(entries)
+            allocate (next_indices(size(indices) + 1))
+            if (size(indices) > 0) next_indices(:size(indices)) = indices
+            next_indices(size(indices) + 1) = lists(level)%arg(k)
+            entries(k) = outer_level(s, head, lists, dimensions, level + 1, &
+                next_indices, ok, message)
+            deallocate (next_indices)
+            if (.not. ok) then
+                r = func_in(s%a, "List")
+                return
+            end if
+        end do
+        r = make_list(s, entries)
+    end function outer_level
+
+    !> Apply the first argument of Array/Outer to generated values.
+    function apply_collection_head(s, head, values, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: head, values(:)
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)  :: message
+        type(expr_t)                     :: r
+        integer :: k
+
+        if (head%kind() == NK_SYM) then
+            select case (chars(head%name()))
+            case ("Plus")
+                r = num(s%a, 0_int64)
+                do k = 1, size(values)
+                    r = elementwise_arithmetic(s, r, values(k), NK_ADD, ok, message)
+                    if (.not. ok) return
+                end do
+            case ("Times")
+                r = num(s%a, 1_int64)
+                do k = 1, size(values)
+                    r = elementwise_arithmetic(s, r, values(k), NK_MUL, ok, message)
+                    if (.not. ok) return
+                end do
+            case default
+                r = wl_eval(s, func(chars(head%name()), values), ok, message)
+            end select
+        else
+            call apply_mapper(s, head, values, r, ok, message)
+        end if
+    end function apply_collection_head
+
+    !> Read one scalar or list of exact non-negative dimensions.
+    subroutine collection_dimensions(s, raw, dimensions, resolved, ok, message)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: raw
+        integer, allocatable, intent(out) :: dimensions(:)
+        logical,            intent(out)   :: resolved
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)  :: message
+        type(expr_t) :: value, item
+        integer(int64) :: dimension
+        logical :: value_ok
+        type(str_t) :: value_message
+        integer :: k
+
+        ok = .true.
+        resolved = .true.
+        message = str("")
+        value = apply_bindings(s, raw)
+        if (is_list(value)) then
+            allocate (dimensions(value%nargs()))
+            do k = 1, size(dimensions)
+                item = wl_eval(s, apply_bindings(s, value%arg(k)), &
+                    value_ok, value_message)
+                if (.not. value_ok) then
+                    resolved = .false.
+                    return
+                end if
+                item = auto_evaluate(s, item)
+                if (.not. exact_integer(item, dimension)) then
+                    resolved = .false.
+                    return
+                end if
+                if (dimension < 0_int64 .or. dimension > int(MAX_TABLE_ITEMS, int64)) then
+                    call refuse(ok, message, "dimensions must be bounded exact integers")
+                    return
+                end if
+                dimensions(k) = int(dimension)
+            end do
+        else
+            value = wl_eval(s, value, value_ok, value_message)
+            if (.not. value_ok) then
+                resolved = .false.
+                return
+            end if
+            value = auto_evaluate(s, value)
+            if (.not. exact_integer(value, dimension)) then
+                resolved = .false.
+                return
+            end if
+            if (dimension < 0_int64 .or. dimension > int(MAX_TABLE_ITEMS, int64)) then
+                call refuse(ok, message, "dimensions must be bounded exact integers")
+                return
+            end if
+            allocate (dimensions(1))
+            dimensions(1) = int(dimension)
+        end if
+        call check_collection_size(dimensions, ok, message)
+    end subroutine collection_dimensions
+
+    !> Reject an expansion whose Cartesian product exceeds the fixed bound.
+    subroutine check_collection_size(dimensions, ok, message)
+        integer,       intent(in)    :: dimensions(:)
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)  :: message
+        integer(int64) :: total
+        integer :: k
+
+        ok = .true.
+        message = str("")
+        total = 1_int64
+        do k = 1, size(dimensions)
+            if (dimensions(k) == 0) then
+                total = 0_int64
+                cycle
+            end if
+            if (total > int(MAX_TABLE_ITEMS, int64) / int(dimensions(k), int64)) then
+                call refuse(ok, message, "collection expansion exceeds its bound")
+                return
+            end if
+            total = total*int(dimensions(k), int64)
+        end do
+    end subroutine check_collection_size
+
     !> Turn one Table iterator specification into its concrete values.
     subroutine table_values(s, spec, var, values, ok, message)
         type(wl_session_t), intent(inout) :: s
@@ -2110,6 +2457,11 @@ contains
 
         value = 0_int64
         good = .false.
+        if (e%kind() == NK_INT) then
+            value = e%int_value()
+            good = .true.
+            return
+        end if
         text = chars(e%exact_text())
         if (len_trim(text) == 0) return
         read (text, *, iostat=ios) value
