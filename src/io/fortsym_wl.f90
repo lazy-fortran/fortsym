@@ -30,8 +30,15 @@ module fortsym_wl
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_matrix, only: matrix_transpose, matrix_dot, matrix_det, &
         matrix_inverse, is_matrix, is_list
-    use fortsym_plot, only: plot_expression, plot_spec_t, read_plot_range
+    use fortsym_plot, only: plot_expression, plot_spec_t, read_plot_range, &
+        plot_constant, curve_t, figure_data_t, CURVE_LINE, CURVE_POINTS, &
+        sample_curve, sample_parametric_curve, render_figure, render_panels, &
+        render_surface, render_contour, render_density, render_stream, &
+        render_vector, set_grid_samples, set_arrow_samples
     use fortsym_numeric, only: numeric_value
+    use fortsym_wl_solve, only: wl_solve
+    use fortsym_wl_num, only: wl_n, wl_chop, wl_identity_matrix, wl_cross, &
+        wl_trace, CHOP_DEFAULT
     use fortsym_integrate, only: integrate
     use fortsym_polysolve, only: solve_polynomial
     use fortsym_complexdom, only: re_part, im_part, conjugate, arg_of, &
@@ -53,6 +60,7 @@ module fortsym_wl
     integer, parameter :: MAX_FUNCTIONS = 256
     integer, parameter :: MAX_FUNCTION_ARGS = 16
     integer, parameter :: MAX_TABLE_ITEMS = 10000
+    integer, parameter :: MAX_PLOTS = 256
     integer, parameter :: dp = real64
 
     !> One top-level assignment produced by a script.
@@ -80,13 +88,29 @@ module fortsym_wl
         logical      :: defined = .false.
     end type wl_function_t
 
+    !> The curves behind one written plot file.
+    !>
+    !> Plot returns the file name, not this record: a graphics object that
+    !> compares equal to another would let a script compare two plots as though
+    !> they were expressions. The record is kept beside the session so Show
+    !> can redraw the curves behind handles produced earlier in the script.
+    type :: plot_record_t
+        type(str_t)         :: file
+        !> Surfaces and field plots have no curve list to merge. Show refuses
+        !> them rather than silently showing only one argument.
+        logical             :: overlayable = .false.
+        type(figure_data_t) :: data
+    end type plot_record_t
+
     type :: wl_session_t
         type(arena_t), pointer :: a => null()
         type(native_engine_t)  :: engine
         type(wl_binding_t)     :: bindings(MAX_BINDINGS)
         type(wl_function_t)    :: functions(MAX_FUNCTIONS)
+        type(plot_record_t)    :: plots(MAX_PLOTS)
         integer                :: n = 0
         integer                :: nfunctions = 0
+        integer                :: n_plots = 0
         !> Wall-clock budget for the whole script, in seconds. A script that
         !> exceeds it stops and says so. Hanging is the one outcome a
         !> verification tool must never have: a refusal names the construct
@@ -109,6 +133,7 @@ contains
         s%n = 0
         s%nfunctions = 0
         s%functions(:)%defined = .false.
+        s%n_plots = 0
         s%started = wall_seconds()
     end subroutine wl_session_begin
 
@@ -763,8 +788,8 @@ contains
         type(expr_t), allocatable :: args(:)
         logical :: arg_ok
         type(str_t) :: arg_message
-        integer :: order, k, j
-        real(dp) :: value
+        integer :: order, k, j, digits
+        real(dp) :: value, tol
         character(:), allocatable :: why
 
         ok = .true.
@@ -912,17 +937,12 @@ contains
             r = r%arg(1)
 
         case ("Solve")
-            if (r%nargs() < 2) then
-                call refuse(ok, message, "Solve needs an equation and a variable")
+            inner = wl_solve(s%a, s%engine, r, arg_ok, why)
+            if (.not. arg_ok) then
+                call refuse(ok, message, "Solve: "//why)
                 return
             end if
-            target = r%arg(1)
-            res = s%engine%solve(target, r%arg(2))
-            if (.not. res%ok) then
-                call refuse(ok, message, "Solve: "//chars(res%message))
-                return
-            end if
-            r = res%value
+            r = inner
 
         ! Matrix heads on operands that are not concrete matrices stay
         ! unevaluated rather than refusing. That is not a guess: Transpose[jac]
@@ -932,28 +952,128 @@ contains
         ! refuses, because that is a mistake in the source rather than a
         ! symbol standing in for a matrix.
         case ("N")
-            ! Only the one-argument form. N[expr, precision] asks for a
-            ! requested-precision result, and fortsym evaluates in real64 --
-            ! answering a 30-digit request with 16 digits would be a wrong
-            ! answer wearing the right shape. Refused until #37 lands.
-            if (r%nargs() /= 1) then
-                call refuse(ok, message, "N with a requested precision")
+            if (r%nargs() < 1 .or. r%nargs() > 2) then
+                call refuse(ok, message, "N takes an expression and an "// &
+                            "optional precision")
                 return
             end if
-            call numeric_value(r%arg(1), value, ok, why)
+            digits = 0
+            if (r%nargs() == 2) then
+                if (.not. exact_small_int(r%arg(2), digits)) then
+                    call refuse(ok, message, "N with a symbolic precision")
+                    return
+                end if
+                if (digits < 1) then
+                    call refuse(ok, message, "N with a non-positive precision")
+                    return
+                end if
+            end if
+            inner = wl_n(s%a, r%arg(1), digits, ok, why)
             if (.not. ok) then
                 call refuse(ok, message, "N: "//why)
                 return
             end if
-            r = real_expr(s%a, value)
+            r = inner
 
-        case ("Plot")
-            if (r%nargs() < 2) then
-                call refuse(ok, message, "Plot needs an expression and a range")
+        case ("Chop")
+            if (r%nargs() < 1 .or. r%nargs() > 2) then
+                call refuse(ok, message, "Chop takes an expression and an "// &
+                            "optional tolerance")
                 return
             end if
-            r = render_plot(s, r, ok, message)
+            tol = CHOP_DEFAULT
+            if (r%nargs() == 2) then
+                call numeric_value(r%arg(2), tol, ok, why)
+                if (.not. ok) then
+                    call refuse(ok, message, "Chop: "//why)
+                    return
+                end if
+                if (tol < 0.0_dp) then
+                    call refuse(ok, message, "Chop with a negative tolerance")
+                    return
+                end if
+            end if
+            r = wl_chop(s%a, r%arg(1), tol)
+
+        case ("Cross")
+            if (r%nargs() /= 2) then
+                call refuse(ok, message, "Cross needs two vectors")
+                return
+            end if
+            if (is_list(r%arg(1)) .and. is_list(r%arg(2))) then
+                inner = wl_cross(s%a, r%arg(1), r%arg(2), ok, why)
+                if (.not. ok) then
+                    call refuse(ok, message, "Cross: "//why)
+                    return
+                end if
+                r = inner
+            end if
+
+        case ("Tr")
+            if (r%nargs() /= 1) then
+                call refuse(ok, message, "Tr with options is not implemented")
+                return
+            end if
+            if (is_matrix(r%arg(1))) then
+                inner = wl_trace(s%a, r%arg(1), ok, why)
+                if (.not. ok) then
+                    call refuse(ok, message, "Tr: "//why)
+                    return
+                end if
+                r = inner
+            end if
+
+        case ("Plot", "LogPlot", "LogLogPlot")
+            if (r%nargs() < 2) then
+                call refuse(ok, message, head//" needs an expression and a range")
+                return
+            end if
+            r = render_plot(s, r, head, ok, message)
             if (.not. ok) return
+
+        case ("ParametricPlot")
+            if (r%nargs() < 2) then
+                call refuse(ok, message, &
+                    "ParametricPlot needs components and a range")
+                return
+            end if
+            r = render_parametric(s, r, ok, message)
+            if (.not. ok) return
+
+        case ("ListPlot", "ListLinePlot")
+            if (r%nargs() < 1) then
+                call refuse(ok, message, head//" needs data")
+                return
+            end if
+            r = render_list_plot(s, r, head == "ListLinePlot", ok, message)
+            if (.not. ok) return
+
+        case ("Plot3D", "ContourPlot", "DensityPlot", "StreamPlot", &
+              "VectorPlot")
+            if (r%nargs() < 3) then
+                call refuse(ok, message, head//" needs an x and a y range")
+                return
+            end if
+            r = render_field(s, r, head, ok, message)
+            if (.not. ok) return
+
+        case ("Show")
+            r = render_overlay(s, r, ok, message)
+            if (.not. ok) return
+
+        case ("GraphicsRow", "GraphicsGrid", "GraphicsArray")
+            r = render_grid(s, r, head, ok, message)
+            if (.not. ok) return
+
+        case ("Graphics", "Graphics3D")
+            call refuse(ok, message, &
+                head//" draws primitives (Line, Point, Text, ...), which "// &
+                "fortsym does not represent")
+            return
+
+        case ("Legended")
+            call refuse(ok, message, "Legended: legends are not rendered")
+            return
 
         case ("Transpose")
             if (is_matrix(r%arg(1))) then
@@ -994,8 +1114,18 @@ contains
             end if
 
         case ("IdentityMatrix")
-            call refuse(ok, message, "IdentityMatrix is not implemented")
-            return
+            if (r%nargs() /= 1) then
+                call refuse(ok, message, "IdentityMatrix needs one size")
+                return
+            end if
+            if (exact_small_int(r%arg(1), order)) then
+                inner = wl_identity_matrix(s%a, order, ok, why)
+                if (.not. ok) then
+                    call refuse(ok, message, "IdentityMatrix: "//why)
+                    return
+                end if
+                r = inner
+            end if
 
         case ("Integrate")
             ! Indefinite only. Integrate[f, {x, a, b}] is a definite integral,
@@ -1565,8 +1695,7 @@ contains
         case ("Refine", "Assuming", "Simplify2", "Element")
             yes = .true.
         ! Matrices (#30)
-        case ("Cross", "Eigenvalues", "LinearSolve", "MatrixPower", "Tr", &
-              "IdentityMatrix", "MatrixForm")
+        case ("Eigenvalues", "LinearSolve", "MatrixPower", "MatrixForm")
             yes = .true.
         ! Solving beyond the scalar linear case (#36)
         case ("Reduce", "NSolve", "FindRoot", "Eliminate", "Roots", "ToRadicals")
@@ -1584,12 +1713,13 @@ contains
         case ("Piecewise", "Boole", "If", "Which")
             yes = .true.
         ! Numerics (#37)
-        case ("SetPrecision", "Interpolation", "Fit", "Chop")
+        case ("SetPrecision", "Interpolation", "Fit")
             yes = .true.
         ! Plotting, through fortplot (#44)
         case ("Plot3D", "ContourPlot", "ParametricPlot", "ListPlot", &
-              "DensityPlot", "StreamPlot", "VectorPlot", "LogPlot", &
-              "LogLogPlot", "Show", "Graphics", "GraphicsGrid", "Export", &
+              "ListLinePlot", "DensityPlot", "StreamPlot", "VectorPlot", &
+              "LogPlot", "LogLogPlot", "Show", "Graphics", "Graphics3D", &
+              "GraphicsRow", "GraphicsGrid", "GraphicsArray", "Export", &
               "Legended")
             yes = .true.
         case default
@@ -1597,38 +1727,564 @@ contains
         end select
     end function is_known_command
 
+    !> Name the next output file. A script plotting twenty curves must not
+    !> overwrite one file nineteen times.
+    function next_plot_file(s) result(file)
+        type(wl_session_t), intent(inout) :: s
+        type(str_t)                       :: file
+        character(16) :: tag
+
+        s%plot_count = s%plot_count + 1
+        write (tag, "(i0)") s%plot_count
+        file = str("fortsym-plot-"//trim(tag)//".png")
+    end function next_plot_file
+
+    !> Remember the curves behind a file so Show can redraw them.
+    subroutine keep_plot(s, file, fd, overlayable)
+        type(wl_session_t),  intent(inout) :: s
+        type(str_t),         intent(in)    :: file
+        type(figure_data_t), intent(in)    :: fd
+        logical,             intent(in)    :: overlayable
+
+        if (s%n_plots >= MAX_PLOTS) return
+        s%n_plots = s%n_plots + 1
+        s%plots(s%n_plots)%file = file
+        s%plots(s%n_plots)%data = fd
+        s%plots(s%n_plots)%overlayable = overlayable
+    end subroutine keep_plot
+
+    !> Find the record a plot handle refers to. Handles are the file names Plot
+    !> returned, which no source symbol can collide with.
+    function plot_index(s, e) result(k)
+        type(wl_session_t), intent(in) :: s
+        type(expr_t),       intent(in) :: e
+        integer                        :: k
+        integer :: j
+
+        k = 0
+        if (e%kind() /= NK_SYM) return
+        do j = 1, s%n_plots
+            if (chars(s%plots(j)%file) == chars(e%name())) then
+                k = j
+                return
+            end if
+        end do
+    end function plot_index
+
     !> Render Plot[f, {x, a, b}] and return the file it wrote.
     !>
     !> The returned value is the filename rather than a graphics object.
     !> fortsym has no graphics representation and inventing one would let a
     !> script compare two plots as though they were expressions.
-    function render_plot(s, e, ok, message) result(r)
+    function render_plot(s, e, head, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        character(*),       intent(in)    :: head
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(plot_spec_t) :: spec
+        type(figure_data_t) :: fd
+        type(curve_t) :: c
+        type(expr_t) :: body
+        type(str_t) :: file, why
+        integer :: k, n
+
+        r = e
+        ok = .true.
+        message = str("")
+        if (.not. read_plot_range(e%arg(2), spec)) then
+            call refuse(ok, message, head//" needs a {var, lower, upper} range")
+            return
+        end if
+        ! A non-positive sample has no place on a logarithmic axis, so it is
+        ! dropped exactly like an undefined one rather than clamped.
+        spec%positive_y = head == "LogPlot" .or. head == "LogLogPlot"
+        spec%positive_x = head == "LogLogPlot"
+
+        body = e%arg(1)
+        n = 1
+        if (is_list(body)) n = body%nargs()
+        if (n < 1) then
+            call refuse(ok, message, head//" needs at least one expression")
+            return
+        end if
+
+        allocate (fd%curves(n))
+        do k = 1, n
+            if (is_list(body)) then
+                ok = sample_curve(body%arg(k), spec, c, why)
+            else
+                ok = sample_curve(body, spec, c, why)
+            end if
+            if (.not. ok) then
+                call refuse(ok, message, head//": "//chars(why))
+                return
+            end if
+            fd%curves(k) = c
+        end do
+        fd%xname = spec%variable
+        fd%xlog = spec%positive_x
+        fd%ylog = spec%positive_y
+
+        file = next_plot_file(s)
+        call render_figure(fd, chars(file))
+        call keep_plot(s, file, fd, .true.)
+        r = sym(s%a, chars(file))
+    end function render_plot
+
+    !> ParametricPlot[{fx, fy}, {t, a, b}], one curve or a list of them.
+    function render_parametric(s, e, ok, message) result(r)
         type(wl_session_t), intent(inout) :: s
         type(expr_t),       intent(in)    :: e
         logical,            intent(out)   :: ok
         type(str_t),        intent(out)   :: message
         type(expr_t)                      :: r
         type(plot_spec_t) :: spec
-        character(16) :: tag
+        type(figure_data_t) :: fd
+        type(curve_t) :: c
+        type(expr_t) :: body, item
+        type(str_t) :: file, why
+        integer :: k, n
 
         r = e
+        ok = .true.
+        message = str("")
         if (.not. read_plot_range(e%arg(2), spec)) then
-            call refuse(ok, message, "Plot needs a {var, lower, upper} range")
+            call refuse(ok, message, &
+                "ParametricPlot needs a {var, lower, upper} range")
             return
         end if
 
-        s%plot_count = s%plot_count + 1
-        write (tag, "(i0)") s%plot_count
-        spec%file = str("fortsym-plot-"//trim(tag)//".png")
+        body = e%arg(1)
+        if (.not. is_list(body)) then
+            call refuse(ok, message, "ParametricPlot needs {x(t), y(t)}")
+            return
+        end if
+        ! {x, y} is one curve; {{x1, y1}, {x2, y2}} is several. Telling them
+        ! apart by the first element rather than by the count, because a pair
+        ! of curves and a pair of components both have two arguments.
+        item = body%arg(1)
+        if (is_list(item)) then
+            n = body%nargs()
+        else
+            n = 1
+        end if
 
-        ok = plot_expression(e%arg(1), spec, message)
+        allocate (fd%curves(n))
+        do k = 1, n
+            if (n == 1) then
+                item = body
+            else
+                item = body%arg(k)
+            end if
+            if (item%nargs() /= 2) then
+                call refuse(ok, message, &
+                    "ParametricPlot needs exactly two components per curve")
+                return
+            end if
+            ok = sample_parametric_curve(item%arg(1), item%arg(2), spec, c, why)
+            if (.not. ok) then
+                call refuse(ok, message, "ParametricPlot: "//chars(why))
+                return
+            end if
+            fd%curves(k) = c
+        end do
+
+        file = next_plot_file(s)
+        call render_figure(fd, chars(file))
+        call keep_plot(s, file, fd, .true.)
+        r = sym(s%a, chars(file))
+    end function render_parametric
+
+    !> ListPlot and ListLinePlot over explicit data.
+    function render_list_plot(s, e, joined, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(in)    :: joined
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(figure_data_t) :: fd
+        type(expr_t) :: data, item
+        type(str_t) :: file
+        logical :: nested
+        integer :: k, n
+
+        r = e
+        ok = .true.
+        message = str("")
+        data = e%arg(1)
+        if (.not. is_list(data)) then
+            call refuse(ok, message, "ListPlot needs an explicit list of data")
+            return
+        end if
+        if (data%nargs() < 1) then
+            call refuse(ok, message, "ListPlot needs at least one point")
+            return
+        end if
+
+        ! {{x, y}, ...} is one dataset; {{{x, y}, ...}, ...} is several. The
+        ! difference shows in the first element's first element.
+        nested = .false.
+        item = data%arg(1)
+        if (is_list(item)) then
+            if (item%nargs() > 0) then
+                if (is_list(item%arg(1))) nested = .true.
+            end if
+        end if
+
+        if (nested) then
+            n = data%nargs()
+        else
+            n = 1
+        end if
+        allocate (fd%curves(n))
+        do k = 1, n
+            if (nested) then
+                item = data%arg(k)
+            else
+                item = data
+            end if
+            if (.not. dataset_curve(item, joined, fd%curves(k), message)) then
+                ok = .false.
+                return
+            end if
+        end do
+
+        file = next_plot_file(s)
+        call render_figure(fd, chars(file))
+        call keep_plot(s, file, fd, .true.)
+        r = sym(s%a, chars(file))
+    end function render_list_plot
+
+    !> Turn one explicit dataset into a curve.
+    !>
+    !> Either every element is a number, in which case the index is the
+    !> abscissa exactly as Wolfram does, or every element is an {x, y} pair. A
+    !> mixture, or an entry that is not a number, refuses: guessing what a
+    !> symbolic entry meant would put a made-up point on the axes.
+    function dataset_curve(data, joined, c, message) result(ok)
+        type(expr_t),  intent(in)    :: data
+        logical,       intent(in)    :: joined
+        type(curve_t), intent(out)   :: c
+        type(str_t),   intent(inout) :: message
+        logical                      :: ok
+
+        type(expr_t) :: item
+        real(dp), allocatable :: xs(:), ys(:)
+        real(dp) :: a, b
+        logical :: got, pairs
+        integer :: k, n
+
+        ok = .false.
+        n = data%nargs()
+        if (n < 1) then
+            message = str("ListPlot: empty dataset")
+            return
+        end if
+        item = data%arg(1)
+        pairs = is_list(item)
+
+        allocate (xs(n), ys(n))
+        do k = 1, n
+            item = data%arg(k)
+            if (is_list(item) .neqv. pairs) then
+                message = str("ListPlot: dataset mixes numbers and pairs")
+                return
+            end if
+            if (pairs) then
+                if (item%nargs() /= 2) then
+                    message = str("ListPlot: a point is not an {x, y} pair")
+                    return
+                end if
+                a = plot_constant(item%arg(1), got)
+                if (got) b = plot_constant(item%arg(2), got)
+            else
+                a = real(k, dp)
+                b = plot_constant(item, got)
+            end if
+            if (.not. got) then
+                message = str("ListPlot: a data entry is not a number")
+                return
+            end if
+            xs(k) = a
+            ys(k) = b
+        end do
+
+        c%x = xs
+        c%y = ys
+        if (joined) then
+            c%style = CURVE_LINE
+        else
+            c%style = CURVE_POINTS
+        end if
+        ok = .true.
+    end function dataset_curve
+
+    !> The two-range family: Plot3D, ContourPlot, DensityPlot, StreamPlot and
+    !> VectorPlot. None of these produce curves, so the record they leave is
+    !> not overlayable and Show refuses to combine them.
+    function render_field(s, e, head, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        character(*),       intent(in)    :: head
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(plot_spec_t) :: sx, sy
+        type(figure_data_t) :: empty
+        type(expr_t) :: body
+        type(str_t) :: file, why
+
+        r = e
+        ok = .true.
+        message = str("")
+        if (.not. read_plot_range(e%arg(2), sx)) then
+            call refuse(ok, message, head//" needs a {var, lower, upper} x range")
+            return
+        end if
+        if (.not. read_plot_range(e%arg(3), sy)) then
+            call refuse(ok, message, head//" needs a {var, lower, upper} y range")
+            return
+        end if
+        if (chars(sx%variable) == chars(sy%variable)) then
+            call refuse(ok, message, head//" needs two different variables")
+            return
+        end if
+
+        body = e%arg(1)
+        file = next_plot_file(s)
+
+        select case (head)
+        case ("Plot3D")
+            call set_grid_samples(sx, sy)
+            ok = render_surface(body, sx, sy, chars(file), why)
+        case ("ContourPlot")
+            if (body%kind() == NK_FUNC) then
+                if (chars(body%name()) == "Equal") then
+                    ! ContourPlot[f == g] wants the single curve where the two
+                    ! sides agree. That needs a line contour at one level, and
+                    ! fortplot's line-contour tracer indexes the field the
+                    ! other way round from its band tracer, so it would draw
+                    ! that curve transposed. Shading the difference instead
+                    ! would answer a different question.
+                    call refuse(ok, message, &
+                        "ContourPlot of an equation needs single-level line "// &
+                        "contours, which fortplot currently traces transposed")
+                    return
+                end if
+            end if
+            call set_grid_samples(sx, sy)
+            ok = render_contour(body, sx, sy, chars(file), why)
+        case ("DensityPlot")
+            call set_grid_samples(sx, sy)
+            ok = render_density(body, sx, sy, chars(file), why)
+        case ("StreamPlot", "VectorPlot")
+            if (.not. is_list(body)) then
+                call refuse(ok, message, head//" needs {u, v} components")
+                return
+            end if
+            if (body%nargs() /= 2) then
+                call refuse(ok, message, head//" needs exactly two components")
+                return
+            end if
+            if (head == "StreamPlot") then
+                call set_grid_samples(sx, sy)
+                ok = render_stream(body%arg(1), body%arg(2), sx, sy, &
+                                   chars(file), why)
+            else
+                call set_arrow_samples(sx, sy)
+                ok = render_vector(body%arg(1), body%arg(2), sx, sy, &
+                                   chars(file), why)
+            end if
+        end select
+
         if (.not. ok) then
-            message = str("Plot: "//chars(message))
+            call refuse(ok, message, head//": "//chars(why))
             return
         end if
-        r = sym(s%a, chars(spec%file))
-    end function render_plot
+        call keep_plot(s, file, empty, .false.)
+        r = sym(s%a, chars(file))
+    end function render_field
 
+    !> Show[p1, p2, ...] draws every curve of every argument into one figure.
+    !>
+    !> An argument that is not a plot this script produced refuses. Returning
+    !> the first argument instead would call one curve the overlay of two.
+    function render_overlay(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(figure_data_t) :: fd
+        type(str_t) :: file
+        integer :: k, j, idx, total, filled, first
+
+        r = e
+        ok = .true.
+        message = str("")
+
+        total = 0
+        first = 0
+        do k = 1, e%nargs()
+            if (is_option(e%arg(k))) cycle
+            idx = plot_index(s, e%arg(k))
+            if (idx == 0) then
+                call refuse(ok, message, &
+                    "Show: an argument is not a plot made earlier in this script")
+                return
+            end if
+            if (.not. s%plots(idx)%overlayable) then
+                call refuse(ok, message, &
+                    "Show: a surface, contour, density or field plot has no "// &
+                    "curves to overlay")
+                return
+            end if
+            if (first == 0) first = idx
+            if (s%plots(idx)%data%xlog .neqv. s%plots(first)%data%xlog) then
+                call refuse(ok, message, &
+                    "Show: cannot overlay a logarithmic axis with a linear one")
+                return
+            end if
+            if (s%plots(idx)%data%ylog .neqv. s%plots(first)%data%ylog) then
+                call refuse(ok, message, &
+                    "Show: cannot overlay a logarithmic axis with a linear one")
+                return
+            end if
+            total = total + size(s%plots(idx)%data%curves)
+        end do
+
+        if (first == 0) then
+            call refuse(ok, message, "Show needs at least one plot")
+            return
+        end if
+
+        allocate (fd%curves(total))
+        filled = 0
+        do k = 1, e%nargs()
+            if (is_option(e%arg(k))) cycle
+            idx = plot_index(s, e%arg(k))
+            do j = 1, size(s%plots(idx)%data%curves)
+                filled = filled + 1
+                fd%curves(filled) = s%plots(idx)%data%curves(j)
+            end do
+        end do
+        fd%xname = s%plots(first)%data%xname
+        fd%yname = s%plots(first)%data%yname
+        fd%xlog = s%plots(first)%data%xlog
+        fd%ylog = s%plots(first)%data%ylog
+
+        file = next_plot_file(s)
+        call render_figure(fd, chars(file))
+        call keep_plot(s, file, fd, .true.)
+        r = sym(s%a, chars(file))
+    end function render_overlay
+
+    !> GraphicsRow, GraphicsGrid and GraphicsArray: earlier plots as panels.
+    recursive function render_grid(s, e, head, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        character(*),       intent(in)    :: head
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(figure_data_t), allocatable :: panels(:)
+        type(figure_data_t) :: empty
+        type(expr_t) :: data, row, entry
+        type(str_t) :: file
+        integer :: rows, cols, k, j, idx, filled
+
+        r = e
+        ok = .true.
+        message = str("")
+        if (e%nargs() < 1) then
+            call refuse(ok, message, head//" needs a list of plots")
+            return
+        end if
+        data = e%arg(1)
+        if (.not. is_list(data)) then
+            call refuse(ok, message, head//" needs a list of plots")
+            return
+        end if
+        if (data%nargs() < 1) then
+            call refuse(ok, message, head//" needs at least one plot")
+            return
+        end if
+
+        row = data%arg(1)
+        if (is_list(row)) then
+            rows = data%nargs()
+            cols = row%nargs()
+        else
+            rows = 1
+            cols = data%nargs()
+        end if
+        if (cols < 1) then
+            call refuse(ok, message, head//" needs at least one plot")
+            return
+        end if
+
+        allocate (panels(rows*cols))
+        filled = 0
+        do k = 1, rows
+            if (rows == 1) then
+                row = data
+            else
+                row = data%arg(k)
+                if (.not. is_list(row)) then
+                    call refuse(ok, message, head//" needs a rectangular grid")
+                    return
+                end if
+                ! A ragged grid would silently shift panels into the wrong
+                ! cells, so it refuses rather than being padded.
+                if (row%nargs() /= cols) then
+                    call refuse(ok, message, head//" needs a rectangular grid")
+                    return
+                end if
+            end if
+            do j = 1, cols
+                ! Entries inside a list are not evaluated on the way in, so a
+                ! GraphicsRow[{Plot[...], Plot[...]}] written inline has to be
+                ! drawn here before there is a handle to look up.
+                entry = wl_eval(s, row%arg(j), ok, message)
+                if (.not. ok) return
+                idx = plot_index(s, entry)
+                if (idx == 0) then
+                    call refuse(ok, message, head// &
+                        ": an entry is not a plot made earlier in this script")
+                    return
+                end if
+                if (.not. s%plots(idx)%overlayable) then
+                    call refuse(ok, message, head// &
+                        ": a surface, contour, density or field plot cannot "// &
+                        "be redrawn as a panel")
+                    return
+                end if
+                filled = filled + 1
+                panels(filled) = s%plots(idx)%data
+            end do
+        end do
+
+        file = next_plot_file(s)
+        call render_panels(panels, rows, cols, chars(file))
+        ! Kept as a non-overlayable record: a panel figure has no single curve
+        ! list, so a later Show naming it says so instead of failing to find it.
+        call keep_plot(s, file, empty, .false.)
+        r = sym(s%a, chars(file))
+    end function render_grid
+
+    !> True for an option such as PlotRange -> All. Options change how a figure
+    !> looks, never which curves are in it, so they are skipped.
+    function is_option(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+
+        yes = .false.
+        if (e%kind() /= NK_FUNC) return
+        yes = chars(e%name()) == "Rule"
+    end function is_option
     !> True when Dot can actually form a product with this operand.
     function dottable(e) result(yes)
         type(expr_t), intent(in) :: e
