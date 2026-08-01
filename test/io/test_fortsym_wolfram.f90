@@ -94,6 +94,7 @@ contains
 
         call same("pi", a, "Pi", const(a, "pi"))
         call same("imaginary", a, "I", const(a, "i"))
+        call same("lowercase i is a symbol", a, "i", sym(a, "i"))
         ! 1/3 must stay an exact rational node. A float here would silently
         ! change every downstream comparison from exact to approximate.
         call same("rational", a, "1/3", rat(a, 1_int64, 3_int64))
