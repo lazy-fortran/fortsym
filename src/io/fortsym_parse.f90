@@ -1152,7 +1152,11 @@ contains
                 call parse_arg_list(p, a, d, fargs, nargs, T_RPAREN)
                 if (p%failed) return
                 canon = chars(fn_canonical(d, name))
-                e = func(canon, fargs(1:nargs))
+                if (nargs == 0) then
+                    e = func_in(a, canon)
+                else
+                    e = func(canon, fargs(1:nargs))
+                end if
             else
                 ! A bare name is a constant if the dialect knows it as one, and
                 ! an ordinary symbol otherwise. Getting this wrong is how

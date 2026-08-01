@@ -240,6 +240,7 @@ contains
         ! it through func() and took the arena from an argument that does not
         ! exist. Nine corpus scripts died on Directory[].
         call same("empty call", a, "Directory[]", func_in(a, "Directory"))
+        call same("empty parenthesised call", a, "Out()", func_in(a, "Out"))
         ! A named character is one identifier. Splitting it scatters brackets
         ! into the token stream and derails the rest of the expression.
         call same("named character", a, "Sin[\[Alpha]]", &
