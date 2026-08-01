@@ -27,6 +27,7 @@ program test_fortsym_wl_statements
     call test_recursive_function()
     call test_pure_map_apply_replace()
     call test_list_threading()
+    call test_list_child_evaluation()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_statements"
@@ -205,5 +206,14 @@ contains
             "value = Thread[Equal[lhs, rhs]]"//char(10), &
             "value", "List(Equal(x, a), Equal(y, b))")
     end subroutine test_list_threading
+
+    !> List elements are evaluated independently. These hand-derived values
+    !> catch the tempting but incorrect optimization of leaving List children
+    !> untouched.
+    subroutine test_list_child_evaluation()
+        call expect("derivatives inside list", &
+            "values = {D[x^2, x], D[Sin[x], x]}"//char(10), &
+            "values", "List(x*2, cos(x))")
+    end subroutine test_list_child_evaluation
 
 end program test_fortsym_wl_statements
