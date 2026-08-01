@@ -253,7 +253,9 @@ contains
                     ! into a prefix that still parsed as something else, so the
                     ! reported failure was "unexpected end of input" on a
                     ! script that was perfectly well formed.
-                    if (.not. awaits_operand(source, begin, i - 1)) then
+                    if (.not. awaits_operand(source, begin, i - 1) .and. &
+                        .not. starts_continuation_operator(source, i + 1, &
+                        len_src)) then
                         call push_statement(source, starts, ends, n, begin, &
                             i - 1)
                         begin = i + 1
@@ -305,6 +307,34 @@ contains
             yes = .true.
         end select
     end function awaits_operand
+
+    !> True when the next physical line starts with an operator. Wolfram input
+    !> commonly formats long expressions as ``term`` followed by a newline and
+    !> then ``+ next_term``; that newline is part of the same assignment even
+    !> though the preceding line already has a complete operand.
+    function starts_continuation_operator(source, from, to) result(yes)
+        character(*), intent(in) :: source
+        integer,      intent(in) :: from, to
+        logical                  :: yes
+        integer :: k
+        character :: c
+
+        yes = .false.
+        k = from
+        do while (k <= to)
+            c = source(k:k)
+            if (c /= " " .and. c /= char(9) .and. c /= char(13)) exit
+            k = k + 1
+        end do
+        if (k > to) return
+
+        c = source(k:k)
+        select case (c)
+        case ("+", "-", "*", "/", "^", "=", "<", ">", "|", &
+                "@", ":", "~", "(", "[", "{")
+            yes = .true.
+        end select
+    end function starts_continuation_operator
 
     !> Record a statement unless it is blank once trimmed.
     subroutine push_statement(source, starts, ends, n, from, to)
