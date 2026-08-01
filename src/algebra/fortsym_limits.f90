@@ -96,6 +96,12 @@ module fortsym_limits
     !> the direction that cannot produce a wrong limit.
     real(dp), parameter :: MARGIN = 1.0e-9_dp
 
+    !> The slack applied to a constant factor the exact zero test could not
+    !> decide. Separate from MARGIN because it guards a weaker inference --
+    !> "this is not zero" read from a float rather than proved -- and so wants
+    !> its own name and its own room to be tightened.
+    real(dp), parameter :: UNDECIDED_MARGIN = 1.0e-9_dp
+
     !> The value of a limit.
     type :: limit_value_t
         integer      :: kind = LIMIT_FINITE
@@ -569,16 +575,33 @@ contains
             ok = .true.
             return
         end if
-        if (verdict /= VERDICT_FALSE) then
-            why = "cannot decide whether the constant factor vanishes"
-            return
-        end if
-
         call numeric_value(konst, kv, good, inner)
         if (.not. good) then
             why = "cannot evaluate the constant factor: "//inner
             return
         end if
+
+        ! An undecided constant is not a refusal on its own. The native zero
+        ! test returns UNKNOWN for anything that does not simplify to a numeric
+        ! literal, and that includes 1**(1/2) and exp(3) -- so demanding a
+        ! proof here refused every monomial with a symbolic constant factor,
+        ! including x**(1/2) and exp(x+1) at infinity.
+        !
+        ! The numeric value is admissible evidence in this one direction.
+        ! numeric_value has already established the factor is closed, and
+        ! cancellation can only make a computed magnitude smaller than the true
+        ! one, never larger; so a value comfortably clear of zero cannot have
+        ! come from an exactly zero constant. A value near zero stays a
+        ! refusal, because that is the case where rounding and a true zero look
+        ! alike.
+        if (verdict /= VERDICT_FALSE) then
+            if (abs(kv) < UNDECIDED_MARGIN) then
+                why = "cannot decide whether the constant factor vanishes, "// &
+                      "and it is too close to zero to read a sign from"
+                return
+            end if
+        end if
+
         if (kv == 0.0_dp) then
             why = "the constant factor is nonzero but underflows to zero in "// &
                   "double precision, so its sign cannot be read"
