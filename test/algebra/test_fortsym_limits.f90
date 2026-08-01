@@ -52,6 +52,7 @@ program test_fortsym_limits
     call test_bad_input_refused()
     call test_variable_exponent_refused()
     call test_small_leading_coefficient()
+    call test_symbolic_constant_factor()
 
     if (nfail /= 0) then
         print *, "test_fortsym_limits: ", nfail, " check(s) FAILED"
@@ -627,6 +628,56 @@ contains
                     diverges(e, -up, .false.))
         end if
     end subroutine test_small_leading_coefficient
+
+    !> A constant factor the exact zero test cannot decide must not, by itself,
+    !> cost the limit.
+    !>
+    !> The native zero test returns UNKNOWN for anything that does not simplify
+    !> to a numeric literal, and 1**(1/2) and exp(3) are both in that class.
+    !> Demanding a proof of non-vanishing here refused every monomial with a
+    !> symbolic constant factor -- an over-refusal introduced while fixing the
+    !> opposite problem, and invisible to a suite that only checked refusals
+    !> were refusals.
+    !>
+    !> The oracle is divergence of the samples, not the module's own verdict.
+    subroutine test_symbolic_constant_factor()
+        type(expr_t) :: cases(4)
+        type(limit_value_t) :: r
+        logical :: good
+        character(:), allocatable :: why
+        real(dp) :: up(size(cases), 8)
+        integer :: k, j
+
+        cases(1) = x**rat(arena, 1_int64, 2_int64)
+        cases(2) = num(arena, 2)*x**rat(arena, 1_int64, 2_int64)
+        cases(3) = exp(num(arena, 2)*x + num(arena, 3))
+        cases(4) = exp(x + num(arena, 1))
+
+        ! Each case gets its own approach sequence. A single shared one cannot
+        ! work: a square root at 10**8 has still only reached 10**4 and looks
+        ! like it is not diverging, while an exponential there overflows to
+        ! undefined. Both would be a failure of the oracle, not of the module.
+        do j = 1, 8
+            up(1, j) = 10.0_dp**(j + 4)
+            up(2, j) = 10.0_dp**(j + 4)
+            up(3, j) = real(2*j, dp)
+            up(4, j) = real(2*j, dp)
+        end do
+
+        do k = 1, size(cases)
+            r = limit_of(arena, cases(k), x, plus_infinity(), TWO_SIDED, &
+                         good, why)
+            call ok("symbolic constant factor is answered", good)
+            if (good) then
+                call ok("symbolic constant factor diverges upwards", &
+                        r%kind == LIMIT_PLUS_INF)
+                call ok("samples confirm the divergence", &
+                        diverges(cases(k), up(k, :), .true.))
+            else
+                print *, "       refusal: ", why
+            end if
+        end do
+    end subroutine test_symbolic_constant_factor
 
     !> Swallow a sample whose value is irrelevant; only its definedness flag is
     !> under test.
