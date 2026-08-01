@@ -92,9 +92,11 @@ contains
         logical, optional,         intent(in)    :: assume_ratio_ne_one
         type(expr_t) :: s
         integer(int64) :: lo, up, count
-        logical :: concrete, assume_ne_one
+        logical :: concrete, assume_ne_one, fits, exact
 
         s = num(a, 0)
+        count = 0_int64
+        exact = .false.
         assume_ne_one = .false.
         if (present(assume_ratio_ne_one)) assume_ne_one = assume_ratio_ne_one
 
@@ -112,8 +114,8 @@ contains
                 ok = .true.
                 return
             end if
-            count = up - lo + 1_int64
-            if (count <= MAX_EXPAND_TERMS) then
+            call expansion_span(lo, up, count, fits, exact)
+            if (fits) then
                 s = expand_sum(a, body, var, lo, up)
                 ok = .true.
                 return
@@ -123,10 +125,61 @@ contains
         s = closed_sum(a, body, var, lower, upper, assume_ne_one, ok, why)
         if (ok) return
         if (concrete) then
-            why = why//"; direct expansion of "//itoa(count)// &
-                  " terms exceeds the cap of "//itoa(MAX_EXPAND_TERMS)
+            why = why//"; "//span_phrase(count, exact, "terms")
         end if
     end function sum_closed_form
+
+    !> How many terms a concrete range holds, decided without ever forming a
+    !> difference that can wrap. `up - lo + 1` overflows for a span of 2**63,
+    !> and a wrapped negative count passes any `count <= cap` test, which turns
+    !> the expansion cap into a hang instead of a refusal.
+    !>
+    !> `exact` says the count is representable; `fits` says it is within the
+    !> cap. A span that is not representable never fits.
+    subroutine expansion_span(lo, up, count, fits, exact)
+        integer(int64), intent(in)  :: lo, up
+        integer(int64), intent(out) :: count
+        logical,        intent(out) :: fits, exact
+        integer(int64) :: span
+
+        count = 0_int64
+        fits = .false.
+        exact = .false.
+        if (up < lo) then
+            fits = .true.
+            exact = .true.
+            return
+        end if
+        ! up - lo is representable when lo >= 0 (then it is at most up), and
+        ! for a negative lo when up stays at or below huge + lo. The tests are
+        ! separate because huge + lo is itself only safe for lo <= 0.
+        if (lo >= 0_int64) then
+            span = up - lo
+        else if (up <= huge(0_int64) + lo) then
+            span = up - lo
+        else
+            return
+        end if
+        if (span == huge(0_int64)) return
+        count = span + 1_int64
+        exact = .true.
+        fits = count <= MAX_EXPAND_TERMS
+    end subroutine expansion_span
+
+    function span_phrase(count, exact, what) result(s)
+        integer(int64), intent(in) :: count
+        logical,        intent(in) :: exact
+        character(*),   intent(in) :: what
+        character(:), allocatable :: s
+
+        if (exact) then
+            s = "direct expansion of "//itoa(count)//" "//what// &
+                " exceeds the cap of "//itoa(MAX_EXPAND_TERMS)
+        else
+            s = "the concrete range holds more "//what//" than an int64 can "// &
+                "count, far beyond the cap of "//itoa(MAX_EXPAND_TERMS)
+        end if
+    end function span_phrase
 
     !> Sum written out term by term. Exact by construction: it is the
     !> definition, not a formula about it.
@@ -155,6 +208,7 @@ contains
         type(expr_t) :: s, term, part, hi
         integer :: nterms, k
         logical :: started
+        character(:), allocatable :: tel_why
 
         s = num(a, 0)
         hi = upper + 1
@@ -166,9 +220,11 @@ contains
             part = term_antidifference(a, term, var, lower, hi, &
                                        assume_ne_one, ok, why)
             if (.not. ok) then
-                s = telescoping_sum(a, body, var, lower, hi, ok)
+                s = telescoping_sum(a, body, var, lower, hi, ok, tel_why)
                 if (ok) then
                     why = ""
+                else if (len(tel_why) > 0) then
+                    why = tel_why
                 else
                     why = "no closed form: "//why// &
                           " (and the body is not a first difference)"
@@ -273,9 +329,11 @@ contains
         character(:), allocatable, intent(out)   :: why
         type(expr_t) :: p
         integer(int64) :: lo, up, count
-        logical :: concrete
+        logical :: concrete, fits, exact
 
         p = num(a, 1)
+        count = 0_int64
+        exact = .false.
         call check_inputs(a, body, var, lower, upper, ok, why)
         if (.not. ok) return
         ok = .false.
@@ -287,8 +345,8 @@ contains
                 ok = .true.
                 return
             end if
-            count = up - lo + 1_int64
-            if (count <= MAX_EXPAND_TERMS) then
+            call expansion_span(lo, up, count, fits, exact)
+            if (fits) then
                 p = expand_product(a, body, var, lo, up)
                 ok = .true.
                 return
@@ -298,8 +356,7 @@ contains
         p = closed_product(a, body, var, lower, upper, ok, why)
         if (ok) return
         if (concrete) then
-            why = why//"; direct expansion of "//itoa(count)// &
-                  " factors exceeds the cap of "//itoa(MAX_EXPAND_TERMS)
+            why = why//"; "//span_phrase(count, exact, "factors")
         end if
     end function product_closed_form
 
@@ -330,6 +387,7 @@ contains
         type(expr_t) :: p, coeff, ratio, count, expo
         integer :: tclass, degree
         logical :: has_coeff
+        character(:), allocatable :: tel_why
 
         p = num(a, 1)
         count = upper - lower + 1
@@ -349,16 +407,24 @@ contains
                 p = coeff**count
                 ok = .true.
             case (TERM_GEOM)
-                ! The exponents form an arithmetic series:
-                ! sum_{k=l}^{u} k = (u(u+1) - l(l-1))/2.
-                expo = rat(a, 1_int64, 2_int64)* &
-                       (upper*(upper + 1) - lower*(lower - 1))
-                if (has_coeff) then
-                    p = coeff**count*ratio**expo
+                if (numeric_is_zero(ratio)) then
+                    ! Same policy as the sum: 0**0 leaves the factor at k = 0
+                    ! ambiguous, and the exponent formula below would answer
+                    ! anyway.
+                    why = "geometric ratio is zero: 0**0 makes the factor "// &
+                          "at k = 0 ambiguous"
                 else
-                    p = ratio**expo
+                    ! The exponents form an arithmetic series:
+                    ! sum_{k=l}^{u} k = (u(u+1) - l(l-1))/2.
+                    expo = rat(a, 1_int64, 2_int64)* &
+                           (upper*(upper + 1) - lower*(lower - 1))
+                    if (has_coeff) then
+                        p = coeff**count*ratio**expo
+                    else
+                        p = ratio**expo
+                    end if
+                    ok = .true.
                 end if
-                ok = .true.
             case (TERM_POWER)
                 why = "product of var**"//itoa(int(degree, int64))// &
                       " needs gamma and a positivity argument for the "// &
@@ -369,9 +435,11 @@ contains
             if (ok) return
         end if
 
-        p = telescoping_product(a, body, var, lower, upper + 1, ok)
+        p = telescoping_product(a, body, var, lower, upper + 1, ok, tel_why)
         if (ok) then
             why = ""
+        else if (len(tel_why) > 0) then
+            why = tel_why
         else
             why = "no closed form: "//why// &
                   " (and the body is not a ratio f(k+1)/f(k))"
@@ -384,15 +452,23 @@ contains
     !> hi = upper + 1. The match is structural on hash-consed nodes, so it is
     !> exact: a false positive is impossible, and a body written in a shape
     !> this does not recognise is missed and refused rather than mis-summed.
-    function telescoping_sum(a, body, var, lower, hi, ok) result(s)
-        type(arena_t), target, intent(inout) :: a
-        type(expr_t),          intent(in)    :: body, var, lower, hi
-        logical,               intent(out)   :: ok
+    !>
+    !> Telescoping is only valid where every term exists. f(hi) - f(lower) is a
+    !> perfectly finite number even when a term in between divides by zero, so
+    !> the body is required to be provably pole-free over the summation range
+    !> before the collapsed form is issued; where that cannot be proved the
+    !> reason is returned in `why` and nothing is answered.
+    function telescoping_sum(a, body, var, lower, hi, ok, why) result(s)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: body, var, lower, hi
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
         type(expr_t) :: s, f, shifted
         integer :: k, other
 
         s = num(a, 0)
         ok = .false.
+        why = ""
         if (body%kind() /= NK_ADD) return
         if (body%nargs() /= 2) return
 
@@ -402,6 +478,14 @@ contains
             if (.not. ok) cycle
             shifted = subs(f, var, var + 1)
             if (shifted == body%arg(other)) then
+                if (.not. pole_free(body, var, lower, hi - 1)) then
+                    ok = .false.
+                    why = "the body telescopes, but a denominator in it is "// &
+                          "not provably nonzero for every index in the "// &
+                          "range, so the collapsed form f(upper+1) - "// &
+                          "f(lower) could step over a pole"
+                    return
+                end if
                 s = subs(f, var, hi) - subs(f, var, lower)
                 ok = .true.
                 return
@@ -410,16 +494,20 @@ contains
         ok = .false.
     end function telescoping_sum
 
-    !> If body = f(var+1)/f(var) then the product is f(hi)/f(lower).
-    function telescoping_product(a, body, var, lower, hi, ok) result(p)
-        type(arena_t), target, intent(inout) :: a
-        type(expr_t),          intent(in)    :: body, var, lower, hi
-        logical,               intent(out)   :: ok
+    !> If body = f(var+1)/f(var) then the product is f(hi)/f(lower), provided
+    !> f has no zero in the range: a single f(k) = 0 makes the true product
+    !> undefined while the collapsed ratio stays finite.
+    function telescoping_product(a, body, var, lower, hi, ok, why) result(p)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: body, var, lower, hi
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
         type(expr_t) :: p, f, shifted
         integer :: k, other
 
         p = num(a, 1)
         ok = .false.
+        why = ""
         if (body%kind() /= NK_MUL) return
         if (body%nargs() /= 2) return
 
@@ -429,6 +517,14 @@ contains
             if (.not. ok) cycle
             shifted = subs(f, var, var + 1)
             if (shifted == body%arg(other)) then
+                if (.not. pole_free(body, var, lower, hi - 1)) then
+                    ok = .false.
+                    why = "the body telescopes, but the denominator f(k) is "// &
+                          "not provably nonzero for every index in the "// &
+                          "range, so the collapsed form f(upper+1)/f(lower) "// &
+                          "could step over a division by zero"
+                    return
+                end if
                 p = subs(f, var, hi)/subs(f, var, lower)
                 ok = .true.
                 return
@@ -436,6 +532,188 @@ contains
         end do
         ok = .false.
     end function telescoping_product
+
+    ! ------------------------------------------------------- pole checks --
+
+    !> Is `f` finite at every integer value of `var` in [lower, upper]? Only
+    !> what can be proved is accepted; an unprovable case answers .false. and
+    !> the caller refuses.
+    !>
+    !> A var-free denominator is not this function's business: whether a
+    !> symbolic coefficient is zero does not depend on the range, and the rest
+    !> of the module treats var-free factors as ordinary coefficients.
+    recursive function pole_free(f, var, lower, upper) result(yes)
+        type(expr_t), intent(in) :: f, var, lower, upper
+        logical :: yes
+        type(expr_t) :: base, expo
+        integer :: k
+
+        yes = .false.
+        select case (f%kind())
+        case (NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST)
+            yes = .true.
+        case (NK_ADD, NK_MUL)
+            do k = 1, f%nargs()
+                if (.not. pole_free(f%arg(k), var, lower, upper)) return
+            end do
+            yes = .true.
+        case (NK_POW)
+            base = f%arg(1)
+            expo = f%arg(2)
+            if (depends_on(expo, var)) return
+            if (.not. pole_free(base, var, lower, upper)) return
+            if (expo%kind() /= NK_INT) then
+                ! A fractional or symbolic exponent can be a reciprocal or a
+                ! root: only a var-free base can be cleared here.
+                yes = .not. depends_on(base, var)
+                return
+            end if
+            if (expo%int_value() >= 0_int64) then
+                yes = .true.
+                return
+            end if
+            yes = nonvanishing_on_range(base, var, lower, upper)
+        end select
+    end function pole_free
+
+    !> Is `g` provably nonzero at every integer `var` in [lower, upper]?
+    recursive function nonvanishing_on_range(g, var, lower, upper) result(yes)
+        type(expr_t), intent(in) :: g, var, lower, upper
+        logical :: yes
+        type(expr_t) :: expo
+        integer :: k
+
+        yes = .false.
+        if (.not. depends_on(g, var)) then
+            ! Range-independent: nothing about the summation range can decide
+            ! it, and the module already treats such factors as coefficients.
+            yes = .true.
+            return
+        end if
+
+        select case (g%kind())
+        case (NK_MUL)
+            do k = 1, g%nargs()
+                if (.not. nonvanishing_on_range(g%arg(k), var, lower, upper)) return
+            end do
+            yes = .true.
+        case (NK_POW)
+            expo = g%arg(2)
+            if (depends_on(expo, var)) return
+            if (expo%kind() /= NK_INT) return
+            if (expo%int_value() == 0_int64) then
+                yes = .true.
+                return
+            end if
+            yes = nonvanishing_on_range(g%arg(1), var, lower, upper)
+        case default
+            yes = linear_root_outside(g, var, lower, upper)
+        end select
+    end function nonvanishing_on_range
+
+    !> For g = c1*var + c0 with integer coefficients, the only zero is at
+    !> var = -c0/c1. True when that zero is not an integer, or when a concrete
+    !> bound places it outside the range. Anything not linear in var with
+    !> integer coefficients is not decided here.
+    function linear_root_outside(g, var, lower, upper) result(yes)
+        type(expr_t), intent(in) :: g, var, lower, upper
+        logical :: yes
+        integer(int64) :: c1, c0, root
+        logical :: islin
+
+        yes = .false.
+        call linear_in_var(g, var, c1, c0, islin)
+        if (.not. islin) return
+        if (c1 == 0_int64) return
+        if (mod(c0, c1) /= 0_int64) then
+            ! The zero is a non-integer rational, and only integer indices are
+            ! summed over.
+            yes = .true.
+            return
+        end if
+        root = -(c0/c1)
+        if (lower%kind() == NK_INT) then
+            if (root < lower%int_value()) then
+                yes = .true.
+                return
+            end if
+        end if
+        if (upper%kind() == NK_INT) then
+            if (root > upper%int_value()) yes = .true.
+        end if
+    end function linear_root_outside
+
+    !> g = c1*var + c0 with exact integer coefficients, or islin = .false.
+    recursive subroutine linear_in_var(g, var, c1, c0, islin)
+        type(expr_t),   intent(in)  :: g, var
+        integer(int64), intent(out) :: c1, c0
+        logical,        intent(out) :: islin
+        type(expr_t) :: f
+        integer(int64) :: a1, a0, s1, s0, scale, t
+        integer :: k, nf
+        logical :: sub_ok, seen
+
+        c1 = 0_int64
+        c0 = 0_int64
+        islin = .false.
+
+        if (g == var) then
+            c1 = 1_int64
+            islin = .true.
+            return
+        end if
+
+        select case (g%kind())
+        case (NK_INT)
+            c0 = g%int_value()
+            islin = .true.
+        case (NK_ADD)
+            s1 = 0_int64
+            s0 = 0_int64
+            do k = 1, g%nargs()
+                call linear_in_var(g%arg(k), var, a1, a0, sub_ok)
+                if (.not. sub_ok) return
+                call iadd(s1, a1, t, sub_ok)
+                if (.not. sub_ok) return
+                s1 = t
+                call iadd(s0, a0, t, sub_ok)
+                if (.not. sub_ok) return
+                s0 = t
+            end do
+            c1 = s1
+            c0 = s0
+            islin = .true.
+        case (NK_MUL)
+            scale = 1_int64
+            a1 = 0_int64
+            a0 = 1_int64
+            seen = .false.
+            nf = g%nargs()
+            do k = 1, nf
+                f = g%arg(k)
+                if (depends_on(f, var)) then
+                    if (seen) return
+                    seen = .true.
+                    call linear_in_var(f, var, a1, a0, sub_ok)
+                    if (.not. sub_ok) return
+                else
+                    if (f%kind() /= NK_INT) return
+                    call imul(scale, f%int_value(), t, sub_ok)
+                    if (.not. sub_ok) return
+                    scale = t
+                end if
+            end do
+            if (.not. seen) then
+                a1 = 0_int64
+                a0 = 1_int64
+            end if
+            call imul(scale, a1, c1, sub_ok)
+            if (.not. sub_ok) return
+            call imul(scale, a0, c0, sub_ok)
+            if (.not. sub_ok) return
+            islin = .true.
+        end select
+    end subroutine linear_in_var
 
     !> Peel a reciprocal, giving g from g**(-1). Anything that is not literally
     !> a power with exponent -1 is declined.
@@ -815,6 +1093,24 @@ contains
         z = x*y
     end subroutine imul
 
+    !> x + y, declining rather than wrapping. The guards are nested because
+    !> `huge - y` overflows for the wrong sign of y.
+    subroutine iadd(x, y, z, ok)
+        integer(int64), intent(in)  :: x, y
+        integer(int64), intent(out) :: z
+        logical,        intent(out) :: ok
+
+        z = 0_int64
+        ok = .false.
+        if (y > 0_int64) then
+            if (x > huge(0_int64) - y) return
+        else if (y < 0_int64) then
+            if (x < -huge(0_int64) - y) return
+        end if
+        z = x + y
+        ok = .true.
+    end subroutine iadd
+
     function gcd64(x, y) result(g)
         integer(int64), intent(in) :: x, y
         integer(int64) :: g, u, v, t
@@ -925,7 +1221,7 @@ contains
         ok = .false.
         why = ""
 
-        if (is_infinite_symbol(b)) then
+        if (has_infinite_symbol(b)) then
             why = side//" bound is infinite and no convergence test is "// &
                   "implemented"
             return
@@ -939,8 +1235,59 @@ contains
                   "index"
             return
         end if
+        if (.not. integral_bound(b)) then
+            why = side//" bound is not provably an integer index; only "// &
+                  "integers, symbols, and sums, products and non-negative "// &
+                  "integer powers of those are accepted"
+            return
+        end if
         ok = .true.
     end subroutine check_bound
+
+    !> Does an infinite name occur anywhere in the bound? A top-level test
+    !> misses -inf, which is the ordinary way an infinite lower bound is
+    !> written, and 2*oo; both would then be summed as finite unknowns.
+    recursive function has_infinite_symbol(b) result(yes)
+        type(expr_t), intent(in) :: b
+        logical :: yes
+        integer :: k
+
+        yes = .true.
+        if (is_infinite_symbol(b)) return
+        do k = 1, b%nargs()
+            if (has_infinite_symbol(b%arg(k))) return
+        end do
+        yes = .false.
+    end function has_infinite_symbol
+
+    !> Is this bound built only from things that take integer values at
+    !> integer symbol values? Symbols are taken to be integer indices -- that
+    !> is what a symbolic bound means here -- but anything that introduces a
+    !> fraction (a rational or real leaf, a division, a root) is not an index
+    !> and is refused rather than substituted into a closed form that would
+    !> return a confident non-integer answer.
+    recursive function integral_bound(b) result(yes)
+        type(expr_t), intent(in) :: b
+        logical :: yes
+        type(expr_t) :: expo
+        integer :: k
+
+        yes = .false.
+        select case (b%kind())
+        case (NK_INT, NK_SYM)
+            yes = .true.
+        case (NK_ADD, NK_MUL)
+            do k = 1, b%nargs()
+                if (.not. integral_bound(b%arg(k))) return
+            end do
+            yes = .true.
+        case (NK_POW)
+            expo = b%arg(2)
+            if (expo%kind() /= NK_INT) return
+            if (expo%int_value() < 0_int64) return
+            yes = integral_bound(b%arg(1))
+        end select
+    end function integral_bound
 
     !> The names an infinite bound arrives under. Matched by name because
     !> there is no infinity node kind; anything else symbolic is treated as an

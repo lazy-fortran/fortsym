@@ -22,7 +22,7 @@ program test_fortsym_polysolve
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
-    use fortsym_expr, only: expr_t, sym, num, rat, real_expr, func, sin, &
+    use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, func, sin, &
                             operator(+), operator(-), operator(*), &
                             operator(/), operator(**)
     use fortsym_polysolve, only: solve_polynomial
@@ -49,6 +49,7 @@ program test_fortsym_polysolve
     call test_constant_has_no_roots()
     call test_exact_forms()
     call test_refusals()
+    call test_untested_refusals()
 
     if (nfail /= 0) then
         print *, "test_fortsym_polysolve: ", nfail, " check(s) FAILED"
@@ -270,7 +271,7 @@ contains
     subroutine test_rational_coefficients()
         type(expr_t) :: x, e
         type(expr_t), allocatable :: roots(:)
-        logical :: good, fine
+        logical :: good, fine, fine_value
         character(:), allocatable :: why
         complex(dp) :: z, value
         integer :: k
@@ -284,8 +285,9 @@ contains
         all_zero = good
         do k = 1, size(roots)
             z = cev(roots(k), "x", (0.0_dp, 0.0_dp), fine)
-            value = cev(e, "x", z, fine)
             if (.not. fine) all_zero = .false.
+            value = cev(e, "x", z, fine_value)
+            if (.not. fine_value) all_zero = .false.
             if (abs(value) > TOL) all_zero = .false.
         end do
         call ok("rational-coefficient roots satisfy the equation", all_zero)
@@ -297,8 +299,9 @@ contains
         all_zero = good
         do k = 1, size(roots)
             z = cev(roots(k), "x", (0.0_dp, 0.0_dp), fine)
-            value = cev(e, "x", z, fine)
             if (.not. fine) all_zero = .false.
+            value = cev(e, "x", z, fine_value)
+            if (.not. fine_value) all_zero = .false.
             if (abs(value) > TOL) all_zero = .false.
         end do
         call ok("rational-discriminant surd roots verify", all_zero)
@@ -403,7 +406,8 @@ contains
         e = x*y - num(arena, 1)
         call solve_polynomial(arena, e, x, roots, good, why)
         call ok("x*y-1 is refused", .not. good)
-        call ok("refusal names the second symbol", index(why, "y") > 0)
+        call ok("refusal names the second symbol", &
+                index(why, "second free symbol y") > 0)
 
         e = real_expr(arena, 0.5_dp)*x + num(arena, 1)
         call solve_polynomial(arena, e, x, roots, good, why)
@@ -427,5 +431,82 @@ contains
         call solve_polynomial(arena, e, x, roots, good, why)
         call ok("an irrational coefficient is refused", .not. good)
     end subroutine test_refusals
+
+    !> Refusal paths the module documents but that nothing exercised: deep
+    !> nesting, the degree cap, a non-integer exponent, arbitrary-precision
+    !> coefficients, int64 overflow, and an arena mismatch. Each one must come
+    !> back as a refusal with a reason naming the actual obstruction.
+    subroutine test_untested_refusals()
+        type(arena_t), target :: other
+        type(expr_t) :: x, e, big, elsewhere
+        type(expr_t), allocatable :: roots(:)
+        logical :: good, made
+        character(:), allocatable :: why
+        integer :: k
+        integer(int64), parameter :: HALF_ROOT = 3037000500_int64
+
+        x = sym(arena, "x")
+
+        ! Deeply nested but perfectly legal linear polynomial. Depth 4000 used
+        ! to be a SIGSEGV inside the structural walk.
+        e = x
+        do k = 1, 12000
+            e = (e + num(arena, 1))*(x**0)
+        end do
+        call solve_polynomial(arena, e, x, roots, good, why)
+        call ok("a 12000-level nested equation is refused, not a crash", &
+                .not. good)
+        call ok("nesting refusal names the depth limit", &
+                index(why, "nests deeper") > 0)
+        call ok("nesting refusal returns no roots", size(roots) == 0)
+
+        ! Degree cap.
+        e = x**17 + num(arena, 1)
+        call solve_polynomial(arena, e, x, roots, good, why)
+        call ok("degree 17 is refused", .not. good)
+        call ok("degree refusal names the maximum", index(why, "degree") > 0)
+
+        ! Non-integer exponent: x**(1/2) as a power node with a rational
+        ! exponent, which is a different code path from sqrt(x).
+        e = x**rat(arena, 1_int64, 2_int64) - num(arena, 2)
+        call solve_polynomial(arena, e, x, roots, good, why)
+        call ok("x**(1/2) is refused", .not. good)
+        call ok("non-integer exponent refusal explains itself", &
+                index(why, "exponent") > 0 .or. index(why, "function") > 0)
+
+        ! Arbitrary-precision coefficient.
+        big = exact(arena, "9223372036854775808", made)
+        call ok("big-integer literal built", made)
+        if (made) then
+            e = x - big
+            call solve_polynomial(arena, e, x, roots, good, why)
+            call ok("an arbitrary-precision coefficient is refused", .not. good)
+            call ok("big-integer refusal names the precision limit", &
+                    index(why, "arbitrary-precision") > 0)
+        end if
+
+        ! int64 overflow while forming the discriminant.
+        e = num(arena, HALF_ROOT)*x**2 + num(arena, HALF_ROOT)*x &
+            - num(arena, HALF_ROOT)
+        call solve_polynomial(arena, e, x, roots, good, why)
+        call ok("a coefficient set that overflows int64 is refused", .not. good)
+        call ok("overflow refusal names the arithmetic", &
+                index(why, "overflow") > 0)
+
+        ! The one integer whose magnitude int64 cannot represent.
+        e = x - num(arena, -huge(0_int64) - 1_int64)
+        call solve_polynomial(arena, e, x, roots, good, why)
+        call ok("a coefficient of -2**63 is refused", .not. good)
+        call ok("-2**63 refusal names the arithmetic limit", &
+                index(why, "64-bit") > 0)
+
+        ! Arena mismatch.
+        call other%init()
+        elsewhere = sym(other, "x")
+        e = x**2 - num(arena, 1)
+        call solve_polynomial(arena, e, elsewhere, roots, good, why)
+        call ok("a variable from another arena is refused", .not. good)
+        call ok("arena refusal names the arenas", index(why, "arena") > 0)
+    end subroutine test_untested_refusals
 
 end program test_fortsym_polysolve

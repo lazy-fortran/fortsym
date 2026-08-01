@@ -26,13 +26,14 @@ program test_fortsym_trigrewrite
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
-    use fortsym_expr, only: expr_t, sym, num, rat, func, i_expr, &
+    use fortsym_expr, only: expr_t, sym, num, rat, func, i_expr, pi_expr, &
                             sin, cos, tan, exp, sqrt, sinh, cosh, tanh, &
                             besselj, &
                             operator(+), operator(-), operator(*), &
                             operator(/), operator(**), operator(==), &
                             operator(/=)
-    use fortsym_assume, only: assumption_context_t, assume, positive
+    use fortsym_assume, only: assumption_context_t, assume, positive, &
+                              real_valued
     use fortsym_trigrewrite, only: trig_expand, trig_reduce, trig_to_exp, &
                                    exp_to_trig, power_expand
     implicit none
@@ -64,6 +65,8 @@ program test_fortsym_trigrewrite
     call test_power_expand_refuses_sqrt_product()
     call test_power_expand_refuses_nested()
     call test_power_expand_with_positivity()
+    call test_power_expand_complex_positivity()
+    call test_power_expand_real_exponent_still_works()
 
     if (nfail /= 0) then
         print *, "test_fortsym_trigrewrite: ", nfail, " check(s) FAILED"
@@ -759,5 +762,107 @@ contains
         call power_expand(e, r, good, why, ctx)
         call ok("an unassumed factor still refuses", .not. good)
     end subroutine test_power_expand_with_positivity
+
+    !> Positivity inferred from shape, not from an assumption. exp(z) is
+    !> positive only for real z -- exp(i*pi) is -1 -- and b**p is positive
+    !> only when p is real as well -- 2**(5*i) sits on the unit circle. Each
+    !> case below first evaluates the unsound rewrite by hand and confirms it
+    !> really carries the wrong sign, so the refusal that follows is known to
+    !> be protecting something.
+    subroutine test_power_expand_complex_positivity()
+        type(expr_t) :: e, r, unsound, u, half, two
+        type(assumption_context_t) :: ctx
+        complex(dp) :: a, b
+        logical :: good, da, db
+        character(:), allocatable :: why
+
+        half = rat(arena, 1_int64, 2_int64)
+        two = num(arena, 2)
+        u = i_expr(arena)
+
+        ! (A) exp(i*pi) is -1, so the factors of the product are not positive.
+        e = sqrt(exp(u*pi_expr(arena))*exp(u*pi_expr(arena)))
+        unsound = sqrt(exp(u*pi_expr(arena)))*sqrt(exp(u*pi_expr(arena)))
+        a = ceval(e, (0.0_dp, 0.0_dp), (0.0_dp, 0.0_dp), (0.0_dp, 0.0_dp), da)
+        b = ceval(unsound, (0.0_dp, 0.0_dp), (0.0_dp, 0.0_dp), &
+                  (0.0_dp, 0.0_dp), db)
+        call ok("exp(i pi) case: both forms evaluate", da .and. db)
+        call ok("sqrt(exp(i pi)^2) is +1", abs(a - 1.0_dp) < 1.0e-12_dp)
+        call ok("sqrt(exp(i pi))^2 is -1", abs(b + 1.0_dp) < 1.0e-12_dp)
+        call power_expand(e, r, good, why)
+        call ok("sqrt(exp(i pi)*exp(i pi)) is refused", .not. good)
+        call ok("exp(i pi) refusal returns the input", r == e)
+        call ok("exp(i pi) refusal explains itself", len(why) > 0)
+
+        ! (B) 2**(5*i) has modulus one and is not positive.
+        e = sqrt((two**(u*num(arena, 5)))*(two**(u*num(arena, 5))))
+        unsound = sqrt(two**(u*num(arena, 5)))*sqrt(two**(u*num(arena, 5)))
+        a = ceval(e, (0.0_dp, 0.0_dp), (0.0_dp, 0.0_dp), (0.0_dp, 0.0_dp), da)
+        b = ceval(unsound, (0.0_dp, 0.0_dp), (0.0_dp, 0.0_dp), &
+                  (0.0_dp, 0.0_dp), db)
+        call ok("2**(5i) case: both forms evaluate", da .and. db)
+        call ok("2**(5i) split is genuinely false", abs(a - b) > 1.0_dp)
+        call power_expand(e, r, good, why)
+        call ok("sqrt(2**(5i)*2**(5i)) is refused", .not. good)
+
+        ! (C) the (a**m)**p collapse with a positive literal base but a
+        ! complex m.
+        e = (two**(u*num(arena, 5)))**half
+        unsound = two**(u*num(arena, 5)*half)
+        a = ceval(e, (0.0_dp, 0.0_dp), (0.0_dp, 0.0_dp), (0.0_dp, 0.0_dp), da)
+        b = ceval(unsound, (0.0_dp, 0.0_dp), (0.0_dp, 0.0_dp), &
+                  (0.0_dp, 0.0_dp), db)
+        call ok("(2**(5i))**(1/2) case: both forms evaluate", da .and. db)
+        call ok("(2**(5i))**(1/2) collapse is genuinely false", &
+                abs(a - b) > 1.0_dp)
+        call power_expand(e, r, good, why)
+        call ok("(2**(5i))**(1/2) is refused", .not. good)
+        call ok("nested complex-exponent refusal names m", &
+                index(why, "real m") > 0)
+
+        ! (D) the same defect reached through sqrt(a**m).
+        e = sqrt(two**(u*num(arena, 5)))
+        a = ceval(e, (0.0_dp, 0.0_dp), (0.0_dp, 0.0_dp), (0.0_dp, 0.0_dp), da)
+        call ok("sqrt(2**(5i)) evaluates", da)
+        call ok("sqrt(2**(5i)) differs from 2**(5i/2)", abs(a - b) > 1.0_dp)
+        call power_expand(e, r, good, why)
+        call ok("sqrt(2**(5i)) is refused", .not. good)
+        call ok("sqrt refusal names the unreal exponent", &
+                index(why, "real") > 0)
+
+        ! (E) an honest positivity assumption does not rescue a complex m.
+        call ctx%init(arena)
+        call assume(ctx, positive(x))
+        e = (x**(num(arena, 5)*u))**half
+        call power_expand(e, r, good, why, ctx)
+        call ok("positive x does not license a complex inner exponent", &
+                .not. good)
+    end subroutine test_power_expand_complex_positivity
+
+    !> The narrowing must not have swallowed the sound cases: with the
+    !> exponent known real the same shapes still rewrite, and still agree.
+    subroutine test_power_expand_real_exponent_still_works()
+        type(expr_t) :: e, r
+        type(assumption_context_t) :: ctx
+        logical :: good
+        character(:), allocatable :: why
+
+        call ctx%init(arena)
+        call assume(ctx, real_valued(x))
+        call assume(ctx, real_valued(y))
+
+        e = sqrt(exp(x)*exp(y))
+        call power_expand(e, r, good, why, ctx)
+        call ok("sqrt(exp(x)exp(y)) splits for real x, y", good)
+        call ok("sqrt(exp(x)exp(y)) actually changed", r /= e)
+        call agrees("sqrt(exp x exp y) split is exact for real x, y", e, r, &
+                    .false., 0.0_dp)
+
+        e = sqrt(num(arena, 2)**x)
+        call power_expand(e, r, good, why, ctx)
+        call ok("sqrt(2**x) collapses for real x", good)
+        call agrees("sqrt(2**x) collapse is exact for real x", e, r, .false., &
+                    0.0_dp)
+    end subroutine test_power_expand_real_exponent_still_works
 
 end program test_fortsym_trigrewrite

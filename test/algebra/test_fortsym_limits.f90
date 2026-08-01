@@ -50,6 +50,8 @@ program test_fortsym_limits
     call test_lhopital_cap_refused()
     call test_boundary_refused()
     call test_bad_input_refused()
+    call test_variable_exponent_refused()
+    call test_small_leading_coefficient()
 
     if (nfail /= 0) then
         print *, "test_fortsym_limits: ", nfail, " check(s) FAILED"
@@ -119,7 +121,16 @@ contains
             prev = err
             h = h*0.5_dp
         end do
-        good = prev < 2.0e-3_dp .and. prev < 0.05_dp*first_err
+        ! The decay requirement is what rejects a wrong constant: if L were off
+        ! by delta the error would settle at delta instead of falling. When the
+        ! very first sample is exact there is no error to decay, and demanding
+        ! prev < 0.05*0 would fail a correct answer, so that case is carried by
+        ! the smallness bound alone.
+        if (first_err == 0.0_dp) then
+            good = prev < 2.0e-3_dp
+        else
+            good = prev < 2.0e-3_dp .and. prev < 0.05_dp*first_err
+        end if
     end function converges
 
     !> An infinite claim: magnitude must climb past a large threshold with one
@@ -246,13 +257,19 @@ contains
         call ok("(3x^2+2)/(x^2-5) answered", good)
         if (good) then
             call numeric_value(r%value, L, vgood, inner)
-            call ok("ratio is finite", r%kind == LIMIT_FINITE .and. vgood)
+            call ok("ratio kind is finite", r%kind == LIMIT_FINITE)
+            call ok("ratio is a number", vgood)
             v = sample(e, 1.0e6_dp, defined)
-            call ok("ratio matches a far sample", &
-                    defined .and. abs(v - L) < 1.0e-6_dp)
+            call ok("far sample is defined", defined)
+            if (defined) then
+                call ok("ratio matches a far sample", abs(v - L) < 1.0e-6_dp)
+            end if
             v = sample(e, 1.0e8_dp, defined)
-            call ok("ratio matches a farther sample", &
-                    defined .and. abs(v - L) < 1.0e-9_dp)
+            call ok("farther sample is defined", defined)
+            if (defined) then
+                call ok("ratio matches a farther sample", &
+                        abs(v - L) < 1.0e-9_dp)
+            end if
         else
             print *, "       refusal: ", why
         end if
@@ -262,10 +279,13 @@ contains
         call ok("(x+1)/(x^2+1) answered", good)
         if (good) then
             call numeric_value(r%value, L, vgood, inner)
-            call ok("decaying ratio is zero", vgood .and. L == 0.0_dp)
+            call ok("decaying ratio is a number", vgood)
+            if (vgood) call ok("decaying ratio is zero", L == 0.0_dp)
             v = sample(e, 1.0e7_dp, defined)
-            call ok("decaying ratio sampled near zero", &
-                    defined .and. abs(v) < 1.0e-6_dp)
+            call ok("decaying sample is defined", defined)
+            if (defined) then
+                call ok("decaying ratio sampled near zero", abs(v) < 1.0e-6_dp)
+            end if
         end if
     end subroutine test_rational_at_infinity
 
@@ -325,8 +345,10 @@ contains
         if (good) then
             call ok("x^2 exp(-x) is zero", r%kind == LIMIT_FINITE)
             v = sample(e, 100.0_dp, defined)
-            call ok("x^2 exp(-x) sampled near zero", &
-                    defined .and. abs(v) < 1.0e-30_dp)
+            call ok("x^2 exp(-x) sample is defined", defined)
+            if (defined) then
+                call ok("x^2 exp(-x) sampled near zero", abs(v) < 1.0e-30_dp)
+            end if
         else
             print *, "       refusal: ", why
         end if
@@ -350,8 +372,10 @@ contains
         if (good) then
             call ok("log(x)/x is zero", r%kind == LIMIT_FINITE)
             v = sample(e, 1.0e8_dp, defined)
-            call ok("log(x)/x sampled near zero", &
-                    defined .and. abs(v) < 1.0e-6_dp)
+            call ok("log(x)/x sample is defined", defined)
+            if (defined) then
+                call ok("log(x)/x sampled near zero", abs(v) < 1.0e-6_dp)
+            end if
         else
             print *, "       refusal: ", why
         end if
@@ -383,9 +407,15 @@ contains
         call ok("constant expression answered", good)
         if (.not. good) return
         call numeric_value(r%value, L, vgood, inner)
+        call ok("constant limit is a number", vgood)
         v = sample(e, 3.0_dp, defined)
-        call ok("constant limit equals the constant", &
-                vgood .and. defined .and. abs(v - L) < 1.0e-14_dp)
+        call ok("constant sample is defined", defined)
+        if (vgood) then
+            if (defined) then
+                call ok("constant limit equals the constant", &
+                        abs(v - L) < 1.0e-14_dp)
+            end if
+        end if
     end subroutine test_constant_expression
 
     !> 1/x at 0 has one-sided limits of opposite sign. The only acceptable
@@ -407,8 +437,14 @@ contains
         ! The oracle for the refusal: the two sides really do disagree.
         below = sample(e, -1.0e-6_dp, d1)
         above = sample(e, 1.0e-6_dp, d2)
-        call ok("1/x sides have opposite signs", &
-                d1 .and. d2 .and. below < 0.0_dp .and. above > 0.0_dp)
+        call ok("1/x samples are defined on both sides", d1)
+        call ok("1/x samples are defined above", d2)
+        if (d1) then
+            if (d2) then
+                call ok("1/x sides have opposite signs", &
+                        below < 0.0_dp .and. above > 0.0_dp)
+            end if
+        end if
 
         r = limit_of(arena, e, x, finite_point(num(arena, 0)), FROM_ABOVE, &
                      good, why)
@@ -500,5 +536,103 @@ contains
         r = limit_of(arena, e, x, finite_point(num(arena, 1)), 7, good, why)
         call ok("unknown direction is refused", .not. good)
     end subroutine test_bad_input_refused
+
+    !> A variable exponent must not be allowed to pass the domain check just
+    !> because it collapses to an integer at this one point. x**x at 0 turns
+    !> into 0**0 and (x-1)**x at 0 into (-1)**0; both look like a harmless
+    !> integer power after substitution, but the function is not real-valued on
+    !> a neighbourhood of the point. The oracle is the evaluator itself: it
+    !> reports the expression as undefined at every sampled point on the left,
+    !> so no two-sided limit exists and no one-sided request may be answered
+    !> with the value from the other side.
+    subroutine test_variable_exponent_refused()
+        type(expr_t) :: e
+        type(limit_value_t) :: r
+        logical :: good, dl1, dl2
+        character(:), allocatable :: why
+        real(dp) :: probe(4)
+        integer :: k, ndef
+
+        e = x**x
+        r = limit_of(arena, e, x, finite_point(num(arena, 0)), TWO_SIDED, &
+                     good, why)
+        call ok("x**x at 0 two-sided is refused", .not. good)
+        if (good) print *, "       wrongly answered"
+        r = limit_of(arena, e, x, finite_point(num(arena, 0)), FROM_BELOW, &
+                     good, why)
+        call ok("x**x at 0 from below is refused", .not. good)
+        r = limit_of(arena, e, x, finite_point(num(arena, 0)), FROM_ABOVE, &
+                     good, why)
+        call ok("x**x at 0 from above is refused", .not. good)
+
+        ! Oracle: x**x is undefined for x < 0, so there is no left limit.
+        call ignored(sample(e, -0.1_dp, dl1))
+        call ignored(sample(e, -0.01_dp, dl2))
+        call ok("x**x really is undefined below 0", (.not. dl1) .and. &
+                (.not. dl2))
+
+        e = (x - num(arena, 1))**x
+        r = limit_of(arena, e, x, finite_point(num(arena, 0)), TWO_SIDED, &
+                     good, why)
+        call ok("(x-1)**x at 0 two-sided is refused", .not. good)
+        r = limit_of(arena, e, x, finite_point(num(arena, 0)), FROM_BELOW, &
+                     good, why)
+        call ok("(x-1)**x at 0 from below is refused", .not. good)
+        r = limit_of(arena, e, x, finite_point(num(arena, 0)), FROM_ABOVE, &
+                     good, why)
+        call ok("(x-1)**x at 0 from above is refused", .not. good)
+
+        ! Oracle: undefined on both sides, because the base is negative there.
+        probe = [-0.1_dp, -0.01_dp, 0.01_dp, 0.1_dp]
+        ndef = 0
+        do k = 1, 4
+            call ignored(sample(e, probe(k), dl1))
+            if (dl1) ndef = ndef + 1
+        end do
+        call ok("(x-1)**x really is undefined on both sides", ndef == 0)
+    end subroutine test_variable_exponent_refused
+
+    !> A leading coefficient that is small but exactly nonzero still fixes the
+    !> sign of a divergence. x/10^10 at +infinity is decidable, and refusing it
+    !> because a double probe lands under a fixed margin would break every
+    !> problem scaled into physical units. The oracle only knows the samples.
+    subroutine test_small_leading_coefficient()
+        type(expr_t) :: e
+        type(limit_value_t) :: r
+        logical :: good
+        character(:), allocatable :: why
+        real(dp) :: up(8)
+        integer :: k
+
+        do k = 1, 8
+            up(k) = 10.0_dp**(k + 9)
+        end do
+
+        e = rat(arena, 1_int64, 10000000000_int64)*x
+        r = limit_of(arena, e, x, plus_infinity(), TWO_SIDED, good, why)
+        call ok("x/10^10 at +inf is answered", good)
+        if (good) then
+            call ok("x/10^10 at +inf is +infinity", r%kind == LIMIT_PLUS_INF)
+            call ok("x/10^10 samples diverge upwards", &
+                    diverges(e, up, .true.))
+        else
+            print *, "       refusal: ", why
+        end if
+
+        r = limit_of(arena, e, x, minus_infinity(), TWO_SIDED, good, why)
+        call ok("x/10^10 at -inf is answered", good)
+        if (good) then
+            call ok("x/10^10 at -inf is -infinity", r%kind == LIMIT_MINUS_INF)
+            call ok("x/10^10 samples diverge downwards", &
+                    diverges(e, -up, .false.))
+        end if
+    end subroutine test_small_leading_coefficient
+
+    !> Swallow a sample whose value is irrelevant; only its definedness flag is
+    !> under test.
+    subroutine ignored(v)
+        real(dp), intent(in) :: v
+        if (v /= v) return
+    end subroutine ignored
 
 end program test_fortsym_limits

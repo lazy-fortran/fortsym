@@ -287,6 +287,7 @@ contains
         type(expr_t) :: base, expo, slope, offset
         real(dp) :: expo_value, base_value
         logical  :: linear, numeric_expo, numeric_base
+        logical  :: minus_one, minus_half, quadratic_base
 
         found = .false.
         why = ""
@@ -331,19 +332,30 @@ contains
 
         call number_of(expo, expo_value, numeric_expo)
 
+        ! The branch between the logarithm and the power rule is decided on the
+        ! exact exponent node, never on its double approximation: an exponent
+        ! such as -100000000000000001/100000000000000000 rounds to -1.0 in
+        ! real64 while its antiderivative is a power, not a logarithm.
+        minus_one = exponent_equals(expo, -1_int64, 1_int64)
+        minus_half = exponent_equals(expo, -1_int64, 2_int64)
+
         ! 1/q and 1/sqrt(q) for a quadratic q. Tried before the linear-base
         ! rule fails, because a quadratic base is not linear.
-        if (numeric_expo) then
-            if (expo_value == -1.0_dp .or. expo_value == -0.5_dp) then
-                f = integrate_quadratic(eng, base, expo_value, v, found, why)
-                if (found) return
-            end if
+        quadratic_base = .false.
+        if (minus_one .or. minus_half) then
+            f = integrate_quadratic(eng, base, minus_one, v, found, &
+                                    quadratic_base, why)
+            if (found) return
         end if
 
         call linear_in(eng, base, v, slope, offset, linear)
         if (.not. linear) then
-            why = "power of a base that is neither linear nor a quadratic "// &
-                  "this module recognises"
+            ! Keep the quadratic rule's reason when it applies: it names the
+            ! branch that is missing, which the generic message does not.
+            if (.not. quadratic_base) then
+                why = "power of a base that is neither linear nor a "// &
+                      "quadratic this module recognises"
+            end if
             return
         end if
 
@@ -353,8 +365,12 @@ contains
             return
         end if
 
-        if (expo_value == -1.0_dp) then
-            f = log(base)/slope
+        if (minus_one) then
+            ! log|base|, written as log(base**2)/2 so that the answer is real
+            ! and correct on both sides of the zero of the base. Emitting
+            ! log(base) would be undefined exactly where the integrand is
+            ! perfectly regular.
+            f = log(base*base)*rat(e%a, 1_int64, 2_int64)/slope
         else
             f = base**(expo + 1)/(slope*(expo + 1))
         end if
@@ -372,11 +388,13 @@ contains
     !> discriminant under 1/q, which is a partial-fraction logarithm, and the
     !> degenerate double root -- is refused, because doing the logarithmic case
     !> properly is the rational-function algorithm this module does not have.
-    function integrate_quadratic(eng, q, expo_value, v, found, why) result(f)
+    function integrate_quadratic(eng, q, reciprocal, v, found, recognised, &
+                                 why) result(f)
         type(native_engine_t),     intent(inout) :: eng
         type(expr_t),              intent(in)    :: q, v
-        real(dp),                  intent(in)    :: expo_value
+        logical,                   intent(in)    :: reciprocal
         logical,                   intent(out)   :: found
+        logical,                   intent(out)   :: recognised
         character(:), allocatable, intent(out)   :: why
         type(expr_t)                             :: f
         type(expr_t) :: c2, c1, c0, root, u
@@ -384,6 +402,7 @@ contains
         logical  :: quadratic, n2, n1, n0
 
         found = .false.
+        recognised = .false.
         why = ""
         f = num(q%a, 0)
 
@@ -411,9 +430,10 @@ contains
             return
         end if
 
+        recognised = .true.
         disc = v1*v1 - 4.0_dp*v2*v0
 
-        if (expo_value == -1.0_dp) then
+        if (reciprocal) then
             ! Integral dv/q = 2/sqrt(-D) * atan((2*c2*v + c1)/sqrt(-D)),
             ! valid when D < 0, where the denominator has no real zero.
             if (disc >= 0.0_dp) then
@@ -479,7 +499,9 @@ contains
         select case (name)
         case ("sin");  primitive = -cos(u)
         case ("cos");  primitive = sin(u)
-        case ("tan");  primitive = -log(cos(u))
+        ! -log|cos u|, written with the square so that it stays real where
+        ! cos u < 0 and tan u is perfectly regular.
+        case ("tan");  primitive = -log(cos(u)*cos(u))*rat(e%a, 1_int64, 2_int64)
         case ("exp");  primitive = exp(u)
         case ("sinh"); primitive = cosh(u)
         case ("cosh"); primitive = sinh(u)
@@ -526,6 +548,16 @@ contains
         if (verdict%ok) then
             if (verdict%verdict == VERDICT_TRUE) then
                 good = .true.
+                return
+            end if
+            ! A VERDICT_FALSE is a proof that the residual is a nonzero
+            ! number, so the candidate is wrong. Sampling cannot overrule a
+            ! proof, and a residual smaller than the sample tolerance would
+            ! otherwise let it.
+            if (verdict%verdict == VERDICT_FALSE) then
+                why = "the derivative of the candidate does not reproduce "// &
+                      "the integrand (the symbolic zero test proved the "// &
+                      "residual is nonzero)"
                 return
             end if
         end if
@@ -763,6 +795,40 @@ contains
         call number_of(expo, value, numeric)
         yes = numeric
     end function is_numeric_power_of_sqrt
+
+    !> Is `e` exactly the rational p/q? Decided on the exact node, never on a
+    !> double: an exponent one part in 10**17 away from -1 rounds to -1.0 in
+    !> real64 and would otherwise be integrated as a logarithm.
+    function exponent_equals(e, p, q) result(yes)
+        type(expr_t),   intent(in) :: e
+        integer(int64), intent(in) :: p, q
+        logical                    :: yes
+        integer(int64) :: n, d
+
+        yes = .false.
+        select case (e%kind())
+        case (NK_INT)
+            n = e%int_value()
+            d = 1_int64
+        case (NK_RAT)
+            n = e%int_value()
+            d = e%den_value()
+        case (NK_REAL)
+            ! -1 and -1/2 are exact in binary, so an exact comparison is the
+            ! right test here and no rounding slack is granted.
+            yes = e%real_value() == real(p, dp)/real(q, dp)
+            return
+        case default
+            return
+        end select
+        if (d == 0_int64) return
+        ! Keep the cross multiplication inside int64. A magnitude this large
+        ! cannot be the normalised form of -1 or -1/2 anyway, so refusing to
+        ! decide it is the same answer as deciding it.
+        if (abs(n) > huge(1_int64)/4_int64) return
+        if (abs(d) > huge(1_int64)/4_int64) return
+        yes = n*q == p*d
+    end function exponent_equals
 
     function itoa(n) result(text)
         integer, intent(in) :: n

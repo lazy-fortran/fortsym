@@ -42,16 +42,26 @@ module fortsym_complexdom
         sin, cos, sinh, cosh, exp, sqrt, atan2, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_assume, only: assumption_context_t, FACT_REAL
+    use fortsym_engine, only: engine_result_t, VERDICT_TRUE
+    use fortsym_engine_native, only: native_engine_t, make_native_engine
     implicit none
     private
 
     public :: complex_split, re_part, im_part, conjugate
     public :: arg_of, abs_of, complex_expand
 
-    ! A power is expanded by repeated multiplication, so the work grows with the
-    ! exponent. Past this the honest answer is a refusal rather than an
-    ! expression nobody can read or evaluate.
+    ! A power is expanded by repeated multiplication, so the *number of
+    ! multiplications* grows with the exponent. This bounds that loop.
     integer(int64), parameter :: MAX_POWER = 24_int64
+
+    ! What the loop count does not bound is the size of the result. Splitting
+    ! z = x + i*y and raising it to the n-th power produces 2**n terms, so a
+    ! cap on the exponent alone permits results nobody can read, evaluate or
+    ! compile, and a cap applied per node is bypassed outright by nesting:
+    ! (z**24)**24 has an effective exponent of 576. So the real bound is on the
+    ! expanded term count, computed over the whole sub-expression before any
+    ! work is done. 4096 = 2**12 admits z**12 and refuses z**13.
+    integer(int64), parameter :: MAX_TERMS = 4096_int64
 
 contains
 
@@ -71,6 +81,12 @@ contains
         why = ""
         if (.not. is_valid(e)) then
             why = "invalid expression has no real and imaginary parts"
+            return
+        end if
+        if (expansion_terms(e) > MAX_TERMS) then
+            why = "the rectangular expansion of this expression would have "// &
+                  "more than 4096 terms, which is past what this module "// &
+                  "will build"
             return
         end if
 
@@ -238,8 +254,22 @@ contains
         end do
 
         if (n < 0_int64) then
-            ! 1/(p + i q) = (p - i q)/(p^2 + q^2). The quotient inherits the
-            ! pole of the original expression at p = q = 0 and adds none.
+            ! 1/(p + i q) = (p - i q)/(p^2 + q^2). For a base that is not
+            ! identically zero the quotient inherits the pole of the original
+            ! expression at p = q = 0 and adds none, which is the general case.
+            ! A base that is identically zero is the degenerate one: there the
+            ! formula divides by an identically zero denominator and would hand
+            ! back a pair of NaNs while claiming success, so it is refused. The
+            ! test is a decision, not a syntax match: 0**(-1) and
+            ! (i*i + 1)**(-1) are the same expression to it.
+            if (provably_zero(base_re)) then
+                if (provably_zero(base_im)) then
+                    ok = .false.
+                    why = "the base of this negative power is identically "// &
+                          "zero, so the expression has no value anywhere"
+                    return
+                end if
+            end if
             den = re*re + im*im
             nre = re/den
             nim = -(im/den)
@@ -328,6 +358,16 @@ contains
     !> functions, so the recursion below never needs the parts. That makes it an
     !> independent check on the splitter rather than a restatement of it, and it
     !> keeps the result small -- conj(z**5) stays a fifth power.
+    !>
+    !> Its domain is deliberately wider than `complex_split`'s, and the two do
+    !> not line up: `conj(z**0)` and `conj(z**1000)` succeed where the splitter
+    !> refuses. That is not an oversight. The splitter refuses those because it
+    !> would have to *build* the expansion, and the size of that expansion (or,
+    !> at exponent 0, the value at the removable point) is the obstruction.
+    !> Conjugation builds nothing: `conj(w**n) = conj(w)**n` holds wherever
+    !> `w**n` is defined, whatever n is, so there is nothing here to refuse. The
+    !> consequence a caller must expect is that `abs_of(e)` can refuse an `e`
+    !> that `conjugate(e)` handles.
     recursive subroutine conjugate(e, facts, out, ok, why)
         type(expr_t),               intent(in)  :: e
         type(assumption_context_t), intent(in)  :: facts
@@ -445,7 +485,12 @@ contains
     !> explicitly: atan2 pins the result to (-pi, pi] with the same convention
     !> Fortran and C use, so a generated kernel and the symbolic form agree.
     !> The origin, where the argument is undefined rather than merely
-    !> multivalued, is refused when it can be recognised outright.
+    !> multivalued, is refused whenever the parts can be *decided* to be zero
+    !> rather than merely spelled `0`: `Arg[z - z]` and `Arg[0*x]` are refused
+    !> for the same reason `Arg[0]` is. Zero-testing is not decidable in
+    !> general, so an expression that is identically zero and that the zero
+    !> test cannot see through still gets an atan2 back; the refusal covers
+    !> what can be decided, not everything that is true.
     subroutine arg_of(e, facts, out, ok, why)
         type(expr_t),               intent(in)  :: e
         type(assumption_context_t), intent(in)  :: facts
@@ -456,8 +501,8 @@ contains
 
         call complex_split(e, facts, re, im, ok, why)
         if (.not. ok) return
-        if (is_literal_zero(re)) then
-            if (is_literal_zero(im)) then
+        if (provably_zero(re)) then
+            if (provably_zero(im)) then
                 ok = .false.
                 why = "Arg is undefined at zero"
                 return
@@ -481,18 +526,112 @@ contains
         out = re + i_expr(e%a)*im
     end subroutine complex_expand
 
-    !> Recognises the interned integer zero only. A structurally different but
-    !> mathematically zero expression is not claimed to be zero here, which is
-    !> the conservative direction: it costs an unnecessary Arg, never a wrong
-    !> one.
-    function is_literal_zero(e) result(yes)
+    !> Decides "is this expression identically zero?", one-sided.
+    !>
+    !> `.true.` means zero was *proved*; `.false.` means "not zero, or not
+    !> decided", and every caller treats it as "carry on". Matching the literal
+    !> node `0` would be no test at all -- the arena does not fold, so `x - x`,
+    !> `0*x` and `i*i + 1` all reach here unfolded -- so the work is handed to
+    !> the native engine's zero test, which normalises first and answers three
+    !> valued. Only VERDICT_TRUE counts.
+    function provably_zero(e) result(yes)
         type(expr_t), intent(in) :: e
         logical                  :: yes
+        type(native_engine_t) :: eng
+        type(engine_result_t) :: r
 
         yes = .false.
-        if (e%kind() /= NK_INT) return
-        yes = e%int_value() == 0_int64
-    end function is_literal_zero
+        if (.not. is_valid(e)) return
+        if (e%kind() == NK_INT) then
+            yes = e%int_value() == 0_int64
+            return
+        end if
+        eng = make_native_engine(e%a)
+        r = eng%zero_test(e)
+        if (.not. r%ok) return
+        yes = r%verdict == VERDICT_TRUE
+    end function provably_zero
+
+    !> An upper bound on the number of terms the rectangular expansion of `e`
+    !> would have, saturating at MAX_TERMS + 1 so a nested power cannot
+    !> overflow the count on its way to being refused.
+    !>
+    !> The recursion is memoised on arena node ids. Without that a shared DAG
+    !> (`u = t*t`, `v = u*u`, ...) would be walked as the tree it unfolds to,
+    !> which is exactly the blow-up this function exists to prevent.
+    function expansion_terms(e) result(n)
+        type(expr_t), intent(in) :: e
+        integer(int64)           :: n
+        integer(int64), allocatable :: memo(:)
+
+        allocate (memo(e%a%size()))
+        memo = -1_int64
+        n = terms_of(e, memo)
+    end function expansion_terms
+
+    recursive function terms_of(e, memo) result(n)
+        type(expr_t),   intent(in)    :: e
+        integer(int64), intent(inout) :: memo(:)
+        integer(int64)                :: n
+        type(expr_t)   :: expo
+        integer(int64) :: w, p
+        integer        :: k
+
+        n = 1_int64
+        if (e%id < 1 .or. e%id > size(memo)) return
+        if (memo(e%id) >= 0_int64) then
+            n = memo(e%id)
+            return
+        end if
+
+        select case (e%kind())
+        case (NK_ADD)
+            n = 0_int64
+            do k = 1, e%nargs()
+                n = n + terms_of(e%arg(k), memo)
+                if (n > MAX_TERMS) exit
+            end do
+        case (NK_MUL)
+            n = 1_int64
+            do k = 1, e%nargs()
+                n = n*terms_of(e%arg(k), memo)
+                if (n > MAX_TERMS) exit
+            end do
+        case (NK_POW)
+            expo = e%arg(2)
+            if (expo%kind() /= NK_INT) then
+                ! Refused elsewhere for a better reason than its size.
+                n = 1_int64
+            else
+                w = terms_of(e%arg(1), memo)
+                if (w <= 1_int64) then
+                    ! A base that stays one term stays one term at any
+                    ! exponent, and the loop below must not be run 10**18
+                    ! times to discover that.
+                    n = w
+                else
+                    n = 1_int64
+                    do p = 1_int64, abs(expo%int_value())
+                        n = n*w
+                        if (n > MAX_TERMS) exit
+                    end do
+                end if
+            end if
+        case (NK_FUNC)
+            ! exp, sin and cos of a split argument each cost two products of
+            ! the parts; other heads are refused before size matters.
+            n = 1_int64
+            do k = 1, e%nargs()
+                n = n*2_int64*terms_of(e%arg(k), memo)
+                if (n > MAX_TERMS) exit
+            end do
+        case default
+            n = 1_int64
+        end select
+
+        if (n > MAX_TERMS) n = MAX_TERMS + 1_int64
+        memo(e%id) = n
+    end function terms_of
 
     function zero(e) result(z)
         type(expr_t), intent(in) :: e

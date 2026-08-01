@@ -43,6 +43,11 @@ program test_fortsym_sums
     call test_refusals()
     call test_products()
     call test_product_refusals()
+    call test_huge_concrete_span()
+    call test_non_integer_bounds()
+    call test_wrapped_infinities()
+    call test_telescoping_poles()
+    call test_zero_ratio_product()
 
     if (nfail /= 0) then
         print *, "test_fortsym_sums: ", nfail, " check(s) FAILED"
@@ -517,5 +522,142 @@ contains
                                 n, eok, why)
         call ok("product of sin(k) is refused", .not. eok)
     end subroutine test_product_refusals
+
+    !> A concrete range whose term count overflows int64. `up - lo + 1` wraps
+    !> negative for a span of 2**63 and slips under the expansion cap, so the
+    !> module used to enter a 9.2e18-iteration loop instead of answering. The
+    !> body has a closed form, so the right answer is the closed form; the
+    !> oracle is the textbook L(L+1)(2L+1)/3 for sum_{k=-L}^{L} k**2, which
+    !> shares no code with Faulhaber's Bernoulli recurrence.
+    subroutine test_huge_concrete_span()
+        type(expr_t) :: s
+        real(dp) :: v, expected, big
+        logical :: good, eok
+        character(:), allocatable :: why
+        integer(int64), parameter :: half = 4611686018427387904_int64
+
+        s = sum_closed_form(arena, k**2, k, num(arena, -half), &
+                            num(arena, half), eok, why)
+        call ok("sum k**2 over a 2**63-wide range is answered, not looped", eok)
+        if (eok) then
+            call numeric_value(s, v, good, why)
+            big = real(half, dp)
+            expected = big*(big + 1.0_dp)*(2.0_dp*big + 1.0_dp)/3.0_dp
+            call ok("2**63-wide power sum matches L(L+1)(2L+1)/3", good)
+            if (good) then
+                call ok("2**63-wide power sum value is right", &
+                        abs(v - expected) <= 1.0e-9_dp*abs(expected))
+            end if
+        end if
+
+        ! Same range, a body with no closed form: a refusal naming the cap,
+        ! still not a loop.
+        s = sum_closed_form(arena, func("sin", [k]), k, num(arena, -half), &
+                            num(arena, half), eok, why)
+        call ok("2**63-wide sin sum is refused", .not. eok)
+        call ok("overflowing span refusal names the cap", index(why, "cap") > 0)
+    end subroutine test_huge_concrete_span
+
+    !> Non-integer bounds were only caught as bare literals, so any bound built
+    !> from operators produced a confident non-integer answer.
+    subroutine test_non_integer_bounds()
+        type(expr_t) :: s, root2, halfn
+        logical :: eok
+        character(:), allocatable :: why
+
+        root2 = num(arena, 2)**rat(arena, 1_int64, 2_int64)
+        s = sum_closed_form(arena, k, k, num(arena, 1), root2, eok, why)
+        call ok("sqrt(2) as an upper bound is refused", .not. eok)
+        call ok("sqrt(2) refusal says the bound is not an integer index", &
+                index(why, "integer index") > 0)
+
+        halfn = n/num(arena, 2)
+        s = sum_closed_form(arena, k, k, num(arena, 1), halfn, eok, why)
+        call ok("n/2 as an upper bound is refused", .not. eok)
+
+        s = product_closed_form(arena, num(arena, 2)**k, k, num(arena, 1), &
+                                halfn, eok, why)
+        call ok("n/2 as a product upper bound is refused", .not. eok)
+    end subroutine test_non_integer_bounds
+
+    !> An infinite bound wrapped in anything at all used to pass as a finite
+    !> unknown, and a divergent sum was answered.
+    subroutine test_wrapped_infinities()
+        type(expr_t) :: s, minf, twice_oo
+        logical :: eok
+        character(:), allocatable :: why
+
+        minf = num(arena, -1)*sym(arena, "inf")
+        s = sum_closed_form(arena, num(arena, 2)**k, k, minf, n, eok, why)
+        call ok("-1*inf as a lower bound is refused", .not. eok)
+        call ok("-inf refusal mentions convergence", &
+                index(why, "convergence") > 0)
+
+        twice_oo = num(arena, 2)*sym(arena, "oo")
+        s = sum_closed_form(arena, k, k, num(arena, 1), twice_oo, eok, why)
+        call ok("2*oo as an upper bound is refused", .not. eok)
+
+        s = product_closed_form(arena, num(arena, 2)**k, k, num(arena, 1), &
+                                twice_oo, eok, why)
+        call ok("2*oo as a product upper bound is refused", .not. eok)
+    end subroutine test_wrapped_infinities
+
+    !> Telescoping collapses to f(upper+1) - f(lower), which stays finite even
+    !> when a term in between divides by zero. With both bounds symbolic there
+    !> is no way to rule the pole out, so the answer must be a refusal; with a
+    !> concrete lower bound above the pole the closed form is issued and must
+    !> still match a loop.
+    subroutine test_telescoping_poles()
+        type(expr_t) :: s, body, m
+        real(dp) :: v, expected
+        logical :: good, eok
+        character(:), allocatable :: why
+        integer :: i
+
+        m = sym(arena, "m")
+        body = num(arena, 1)/(k + 1) - num(arena, 1)/k
+        s = sum_closed_form(arena, body, k, m, n, eok, why)
+        call ok("telescoping sum with symbolic bounds is refused", .not. eok)
+        call ok("pole refusal names the denominator", &
+                index(why, "denominator") > 0)
+
+        body = (k + 1)/k
+        s = product_closed_form(arena, body, k, m, n, eok, why)
+        call ok("telescoping product with symbolic bounds is refused", &
+                .not. eok)
+        call ok("product pole refusal names the denominator", &
+                index(why, "denominator") > 0)
+
+        ! A concrete range that is too wide to expand, with the pole at k = 0
+        ! safely below the lower bound: still answered, and still right.
+        body = num(arena, 1)/(k + 1) - num(arena, 1)/k
+        s = sum_closed_form(arena, body, k, num(arena, 1), &
+                            num(arena, 2000), eok, why)
+        call ok("telescoping above the pole is still answered", eok)
+        if (eok) then
+            call numeric_value(s, v, good, why)
+            expected = 0.0_dp
+            do i = 1, 2000
+                expected = expected + 1.0_dp/real(i + 1, dp) - 1.0_dp/real(i, dp)
+            end do
+            call ok("telescoping over 1..2000 matches the loop", good)
+            if (good) then
+                call ok("telescoped value over 1..2000 is right", &
+                        abs(v - expected) < 1.0e-12_dp)
+            end if
+        end if
+    end subroutine test_telescoping_poles
+
+    !> The sum refuses a zero geometric ratio because 0**0 leaves the k = 0
+    !> term ambiguous. The product took the same body and answered.
+    subroutine test_zero_ratio_product()
+        type(expr_t) :: p
+        logical :: eok
+        character(:), allocatable :: why
+
+        p = product_closed_form(arena, num(arena, 0)**k, k, num(arena, 0), n, &
+                                eok, why)
+        call ok("product of 0**k is refused", .not. eok)
+    end subroutine test_zero_ratio_product
 
 end program test_fortsym_sums
