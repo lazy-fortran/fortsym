@@ -176,7 +176,7 @@ contains
             "Sin[x                   ", &
             "*                       ", &
             "1 + + *                 ", &
-            "x #                     ", &
+            "x #name                 ", &
             "Sin[x]]]                ", &
             "{1, 2                   "]
         integer :: k
