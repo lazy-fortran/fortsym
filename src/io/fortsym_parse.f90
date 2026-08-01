@@ -463,6 +463,18 @@ contains
     ! ----------------------------------------------------------- parser --
 
     !> Binding power of a binary operator, or -1 if it is not one.
+    !> True when the current token could begin a primary expression.
+    !>
+    !> Deliberately excludes operators and closing brackets: treating those as
+    !> the start of a factor would turn "a - b" into a product and swallow the
+    !> rest of the expression.
+    pure function starts_primary(p) result(yes)
+        type(parser_t), intent(in) :: p
+        logical                    :: yes
+        yes = p%tok == T_NUMBER .or. p%tok == T_NAME .or. &
+              p%tok == T_LPAREN .or. p%tok == T_LBRACE
+    end function starts_primary
+
     pure function binding_power(op) result(bp)
         character(*), intent(in) :: op
         integer                  :: bp
@@ -502,6 +514,17 @@ contains
         if (p%failed) return
 
         do
+            ! Juxtaposition is multiplication in Wolfram: "a1 r" and
+            ! "(c/(4 Pi)) Bz'[r]" are products with no operator between them.
+            ! Handled before the operator test because there is no token to
+            ! test -- the absence of one is the operator.
+            if (d%implicit_multiplication .and. starts_primary(p)) then
+                if (binding_power("*") < min_bp) exit
+                rhs = parse_binary(p, a, d, binding_power("*") + 1)
+                if (p%failed) return
+                e = e*rhs
+                cycle
+            end if
             if (p%tok /= T_OP) exit
             op = p%text
             bp = binding_power(op)

@@ -58,6 +58,10 @@ module fortsym_dialect
         !> Head(args). Only Wolfram does; getting it wrong makes output that
         !> the same dialect's parser cannot read back.
         logical     :: bracket_application = .false.
+        !> True when juxtaposition means multiplication: "a1 r" is a1*r.
+        !> Wolfram writes products this way throughout, and a parser without it
+        !> rejects most of a real derivation script.
+        logical     :: implicit_multiplication = .false.
     end type dialect_t
 
 contains
@@ -92,6 +96,7 @@ contains
             d%name = str("wolfram")
             d%power = str("^")
             d%bracket_application = .true.
+            d%implicit_multiplication = .true.
         case (DIA_FORTRAN)
             d%name = str("fortran")
             d%real_suffix = str("_dp")
