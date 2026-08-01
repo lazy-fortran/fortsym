@@ -21,6 +21,12 @@ auto-tests = true
 # dependencies; they are named here because the fpm/fo link line is explicit.
 link = ["symengine", "flint", "mpfr", "gmp", "stdc++", "dl"]
 
+[dependencies]
+# Plotting. fortsym samples an expression into arrays and maps options; it
+# implements no plotting of its own, and anything missing is fixed upstream in
+# fortplot rather than worked around here. See issue #44.
+fortplot = { git = "https://github.com/lazy-fortran/fortplot" }
+
 [fortran]
 implicit-typing = false
 implicit-external = false
