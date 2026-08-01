@@ -35,3 +35,6 @@ tags
 # Python tooling used by the SymPy engine probe
 __pycache__/
 *.pyc
+
+# Agent worktrees and scratch state. Never repository content.
+.claude/
