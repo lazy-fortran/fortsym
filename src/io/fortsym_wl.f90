@@ -212,6 +212,20 @@ contains
                     i = i + 2
                     cycle
                 end if
+                ! Associations are bracketed by <| and |>, but neither
+                ! delimiter is a single bracket character. Count them here so
+                ! commas in an association do not look like notebook cell
+                ! separators.
+                if (source(i:i + 1) == "<|") then
+                    depth = depth + 1
+                    i = i + 2
+                    cycle
+                end if
+                if (source(i:i + 1) == "|>") then
+                    depth = depth - 1
+                    i = i + 2
+                    cycle
+                end if
             end if
 
             select case (c)
@@ -482,6 +496,16 @@ contains
             if (c == """") then
                 in_string = .true.
                 cycle
+            end if
+            if (i < len(text)) then
+                if (text(i:i + 1) == "<|") then
+                    depth = depth + 1
+                    cycle
+                end if
+                if (text(i:i + 1) == "|>") then
+                    depth = depth - 1
+                    cycle
+                end if
             end if
             select case (c)
             case ("[", "{", "(")

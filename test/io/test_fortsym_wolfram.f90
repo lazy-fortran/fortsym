@@ -30,6 +30,7 @@ program test_fortsym_wolfram
     call test_failure_is_reported_not_crashed()
     call test_juxtaposition()
     call test_postfix_and_application()
+    call test_associations()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wolfram"
@@ -244,6 +245,20 @@ contains
         call same("named character", a, "Sin[\[Alpha]]", &
             sin(sym(a, "\[Alpha]")))
     end subroutine test_postfix_and_application
+
+    subroutine test_associations()
+        type(arena_t), target :: a
+        type(expr_t) :: x, y
+
+        call a%init()
+        x = sym(a, '"x"')
+        y = sym(a, '"y"')
+
+        call same("association", a, "<|""x"" -> 1, ""y"" -> 2|>", &
+            func("Association", [func("Rule", [x, num(a, 1)]), &
+                                  func("Rule", [y, num(a, 2)])]))
+        call same("empty association", a, "<||>", func_in(a, "Association"))
+    end subroutine test_associations
 
     subroutine test_roundtrip()
         type(arena_t), target :: a

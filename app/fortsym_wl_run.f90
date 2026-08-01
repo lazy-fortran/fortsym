@@ -21,7 +21,8 @@ program fortsym_wl_run
     ! collapsing that into a single failure would hide the coverage that exists.
     use, intrinsic :: iso_fortran_env, only: error_unit, output_unit, int64
     use fortsym_string, only: chars
-    use fortsym_arena, only: arena_t
+    use fortsym_arena, only: arena_t, NK_FUNC
+    use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
     use fortsym_print, only: print_expr_in
     use fortsym_engine, only: wall_seconds
@@ -61,9 +62,14 @@ program fortsym_wl_run
     do k = 1, n
         b = wl_binding_at(session, k)
         if (b%ok) then
-            write (output_unit, "(a)") "R"//tab//chars(b%name)//tab// &
-                chars(print_expr_in(b%value, dialect(DIA_WOLFRAM)))
-            produced = produced + 1
+            if (b%value%kind() == NK_FUNC .and. &
+                chars(b%value%name()) == "Association") then
+                call emit_association(b%value, produced, tab)
+            else
+                write (output_unit, "(a)") "R"//tab//chars(b%name)//tab// &
+                    chars(print_expr_in(b%value, dialect(DIA_WOLFRAM)))
+                produced = produced + 1
+            end if
         else
             write (error_unit, "(a)") "UNSUPPORTED: "//chars(b%name)//": "// &
                 chars(b%message)
@@ -73,11 +79,12 @@ program fortsym_wl_run
 
     write (output_unit, "(a,f0.6)") "T"//tab, elapsed
 
-    ! Nothing usable came out. Exit non-zero so the harness records it as a
-    ! refusal rather than as an empty agreement.
+    ! A script with no top-level assignments is a valid empty result set. Keep
+    ! it in the protocol so it can agree with an oracle that also produced no
+    ! bindings; only an actual refusal remains non-zero.
     if (produced == 0) then
         if (refused == 0) then
-            write (error_unit, "(a)") "UNSUPPORTED: no top-level assignments"
+            return
         end if
         ! Plain stop, not error stop: the latter prints a backtrace that the
         ! harness reads as the failure detail, so an honest refusal arrives
@@ -86,6 +93,37 @@ program fortsym_wl_run
     end if
 
 contains
+
+    !> Flatten Association rules to the same binding protocol as the Mathics
+    !> wrapper. Benchmark fixtures deliberately return a named association;
+    !> exposing its keys makes the native backend comparable without inventing
+    !> a second result-container format.
+    subroutine emit_association(e, produced, tab)
+        type(expr_t), intent(in) :: e
+        integer,      intent(inout) :: produced
+        character,    intent(in) :: tab
+        type(expr_t) :: rule, key, value
+        character(:), allocatable :: name
+        integer :: j
+
+        do j = 1, e%nargs()
+            rule = e%arg(j)
+            if (rule%kind() /= NK_FUNC) cycle
+            if (chars(rule%name()) /= "Rule") cycle
+            if (rule%nargs() /= 2) cycle
+            key = rule%arg(1)
+            value = rule%arg(2)
+            name = chars(key%name())
+            if (len(name) >= 2) then
+                if (name(1:1) == '"' .and. name(len(name):len(name)) == '"') then
+                    name = name(2:len(name)-1)
+                end if
+            end if
+            write (output_unit, "(a)") "R"//tab//name//tab// &
+                chars(print_expr_in(value, dialect(DIA_WOLFRAM)))
+            produced = produced + 1
+        end do
+    end subroutine emit_association
 
     subroutine read_argument(k, value)
         integer,                   intent(in)  :: k
