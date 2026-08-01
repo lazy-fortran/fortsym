@@ -41,6 +41,34 @@ Rules that follow from that contract:
   fixed CPU affinity and a documented frequency governor. A run without those is
   diagnostic and cannot support a release statement (`doc/benchmarks.md`).
 
+## Measured state
+
+First corpus-wide measurement, 2026-08-01, `fortsym-bench` at 384 scripts:
+
+| | |
+|---|---:|
+| scripts producing at least one result | **316 / 384 (82%)** |
+| scripts refusing with a named construct | 66 |
+| scripts exceeding the time budget | 2 |
+| crashes | **0** |
+| whole-corpus wall time | 0.38 s |
+
+Read that honestly: 82% is *scripts that ran and emitted bindings*, not
+correctness. Scoring against an oracle is what makes it coverage, and that is
+blocked on the oracle itself — Mathics crashes on the mhd1d derivations with
+`RecursionError` and `Invalid NaN comparison`. How much of the corpus Mathics
+can serve as oracle for is the next number to establish.
+
+What running the corpus has already bought, none of which was found by tests:
+
+- A parser segfault on `-Inverse[g] . c`, from negating a term that had already
+  failed to parse. Five scripts crashed; now none do.
+- `wl_eval` dispatched only on `NK_FUNC`, so `1 + Integrate[x, x]` reported the
+  unevaluated `Integrate` as though it were the answer. Unimplemented heads
+  nested in arithmetic now refuse.
+- The `Series` order convention, off by one against Mathics in both directions.
+- Implicit multiplication, the single largest parse-refusal cause.
+
 ## Milestones
 
 Ordered by corpus impact. Counts are call sites across the 359-script corpus.
