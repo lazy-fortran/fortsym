@@ -330,10 +330,108 @@ contains
         ! Same reason as emit_integer: "- -1.0_dp" is not valid Fortran.
         wrap = v < 0.0_dp .and. context >= PREC_MUL
         if (wrap) call b%append("(")
-        call b%append(chars(str(v)))
+        if (d%compact_reals) then
+            call b%append(compact_real(v))
+        else
+            call b%append(chars(str(v)))
+        end if
         call b%append(chars(d%real_suffix))
         if (wrap) call b%append(")")
     end subroutine emit_real
+
+    !> Shortest decimal form that still round-trips through real64.
+    !>
+    !> The default 17-significant-digit form is right for generated Fortran,
+    !> where losing a digit changes the compiled constant. It is wrong for
+    !> comparing against a CAS: Mathics prints 2.5, and 2.5000000000000000E+000
+    !> is structurally different text for the same number, so every real in the
+    !> corpus would be scored as a disagreement.
+    !>
+    !> Tries increasing precision and stops at the first one that reads back
+    !> exactly, so the shortening can never change the value.
+    function compact_real(v) result(text)
+        real(dp), intent(in)      :: v
+        character(:), allocatable :: text
+        character(32) :: buf
+        real(dp) :: back
+        integer :: digits, ios
+
+        ! Fixed point first, within the range where it stays short. g0 switches
+        ! to an exponent below 1e-3 and prints 0.001 as 0.1E-002, which is the
+        ! same number spelled differently from every CAS this is compared with.
+        if (v == 0.0_dp .or. (abs(v) >= 1.0e-4_dp .and. abs(v) < 1.0e16_dp)) then
+            do digits = 1, 17
+                write (buf, "(f0." // int_text(digits) // ")") v
+                read (buf, *, iostat=ios) back
+                if (ios == 0) then
+                    if (back == v) then
+                        text = with_leading_zero(trim(adjustl(buf)))
+                        return
+                    end if
+                end if
+            end do
+        end if
+
+        ! Outside that range, Wolfram's InputForm writes 1.*^-9 rather than an
+        ! E exponent, and that is what the comparator parses back.
+        do digits = 1, 17
+            write (buf, "(es0." // int_text(digits) // ")") v
+            read (buf, *, iostat=ios) back
+            if (ios == 0) then
+                if (back == v) then
+                    text = wolfram_exponent(trim(adjustl(buf)))
+                    return
+                end if
+            end if
+        end do
+        text = chars(str(v))
+    end function compact_real
+
+    !> ".001" is not a numeral in most readers; "0.001" is.
+    function with_leading_zero(raw) result(text)
+        character(*), intent(in)  :: raw
+        character(:), allocatable :: text
+        if (len(raw) > 0 .and. raw(1:1) == ".") then
+            text = "0"//raw
+        else if (len(raw) > 1 .and. raw(1:2) == "-.") then
+            text = "-0."//raw(3:)
+        else
+            text = raw
+        end if
+    end function with_leading_zero
+
+    !> Turn Fortran's 1.0E-09 into Wolfram's 1.0*^-9.
+    function wolfram_exponent(raw) result(text)
+        character(*), intent(in)  :: raw
+        character(:), allocatable :: text, mantissa, expo
+        integer :: epos, value, ios
+
+        epos = scan(raw, "EeDd")
+        if (epos == 0) then
+            text = with_leading_zero(raw)
+            return
+        end if
+        mantissa = with_leading_zero(raw(1:epos - 1))
+        read (raw(epos + 1:), *, iostat=ios) value
+        if (ios /= 0) then
+            text = with_leading_zero(raw)
+            return
+        end if
+        expo = int_text(value)
+        if (value >= 0) then
+            text = mantissa//"*^"//expo
+        else
+            text = mantissa//"*^-"//int_text(-value)
+        end if
+    end function wolfram_exponent
+
+    function int_text(k) result(text)
+        integer, intent(in)       :: k
+        character(:), allocatable :: text
+        character(8) :: buf
+        write (buf, "(i0)") k
+        text = trim(buf)
+    end function int_text
 
     subroutine emit_constant(b, a, id, d)
         type(strbuf_t),  intent(inout) :: b

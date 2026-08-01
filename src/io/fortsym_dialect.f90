@@ -62,6 +62,10 @@ module fortsym_dialect
         !> Wolfram writes products this way throughout, and a parser without it
         !> rejects most of a real derivation script.
         logical     :: implicit_multiplication = .false.
+        !> True when reals print in their shortest round-tripping form. Right
+        !> for comparing against a CAS, wrong for generated Fortran where a
+        !> dropped digit changes the compiled constant.
+        logical     :: compact_reals = .false.
     end type dialect_t
 
 contains
@@ -97,6 +101,7 @@ contains
             d%power = str("^")
             d%bracket_application = .true.
             d%implicit_multiplication = .true.
+            d%compact_reals = .true.
         case (DIA_FORTRAN)
             d%name = str("fortran")
             d%real_suffix = str("_dp")

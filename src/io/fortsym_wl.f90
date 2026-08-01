@@ -15,7 +15,7 @@ module fortsym_wl
     !
     ! Behaviour is checked against Mathics, an independent open implementation.
     ! No Wolfram product is involved; see LEGAL.md section 5.1.
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
     use fortsym_expr, only: expr_t, sym, num, func, operator(+), operator(*), &
@@ -24,7 +24,7 @@ module fortsym_wl
     use fortsym_parse, only: parse_expr_in
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
-    use fortsym_engine, only: engine_result_t
+    use fortsym_engine, only: engine_result_t, wall_seconds
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     implicit none
     private
@@ -34,6 +34,7 @@ module fortsym_wl
     public :: wl_split_statements
 
     integer, parameter :: MAX_BINDINGS = 512
+    integer, parameter :: dp = real64
 
     !> One top-level assignment produced by a script.
     type :: wl_binding_t
@@ -51,6 +52,13 @@ module fortsym_wl
         type(native_engine_t)  :: engine
         type(wl_binding_t)     :: bindings(MAX_BINDINGS)
         integer                :: n = 0
+        !> Wall-clock budget for the whole script, in seconds. A script that
+        !> exceeds it stops and says so. Hanging is the one outcome a
+        !> verification tool must never have: a refusal names the construct
+        !> that is missing, while a hang looks identical to hard work and gets
+        !> killed by a harness timeout that records nothing.
+        real(dp)               :: budget_seconds = 20.0_dp
+        real(dp)               :: started = 0.0_dp
     end type wl_session_t
 
 contains
@@ -61,6 +69,7 @@ contains
         s%a => a
         s%engine = make_native_engine(a)
         s%n = 0
+        s%started = wall_seconds()
     end subroutine wl_session_begin
 
     pure function wl_binding_count(s) result(n)
@@ -193,7 +202,18 @@ contains
         integer :: n, k
 
         call wl_split_statements(source, starts, ends, n)
+        s%started = wall_seconds()
         do k = 1, n
+            if (wall_seconds() - s%started > s%budget_seconds) then
+                if (s%n < MAX_BINDINGS) then
+                    s%n = s%n + 1
+                    s%bindings(s%n)%name = str("<budget>")
+                    s%bindings(s%n)%ok = .false.
+                    s%bindings(s%n)%message = str("time budget exhausted; " // &
+                        "remaining statements not evaluated")
+                end if
+                exit
+            end if
             call wl_run_statement(s, source(starts(k):ends(k)))
             if (s%n >= MAX_BINDINGS) exit
         end do
@@ -389,6 +409,15 @@ contains
         ok = .true.
         message = str("")
         r = e
+
+        ! Checked inside the recursion, not only between statements: one
+        ! Series-then-FullSimplify line in the KiLCA corpus ran for a minute on
+        ! its own, so a per-statement check alone still leaves the process
+        ! looking hung for as long as any single statement takes.
+        if (wall_seconds() - s%started > s%budget_seconds) then
+            call refuse(ok, message, "time budget exhausted")
+            return
+        end if
 
         ! Walk arithmetic nodes too. Dispatching only on NK_FUNC let an
         ! unimplemented head hide inside a sum or product: -Inverse[g] . r has
