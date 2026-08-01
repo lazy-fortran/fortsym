@@ -94,7 +94,49 @@ What running the corpus has already bought, none of which was found by tests:
 - Refusing `Transpose[jac]` for a symbolic `jac`, which disagreed with the
   oracle on a *correct* answer — Mathics leaves it unevaluated too.
 
-Corpus refusals have gone 2313 → 1682 as these landed.
+Corpus refusals have gone 2313 → 1682 → 1465 as these landed.
+
+### What the corpus says to build next
+
+Refusals grouped by cause, measured rather than guessed. This is the list that
+orders the work, and it has repeatedly disagreed with intuition:
+
+| Cause | Refusals |
+|---|---:|
+| parse | 518 → 279 |
+| plotting family (Show, Plot3D, ContourPlot, Graphics, ListPlot, …) | ~300 |
+| `Solve` beyond the scalar linear case | 78 |
+| definite and multiple `Integrate` | ~123 |
+| `N` with a requested precision | 90 |
+| polynomial heads (`Coefficient`, `Together`, `Factor`, …) | ~60 |
+| `DSolve` / `NDSolve` | 45 |
+
+Two findings worth keeping:
+
+- **Plotting is the largest single construct family**, mostly from teaching
+  material, and fortplot already provides contour, contourf, pcolormesh,
+  surface, scatter, streamplot and quiver. Nothing upstream is missing.
+- **239 of the 518 parse refusals were one bug**, not missing syntax: a
+  statement was split at every depth-zero newline, so a derivation broken after
+  a trailing operator was truncated into a prefix that still parsed. Measuring
+  causes rather than counting messages is what found it.
+
+### How defects are found here
+
+Every module added since the corpus went live has been written, then attacked
+by an independent reviewer whose brief is to produce a wrong answer with real
+program output, not to approve. That pass has found, among others: an
+antiderivative emitting `log` without an absolute value; a positivity predicate
+treating `exp(z)` as positive for imaginary `z`, reintroducing the very
+`sqrt(x*y)` sign error its own docstring quoted; a limit deciding the
+power-domain rule from an exponent *after* substitution, asserting a finite
+limit for a function undefined on both sides; a summation guard defeated by
+integer overflow in its own term count.
+
+None of these were caught by the modules' own tests, all of which passed. The
+lesson is recorded here because it sets the standard for new work: a passing
+test written by the same author as the code is weak evidence, and the review
+pass is not optional.
 
 ## Milestones
 
