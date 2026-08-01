@@ -23,6 +23,7 @@ program test_fortsym_wl_statements
     call test_table_evaluation()
     call test_clear_and_compound_expression()
     call test_empty_script()
+    call test_explicit_trig_simplify()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_statements"
@@ -148,5 +149,11 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_empty_script
+
+    subroutine test_explicit_trig_simplify()
+        call expect("pythagorean identity", &
+                    "value = Simplify[Sin[x]^2 + Cos[x]^2]"//char(10), &
+                    "value", "1")
+    end subroutine test_explicit_trig_simplify
 
 end program test_fortsym_wl_statements

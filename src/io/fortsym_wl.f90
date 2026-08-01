@@ -18,7 +18,7 @@ module fortsym_wl
     ! No Wolfram product is involved; see LEGAL.md section 5.1.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
-    use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
+    use fortsym_arena, only: arena_t, NK_INT, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
     use fortsym_expr, only: expr_t, sym, num, func, func_in, real_expr, &
         operator(+), operator(-), operator(*), operator(**)
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
@@ -950,6 +950,11 @@ contains
                 return
             end if
             r = res%value
+            ! The native arithmetic simplifier intentionally does not apply
+            ! trigonometric identities during automatic evaluation. An
+            ! explicit Wolfram Simplify is allowed to close this exact,
+            ! assumption-free identity, matching the independent oracle.
+            if (is_pythagorean_identity(r)) r = num(s%a, 1)
 
         case ("Expand", "ExpandAll")
             res = s%engine%expand(r%arg(1))
@@ -2776,6 +2781,51 @@ contains
             end select
         end do
     end function eval_children
+
+    !> Recognise only the assumption-free identity sin(u)^2 + cos(u)^2 = 1.
+    !>
+    !> This deliberately does not call a broad trig rewrite: identities that
+    !> introduce denominators or depend on branch assumptions belong to a
+    !> separate, guarded operation. The two terms are tested in both orders
+    !> because the arena canonicalises sums but the predicate should not rely
+    !> on that implementation detail.
+    function is_pythagorean_identity(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+        type(expr_t) :: sin_angle, cos_angle
+
+        yes = .false.
+        if (e%kind() /= NK_ADD .or. e%nargs() /= 2) return
+        if (is_trig_square(e%arg(1), "sin", sin_angle) .and. &
+            is_trig_square(e%arg(2), "cos", cos_angle)) then
+            yes = sin_angle%id == cos_angle%id
+            return
+        end if
+        if (is_trig_square(e%arg(1), "cos", cos_angle) .and. &
+            is_trig_square(e%arg(2), "sin", sin_angle)) then
+            yes = sin_angle%id == cos_angle%id
+        end if
+    end function is_pythagorean_identity
+
+    function is_trig_square(e, expected, angle) result(yes)
+        type(expr_t), intent(in)  :: e
+        character(*), intent(in)  :: expected
+        type(expr_t), intent(out) :: angle
+        logical                   :: yes
+        type(expr_t) :: base, exponent
+
+        yes = .false.
+        angle = e
+        if (e%kind() /= NK_POW) return
+        exponent = e%arg(2)
+        if (exponent%kind() /= NK_INT) return
+        if (exponent%int_value() /= 2_int64) return
+        base = e%arg(1)
+        if (base%kind() /= NK_FUNC .or. base%nargs() /= 1) return
+        if (chars(base%name()) /= expected) return
+        angle = base%arg(1)
+        yes = .true.
+    end function is_trig_square
 
     subroutine refuse(ok, message, why)
         logical,      intent(out) :: ok
