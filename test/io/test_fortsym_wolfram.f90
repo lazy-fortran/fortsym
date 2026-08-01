@@ -29,6 +29,7 @@ program test_fortsym_wolfram
     call test_roundtrip()
     call test_failure_is_reported_not_crashed()
     call test_juxtaposition()
+    call test_postfix_and_application()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wolfram"
@@ -174,8 +175,9 @@ contains
             "Sin[x                   ", &
             "*                       ", &
             "1 + + *                 ", &
-            "-a[b] @ c               ", &
-            "x #                     "]
+            "x #                     ", &
+            "Sin[x]]]                ", &
+            "{1, 2                   "]
         integer :: k
 
         call a%init()
@@ -217,6 +219,26 @@ contains
         call same("minus not product", a, "x - y", x - y)
         call same("plus not product", a, "x + y", x + y)
     end subroutine test_juxtaposition
+
+    subroutine test_postfix_and_application()
+        type(arena_t), target :: a
+        type(expr_t) :: x
+
+        call a%init()
+        x = sym(a, "x")
+
+        ! Part, curried application and prefix @ all appear in the corpus. Each
+        ! was previously "unexpected token" and cost the whole statement.
+        call same("part", a, "x[[1]]", func("Part", [x, num(a, 1)]))
+        call same("prefix at", a, "Sin @ x", sin(x))
+        ! An empty list is legal and common: a script builds one before a loop
+        ! fills it. Rejecting it lost every such statement.
+        call same("empty list", a, "{}", func_in(a, "List"))
+        ! A named character is one identifier. Splitting it scatters brackets
+        ! into the token stream and derails the rest of the expression.
+        call same("named character", a, "Sin[\[Alpha]]", &
+            sin(sym(a, "\[Alpha]")))
+    end subroutine test_postfix_and_application
 
     subroutine test_roundtrip()
         type(arena_t), target :: a

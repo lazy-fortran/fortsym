@@ -26,7 +26,7 @@ module fortsym_expr
     private
 
     public :: expr_t
-    public :: sym, num, rat, exact, real_expr, const, func
+    public :: sym, num, rat, exact, real_expr, const, func, func_in
     public :: pi_expr, e_expr, i_expr
     public :: is_valid, same_arena
     public :: operator(+), operator(-), operator(*), operator(/), &
@@ -228,6 +228,21 @@ contains
         e%a => fargs(1)%a
         e%id = fargs(1)%a%func(name, ids)
     end function func
+
+    !> Application with no arguments, such as the empty list {}.
+    !>
+    !> Needs the arena passed explicitly: func() takes it from its first
+    !> argument, and with no arguments there is nothing to take it from --
+    !> which dereferenced a null pointer rather than reporting anything.
+    function func_in(a, name) result(e)
+        type(arena_t), target, intent(inout) :: a
+        character(*),          intent(in)    :: name
+        type(expr_t)                         :: e
+        integer :: ids(0)
+
+        e%a => a
+        e%id = a%func(name, ids)
+    end function func_in
 
     ! ---------------------------------------------------------- predicates --
 

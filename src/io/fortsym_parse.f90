@@ -18,8 +18,9 @@ module fortsym_parse
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, &
-        NK_BIG_RAT, NK_MUL
+        NK_BIG_RAT, NK_MUL, NK_SYM
     use fortsym_expr, only: expr_t, sym, num, exact, real_expr, const, func, &
+        func_in, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_exact, only: exact_sub, exact_div
     use fortsym_dialect, only: dialect_t, dialect, fn_canonical, DIA_WOLFRAM, &
@@ -134,8 +135,21 @@ contains
         ! $ is an ordinary symbol character in Wolfram -- $Assumptions,
         ! $InputFileName -- and " ` " separates contexts. Rejecting either
         ! turns a legitimate name into a lexical error mid-expression.
-        yes = is_alpha(c) .or. is_digit(c) .or. c == "$" .or. c == "`"
+        yes = is_alpha(c) .or. is_digit(c) .or. c == "$" .or. c == "`" &
+              .or. is_extended(c)
     end function is_name_char
+
+    !> Any byte above ASCII, treated as part of an identifier.
+    !>
+    !> The corpus is full of Greek variable names -- alpha, omega, psi -- stored
+    !> as multi-byte UTF-8. Working byte-wise is enough because every character
+    !> fortsym gives syntactic meaning to is ASCII, so a continuation byte can
+    !> never be mistaken for an operator.
+    pure function is_extended(c) result(yes)
+        character, intent(in) :: c
+        logical               :: yes
+        yes = iachar(c) > 127
+    end function is_extended
 
     !> Read the next token into the parser state.
     subroutine advance(p, d)
@@ -175,7 +189,7 @@ contains
             return
         end if
 
-        if (is_alpha(c) .or. c == "$") then
+        if (is_alpha(c) .or. c == "$" .or. is_extended(c)) then
             start = p%pos
             do while (p%pos <= n)
                 if (.not. is_name_char(p%src(p%pos:p%pos))) exit
@@ -264,6 +278,29 @@ contains
             p%tok = T_OP
             p%text = "/"
             p%pos = p%pos + 1
+        case ("@")
+            if (.not. d%wolfram_syntax) then
+                p%tok = T_ERROR
+                p%text = c
+                p%pos = p%pos + 1
+                call fail(p, "unexpected character '"//c//"'")
+                return
+            end if
+            p%tok = T_OP
+            p%text = "@"
+            p%pos = p%pos + 1
+        case ("\")
+            if (.not. d%wolfram_syntax) then
+                p%tok = T_ERROR
+                p%text = c
+                p%pos = p%pos + 1
+                call fail(p, "unexpected character '"//c//"'")
+                return
+            end if
+            ! \[Alpha] and friends are single named characters. Lexed whole so
+            ! the name survives; splitting them scatters brackets into the
+            ! token stream and derails the rest of the expression.
+            call lex_named_character(p, n)
         case ("+", "^")
             p%tok = T_OP
             p%text = c
@@ -277,6 +314,32 @@ contains
             call fail(p, "unexpected character '"//c//"'")
         end select
     end subroutine advance
+
+    !> A Wolfram named character such as \[Alpha], lexed as one identifier.
+    subroutine lex_named_character(p, n)
+        type(parser_t), intent(inout) :: p
+        integer,        intent(in)    :: n
+        integer :: start
+
+        start = p%pos
+        p%pos = p%pos + 1
+        if (p%pos <= n) then
+            if (p%src(p%pos:p%pos) == "[") then
+                do while (p%pos <= n)
+                    if (p%src(p%pos:p%pos) == "]") then
+                        p%pos = p%pos + 1
+                        p%tok = T_NAME
+                        p%text = p%src(start:p%pos - 1)
+                        return
+                    end if
+                    p%pos = p%pos + 1
+                end do
+            end if
+        end if
+        p%tok = T_ERROR
+        p%text = "\"
+        call fail(p, "unterminated named character")
+    end subroutine lex_named_character
 
     !> A string literal, kept whole and opaque.
     !>
@@ -493,9 +556,10 @@ contains
         character(*), intent(in) :: op
         integer                  :: bp
         select case (op)
-        case ("/.", "/;"); bp = 1
-        case ("->", ":>"); bp = 2
-        case ("||"); bp = 3
+        case ("@"); bp = 1
+        case ("/.", "/;"); bp = 2
+        case ("->", ":>"); bp = 3
+        case ("||"); bp = 4
         case ("&&"); bp = 4
         case ("."); bp = 9
         case ("==", "!=", "<", ">", "<=", ">="); bp = 5
@@ -510,7 +574,7 @@ contains
         character(*), intent(in) :: op
         logical                  :: yes
         ! Only exponentiation associates to the right: a**b**c is a**(b**c).
-        yes = op == "**" .or. op == "^"
+        yes = op == "**" .or. op == "^" .or. op == "@"
     end function is_right_assoc
 
     !> Precedence climbing. Parses a unary/primary term, then folds in binary
@@ -597,6 +661,10 @@ contains
             ! head rather than becoming Times: folding it would let the
             ! simplifier reorder factors and silently transpose the result.
             case ("."); e = func("Dot", [e, rhs])
+            ! f @ x is f[x]. Applying the head rather than building an operator
+            ! node keeps one representation for application, so Simplify @ e
+            ! reaches the same lowering as Simplify[e].
+            case ("@"); e = apply_head(a, d, e, rhs)
             case default
                 call fail(p, "unknown operator '"//op//"'")
                 return
@@ -807,6 +875,20 @@ contains
             end if
             if (p%tok == T_LBRACKET) then
                 call advance(p, d)
+                ! [[ ... ]] is Part, not a nested application.
+                if (p%tok == T_LBRACKET) then
+                    call advance(p, d)
+                    call parse_arg_list(p, a, d, fargs, nargs, T_RBRACKET)
+                    if (p%failed) return
+                    if (p%tok /= T_RBRACKET) then
+                        call fail(p, "expected ']]' closing a Part")
+                        return
+                    end if
+                    call advance(p, d)
+                    e = part_expression(a, sym(a, name), fargs, nargs)
+                    e = parse_postfix(p, a, d, e)
+                    return
+                end if
                 call parse_arg_list(p, a, d, fargs, nargs, T_RBRACKET)
                 if (p%failed) return
                 canon = chars(fn_canonical(d, name))
@@ -820,7 +902,16 @@ contains
                         canon = "atan"
                     end if
                 end if
-                e = func(canon, fargs(1:nargs))
+                if (nargs == 0) then
+                    e = func_in(a, canon)
+                else
+                    e = func(canon, fargs(1:nargs))
+                end if
+                ! f[a][b] applies the result again. Without this the second
+                ! bracket group is left in the stream and the statement ends as
+                ! "unexpected trailing input".
+                e = parse_postfix(p, a, d, e)
+                return
             else if (p%tok == T_LPAREN) then
                 call advance(p, d)
                 call parse_arg_list(p, a, d, fargs, nargs, T_RPAREN)
@@ -856,7 +947,11 @@ contains
             call advance(p, d)
             call parse_arg_list(p, a, d, fargs, nargs, T_RBRACE)
             if (p%failed) return
-            e = func("List", fargs(1:nargs))
+            if (nargs == 0) then
+                e = func_in(a, "List")
+            else
+                e = func("List", fargs(1:nargs))
+            end if
 
         case (T_END)
             call fail(p, "unexpected end of input")
@@ -865,6 +960,102 @@ contains
             call fail(p, "unexpected token '"//p%text//"'")
         end select
     end function parse_primary
+
+    !> Trailing [[...]] and [...] groups after a primary.
+    recursive function parse_postfix(p, a, d, base) result(e)
+        type(parser_t),        intent(inout) :: p
+        type(arena_t), target, intent(inout) :: a
+        type(dialect_t),       intent(in)    :: d
+        type(expr_t),          intent(in)    :: base
+        type(expr_t)                         :: e
+        type(expr_t), allocatable :: fargs(:)
+        integer :: nargs
+
+        e = base
+        do
+            if (p%tok /= T_LBRACKET) return
+            call advance(p, d)
+            if (p%tok == T_LBRACKET) then
+                call advance(p, d)
+                call parse_arg_list(p, a, d, fargs, nargs, T_RBRACKET)
+                if (p%failed) return
+                if (p%tok /= T_RBRACKET) then
+                    call fail(p, "expected ']]' closing a Part")
+                    return
+                end if
+                call advance(p, d)
+                e = part_expression(a, e, fargs, nargs)
+                cycle
+            end if
+            call parse_arg_list(p, a, d, fargs, nargs, T_RBRACKET)
+            if (p%failed) return
+            if (nargs == 0) then
+                e = func("Apply", [e])
+            else
+                e = build_apply(a, e, fargs, nargs)
+            end if
+        end do
+    end function parse_postfix
+
+    !> Part[expr, indices...] kept structural.
+    function part_expression(a, base, indices, nargs) result(e)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t),          intent(in)    :: base
+        type(expr_t),          intent(in)    :: indices(:)
+        integer,               intent(in)    :: nargs
+        type(expr_t)                         :: e
+        type(expr_t), allocatable :: parts(:)
+        integer :: k
+
+        allocate (parts(nargs + 1))
+        parts(1) = base
+        do k = 1, nargs
+            parts(k + 1) = indices(k)
+        end do
+        e = func("Part", parts)
+    end function part_expression
+
+    !> Apply an already-built expression to further arguments.
+    function build_apply(a, head, args, nargs) result(e)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t),          intent(in)    :: head
+        type(expr_t),          intent(in)    :: args(:)
+        integer,               intent(in)    :: nargs
+        type(expr_t)                         :: e
+        type(expr_t), allocatable :: parts(:)
+        integer :: k
+
+        if (head%kind() == NK_SYM) then
+            e = func(chars(head%name()), args(1:nargs))
+            return
+        end if
+        allocate (parts(nargs + 1))
+        parts(1) = head
+        do k = 1, nargs
+            parts(k + 1) = args(k)
+        end do
+        e = func("Apply", parts)
+    end function build_apply
+
+    !> Apply a head to one argument, as f @ x does.
+    function apply_head(a, d, head, argument) result(e)
+        type(arena_t), target, intent(inout) :: a
+        type(dialect_t),       intent(in)    :: d
+        type(expr_t),          intent(in)    :: head, argument
+        type(expr_t)                         :: e
+        type(expr_t) :: parts(1)
+
+        parts(1) = argument
+        if (head%kind() == NK_SYM) then
+            ! Canonicalised like a bracketed call, so Sin @ x and Sin[x] are
+            ! the same interned node rather than two heads that print alike.
+            e = func(chars(fn_canonical(d, chars(head%name()))), parts)
+        else
+            ! A computed head is not something this subset can apply, so it
+            ! stays structural rather than being guessed at.
+            e = func("Apply", [head, argument])
+        end if
+    end function apply_head
 
     !> f'[x] as the Derivative<n> node fortsym's own diff would produce.
     !>
@@ -898,8 +1089,10 @@ contains
         nargs = 0
 
         if (p%tok == closer) then
+            ! {} and f[] are legal. Failing here rejected every empty list in
+            ! the corpus, and an empty list is how a script says "no results
+            ! yet" before a loop fills it.
             call advance(p, d)
-            call fail(p, "call with no arguments")
             return
         end if
 
