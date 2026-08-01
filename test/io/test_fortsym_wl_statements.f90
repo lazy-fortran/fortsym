@@ -25,6 +25,7 @@ program test_fortsym_wl_statements
     call test_empty_script()
     call test_explicit_trig_simplify()
     call test_recursive_function()
+    call test_pure_map_apply_replace()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_statements"
@@ -169,5 +170,20 @@ contains
             "f[n_] := If[n <= 0, 1, n*f[n - 1]]"//char(10)// &
             "value = f[4]"//char(10), "value", "24")
     end subroutine test_recursive_function
+
+    !> Pure-function application and replacement are checked through their
+    !> observable values. A parser-only implementation would accept these
+    !> forms but either refuse or leak Slot/Rule nodes into the result.
+    subroutine test_pure_map_apply_replace()
+        call expect("pure function Map", &
+            "values = Map[#^2 &, {1, 2, 3}]"//char(10), &
+            "values", "List(1, 4, 9)")
+        call expect("Apply Plus", &
+            "value = Apply[Plus, {1, 2, 3}]"//char(10), &
+            "value", "6")
+        call expect("ReplaceAll rules", &
+            "value = {x, y} /. {x -> 2, y -> 3}"//char(10), &
+            "value", "List(2, 3)")
+    end subroutine test_pure_map_apply_replace
 
 end program test_fortsym_wl_statements

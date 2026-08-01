@@ -873,6 +873,27 @@ contains
             return
         end if
 
+        ! These heads carry evaluation rules for their arguments. Evaluating a
+        ! pure function before Map sees it would refuse Function/Slot, and
+        ! evaluating a replacement rule before ReplaceAll sees it would apply
+        ! bindings to the left-hand side. Lower both from the original tree.
+        if (head == "Map") then
+            r = lower_map(s, e, ok, message)
+            return
+        end if
+        if (head == "Apply" .or. head == "MapApply") then
+            r = lower_apply(s, e, head == "MapApply", ok, message)
+            return
+        end if
+        if (head == "ReplaceAll" .or. head == "ReplaceRepeated") then
+            r = lower_replace(s, e, head == "ReplaceRepeated", ok, message)
+            return
+        end if
+        if (head == "CompoundExpression") then
+            r = lower_compound(s, e, ok, message)
+            return
+        end if
+
         ! Evaluate arguments first. Wolfram evaluates innermost-out, and
         ! dispatching only on the outer head leaves Simplify[D[f, x]] holding an
         ! unevaluated D -- which then prints as though the derivative had been
@@ -1198,10 +1219,6 @@ contains
             r = lower_sum(s, r, head == "Sum", ok, message)
             if (.not. ok) return
 
-        case ("Map")
-            r = lower_map(s, r, ok, message)
-            if (.not. ok) return
-
             ! Lower case: the parser canonicalises Wolfram spellings to fortsym's
             ! own names, and the printer spells them back. Matching "Re" here fired
             ! never, and because the printer restored the Wolfram spelling the
@@ -1389,17 +1406,17 @@ contains
         r = wl_eval(s, branch, ok, message)
     end function lower_if
 
-    !> Map[f, {x1, x2, ...}] for a named positional function.
+    !> Map[f, {x1, x2, ...}] for a named or pure one-argument function.
     !>
-    !> The corpus uses this form for bounded data preparation. Pure functions,
-    !> levels other than one, and non-list expressions remain explicit
+    !> The corpus uses this form for bounded data preparation. Levels other
+    !> than one, SlotSequence and non-list expressions remain explicit
     !> refusals rather than being approximated.
     recursive function lower_map(s, e, ok, message) result(r)
         type(wl_session_t), intent(inout) :: s
         type(expr_t),       intent(in)    :: e
         logical,            intent(out)   :: ok
         type(str_t),        intent(out)   :: message
-        type(expr_t)                      :: r, mapper, data, mapped
+        type(expr_t)                      :: r, mapper, data, mapped, item
         type(expr_t), allocatable         :: values(:)
         logical :: item_ok
         type(str_t) :: item_message
@@ -1415,10 +1432,6 @@ contains
         end if
         mapper = e%arg(1)
         data = e%arg(2)
-        if (mapper%kind() /= NK_SYM) then
-            call refuse(ok, message, "Map needs a named function")
-            return
-        end if
         if (data%kind() /= NK_FUNC) then
             call refuse(ok, message, "Map needs a list")
             return
@@ -1428,10 +1441,25 @@ contains
             return
         end if
 
+        data = wl_eval(s, data, item_ok, item_message)
+        if (.not. item_ok) then
+            call refuse(ok, message, chars(item_message))
+            return
+        end if
+        if (data%kind() /= NK_FUNC .or. chars(data%name()) /= "List") then
+            call refuse(ok, message, "Map needs a list")
+            return
+        end if
+
         allocate (values(data%nargs()))
         do k = 1, data%nargs()
-            mapped = wl_eval(s, func(chars(mapper%name()), [data%arg(k)]), &
-                item_ok, item_message)
+            item = apply_bindings(s, data%arg(k))
+            item = wl_eval(s, item, item_ok, item_message)
+            if (.not. item_ok) then
+                call refuse(ok, message, chars(item_message))
+                return
+            end if
+            call apply_mapper(s, mapper, [item], mapped, item_ok, item_message)
             if (.not. item_ok) then
                 call refuse(ok, message, chars(item_message))
                 return
@@ -1440,6 +1468,284 @@ contains
         end do
         r = func("List", values)
     end function lower_map
+
+    !> Apply a pure or named function to an already evaluated argument list.
+    !>
+    !> Only positional Function forms are lowered. Replacing Slot nodes in the
+    !> expression tree is deliberately structural: it cannot accidentally
+    !> replace a user symbol whose spelling happens to be `#1`.
+    subroutine apply_mapper(s, mapper, arguments, result, ok, message)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: mapper
+        type(expr_t),       intent(in)    :: arguments(:)
+        type(expr_t),       intent(out)   :: result
+        logical,             intent(out)   :: ok
+        type(str_t),         intent(out)  :: message
+
+        type(expr_t) :: body, params, slot, parameter
+        integer :: k, nparams
+
+        ok = .false.
+        message = str("")
+        result = mapper
+
+        if (mapper%kind() == NK_SYM) then
+            if (size(arguments) < 1) then
+                call refuse(ok, message, "function application needs an argument")
+                return
+            end if
+            result = wl_eval(s, func(chars(mapper%name()), arguments), ok, message)
+            return
+        end if
+
+        if (mapper%kind() /= NK_FUNC .or. chars(mapper%name()) /= "Function") then
+            call refuse(ok, message, "Map needs a named function or Function")
+            return
+        end if
+        if (mapper%nargs() < 1 .or. mapper%nargs() > 2) then
+            call refuse(ok, message, "Function form is not implemented")
+            return
+        end if
+
+        if (mapper%nargs() == 1) then
+            body = mapper%arg(1)
+            do k = 1, size(arguments)
+                slot = func("Slot", [num(s%a, int(k, int64))])
+                body = subs(body, slot, arguments(k))
+            end do
+        else
+            params = mapper%arg(1)
+            body = mapper%arg(2)
+            if (params%kind() == NK_FUNC .and. chars(params%name()) == "List") then
+                nparams = params%nargs()
+                if (nparams /= size(arguments)) then
+                    call refuse(ok, message, "Function arity does not match Map data")
+                    return
+                end if
+                do k = 1, nparams
+                    parameter = params%arg(k)
+                    if (parameter%kind() /= NK_SYM) then
+                        call refuse(ok, message, "Function parameters must be symbols")
+                        return
+                    end if
+                    body = subs(body, parameter, arguments(k))
+                end do
+            else if (params%kind() == NK_SYM .and. size(arguments) == 1) then
+                body = subs(body, params, arguments(1))
+            else
+                call refuse(ok, message, "Function parameters have unsupported shape")
+                return
+            end if
+        end if
+
+        if (contains_slot_sequence(body)) then
+            call refuse(ok, message, "SlotSequence is not implemented")
+            return
+        end if
+        result = wl_eval(s, apply_bindings(s, body), ok, message)
+    end subroutine apply_mapper
+
+    !> Apply[f, expr] replaces the explicit expression head once.
+    !> MapApply is the same operation mapped over a list of expressions.
+    recursive function lower_apply(s, e, map_values, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(in)    :: map_values
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, mapper, data, item, mapped
+        type(expr_t), allocatable         :: values(:)
+        integer :: k
+        logical :: item_ok
+        type(str_t) :: item_message
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() /= 2) then
+            call refuse(ok, message, "Apply needs a function and an expression")
+            return
+        end if
+
+        mapper = e%arg(1)
+        data = wl_eval(s, e%arg(2), item_ok, item_message)
+        if (.not. item_ok) then
+            call refuse(ok, message, chars(item_message))
+            return
+        end if
+
+        if (map_values) then
+            if (data%kind() /= NK_FUNC .or. chars(data%name()) /= "List") then
+                call refuse(ok, message, "MapApply needs a list")
+                return
+            end if
+            allocate (values(data%nargs()))
+            do k = 1, data%nargs()
+                mapped = lower_apply(s, func("Apply", [mapper, data%arg(k)]), &
+                    .false., item_ok, item_message)
+                if (.not. item_ok) then
+                    call refuse(ok, message, chars(item_message))
+                    return
+                end if
+                values(k) = mapped
+            end do
+            r = func("List", values)
+            return
+        end if
+
+        if (data%kind() /= NK_FUNC) then
+            call refuse(ok, message, "Apply needs an explicit expression head")
+            return
+        end if
+        allocate (values(data%nargs()))
+        do k = 1, data%nargs()
+            values(k) = data%arg(k)
+        end do
+        if (mapper%kind() /= NK_SYM) then
+            call refuse(ok, message, "Apply needs a named head")
+            return
+        end if
+        select case (chars(mapper%name()))
+        case ("Plus")
+            r = num(s%a, 0_int64)
+            do k = 1, size(values); r = r + values(k); end do
+        case ("Times")
+            r = num(s%a, 1_int64)
+            do k = 1, size(values); r = r*values(k); end do
+        case default
+            r = func(chars(mapper%name()), values)
+            r = wl_eval(s, r, ok, message)
+            return
+        end select
+        r = auto_evaluate(s, r)
+    end function lower_apply
+
+    !> ReplaceAll and the bounded repeated-rule form over structural rules.
+    recursive function lower_replace(s, e, repeated, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,             intent(in)    :: repeated
+        logical,             intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, rules, rule, before
+        integer :: k, iteration
+        logical :: item_ok
+        type(str_t) :: item_message
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() /= 2) then
+            call refuse(ok, message, "replacement needs an expression and rules")
+            return
+        end if
+        r = apply_bindings(s, e%arg(1))
+        rules = e%arg(2)
+        if (rules%kind() == NK_FUNC .and. chars(rules%name()) == "List") then
+            do k = 1, rules%nargs()
+                before = r
+                call apply_one_rule(s, before, rules%arg(k), r, item_ok, item_message)
+                if (.not. item_ok) then
+                    call refuse(ok, message, chars(item_message))
+                    return
+                end if
+            end do
+        else
+            before = r
+            call apply_one_rule(s, before, rules, r, item_ok, item_message)
+            if (.not. item_ok) then
+                call refuse(ok, message, chars(item_message))
+                return
+            end if
+        end if
+
+        if (repeated) then
+            do iteration = 1, 64
+                before = r
+                if (rules%kind() == NK_FUNC .and. chars(rules%name()) == "List") then
+                    do k = 1, rules%nargs()
+                        before = r
+                        call apply_one_rule(s, before, rules%arg(k), r, item_ok, item_message)
+                        if (.not. item_ok) exit
+                    end do
+                else
+                    before = r
+                    call apply_one_rule(s, before, rules, r, item_ok, item_message)
+                end if
+                if (.not. item_ok) exit
+                if (r%id == before%id) exit
+            end do
+            if (.not. item_ok) then
+                call refuse(ok, message, chars(item_message))
+                return
+            end if
+            if (iteration > 64) then
+                call refuse(ok, message, "ReplaceRepeated exceeded its iteration bound")
+                return
+            end if
+        end if
+        r = wl_eval(s, r, ok, message)
+    end function lower_replace
+
+    subroutine apply_one_rule(s, input, rule, output, ok, message)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: input, rule
+        type(expr_t),       intent(out)   :: output
+        logical,             intent(out)  :: ok
+        type(str_t),         intent(out)  :: message
+        type(expr_t) :: rhs
+
+        output = input
+        ok = .false.
+        message = str("")
+        if (rule%kind() /= NK_FUNC .or. rule%nargs() /= 2) then
+            call refuse(ok, message, "replacement needs Rule or RuleDelayed")
+            return
+        end if
+        if (chars(rule%name()) /= "Rule" .and. chars(rule%name()) /= "RuleDelayed") then
+            call refuse(ok, message, "replacement needs Rule or RuleDelayed")
+            return
+        end if
+        rhs = wl_eval(s, apply_bindings(s, rule%arg(2)), ok, message)
+        if (.not. ok) return
+        output = subs(input, rule%arg(1), rhs)
+        ok = .true.
+    end subroutine apply_one_rule
+
+    recursive function lower_compound(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        integer :: k
+
+        ok = .true.
+        message = str("")
+        r = num(s%a, 0_int64)
+        do k = 1, e%nargs()
+            r = wl_eval(s, e%arg(k), ok, message)
+            if (.not. ok) return
+        end do
+    end function lower_compound
+
+    recursive function contains_slot_sequence(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+        integer :: k
+
+        yes = .false.
+        if (e%kind() == NK_FUNC .and. chars(e%name()) == "SlotSequence") then
+            yes = .true.
+            return
+        end if
+        do k = 1, e%nargs()
+            if (contains_slot_sequence(e%arg(k))) then
+                yes = .true.
+                return
+            end if
+        end do
+    end function contains_slot_sequence
 
     !> True when a positional pattern definition matches this call shape.
     function has_function_definition(s, name, nargs) result(yes)
