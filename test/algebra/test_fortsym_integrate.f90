@@ -19,7 +19,7 @@ program test_fortsym_integrate
     ! plausible expression.
     use, intrinsic :: iso_fortran_env, only: real64, int64
     use fortsym_string, only: str_t, str, chars
-    use fortsym_arena, only: arena_t
+    use fortsym_arena, only: arena_t, NK_FUNC, NK_RAT
     use fortsym_expr, only: expr_t, sym, num, rat, func, &
                             operator(+), operator(-), operator(*), &
                             operator(/), operator(**), &
@@ -48,6 +48,8 @@ program test_fortsym_integrate
     call test_linear_substitution()
     call test_atan_and_asin()
     call test_symbolic_constant_factor()
+    call test_negative_log_arguments()
+    call test_exponent_near_minus_one()
     call test_refusals()
 
     if (nfail /= 0) then
@@ -239,9 +241,98 @@ contains
                                       0.2_dp, 1.2_dp)
     end subroutine test_symbolic_constant_factor
 
-    subroutine refuses(label, e)
+    !> Regression: an antiderivative containing a logarithm must be real on
+    !> the whole interval where the integrand is regular, so these intervals
+    !> deliberately sit where the log argument is negative. Quadrature of the
+    !> integrand is the oracle; it never looks at the returned expression.
+    subroutine test_negative_log_arguments()
+        call check_against_quadrature("int 1/(x-2) dx on [0,1]", 1/(x - 2), &
+                                      0.0_dp, 1.0_dp)
+        call check_against_quadrature("int 1/x dx on [-2,-1]", 1/x, &
+                                      -2.0_dp, -1.0_dp)
+        call check_against_quadrature("int tan(x) dx on [2,3]", tan(x), &
+                                      2.0_dp, 3.0_dp)
+    end subroutine test_negative_log_arguments
+
+    !> An exponent one part in 10**17 away from -1 rounds to -1.0 in real64,
+    !> but its antiderivative is a power, not a logarithm. The oracle here is
+    !> the calculus fact that only the exponent exactly -1 gives a logarithm.
+    subroutine test_exponent_near_minus_one()
+        type(expr_t) :: e, f
+        character(:), allocatable :: why
+        logical :: good
+
+        e = x**rat(arena, -100000000000000001_int64, 100000000000000000_int64)
+        f = integrate(arena, e, x, good, why)
+        call ok("int x**(-1-1e-17) dx integrates", good)
+        if (.not. good) then
+            print *, "       refused: ", why
+            return
+        end if
+        ! Quadrature cannot referee this one: x**(-1e-17) evaluates to 1.0 in
+        ! real64, so the true antiderivative -1e17*x**(-1e-17) cancels to zero
+        ! numerically. The oracle is the power rule itself: for n /= -1 the
+        ! antiderivative is a power with exponent n+1 = -1/10**17, and only
+        ! n = -1 exactly gives a logarithm.
+        call ok("int x**(-1-1e-17) dx is not a logarithm", &
+                .not. has_head(f, "log"))
+        call ok("int x**(-1-1e-17) dx carries exponent -1/10**17", &
+                has_exact_rat(f, -1_int64, 100000000000000000_int64))
+    end subroutine test_exponent_near_minus_one
+
+    !> Does any node of `e` apply the named function?
+    recursive function has_head(e, name) result(yes)
+        type(expr_t), intent(in) :: e
+        character(*), intent(in) :: name
+        logical                  :: yes
+        integer :: k
+
+        yes = .false.
+        if (e%kind() == NK_FUNC) then
+            if (chars(e%name()) == name) then
+                yes = .true.
+                return
+            end if
+        end if
+        do k = 1, e%nargs()
+            if (has_head(e%arg(k), name)) then
+                yes = .true.
+                return
+            end if
+        end do
+    end function has_head
+
+    !> A refusal only counts if it names the actual obstruction: `needle` must
+    !> occur in the reason, so a module that refused everything with a generic
+    !> message would fail these.
+    !> Does any node of `e` hold the exact rational p/q?
+    recursive function has_exact_rat(e, p, q) result(yes)
+        type(expr_t),   intent(in) :: e
+        integer(int64), intent(in) :: p, q
+        logical                    :: yes
+        integer :: k
+
+        yes = .false.
+        if (e%kind() == NK_RAT) then
+            if (e%int_value() == p) then
+                if (e%den_value() == q) then
+                    yes = .true.
+                    return
+                end if
+            end if
+        end if
+        do k = 1, e%nargs()
+            if (has_exact_rat(e%arg(k), p, q)) then
+                yes = .true.
+                return
+            end if
+        end do
+    end function has_exact_rat
+
+    subroutine refuses(label, e, needle)
         character(*), intent(in) :: label
         type(expr_t), intent(in) :: e
+        character(*), intent(in) :: needle
         type(expr_t) :: f
         character(:), allocatable :: why
         logical :: good
@@ -249,7 +340,8 @@ contains
         f = integrate(arena, e, x, good, why)
         call ok(label//" is refused", .not. good)
         if (.not. good) then
-            call ok(label//" says why", len(why) > 0)
+            call ok(label//" says why ("//needle//")", index(why, needle) > 0)
+            if (index(why, needle) == 0) print *, "       reason: ", why
         else
             print *, "       returned an answer instead of refusing"
         end if
@@ -264,21 +356,21 @@ contains
 
         ! Non-elementary: the error function is not in the rule set, and there
         ! is no substitution that reaches it from here.
-        call refuses("int exp(x**2) dx", exp(x**2))
+        call refuses("int exp(x**2) dx", exp(x**2), "not linear")
         ! Needs integration by parts.
-        call refuses("int x*sin(x) dx", x*sin(x))
+        call refuses("int x*sin(x) dx", x*sin(x), "parts")
         ! Needs a general substitution.
-        call refuses("int sin(x**2) dx", sin(x**2))
+        call refuses("int sin(x**2) dx", sin(x**2), "not linear")
         ! Rational function with a real pole: partial fractions, not
         ! implemented, so refused rather than half-done.
-        call refuses("int 1/(x**2-1) dx", 1/(x**2 - 1))
+        call refuses("int 1/(x**2-1) dx", 1/(x**2 - 1), "discriminant")
         ! Symbolic exponent: -1 and everything else have different shapes.
-        call refuses("int x**n dx", x**n)
+        call refuses("int x**n dx", x**n, "symbolic exponent")
         ! Symbolic slope: y could be zero, and the symbolic check could not
         ! tell.
-        call refuses("int sin(y*x) dx", sin(y*x))
+        call refuses("int sin(y*x) dx", sin(y*x), "nonzero slope")
         ! No rule at all for this head.
-        call refuses("int gamma(x) dx", func("gamma", [x]))
+        call refuses("int gamma(x) dx", func("gamma", [x]), "gamma")
     end subroutine test_refusals
 
 end program test_fortsym_integrate

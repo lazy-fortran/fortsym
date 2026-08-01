@@ -46,7 +46,7 @@ module fortsym_trigrewrite
                             operator(+), operator(-), operator(*), &
                             operator(/), operator(**), operator(==), &
                             operator(/=)
-    use fortsym_assume, only: assumption_context_t, FACT_POSITIVE
+    use fortsym_assume, only: assumption_context_t, FACT_POSITIVE, FACT_REAL
     implicit none
     private
 
@@ -1014,6 +1014,14 @@ contains
                               "**(1/2) is 2 while (-2)**(2*(1/2)) is -2"
                         return
                     end if
+                    if (.not. is_real_expr(b%arg(2), context)) then
+                        ok = .false.
+                        why = "power_expand: (a**m)**p collapses only for "// &
+                              "an integer p or a positive a and a real m; "// &
+                              "m is not known real here, and (2**(5*i))"// &
+                              "**(1/2) is not 2**(5*i*(1/2))"
+                        return
+                    end if
                 end if
                 r = b%arg(1)**(b%arg(2)*p)
                 return
@@ -1059,6 +1067,14 @@ contains
                         ok = .false.
                         why = "power_expand: sqrt(a**m) is not a**(m/2) "// &
                               "unless a is positive; sqrt(a**2) is abs(a)"
+                        return
+                    end if
+                    if (.not. is_real_expr(parts(1)%arg(2), context)) then
+                        ok = .false.
+                        why = "power_expand: sqrt(a**m) is not a**(m/2) "// &
+                              "unless m is real as well; m is not known "// &
+                              "real here, and sqrt(2**(5*i)) is not "// &
+                              "2**(5*i/2)"
                         return
                     end if
                     r = parts(1)%arg(1)**(parts(1)%arg(2)* &
@@ -1127,14 +1143,76 @@ contains
                 end if
             end do
         case (NK_POW)
-            ! A positive base raised to anything real is positive; nothing is
-            ! assumed about the exponent, which is why the base alone decides.
-            yes = is_positive(e%arg(1), context)
+            ! A positive base raised to a *real* exponent is positive. The
+            ! exponent has to be established real: 2**(5*i) has modulus one
+            ! but is not positive, and treating it as positive licenses a
+            ! sign error in the splitting rules below.
+            if (is_positive(e%arg(1), context)) then
+                yes = is_real_expr(e%arg(2), context)
+            end if
         case (NK_FUNC)
             head = chars(e%name())
-            if (head == "exp" .and. e%nargs() == 1) yes = .true.
+            if (head == "exp") then
+                if (e%nargs() == 1) yes = is_real_expr(e%arg(1), context)
+            end if
         end select
     end function is_positive
+
+    !> Realness, by the same conservative contract as is_positive: an
+    !> explicit assumption, a numeric literal, or a shape built only from
+    !> those. Unknown means "not known real". Symbols are not assumed real:
+    !> the module manufactures exp(i*...) nodes itself, so a default-real
+    !> reading of an unconstrained atom would readmit the sign errors this
+    !> predicate exists to exclude.
+    recursive function is_real_expr(e, context) result(yes)
+        type(expr_t),               intent(in) :: e
+        type(assumption_context_t), intent(in) :: context
+        logical                                :: yes
+        character(:), allocatable :: head
+        integer :: k, expo
+        logical :: int_expo
+
+        yes = .false.
+        ! Positivity implies realness in the assumption context, so this one
+        ! query covers both.
+        if (context%has(e, FACT_REAL)) then
+            yes = .true.
+            return
+        end if
+
+        select case (e%kind())
+        case (NK_INT, NK_RAT, NK_REAL)
+            yes = .true.
+        case (NK_CONST)
+            head = chars(e%name())
+            yes = head == "pi" .or. head == "e"
+        case (NK_ADD, NK_MUL)
+            yes = .true.
+            do k = 1, e%nargs()
+                if (.not. is_real_expr(e%arg(k), context)) then
+                    yes = .false.
+                    return
+                end if
+            end do
+        case (NK_POW)
+            ! A real base with an integer exponent stays real; a positive
+            ! base with a real exponent does too. Anything else -- notably a
+            ! negative base with a fractional exponent -- is left unknown.
+            call integer_value(e%arg(2), expo, int_expo)
+            if (int_expo) then
+                yes = is_real_expr(e%arg(1), context)
+                return
+            end if
+            if (is_positive(e%arg(1), context)) then
+                yes = is_real_expr(e%arg(2), context)
+            end if
+        case (NK_FUNC)
+            head = chars(e%name())
+            if (head == "exp" .or. head == "sin" .or. head == "cos") then
+                if (e%nargs() == 1) yes = is_real_expr(e%arg(1), context)
+            end if
+        end select
+    end function is_real_expr
 
     ! ---------------------------------------------------------- utilities --
 

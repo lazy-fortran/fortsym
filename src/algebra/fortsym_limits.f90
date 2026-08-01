@@ -5,10 +5,13 @@ module fortsym_limits
     ! and most expensive to trust, so every path here ends in either a theorem
     ! or a refusal. Four theorems are implemented, and nothing else:
     !
-    !   * continuity. If every node of `e` with the point substituted in sits in
-    !     the interior of its domain, the composition is continuous there and
-    !     the limit is the substituted value. The check walks the whole tree; it
-    !     does not sample and conclude.
+    !   * continuity. If every node of `e` sits in the interior of its domain
+    !     at the point, the composition is continuous there and the limit is the
+    !     substituted value. The check walks the whole tree; it does not sample
+    !     and conclude. It walks the tree the caller wrote and substitutes only
+    !     where a number is needed, so a domain rule is never chosen from a node
+    !     kind that substitution manufactured -- `x**x` at 0 is refused rather
+    !     than read off the accidental `0**0`.
     !   * L'Hopital, for 0/0 at a finite point. The numerator and denominator
     !     are split structurally, their vanishing is decided by the engine's
     !     zero test (a decision, never a numeric guess), and the rule is applied
@@ -282,12 +285,14 @@ contains
         r%kind = LIMIT_FINITE
         r%value = e
 
-        ! Continuity: the substituted tree is checked node by node, so an
-        ! answer here rests on a domain argument rather than on the value
-        ! happening to come out finite.
-        at_point = subs(e, var, p)
-        call require_continuous(at_point, good, inner)
+        ! Continuity: the ORIGINAL tree is checked node by node, with the point
+        ! substituted only where a numeric value is needed. Walking the
+        ! original tree is what makes the domain rule for a power depend on the
+        ! exponent the user wrote rather than on whatever the exponent collapses
+        ! to at this particular point.
+        call require_continuous(e, var, p, good, inner)
         if (good) then
+            at_point = subs(e, var, p)
             r%value = simplified(eng, at_point, ok)
             if (.not. ok) then
                 why = "the expression is continuous at the point but the "// &
@@ -305,18 +310,18 @@ contains
             return
         end if
 
-        do step = 0, MAX_LHOPITAL
+        do step = 1, MAX_LHOPITAL
             ns = subs(numer, var, p)
             ds = subs(denom, var, p)
 
             ! L'Hopital needs both parts defined and continuous at the point;
             ! without that the quotient of derivatives says nothing.
-            call require_continuous(ns, good, inner)
+            call require_continuous(numer, var, p, good, inner)
             if (.not. good) then
                 why = "numerator is not continuous at the point: "//inner
                 return
             end if
-            call require_continuous(ds, good, inner)
+            call require_continuous(denom, var, p, good, inner)
             if (.not. good) then
                 why = "denominator is not continuous at the point: "//inner
                 return
@@ -480,9 +485,16 @@ contains
             why = "cannot evaluate the ratio of leading coefficients: "//inner
             return
         end if
-        if (abs(rv) < MARGIN) then
-            why = "the ratio of leading coefficients is too close to zero to "// &
-                  "give the sign of the divergence"
+        ! The two leading coefficients were each PROVED nonzero by the exact
+        ! three-valued zero test in trim_leading, so their ratio is exactly
+        ! nonzero and the float probe is needed only for its sign. Discarding
+        ! small-but-exact ratios here would refuse limits such as x/10**10 at
+        ! +infinity, which is decidable. The only unusable probe is one that
+        ! underflowed all the way to zero and so carries no sign at all.
+        if (rv == 0.0_dp) then
+            why = "the ratio of leading coefficients is nonzero but "// &
+                  "underflows to zero in double precision, so its sign "// &
+                  "cannot be read"
             return
         end if
         gap = dn - dd
@@ -513,7 +525,7 @@ contains
         type(expr_t) :: konst
         real(dp) :: c, p, m, kv
         logical :: good
-        integer :: order
+        integer :: order, verdict
         character(:), allocatable :: inner
 
         ok = .false.
@@ -547,13 +559,29 @@ contains
             return
         end if
 
+        ! The constant factor has not been zero-tested yet, so decide it
+        ! exactly first. An exactly zero factor makes the whole monomial the
+        ! zero function; a proved-nonzero factor only needs the float probe for
+        ! its sign, and a small exact constant is no reason to refuse.
+        verdict = zero_verdict(eng, konst)
+        if (verdict == VERDICT_TRUE) then
+            r%value = num(a, 0)
+            ok = .true.
+            return
+        end if
+        if (verdict /= VERDICT_FALSE) then
+            why = "cannot decide whether the constant factor vanishes"
+            return
+        end if
+
         call numeric_value(konst, kv, good, inner)
         if (.not. good) then
             why = "cannot evaluate the constant factor: "//inner
             return
         end if
-        if (abs(kv) < MARGIN) then
-            why = "the constant factor is too close to zero to decide the sign"
+        if (kv == 0.0_dp) then
+            why = "the constant factor is nonzero but underflows to zero in "// &
+                  "double precision, so its sign cannot be read"
             return
         end if
 
@@ -735,15 +763,22 @@ contains
 
     ! -------------------------------------------------------- continuity --
 
-    !> True when every node of this closed expression sits in the interior of
-    !> its domain, which makes the whole composition continuous there. `why`
-    !> names the first node that fails.
-    recursive subroutine require_continuous(e, ok, why)
-        type(expr_t),              intent(in)  :: e
+    !> True when every node of `e`, with `var` set to the point `p`, sits in the
+    !> interior of its domain, which makes the whole composition continuous
+    !> there. `why` names the first node that fails.
+    !>
+    !> The walk is over the ORIGINAL tree and substitution happens only inside
+    !> `point_value`, where a number is actually needed. That ordering matters:
+    !> the domain rule for `base**expo` depends on whether the exponent is a
+    !> genuine constant integer, and substituting first would let an exponent
+    !> that depends on the variable masquerade as one whenever it happens to
+    !> collapse to an integer at this particular point.
+    recursive subroutine require_continuous(e, var, p, ok, why)
+        type(expr_t),              intent(in)  :: e, var, p
         logical,                   intent(out) :: ok
         character(:), allocatable, intent(out) :: why
         type(expr_t) :: base, expo, arg
-        real(dp) :: v, w
+        real(dp) :: v
         integer :: k
         logical :: good
         character(:), allocatable :: inner, name
@@ -766,14 +801,19 @@ contains
             end select
 
         case (NK_SYM)
-            ! Substitution should have removed every symbol; one left means the
-            ! point never reached this branch.
-            why = "symbol "//chars(e%name())//" is still free after "// &
-                  "substituting the point"
+            ! The limit variable is the one symbol allowed here; it stands for
+            ! the point. Anything else means the caller slipped a second free
+            ! symbol past validation.
+            if (e == var) then
+                ok = .true.
+            else
+                why = "symbol "//chars(e%name())//" is free besides the "// &
+                      "limit variable"
+            end if
 
         case (NK_ADD, NK_MUL)
             do k = 1, e%nargs()
-                call require_continuous(e%arg(k), good, inner)
+                call require_continuous(e%arg(k), var, p, good, inner)
                 if (.not. good) then
                     why = inner
                     return
@@ -784,26 +824,39 @@ contains
         case (NK_POW)
             base = e%arg(1)
             expo = e%arg(2)
-            call require_continuous(base, good, inner)
+            call require_continuous(base, var, p, good, inner)
             if (.not. good) then
                 why = inner
                 return
             end if
-            call require_continuous(expo, good, inner)
+            call require_continuous(expo, var, p, good, inner)
             if (.not. good) then
                 why = inner
                 return
             end if
-            call decided_value(base, v, good)
+            call point_value(base, var, p, v, good)
             if (.not. good) then
                 why = "cannot decide the value of a power base"
                 return
             end if
-            if (expo%kind() == NK_INT) then
-                if (expo%int_value() < 0_int64 .and. abs(v) <= MARGIN) then
-                    why = "a negative power of something that vanishes at "// &
-                          "the point"
+            if (depends_on(expo, var)) then
+                ! a**b is continuous at (v, w) with v <= 0 only when the
+                ! exponent is a genuine constant integer. A variable exponent
+                ! is not, however integral its value at this one point turns
+                ! out to be, so the base must be provably positive.
+                if (v <= MARGIN) then
+                    why = "a power whose exponent depends on the variable "// &
+                          "needs a base that is provably positive"
                     return
+                end if
+                ok = .true.
+            else if (expo%kind() == NK_INT) then
+                if (expo%int_value() < 0_int64) then
+                    if (abs(v) <= MARGIN) then
+                        why = "a negative power of something that vanishes "// &
+                              "at the point"
+                        return
+                    end if
                 end if
                 ok = .true.
             else
@@ -819,7 +872,7 @@ contains
 
         case (NK_FUNC)
             do k = 1, e%nargs()
-                call require_continuous(e%arg(k), good, inner)
+                call require_continuous(e%arg(k), var, p, good, inner)
                 if (.not. good) then
                     why = inner
                     return
@@ -835,7 +888,7 @@ contains
                 ok = .true.
 
             case ("tan")
-                call decided_value(arg, v, good)
+                call point_value(arg, var, p, v, good)
                 if (.not. good) then
                     why = "cannot decide the argument of tan"
                     return
@@ -847,7 +900,7 @@ contains
                 ok = .true.
 
             case ("log", "gamma", "loggamma")
-                call decided_value(arg, v, good)
+                call point_value(arg, var, p, v, good)
                 if (.not. good) then
                     why = "cannot decide the argument of "//name
                     return
@@ -859,7 +912,7 @@ contains
                 ok = .true.
 
             case ("sqrt")
-                call decided_value(arg, v, good)
+                call point_value(arg, var, p, v, good)
                 if (.not. good) then
                     why = "cannot decide the argument of sqrt"
                     return
@@ -875,7 +928,7 @@ contains
                 ok = .true.
 
             case ("asin", "acos")
-                call decided_value(arg, v, good)
+                call point_value(arg, var, p, v, good)
                 if (.not. good) then
                     why = "cannot decide the argument of "//name
                     return
@@ -887,7 +940,7 @@ contains
                 ok = .true.
 
             case ("atanh")
-                call decided_value(arg, v, good)
+                call point_value(arg, var, p, v, good)
                 if (.not. good) then
                     why = "cannot decide the argument of atanh"
                     return
@@ -899,7 +952,7 @@ contains
                 ok = .true.
 
             case ("acosh")
-                call decided_value(arg, v, good)
+                call point_value(arg, var, p, v, good)
                 if (.not. good) then
                     why = "cannot decide the argument of acosh"
                     return
@@ -915,14 +968,14 @@ contains
                     why = "atan2 needs two arguments"
                     return
                 end if
-                call decided_value(e%arg(2), v, good)
-                if (.not. good) then
-                    why = "cannot decide the second argument of atan2"
-                    return
-                end if
-                call decided_value(e%arg(1), w, good)
+                call point_value(e%arg(1), var, p, v, good)
                 if (.not. good) then
                     why = "cannot decide the first argument of atan2"
+                    return
+                end if
+                call point_value(e%arg(2), var, p, v, good)
+                if (.not. good) then
+                    why = "cannot decide the second argument of atan2"
                     return
                 end if
                 ! The branch cut runs along the negative second argument, so
@@ -942,24 +995,22 @@ contains
         end select
     end subroutine require_continuous
 
-    !> The value of a closed subexpression. Refused outright when the evaluator
-    !> declines -- a pole, a branch cut, an unknown head -- so a domain test
-    !> never runs on a number that was invented.
-    subroutine decided_value(e, v, ok)
-        type(expr_t), intent(in)  :: e
+    !> The value of `e` at var = p. Substitution happens here and nowhere else
+    !> in the continuity walk, so the walk keeps seeing the node kinds the user
+    !> wrote. Refused outright when the evaluator declines -- a pole, a branch
+    !> cut, an unknown head -- so a domain test never runs on an invented
+    !> number. A value inside the margin is still reported: callers that need
+    !> the magnitude and callers that need the sign both see the same number
+    !> and apply their own threshold.
+    subroutine point_value(e, var, p, v, ok)
+        type(expr_t), intent(in)  :: e, var, p
         real(dp),     intent(out) :: v
         logical,      intent(out) :: ok
         character(:), allocatable :: why
 
-        call numeric_value(e, v, ok, why)
-        if (.not. ok) then
-            v = 0.0_dp
-            return
-        end if
-        ! A value inside the margin is still reported: callers that need the
-        ! magnitude and callers that need the sign both see the same number and
-        ! apply their own threshold.
-    end subroutine decided_value
+        call numeric_value(subs(e, var, p), v, ok, why)
+        if (.not. ok) v = 0.0_dp
+    end subroutine point_value
 
     ! ---------------------------------------------------------- structure --
 

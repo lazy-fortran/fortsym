@@ -58,6 +58,9 @@ program test_fortsym_complexdom
     call test_unknown_reality_refused()
     call test_branch_cases_refused()
     call test_unknown_heads_refused()
+    call test_identically_zero_refused()
+    call test_expansion_is_bounded()
+    call test_conjugate_domain_is_wider()
 
     if (nfail /= 0) then
         print *, "test_fortsym_complexdom: ", nfail, " check(s) FAILED"
@@ -96,6 +99,11 @@ contains
             e = z**num(arena, 2) - num(arena, 3)*z &
                 + rat(arena, 1_int64, 3_int64)
         case (9); e = func("cos", [z**num(arena, 2)])*z
+        case default
+            ! nprobe() and this list are separate constants; an index outside
+            ! the list must stop the run rather than hand back an expr_t that
+            ! was never assigned.
+            error stop "probe: index outside the probe list"
         end select
     end function probe
 
@@ -191,9 +199,9 @@ contains
     !> identity, which atan2 gets right and a naive atan(im/re) does not.
     subroutine test_modulus_and_argument()
         type(expr_t) :: e, m, g
-        complex(dp) :: ze, rebuilt
+        complex(dp) :: ze, rebuilt, zm, zg
         real(dp) :: modulus, angle
-        logical :: good, allgood
+        logical :: good, allgood, realgood
         character(:), allocatable :: why
         integer :: k, p
 
@@ -205,10 +213,19 @@ contains
             call ok("arg_of accepts probe", good)
             if (.not. good) cycle
             allgood = .true.
+            realgood = .true.
             do p = 1, NPOINT
                 ze = at(e, p)
-                modulus = real(at(m, p), dp)
-                angle = real(at(g, p), dp)
+                zm = at(m, p)
+                zg = at(g, p)
+                ! Taking real() below would silently drop a surviving i, so
+                ! the reality of both is checked before it is discarded. The
+                ! atan2 walker in the oracle refuses a complex argument, but
+                ! nothing guards the abs path.
+                if (aimag(zm) /= 0.0_dp) realgood = .false.
+                if (aimag(zg) /= 0.0_dp) realgood = .false.
+                modulus = real(zm, dp)
+                angle = real(zg, dp)
                 if (abs(modulus - abs(ze)) > TOL*(1.0_dp + abs(ze))) &
                     allgood = .false.
                 rebuilt = modulus*exp(cmplx(0.0_dp, angle, dp))
@@ -216,6 +233,7 @@ contains
                     allgood = .false.
             end do
             call ok("abs and arg rebuild the value", allgood)
+            call ok("abs and arg are exactly real", realgood)
         end do
     end subroutine test_modulus_and_argument
 
@@ -257,9 +275,14 @@ contains
         call ok("i has real part 0", at(re, 1) == (0.0_dp, 0.0_dp))
         call ok("i has imaginary part 1", at(im, 1) == (1.0_dp, 0.0_dp))
 
+        ! Two separate checks rather than one conjunction: `.and.` does not
+        ! short-circuit in Fortran, so `at(c, 1)` in the same expression would
+        ! evaluate an unassigned `c` on the day `conjugate` starts refusing.
         call conjugate(e, facts, c, good, why)
-        call ok("conj(i) is -i", good .and. &
-                at(c, 1) == cmplx(0.0_dp, -1.0_dp, dp))
+        call ok("conj(i) is accepted", good)
+        if (good) then
+            call ok("conj(i) is -i", at(c, 1) == cmplx(0.0_dp, -1.0_dp, dp))
+        end if
 
         call arg_of(num(arena, 0), facts, e, good, why)
         call ok("Arg at zero is refused", .not. good)
@@ -341,6 +364,132 @@ contains
         call conjugate(e, facts, out, good, why)
         call ok("besselj has no conjugation rule", .not. good)
     end subroutine test_unknown_heads_refused
+
+    !> An expression that is identically zero has no reciprocal and no
+    !> argument, whatever it is spelled like.
+    !>
+    !> The oracle here is arithmetic, not the module: 1/0 is not a number and
+    !> Arg(0) is not an angle, so the only acceptable answer is a refusal. The
+    !> spellings are the ones that do not look like `0`: the arena does not
+    !> fold, so `i*i + 1`, `z - z` and `0*x` all arrive intact.
+    subroutine test_identically_zero_refused()
+        type(expr_t) :: e, re, im, out
+        logical :: good
+        character(:), allocatable :: why
+
+        e = num(arena, 0)**num(arena, -1)
+        call complex_split(e, facts, re, im, good, why)
+        call ok("0**(-1) is refused, not split into NaNs", .not. good)
+        if (.not. good) then
+            call ok("the refusal names the zero base", &
+                    index(why, "identically zero") > 0)
+        end if
+
+        e = (i_expr(arena)*i_expr(arena) + num(arena, 1))**num(arena, -1)
+        call complex_split(e, facts, re, im, good, why)
+        call ok("(i*i + 1)**(-1) is refused too", .not. good)
+
+        call arg_of(z - z, facts, out, good, why)
+        call ok("Arg(z - z) is refused", .not. good)
+        call arg_of(num(arena, 0)*x, facts, out, good, why)
+        call ok("Arg(0*x) is refused", .not. good)
+        call arg_of(num(arena, 0) + num(arena, 0), facts, out, good, why)
+        call ok("Arg(0 + 0) is refused", .not. good)
+        call arg_of(rat(arena, 0_int64, 5_int64), facts, out, good, why)
+        call ok("Arg(0/5) is refused", .not. good)
+
+        ! The other direction: a base that is not zero must still go through,
+        ! or the guard has been widened into a refusal of everything.
+        call arg_of(z, facts, out, good, why)
+        call ok("Arg(z) is still accepted", good)
+        call complex_split(z**num(arena, -1), facts, re, im, good, why)
+        call ok("z**(-1) is still accepted", good)
+    end subroutine test_identically_zero_refused
+
+    !> The cap has to bound the size of the result, not the size of one
+    !> exponent, and nesting must not get round it.
+    !>
+    !> Re[z**n] has 2**n terms, so an exponent cap alone lets through a result
+    !> with more terms than any consumer can walk. The independent measure used
+    !> here is the term count the mathematics forces: 2**12 is accepted and
+    !> checked numerically, 2**13 is refused, and the two ways of reaching a
+    !> larger exponent without writing one -- nesting and multiplying -- are
+    !> refused as well.
+    subroutine test_expansion_is_bounded()
+        type(expr_t) :: e, out
+        logical :: good, allgood
+        character(:), allocatable :: why
+        integer :: p
+
+        e = z**num(arena, 12)
+        call re_part(e, facts, out, good, why)
+        call ok("z**12 is inside the expansion bound", good)
+        if (good) then
+            allgood = .true.
+            do p = 1, NPOINT
+                if (aimag(at(out, p)) /= 0.0_dp) allgood = .false.
+                if (abs(real(at(out, p), dp) - real(at(e, p), dp)) &
+                    > TOL*(1.0_dp + abs(at(e, p)))) allgood = .false.
+            end do
+            call ok("Re[z**12] is the real part of z**12", allgood)
+        end if
+
+        e = z**num(arena, 13)
+        call re_part(e, facts, out, good, why)
+        call ok("z**13 exceeds the term bound", .not. good)
+        if (.not. good) then
+            call ok("the refusal names the term count", &
+                    index(why, "terms") > 0)
+        end if
+
+        e = (z**num(arena, 24))**num(arena, 24)
+        call re_part(e, facts, out, good, why)
+        call ok("nesting does not get round the bound", .not. good)
+
+        e = z**num(arena, 12)*z**num(arena, 12)
+        call re_part(e, facts, out, good, why)
+        call ok("multiplying does not get round it either", .not. good)
+    end subroutine test_expansion_is_bounded
+
+    !> conjugate handles expressions complex_split refuses, on purpose.
+    !>
+    !> conj(w**n) = conj(w)**n needs no expansion, so the exponent bounds that
+    !> stop the splitter do not apply. The check is that the wider answers are
+    !> right -- against conjg in the oracle -- and that the splitter's refusal
+    !> on the same input is still a refusal.
+    subroutine test_conjugate_domain_is_wider()
+        type(expr_t) :: e, c, out
+        logical :: good, allgood
+        character(:), allocatable :: why
+        integer :: p
+
+        e = z**num(arena, 0)
+        call conjugate(e, facts, c, good, why)
+        call ok("conj(z**0) is accepted", good)
+        if (good) then
+            allgood = .true.
+            do p = 1, NPOINT
+                if (abs(at(c, p) - conjg(at(e, p))) > TOL) allgood = .false.
+            end do
+            call ok("conj(z**0) agrees with conjg", allgood)
+        end if
+        call abs_of(e, facts, out, good, why)
+        call ok("Abs(z**0) is still refused by the splitter", .not. good)
+
+        e = z**num(arena, 30)
+        call conjugate(e, facts, c, good, why)
+        call ok("conj(z**30) is accepted", good)
+        if (good) then
+            allgood = .true.
+            do p = 1, NPOINT
+                if (abs(at(c, p) - conjg(at(e, p))) &
+                    > TOL*(1.0_dp + abs(at(e, p)))) allgood = .false.
+            end do
+            call ok("conj(z**30) agrees with conjg", allgood)
+        end if
+        call abs_of(e, facts, out, good, why)
+        call ok("Abs(z**30) is still refused by the splitter", .not. good)
+    end subroutine test_conjugate_domain_is_wider
 
     ! ----------------------------------------------------- the oracle --
 

@@ -65,6 +65,14 @@ module fortsym_polysolve
     ! Trial-division bound for pulling square factors out of a discriminant.
     integer(int64), parameter :: SQUARE_FACTOR_LIMIT = 1000000_int64
 
+    ! Structural recursion bound. `extract` walks the expression DAG with one
+    ! stack frame per level, and each frame carries several allocatable arrays,
+    ! so a machine-generated expression nested thousands of levels deep would
+    ! overflow the process stack. Every other limit in this file is a refusal;
+    ! so is this one. 512 levels is far more than a human-written equation and
+    ! far below the frame budget of a default stack.
+    integer, parameter :: MAX_EXPR_DEPTH = 512
+
     !> An exact rational in lowest terms with a positive denominator.
     type :: rat_t
         integer(int64) :: n = 0_int64
@@ -166,10 +174,24 @@ contains
     !> Structural walk turning a node into ascending coefficients: c(k) is the
     !> coefficient of var**(k-1). Every node kind that is not provably a
     !> rational polynomial in var is refused with the reason.
-    recursive subroutine extract(a, id, vname, c, ok, why)
+    subroutine extract(a, id, vname, c, ok, why)
         type(arena_t),             intent(in)  :: a
         integer,                   intent(in)  :: id
         character(*),              intent(in)  :: vname
+        type(rat_t), allocatable,  intent(out) :: c(:)
+        logical,                   intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+
+        call extract_at(a, id, vname, 1, c, ok, why)
+    end subroutine extract
+
+    !> The recursive body of `extract`. `depth` counts nesting levels and is
+    !> refused past MAX_EXPR_DEPTH, so no legal input can exhaust the stack.
+    recursive subroutine extract_at(a, id, vname, depth, c, ok, why)
+        type(arena_t),             intent(in)  :: a
+        integer,                   intent(in)  :: id
+        character(*),              intent(in)  :: vname
+        integer,                   intent(in)  :: depth
         type(rat_t), allocatable,  intent(out) :: c(:)
         logical,                   intent(out) :: ok
         character(:), allocatable, intent(out) :: why
@@ -177,10 +199,18 @@ contains
         type(rat_t)    :: r
         integer        :: k, kind
         integer(int64) :: expo
+        character(len=16) :: text
 
         ok = .false.
         why = ""
         allocate (c(0))
+        if (depth > MAX_EXPR_DEPTH) then
+            write (text, '(i0)') MAX_EXPR_DEPTH
+            why = "the expression nests deeper than the supported maximum "// &
+                  "of "//trim(text)//" levels, which the structural walk "// &
+                  "cannot descend without exhausting the stack"
+            return
+        end if
         kind = a%kind_of(id)
 
         select case (kind)
@@ -223,7 +253,8 @@ contains
             allocate (acc(1))
             acc(1) = rat_of(0_int64)
             do k = 1, a%nargs_of(id)
-                call extract(a, a%arg_of(id, k), vname, part, ok, why)
+                call extract_at(a, a%arg_of(id, k), vname, depth + 1, part, &
+                                ok, why)
                 if (.not. ok) return
                 call poly_add(acc, part, ok, why)
                 if (.not. ok) return
@@ -235,7 +266,8 @@ contains
             allocate (acc(1))
             acc(1) = rat_of(1_int64)
             do k = 1, a%nargs_of(id)
-                call extract(a, a%arg_of(id, k), vname, part, ok, why)
+                call extract_at(a, a%arg_of(id, k), vname, depth + 1, part, &
+                                ok, why)
                 if (.not. ok) return
                 call poly_mul(acc, part, ok, why)
                 if (.not. ok) return
@@ -250,7 +282,7 @@ contains
                 return
             end if
             expo = a%num_of(a%arg_of(id, 2))
-            call extract(a, a%arg_of(id, 1), vname, part, ok, why)
+            call extract_at(a, a%arg_of(id, 1), vname, depth + 1, part, ok, why)
             if (.not. ok) return
             call poly_pow(part, expo, c, ok, why)
 
@@ -275,7 +307,7 @@ contains
                   " in the equation"
 
         end select
-    end subroutine extract
+    end subroutine extract_at
 
     ! ------------------------------------------------- polynomial machinery --
 
@@ -648,13 +680,18 @@ contains
             return
         end if
 
-        call square_split(dnum, factored, squarefree, exact_square)
+        call square_split(dnum, factored, squarefree, exact_square, ok)
+        if (.not. ok) then
+            why = "the discriminant has no representable magnitude in "// &
+                  "checked 64-bit exact arithmetic"
+            return
+        end if
         call rat_scale(half, factored, tmp, ok)
-        half = tmp
         if (.not. ok) then
             why = "quadratic root overflowed checked 64-bit exact arithmetic"
             return
         end if
+        half = tmp
 
         if (exact_square) then
             call rat_add(base, half, root, ok)
@@ -706,7 +743,7 @@ contains
         integer(int64), allocatable :: pdiv(:), qdiv(:)
         type(surd_t)   :: x, value
         type(rat_t)    :: candidate
-        integer(int64) :: sgn
+        integer(int64) :: sgn, magnitude
         integer        :: i, j, tried
         logical        :: good
 
@@ -715,9 +752,13 @@ contains
         if (size(c) < 2) return
         if (c(1)%n == 0_int64) return
 
-        call divisors(abs_i64(c(1)%n), pdiv, good)
+        call abs_i64(c(1)%n, magnitude, good)
         if (.not. good) return
-        call divisors(abs_i64(c(size(c))%n), qdiv, good)
+        call divisors(magnitude, pdiv, good)
+        if (.not. good) return
+        call abs_i64(c(size(c))%n, magnitude, good)
+        if (.not. good) return
+        call divisors(magnitude, qdiv, good)
         if (.not. good) return
         if (size(pdiv)*size(qdiv)*2 > MAX_CANDIDATES) return
 
@@ -1026,31 +1067,39 @@ contains
         if (g == 0_int64) g = 1_int64
     end function gcd_i64
 
-    pure function abs_i64(x) result(v)
-        integer(int64), intent(in) :: x
-        integer(int64) :: v
-        if (x == MIN_I64) then
-            v = MAX_I64
-        else
-            v = abs(x)
-        end if
-    end function abs_i64
+    !> |x| as a checked operation. |MIN_I64| is not representable, so it is a
+    !> reported failure rather than a fabricated magnitude: a caller that got a
+    !> substitute value back would go on to reason about the wrong integer.
+    pure subroutine abs_i64(x, v, ok)
+        integer(int64), intent(in)  :: x
+        integer(int64), intent(out) :: v
+        logical,        intent(out) :: ok
+
+        v = 0_int64
+        ok = .false.
+        if (x == MIN_I64) return
+        v = abs(x)
+        ok = .true.
+    end subroutine abs_i64
 
     !> Split |v| into factor**2 * squarefree, keeping the sign on squarefree.
     !> Trial division stops at a bound, so for a very large v the remaining part
     !> may still contain a square; that only leaves sqrt() less reduced, it
     !> never changes the value, and the verifier uses whatever comes out here.
-    subroutine square_split(v, factor, squarefree, exact_square)
+    subroutine square_split(v, factor, squarefree, exact_square, ok)
         integer(int64), intent(in)  :: v
         integer(int64), intent(out) :: factor, squarefree
         logical,        intent(out) :: exact_square
+        logical,        intent(out) :: ok
         integer(int64) :: m, p, sgn
 
         factor = 1_int64
+        squarefree = 0_int64
         exact_square = .false.
         sgn = 1_int64
         if (v < 0_int64) sgn = -1_int64
-        m = abs_i64(v)
+        call abs_i64(v, m, ok)
+        if (.not. ok) return
 
         p = 2_int64
         do while (p <= SQUARE_FACTOR_LIMIT)
@@ -1063,7 +1112,10 @@ contains
         end do
 
         squarefree = sgn*m
-        if (sgn > 0_int64 .and. m == 1_int64) exact_square = .true.
+        ok = .true.
+        if (sgn > 0_int64) then
+            if (m == 1_int64) exact_square = .true.
+        end if
     end subroutine square_split
 
     !> All positive divisors of v, or a refusal when v is too large to factor
