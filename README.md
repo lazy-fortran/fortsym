@@ -162,11 +162,12 @@ and the native backend. Python companions are generated separately for the
 SymPy oracle; their inventory and persistent oracle cache live in
 `fortsym-bench`.
 
-On the 384-file corpus sweep recorded 2026-08-01, the native runner produced
-result sets for 382 scripts, timed out on one heavy script at the external
-60-second limit, and explicitly refused one unsupported construct. It did not
-crash. The benchmark cache served all 384 SymPy and all 384 Mathics reference
-outcomes without rerunning either oracle.
+On the 384-file corpus sweep recorded 2026-08-01, the native runner completed
+381 scripts (343 with non-empty results and 38 valid empty result sets), timed
+out on one heavy script at the external 60-second limit, and explicitly refused
+two unsupported constructs. It did not crash. The benchmark cache served all
+384 SymPy and all 384 Mathics reference outcomes without rerunning either
+oracle; the warm two-oracle comparison pass takes about 1.2 seconds.
 
 ## Build
 

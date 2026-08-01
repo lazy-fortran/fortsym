@@ -48,11 +48,14 @@ Latest corpus-wide measurement, 2026-08-01, `fortsym-bench` at 384 scripts
 
 | | |
 |---|---:|
-| scripts producing at least one native result | **382 / 384 (99%)** |
-| scripts refusing with a named construct | 1 |
+| scripts completing natively | **381 / 384 (99%)** |
+| of those with non-empty result sets | 343 |
+| valid empty native result sets | 38 |
+| scripts refusing with a named construct | 2 |
 | scripts exceeding the time budget | 1 |
 | crashes | **0** |
-| whole-corpus wall time | about 64 s |
+| cold native refill, four workers | about 69 s |
+| warm raw-output and verdict audit | about 1.2 s |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
@@ -64,26 +67,30 @@ That number is now established, and it changes the target.
 | | scripts | share |
 |---|---:|---:|
 | Mathics produces results | 238 | 62% |
-| fortsym-wl produces results | 382 | 99% |
-| **both — the scorable set** | **237** | **62%** |
+| fortsym-wl completes | 381 | 99% |
+| **Mathics and fortsym-wl both complete** | **236** | **61%** |
 
 Mathics fails on 146 scripts: 114 errors and 32 timeouts. Those outcomes are
 cached by source digest and Mathics runner version, so later native audits do
 not rerun the oracle.
 
 **100% coverage is unreachable with Mathics as the sole oracle**, and no amount
-of fortsym work changes that: 145 native-producing scripts currently have no
-successful Mathics result to compare against. Raising the ceiling means
+of fortsym work changes that: 145 natively completed scripts currently have no
+successful Mathics result to compare against. The benchmark now also compares
+native results against SymPy when Mathics is unavailable and requires both
+oracles to agree before scoring a shared binding. Raising the ceiling means
 completing the SymPy translation/runtime, reporting the Mathics defects
 upstream, or adding a third oracle for the overlap.
 
-Until it moves, every coverage number states its denominator. "99% produce
-native results" and "62% share a successful Mathics result" are different
+Until it moves, every coverage number states its denominator. "99% complete
+natively" and "61% share a successful Mathics result" are different
 claims.
 
-The current 64-second figure is harness wall time with four native workers and
-cached references, not a capability comparison: Mathics evaluates integrals
-fortsym refuses, and the native path still has one 60-second timeout.
+The current 69-second figure is the cold native refill with four workers and
+cached references. Once raw results and comparison verdicts are cached, the
+same full audit takes about 1.2 seconds. These are harness measurements, not a
+capability comparison: Mathics evaluates integrals fortsym refuses, and the
+native path still has one 60-second timeout.
 
 What running the corpus has already bought, none of which was found by tests:
 
@@ -97,7 +104,7 @@ What running the corpus has already bought, none of which was found by tests:
 - Refusing `Transpose[jac]` for a symbolic `jac`, which disagreed with the
   oracle on a *correct* answer — Mathics leaves it unevaluated too.
 
-The current native baseline is 1 named refusal and 1 timeout at script level;
+The current native baseline is 2 named refusals and 1 timeout at script level;
 binding-level unsupported constructs remain tracked by the benchmark report.
 
 ### What the corpus says to build next
