@@ -22,7 +22,7 @@ module fortsym_dialect
 
     public :: dialect_t, dialect
     public :: DIA_NATIVE, DIA_SYMENGINE, DIA_YACAS, DIA_SYMPY, DIA_MAXIMA, &
-        DIA_FORTRAN
+        DIA_FORTRAN, DIA_WOLFRAM
     public :: fn_spelling, fn_canonical
     public :: const_spelling, const_canonical
 
@@ -32,6 +32,10 @@ module fortsym_dialect
     integer, parameter :: DIA_SYMPY = 4
     integer, parameter :: DIA_MAXIMA = 5
     integer, parameter :: DIA_FORTRAN = 6 !< generated Fortran source
+    !> Wolfram-language input. A documented subset, not the language: fortsym
+    !> reads the derivation scripts its consumers already own. Verified against
+    !> Mathics, never against a Wolfram product. See LEGAL.md section 5.1.
+    integer, parameter :: DIA_WOLFRAM = 7
 
     type :: dialect_t
         integer     :: id = DIA_NATIVE
@@ -138,6 +142,8 @@ contains
             case ("abs"); s = str("Abs")
             case default; s = str(canonical)
             end select
+        case (DIA_WOLFRAM)
+            s = wolfram_spelling(canonical)
         case (DIA_FORTRAN)
             select case (canonical)
             case ("besselj"); s = str("bessel_jn")
@@ -157,6 +163,8 @@ contains
         type(str_t)                 :: s
 
         select case (d%id)
+        case (DIA_WOLFRAM)
+            s = wolfram_canonical(spelling)
         case (DIA_YACAS)
             select case (spelling)
             case ("Sin");      s = str("sin")
@@ -221,6 +229,13 @@ contains
             case ("i");  s = str("I")
             case default; s = str(canonical)
             end select
+        case (DIA_WOLFRAM)
+            select case (canonical)
+            case ("pi"); s = str("Pi")
+            case ("e");  s = str("E")
+            case ("i");  s = str("I")
+            case default; s = str(canonical)
+            end select
         case (DIA_SYMENGINE, DIA_SYMPY)
             select case (canonical)
             case ("pi"); s = str("pi")
@@ -252,6 +267,13 @@ contains
             case ("I");  s = str("i")
             case default; s = str(spelling)
             end select
+        case (DIA_WOLFRAM)
+            select case (spelling)
+            case ("Pi"); s = str("pi")
+            case ("E");  s = str("e")
+            case ("I");  s = str("i")
+            case default; s = str(spelling)
+            end select
         case (DIA_SYMENGINE, DIA_SYMPY)
             select case (spelling)
             case ("pi"); s = str("pi")
@@ -263,5 +285,99 @@ contains
             s = str(spelling)
         end select
     end function const_canonical
+
+    !> Wolfram spellings of fortsym's canonical function names.
+    !>
+    !> One table, used in both directions by wolfram_canonical below, so a
+    !> spelling can never be readable but unwritable. Names fortsym has no
+    !> wrapper for pass through unchanged and stay opaque applications.
+    function wolfram_spelling(canonical) result(s)
+        character(*), intent(in) :: canonical
+        type(str_t)              :: s
+        select case (canonical)
+        case ("sin");       s = str("Sin")
+        case ("cos");       s = str("Cos")
+        case ("tan");       s = str("Tan")
+        case ("cot");       s = str("Cot")
+        case ("sec");       s = str("Sec")
+        case ("csc");       s = str("Csc")
+        case ("asin");      s = str("ArcSin")
+        case ("acos");      s = str("ArcCos")
+        case ("atan");      s = str("ArcTan")
+        case ("atan2");     s = str("ArcTan")
+        case ("sinh");      s = str("Sinh")
+        case ("cosh");      s = str("Cosh")
+        case ("tanh");      s = str("Tanh")
+        case ("asinh");     s = str("ArcSinh")
+        case ("acosh");     s = str("ArcCosh")
+        case ("atanh");     s = str("ArcTanh")
+        case ("exp");       s = str("Exp")
+        case ("log");       s = str("Log")
+        case ("sqrt");      s = str("Sqrt")
+        case ("abs");       s = str("Abs")
+        case ("sign");      s = str("Sign")
+        case ("erf");       s = str("Erf")
+        case ("erfc");      s = str("Erfc")
+        case ("gamma");     s = str("Gamma")
+        case ("loggamma");  s = str("LogGamma")
+        case ("polygamma"); s = str("PolyGamma")
+        case ("besselj");   s = str("BesselJ")
+        case ("bessely");   s = str("BesselY")
+        case ("besseli");   s = str("BesselI")
+        case ("besselk");   s = str("BesselK")
+        case ("re");        s = str("Re")
+        case ("im");        s = str("Im")
+        case ("conjugate"); s = str("Conjugate")
+        case ("arg");       s = str("Arg")
+        case default;       s = str(canonical)
+        end select
+    end function wolfram_spelling
+
+    !> Inverse of wolfram_spelling.
+    !>
+    !> ArcTan is deliberately absent: Wolfram overloads it for both the
+    !> one-argument and two-argument forms, so the arity decides which canonical
+    !> name applies and only the parser knows the arity. Mapping it here would
+    !> silently turn ArcTan[y, x] into a one-argument atan and swap the
+    !> quadrant, which is the classic way generated code gets a sign wrong.
+    function wolfram_canonical(spelling) result(s)
+        character(*), intent(in) :: spelling
+        type(str_t)              :: s
+        select case (spelling)
+        case ("Sin");       s = str("sin")
+        case ("Cos");       s = str("cos")
+        case ("Tan");       s = str("tan")
+        case ("Cot");       s = str("cot")
+        case ("Sec");       s = str("sec")
+        case ("Csc");       s = str("csc")
+        case ("ArcSin");    s = str("asin")
+        case ("ArcCos");    s = str("acos")
+        case ("Sinh");      s = str("sinh")
+        case ("Cosh");      s = str("cosh")
+        case ("Tanh");      s = str("tanh")
+        case ("ArcSinh");   s = str("asinh")
+        case ("ArcCosh");   s = str("acosh")
+        case ("ArcTanh");   s = str("atanh")
+        case ("Exp");       s = str("exp")
+        case ("Log");       s = str("log")
+        case ("Sqrt");      s = str("sqrt")
+        case ("Abs");       s = str("abs")
+        case ("Sign");      s = str("sign")
+        case ("Erf");       s = str("erf")
+        case ("Erfc");      s = str("erfc")
+        case ("Gamma");     s = str("gamma")
+        case ("LogGamma");  s = str("loggamma")
+        case ("PolyGamma"); s = str("polygamma")
+        case ("BesselJ");   s = str("besselj")
+        case ("BesselY");   s = str("bessely")
+        case ("BesselI");   s = str("besseli")
+        case ("BesselK");   s = str("besselk")
+        case ("Re");        s = str("re")
+        case ("Im");        s = str("im")
+        case ("Conjugate"); s = str("conjugate")
+        case ("Arg");       s = str("arg")
+        case default;       s = str(spelling)
+        end select
+    end function wolfram_canonical
 
 end module fortsym_dialect
