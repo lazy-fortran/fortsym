@@ -22,6 +22,7 @@ program test_fortsym_wl_statements
     call test_postfix_ends_a_line()
     call test_table_evaluation()
     call test_clear_and_compound_expression()
+    call test_empty_script()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_statements"
@@ -133,5 +134,19 @@ contains
                     "a = 2"//char(10)//"Clear[a], Null, a = 3"//char(10), &
                     "a", "3")
     end subroutine test_clear_and_compound_expression
+
+    subroutine test_empty_script()
+        type(arena_t), target :: a
+        type(wl_session_t) :: s
+
+        call a%init()
+        call wl_session_begin(s, a)
+        call wl_run_source(s, "Null"//char(10))
+        if (wl_binding_count(s) /= 0) then
+            print *, "FAIL empty script: produced ", wl_binding_count(s), &
+                " bindings"
+            nfail = nfail + 1
+        end if
+    end subroutine test_empty_script
 
 end program test_fortsym_wl_statements

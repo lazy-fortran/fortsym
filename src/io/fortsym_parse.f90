@@ -49,6 +49,9 @@ module fortsym_parse
     !> A pure-function slot: #, #1, ## or ##1. The index rides in ivalue and
     !> the head ("Slot" or "SlotSequence") in text.
     integer, parameter :: T_SLOT = 12
+    !> Association delimiters: <| key -> value |>.
+    integer, parameter :: T_LASSOC = 13
+    integer, parameter :: T_RASSOC = 14
 
     !> Parser state. Kept in one object so the recursive descent needs no
     !> module-level variables and two parses can never interfere.
@@ -494,6 +497,18 @@ contains
             return
         end select
 
+        if (pair == "<|") then
+            p%tok = T_LASSOC
+            p%text = pair
+            p%pos = p%pos + 2
+            return
+        else if (pair == "|>") then
+            p%tok = T_RASSOC
+            p%text = pair
+            p%pos = p%pos + 2
+            return
+        end if
+
         select case (c)
         case ("&")
             ! A lone "&" is the postfix that closes a pure function. Only
@@ -669,7 +684,8 @@ contains
         type(parser_t), intent(in) :: p
         logical                    :: yes
         yes = p%tok == T_NUMBER .or. p%tok == T_NAME .or. &
-              p%tok == T_LPAREN .or. p%tok == T_LBRACE .or. p%tok == T_SLOT
+              p%tok == T_LPAREN .or. p%tok == T_LBRACE .or. &
+              p%tok == T_LASSOC .or. p%tok == T_SLOT
     end function starts_primary
 
     !> True when the current token could begin a whole operand, including a
@@ -1168,6 +1184,22 @@ contains
             e = parse_postfix(p, a, d, e)
             return
 
+        case (T_LASSOC)
+            ! Associations use the same Rule nodes as ordinary replacement
+            ! rules, but need a distinct outer head so the native runner can
+            ! flatten a results association into one benchmark binding per
+            ! key.
+            call advance(p, d)
+            call parse_arg_list(p, a, d, fargs, nargs, T_RASSOC)
+            if (p%failed) return
+            if (nargs == 0) then
+                e = func_in(a, "Association")
+            else
+                e = func("Association", fargs(1:nargs))
+            end if
+            e = parse_postfix(p, a, d, e)
+            return
+
         case (T_LPAREN)
             call advance(p, d)
             e = parse_binary(p, a, d, 0)
@@ -1415,7 +1447,8 @@ contains
         end do
 
         if (p%tok /= closer) then
-            call fail(p, "expected closing bracket on argument list")
+            call fail(p, "expected closing bracket on argument list, got '"// &
+                      p%text//"'")
             return
         end if
         call advance(p, d)
