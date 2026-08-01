@@ -24,6 +24,7 @@ program test_fortsym_wl_statements
     call test_clear_and_compound_expression()
     call test_empty_script()
     call test_explicit_trig_simplify()
+    call test_recursive_function()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_statements"
@@ -77,21 +78,21 @@ contains
     !> reported "unexpected end of input" while being perfectly well formed.
     subroutine test_continuation_lines()
         call expect("trailing plus", "a = 1 +"//char(10)//"    2"//char(10), &
-                    "a", "3")
+            "a", "3")
         ! A trailing "*" rather than a comma: a comma is only ever reached
         ! inside brackets, where the depth counter already suppresses the
         ! split, so it would not exercise this rule at all.
         call expect("trailing times", "b = 2 *"//char(10)//"  3"//char(10), &
-                    "b", "6")
+            "b", "6")
     end subroutine test_continuation_lines
 
     !> Two complete lines stay two statements. The continuation rule must not
     !> glue independent assignments together.
     subroutine test_complete_lines_still_separate()
         call expect("second of two", &
-                    "p = 2"//char(10)//"q = 5"//char(10), "q", "5")
+            "p = 2"//char(10)//"q = 5"//char(10), "q", "5")
         call expect("first of two", &
-                    "p = 2"//char(10)//"q = 5"//char(10), "p", "2")
+            "p = 2"//char(10)//"q = 5"//char(10), "p", "2")
     end subroutine test_complete_lines_still_separate
 
     !> "&" closes a pure function and "!" is factorial: both are postfix, so a
@@ -99,7 +100,7 @@ contains
     !> right operand would swallow the next statement.
     subroutine test_postfix_ends_a_line()
         call expect("factorial then assignment", &
-                    "u = 3!"//char(10)//"v = 7"//char(10), "v", "7")
+            "u = 3!"//char(10)//"v = 7"//char(10), "v", "7")
     end subroutine test_postfix_ends_a_line
 
     !> A Table is checked against hand-evaluated values, including nested
@@ -107,21 +108,28 @@ contains
     !> or the evaluator's internal nodes.
     subroutine test_table_evaluation()
         call expect("table squares", "values = Table[i^2, {i, 3}]"//char(10), &
-                    "values", "List(1, 4, 9)")
+            "values", "List(1, 4, 9)")
         call expect("nested table", &
-                    "grid = Table[i + j, {i, 2}, {j, 3}]"//char(10), &
-                    "grid", "List(List(2, 3, 4), List(3, 4, 5))")
+            "grid = Table[i + j, {i, 2}, {j, 3}]"//char(10), &
+            "grid", "List(List(2, 3, 4), List(3, 4, 5))")
+        call expect("nested table expression", &
+            "grid = Table[Table[i + j, {j, 2}], {i, 2}]"//char(10), &
+            "grid", "List(List(2, 3), List(3, 4))")
+        call expect("map named function", &
+            "f[x_] := x + 1"//char(10)// &
+            "values = Map[f, {1, 2, 3}]"//char(10), &
+            "values", "List(2, 3, 4)")
         call expect("pattern function in table", &
-                    "f[i_] := i^2"//char(10)// &
-                    "values = Table[f[i], {i, 3}]"//char(10), &
-                    "values", "List(1, 4, 9)")
+            "f[i_] := i^2"//char(10)// &
+            "values = Table[f[i], {i, 3}]"//char(10), &
+            "values", "List(1, 4, 9)")
         call expect("two-parameter function", &
-                    "f[i_, j_] = i/j"//char(10)// &
-                    "value = f[2, 4]"//char(10), "value", "1/2")
+            "f[i_, j_] = i/j"//char(10)// &
+            "value = f[2, 4]"//char(10), "value", "1/2")
         call expect("table local shadows global", &
-                    "i = 99"//char(10)//"n = 3"//char(10)// &
-                    "values = Table[i + n, {i, n}]"//char(10), &
-                    "values", "List(4, 5, 6)")
+            "i = 99"//char(10)//"n = 3"//char(10)// &
+            "values = Table[i + n, {i, n}]"//char(10), &
+            "values", "List(4, 5, 6)")
     end subroutine test_table_evaluation
 
     !> Clear removes an earlier value, and a top-level comma keeps compound
@@ -129,11 +137,11 @@ contains
     !> retain the symbol rather than the stale numeric binding.
     subroutine test_clear_and_compound_expression()
         call expect("clear binding", &
-                    "a = 2"//char(10)//"Clear[a]"//char(10)// &
-                    "value = a + 1"//char(10), "value", "a + 1")
+            "a = 2"//char(10)//"Clear[a]"//char(10)// &
+            "value = a + 1"//char(10), "value", "a + 1")
         call expect("compound clear", &
-                    "a = 2"//char(10)//"Clear[a], Null, a = 3"//char(10), &
-                    "a", "3")
+            "a = 2"//char(10)//"Clear[a], Null, a = 3"//char(10), &
+            "a", "3")
     end subroutine test_clear_and_compound_expression
 
     subroutine test_empty_script()
@@ -152,8 +160,14 @@ contains
 
     subroutine test_explicit_trig_simplify()
         call expect("pythagorean identity", &
-                    "value = Simplify[Sin[x]^2 + Cos[x]^2]"//char(10), &
-                    "value", "1")
+            "value = Simplify[Sin[x]^2 + Cos[x]^2]"//char(10), &
+            "value", "1")
     end subroutine test_explicit_trig_simplify
+
+    subroutine test_recursive_function()
+        call expect("recursive function", &
+            "f[n_] := If[n <= 0, 1, n*f[n - 1]]"//char(10)// &
+            "value = f[4]"//char(10), "value", "24")
+    end subroutine test_recursive_function
 
 end program test_fortsym_wl_statements

@@ -141,6 +141,33 @@ PASS(probe)  gamma recurrence   [no counterexample in 98 points]
 
 `check_identity` is the strict variant that refuses probe evidence.
 
+## Native Wolfram corpus backend
+
+The repository also ships a native Fortran runner for the Wolfram-language
+subset used by the corpus. After `fo build`, run an original derivation with:
+
+```bash
+build/fo/app/fortsym_wl_run path/to/script.wl
+```
+
+It parses and evaluates the `.wl` source directly in Fortran and emits the
+same `R<TAB>name<TAB>value` / `T<TAB>seconds` protocol used by
+[fortsym-bench](https://github.com/lazy-fortran/fortsym-bench). It does not
+invoke Mathematica, Mathics, or Python. Associations, plots, exact polynomial
+operations, guarded definite integrals, numerical Wolfram operations, and the
+documented parser subset are covered by native tests and corpus sweeps.
+
+The benchmark keeps the original `.wl` file as the shared source for Mathics
+and the native backend. Python companions are generated separately for the
+SymPy oracle; their inventory and persistent oracle cache live in
+`fortsym-bench`.
+
+On the 384-file corpus sweep recorded 2026-08-01, the native runner produced
+result sets for 380 scripts, timed out on three heavy scripts at the external
+60-second limit, and explicitly refused one `$Assumptions`/`Element` case. It
+did not crash. The benchmark cache served all 384 SymPy and all 384 Mathics
+reference rows without rerunning either oracle.
+
 ## Build
 
 ```bash

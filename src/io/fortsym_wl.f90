@@ -255,7 +255,7 @@ contains
                     ! script that was perfectly well formed.
                     if (.not. awaits_operand(source, begin, i - 1)) then
                         call push_statement(source, starts, ends, n, begin, &
-                                            i - 1)
+                            i - 1)
                         begin = i + 1
                     end if
                 end if
@@ -294,14 +294,14 @@ contains
 
         c = source(k:k)
         select case (c)
-        ! Binary and prefix operators, an open bracket, and a comma: each one
-        ! has a right-hand side that has not arrived yet.
-        ! "&" and "!" are deliberately absent: both are postfix in Wolfram --
-        ! "&" closes a pure function and "!" is factorial -- so a line ending
-        ! in either is complete, and continuing it would glue the next
-        ! statement on.
+            ! Binary and prefix operators, an open bracket, and a comma: each one
+            ! has a right-hand side that has not arrived yet.
+            ! "&" and "!" are deliberately absent: both are postfix in Wolfram --
+            ! "&" closes a pure function and "!" is factorial -- so a line ending
+            ! in either is complete, and continuing it would glue the next
+            ! statement on.
         case ("+", "-", "*", "/", "^", ",", "=", "<", ">", "|", &
-              "@", ":", "~", "(", "[", "{")
+                "@", ":", "~", "(", "[", "{")
             yes = .true.
         end select
     end function awaits_operand
@@ -864,6 +864,15 @@ contains
             return
         end if
 
+        ! If is control flow, not an ordinary function: evaluating both
+        ! branches before choosing one would recurse forever on definitions
+        ! such as f[n_] := If[n <= 0, 1, n*f[n - 1]]. Decide the condition
+        ! first and evaluate only the selected branch.
+        if (head == "If") then
+            r = lower_if(s, e, ok, message)
+            return
+        end if
+
         ! Evaluate arguments first. Wolfram evaluates innermost-out, and
         ! dispatching only on the outer head leaves Simplify[D[f, x]] holding an
         ! unevaluated D -- which then prints as though the derivative had been
@@ -907,8 +916,8 @@ contains
                         ! fresh symbol, differentiate, then restore the node.
                         if (.not. is_opaque_application(var)) then
                             call refuse(ok, message, "D with a computed "// &
-                                        "variable: "//chars(var%name())// &
-                                        " is not an independent coordinate")
+                                "variable: "//chars(var%name())// &
+                                " is not an independent coordinate")
                             return
                         end if
                         placeholder = fresh_symbol(s%a, r)
@@ -994,17 +1003,17 @@ contains
             end if
             r = inner
 
-        ! Matrix heads on operands that are not concrete matrices stay
-        ! unevaluated rather than refusing. That is not a guess: Transpose[jac]
-        ! where jac is a symbol is exactly what Mathics returns too, so
-        ! refusing would disagree with the oracle on a correct answer. A
-        ! genuine shape error -- ragged rows, mismatched dimensions -- still
-        ! refuses, because that is a mistake in the source rather than a
-        ! symbol standing in for a matrix.
+            ! Matrix heads on operands that are not concrete matrices stay
+            ! unevaluated rather than refusing. That is not a guess: Transpose[jac]
+            ! where jac is a symbol is exactly what Mathics returns too, so
+            ! refusing would disagree with the oracle on a correct answer. A
+            ! genuine shape error -- ragged rows, mismatched dimensions -- still
+            ! refuses, because that is a mistake in the source rather than a
+            ! symbol standing in for a matrix.
         case ("N")
             if (r%nargs() < 1 .or. r%nargs() > 2) then
                 call refuse(ok, message, "N takes an expression and an "// &
-                            "optional precision")
+                    "optional precision")
                 return
             end if
             digits = 0
@@ -1028,7 +1037,7 @@ contains
         case ("Chop")
             if (r%nargs() < 1 .or. r%nargs() > 2) then
                 call refuse(ok, message, "Chop takes an expression and an "// &
-                            "optional tolerance")
+                    "optional tolerance")
                 return
             end if
             tol = CHOP_DEFAULT
@@ -1099,7 +1108,7 @@ contains
             if (.not. ok) return
 
         case ("Plot3D", "ContourPlot", "DensityPlot", "StreamPlot", &
-              "VectorPlot")
+                "VectorPlot")
             if (r%nargs() < 3) then
                 call refuse(ok, message, head//" needs an x and a y range")
                 return
@@ -1189,16 +1198,20 @@ contains
             r = lower_sum(s, r, head == "Sum", ok, message)
             if (.not. ok) return
 
-        ! Lower case: the parser canonicalises Wolfram spellings to fortsym's
-        ! own names, and the printer spells them back. Matching "Re" here fired
-        ! never, and because the printer restored the Wolfram spelling the
-        ! unevaluated result read exactly like a correct one.
+        case ("Map")
+            r = lower_map(s, r, ok, message)
+            if (.not. ok) return
+
+            ! Lower case: the parser canonicalises Wolfram spellings to fortsym's
+            ! own names, and the printer spells them back. Matching "Re" here fired
+            ! never, and because the printer restored the Wolfram spelling the
+            ! unevaluated result read exactly like a correct one.
         case ("re", "im", "conjugate", "arg", "ComplexExpand")
             r = lower_complex(s, r, head, ok, message)
             if (.not. ok) return
 
         case ("TrigExpand", "TrigReduce", "TrigToExp", "ExpToTrig", &
-              "PowerExpand")
+                "PowerExpand")
             r = lower_rewrite(s, r, head, ok, message)
             if (.not. ok) return
 
@@ -1207,8 +1220,8 @@ contains
             if (.not. ok) return
 
         case ("Together", "Cancel", "Factor", "Apart", "Collect", &
-              "Coefficient", "CoefficientList", "Exponent", &
-              "PolynomialGCD", "PolynomialQuotient", "PolynomialRemainder")
+                "Coefficient", "CoefficientList", "Exponent", &
+                "PolynomialGCD", "PolynomialQuotient", "PolynomialRemainder")
             r = lower_polynomial(s, r, head, ok, message)
             if (.not. ok) return
 
@@ -1272,7 +1285,7 @@ contains
 
         if (e%nargs() < 2) then
             call refuse(ok, message, "Integrate needs an expression and a "// &
-                        "variable")
+                "variable")
             return
         end if
 
@@ -1291,7 +1304,7 @@ contains
 
             if (spec%kind() /= NK_FUNC .or. chars(spec%name()) /= "List") then
                 call refuse(ok, message, "Integrate needs a variable or a "// &
-                            "{var, a, b} range")
+                    "{var, a, b} range")
                 return
             end if
 
@@ -1312,7 +1325,7 @@ contains
                 ! Use a temporary because the definite-integral routine has an
                 ! intent(out) result and must read the integrand first.
                 call definite_integral(s%a, inner, var, spec%arg(2), &
-                                       spec%arg(3), stage, ok, why)
+                    spec%arg(3), stage, ok, why)
                 if (.not. ok) then
                     call refuse(ok, message, "definite Integrate: "//why)
                     return
@@ -1320,13 +1333,113 @@ contains
                 inner = stage
             case default
                 call refuse(ok, message, "Integrate range must be {var} or "// &
-                            "{var, a, b}")
+                    "{var, a, b}")
                 return
             end select
         end do
 
         r = inner
     end function lower_integrate
+
+    !> Evaluate the decidable subset of Wolfram If[condition, yes, no].
+    !>
+    !> A symbolic condition is refused rather than guessed. Numeric relations
+    !> are enough for the bounded recursive and piecewise definitions in the
+    !> corpus, and keeping this helper narrow prevents assumptions from leaking
+    !> into the ordinary expression evaluator.
+    recursive function lower_if(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, condition, branch
+        logical :: arg_ok, decided, truth
+        type(str_t) :: arg_message
+
+        ok = .true.
+        message = str("")
+        r = e
+
+        if (e%nargs() < 2 .or. e%nargs() > 3) then
+            call refuse(ok, message, "If needs a condition and two branches")
+            return
+        end if
+
+        condition = wl_eval(s, e%arg(1), arg_ok, arg_message)
+        if (.not. arg_ok) then
+            call refuse(ok, message, chars(arg_message))
+            return
+        end if
+        call condition_value(condition, decided, truth)
+        if (.not. decided) then
+            call refuse(ok, message, "If condition is not decidable")
+            return
+        end if
+
+        if (truth) then
+            branch = e%arg(2)
+        else
+            if (e%nargs() /= 3) then
+                call refuse(ok, message, "If false branch is missing")
+                return
+            end if
+            branch = e%arg(3)
+        end if
+
+        r = wl_eval(s, branch, ok, message)
+    end function lower_if
+
+    !> Map[f, {x1, x2, ...}] for a named positional function.
+    !>
+    !> The corpus uses this form for bounded data preparation. Pure functions,
+    !> levels other than one, and non-list expressions remain explicit
+    !> refusals rather than being approximated.
+    recursive function lower_map(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, mapper, data, mapped
+        type(expr_t), allocatable         :: values(:)
+        logical :: item_ok
+        type(str_t) :: item_message
+        integer :: k
+
+        ok = .true.
+        message = str("")
+        r = e
+
+        if (e%nargs() /= 2) then
+            call refuse(ok, message, "Map needs a function and a list")
+            return
+        end if
+        mapper = e%arg(1)
+        data = e%arg(2)
+        if (mapper%kind() /= NK_SYM) then
+            call refuse(ok, message, "Map needs a named function")
+            return
+        end if
+        if (data%kind() /= NK_FUNC) then
+            call refuse(ok, message, "Map needs a list")
+            return
+        end if
+        if (chars(data%name()) /= "List") then
+            call refuse(ok, message, "Map needs a list")
+            return
+        end if
+
+        allocate (values(data%nargs()))
+        do k = 1, data%nargs()
+            mapped = wl_eval(s, func(chars(mapper%name()), [data%arg(k)]), &
+                item_ok, item_message)
+            if (.not. item_ok) then
+                call refuse(ok, message, chars(item_message))
+                return
+            end if
+            values(k) = mapped
+        end do
+        r = func("List", values)
+    end function lower_map
 
     !> True when a positional pattern definition matches this call shape.
     function has_function_definition(s, name, nargs) result(yes)
@@ -1347,7 +1460,7 @@ contains
     end function has_function_definition
 
     !> Substitute a matched call into the stored body and evaluate it.
-    function lower_user_function(s, e, ok, message) result(r)
+    recursive function lower_user_function(s, e, ok, message) result(r)
         type(wl_session_t), intent(inout) :: s
         type(expr_t),       intent(in)    :: e
         logical,            intent(out)   :: ok
@@ -1374,7 +1487,7 @@ contains
         body = s%functions(slot)%body
         do k = 1, e%nargs()
             body = subs(body, sym(s%a, chars(s%functions(slot)%params(k))), &
-                        e%arg(k))
+                e%arg(k))
         end do
         body = apply_bindings(s, body)
         r = wl_eval(s, body, ok, message)
@@ -1388,7 +1501,7 @@ contains
     !> value is substituted into the body and then sent through the same
     !> evaluator as a top-level expression. Unsupported bounds or a requested
     !> expansion beyond MAX_TABLE_ITEMS are refused rather than approximated.
-    function lower_table(s, e, ok, message) result(r)
+    recursive function lower_table(s, e, ok, message) result(r)
         type(wl_session_t), intent(inout) :: s
         type(expr_t),       intent(in)    :: e
         logical,            intent(out)   :: ok
@@ -1409,7 +1522,7 @@ contains
 
     !> Lower one iterator and recurse through the remaining iterator specs.
     recursive function lower_table_level(s, body, table, level, ok, message) &
-        result(r)
+            result(r)
         type(wl_session_t), intent(inout) :: s
         type(expr_t),       intent(in)    :: body, table
         integer,            intent(in)    :: level
@@ -1441,7 +1554,7 @@ contains
                 if (ok) cell = auto_evaluate(s, cell)
             else
                 cell = lower_table_level(s, next_body, table, level + 1, &
-                                         ok, message)
+                    ok, message)
             end if
             if (.not. ok) then
                 r = body
@@ -1626,13 +1739,13 @@ contains
 
         if (is_named(point, "Infinity")) then
             lv = limit_of(s%a, e%arg(1), var, plus_infinity(), TWO_SIDED, &
-                          ok, why)
+                ok, why)
         else if (is_negative_infinity(point)) then
             lv = limit_of(s%a, e%arg(1), var, minus_infinity(), TWO_SIDED, &
-                          ok, why)
+                ok, why)
         else
             lv = limit_of(s%a, e%arg(1), var, finite_point(point), TWO_SIDED, &
-                          ok, why)
+                ok, why)
         end if
 
         if (.not. ok) then
@@ -1692,10 +1805,10 @@ contains
 
         if (is_sum) then
             r = sum_closed_form(s%a, e%arg(1), var, spec%arg(2), spec%arg(3), &
-                                ok, why)
+                ok, why)
         else
             r = product_closed_form(s%a, e%arg(1), var, spec%arg(2), &
-                                    spec%arg(3), ok, why)
+                spec%arg(3), ok, why)
         end if
         if (.not. ok) then
             call refuse(ok, message, "Sum: "//why)
@@ -1948,7 +2061,7 @@ contains
                 return
             end if
             call poly_divide(s%a, e%arg(1), e%arg(2), e%arg(3), &
-                             head == "PolynomialQuotient", out, ok, why)
+                head == "PolynomialQuotient", out, ok, why)
 
         case default
             call refuse(ok, message, head//" is not implemented")
@@ -1972,6 +2085,56 @@ contains
         if (e%kind() /= NK_FUNC) return
         yes = chars(e%name()) == name
     end function is_named
+
+    !> Decide a boolean literal or a closed numeric relation.
+    subroutine condition_value(e, decided, truth)
+        type(expr_t), intent(in)  :: e
+        logical,      intent(out) :: decided, truth
+        character(:), allocatable :: name, why
+        real(dp) :: left, right
+        logical :: left_ok, right_ok
+
+        decided = .false.
+        truth = .false.
+
+        if (e%kind() == NK_SYM) then
+            name = chars(e%name())
+            if (name == "True") then
+                decided = .true.
+                truth = .true.
+            else if (name == "False") then
+                decided = .true.
+                truth = .false.
+            end if
+            return
+        end if
+
+        if (e%kind() /= NK_FUNC) return
+        name = chars(e%name())
+        if (e%nargs() /= 2) return
+        call numeric_value(e%arg(1), left, left_ok, why)
+        if (.not. left_ok) return
+        call numeric_value(e%arg(2), right, right_ok, why)
+        if (.not. right_ok) return
+
+        select case (name)
+        case ("Less")
+            truth = left < right
+        case ("LessEqual")
+            truth = left <= right
+        case ("Greater")
+            truth = left > right
+        case ("GreaterEqual")
+            truth = left >= right
+        case ("Equal")
+            truth = left == right
+        case ("Unequal")
+            truth = left /= right
+        case default
+            return
+        end select
+        decided = .true.
+    end subroutine condition_value
 
     !> -Infinity, which the parser builds as a negation rather than a head.
     function is_negative_infinity(e) result(yes)
@@ -2000,46 +2163,46 @@ contains
         logical                  :: yes
 
         select case (head)
-        ! Integration and limits (#31, #32)
+            ! Integration and limits (#31, #32)
         case ("NIntegrate")
             yes = .true.
-        ! Assumptions (#29)
+            ! Assumptions (#29)
         case ("Refine", "Assuming", "Simplify2", "Element")
             yes = .true.
-        ! Matrices (#30)
+            ! Matrices (#30)
         case ("Eigenvalues", "LinearSolve", "MatrixPower", "MatrixForm")
             yes = .true.
-        ! Solving beyond the scalar linear case (#36)
+            ! Solving beyond the scalar linear case (#36)
         case ("Reduce", "NSolve", "FindRoot", "Eliminate", "Roots", "ToRadicals")
             yes = .true.
-        ! Series and sums (#35, #39)
+            ! Series and sums (#35, #39)
         case ("SeriesCoefficient")
             yes = .true.
-        ! Trig and power rewrites (#40)
+            ! Trig and power rewrites (#40)
         case ("Simplify3")
             yes = .true.
-        ! Differential equations (#43)
+            ! Differential equations (#43)
         case ("DSolve", "NDSolve")
             yes = .true.
-        ! Piecewise (#38)
+            ! Piecewise (#38)
         case ("Piecewise", "Boole", "If", "Which")
             yes = .true.
-        ! Numerics (#37)
+            ! Numerics (#37)
         case ("SetPrecision", "Interpolation", "Fit")
             yes = .true.
-        ! Plotting, through fortplot (#44)
+            ! Plotting, through fortplot (#44)
         case ("Plot3D", "ContourPlot", "ParametricPlot", "ListPlot", &
-              "ListLinePlot", "DensityPlot", "StreamPlot", "VectorPlot", &
-              "LogPlot", "LogLogPlot", "Show", "Graphics", "Graphics3D", &
-              "GraphicsRow", "GraphicsGrid", "GraphicsArray", "Export", &
-              "Legended")
+                "ListLinePlot", "DensityPlot", "StreamPlot", "VectorPlot", &
+                "LogPlot", "LogLogPlot", "Show", "Graphics", "Graphics3D", &
+                "GraphicsRow", "GraphicsGrid", "GraphicsArray", "Export", &
+                "Legended")
             yes = .true.
-        ! Constructs the parser can represent but the evaluator does not
-        ! implement. They must refuse rather than print an unevaluated form as
-        ! though it were a result.
-        case ("Map", "Apply", "MapApply", "Function", "Slot", "SlotSequence", &
-              "Span", "SetDelayed", "CompoundExpression", "StringJoin", &
-              "ReplaceRepeated", "Condition", "DerivativeOperator")
+            ! Constructs the parser can represent but the evaluator does not
+            ! implement. They must refuse rather than print an unevaluated form as
+            ! though it were a result.
+        case ("Apply", "MapApply", "Function", "Slot", "SlotSequence", &
+                "Span", "SetDelayed", "CompoundExpression", "StringJoin", &
+                "ReplaceRepeated", "Condition", "DerivativeOperator")
             yes = .true.
         case default
             yes = .false.
@@ -2074,8 +2237,8 @@ contains
         if (has_differentiation_rule(name)) return
         select case (name)
         case ("List", "Rule", "Equal", "Plus", "Times", "Power", "Derivative", &
-              "Part", "Slot", "Function", "D", "Integrate", "Sum", "Product", &
-              "Limit", "Series", "Solve", "Simplify", "FullSimplify")
+                "Part", "Slot", "Function", "D", "Integrate", "Sum", "Product", &
+                "Limit", "Series", "Solve", "Simplify", "FullSimplify")
             return
         end select
 
@@ -2099,10 +2262,10 @@ contains
 
         select case (name)
         case ("sin", "cos", "tan", "asin", "acos", "atan", "atan2", &
-              "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
-              "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", &
-              "loggamma", "polygamma", "besselj", "legendrep", "legendreq", &
-              "re", "im", "conjugate", "arg")
+                "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
+                "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", &
+                "loggamma", "polygamma", "besselj", "legendrep", "legendreq", &
+                "re", "im", "conjugate", "arg")
             yes = .true.
         case default
             yes = .false.
@@ -2509,11 +2672,11 @@ contains
             if (head == "StreamPlot") then
                 call set_grid_samples(sx, sy)
                 ok = render_stream(body%arg(1), body%arg(2), sx, sy, &
-                                   chars(file), why)
+                    chars(file), why)
             else
                 call set_arrow_samples(sx, sy)
                 ok = render_vector(body%arg(1), body%arg(2), sx, sy, &
-                                   chars(file), why)
+                    chars(file), why)
             end if
         end select
 
