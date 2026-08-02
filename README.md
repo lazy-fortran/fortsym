@@ -167,15 +167,14 @@ On the 384-file corpus sweep recorded 2026-08-02, the native runner completed
 380 scripts (344 with non-empty results and 36 valid empty result sets), timed
 out on one heavy script, reported one runner error, and explicitly refused two
 unsupported constructs. It did not crash. The latest bounded
-CharacteristicPolynomial/LegendreP/Diagonal/list-selector/Coefficient audit
-used two workers, refreshed 374 native rows, reused 331 SymPy rows and 235
-Mathics rows, and refreshed only 28 SymPy rows affected by the polynomial
-translator; it took 106.65 seconds with a 0.57 GiB peak RSS. A fully warm audit
-now takes 1.04 seconds at 423 MiB RSS
+CharacteristicPolynomial/LegendreP/Diagonal/list-selector/Coefficient/Solve
+audit used two workers, reused all 380 native rows and 235 Mathics rows, and
+refreshed 336 SymPy rows for the Solve translation; it took 6:03.95 with a
+4.21 GiB peak RSS. A fully warm audit now takes 1.13 seconds at 422 MiB RSS
 and starts no
-backend subprocesses. The current binding-level tally is 3,149 agreements,
+backend subprocesses. The current binding-level tally is 3,150 agreements,
 780 declared differences, 20 unsupported outcomes, 38 timeouts, 122 errors,
-199 oracle disagreements, and 797 oracle-missing bindings. The
+198 oracle disagreements, and 797 oracle-missing bindings. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,
