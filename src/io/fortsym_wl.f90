@@ -917,6 +917,10 @@ contains
             r = lower_if(s, e, ok, message)
             return
         end if
+        if (head == "Piecewise") then
+            r = lower_piecewise(s, e, ok, message)
+            return
+        end if
 
         ! These heads carry evaluation rules for their arguments. Evaluating a
         ! pure function before Map sees it would refuse Function/Slot, and
@@ -1684,6 +1688,111 @@ contains
 
         r = wl_eval(s, branch, ok, message)
     end function lower_if
+
+    !> Lower ordered Piecewise branches with decidable numeric conditions.
+    !>
+    !> A true condition selects its branch immediately when all preceding
+    !> conditions were false. If a symbolic condition occurs first, preserve
+    !> the remaining expression instead of guessing which branch applies.
+    recursive function lower_piecewise(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, branches, branch
+        type(expr_t)                      :: condition, branch_value, default_value
+        type(expr_t), allocatable         :: pairs(:), output(:)
+        logical                           :: arg_ok, decided, truth, have_unknown
+        type(str_t)                       :: arg_message
+        integer                           :: k, npairs
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() < 1 .or. e%nargs() > 2) then
+            call refuse(ok, message, "Piecewise needs branches and an optional default")
+            return
+        end if
+        branches = e%arg(1)
+        if (branches%kind() /= NK_FUNC) then
+            call refuse(ok, message, "Piecewise branches must be a list")
+            return
+        end if
+        if (chars(branches%name()) /= "List") then
+            call refuse(ok, message, "Piecewise branches must be a list")
+            return
+        end if
+
+        allocate (pairs(branches%nargs()))
+        npairs = 0
+        have_unknown = .false.
+        do k = 1, branches%nargs()
+            branch = branches%arg(k)
+            if (branch%kind() /= NK_FUNC) then
+                call refuse(ok, message, "Piecewise branch must be a pair")
+                return
+            end if
+            if (chars(branch%name()) /= "List" .or. branch%nargs() /= 2) then
+                call refuse(ok, message, "Piecewise branch must be a pair")
+                return
+            end if
+
+            condition = wl_eval(s, branch%arg(2), arg_ok, arg_message)
+            if (.not. arg_ok) then
+                call refuse(ok, message, chars(arg_message))
+                return
+            end if
+            call condition_value(condition, decided, truth)
+            if (decided) then
+                if (truth) then
+                    branch_value = wl_eval(s, branch%arg(1), arg_ok, arg_message)
+                    if (.not. arg_ok) then
+                        call refuse(ok, message, chars(arg_message))
+                        return
+                    end if
+                    if (.not. have_unknown) then
+                        r = branch_value
+                        return
+                    end if
+                    npairs = npairs + 1
+                    pairs(npairs) = func("List", [branch_value, condition])
+                end if
+                cycle
+            end if
+
+            have_unknown = .true.
+            branch_value = wl_eval(s, branch%arg(1), arg_ok, arg_message)
+            if (.not. arg_ok) then
+                call refuse(ok, message, chars(arg_message))
+                return
+            end if
+            npairs = npairs + 1
+            pairs(npairs) = func("List", [branch_value, condition])
+        end do
+
+        if (.not. have_unknown) then
+            if (e%nargs() == 2) then
+                r = wl_eval(s, e%arg(2), ok, message)
+            else
+                r = num(s%a, 0)
+            end if
+            return
+        end if
+
+        if (e%nargs() == 2) then
+            default_value = wl_eval(s, e%arg(2), arg_ok, arg_message)
+            if (.not. arg_ok) then
+                call refuse(ok, message, chars(arg_message))
+                return
+            end if
+        else
+            default_value = num(s%a, 0)
+        end if
+        allocate (output(npairs + 1))
+        if (npairs > 0) output(1:npairs) = pairs(1:npairs)
+        output(npairs + 1) = default_value
+        r = func("Piecewise", output)
+    end function lower_piecewise
 
     !> Map[f, {x1, x2, ...}] for a named or pure one-argument function.
     !>
