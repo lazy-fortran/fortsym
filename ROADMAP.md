@@ -83,9 +83,9 @@ domain, parameters, precision, and error policy are numeric and explicit.
 
 ## Measured state
 
-Latest corpus-wide measurement, 2026-08-01, `fortsym-bench` at 384 scripts
-(`--jobs 4`, 60-second script budget, with the final SymPy, Mathics, and native
-rows cached):
+Latest corpus-wide measurement, 2026-08-02, `fortsym-bench` at 384 scripts
+(`--jobs 4`, 60-second script budget, with available SymPy and Mathics rows and
+native rows cached):
 
 This table is a committed native baseline. It is updated only after the root
 backend and benchmark harness revisions used to produce it have been committed.
@@ -100,28 +100,28 @@ reported state.
 | scripts refusing with a named construct | 2 |
 | scripts exceeding the time budget | 1 |
 | crashes | **0** |
-| native refresh with cached SymPy and Mathics rows | about 74 s |
-| warm compact raw-output and verdict audit | about 1.8 s |
+| native refresh with cached SymPy and Mathics rows | about 59 s |
+| warm compact raw-output and verdict audit | about 1.3 s |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The final binding-level audit reports 3,102 agreements, 806 declared
-differences, 20 unsupported outcomes, 40 timeouts, 135 errors, 197 oracle
-disagreements, and 802 oracle-missing bindings. The target remains open until
+The final binding-level audit reports 3,120 agreements, 790 declared
+differences, 20 unsupported outcomes, 40 timeouts, 125 errors, 197 oracle
+disagreements, and 800 oracle-missing bindings. The target remains open until
 the declared native subset and the available oracle overlap agree.
 
 The current native collection slice includes bounded `Array`, `ConstantArray`,
-and `Outer` expansion, bounded exact `Range` and `DiagonalMatrix`, dynamic
-exact dimensions, and opaque preservation for unsupported dimensions or
-computed heads. The independent tests cover literal, rational, symbolic, and
-bounded-preserved forms. The latest change moved 41 prior binding results from
-`differ` to `agree` in the full baseline without regressing an earlier
-agreement; four additional agreed bindings were newly exposed by the expanded
-collection path. It does not close the remaining parity gap. The highest-impact
-work remains the plotting family, `Solve` beyond scalar linear cases, definite
-and multiple `Integrate`, requested-precision `N`, polynomial heads, and
-`DSolve`/`NDSolve`.
+and `Outer` expansion, bounded exact `Range` and `DiagonalMatrix`, exact
+`RowReduce`, `NullSpace`, and `MatrixRank`, structural `Length`, recursive
+`Flatten`, dynamic exact dimensions, and opaque preservation for unsupported
+dimensions or computed heads. The independent tests cover literal, rational,
+symbolic, canonical empty-list, and bounded-preserved forms. The latest change
+moved 18 prior binding results from `differ` to `agree` in the full baseline
+without regressing an earlier agreement and reduced binding errors by 10. It
+does not close the remaining parity gap. The highest-impact work remains the
+plotting family, `Solve` beyond scalar linear cases, definite and multiple
+`Integrate`, requested-precision `N`, polynomial heads, and `DSolve`/`NDSolve`.
 
 ### The oracle ceiling (#47)
 
@@ -151,8 +151,8 @@ claims.
 
 The historical full refresh includes the SymPy refresh required by the
 translator cache-version change and took 4:54. The current native refresh with
-the oracle caches warm took about 74 seconds. Once raw results and comparison
-verdicts are cached, the same full audit takes about 1.8 seconds. These are
+the oracle caches warm took about 59 seconds. Once raw results and comparison
+verdicts are cached, the same full audit takes about 1.3 seconds. These are
 harness measurements, not a capability
 comparison: Mathics evaluates integrals fortsym refuses, and the native path
 still has one 60-second timeout.
