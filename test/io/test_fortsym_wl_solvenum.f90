@@ -18,7 +18,7 @@ program test_fortsym_wl_solvenum
     !     formula survives together with the unit-vector case.
     !   * Tr is checked by Tr[A.B] == Tr[B.A], which no diagonal-picking bug
     !     satisfies for a generic pair.
-    use, intrinsic :: iso_fortran_env, only: real64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_INT, NK_RAT, NK_REAL, &
         NK_BIG_REAL
@@ -57,6 +57,7 @@ program test_fortsym_wl_solvenum
     call test_multivariate_coefficient_list()
     call test_fold_list()
     call test_total()
+    call test_pseudoinverse()
     call test_array_flatten()
     call test_matrix_power()
     call test_minors_dispatch()
@@ -1184,6 +1185,45 @@ contains
             call fail("Total empty", "empty-list identity is not zero")
         end if
     end subroutine test_total
+
+    !> The full-column-rank Moore-Penrose identity is checked on a rectangular
+    !> rational matrix. The expected entries come from (A^T A)^-1 A^T, not from
+    !> the implementation's intermediate nodes.
+    subroutine test_pseudoinverse()
+        type(arena_t), target :: a
+        type(expr_t) :: value, row, item
+        logical :: ok
+        character(:), allocatable :: message
+        integer(int64), parameter :: numerators(2, 3) = reshape([ &
+            2_int64, -1_int64, -1_int64, 2_int64, 1_int64, 1_int64], [2, 3])
+        integer(int64), parameter :: denominators(2, 3) = reshape([ &
+            3_int64, 3_int64, 3_int64, 3_int64, 3_int64, 3_int64], [2, 3])
+        integer :: i, j
+
+        call a%init()
+        call run_one(a, "p = PseudoInverse[{{1, 0}, {0, 1}, {1, 1}}]"//nl(), &
+                     "p", value, ok, message)
+        if (.not. ok .or. value%kind() /= NK_FUNC .or. value%nargs() /= 2) then
+            call fail("PseudoInverse", "wrong result shape or refusal: "//message)
+            return
+        end if
+        do i = 1, 2
+            row = value%arg(i)
+            if (row%kind() /= NK_FUNC .or. row%nargs() /= 3) then
+                call fail("PseudoInverse", "wrong row shape")
+                return
+            end if
+            do j = 1, 3
+                item = row%arg(j)
+                if (item%kind() /= NK_RAT .or. &
+                        item%int_value() /= numerators(i, j) .or. &
+                        item%den_value() /= denominators(i, j)) then
+                    call fail("PseudoInverse", "normal-equation result is wrong")
+                    return
+                end if
+            end do
+        end do
+    end subroutine test_pseudoinverse
 
     !> ArrayFlatten is checked by its block-concatenation definition, including
     !> a non-square result so swapping row and column offsets cannot pass.

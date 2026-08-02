@@ -1425,6 +1425,10 @@ contains
                 if (.not. ok) return
             end if
 
+        case ("PseudoInverse")
+            r = lower_pseudoinverse(s, r, ok, message)
+            if (.not. ok) return
+
         case ("IdentityMatrix")
             if (r%nargs() /= 1) then
                 call refuse(ok, message, "IdentityMatrix needs one size")
@@ -2119,6 +2123,91 @@ contains
             end if
         end do
     end function lower_total
+
+    !> Moore-Penrose inverse for small explicit full-rank numeric matrices.
+    !>
+    !> The corpus cases are full-column or full-row rank, so the defining
+    !> Gram-matrix identities are sufficient and remain exact for rational
+    !> inputs. Symbolic or rank-deficient matrices are left as named refusals;
+    !> silently applying a singular normal equation would not be a
+    !> pseudoinverse.
+    function lower_pseudoinverse(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, operand, hermitian, gram, inverse
+        type(expr_t), allocatable         :: matrix(:, :), h(:, :)
+        type(assumption_context_t)        :: facts
+        type(str_t)                       :: matrix_message
+        character(:), allocatable         :: why
+        integer                           :: i, j, rows, cols
+
+        ok = .false.
+        message = str("")
+        r = e
+        if (e%nargs() /= 1) then
+            call refuse(ok, message, "PseudoInverse takes one matrix")
+            return
+        end if
+        operand = e%arg(1)
+        if (.not. is_matrix(operand)) then
+            return
+        end if
+        call to_matrix(operand, matrix, ok)
+        if (.not. ok) then
+            call refuse(ok, message, "PseudoInverse needs a rectangular matrix")
+            return
+        end if
+        rows = size(matrix, 1)
+        cols = size(matrix, 2)
+        if (max(rows, cols) > 16) then
+            call refuse(ok, message, "PseudoInverse matrix exceeds the safety bound")
+            return
+        end if
+
+        allocate (h(cols, rows))
+        do i = 1, rows
+            do j = 1, cols
+                call conjugate(matrix(i, j), facts, h(j, i), ok, why)
+                if (.not. ok) then
+                    call refuse(ok, message, "PseudoInverse: "//why)
+                    return
+                end if
+            end do
+        end do
+        hermitian = from_matrix(s%a, h)
+
+        if (rows >= cols) then
+            gram = matrix_dot(s%a, hermitian, operand, ok, matrix_message)
+            if (.not. ok) then
+                call refuse(ok, message, "PseudoInverse: "//chars(matrix_message))
+                return
+            end if
+            inverse = matrix_inverse(s%a, gram, ok, matrix_message)
+            if (.not. ok) then
+                call refuse(ok, message, "PseudoInverse: full-rank normal matrix required")
+                return
+            end if
+            r = matrix_dot(s%a, inverse, hermitian, ok, matrix_message)
+        else
+            gram = matrix_dot(s%a, operand, hermitian, ok, matrix_message)
+            if (.not. ok) then
+                call refuse(ok, message, "PseudoInverse: "//chars(matrix_message))
+                return
+            end if
+            inverse = matrix_inverse(s%a, gram, ok, matrix_message)
+            if (.not. ok) then
+                call refuse(ok, message, "PseudoInverse: full-rank normal matrix required")
+                return
+            end if
+            r = matrix_dot(s%a, hermitian, inverse, ok, matrix_message)
+        end if
+        if (.not. ok) then
+            call refuse(ok, message, "PseudoInverse: "//chars(matrix_message))
+            return
+        end if
+    end function lower_pseudoinverse
 
     recursive function contains_slot_sequence(e) result(yes)
         type(expr_t), intent(in) :: e
