@@ -250,7 +250,7 @@ contains
         integer(int64) :: factorial
         real(dp) :: started
         logical :: factorial_ok
-        integer :: k
+        integer :: k, normalized_base
 
         started = wall_seconds()
         r%value = e
@@ -651,9 +651,26 @@ contains
         if (j == 0) then
             out = a%int(0_int64)
         else
-            out = factor_common_add(a, result(1:j))
+            out = a%add(result(1:j))
         end if
     end function simplify_add
+
+    function factor_common_add_node(a, id) result(out)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: id
+        integer                      :: out, i
+        integer, allocatable         :: terms(:)
+
+        if (a%kind_of(id) /= NK_ADD) then
+            out = id
+            return
+        end if
+        allocate (terms(a%nargs_of(id)))
+        do i = 1, size(terms)
+            terms(i) = a%arg_of(id, i)
+        end do
+        out = factor_common_add(a, terms)
+    end function factor_common_add_node
 
     function factor_common_add(a, terms) result(out)
         ! Pull a common positive rational factor from an exact sum.  This is
@@ -924,7 +941,7 @@ contains
         integer                      :: out
         integer, allocatable :: factors(:)
         integer(int64) :: exponent, den, nested, combined
-        integer :: k
+        integer :: k, normalized_base
         logical :: exact, power_ok, nested_ok
 
         call exact_value(a, exponent_id, exponent, den, exact)
@@ -965,6 +982,19 @@ contains
         if (is_exact_scalar_kind(a%kind_of(base))) then
             out = exact_pow_node(a, base, exponent, power_ok)
             if (power_ok) then
+                return
+            end if
+        end if
+
+        ! A common scalar in a denominator is the one place where Wolfram's
+        ! FullSimplify consistently exposes a useful canonical form. Keep
+        ! this local to negative powers: factoring every sum would alter the
+        ! structural spelling of ordinary polynomial results and can hide
+        ! like-term cancellation from downstream coefficient extraction.
+        if (exponent < 0_int64 .and. a%kind_of(base) == NK_ADD) then
+            normalized_base = factor_common_add_node(a, base)
+            if (normalized_base /= base) then
+                out = simplify_power(a, normalized_base, exponent_id)
                 return
             end if
         end if
