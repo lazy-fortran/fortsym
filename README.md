@@ -183,14 +183,20 @@ native runner, took 42.39 seconds at 804 MiB RSS and reported 181 agreements,
 63 differences, 2 unavailable oracle rows, 9 errors, and 54 oracle-missing
 bindings. This focused result is not a replacement for a new whole-corpus
 baseline; it confirms that the five computed-Solve/fractional-`Exponent`
-bindings exposed by the slice now agree. The
+bindings exposed by the slice now agree. The subsequent v19 SymPy `Thread`
+transition refreshed 16 rows in 16.51 seconds at 399 MiB RSS. Its current
+16-script one-worker parity slice took 17.43 seconds at 508 MiB RSS, converted
+two native `Thread` bindings from differences to agreements, and reported 249
+agreements, 58 differences, 1 unavailable oracle row, 1 timeout, 5 errors, 26
+oracle disagreements, and 58 oracle-missing bindings. Neither focused result
+replaces a new whole-corpus baseline. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,
 bounded non-negative `MatrixPower`, bounded block-matrix `ArrayFlatten`,
 `RowReduce`, `NullSpace`, `MatrixRank`,
 `LinearSolve`, `Minors`, `Length`, recursive `Flatten`, list
-`Append`/`Join` and bounded list
+`Append`/`Join`, bounded list `Thread`, and bounded list
 selectors, bounded univariate and multivariate `CoefficientList`, bounded
 `FoldList[Plus, initial, list]`, bounded explicit-list `Total`, bounded
 full-rank numeric `PseudoInverse`, diagonal/zero numeric `SingularValueList`,
