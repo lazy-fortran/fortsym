@@ -108,6 +108,7 @@ reported state.
 | current v19 focused `Thread` slice (16 scripts, one worker) | 17.43 s / 508 MiB |
 | current v20 focused positive-level `Map` slice (6 scripts, one worker) | 1.00 s / 404 MiB |
 | current v21 focused numeric `Piecewise` slice (6 scripts, one worker) | 0.85 s / 403 MiB |
+| current v22 focused numeric `Boole` slice (3 scripts, one worker) | 2.91 s / 404 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
@@ -196,6 +197,11 @@ six-script focused audit in 0.85 second at 403 MiB RSS. It preserved 21
 agreements, 6 differences, 3 unavailable oracle rows, 2 oracle disagreements,
 and 3 oracle-missing bindings, with no scored native tally change because the
 slice was dominated by symbolic/IO limitations outside this subset. The
+v22 numeric `Boole` transition refreshed three SymPy rows in 2.91 seconds at
+404 MiB RSS. Its focused audit preserved 21 agreements, 7 differences, 1
+unavailable oracle row, 1 oracle disagreement, and 1 oracle-missing binding,
+with no scored native tally change because all exposed Boole uses remain inside
+larger symbolic or untranslated-function gaps. The
 highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
 `DSolve`/`NDSolve`.

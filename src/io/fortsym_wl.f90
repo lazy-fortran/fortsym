@@ -921,6 +921,10 @@ contains
             r = lower_piecewise(s, e, ok, message)
             return
         end if
+        if (head == "Boole") then
+            r = lower_boole(s, e, ok, message)
+            return
+        end if
 
         ! These heads carry evaluation rules for their arguments. Evaluating a
         ! pure function before Map sees it would refuse Function/Slot, and
@@ -1793,6 +1797,40 @@ contains
         output(npairs + 1) = default_value
         r = func("Piecewise", output)
     end function lower_piecewise
+
+    !> Convert a decidable boolean to Wolfram's numeric Boole value.
+    recursive function lower_boole(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, condition
+        logical                           :: arg_ok, decided, truth
+        type(str_t)                       :: arg_message
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() /= 1) then
+            call refuse(ok, message, "Boole needs one condition")
+            return
+        end if
+        condition = wl_eval(s, e%arg(1), arg_ok, arg_message)
+        if (.not. arg_ok) then
+            call refuse(ok, message, chars(arg_message))
+            return
+        end if
+        call condition_value(condition, decided, truth)
+        if (.not. decided) then
+            r = func("Boole", [condition])
+            return
+        end if
+        if (truth) then
+            r = num(s%a, 1)
+        else
+            r = num(s%a, 0)
+        end if
+    end function lower_boole
 
     !> Map[f, {x1, x2, ...}] for a named or pure one-argument function.
     !>

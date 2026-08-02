@@ -25,6 +25,7 @@ program test_fortsym_wl_statements
     call test_explicit_trig_simplify()
     call test_recursive_function()
     call test_piecewise_evaluation()
+    call test_boole_evaluation()
     call test_pure_map_apply_replace()
     call test_list_threading()
     call test_list_selectors()
@@ -197,6 +198,14 @@ contains
             "value = Piecewise[{{10, 1 > 2}}, 7]"//char(10), &
             "value", "7")
     end subroutine test_piecewise_evaluation
+
+    !> Numeric Boole values are checked against the definition of an indicator.
+    subroutine test_boole_evaluation()
+        call expect("Boole true", "value = Boole[1 < 2]"//char(10), &
+            "value", "1")
+        call expect("Boole false", "value = Boole[1 > 2]"//char(10), &
+            "value", "0")
+    end subroutine test_boole_evaluation
 
     !> Pure-function application and replacement are checked through their
     !> observable values. A parser-only implementation would accept these
