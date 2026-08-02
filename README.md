@@ -212,7 +212,11 @@ oracle rows, 1 timeout, and 103 oracle-missing bindings. Its cached timeout
 was not rerun. The v25 bounded symbolic 2x2 `Solve` transition then served
 the corpus script that exposed the gap in 0.78 second at 404 MiB RSS: 33
 agreements, 10 differences, 1 unavailable oracle row, and 1 oracle-missing
-binding, with no timeout or runner error. The
+binding, with no timeout or runner error. The v26 verified exponential-product
+`Integrate` transition then served a three-script slice in 0.78 second at
+404 MiB RSS: 5 agreements, 1 difference, 1 unsupported backend outcome, 1
+unavailable oracle row, and 1 oracle disagreement, with no timeout or runner
+error. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,
@@ -222,7 +226,7 @@ bounded non-negative `MatrixPower`, bounded block-matrix `ArrayFlatten`,
 `Append`/`Join`, bounded list `Thread`, bounded positive-level `Map`, bounded
 numeric `Piecewise` branch selection, numeric `Boole` conditions, numeric
 `Which` selection, bounded `TrigReduce`, bounded symbolic 2x2 `Solve`,
-and bounded list
+verified products of exponential factors in `Integrate`, and bounded list
 selectors, bounded univariate and multivariate `CoefficientList`, bounded
 `FoldList[Plus, initial, list]`, bounded explicit-list `Total`, bounded
 full-rank numeric `PseudoInverse`, diagonal/zero numeric `SingularValueList`,
