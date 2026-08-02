@@ -221,13 +221,17 @@ contains
         r = e
         ok = .false.
         why = ""
-        if (e%nargs() /= 1 .or. .not. is_list(e%arg(1))) then
+        if (e%nargs() /= 1) then
             why = "First needs one explicit list"
+            return
+        end if
+        if (.not. is_list(e%arg(1))) then
+            ok = .true.
             return
         end if
         value = e%arg(1)
         if (value%nargs() == 0) then
-            why = "First cannot select from an empty list"
+            ok = .true.
             return
         end if
         r = value%arg(1)
@@ -245,13 +249,17 @@ contains
         r = e
         ok = .false.
         why = ""
-        if (e%nargs() /= 1 .or. .not. is_list(e%arg(1))) then
+        if (e%nargs() /= 1) then
             why = "Last needs one explicit list"
+            return
+        end if
+        if (.not. is_list(e%arg(1))) then
+            ok = .true.
             return
         end if
         value = e%arg(1)
         if (value%nargs() == 0) then
-            why = "Last cannot select from an empty list"
+            ok = .true.
             return
         end if
         r = value%arg(value%nargs())
@@ -269,13 +277,17 @@ contains
         r = e
         ok = .false.
         why = ""
-        if (e%nargs() /= 1 .or. .not. is_list(e%arg(1))) then
+        if (e%nargs() /= 1) then
             why = "Rest needs one explicit list"
+            return
+        end if
+        if (.not. is_list(e%arg(1))) then
+            ok = .true.
             return
         end if
         value = e%arg(1)
         if (value%nargs() == 0) then
-            why = "Rest cannot select from an empty list"
+            ok = .true.
             return
         end if
         r = list_slice(a, value, 2, value%nargs(), ok, why)
@@ -292,13 +304,17 @@ contains
         r = e
         ok = .false.
         why = ""
-        if (e%nargs() /= 1 .or. .not. is_list(e%arg(1))) then
+        if (e%nargs() /= 1) then
             why = "Most needs one explicit list"
+            return
+        end if
+        if (.not. is_list(e%arg(1))) then
+            ok = .true.
             return
         end if
         value = e%arg(1)
         if (value%nargs() == 0) then
-            why = "Most cannot select from an empty list"
+            ok = .true.
             return
         end if
         r = list_slice(a, value, 1, value%nargs() - 1, ok, why)
@@ -317,8 +333,12 @@ contains
         r = e
         ok = .false.
         why = ""
-        if (e%nargs() /= 1 .or. .not. is_list(e%arg(1))) then
+        if (e%nargs() /= 1) then
             why = "Reverse needs one explicit list"
+            return
+        end if
+        if (.not. is_list(e%arg(1))) then
+            ok = .true.
             return
         end if
         value = e%arg(1)
@@ -348,8 +368,12 @@ contains
         r = e
         ok = .false.
         why = ""
-        if (e%nargs() /= 2 .or. .not. is_list(e%arg(1))) then
+        if (e%nargs() /= 2) then
             why = "Take needs a list and a specification"
+            return
+        end if
+        if (.not. is_list(e%arg(1))) then
+            ok = .true.
             return
         end if
         value = e%arg(1)
@@ -374,8 +398,12 @@ contains
         r = e
         ok = .false.
         why = ""
-        if (e%nargs() /= 2 .or. .not. is_list(e%arg(1))) then
+        if (e%nargs() /= 2) then
             why = "Drop needs a list and a specification"
+            return
+        end if
+        if (.not. is_list(e%arg(1))) then
+            ok = .true.
             return
         end if
         value = e%arg(1)
