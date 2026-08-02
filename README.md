@@ -168,10 +168,11 @@ On the 384-file corpus sweep recorded 2026-08-02, the native runner completed
 out on one heavy script, reported one runner error, and explicitly refused two
 unsupported constructs. It did not crash. The latest bounded
 CharacteristicPolynomial/LegendreP/Diagonal/list-selector/Coefficient/Solve/
-FoldList/ArrayFlatten/Total audit refreshed 380 native rows in 1:11.83 with a
-3.04 GiB peak RSS. After the quoted-string and Total slices, a fully warm audit
-now takes 1.11 seconds at 418 MiB RSS and starts no backend subprocesses. The
-current binding-level tally is 3,209 agreements, 727 declared differences, 20
+FoldList/ArrayFlatten/Total/PseudoInverse audit refreshed 380 native rows in
+1:13.38 with a 3.04 GiB peak RSS. After the quoted-string, Total, and
+PseudoInverse slices, a fully warm audit now takes 1.03 seconds at 423 MiB RSS
+and starts no backend subprocesses. The current binding-level tally is 3,211
+agreements, 725 declared differences, 20
 unsupported outcomes, 38 timeouts, 122 errors, 192 oracle disagreements, and
 797 oracle-missing bindings. The
 native collection slice also evaluates bounded exact `Range`,
@@ -182,8 +183,8 @@ bounded non-negative `MatrixPower`, bounded block-matrix `ArrayFlatten`,
 `LinearSolve`, `Minors`, `Length`, recursive `Flatten`, list
 `Append`/`Join` and bounded list
 selectors, bounded univariate and multivariate `CoefficientList`, bounded
-`FoldList[Plus, initial, list]`, bounded explicit-list `Total`, and bounded
-requested-precision `N`; multiline
+`FoldList[Plus, initial, list]`, bounded explicit-list `Total`, bounded
+full-rank numeric `PseudoInverse`, and bounded requested-precision `N`; multiline
 Wolfram dot products
 are preserved by both the native parser and the SymPy translator. Unsupported
 selector shapes remain opaque rather than losing a binding. The remaining

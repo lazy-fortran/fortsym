@@ -84,7 +84,7 @@ domain, parameters, precision, and error policy are numeric and explicit.
 ## Measured state
 
 Latest corpus-wide measurement, 2026-08-02, `fortsym-bench` at 384 scripts
-(`--jobs 2`, 60-second script budget, after the bounded native Total slice):
+(`--jobs 2`, 60-second script budget, after the bounded native PseudoInverse slice):
 
 This table is a committed native baseline. It is updated only after the root
 backend and benchmark harness revisions used to produce it have been committed.
@@ -100,14 +100,14 @@ reported state.
 | scripts exceeding the time budget | 1 |
 | scripts ending in a runner error | 1 |
 | crashes | **0** |
-| full audit after the bounded native Total refresh | 1:11.83 |
+| full audit after the bounded native PseudoInverse refresh | 1:13.38 |
 | peak RSS during that refresh | 3.04 GiB |
-| warm compact raw-output and verdict audit | 1.11 s / 418 MiB |
+| warm compact raw-output and verdict audit | 1.03 s / 423 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The final binding-level audit reports 3,209 agreements, 727 declared
+The final binding-level audit reports 3,211 agreements, 725 declared
 differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 192 oracle
 disagreements, and 797 oracle-missing bindings. The target remains open until
 the declared native subset and the available oracle overlap agree.
@@ -116,7 +116,8 @@ The current native collection slice includes bounded `Array`, `ConstantArray`,
 and `Outer` expansion, bounded exact `Range`, `DiagonalMatrix`, rectangular
 `Diagonal`, bounded `LegendreP`, bounded exact `CharacteristicPolynomial`
 for explicit square matrices up to dimension 16, and bounded non-negative
-`MatrixPower`, bounded explicit-list `Total`, exact
+`MatrixPower`, bounded explicit-list `Total`, bounded full-rank numeric
+`PseudoInverse`, exact
 `RowReduce`, `NullSpace`, `MatrixRank`, bounded exact `LinearSolve` and
 `Minors`, structural `Length`, recursive `Flatten`, dynamic exact dimensions,
 bounded block-matrix `ArrayFlatten`, and opaque preservation for unsupported
@@ -156,8 +157,10 @@ adds three agreements while removing three declared differences. The
 quoted-string translator alignment then maps SymPy string atoms to the native
 comparison hash, adds 51 agreements, and removes 45 differences plus six oracle
 disagreements. The bounded native `Total` slice then adds three agreements and
-removes four differences across explicit scalar and vector-list sums. It does
-not close the remaining
+removes four differences across explicit scalar and vector-list sums. The
+bounded full-rank numeric `PseudoInverse` slice adds two agreements and removes
+two differences in the duplicated matrix-course cases. It does not close the
+remaining
 parity gap. The highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
 `DSolve`/`NDSolve`.
@@ -193,10 +196,10 @@ The historical full refresh includes the SymPy refresh required by the
 translator cache-version change and took 4:54. The latest LegendreP refresh of
 the SymPy oracle took 6:59.96 with two workers and a 3.86 GiB peak RSS. The
 quoted-string translator refresh took 2:00.16 with a 543 MiB peak RSS. The
-subsequent native `Total` audit took 1:11.83 with a 3.04 GiB peak RSS; its warm
-audit takes 1.11 seconds at 418 MiB RSS.
+subsequent native `Total`/`PseudoInverse` audit took 1:13.38 with a 3.04 GiB
+peak RSS; its warm audit takes 1.03 seconds at 423 MiB RSS.
 Once raw results and comparison verdicts are cached, the same full audit takes
-1.11 seconds at 418 MiB RSS. Future compatible cache transitions retain
+1.03 seconds at 423 MiB RSS. Future compatible cache transitions retain
 unaffected older-version rows. These are
 harness measurements, not a
 capability comparison: Mathics evaluates integrals fortsym refuses, and the native path
