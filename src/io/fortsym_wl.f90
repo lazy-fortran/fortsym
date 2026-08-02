@@ -30,7 +30,8 @@ module fortsym_wl
     use fortsym_engine, only: engine_result_t, wall_seconds
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_matrix, only: matrix_transpose, matrix_dot, matrix_det, &
-        matrix_inverse, is_matrix, is_list
+        matrix_inverse, matrix_row_reduce, matrix_null_space, matrix_rank, &
+        is_matrix, is_list
     use fortsym_plot, only: plot_spec_t, read_plot_range, &
         plot_constant, curve_t, figure_data_t, CURVE_LINE, CURVE_POINTS, &
         sample_curve, sample_parametric_curve, render_figure, render_panels, &
@@ -39,7 +40,8 @@ module fortsym_wl
     use fortsym_numeric, only: numeric_value
     use fortsym_wl_solve, only: wl_solve
     use fortsym_wl_num, only: wl_n, wl_chop, wl_identity_matrix, wl_cross, &
-        wl_trace, wl_range, wl_diagonal_matrix, CHOP_DEFAULT
+        wl_trace, wl_length, wl_flatten, wl_range, wl_diagonal_matrix, &
+        CHOP_DEFAULT
     use fortsym_integrate, only: integrate
     use fortsym_defint, only: definite_integral
     use fortsym_poly, only: poly_together, poly_cancel, poly_apart, &
@@ -1209,6 +1211,67 @@ contains
                     call refuse(ok, message, "Transpose of a ragged matrix")
                     return
                 end if
+            end if
+
+        case ("RowReduce")
+            if (r%nargs() /= 1) then
+                call refuse(ok, message, "RowReduce needs one matrix")
+                return
+            end if
+            if (is_matrix(r%arg(1))) then
+                r = matrix_row_reduce(s%a, r%arg(1), ok, message)
+                if (.not. ok) return
+            else if (is_list(r%arg(1))) then
+                call refuse(ok, message, "RowReduce needs a rectangular matrix")
+                return
+            end if
+
+        case ("NullSpace")
+            if (r%nargs() /= 1) then
+                call refuse(ok, message, "NullSpace needs one matrix")
+                return
+            end if
+            if (is_matrix(r%arg(1))) then
+                r = matrix_null_space(s%a, r%arg(1), ok, message)
+                if (.not. ok) return
+            else if (is_list(r%arg(1))) then
+                call refuse(ok, message, "NullSpace needs a rectangular matrix")
+                return
+            end if
+
+        case ("MatrixRank")
+            if (r%nargs() /= 1) then
+                call refuse(ok, message, "MatrixRank needs one matrix")
+                return
+            end if
+            if (is_matrix(r%arg(1))) then
+                r = matrix_rank(s%a, r%arg(1), ok, message)
+                if (.not. ok) return
+            else if (is_list(r%arg(1))) then
+                call refuse(ok, message, "MatrixRank needs a rectangular matrix")
+                return
+            end if
+
+        case ("Length")
+            if (r%nargs() /= 1) then
+                call refuse(ok, message, "Length needs one expression")
+                return
+            end if
+            r = wl_length(s%a, r%arg(1), ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Length: "//why)
+                return
+            end if
+
+        case ("Flatten")
+            if (r%nargs() /= 1) then
+                call refuse(ok, message, "Flatten with a level specification is not implemented")
+                return
+            end if
+            r = wl_flatten(s%a, r%arg(1), ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Flatten: "//why)
+                return
             end if
 
         case ("Dot")
@@ -2953,7 +3016,8 @@ contains
         case ("Refine", "Assuming", "Simplify2", "Element")
             yes = .true.
             ! Matrices (#30)
-        case ("Eigenvalues", "LinearSolve", "MatrixPower", "MatrixForm")
+        case ("Eigenvalues", "LinearSolve", "MatrixPower", "MatrixForm", &
+                "RowReduce", "NullSpace", "MatrixRank")
             yes = .true.
             ! Solving beyond the scalar linear case (#36)
         case ("Reduce", "NSolve", "FindRoot", "Eliminate", "Roots", "ToRadicals")

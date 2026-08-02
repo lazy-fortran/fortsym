@@ -22,7 +22,7 @@ module fortsym_print
     use fortsym_expr, only: expr_t
     use fortsym_exact, only: exact_to_real
     use fortsym_dialect, only: dialect_t, dialect, fn_spelling, const_spelling, &
-        DIA_NATIVE, DIA_FORTRAN
+        DIA_NATIVE, DIA_FORTRAN, DIA_WOLFRAM
     implicit none
     private
 
@@ -940,6 +940,16 @@ contains
         integer,         intent(in)    :: ids(:)
         type(str_t),     intent(in)    :: names(:)
         integer :: k
+
+        ! List[] is an internal spelling for the empty list. Wolfram's
+        ! InputForm writes that value as {}, and preserving the surface form is
+        ! necessary for an independent parser to distinguish it from an empty
+        ! call such as Directory[].
+        if (d%id == DIA_WOLFRAM .and. chars(a%name_of(id)) == "List" .and. &
+                a%nargs_of(id) == 0) then
+            call b%append("{}")
+            return
+        end if
 
         call b%append(chars(fn_spelling(d, chars(a%name_of(id)))))
         ! Wolfram applies with brackets. Emitting parentheses here would produce

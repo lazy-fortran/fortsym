@@ -18,12 +18,13 @@ module fortsym_wl_num
         NK_ADD, NK_MUL, NK_POW
     use fortsym_expr, only: expr_t, num, rat, func, func_in, real_expr, is_valid, &
         operator(+), operator(-), operator(*), operator(**)
-    use fortsym_matrix, only: is_matrix, matrix_shape, to_matrix
+    use fortsym_matrix, only: is_list, is_matrix, matrix_shape, to_matrix
     use fortsym_numeric, only: numeric_value
     implicit none
     private
 
-    public :: wl_n, wl_chop, wl_identity_matrix, wl_cross, wl_trace
+    public :: wl_n, wl_chop, wl_identity_matrix, wl_cross, wl_trace, wl_length
+    public :: wl_flatten
     public :: wl_range, wl_diagonal_matrix
     public :: N_MAX_DIGITS, CHOP_DEFAULT
 
@@ -42,6 +43,7 @@ module fortsym_wl_num
     integer, parameter :: MAX_DECADE = 300
 
     integer, parameter :: MAX_IDENTITY = 512
+    integer, parameter :: MAX_FLATTEN_ITEMS = 10000
     !> Keep a valid but large range opaque. Expanding it is mathematically
     !> straightforward, but downstream symbolic consumers can turn a modest
     !> scan into a multi-megabyte expression before they have a rule for the
@@ -61,6 +63,85 @@ module fortsym_wl_num
     end type fraction_t
 
 contains
+
+    !> Length[expr]: the number of immediate elements, or zero for an atom.
+    !>
+    !> This is structural rather than numeric. In particular Length[f[x, y]]
+    !> is two even when `f` is an opaque user head, while Length[x] is zero.
+    function wl_length(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+
+        r = num(a, e%nargs())
+        ok = is_valid(r)
+        why = ""
+        if (.not. ok) why = "Length could not build its integer result"
+    end function wl_length
+
+    !> Flatten[list] recursively removes all nested List heads.
+    !>
+    !> Only the one-argument form is accepted here. A level specification
+    !> changes which nesting is observable and is kept as a named refusal until
+    !> it has its own independent coverage; a non-list expression is already
+    !> flat and is returned unchanged.
+    function wl_flatten(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t), allocatable :: items(:)
+        integer :: n
+
+        r = e
+        ok = .false.
+        why = ""
+        if (.not. is_list(e)) then
+            ok = .true.
+            return
+        end if
+
+        allocate (items(MAX_FLATTEN_ITEMS))
+        n = 0
+        call collect_flatten(e, items, n, ok, why)
+        if (.not. ok) return
+        if (n == 0) then
+            r = func_in(a, "List")
+        else
+            r = func("List", items(:n))
+        end if
+    end function wl_flatten
+
+    recursive subroutine collect_flatten(e, items, n, ok, why)
+        type(expr_t),              intent(in)    :: e
+        type(expr_t),              intent(inout) :: items(:)
+        integer,                   intent(inout) :: n
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        integer :: k
+
+        ok = .false.
+        why = ""
+        if (is_list(e)) then
+            do k = 1, e%nargs()
+                call collect_flatten(e%arg(k), items, n, ok, why)
+                if (.not. ok) return
+            end do
+            ok = .true.
+            return
+        end if
+
+        if (n >= size(items)) then
+            why = "Flatten exceeds the built-in item bound"
+            return
+        end if
+        n = n + 1
+        items(n) = e
+        ok = .true.
+    end subroutine collect_flatten
 
     !> N[expr] (digits <= 0) or N[expr, digits], mapped over lists elementwise.
     !>
