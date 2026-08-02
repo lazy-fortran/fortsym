@@ -59,7 +59,7 @@ contains
         integer :: nstatements, ninputs, k, j, eq, width
         integer :: first_statement
         integer :: nold
-        logical :: parsed, representable
+        logical :: parsed, representable, handled
         type(expr_t) :: root
 
         code = str("")
@@ -91,14 +91,22 @@ contains
         allocate (targets(nstatements))
         nold = 0
         do k = 1, nstatements
-            eq = top_level_assignment(chars(statements(k)))
+            statement = chars(statements(k))
+            call lower_constant_if_statement(statement, cleaned_source, handled, &
+                parsed, parse_message)
+            if (.not. parsed) then
+                message = parse_message
+                return
+            end if
+            if (handled) statement = cleaned_source
+
+            eq = top_level_assignment(statement)
             if (eq == 0) then
                 message = "expected a top-level name = expression assignment; "// &
                     "control flow and other statements are unsupported"
                 return
             end if
 
-            statement = chars(statements(k))
             width = 1
             if (statement(eq:eq) == ":") width = 2
             lhs = trim(adjustl(statement(:eq - 1)))
@@ -196,6 +204,112 @@ contains
         end if
         ok = .true.
     end function translate_wl_assignments
+
+    !> Lower the bounded static form If[True|False, assignment, assignment].
+    !> Symbolic conditions and all other branch shapes remain refused instead
+    !> of being guessed or emitted as non-compilable Fortran control flow.
+    subroutine lower_constant_if_statement(text, lowered, handled, ok, message)
+        character(*),              intent(in)  :: text
+        character(:), allocatable, intent(out) :: lowered
+        logical,                   intent(out) :: handled, ok
+        character(:), allocatable, intent(out) :: message
+
+        character(:), allocatable :: whole, args, condition, yes_branch
+        character(:), allocatable :: no_branch
+        integer :: open, close, comma_one, comma_two, extra_comma
+        integer :: depth, k
+
+        lowered = ""
+        handled = .false.
+        ok = .true.
+        message = ""
+        whole = trim(adjustl(text))
+        open = index(whole, "[")
+        if (open <= 1) return
+        if (whole(:open - 1) /= "If") return
+        handled = .true.
+
+        depth = 0
+        close = 0
+        do k = open, len(whole)
+            if (whole(k:k) == "[") then
+                depth = depth + 1
+            else if (whole(k:k) == "]") then
+                depth = depth - 1
+                if (depth == 0) then
+                    close = k
+                    exit
+                end if
+            end if
+        end do
+        if (close /= len(whole)) then
+            ok = .false.
+            message = "If statement must have one balanced argument list"
+            return
+        end if
+
+        args = whole(open + 1:close - 1)
+        call next_top_level_comma(args, 1, comma_one)
+        if (comma_one == 0) then
+            ok = .false.
+            message = "bounded If needs a condition and two assignments"
+            return
+        end if
+        call next_top_level_comma(args, comma_one + 1, comma_two)
+        if (comma_two == 0) then
+            ok = .false.
+            message = "bounded If needs a condition and two assignments"
+            return
+        end if
+        call next_top_level_comma(args, comma_two + 1, extra_comma)
+        if (extra_comma /= 0) then
+            ok = .false.
+            message = "bounded If accepts exactly two assignment branches"
+            return
+        end if
+
+        condition = trim(adjustl(args(:comma_one - 1)))
+        yes_branch = trim(adjustl(args(comma_one + 1:comma_two - 1)))
+        no_branch = trim(adjustl(args(comma_two + 1:)))
+        if (condition == "True") then
+            lowered = yes_branch
+        else if (condition == "False") then
+            lowered = no_branch
+        else
+            handled = .false.
+            return
+        end if
+        if (top_level_assignment(lowered) == 0) then
+            ok = .false.
+            message = "bounded If branches must be assignments"
+            return
+        end if
+    end subroutine lower_constant_if_statement
+
+    pure subroutine next_top_level_comma(text, first, position)
+        character(*), intent(in)  :: text
+        integer,      intent(in)  :: first
+        integer,      intent(out) :: position
+        integer :: depth, k
+        character :: c
+
+        position = 0
+        depth = 0
+        do k = first, len(text)
+            c = text(k:k)
+            select case (c)
+            case ("[", "{", "(")
+                depth = depth + 1
+            case ("]", "}", ")")
+                depth = depth - 1
+            case (",")
+                if (depth == 0) then
+                    position = k
+                    return
+                end if
+            end select
+        end do
+    end subroutine next_top_level_comma
 
     !> Remove only balanced Wolfram comments at the beginning of the source.
     !> A comment is a lexical no-op, but comments elsewhere remain part of the
