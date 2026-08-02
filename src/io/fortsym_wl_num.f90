@@ -1064,7 +1064,11 @@ contains
         end if
         matrix = e%arg(1)
         if (.not. is_matrix(matrix)) then
-            why = "Diagonal needs a rectangular matrix"
+            ! Preserve a valid but not-yet-structural argument. This is the
+            ! same opaque boundary used by Array and the list selectors: a
+            ! missing matrix value must not make the binding disappear.
+            r = e
+            ok = .true.
             return
         end if
         call matrix_shape(matrix, rows, cols)

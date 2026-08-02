@@ -984,7 +984,13 @@ contains
             if (item%kind() /= NK_INT .or. item%int_value() /= 5) &
                 call fail("diagonal extract", "second diagonal entry is wrong")
         end if
-        call expect_refusal("diagonal non-matrix", "v = Diagonal[x]"//nl(), "v")
+        call a%init()
+        call run_one(a, "v = Diagonal[x]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("diagonal non-matrix", "refused instead of preserving the constructor")
+        else if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "Diagonal") then
+            call fail("diagonal non-matrix", "unsupported argument was not preserved")
+        end if
     end subroutine test_range_and_diagonal_matrix
 
     !> Exercise the public Wolfram dispatch as well as the matrix primitive.
