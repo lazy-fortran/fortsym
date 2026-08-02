@@ -115,7 +115,7 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,427 agreements, 544 declared
+The latest cache-only binding-level audit reports 3,436 agreements, 535 declared
 differences, 8 unsupported outcomes, 73 timeouts, 81 errors, 2 unavailable
 oracle rows, 202 oracle disagreements, and 653 oracle-missing bindings. The
 target remains open until the declared native subset and the available oracle
