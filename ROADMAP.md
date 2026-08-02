@@ -231,7 +231,10 @@ nested-limit script in a warm one-worker audit in 0.77 seconds at 402 MiB RSS.
 Native and SymPy now produce the complete outer-to-inner result; Mathics
 retains a partial unevaluated result, so the three bindings remain explicit
 oracle disagreements rather than being scored as native errors. The
-highest-impact work remains the plotting family, `Solve` beyond
+subsequent native plotting slice adds independent per-dataset
+`Joined -> {True, False}` coverage for `ListPlot` and `ListLinePlot`; the
+focused plotting suite passes, while the broader plotting family remains open.
+The highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, polynomial heads, and `DSolve`/`NDSolve`.
 
 ### The oracle ceiling (#47)
