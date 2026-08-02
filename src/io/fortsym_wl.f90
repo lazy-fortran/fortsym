@@ -4518,12 +4518,14 @@ contains
         type(figure_data_t) :: fd
         type(expr_t) :: data, item
         type(str_t) :: file
-        logical :: nested
+        logical :: nested, joined_effective
         integer :: k, n
 
         r = e
         ok = .true.
         message = str("")
+        joined_effective = joined
+        call list_plot_joined_option(e, joined_effective)
         data = e%arg(1)
         if (.not. is_list(data)) then
             call refuse(ok, message, "ListPlot needs an explicit list of data")
@@ -4556,7 +4558,8 @@ contains
             else
                 item = data
             end if
-            if (.not. dataset_curve(item, joined, fd%curves(k), message)) then
+            if (.not. dataset_curve(item, joined_effective, fd%curves(k), &
+                                    message)) then
                 ok = .false.
                 return
             end if
@@ -4567,6 +4570,32 @@ contains
         call keep_plot(s, file, fd, .true.)
         r = sym(s%a, chars(file))
     end function render_list_plot
+
+    !> Apply the scalar Joined option used by ListPlot. ListLinePlot supplies
+    !> the same default through its `joined` argument; an explicit option is
+    !> allowed to override either head, as in Wolfram Language.
+    subroutine list_plot_joined_option(e, joined)
+        type(expr_t), intent(in)    :: e
+        logical,      intent(inout) :: joined
+        type(expr_t) :: rule, key, value
+        integer :: k
+
+        do k = 2, e%nargs()
+            rule = e%arg(k)
+            if (.not. is_option(rule)) cycle
+            key = rule%arg(1)
+            if (key%kind() /= NK_SYM) cycle
+            if (chars(key%name()) /= "Joined") cycle
+            value = rule%arg(2)
+            if (value%kind() /= NK_SYM) cycle
+            select case (chars(value%name()))
+            case ("True")
+                joined = .true.
+            case ("False")
+                joined = .false.
+            end select
+        end do
+    end subroutine list_plot_joined_option
 
     !> Turn one explicit dataset into a curve.
     !>
