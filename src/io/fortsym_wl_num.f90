@@ -26,6 +26,7 @@ module fortsym_wl_num
     public :: wl_n, wl_chop, wl_identity_matrix, wl_cross, wl_trace, wl_length
     public :: wl_flatten, wl_append, wl_join
     public :: wl_first, wl_last, wl_rest, wl_most, wl_reverse, wl_take, wl_drop
+    public :: list_slice
     public :: wl_range, wl_diagonal, wl_diagonal_matrix
     public :: N_MAX_DIGITS, CHOP_DEFAULT
 

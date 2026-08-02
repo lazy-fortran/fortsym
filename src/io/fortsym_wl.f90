@@ -18,6 +18,7 @@ module fortsym_wl
     ! No Wolfram product is involved; see LEGAL.md section 5.1.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
+    use fortsym_print, only: print_expr
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
     use fortsym_expr, only: expr_t, sym, num, func, func_in, real_expr, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
@@ -45,7 +46,7 @@ module fortsym_wl
     use fortsym_wl_num, only: wl_n, wl_chop, wl_identity_matrix, wl_cross, &
         wl_trace, wl_length, wl_flatten, wl_append, wl_join, wl_range, &
         wl_diagonal, wl_diagonal_matrix, wl_first, wl_last, wl_rest, wl_most, wl_reverse, &
-        wl_take, wl_drop, &
+        wl_take, wl_drop, list_slice, &
         CHOP_DEFAULT
     use fortsym_integrate, only: integrate
     use fortsym_defint, only: definite_integral
@@ -968,6 +969,13 @@ contains
         end if
         if (head == "Outer") then
             r = lower_outer(s, e, ok, message)
+            return
+        end if
+        ! Part selectors are structural: evaluating Span[lo, hi] as an
+        ! ordinary command would refuse it before lower_part can consume the
+        ! selector. Its base has already received statement bindings above.
+        if (head == "Part") then
+            r = lower_part(s, e, ok, message)
             return
         end if
 
@@ -3432,15 +3440,17 @@ contains
     end function lower_rewrite
 
     !> Part[expr, i, j, ...] on explicit lists only. Indexing a literal list
-    !> by positive integers is unambiguous; unsupported spans and non-lists
-    !> refuse instead of being printed as a computed value.
+    !> by positive integers is unambiguous. A bounded two-ended Span is also
+    !> accepted, which covers matrix slices such as [[2 ;; 3, 2 ;; 3]].
     function lower_part(s, e, ok, message) result(r)
         type(wl_session_t), intent(inout) :: s
         type(expr_t),       intent(in)    :: e
         logical,            intent(out)   :: ok
         type(str_t),        intent(out)   :: message
-        type(expr_t)                      :: r
-        integer :: k, index
+        type(expr_t)                      :: r, spec
+        integer :: k, index, first, last, j
+        character(:), allocatable :: why
+        type(expr_t), allocatable :: items(:)
 
         ok = .true.
         message = str("")
@@ -3453,21 +3463,77 @@ contains
 
         r = e%arg(1)
         do k = 2, e%nargs()
+            spec = e%arg(k)
             if (r%kind() /= NK_FUNC .or. chars(r%name()) /= "List") then
                 call refuse(ok, message, "Part of a non-list")
                 return
             end if
-            if (.not. exact_small_int(e%arg(k), index)) then
-                call refuse(ok, message, "Part with a non-literal index")
-                return
+            if (part_span_bounds(spec, first, last)) then
+                if (k == 2) then
+                    r = list_slice(s%a, r, first, last, ok, why)
+                    if (.not. ok) then
+                        call refuse(ok, message, "Part: "//why)
+                        return
+                    end if
+                else
+                    allocate (items(r%nargs()))
+                    do j = 1, r%nargs()
+                        items(j) = list_slice(s%a, r%arg(j), first, last, ok, why)
+                        if (.not. ok) then
+                            call refuse(ok, message, "Part: "//why)
+                            return
+                        end if
+                    end do
+                    r = func("List", items)
+                end if
+            else
+                if (.not. exact_small_int(spec, index)) then
+                    if (spec%kind() == NK_FUNC) then
+                        call refuse(ok, message, "Part with non-literal head "// &
+                            chars(spec%name()))
+                    else
+                        call refuse(ok, message, "Part with a non-literal index")
+                    end if
+                    return
+                end if
+                if (index < 1 .or. index > r%nargs()) then
+                    call refuse(ok, message, "Part index out of range")
+                    return
+                end if
+                r = r%arg(index)
             end if
-            if (index < 1 .or. index > r%nargs()) then
-                call refuse(ok, message, "Part index out of range")
-                return
-            end if
-            r = r%arg(index)
         end do
     end function lower_part
+
+    !> Read the concrete positive two-ended Span used by bounded matrix slices.
+    !> Open-ended, stepped, negative, and out-of-range spans remain refusals.
+    function part_span_bounds(spec, first, last) result(good)
+        type(expr_t), intent(in)  :: spec
+        integer,      intent(out) :: first, last
+        logical                   :: good
+
+        first = 0
+        last = 0
+        good = .false.
+        if (spec%kind() /= NK_FUNC .or. chars(spec%name()) /= "Span") return
+        if (spec%nargs() /= 2) return
+        if (.not. part_span_integer(spec%arg(1), first)) return
+        if (.not. part_span_integer(spec%arg(2), last)) return
+        good = first >= 1 .and. first <= last
+    end function part_span_bounds
+
+    function part_span_integer(e, value) result(good)
+        type(expr_t), intent(in)  :: e
+        integer,      intent(out) :: value
+        logical                   :: good
+        character(:), allocatable :: text
+        integer :: ios
+
+        value = 0
+        text = chars(print_expr(e))
+        read (text, *, iostat=ios) value
+        good = ios == 0 .and. value >= 0 .and. value < 1000
+    end function part_span_integer
 
     !> Polynomial and rational-function heads, over exact rationals.
     !>
