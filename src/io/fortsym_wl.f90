@@ -18,7 +18,7 @@ module fortsym_wl
     ! No Wolfram product is involved; see LEGAL.md section 5.1.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
-    use fortsym_arena, only: arena_t, NK_INT, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
+    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
     use fortsym_expr, only: expr_t, sym, num, func, func_in, real_expr, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
@@ -1923,6 +1923,16 @@ contains
             return
         end if
         rules = e%arg(2)
+        ! A computed rule expression such as First[Solve[...]] must be
+        ! evaluated before applying it. Keep literal RuleDelayed right-hand
+        ! sides lazy; this narrow path only resolves a computed First form.
+        if (rules%kind() == NK_FUNC .and. chars(rules%name()) == "First") then
+            rules = wl_eval(s, apply_bindings(s, rules), item_ok, item_message)
+            if (.not. item_ok) then
+                call refuse(ok, message, chars(item_message))
+                return
+            end if
+        end if
         if (rules%kind() == NK_FUNC .and. chars(rules%name()) == "List") then
             do k = 1, rules%nargs()
                 before = r
@@ -3196,6 +3206,7 @@ contains
         type(expr_t) :: var, out
         character(:), allocatable :: why
         integer :: order
+        logical :: monomial_ok
 
         r = e
         ok = .true.
@@ -3247,6 +3258,11 @@ contains
         case ("Exponent")
             if (e%nargs() /= 2) then
                 call refuse(ok, message, "Exponent takes two arguments")
+                return
+            end if
+            call monomial_exponent(e%arg(1), e%arg(2), out, monomial_ok)
+            if (monomial_ok) then
+                r = out
                 return
             end if
             call poly_exponent(s%a, e%arg(1), e%arg(2), out, ok, why)
@@ -3334,6 +3350,91 @@ contains
         end if
         r = out
     end function lower_polynomial
+
+    !> Exponent also accepts a bounded monomial with an exact fractional power.
+    !>
+    !> The polynomial reader deliberately rejects x**(2/5), but Wolfram's
+    !> Exponent still has an unambiguous answer for a product of factors that
+    !> contains one such power. Keep this path structural and refuse sums or
+    !> other expressions involving the variable; the ordinary polynomial path
+    !> below remains responsible for those.
+    recursive subroutine monomial_exponent(e, var, out, ok)
+        type(expr_t), intent(in) :: e, var
+        type(expr_t), intent(out) :: out
+        logical, intent(out) :: ok
+        type(expr_t) :: part, base, exponent
+        integer :: k
+
+        out = e
+        ok = .false.
+        if (e%id == var%id) then
+            out = num(var%a, 1_int64)
+            ok = .true.
+            return
+        end if
+        if (e%kind() == NK_POW) then
+            base = e%arg(1)
+            exponent = e%arg(2)
+            if (base%id == var%id .and. (exponent%kind() == NK_INT .or. &
+                exponent%kind() == NK_RAT)) then
+                out = exponent
+                ok = .true.
+                return
+            end if
+        end if
+        if (e%kind() == NK_MUL) then
+            out = num(var%a, 0_int64)
+            do k = 1, e%nargs()
+                if (.not. contains_variable(e%arg(k), var)) cycle
+                call monomial_exponent(e%arg(k), var, part, ok)
+                if (.not. ok) return
+                out = out + part
+            end do
+            ok = .true.
+            return
+        end if
+        if (e%kind() == NK_ADD) then
+            k = 0
+            do while (k < e%nargs())
+                k = k + 1
+                if (.not. contains_variable(e%arg(k), var)) cycle
+                if (ok) then
+                    ! A second variable-bearing term needs the ordinary
+                    ! polynomial path to establish the maximum degree.
+                    ok = .false.
+                    return
+                end if
+                call monomial_exponent(e%arg(k), var, out, ok)
+                if (.not. ok) return
+            end do
+            if (contains_variable(e, var)) then
+                ok = .true.
+            else
+                out = num(var%a, 0_int64)
+                ok = .true.
+            end if
+            return
+        end if
+        if (.not. contains_variable(e, var)) then
+            out = num(var%a, 0_int64)
+            ok = .true.
+        end if
+    end subroutine monomial_exponent
+
+    recursive function contains_variable(e, var) result(found)
+        type(expr_t), intent(in) :: e, var
+        logical :: found
+        integer :: k
+
+        found = e%id == var%id
+        if (found) return
+        do k = 1, e%nargs()
+            if (contains_variable(e%arg(k), var)) then
+                found = .true.
+                return
+            end if
+        end do
+    end function contains_variable
 
     !> The bounded corpus form FoldList[Plus, init, {a, b, ...}]. Evaluate the
     !> list argument before accumulating it, so selectors such as Drop retain
