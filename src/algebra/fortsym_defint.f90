@@ -41,7 +41,7 @@ module fortsym_defint
     ! trusted.
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str_t, chars
-    use fortsym_arena, only: arena_t, NK_SYM, &
+    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
     use fortsym_expr, only: expr_t, num, is_valid, operator(-)
     use fortsym_subs, only: subs
@@ -93,7 +93,8 @@ contains
         character(:), allocatable :: reason
         real(dp) :: lo_value, hi_value, left, right
         integer  :: k
-        logical  :: numeric, parametric
+        logical  :: lo_numeric, hi_numeric, parametric, formal_interval
+        logical  :: endpoint_ok
 
         ok = .false.
         why = ""
@@ -120,24 +121,35 @@ contains
             return
         end if
 
-        ! Symbolic limits are refused before anything else, because every
-        ! continuity test below is a statement about a definite interval of the
-        ! real line and there is no such interval until both ends are numbers.
-        call number_of(lo, lo_value, numeric)
-        if (.not. numeric) then
-            why = "the lower limit is not a finite number: an infinite or "// &
-                  "symbolic endpoint is a limit process, not an evaluation"
-            return
+        ! Numeric limits support the interval continuity proof below. A finite
+        ! symbolic limit is also safe when the integrand is entire in the
+        ! integration variable: the result is then a formal endpoint
+        ! substitution, not a claim about a hidden pole. Infinite and opaque
+        ! limits remain refused.
+        call number_of(lo, lo_value, lo_numeric)
+        if (.not. lo_numeric) then
+            call finite_symbolic_endpoint(lo, endpoint_ok)
+            if (.not. endpoint_ok) then
+                why = "the lower limit is not a finite number: an infinite "// &
+                    "or opaque endpoint is a limit process, not an evaluation"
+                return
+            end if
         end if
-        call number_of(hi, hi_value, numeric)
-        if (.not. numeric) then
-            why = "the upper limit is not a finite number: an infinite or "// &
-                  "symbolic endpoint is a limit process, not an evaluation"
-            return
+        call number_of(hi, hi_value, hi_numeric)
+        if (.not. hi_numeric) then
+            call finite_symbolic_endpoint(hi, endpoint_ok)
+            if (.not. endpoint_ok) then
+                why = "the upper limit is not a finite number: an infinite "// &
+                    "or opaque endpoint is a limit process, not an evaluation"
+                return
+            end if
         end if
 
-        left = min(lo_value, hi_value)
-        right = max(lo_value, hi_value)
+        formal_interval = .not. lo_numeric .or. .not. hi_numeric
+        if (.not. formal_interval) then
+            left = min(lo_value, hi_value)
+            right = max(lo_value, hi_value)
+        end if
 
         ! A parameter in the integrand normally decides continuity and is not
         ! known here -- 1/(x - c) is continuous on [0, 1] for some c and not
@@ -163,7 +175,13 @@ contains
 
         eng = make_native_engine(a)
 
-        if (.not. parametric) then
+        if (formal_interval) then
+            if (.not. entire_in(e, var)) then
+                why = "a symbolic endpoint needs an integrand that is entire "// &
+                    "in the integration variable"
+                return
+            end if
+        else if (.not. parametric) then
             call check_continuous(a, e, var, left, right, ok, reason)
             if (.not. ok) then
                 why = "the integrand is not provably continuous on the "// &
@@ -181,12 +199,12 @@ contains
         ! F' = f holds formally on both sides of a jump in F, so a continuous
         ! integrand does not by itself license F(b) - F(a). The antiderivative
         ! is put through the same interval test.
-        if (parametric) then
+        if (formal_interval .or. parametric) then
             if (.not. entire_in(antideriv, var)) then
                 ok = .false.
                 why = "the antiderivative is not entire in the variable, so "// &
-                      "with an unknown parameter in it there is no way to "// &
-                      "rule out a jump inside the interval"
+                    "the formal endpoint substitution cannot rule out a "// &
+                    "jump inside the interval"
                 return
             end if
         else
@@ -208,6 +226,38 @@ contains
         f = whole
         ok = .true.
     end subroutine definite_integral
+
+    !> A conservative syntax check for a finite formal endpoint. Unknown
+    !> functions and directed infinities are not accepted, but arithmetic in
+    !> symbols such as h*(1-r/R) is a legitimate parameterised endpoint for an
+    !> entire integrand.
+    recursive subroutine finite_symbolic_endpoint(e, ok)
+        type(expr_t), intent(in)  :: e
+        logical,      intent(out) :: ok
+        integer :: k
+        character(:), allocatable :: name
+
+        ok = .false.
+        if (.not. is_valid(e)) return
+
+        select case (e%kind())
+        case (NK_INT, NK_RAT, NK_REAL, NK_SYM)
+            ok = .true.
+        case (NK_CONST)
+            name = chars(e%name())
+            if (name == "Infinity") return
+            if (name == "ComplexInfinity") return
+            if (name == "Indeterminate") return
+            if (name == "DirectedInfinity") return
+            ok = .true.
+        case (NK_ADD, NK_MUL, NK_POW)
+            ok = .true.
+            do k = 1, e%nargs()
+                call finite_symbolic_endpoint(e%arg(k), ok)
+                if (.not. ok) return
+            end do
+        end select
+    end subroutine finite_symbolic_endpoint
 
     !> Is `e` finite and continuous in `v` at every real point, whatever its
     !> other symbols stand for?

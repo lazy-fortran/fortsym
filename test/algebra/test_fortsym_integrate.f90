@@ -193,6 +193,10 @@ contains
             0.0_dp, 1.0_dp)
         call check_against_quadrature("int exp(x)*exp(-x) dx", &
             exp(x)*exp(-x), 0.0_dp, 1.0_dp)
+        call check_against_quadrature("int sin(x)**2 dx", sin(x)**2, &
+            0.2_dp, 1.2_dp)
+        call check_against_quadrature("int cos(3*x+1)**2 dx", &
+            cos(3*x + 1)**2, 0.1_dp, 1.1_dp)
     end subroutine test_linearity
 
     subroutine test_elementary_functions()
