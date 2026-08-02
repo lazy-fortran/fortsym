@@ -19,7 +19,7 @@ module fortsym_wl
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
-    use fortsym_expr, only: expr_t, sym, num, func, func_in, &
+    use fortsym_expr, only: expr_t, sym, num, func, func_in, real_expr, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
     use fortsym_parse, only: parse_expr_in
@@ -1429,6 +1429,14 @@ contains
             r = lower_pseudoinverse(s, r, ok, message)
             if (.not. ok) return
 
+        case ("SingularValueList")
+            r = lower_singular_value_list(s, r, ok, message)
+            if (.not. ok) return
+
+        case ("Max", "Min")
+            r = lower_extremum(s, r, head, ok, message)
+            if (.not. ok) return
+
         case ("IdentityMatrix")
             if (r%nargs() /= 1) then
                 call refuse(ok, message, "IdentityMatrix needs one size")
@@ -2208,6 +2216,116 @@ contains
             return
         end if
     end function lower_pseudoinverse
+
+    !> Singular values for explicit numeric diagonal or zero matrices.
+    !>
+    !> This covers the measured diagonal/zero corpus forms without pretending
+    !> to provide a general SVD. Non-diagonal, symbolic, and non-numeric inputs
+    !> remain opaque for a future bounded SVD implementation.
+    function lower_singular_value_list(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r
+        type(expr_t), allocatable         :: matrix(:, :), values(:)
+        real(dp), allocatable             :: singular(:)
+        real(dp)                          :: item_value, swap
+        logical                           :: numeric_ok
+        character(:), allocatable         :: why
+        integer                           :: i, j, k, count
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() /= 1) then
+            call refuse(ok, message, "SingularValueList takes one matrix")
+            return
+        end if
+        if (.not. is_matrix(e%arg(1))) then
+            return
+        end if
+        call to_matrix(e%arg(1), matrix, numeric_ok)
+        if (.not. numeric_ok) return
+        count = min(size(matrix, 1), size(matrix, 2))
+        allocate (singular(count))
+        singular = 0.0_dp
+        do i = 1, size(matrix, 1)
+            do j = 1, size(matrix, 2)
+                call numeric_value(matrix(i, j), item_value, numeric_ok, why)
+                if (.not. numeric_ok) return
+                if (i /= j .and. abs(item_value) > 1.0e-12_dp) return
+                if (i == j .and. i <= count) singular(i) = abs(item_value)
+            end do
+        end do
+        do i = 1, count - 1
+            do j = i + 1, count
+                if (singular(j) > singular(i)) then
+                    swap = singular(i)
+                    singular(i) = singular(j)
+                    singular(j) = swap
+                end if
+            end do
+        end do
+        allocate (values(count))
+        do k = 1, count
+            values(k) = real_expr(s%a, singular(k))
+        end do
+        r = make_list(s, values)
+    end function lower_singular_value_list
+
+    !> Max[list] and Min[list] for explicit real numeric arguments.
+    !>
+    !> This is intentionally the small numeric form used after
+    !> SingularValueList. Symbolic extrema remain opaque until assumptions and
+    !> ordering rules are available.
+    function lower_extremum(s, e, head, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        character(*),       intent(in)    :: head
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, list, item
+        real(dp)                          :: item_value, result_value
+        logical                           :: numeric_ok
+        character(:), allocatable         :: why
+        integer                           :: k, count
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() == 0) then
+            call refuse(ok, message, head//" needs an argument")
+            return
+        end if
+        if (e%nargs() == 1 .and. is_list(e%arg(1))) then
+            list = e%arg(1)
+            count = list%nargs()
+        else
+            do k = 1, e%nargs()
+                if (is_list(e%arg(k))) return
+            end do
+            list = e
+            count = e%nargs()
+        end if
+        if (count == 0) return
+        do k = 1, count
+            if (e%nargs() == 1 .and. is_list(e%arg(1))) then
+                item = list%arg(k)
+            else
+                item = e%arg(k)
+            end if
+            call numeric_value(item, item_value, numeric_ok, why)
+            if (.not. numeric_ok) return
+            if (k == 1) then
+                result_value = item_value
+            else if ((head == "Max" .and. item_value > result_value) .or. &
+                    (head == "Min" .and. item_value < result_value)) then
+                result_value = item_value
+            end if
+        end do
+        r = real_expr(s%a, result_value)
+    end function lower_extremum
 
     recursive function contains_slot_sequence(e) result(yes)
         type(expr_t), intent(in) :: e
