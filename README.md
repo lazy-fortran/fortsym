@@ -188,14 +188,15 @@ native rows in 1:14.19 with a 3.04 GiB peak RSS. After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, a fully warm audit now takes about 0.56
 seconds at 344 MiB RSS and starts no backend subprocesses. The current
-cache-only whole-corpus tally is 3,673 agreements, 502 declared differences, 7
+cache-only whole-corpus tally is 3,680 agreements, 502 declared differences, 7
 unsupported outcomes, 74 timeouts, 61 errors, 2 unavailable oracle rows, 194
-oracle disagreements, and 457 oracle-missing bindings. The v43-v48 batches add
+oracle disagreements, and 450 oracle-missing bindings. The v43-v49 batches add
 source-faithful ECNL equation strings, numeric validity estimates,
 Maxwell/flux-pumping companions, math10y and Suydam recoveries, large-step LTE
 reconstruction, Sympl3 field forms, normal-stability numeric parity, math3y,
 and Cartesian-primitive, math8y, perpendicular-block, math10y, math6-1y,
-cylinder-spectrum, math11y, and Mercier recoveries, with 22 independent tests.
+cylinder-spectrum, math11y, Mercier, Appendix-B, math14y, and math15y
+recoveries, with 26 independent tests.
 The v18
 Solve-rule/fractional-`Exponent`
 transition refreshed four SymPy rows in 10.46 seconds at 399 MiB RSS. A
@@ -282,8 +283,8 @@ magnetic norm and its dependent geometry bindings, adding seven agreements
 with an independent test. The v41 cylinder-spectrum companion recovers the
 source-faithful force-balance and pressure-slope bindings with an independent
 test. The v42 Bacc/Rosa/Posch companion recovers the source magnetic-field
-integral and removes one oracle disagreement. The v43-v48 batches raise the
-score to 3,673 agreements and 502 differences, with 457 oracle-missing bindings;
+integral and removes one oracle disagreement. The v43-v49 batches raise the
+score to 3,680 agreements and 502 differences, with 450 oracle-missing bindings;
 the successful
 Mathics inventory remains 255 rows, with 60 errors and 69 bounded timeouts.
 
