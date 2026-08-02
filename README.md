@@ -186,11 +186,11 @@ CharacteristicPolynomial/LegendreP/Diagonal/list-selector/Coefficient/Solve/
 FoldList/ArrayFlatten/Total/PseudoInverse/SingularValueList audit refreshed 380
 native rows in 1:14.19 with a 3.04 GiB peak RSS. After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
-polynomial translator transition, a fully warm audit now takes 1.24 seconds
-at 456 MiB RSS and starts no backend subprocesses. The current cache-only
-whole-corpus tally is 3,537 agreements, 512 declared differences, 8
+polynomial translator transition, a fully warm audit now takes about 0.61
+seconds at 344 MiB RSS and starts no backend subprocesses. The current
+cache-only whole-corpus tally is 3,564 agreements, 510 declared differences, 8
 unsupported outcomes, 75 timeouts, 61 errors, 2 unavailable oracle rows, 209
-oracle disagreements, and 568 oracle-missing bindings. The v18
+oracle disagreements, and 543 oracle-missing bindings. The v18
 Solve-rule/fractional-`Exponent`
 transition refreshed four SymPy rows in 10.46 seconds at 399 MiB RSS. A
 current one-worker audit of the affected 11-script slice, using the rebuilt
@@ -268,9 +268,12 @@ Mathics Boolean-assumptions shim. The v36 cycle expands the helical-core
 derivative and bounded Solve companions; v37 adds source-faithful
 phase-transform and flux-coordinate SymPy companions with independent tests.
 The v38 cycle adds source-faithful NAE/DESC geometry and Appendix-B integral
-companions. The current score is 3,537 agreements, 512 differences, and 568
-oracle-missing bindings; the successful Mathics inventory remains 255 rows,
-with 60 errors and 69 bounded timeouts.
+companions. The v39 cycle adds source-faithful math6-2y, math11y,
+two-component-energy, and dynamo-diagnostics companions with independent
+tests; the dynamo bridge also reduces its focused runtime from about 29
+seconds to 1.1 seconds. The current score is 3,564 agreements, 510
+differences, and 543 oracle-missing bindings; the successful Mathics inventory
+remains 255 rows, with 60 errors and 69 bounded timeouts.
 
 ## Build
 
