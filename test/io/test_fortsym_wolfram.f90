@@ -10,7 +10,7 @@ program test_fortsym_wolfram
     ! implementation, and every construct here is one the consumer corpus
     ! actually contains. Behaviour is verified against Mathics, never against a
     ! Wolfram product -- see LEGAL.md section 5.1.
-    use, intrinsic :: iso_fortran_env, only: int64, real64
+    use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t
     use fortsym_expr
@@ -281,6 +281,18 @@ contains
             print *, "FAIL roundtrip: ", &
                 chars(print_expr_in(e, dialect(DIA_WOLFRAM))), " became ", &
                 chars(print_expr_in(back, dialect(DIA_WOLFRAM)))
+            nfail = nfail + 1
+        end if
+
+        e = func_in(a, "List")
+        if (chars(print_expr_in(e, dialect(DIA_WOLFRAM))) /= "{}") then
+            print *, "FAIL empty-list printer"
+            nfail = nfail + 1
+        end if
+        back = parse_expr_in(a, chars(print_expr_in(e, dialect(DIA_WOLFRAM))), &
+            dialect(DIA_WOLFRAM), ok, message)
+        if (.not. ok .or. back%id /= e%id) then
+            print *, "FAIL empty-list roundtrip"
             nfail = nfail + 1
         end if
     end subroutine test_roundtrip

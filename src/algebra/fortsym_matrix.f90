@@ -11,17 +11,27 @@ module fortsym_matrix
     ! and produces enormous unsimplified sums; Bareiss is O(n^3) and every
     ! intermediate is an exact polynomial in the entries, which is what keeps
     ! the result readable and the arithmetic exact. See doc/provenance.md.
-    use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_FUNC
     use fortsym_expr, only: expr_t, num, func, func_in, operator(+), &
         operator(-), operator(*), operator(/), operator(==)
+    use fortsym_engine, only: engine_result_t
+    use fortsym_engine_native, only: native_engine_t, make_native_engine
     implicit none
     private
 
     public :: is_list, is_matrix, matrix_shape
     public :: matrix_transpose, matrix_dot, matrix_det, matrix_inverse
+    public :: matrix_row_reduce, matrix_null_space, matrix_rank
     public :: to_matrix, from_matrix
+
+    ! Exact row reduction can grow intermediate expressions quickly. Keep the
+    ! operation bounded: refusing a large symbolic matrix is safer than
+    ! spending an unbounded amount of time producing a result the caller may
+    ! not be able to consume.
+    integer, parameter :: MAX_RREF_ROWS = 64
+    integer, parameter :: MAX_RREF_COLS = 64
+    integer, parameter :: MAX_RREF_ENTRIES = 1024
 
 contains
 
@@ -374,6 +384,202 @@ contains
         r = from_matrix(a, inv)
         ok = .true.
     end function matrix_inverse
+
+    !> Reduced row-echelon form by exact Gaussian elimination.
+    !>
+    !> A literal zero is the only pivot known to vanish. Symbolic pivots are
+    !> retained, which is the generic-domain interpretation used by the other
+    !> exact matrix operations in this module; callers needing exceptional
+    !> parameter values must supply their own assumptions.
+    function matrix_row_reduce(a, e, ok, why) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t),          intent(in)    :: e
+        logical,               intent(out)   :: ok
+        type(str_t),           intent(out)   :: why
+        type(expr_t)                         :: r
+        type(expr_t), allocatable :: m(:, :)
+        integer, allocatable :: pivots(:)
+        integer :: rank
+
+        r = e
+        why = str("")
+        call to_matrix(e, m, ok)
+        if (.not. ok) then
+            why = str("RowReduce on something that is not a matrix")
+            return
+        end if
+        call rref(a, m, rank, pivots, ok, why)
+        if (.not. ok) return
+        r = from_matrix(a, m)
+    end function matrix_row_reduce
+
+    !> A basis for the right null space of a rectangular matrix.
+    !>
+    !> The free variable in each basis vector is set to one. This gives the
+    !> same canonical basis as the usual RREF construction and, importantly,
+    !> does not depend on a numerical tolerance for exact input.
+    function matrix_null_space(a, e, ok, why) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t),          intent(in)    :: e
+        logical,               intent(out)   :: ok
+        type(str_t),           intent(out)   :: why
+        type(expr_t)                         :: r
+        type(expr_t), allocatable :: m(:, :), vector(:), basis(:)
+        integer, allocatable :: pivots(:)
+        logical, allocatable :: is_pivot(:)
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: simplified
+        integer :: rank, cols, col, i, k, nfree
+
+        r = e
+        why = str("")
+        call to_matrix(e, m, ok)
+        if (.not. ok) then
+            why = str("NullSpace on something that is not a matrix")
+            return
+        end if
+        call rref(a, m, rank, pivots, ok, why)
+        if (.not. ok) return
+        engine = make_native_engine(a)
+
+        cols = size(m, 2)
+        allocate (is_pivot(cols))
+        is_pivot = .false.
+        do i = 1, rank
+            is_pivot(pivots(i)) = .true.
+        end do
+        nfree = count(.not. is_pivot)
+        if (nfree == 0) then
+            r = func_in(a, "List")
+            ok = .true.
+            return
+        end if
+
+        allocate (basis(nfree), vector(cols))
+        k = 0
+        do col = 1, cols
+            if (is_pivot(col)) cycle
+            k = k + 1
+            vector = num(a, 0)
+            vector(col) = num(a, 1)
+            do i = 1, rank
+                simplified = engine%simplify(-m(i, col))
+                if (.not. simplified%ok) then
+                    why = str("NullSpace could not simplify a basis entry")
+                    ok = .false.
+                    return
+                end if
+                vector(pivots(i)) = simplified%value
+            end do
+            basis(k) = func("List", vector)
+        end do
+        r = func("List", basis)
+        ok = .true.
+    end function matrix_null_space
+
+    !> Rank of an exact rectangular matrix, obtained from its RREF pivots.
+    function matrix_rank(a, e, ok, why) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t),          intent(in)    :: e
+        logical,               intent(out)   :: ok
+        type(str_t),           intent(out)   :: why
+        type(expr_t)                         :: r
+        type(expr_t), allocatable :: m(:, :)
+        integer, allocatable :: pivots(:)
+        integer :: rank
+
+        r = e
+        why = str("")
+        call to_matrix(e, m, ok)
+        if (.not. ok) then
+            why = str("MatrixRank on something that is not a matrix")
+            return
+        end if
+        call rref(a, m, rank, pivots, ok, why)
+        if (.not. ok) return
+        r = num(a, rank)
+    end function matrix_rank
+
+    !> In-place exact RREF and its pivot columns.
+    subroutine rref(a, m, rank, pivots, ok, why)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(inout) :: m(:, :)
+        integer,                   intent(out)   :: rank
+        integer, allocatable,      intent(out)   :: pivots(:)
+        logical,                   intent(out)   :: ok
+        type(str_t),               intent(out)   :: why
+        type(expr_t) :: pivot_value, factor, swap
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: simplified
+        integer :: rows, cols, pivot_row, pivot, col, i, j
+
+        rows = size(m, 1)
+        cols = size(m, 2)
+        rank = 0
+        allocate (pivots(min(rows, cols)))
+        pivots = 0
+        ok = .false.
+        why = str("")
+
+        if (rows > MAX_RREF_ROWS .or. cols > MAX_RREF_COLS .or. &
+                rows*cols > MAX_RREF_ENTRIES) then
+            why = str("exact row reduction exceeds the built-in matrix bound")
+            return
+        end if
+
+        engine = make_native_engine(a)
+
+        pivot_row = 1
+        do col = 1, cols
+            if (pivot_row > rows) exit
+            pivot = 0
+            do i = pivot_row, rows
+                if (.not. is_literal_zero(m(i, col))) then
+                    pivot = i
+                    exit
+                end if
+            end do
+            if (pivot == 0) cycle
+
+            if (pivot /= pivot_row) then
+                do j = 1, cols
+                    swap = m(pivot_row, j)
+                    m(pivot_row, j) = m(pivot, j)
+                    m(pivot, j) = swap
+                end do
+            end if
+
+            pivot_value = m(pivot_row, col)
+            do j = col, cols
+                simplified = engine%simplify(m(pivot_row, j)/pivot_value)
+                if (.not. simplified%ok) then
+                    why = str("RowReduce could not simplify a pivot row")
+                    return
+                end if
+                m(pivot_row, j) = simplified%value
+            end do
+
+            do i = 1, rows
+                if (i == pivot_row) cycle
+                factor = m(i, col)
+                if (is_literal_zero(factor)) cycle
+                do j = col, cols
+                    simplified = engine%simplify( &
+                        m(i, j) - factor*m(pivot_row, j))
+                    if (.not. simplified%ok) then
+                        why = str("RowReduce could not simplify an elimination row")
+                        return
+                    end if
+                    m(i, j) = simplified%value
+                end do
+            end do
+
+            rank = rank + 1
+            pivots(rank) = col
+            pivot_row = pivot_row + 1
+        end do
+        ok = .true.
+    end subroutine rref
 
     !> Signed determinant of the matrix with row i and column j removed.
     function cofactor(a, m, i, j, ok, why) result(r)

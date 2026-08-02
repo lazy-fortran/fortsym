@@ -47,6 +47,7 @@ program test_fortsym_wl_solvenum
     call test_chop()
     call test_identity_cross_trace()
     call test_array_collections()
+    call test_flatten()
     call test_range_and_diagonal_matrix()
 
     if (nfail == 0) then
@@ -683,6 +684,39 @@ contains
             end do
         end if
     end subroutine test_array_collections
+
+    subroutine test_flatten()
+        type(arena_t), target :: a
+        type(expr_t) :: value, item
+        logical :: ok
+        character(:), allocatable :: message
+        integer :: i
+
+        ! The expected sequence follows Flatten's definition: recurse through
+        ! lists left-to-right and preserve every non-list leaf.
+        call a%init()
+        call run_one(a, "v = Flatten[{{1, 2}, {3, {4}}}]"//nl(), &
+                     "v", value, ok, message)
+        if (.not. ok) then
+            call fail("flatten", "refused: "//message)
+        else if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
+                value%nargs() /= 4) then
+            call fail("flatten", "wrong flattened length")
+        else
+            do i = 1, 4
+                item = value%arg(i)
+                if (item%kind() /= NK_INT .or. item%int_value() /= i) &
+                    call fail("flatten", "leaf order or value is wrong")
+            end do
+        end if
+
+        call a%init()
+        call run_one(a, "v = Flatten[{}]"//nl(), "v", value, ok, message)
+        if (.not. ok .or. value%kind() /= NK_FUNC .or. value%nargs() /= 0) &
+            call fail("flatten empty", "empty input did not remain an empty List")
+
+        call expect_refusal("flatten levels", "v = Flatten[{{1}}, 1]"//nl(), "v")
+    end subroutine test_flatten
 
     !> Range is an arithmetic progression and DiagonalMatrix is a structural
     !> embedding. These checks derive the expected entries from those

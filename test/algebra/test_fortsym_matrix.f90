@@ -7,7 +7,6 @@ program test_fortsym_matrix
     ! can be wrong the same way. det(A B) = det(A) det(B) and A A^-1 = I are
     ! properties the implementation cannot satisfy by accident, so they catch a
     ! sign error or a transposed index that a fixture would wave through.
-    use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t
     use fortsym_expr
@@ -23,6 +22,7 @@ program test_fortsym_matrix
     call test_determinant_is_multiplicative()
     call test_inverse_is_a_two_sided_inverse()
     call test_transpose_is_an_involution()
+    call test_rref_null_space_and_rank()
     call test_shape_errors_are_refused()
 
     if (nfail == 0) then
@@ -229,6 +229,115 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_transpose_is_an_involution
+
+    !> RREF exposes pivot columns; the null-space basis must then annihilate
+    !> the original matrix and use one independent free coordinate per vector.
+    !> These are structural identities, not copies of the implementation's
+    !> intermediate rows, so a sign or pivot-direction error is visible.
+    subroutine test_rref_null_space_and_rank()
+        type(arena_t), target :: a
+        type(expr_t) :: matrix, reduced, nulls, rank_value, product, row, item
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: simplified
+        logical :: ok
+        type(str_t) :: why
+        integer :: i, j
+
+        call a%init()
+        engine = make_native_engine(a)
+        matrix = func("List", [ &
+            func("List", [num(a, 1), num(a, 2), num(a, 3), num(a, 4)]), &
+            func("List", [num(a, 2), num(a, 4), num(a, 6), num(a, 8)]), &
+            func("List", [num(a, 0), num(a, 1), num(a, 1), num(a, 1)])])
+
+        reduced = matrix_row_reduce(a, matrix, ok, why)
+        if (.not. ok) then
+            print *, "FAIL RREF: ", chars(why)
+            nfail = nfail + 1
+            return
+        end if
+        call expect_entry("RREF pivot 1", reduced, 1, 1, "1")
+        call expect_entry("RREF cleared above pivot 1", reduced, 1, 2, "0")
+        call expect_entry("RREF pivot 2", reduced, 2, 2, "1")
+        call expect_entry("RREF dependent row", reduced, 3, 3, "0")
+
+        nulls = matrix_null_space(a, matrix, ok, why)
+        if (.not. ok) then
+            print *, "FAIL null space: ", chars(why)
+            nfail = nfail + 1
+            return
+        end if
+        if (nulls%nargs() /= 2) then
+            print *, "FAIL null space: expected two free directions"
+            nfail = nfail + 1
+            return
+        end if
+        call expect_vector_entry("null vector 1", nulls%arg(1), 1, "-1")
+        call expect_vector_entry("null vector 1", nulls%arg(1), 2, "-1")
+        call expect_vector_entry("null vector 1", nulls%arg(1), 3, "1")
+        call expect_vector_entry("null vector 2", nulls%arg(2), 1, "-2")
+        call expect_vector_entry("null vector 2", nulls%arg(2), 2, "-1")
+        call expect_vector_entry("null vector 2", nulls%arg(2), 4, "1")
+
+        do i = 1, nulls%nargs()
+            product = matrix_dot(a, matrix, nulls%arg(i), ok, why)
+            if (.not. ok) then
+                print *, "FAIL null space annihilation: ", chars(why)
+                nfail = nfail + 1
+                cycle
+            end if
+            do j = 1, product%nargs()
+                item = product%arg(j)
+                simplified = engine%simplify(item)
+                if (.not. simplified%ok .or. &
+                        chars(simplified%value%exact_text()) /= "0") then
+                    print *, "FAIL null space annihilation: nonzero product"
+                    nfail = nfail + 1
+                end if
+            end do
+        end do
+
+        rank_value = matrix_rank(a, matrix, ok, why)
+        if (.not. ok .or. chars(rank_value%exact_text()) /= "2") then
+            print *, "FAIL matrix rank: expected 2"
+            nfail = nfail + 1
+        end if
+
+        ! Full column rank has no free directions and must return the genuine
+        ! empty List, not a one-element zero vector.
+        row = func("List", [num(a, 1), num(a, 0)])
+        matrix = func("List", [row, func("List", [num(a, 0), num(a, 1)])])
+        nulls = matrix_null_space(a, matrix, ok, why)
+        if (.not. ok .or. nulls%nargs() /= 0) then
+            print *, "FAIL full-rank null space: expected empty List"
+            nfail = nfail + 1
+        end if
+    end subroutine test_rref_null_space_and_rank
+
+    subroutine expect_entry(label, matrix, row_index, col_index, expected)
+        character(*), intent(in) :: label, expected
+        type(expr_t), intent(in) :: matrix
+        type(expr_t) :: row, item
+        integer, intent(in) :: row_index, col_index
+        row = matrix%arg(row_index)
+        item = row%arg(col_index)
+        if (chars(item%exact_text()) /= expected) then
+            print *, "FAIL ", label
+            nfail = nfail + 1
+        end if
+    end subroutine expect_entry
+
+    subroutine expect_vector_entry(label, vector, index, expected)
+        character(*), intent(in) :: label, expected
+        type(expr_t), intent(in) :: vector
+        type(expr_t) :: item
+        integer, intent(in) :: index
+        item = vector%arg(index)
+        if (chars(item%exact_text()) /= expected) then
+            print *, "FAIL ", label
+            nfail = nfail + 1
+        end if
+    end subroutine expect_vector_entry
 
     !> Bad shapes must be refused, never squared off or truncated.
     subroutine test_shape_errors_are_refused()
