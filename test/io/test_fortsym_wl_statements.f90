@@ -28,6 +28,7 @@ program test_fortsym_wl_statements
     call test_boole_evaluation()
     call test_which_evaluation()
     call test_pure_map_apply_replace()
+    call test_derivative_rule_pattern()
     call test_list_threading()
     call test_scalar_matrix_dot()
     call test_list_selectors()
@@ -271,6 +272,22 @@ contains
             "value = {x, y} /. {x -> 2, y -> 3}"//char(10), &
             "value", "List(2, 3)")
     end subroutine test_pure_map_apply_replace
+
+    !> The force-balance rule is a delayed derivative rule with a named blank.
+    !> At r=2 its hand-derived pressure slope is
+    !> -(5)(3) - (2(11) + 7)(7)/2 = -233/2.
+    subroutine test_derivative_rule_pattern()
+        call expect("delayed derivative pattern", &
+            "forceBalance = Derivative[1][p][rr_] :>"// &
+            " -(btheta[rr] D[s btheta[s], s] /. s -> rr)/(mu0 rr) -"// &
+            " bz[rr] Derivative[1][bz][rr]/mu0"//char(10)// &
+            "pressureSlope = mu0 Derivative[1][p][r] /. forceBalance"// &
+            char(10)// &
+            "value = pressureSlope /. {mu0 -> 1, r -> 2,"// &
+            " bz[2] -> 3, Derivative[1][bz][2] -> 5,"// &
+            " btheta[2] -> 7, Derivative[1][btheta][2] -> 11}"//char(10), &
+            "value", "-233/2")
+    end subroutine test_derivative_rule_pattern
 
     !> Arithmetic on lists is threaded element by element in Wolfram.
     !> These are independent hand calculations, not assertions about the
