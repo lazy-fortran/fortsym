@@ -24,7 +24,7 @@ module fortsym_wl_num
     private
 
     public :: wl_n, wl_chop, wl_identity_matrix, wl_cross, wl_trace, wl_length
-    public :: wl_flatten
+    public :: wl_flatten, wl_append, wl_join
     public :: wl_range, wl_diagonal_matrix
     public :: N_MAX_DIGITS, CHOP_DEFAULT
 
@@ -114,6 +114,94 @@ contains
             r = func("List", items(:n))
         end if
     end function wl_flatten
+
+    !> Append[list, value] for a bounded explicit list.
+    !>
+    !> The general Wolfram operation also appends at level one to arbitrary
+    !> heads. The native corpus use is list construction; refusing another
+    !> head keeps this helper from inventing a shape for an opaque value.
+    function wl_append(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t)                             :: base
+        type(expr_t), allocatable                :: items(:)
+        integer                                  :: k, n
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() /= 2) then
+            why = "Append takes a list and one element"
+            return
+        end if
+        if (.not. is_list(e%arg(1))) then
+            why = "Append needs an explicit list"
+            return
+        end if
+
+        base = e%arg(1)
+        n = base%nargs()
+        allocate (items(n + 1))
+        do k = 1, n
+            items(k) = base%arg(k)
+        end do
+        items(size(items)) = e%arg(2)
+        r = func("List", items)
+        ok = .true.
+    end function wl_append
+
+    !> Join[list1, list2, ...] for bounded explicit lists.
+    function wl_join(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t)                             :: part
+        type(expr_t), allocatable                :: items(:)
+        integer                                  :: k, j, n
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() < 1) then
+            why = "Join needs at least one list"
+            return
+        end if
+        n = 0
+        do k = 1, e%nargs()
+            part = e%arg(k)
+            if (.not. is_list(part)) then
+                why = "Join needs explicit lists"
+                return
+            end if
+            n = n + part%nargs()
+            if (n > MAX_FLATTEN_ITEMS) then
+                why = "Join exceeds the built-in item bound"
+                return
+            end if
+        end do
+        if (n == 0) then
+            r = func_in(a, "List")
+            ok = .true.
+            return
+        end if
+
+        allocate (items(n))
+        n = 0
+        do k = 1, e%nargs()
+            part = e%arg(k)
+            do j = 1, part%nargs()
+                n = n + 1
+                items(n) = part%arg(j)
+            end do
+        end do
+        r = func("List", items)
+        ok = .true.
+    end function wl_join
 
     recursive subroutine collect_flatten(e, items, n, ok, why)
         type(expr_t),              intent(in)    :: e
