@@ -84,8 +84,7 @@ domain, parameters, precision, and error policy are numeric and explicit.
 ## Measured state
 
 Latest corpus-wide measurement, 2026-08-02, `fortsym-bench` at 384 scripts
-(`--jobs 4`, 60-second script budget, with available SymPy and Mathics rows and
-native rows cached):
+(`--jobs 2`, 60-second script budget, after the multiline-dot parser fix):
 
 This table is a committed native baseline. It is updated only after the root
 backend and benchmark harness revisions used to produce it have been committed.
@@ -94,21 +93,23 @@ reported state.
 
 | | |
 |---|---:|
-| scripts completing natively | **381 / 384 (99%)** |
-| of those with non-empty result sets | 343 |
-| valid empty native result sets | 38 |
+| scripts completing natively | **380 / 384 (99%)** |
+| of those with non-empty result sets | 344 |
+| valid empty native result sets | 36 |
 | scripts refusing with a named construct | 2 |
 | scripts exceeding the time budget | 1 |
+| scripts ending in a runner error | 1 |
 | crashes | **0** |
-| native refresh with cached SymPy and Mathics rows | about 59 s |
-| warm compact raw-output and verdict audit | about 1.0 s |
+| full audit (379 native and 26 SymPy rows fresh) | 152.5 s |
+| peak RSS during that audit | 4.31 GiB |
+| warm compact raw-output and verdict audit | 1.15 s / 413 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The final binding-level audit reports 3,124 agreements, 786 declared
-differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 197 oracle
-disagreements, and 800 oracle-missing bindings. The target remains open until
+The final binding-level audit reports 3,138 agreements, 790 declared
+differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 200 oracle
+disagreements, and 798 oracle-missing bindings. The target remains open until
 the declared native subset and the available oracle overlap agree.
 
 The current native collection slice includes bounded `Array`, `ConstantArray`,
@@ -117,12 +118,15 @@ and `Outer` expansion, bounded exact `Range` and `DiagonalMatrix`, exact
 `Minors`, structural `Length`, recursive `Flatten`, dynamic exact dimensions,
 and opaque preservation for unsupported
 dimensions or computed heads. The independent tests cover literal, rational,
-symbolic, canonical empty-list, and bounded-preserved forms. The latest change
-moved 22 prior binding results from `differ` to `agree` in the full baseline
-without regressing an earlier agreement and reduced binding errors by 13. It
-does not close the remaining parity gap. The highest-impact work remains the
+symbolic, canonical empty-list, and bounded-preserved forms. Requested-
+precision `N` now has a bounded native path for 17--512 decimal digits, with a
+named refusal above that limit; list `Append`/`Join` and multiline dot-product
+continuation also have independent tests. Relative to the prior numeric
+baseline, the parser slice added seven agreements, removed one binding error,
+and exposed two newly visible bindings from the translated assignment stream.
+It does not close the remaining parity gap. The highest-impact work remains the
 plotting family, `Solve` beyond scalar linear cases, definite and multiple
-`Integrate`, requested-precision `N`, polynomial heads, and `DSolve`/`NDSolve`.
+`Integrate`, polynomial heads, and `DSolve`/`NDSolve`.
 
 ### The oracle ceiling (#47)
 
@@ -131,12 +135,13 @@ That number is now established, and it changes the target.
 | | scripts | share |
 |---|---:|---:|
 | Mathics produces results | 235 | 61% |
-| fortsym-wl completes | 381 | 99% |
+| fortsym-wl completes | 380 | 99% |
 | **Mathics and fortsym-wl both complete** | **233** | **61%** |
 
-Mathics fails on 149 scripts: 117 errors and 32 timeouts. Those outcomes are
-cached by source digest, runner version, and executable fingerprint, so later
-native audits do not rerun the oracle.
+Mathics fails or is unavailable on 149 scripts: 107 errors, 30 timeouts, and
+12 unavailable rows. Those outcomes are cached by source digest, runner
+version, and executable fingerprint, so later native audits do not rerun the
+oracle.
 
 **100% coverage is unreachable with Mathics as the sole oracle**, and no amount
 of fortsym work changes that: 145 natively completed scripts currently have no
@@ -151,10 +156,11 @@ natively" and "61% share a successful Mathics result" are different
 claims.
 
 The historical full refresh includes the SymPy refresh required by the
-translator cache-version change and took 4:54. The current native refresh with
-the oracle caches warm took about 59 seconds. Once raw results and comparison
-verdicts are cached, the same full audit takes about 1.0 seconds. These are
-harness measurements, not a capability
+translator cache-version change and took 4:54. The latest audit refreshed the
+rows invalidated by the dot-parser and native executable fingerprints in
+152.5 seconds with two workers. Once raw results and comparison verdicts are
+cached, the same full audit takes 1.15 seconds. These are harness measurements,
+not a capability
 comparison: Mathics evaluates integrals fortsym refuses, and the native path
 still has one 60-second timeout.
 
@@ -184,7 +190,7 @@ orders the work, and it has repeatedly disagreed with intuition:
 | plotting family (Show, Plot3D, ContourPlot, Graphics, ListPlot, …) | ~300 |
 | `Solve` beyond the scalar linear case | 78 |
 | definite and multiple `Integrate` | ~123 |
-| `N` with a requested precision | 90 |
+| `N` beyond the bounded 17--512 digit path | refresh the refusal count |
 | polynomial heads (`Coefficient`, `Together`, `Factor`, …) | ~60 |
 | `DSolve` / `NDSolve` | 45 |
 
