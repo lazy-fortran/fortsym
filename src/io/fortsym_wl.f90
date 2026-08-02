@@ -83,6 +83,8 @@ module fortsym_wl
     integer, parameter :: MAX_LEGENDRE_DEGREE = 64
     integer, parameter :: MAX_CHARACTERISTIC_DIMENSION = 16
     integer, parameter :: MAX_MATRIX_POWER = 32
+    integer, parameter :: MAX_FILE_NAME_COMPONENTS = 32
+    integer, parameter :: MAX_FILE_NAME_LENGTH = 4096
     integer, parameter :: dp = real64
 
     !> One top-level assignment produced by a script.
@@ -969,6 +971,10 @@ contains
         end if
         if (head == "Outer") then
             r = lower_outer(s, e, ok, message)
+            return
+        end if
+        if (head == "FileNameJoin") then
+            r = lower_file_name_join(s, e, ok, message)
             return
         end if
         ! Part selectors are structural: evaluating Span[lo, hi] as an
@@ -3499,6 +3505,98 @@ contains
         end select
     end function lower_curl
 
+    !> Join a bounded list of literal path components.
+    !>
+    !> The native evaluator has no current-directory or filesystem state, so
+    !> it does not guess the values of DirectoryName[$InputFileName], Path, or
+    !> other computed components. Literal strings are still useful for the
+    !> corpus' generated output names, and joining them with the host separator
+    !> is deterministic. Computed, empty, escaped, and overlong components
+    !> remain explicit refusals rather than becoming a misleading path.
+    function lower_file_name_join(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, parts
+        character(:), allocatable         :: path, component
+        integer                           :: k
+
+        ok = .true.
+        message = str("")
+        r = e
+
+        if (e%nargs() /= 1) then
+            call refuse(ok, message, "FileNameJoin needs one list")
+            return
+        end if
+        parts = e%arg(1)
+        if (.not. is_list(parts)) then
+            call refuse(ok, message, "FileNameJoin needs a list")
+            return
+        end if
+        if (parts%nargs() < 1 .or. parts%nargs() > MAX_FILE_NAME_COMPONENTS) then
+            call refuse(ok, message, &
+                "FileNameJoin component count is outside the bounded subset")
+            return
+        end if
+
+        path = ""
+        do k = 1, parts%nargs()
+            if (.not. literal_path_component(parts%arg(k), component)) then
+                call refuse(ok, message, &
+                    "FileNameJoin needs non-empty literal string components")
+                return
+            end if
+            if (k == 1) then
+                path = component
+            else if (path(len(path):len(path)) == "/" .and. &
+                    component(1:1) == "/") then
+                path = path//component(2:)
+            else if (path(len(path):len(path)) == "/" .or. &
+                    component(1:1) == "/") then
+                path = path//component
+            else
+                path = path//"/"//component
+            end if
+            if (len(path) > MAX_FILE_NAME_LENGTH) then
+                call refuse(ok, message, "FileNameJoin path exceeds its safety bound")
+                return
+            end if
+        end do
+        ! String literals are represented as quoted opaque symbols by the
+        ! Wolfram parser. Retaining the quotes makes the result a valid
+        ! InputForm string for the independent comparison parser as well.
+        r = sym(s%a, '"'//path//'"')
+    end function lower_file_name_join
+
+    !> Extract an unescaped, non-empty literal string used by FileNameJoin.
+    function literal_path_component(e, value) result(ok)
+        type(expr_t), intent(in)               :: e
+        character(:), allocatable, intent(out) :: value
+        logical                                 :: ok
+        character(:), allocatable               :: text
+        integer                                 :: n
+
+        ok = .false.
+        value = ""
+        if (e%kind() /= NK_SYM) return
+        text = chars(e%name())
+        n = len(text)
+        if (n < 2) return
+        if (text(1:1) /= '"' .or. text(n:n) /= '"') return
+        value = text(2:n - 1)
+        if (len(value) == 0) then
+            value = ""
+            return
+        end if
+        if (index(value, '"') /= 0 .or. index(value, char(92)) /= 0) then
+            value = ""
+            return
+        end if
+        ok = .true.
+    end function literal_path_component
+
     !> Part[expr, i, j, ...] on explicit lists only. Indexing a literal list
     !> by positive integers is unambiguous. A bounded two-ended Span is also
     !> accepted, which covers matrix slices such as [[2 ;; 3, 2 ;; 3]].
@@ -4358,7 +4456,8 @@ contains
             ! though it were a result.
         case ("Apply", "MapApply", "Function", "Slot", "SlotSequence", &
                 "Span", "SetDelayed", "CompoundExpression", "StringJoin", &
-                "ReplaceRepeated", "Condition", "DerivativeOperator")
+                "ReplaceRepeated", "Condition", "DerivativeOperator", &
+                "FileNameJoin")
             yes = .true.
             ! Curl is lowered only for explicit Cartesian list fields.
         case ("Curl")
