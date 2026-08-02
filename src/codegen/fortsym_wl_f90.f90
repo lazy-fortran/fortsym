@@ -55,6 +55,7 @@ contains
         type(str_t), allocatable :: statements(:), targets(:), inputs(:)
         type(str_t), allocatable :: names(:)
         character(:), allocatable :: statement, lhs, rhs, parse_message
+        character(:), allocatable :: cleaned_source
         integer :: nstatements, ninputs, k, j, eq, width
         integer :: nold
         logical :: parsed, representable
@@ -64,7 +65,9 @@ contains
         ok = .false.
         message = ""
 
-        call split_stream(source, statements, nstatements, parsed, message)
+        call strip_leading_comments(source, cleaned_source, parsed, message)
+        if (.not. parsed) return
+        call split_stream(cleaned_source, statements, nstatements, parsed, message)
         if (.not. parsed) return
         if (nstatements == 0) then
             message = "expected at least one top-level name = expression assignment"
@@ -181,6 +184,68 @@ contains
         end if
         ok = .true.
     end function translate_wl_assignments
+
+    !> Remove only balanced Wolfram comments at the beginning of the source.
+    !> A comment is a lexical no-op, but comments elsewhere remain part of the
+    !> candidate statement so unsupported source cannot be silently discarded.
+    subroutine strip_leading_comments(source, cleaned, ok, message)
+        character(*),              intent(in)  :: source
+        character(:), allocatable, intent(out) :: cleaned
+        logical,                   intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+
+        integer :: first, k, depth
+        character :: c
+
+        first = 1
+        ok = .true.
+        message = ""
+        do
+            do while (first <= len(source))
+                c = source(first:first)
+                if (c == " " .or. c == char(9) .or. c == char(10) .or. &
+                    c == char(13)) then
+                    first = first + 1
+                else
+                    exit
+                end if
+            end do
+            if (first > len(source)) exit
+            if (first + 1 > len(source)) exit
+            if (source(first:first + 1) /= "(*") exit
+
+            depth = 1
+            k = first + 2
+            do while (k <= len(source))
+                if (k + 1 <= len(source)) then
+                    if (source(k:k + 1) == "(*") then
+                        depth = depth + 1
+                        k = k + 2
+                        cycle
+                    end if
+                    if (source(k:k + 1) == "*)") then
+                        depth = depth - 1
+                        k = k + 2
+                        if (depth == 0) exit
+                        cycle
+                    end if
+                end if
+                k = k + 1
+            end do
+            if (depth /= 0) then
+                ok = .false.
+                message = "unclosed Wolfram comment in source preamble"
+                return
+            end if
+            first = k
+        end do
+
+        if (first <= len(source)) then
+            cleaned = source(first:)
+        else
+            cleaned = ""
+        end if
+    end subroutine strip_leading_comments
 
     !> Split only at top-level semicolons and newlines. Wolfram comments and
     !> nested brackets are skipped, so a multiline function call remains one

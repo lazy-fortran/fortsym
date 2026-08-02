@@ -11,6 +11,7 @@ program test_fortsym_wl_f90
 
     nfail = 0
     call test_stream_compiles_and_agrees(nfail)
+    call test_comment_preamble_compiles_and_agrees(nfail)
     call test_scalar_minmax_compiles_and_agrees(nfail)
     call test_bounded_refusals(nfail)
 
@@ -82,6 +83,61 @@ contains
         call check("generated source agrees with independent oracle", &
             status == 0, nfail)
     end subroutine test_stream_compiles_and_agrees
+
+    subroutine test_comment_preamble_compiles_and_agrees(nfail)
+        integer, intent(inout) :: nfail
+        type(str_t) :: code
+        character(:), allocatable :: message
+        logical :: ok
+        integer :: unit, ios, status
+        character(*), parameter :: generated = &
+            "/tmp/fortsym_wl_f90_comment_preamble.f90"
+        character(*), parameter :: driver = &
+            "/tmp/fortsym_wl_f90_comment_preamble_driver.f90"
+        character(*), parameter :: executable = &
+            "/tmp/fortsym_wl_f90_comment_preamble_driver"
+
+        code = translate_wl_assignments( &
+            "(* generated preamble: no executable semantics *)"//new_line("a")// &
+            "result = x + 1", ok, message)
+        call check("leading comment preamble accepted", ok, nfail)
+        if (.not. ok) then
+            print *, "translation message:", message
+            return
+        end if
+
+        open (newunit=unit, file=generated, status="replace", action="write", &
+            iostat=ios)
+        call check("comment-preamble source opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") chars(code)
+        close (unit)
+
+        open (newunit=unit, file=driver, status="replace", action="write", &
+            iostat=ios)
+        call check("comment-preamble oracle driver opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") &
+            "program independent_comment_preamble_oracle"//new_line("a")// &
+            "  use, intrinsic :: iso_fortran_env, only: real64"//new_line("a")// &
+            "  real(real64) :: x, result"//new_line("a")// &
+            "  x = 2.25_real64"//new_line("a")// &
+            "  call fortsym_generated_assignment(x, result)"//new_line("a")// &
+            "  if (abs(result - (x + 1.0_real64)) > 1.0e-14_real64) "// &
+            "error stop 1"//new_line("a")// &
+            "  print *, 'PASS independent comment-preamble oracle'"// &
+            new_line("a")// &
+            "end program independent_comment_preamble_oracle"
+        close (unit)
+
+        call execute_command_line("gfortran -std=f2018 -Wall -Werror -o "// &
+            executable//" "//generated//" "//driver, exitstat=status)
+        call check("comment-preamble source compiles", status == 0, nfail)
+        if (status /= 0) return
+        call execute_command_line(executable, exitstat=status)
+        call check("comment-preamble source agrees with independent oracle", &
+            status == 0, nfail)
+    end subroutine test_comment_preamble_compiles_and_agrees
 
     subroutine test_scalar_minmax_compiles_and_agrees(nfail)
         integer, intent(inout) :: nfail
@@ -167,6 +223,11 @@ contains
 
         code = translate_wl_assignments("r = Max[x]", ok, message)
         call check("unary Max refused", .not. ok, nfail)
+
+        code = translate_wl_assignments("(* unclosed preamble", ok, message)
+        call check("unclosed comment preamble refused", .not. ok, nfail)
+        call check("unclosed comment explains refusal", &
+            index(message, "unclosed Wolfram comment") > 0, nfail)
 
         code = translate_wl_assignments("r[1] = x", ok, message)
         call check("non-scalar target refused", .not. ok, nfail)
