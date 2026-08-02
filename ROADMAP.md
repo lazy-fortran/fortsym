@@ -99,7 +99,7 @@ reported state.
 | native rows ending in a runner error | 0 |
 | crashes | **0** |
 | full native/SymPy refresh after v67 changes | 3:07.12 / 1.61 GiB |
-| latest warm compact raw-output and verdict audit | 3:57.52 / 426 MiB |
+| latest warm compact raw-output and verdict audit | 1.02 s / 491 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -119,7 +119,7 @@ correctness. Scoring against an oracle is what makes it coverage.
 The latest cache-only binding-level audit reports 3,863 agreements, 465 declared
 differences, 7 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable
 oracle rows, 208 oracle disagreements, and 349 oracle-missing bindings across
-4,888 bindings. The v43-v68
+4,888 bindings. The v43-v69
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
