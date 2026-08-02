@@ -15,7 +15,8 @@ answers, and keeps the one that produces the smallest kernel.
 The native Fortran backend currently performs arbitrary-precision integer and
 rational arithmetic with a checked 64-bit fast path, collection of like terms
 and integer powers, bounded polynomial expansion, differentiation, Taylor
-coefficients and series, scalar linear solving, and conservative zero
+coefficients and series, scalar linear solving, bounded requested-precision
+`N[expr, p]` evaluation (17--512 decimal digits), and conservative zero
 decisions. Broader domains remain on the documented roadmap.
 
 Guarded native rewrites accept an explicit `assumption_context_t`. Positive,
@@ -163,20 +164,21 @@ SymPy oracle; their inventory and persistent oracle cache live in
 `fortsym-bench`.
 
 On the 384-file corpus sweep recorded 2026-08-02, the native runner completed
-381 scripts (343 with non-empty results and 38 valid empty result sets), timed
-out on one heavy script at the external 60-second limit, and explicitly refused
-two unsupported constructs. It did not crash. The benchmark reused the
-available cached SymPy and Mathics rows; no oracle subprocess was needed. A
-native refresh with those oracle caches warm took about 59 seconds with four
-workers. A fully warm audit takes about 1.0 seconds and starts no backend
-subprocesses. The final binding-level tally is 3,124 agreements, 786 declared
-differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 197 oracle
-disagreements, and 800 oracle-missing bindings. The native collection slice now
-also evaluates bounded exact `Range`, `DiagonalMatrix`, `RowReduce`,
-`NullSpace`, `MatrixRank`, `LinearSolve`, `Minors`, `Length`, and recursive
-`Flatten` forms; the latest matrix changes introduced no native
-script-completion regression, moved 22 prior differences to agreement, and
-reduced binding errors by 13.
+380 scripts (344 with non-empty results and 36 valid empty result sets), timed
+out on one heavy script, reported one runner error, and explicitly refused two
+unsupported constructs. It did not crash. The dot-parser audit used two
+workers, refreshed 379 native rows and 26 changed SymPy rows, and reused the
+available Mathics and unaffected oracle rows; it took 152.5 seconds with a
+4.31 GiB peak RSS. A fully warm audit now takes 1.15 seconds at 413 MiB RSS
+and starts no backend subprocesses. The current binding-level tally is 3,138
+agreements, 790 declared differences, 20 unsupported outcomes, 38 timeouts,
+122 errors, 200 oracle disagreements, and 798 oracle-missing bindings. The
+native collection slice also evaluates bounded exact `Range`,
+`DiagonalMatrix`, `RowReduce`, `NullSpace`, `MatrixRank`, `LinearSolve`,
+`Minors`, `Length`, recursive `Flatten`, list `Append`/`Join`, and bounded
+requested-precision `N`; multiline Wolfram dot products are preserved by both
+the native parser and the SymPy translator. The remaining parity gap is still
+substantial and is tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Build
 
