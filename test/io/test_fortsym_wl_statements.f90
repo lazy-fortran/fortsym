@@ -29,6 +29,7 @@ program test_fortsym_wl_statements
     call test_which_evaluation()
     call test_pure_map_apply_replace()
     call test_list_threading()
+    call test_scalar_matrix_dot()
     call test_list_selectors()
     call test_bounded_file_name_join()
     call test_matrix_span_selectors()
@@ -289,6 +290,17 @@ contains
             "value = Thread[Equal[lhs, rhs]]"//char(10), &
             "value", "List(Equal(x, a), Equal(y, b))")
     end subroutine test_list_threading
+
+    !> Dot with a scalar scales every matrix entry. The expected matrix is the
+    !> hand calculation of diag(2, 3) * 5 and its reverse-order counterpart.
+    subroutine test_scalar_matrix_dot()
+        call expect("matrix dot scalar", &
+            "value = {{2, 0}, {0, 3}} . 5"//char(10), "value", &
+            "List(List(10, 0), List(0, 15))")
+        call expect("scalar dot matrix", &
+            "value = 5 . {{2, 0}, {0, 3}}"//char(10), "value", &
+            "List(List(10, 0), List(0, 15))")
+    end subroutine test_scalar_matrix_dot
 
     !> Selectors are checked against the hand-calculated item order, including
     !> negative counts and one-based inclusive ranges.
