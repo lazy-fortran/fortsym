@@ -98,8 +98,8 @@ reported state.
 | native rows exceeding the time budget | 3 |
 | native rows ending in a runner error | 0 |
 | crashes | **0** |
-| v70 native/SymPy audit after identity-power and oracle changes | 8:14.64 / 1.61 GiB |
-| latest v70 warm compact raw-output and verdict audit | 0.70 s / 492 MiB |
+| v71 native/SymPy audit after bounded `Do` and companion changes | 1:11.60 / 1.61 GiB |
+| latest v71 warm compact raw-output and verdict audit | 0.75 s / 492 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -116,10 +116,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,861 agreements, 471 declared
+The latest cache-only binding-level audit reports 3,865 agreements, 470 declared
 differences, 7 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable
-oracle rows, 205 oracle disagreements, and 349 oracle-missing bindings across
-4,889 bindings. The v43-v70
+oracle rows, 205 oracle disagreements, and 342 oracle-missing bindings across
+4,885 bindings. The v43-v71
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -129,8 +129,9 @@ recoveries, with 75 independent tests. The v59 native work fixes implicit
 scientific-literal precedence and adds vector-matrix `Dot` evaluation; v60 adds
 bounded numeric `FindRoot`. The v70 cycle adds exact identity-matrix fractional
 powers and source-faithful numeric `Abs`/Mathics root handling, with selective
-SymPy cache invalidation. The benchmark harness now invalidates native cache
-rows at version 2.
+SymPy cache invalidation. The v71 cycle adds bounded `Do` assignment loops and
+six source-faithful `math10y` companion recoveries; the benchmark harness now
+invalidates native cache rows at version 2.
 The v37
 phase-transform and flux-coordinate companion translations, followed by the
 v38 NAE/DESC and Appendix-B translations, recovered 42 agreements and 52
