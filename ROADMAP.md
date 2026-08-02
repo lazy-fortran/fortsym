@@ -84,7 +84,7 @@ domain, parameters, precision, and error policy are numeric and explicit.
 ## Measured state
 
 Latest corpus-wide measurement, 2026-08-02, `fortsym-bench` at 384 scripts
-(`--jobs 2`, 60-second script budget, after the multiline-dot parser fix):
+(`--jobs 2`, 60-second script budget, after the bounded list-selector slice):
 
 This table is a committed native baseline. It is updated only after the root
 backend and benchmark harness revisions used to produce it have been committed.
@@ -100,9 +100,9 @@ reported state.
 | scripts exceeding the time budget | 1 |
 | scripts ending in a runner error | 1 |
 | crashes | **0** |
-| full audit (379 native and 26 SymPy rows fresh) | 152.5 s |
-| peak RSS during that audit | 4.31 GiB |
-| warm compact raw-output and verdict audit | 1.15 s / 413 MiB |
+| full native refresh with cached oracle rows | 83.6 s |
+| peak RSS during that refresh | 0.79 GiB |
+| warm compact raw-output and verdict audit | 1.01 s / 419 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
@@ -120,13 +120,15 @@ and opaque preservation for unsupported
 dimensions or computed heads. The independent tests cover literal, rational,
 symbolic, canonical empty-list, and bounded-preserved forms. Requested-
 precision `N` now has a bounded native path for 17--512 decimal digits, with a
-named refusal above that limit; list `Append`/`Join` and multiline dot-product
-continuation also have independent tests. Relative to the prior numeric
-baseline, the parser slice added seven agreements, removed one binding error,
-and exposed two newly visible bindings from the translated assignment stream.
-It does not close the remaining parity gap. The highest-impact work remains the
-plotting family, `Solve` beyond scalar linear cases, definite and multiple
-`Integrate`, polynomial heads, and `DSolve`/`NDSolve`.
+named refusal above that limit; list `Append`/`Join`, bounded list selectors,
+and multiline dot-product continuation also have independent tests. Unsupported
+selector shapes remain opaque. Relative to the prior numeric baseline, the
+parser slice added seven agreements, removed one binding error, and exposed two
+newly visible bindings from the translated assignment stream; the subsequent
+selector slice preserved the aggregate tally. It does not close the remaining
+parity gap. The highest-impact work remains the plotting family, `Solve` beyond
+scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
+`DSolve`/`NDSolve`.
 
 ### The oracle ceiling (#47)
 
@@ -156,12 +158,11 @@ natively" and "61% share a successful Mathics result" are different
 claims.
 
 The historical full refresh includes the SymPy refresh required by the
-translator cache-version change and took 4:54. The latest audit refreshed the
-rows invalidated by the dot-parser and native executable fingerprints in
-152.5 seconds with two workers. Once raw results and comparison verdicts are
-cached, the same full audit takes 1.15 seconds. These are harness measurements,
-not a capability
-comparison: Mathics evaluates integrals fortsym refuses, and the native path
+translator cache-version change and took 4:54. The latest selector audit
+refreshed 380 native rows with all compatible oracle rows cached in 83.6
+seconds with two workers. Once raw results and comparison verdicts are cached,
+the same full audit takes 1.01 seconds. These are harness measurements, not a
+capability comparison: Mathics evaluates integrals fortsym refuses, and the native path
 still has one 60-second timeout.
 
 What running the corpus has already bought, none of which was found by tests:

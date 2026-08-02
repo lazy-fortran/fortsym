@@ -166,19 +166,20 @@ SymPy oracle; their inventory and persistent oracle cache live in
 On the 384-file corpus sweep recorded 2026-08-02, the native runner completed
 380 scripts (344 with non-empty results and 36 valid empty result sets), timed
 out on one heavy script, reported one runner error, and explicitly refused two
-unsupported constructs. It did not crash. The dot-parser audit used two
-workers, refreshed 379 native rows and 26 changed SymPy rows, and reused the
-available Mathics and unaffected oracle rows; it took 152.5 seconds with a
-4.31 GiB peak RSS. A fully warm audit now takes 1.15 seconds at 413 MiB RSS
-and starts no backend subprocesses. The current binding-level tally is 3,138
+unsupported constructs. It did not crash. The latest bounded-list-selector
+audit used two workers, refreshed 380 native rows, and reused all compatible
+SymPy and Mathics rows; it took 83.6 seconds with a 0.79 GiB peak RSS. A fully
+warm audit now takes 1.01 seconds at 419 MiB RSS and starts no backend
+subprocesses. The current binding-level tally is 3,138
 agreements, 790 declared differences, 20 unsupported outcomes, 38 timeouts,
 122 errors, 200 oracle disagreements, and 798 oracle-missing bindings. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, `RowReduce`, `NullSpace`, `MatrixRank`, `LinearSolve`,
-`Minors`, `Length`, recursive `Flatten`, list `Append`/`Join`, and bounded
-requested-precision `N`; multiline Wolfram dot products are preserved by both
-the native parser and the SymPy translator. The remaining parity gap is still
-substantial and is tracked in [ROADMAP.md](ROADMAP.md).
+`Minors`, `Length`, recursive `Flatten`, list `Append`/`Join` and bounded list
+selectors, and bounded requested-precision `N`; multiline Wolfram dot products
+are preserved by both the native parser and the SymPy translator. Unsupported
+selector shapes remain opaque rather than losing a binding. The remaining
+parity gap is still substantial and is tracked in [ROADMAP.md](ROADMAP.md).
 
 ## Build
 
