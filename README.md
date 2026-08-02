@@ -167,21 +167,23 @@ On the 384-file corpus sweep recorded 2026-08-02, the native runner completed
 380 scripts (344 with non-empty results and 36 valid empty result sets), timed
 out on one heavy script, reported one runner error, and explicitly refused two
 unsupported constructs. It did not crash. The latest bounded
-CharacteristicPolynomial/LegendreP/Diagonal/list-selector audit used two
-workers, refreshed 380 native rows, and
-reused all compatible SymPy and Mathics rows; it took 82.7 seconds with a
-0.61 GiB peak RSS. A fully warm audit now takes 1.01 seconds at 417 MiB RSS
+CharacteristicPolynomial/LegendreP/Diagonal/list-selector/Coefficient audit
+used two workers, refreshed 374 native rows, reused 331 SymPy rows and 235
+Mathics rows, and refreshed only 28 SymPy rows affected by the polynomial
+translator; it took 106.65 seconds with a 0.57 GiB peak RSS. A fully warm audit
+now takes 1.04 seconds at 423 MiB RSS
 and starts no
-backend subprocesses. The current binding-level tally is 3,141 agreements,
-786 declared differences, 20 unsupported outcomes, 38 timeouts,
-122 errors, 199 oracle disagreements, and 799 oracle-missing bindings. The
+backend subprocesses. The current binding-level tally is 3,149 agreements,
+780 declared differences, 20 unsupported outcomes, 38 timeouts, 122 errors,
+199 oracle disagreements, and 797 oracle-missing bindings. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,
 bounded non-negative `MatrixPower`, `RowReduce`, `NullSpace`, `MatrixRank`,
 `LinearSolve`, `Minors`, `Length`, recursive `Flatten`, list
 `Append`/`Join` and bounded list
-selectors, and bounded requested-precision `N`; multiline Wolfram dot products
+selectors, bounded univariate and multivariate `CoefficientList`, and bounded
+requested-precision `N`; multiline Wolfram dot products
 are preserved by both the native parser and the SymPy translator. Unsupported
 selector shapes remain opaque rather than losing a binding. The remaining
 parity gap is still substantial and is tracked in [ROADMAP.md](ROADMAP.md).

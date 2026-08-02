@@ -2927,6 +2927,7 @@ contains
         type(str_t),        intent(out)   :: message
         type(expr_t)                      :: r
         type(expr_t), allocatable :: list(:)
+        type(expr_t), allocatable :: vars(:)
         type(expr_t) :: var, out
         character(:), allocatable :: why
         integer :: order
@@ -3014,8 +3015,22 @@ contains
         case ("CoefficientList")
             if (e%nargs() /= 2) then
                 call refuse(ok, message, &
-                    "CoefficientList here takes an expression and one "// &
-                    "variable")
+                    "CoefficientList takes an expression and variables")
+                return
+            end if
+            var = e%arg(2)
+            if (var%kind() == NK_FUNC .and. chars(var%name()) == "List") then
+                if (var%nargs() < 1 .or. var%nargs() > 8) then
+                    call refuse(ok, message, &
+                        "CoefficientList variable list has unsupported size")
+                    return
+                end if
+                allocate (vars(var%nargs()))
+                do order = 1, var%nargs()
+                    vars(order) = var%arg(order)
+                end do
+                r = lower_coefficient_list(s, e%arg(1), vars, 1, ok, message)
+                if (.not. ok) return
                 return
             end if
             call poly_coefficient_list(s%a, e%arg(1), e%arg(2), list, ok, why)
@@ -3054,6 +3069,45 @@ contains
         end if
         r = out
     end function lower_polynomial
+
+    !> CoefficientList[e, {x, y, ...}] nests the one-variable coefficient
+    !> lists in the requested variable order. Each inner coefficient is still
+    !> read by fortsym_poly, so the exactness and resource bounds stay in one
+    !> place rather than being reimplemented by the Wolfram dispatcher.
+    recursive function lower_coefficient_list(s, e, vars, level, ok, message) &
+            result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        type(expr_t),       intent(in)    :: vars(:)
+        integer,            intent(in)    :: level
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)  :: message
+        type(expr_t)                      :: r
+        type(expr_t), allocatable        :: coefficients(:), nested(:)
+        character(:), allocatable        :: why
+        integer                           :: k
+
+        ok = .true.
+        message = str("")
+        r = e
+        call poly_coefficient_list(s%a, e, vars(level), coefficients, ok, why)
+        if (.not. ok) then
+            call refuse(ok, message, "CoefficientList: "//why)
+            return
+        end if
+        if (level == size(vars)) then
+            r = func("List", coefficients)
+            return
+        end if
+
+        allocate (nested(size(coefficients)))
+        do k = 1, size(coefficients)
+            nested(k) = lower_coefficient_list(s, coefficients(k), vars, &
+                level + 1, ok, message)
+            if (.not. ok) return
+        end do
+        r = func("List", nested)
+    end function lower_coefficient_list
 
     !> LegendreP[n, x] for a bounded exact non-negative degree.
     !>
