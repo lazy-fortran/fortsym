@@ -1,8 +1,8 @@
 program fortsym_wl_to_f90
-    ! Translate one bounded Wolfram assignment into a Fortran subroutine.
+    ! Translate a bounded Wolfram assignment stream into a Fortran subroutine.
     use, intrinsic :: iso_fortran_env, only: error_unit
     use fortsym_string, only: str_t, chars
-    use fortsym_wl_f90, only: translate_wl_assignment
+    use fortsym_wl_f90, only: translate_wl_assignments
     implicit none
 
     character(:), allocatable :: input_path, output_path, source, message
@@ -19,7 +19,7 @@ program fortsym_wl_to_f90
     call read_argument(2, output_path)
     call read_file(input_path, source)
 
-    code = translate_wl_assignment(source, ok, message)
+    code = translate_wl_assignments(source, ok, message)
     if (.not. ok) then
         write (error_unit, "(a)") "translation refused: "//message
         error stop 1
