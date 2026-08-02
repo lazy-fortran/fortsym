@@ -42,6 +42,8 @@ program test_fortsym_wl_solvenum
 
     call test_solve_roots_verify()
     call test_solve_shape_is_rule_lists()
+    call test_solve_rule_replacement()
+    call test_fractional_exponent()
     call test_solve_linear_system()
     call test_linear_solve()
     call test_solve_refuses_what_it_cannot_verify()
@@ -298,6 +300,55 @@ contains
         end if
         if (roots(1)%int_value() /= 3) call fail("shape", "root is not 3")
     end subroutine test_solve_shape_is_rule_lists
+
+    subroutine test_solve_rule_replacement()
+        type(arena_t), target :: a
+        type(expr_t) :: value
+        logical :: ok
+        character(:), allocatable :: message
+
+        call a%init()
+        call run_one(a, "hpnReturn = r /. First[Solve[2*r == (1-r)/2, r]]"//nl(), &
+            "hpnReturn", value, ok, message)
+        if (.not. ok) then
+            call fail("Solve rule replacement", "refused: "//message)
+            return
+        end if
+        ! The independent oracle is the exact rearrangement
+        ! 2 r = (1-r)/2, hence 5 r = 1.
+        if (value%kind() /= NK_RAT .or. value%int_value() /= 1 .or. &
+            value%den_value() /= 5) then
+            call fail("Solve rule replacement", "expected exact 1/5")
+        end if
+    end subroutine test_solve_rule_replacement
+
+    subroutine test_fractional_exponent()
+        type(arena_t), target :: a
+        type(expr_t) :: value, shifted
+        logical :: ok
+        character(:), allocatable :: message
+
+        call a%init()
+        call run_one(a, "e = Exponent[(u - v)*x^(2/5), x]"//nl()// &
+                     "f = Exponent[z + (u - z)*x^(2/5), x]"//nl(), &
+                     "e", value, ok, message)
+        if (.not. ok) then
+            call fail("fractional Exponent", "refused: "//message)
+            return
+        end if
+        ! The coefficient (u-v) is independent of x, so the exact exponent is
+        ! the rational power 2/5, not a floating approximation.
+        if (value%kind() /= NK_RAT .or. value%int_value() /= 2 .or. &
+            value%den_value() /= 5) then
+            call fail("fractional Exponent", "expected exact 2/5")
+        end if
+        call run_one(a, "f = Exponent[z + (u - z)*x^(2/5), x]"//nl(), &
+                     "f", shifted, ok, message)
+        if (.not. ok .or. shifted%kind() /= NK_RAT .or. &
+            shifted%int_value() /= 2 .or. shifted%den_value() /= 5) then
+            call fail("shifted fractional Exponent", "expected exact 2/5")
+        end if
+    end subroutine test_fractional_exponent
 
     !> The system's solution is substituted back into both equations.
     subroutine test_solve_linear_system()
