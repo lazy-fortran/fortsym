@@ -25,6 +25,7 @@ module fortsym_wl_num
 
     public :: wl_n, wl_chop, wl_identity_matrix, wl_cross, wl_trace, wl_length
     public :: wl_flatten, wl_append, wl_join
+    public :: wl_first, wl_last, wl_rest, wl_most, wl_reverse, wl_take, wl_drop
     public :: wl_range, wl_diagonal_matrix
     public :: N_MAX_DIGITS, CHOP_DEFAULT
 
@@ -74,6 +75,7 @@ contains
         logical,                   intent(out)   :: ok
         character(:), allocatable, intent(out)   :: why
         type(expr_t)                             :: r
+        type(expr_t)                             :: value
 
         r = num(a, e%nargs())
         ok = is_valid(r)
@@ -202,6 +204,384 @@ contains
         r = func("List", items)
         ok = .true.
     end function wl_join
+
+    !> First, Last, Rest, Most, and Reverse on explicit lists.
+    !>
+    !> Wolfram also applies these heads to arbitrary compound expressions. The
+    !> native frontend keeps this first slice deliberately bounded to Lists,
+    !> whose result head and item shape are unambiguous after evaluation.
+    function wl_first(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t)                             :: value
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() /= 1 .or. .not. is_list(e%arg(1))) then
+            why = "First needs one explicit list"
+            return
+        end if
+        value = e%arg(1)
+        if (value%nargs() == 0) then
+            why = "First cannot select from an empty list"
+            return
+        end if
+        r = value%arg(1)
+        ok = .true.
+    end function wl_first
+
+    function wl_last(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t)                             :: value
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() /= 1 .or. .not. is_list(e%arg(1))) then
+            why = "Last needs one explicit list"
+            return
+        end if
+        value = e%arg(1)
+        if (value%nargs() == 0) then
+            why = "Last cannot select from an empty list"
+            return
+        end if
+        r = value%arg(value%nargs())
+        ok = .true.
+    end function wl_last
+
+    function wl_rest(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t)                             :: value
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() /= 1 .or. .not. is_list(e%arg(1))) then
+            why = "Rest needs one explicit list"
+            return
+        end if
+        value = e%arg(1)
+        if (value%nargs() == 0) then
+            why = "Rest cannot select from an empty list"
+            return
+        end if
+        r = list_slice(a, value, 2, value%nargs(), ok, why)
+    end function wl_rest
+
+    function wl_most(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t)                             :: value
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() /= 1 .or. .not. is_list(e%arg(1))) then
+            why = "Most needs one explicit list"
+            return
+        end if
+        value = e%arg(1)
+        if (value%nargs() == 0) then
+            why = "Most cannot select from an empty list"
+            return
+        end if
+        r = list_slice(a, value, 1, value%nargs() - 1, ok, why)
+    end function wl_most
+
+    function wl_reverse(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t), allocatable                :: items(:)
+        type(expr_t)                             :: value
+        integer                                  :: k, n
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() /= 1 .or. .not. is_list(e%arg(1))) then
+            why = "Reverse needs one explicit list"
+            return
+        end if
+        value = e%arg(1)
+        n = value%nargs()
+        if (n == 0) then
+            r = func_in(a, "List")
+            ok = .true.
+            return
+        end if
+        allocate (items(n))
+        do k = 1, n
+            items(k) = value%arg(n - k + 1)
+        end do
+        r = func("List", items)
+        ok = .true.
+    end function wl_reverse
+
+    function wl_take(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t)                             :: value
+        integer                                  :: first, last
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() /= 2 .or. .not. is_list(e%arg(1))) then
+            why = "Take needs a list and a specification"
+            return
+        end if
+        value = e%arg(1)
+        call take_bounds(e%arg(2), value%nargs(), first, last, ok, why)
+        if (.not. ok) return
+        r = list_slice(a, value, first, last, ok, why)
+    end function wl_take
+
+    function wl_drop(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t)                             :: spec
+        type(expr_t)                             :: value
+        type(expr_t), allocatable                :: items(:)
+        integer                                  :: first, last, n, k
+        integer(int64)                           :: lo, hi
+        logical                                  :: valid
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() /= 2 .or. .not. is_list(e%arg(1))) then
+            why = "Drop needs a list and a specification"
+            return
+        end if
+        value = e%arg(1)
+        n = value%nargs()
+        spec = e%arg(2)
+        if (selector_integer(spec, lo)) then
+            if (lo >= 0_int64) then
+                if (lo > int(n, int64)) then
+                    why = "Drop count exceeds the list length"
+                    return
+                end if
+                first = int(lo) + 1
+                last = n
+            else
+                if (-lo > int(n, int64)) then
+                    why = "Drop count exceeds the list length"
+                    return
+                end if
+                first = 1
+                last = n + int(lo)
+            end if
+            r = list_slice(a, value, first, last, ok, why)
+            return
+        end if
+
+        if (.not. is_list(spec) .or. spec%nargs() /= 2) then
+            why = "Drop specification is not a bounded integer range"
+            return
+        end if
+        valid = selector_integer(spec%arg(1), lo)
+        if (.not. valid) then
+            why = "Drop range start is not an integer"
+            return
+        end if
+        valid = selector_integer(spec%arg(2), hi)
+        if (.not. valid) then
+            why = "Drop range end is not an integer"
+            return
+        end if
+        call normalize_selector_index(lo, n, first, valid)
+        if (.not. valid) then
+            why = "Drop range start is outside the list"
+            return
+        end if
+        call normalize_selector_index(hi, n, last, valid)
+        if (.not. valid) then
+            why = "Drop range end is outside the list"
+            return
+        end if
+        if (first > last) then
+            r = value
+            ok = .true.
+            return
+        end if
+        if (first > 1 .and. last < n) then
+            allocate (items(first - 1 + n - last))
+            do k = 1, first - 1
+                items(k) = value%arg(k)
+            end do
+            do k = last + 1, n
+                items(first - 1 + k - last) = value%arg(k)
+            end do
+        else if (first > 1) then
+            r = list_slice(a, value, 1, first - 1, ok, why)
+            return
+        else
+            r = list_slice(a, value, last + 1, n, ok, why)
+            return
+        end if
+        r = func("List", items)
+        ok = .true.
+    end function wl_drop
+
+    function list_slice(a, source, first, last, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: source
+        integer,                   intent(in)    :: first, last
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t), allocatable                :: items(:)
+        integer                                  :: k
+
+        r = source
+        ok = .false.
+        why = ""
+        if (.not. is_list(source)) then
+            why = "list selector needs an explicit list"
+            return
+        end if
+        if (first < 1 .or. last > source%nargs()) then
+            why = "list selector index is outside the list"
+            return
+        end if
+        if (last < first) then
+            r = func_in(a, "List")
+            ok = .true.
+            return
+        end if
+        allocate (items(last - first + 1))
+        do k = first, last
+            items(k - first + 1) = source%arg(k)
+        end do
+        r = func("List", items)
+        ok = .true.
+    end function list_slice
+
+    subroutine take_bounds(spec, n, first, last, ok, why)
+        type(expr_t),              intent(in)  :: spec
+        integer,                   intent(in)  :: n
+        integer,                   intent(out) :: first, last
+        logical,                   intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        integer(int64) :: lo, hi
+        logical :: valid
+
+        first = 1
+        last = 0
+        ok = .false.
+        why = ""
+        if (selector_integer(spec, lo)) then
+            if (lo >= 0_int64) then
+                if (lo > int(n, int64)) then
+                    why = "Take count exceeds the list length"
+                    return
+                end if
+                first = 1
+                last = int(lo)
+            else
+                if (-lo > int(n, int64)) then
+                    why = "Take count exceeds the list length"
+                    return
+                end if
+                first = n + int(lo) + 1
+                last = n
+            end if
+            ok = .true.
+            return
+        end if
+        if (.not. is_list(spec) .or. spec%nargs() /= 2) then
+            why = "Take specification is not a bounded integer range"
+            return
+        end if
+        valid = selector_integer(spec%arg(1), lo)
+        if (.not. valid) then
+            why = "Take range start is not an integer"
+            return
+        end if
+        valid = selector_integer(spec%arg(2), hi)
+        if (.not. valid) then
+            why = "Take range end is not an integer"
+            return
+        end if
+        call normalize_selector_index(lo, n, first, valid)
+        if (.not. valid) then
+            why = "Take range start is outside the list"
+            return
+        end if
+        call normalize_selector_index(hi, n, last, valid)
+        if (.not. valid) then
+            why = "Take range end is outside the list"
+            return
+        end if
+        ok = .true.
+    end subroutine take_bounds
+
+    function selector_integer(e, value) result(ok)
+        type(expr_t), intent(in)  :: e
+        integer(int64), intent(out) :: value
+        logical                    :: ok
+
+        value = 0_int64
+        ok = .false.
+        select case (e%kind())
+        case (NK_INT)
+            value = e%int_value()
+            ok = .true.
+        case (NK_RAT)
+            if (e%den_value() == 1_int64) then
+                value = e%int_value()
+                ok = .true.
+            end if
+        end select
+        if (.not. ok) return
+        if (value > int(MAX_FLATTEN_ITEMS, int64) .or. &
+                value < -int(MAX_FLATTEN_ITEMS, int64)) ok = .false.
+    end function selector_integer
+
+    subroutine normalize_selector_index(value, n, index, ok)
+        integer(int64), intent(in)  :: value
+        integer,        intent(in)  :: n
+        integer,        intent(out) :: index
+        logical,        intent(out) :: ok
+
+        index = 0
+        ok = .false.
+        if (value == 0_int64) return
+        if (value > 0_int64) then
+            if (value > int(n, int64)) return
+            index = int(value)
+        else
+            if (-value > int(n, int64)) return
+            index = n + int(value) + 1
+        end if
+        ok = index >= 1 .and. index <= n
+    end subroutine normalize_selector_index
 
     recursive subroutine collect_flatten(e, items, n, ok, why)
         type(expr_t),              intent(in)    :: e

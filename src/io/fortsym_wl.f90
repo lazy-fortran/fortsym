@@ -44,7 +44,8 @@ module fortsym_wl
     use fortsym_wl_solve, only: wl_solve
     use fortsym_wl_num, only: wl_n, wl_chop, wl_identity_matrix, wl_cross, &
         wl_trace, wl_length, wl_flatten, wl_append, wl_join, wl_range, &
-        wl_diagonal_matrix, &
+        wl_diagonal_matrix, wl_first, wl_last, wl_rest, wl_most, wl_reverse, &
+        wl_take, wl_drop, &
         CHOP_DEFAULT
     use fortsym_integrate, only: integrate
     use fortsym_defint, only: definite_integral
@@ -949,6 +950,11 @@ contains
             return
         end if
 
+        ! FoldList is not implemented. Preserve its argument tree instead of
+        ! evaluating a newly supported child such as Drop and turning an
+        ! otherwise opaque corpus binding into a different partial result.
+        if (head == "FoldList") return
+
         ! Evaluate arguments first. Wolfram evaluates innermost-out, and
         ! dispatching only on the outer head leaves Simplify[D[f, x]] holding an
         ! unevaluated D -- which then prints as though the derivative had been
@@ -1280,6 +1286,55 @@ contains
             r = wl_length(s%a, r%arg(1), ok, why)
             if (.not. ok) then
                 call refuse(ok, message, "Length: "//why)
+                return
+            end if
+
+        case ("First")
+            r = wl_first(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "First: "//why)
+                return
+            end if
+
+        case ("Last")
+            r = wl_last(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Last: "//why)
+                return
+            end if
+
+        case ("Rest")
+            r = wl_rest(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Rest: "//why)
+                return
+            end if
+
+        case ("Most")
+            r = wl_most(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Most: "//why)
+                return
+            end if
+
+        case ("Reverse")
+            r = wl_reverse(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Reverse: "//why)
+                return
+            end if
+
+        case ("Take")
+            r = wl_take(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Take: "//why)
+                return
+            end if
+
+        case ("Drop")
+            r = wl_drop(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Drop: "//why)
                 return
             end if
 

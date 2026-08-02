@@ -26,6 +26,7 @@ program test_fortsym_wl_statements
     call test_recursive_function()
     call test_pure_map_apply_replace()
     call test_list_threading()
+    call test_list_selectors()
     call test_list_child_evaluation()
     call test_parenthesized_wolfram_multiplication()
 
@@ -218,6 +219,35 @@ contains
             "value = Thread[Equal[lhs, rhs]]"//char(10), &
             "value", "List(Equal(x, a), Equal(y, b))")
     end subroutine test_list_threading
+
+    !> Selectors are checked against the hand-calculated item order, including
+    !> negative counts and one-based inclusive ranges.
+    subroutine test_list_selectors()
+        call expect("First list item", "value = First[{a, b, c}]"//char(10), &
+            "value", "a")
+        call expect("Last list item", "value = Last[{a, b, c}]"//char(10), &
+            "value", "c")
+        call expect("Rest list items", "value = Rest[{a, b, c}]"//char(10), &
+            "value", "List(b, c)")
+        call expect("Most list items", "value = Most[{a, b, c}]"//char(10), &
+            "value", "List(a, b)")
+        call expect("Reverse list items", &
+            "value = Reverse[{a, b, c}]"//char(10), "value", "List(c, b, a)")
+        call expect("Take positive count", &
+            "value = Take[{a, b, c, d}, 2]"//char(10), "value", "List(a, b)")
+        call expect("Take negative count", &
+            "value = Take[{a, b, c, d}, -2]"//char(10), "value", "List(c, d)")
+        call expect("Take inclusive range", &
+            "value = Take[{a, b, c, d}, {2, 3}]"//char(10), &
+            "value", "List(b, c)")
+        call expect("Drop positive count", &
+            "value = Drop[{a, b, c, d}, 1]"//char(10), "value", "List(b, c, d)")
+        call expect("Drop negative count", &
+            "value = Drop[{a, b, c, d}, -2]"//char(10), "value", "List(a, b)")
+        call expect("Drop inclusive range", &
+            "value = Drop[{a, b, c, d}, {2, 3}]"//char(10), &
+            "value", "List(a, d)")
+    end subroutine test_list_selectors
 
     !> List elements are evaluated independently. These hand-derived values
     !> catch the tempting but incorrect optimization of leaving List children
