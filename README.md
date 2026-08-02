@@ -241,7 +241,8 @@ selectors, bounded univariate and multivariate `CoefficientList`, bounded
 `FoldList[Plus, initial, list]`, bounded explicit-list `Total`, bounded
 full-rank numeric `PseudoInverse`, diagonal/zero numeric `SingularValueList`,
 numeric `Max`/`Min`, and bounded requested-precision `N`; multiline
-Wolfram dot products, and scalar `Joined -> True/False` overrides for native
+Wolfram dot products, and scalar and per-dataset `Joined -> True/False`
+overrides for native
 `ListPlot`/`ListLinePlot`
 are preserved by both the native parser and the SymPy translator. Unsupported
 selector shapes remain opaque rather than losing a binding. The remaining
