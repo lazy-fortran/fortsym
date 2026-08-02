@@ -22,7 +22,8 @@ module fortsym_engine_symengine
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
-        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
+        NK_BIG_REAL
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect, DIA_SYMENGINE
     use fortsym_parse, only: parse_expr_in
@@ -33,9 +34,11 @@ module fortsym_engine_symengine
     implicit none
     private
 
-    public :: symengine_engine_t, make_symengine_engine
+    public :: symengine_engine_t, make_symengine_engine, symengine_evalf_text
 
     integer, parameter :: dp = real64
+    integer, parameter :: MAX_EVALF_DIGITS = 512
+    integer, parameter :: MAX_EVALF_NODES = 8192
 
     type, extends(engine_t) :: symengine_engine_t
         !> The arena results are parsed back into. Set at construction so a
@@ -88,6 +91,9 @@ contains
 
         case (NK_BIG_INT, NK_BIG_RAT)
             rc = basic_parse(h, cstr(chars(a%exact_text_of(id))))
+
+        case (NK_BIG_REAL)
+            rc = basic_parse(h, cstr(chars(a%real_text_of(id))))
 
         case (NK_REAL)
             rc = real_double_set_d(h, a%real_of(id))
@@ -270,6 +276,118 @@ contains
             text(k:k) = buf(k)
         end do
     end function render
+
+    !> Evaluate a closed expression at a bounded decimal precision through
+    !> SymEngine's MPFR path and return its decimal spelling. The caller keeps
+    !> the spelling as a precision-bearing arena leaf; converting it to real64
+    !> here would defeat the requested-precision contract.
+    function symengine_evalf_text(e, digits, ok, why) result(text)
+        type(expr_t),              intent(in)  :: e
+        integer,                   intent(in)  :: digits
+        logical,                   intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        character(:), allocatable              :: text
+        type(c_ptr) :: h, out
+        integer(c_long) :: bits
+        integer(c_int) :: rc
+        logical :: good
+
+        text = ""
+        ok = .false.
+        why = ""
+        if (digits < 1 .or. digits > MAX_EVALF_DIGITS) then
+            why = "requested precision exceeds the MPFR digit bound"
+            return
+        end if
+        if (e%node_count() > MAX_EVALF_NODES) then
+            why = "requested-precision expression exceeds the evaluator node bound"
+            return
+        end if
+        if (fsym_have_mpfr() == 0_c_int) then
+            why = "SymEngine was built without MPFR requested-precision support"
+            return
+        end if
+
+        bits = int(real(digits + 8, dp)*3.321928094887362_dp, c_long)
+        h = to_symengine(e%a, e%id)
+        out = basic_new_heap()
+        rc = basic_evalf(out, h, bits, 1_c_int)
+        if (rc == SYMENGINE_NO_EXCEPTION) then
+            text = render(out)
+            good = decimal_literal(text)
+            if (good) then
+                ok = .true.
+            else
+                text = ""
+                why = "SymEngine returned a non-real or non-decimal result"
+            end if
+        else
+            why = "SymEngine MPFR evaluation failed"
+        end if
+        call basic_free_heap(out)
+        call basic_free_heap(h)
+    end function symengine_evalf_text
+
+    !> Lexical guard for the text retained as NK_BIG_REAL. In particular this
+    !> rejects symbolic, complex, NaN, and infinity results before they reach
+    !> the Wolfram printer.
+    pure function decimal_literal(text) result(ok)
+        character(*), intent(in) :: text
+        logical                   :: ok
+        integer :: n, p, digits_before, digits_after, exponent_digits
+        character :: c
+
+        ok = .false.
+        n = len_trim(text)
+        if (n == 0) return
+        p = 1
+        if (text(p:p) == "+" .or. text(p:p) == "-") then
+            p = p + 1
+            if (p > n) return
+        end if
+
+        digits_before = 0
+        do while (p <= n)
+            c = text(p:p)
+            if (c < "0" .or. c > "9") exit
+            digits_before = digits_before + 1
+            p = p + 1
+        end do
+
+        digits_after = 0
+        if (p <= n) then
+            if (text(p:p) == ".") then
+                p = p + 1
+                do while (p <= n)
+                    c = text(p:p)
+                    if (c < "0" .or. c > "9") exit
+                    digits_after = digits_after + 1
+                    p = p + 1
+                end do
+            end if
+        end if
+        if (digits_before + digits_after == 0) return
+
+        exponent_digits = 0
+        if (p <= n) then
+            if (text(p:p) == "e" .or. text(p:p) == "E") then
+                p = p + 1
+                if (p > n) return
+                if (text(p:p) == "+" .or. text(p:p) == "-") then
+                    p = p + 1
+                    if (p > n) return
+                end if
+                do while (p <= n)
+                    c = text(p:p)
+                    if (c < "0" .or. c > "9") exit
+                    exponent_digits = exponent_digits + 1
+                    p = p + 1
+                end do
+                if (exponent_digits == 0) return
+            end if
+        end if
+        ok = p > n
+    end function decimal_literal
 
     ! ------------------------------------------------------------ operations --
 

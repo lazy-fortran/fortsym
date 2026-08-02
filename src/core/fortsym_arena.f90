@@ -31,7 +31,7 @@ module fortsym_arena
 
     public :: arena_t
     public :: NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, &
-        NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
+        NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
     public :: node_kind_name
 
     integer, parameter :: dp = real64
@@ -49,6 +49,12 @@ module fortsym_arena
     integer, parameter :: NK_FUNC = 9
     integer, parameter :: NK_BIG_INT = 10
     integer, parameter :: NK_BIG_RAT = 11
+    !> A bounded decimal result from requested-precision numeric evaluation.
+    !> Unlike NK_REAL, its text is retained so printing cannot silently throw
+    !> away the digits the caller requested.
+    integer, parameter :: NK_BIG_REAL = 12
+
+    integer, parameter :: MAX_BIG_REAL_TEXT = 4096
 
     integer, parameter :: INITIAL_NODES = 256
     integer, parameter :: INITIAL_ARGS = 512
@@ -92,6 +98,7 @@ module fortsym_arena
         procedure :: rat => arena_rat
         procedure :: exact => arena_exact
         procedure :: real => arena_real
+        procedure :: real_text => arena_real_text
         procedure :: sym => arena_sym
         procedure :: const => arena_const
         procedure :: add => arena_add
@@ -103,6 +110,7 @@ module fortsym_arena
         procedure :: num_of => arena_num_of
         procedure :: den_of => arena_den_of
         procedure :: real_of => arena_real_of
+        procedure :: real_text_of => arena_real_text_of
         procedure :: name_of => arena_name_of
         procedure :: exact_text_of => arena_exact_text_of
         procedure :: nargs_of => arena_nargs_of
@@ -127,6 +135,7 @@ contains
         case (NK_FUNC);  s = str("function")
         case (NK_BIG_INT); s = str("arbitrary-precision integer")
         case (NK_BIG_RAT); s = str("arbitrary-precision rational")
+        case (NK_BIG_REAL); s = str("arbitrary-precision real")
         case default;    s = str("unknown")
         end select
     end function node_kind_name
@@ -577,6 +586,27 @@ contains
         idx = intern(self, NK_REAL, 0_int64, 1_int64, value, 0, none)
     end function arena_real
 
+    !> Bounded decimal result retaining more precision than real64. The text is
+    !> produced by the MPFR-backed evaluator, but the arena still checks the
+    !> ownership boundary so a malformed or unbounded value cannot enter the
+    !> shared expression graph.
+    function arena_real_text(self, value, ok) result(idx)
+        class(arena_t), intent(inout) :: self
+        character(*),   intent(in)    :: value
+        logical,        intent(out)   :: ok
+        integer                       :: idx
+        integer :: none(0), name_id
+
+        ok = len(value) > 0 .and. len(value) <= MAX_BIG_REAL_TEXT
+        if (ok) ok = index(value, achar(0)) == 0
+        if (.not. ok) then
+            idx = 0
+            return
+        end if
+        name_id = intern_name(self, value)
+        idx = intern(self, NK_BIG_REAL, 0_int64, 1_int64, 0.0_dp, name_id, none)
+    end function arena_real_text
+
     function arena_sym(self, name) result(idx)
         class(arena_t), intent(inout) :: self
         character(*),   intent(in)    :: name
@@ -745,7 +775,7 @@ contains
             right_bits = transfer(self%nodes(right)%rval, 0_int64)
             relation = compare_int64(left_bits, right_bits)
             return
-        case (NK_SYM, NK_CONST, NK_FUNC, NK_BIG_INT, NK_BIG_RAT)
+        case (NK_SYM, NK_CONST, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL)
             relation = compare_str(self%names(self%nodes(left)%name), &
                 self%names(self%nodes(right)%name))
             if (relation /= 0) return
@@ -777,7 +807,8 @@ contains
         case (NK_RAT);   rank = 9
         case (NK_BIG_RAT); rank = 10
         case (NK_REAL);  rank = 11
-        case default;    rank = 12
+        case (NK_BIG_REAL); rank = 12
+        case default;    rank = 13
         end select
     end function semantic_kind_rank
 
@@ -855,6 +886,18 @@ contains
         real(dp)                   :: v
         v = self%nodes(idx)%rval
     end function arena_real_of
+
+    pure function arena_real_text_of(self, idx) result(s)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: idx
+        type(str_t)                :: s
+        if (self%nodes(idx)%kind == NK_BIG_REAL .and. &
+            self%nodes(idx)%name > 0) then
+            s = self%names(self%nodes(idx)%name)
+        else
+            s = str("")
+        end if
+    end function arena_real_text_of
 
     pure function arena_name_of(self, idx) result(s)
         class(arena_t), intent(in) :: self

@@ -12,7 +12,7 @@ program test_fortsym_wl_solvenum
     !     the rule's left side the unknown that was asked for. A bare root
     !     fails here even when its value is right.
     !   * N is checked against decimal digits of pi that are a fact about pi,
-    !     not about fortsym.
+    !     not about fortsym; high precision must remain a long decimal result.
     !   * Cross is checked by perpendicularity to both of its symbolic
     !     operands, which fixes all three components up to a scale no wrong
     !     formula survives together with the unit-vector case.
@@ -20,7 +20,8 @@ program test_fortsym_wl_solvenum
     !     satisfies for a generic pair.
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: chars
-    use fortsym_arena, only: arena_t, NK_FUNC, NK_INT, NK_RAT, NK_REAL
+    use fortsym_arena, only: arena_t, NK_FUNC, NK_INT, NK_RAT, NK_REAL, &
+        NK_BIG_REAL
     use fortsym_expr, only: expr_t, sym, num, operator(-), operator(*), &
         operator(+)
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE
@@ -447,9 +448,13 @@ contains
         ! Full double precision when no digit count is asked for.
         call expect_real("N plain", "v = N[Pi]"//nl(), "v", &
                          3.141592653589793_dp, 1.0e-15_dp)
-        ! Above what real64 carries, N refuses rather than pads.
-        call expect_refusal("N thirty digits", "v = N[Pi, 30]"//nl(), "v")
-        call expect_refusal("N seventeen digits", "v = N[Pi, 17]"//nl(), "v")
+        call expect_big_real("N thirty digits", "v = N[Pi, 30]"//nl(), "v", &
+                             "3.1415926535897932384626")
+        call expect_big_real("N seventeen digits", "v = N[Pi, 17]"//nl(), "v", &
+                             "3.1415926535897932")
+        ! The explicit bound is a refusal, not an allocation proportional to an
+        ! untrusted digit count.
+        call expect_refusal("N above MPFR bound", "v = N[Pi, 600]"//nl(), "v")
         ! Elementwise over a list.
         call expect_list_real("N over a list", "v = N[{Pi, 2*Pi}, 5]"//nl(), &
                               "v", [3.1416_dp, 6.2832_dp], 1.0e-12_dp)
@@ -476,6 +481,29 @@ contains
         if (abs(value%real_value() - expected) > tol) &
             call fail(label, "value disagrees with the independent decimal")
     end subroutine expect_real
+
+    subroutine expect_big_real(label, script, name, prefix)
+        character(*), intent(in) :: label, script, name, prefix
+        type(arena_t), target :: a
+        type(expr_t) :: value
+        logical :: ok
+        character(:), allocatable :: message, text
+
+        call a%init()
+        call run_one(a, script, name, value, ok, message)
+        if (.not. ok) then
+            call fail(label, "refused: "//message)
+            return
+        end if
+        if (value%kind() /= NK_BIG_REAL) then
+            call fail(label, "result discarded requested precision")
+            return
+        end if
+        text = chars(value%real_text())
+        if (index(text, prefix) /= 1 .or. len(text) <= 16) then
+            call fail(label, "decimal result does not retain the independent pi digits")
+        end if
+    end subroutine expect_big_real
 
     subroutine expect_list_real(label, script, name, expected, tol)
         character(*), intent(in) :: label, script, name

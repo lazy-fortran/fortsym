@@ -26,7 +26,7 @@ module fortsym_expr
     private
 
     public :: expr_t
-    public :: sym, num, rat, exact, real_expr, const, func, func_in
+    public :: sym, num, rat, exact, real_expr, real_text_expr, const, func, func_in
     public :: pi_expr, e_expr, i_expr
     public :: is_valid, same_arena
     public :: operator(+), operator(-), operator(*), operator(/), &
@@ -50,6 +50,7 @@ module fortsym_expr
         procedure :: int_value => expr_int_value
         procedure :: den_value => expr_den_value
         procedure :: real_value => expr_real_value
+        procedure :: real_text => expr_real_text
         procedure :: exact_text => expr_exact_text
         procedure :: node_count => expr_node_count
     end type expr_t
@@ -185,6 +186,16 @@ contains
         e%id = a%real(value)
     end function real_expr
 
+    function real_text_expr(a, value, ok) result(e)
+        type(arena_t), target, intent(inout) :: a
+        character(*), intent(in)    :: value
+        logical,      intent(out)   :: ok
+        type(expr_t)                         :: e
+        e%a => a
+        e%id = a%real_text(value, ok)
+        if (.not. ok) nullify(e%a)
+    end function real_text_expr
+
     function const(a, name) result(e)
         type(arena_t), target, intent(inout) :: a
         character(*), intent(in)    :: name
@@ -305,6 +316,12 @@ contains
         real(dp)                  :: v
         v = self%a%real_of(self%id)
     end function expr_real_value
+
+    function expr_real_text(self) result(s)
+        class(expr_t), intent(in) :: self
+        type(str_t)               :: s
+        s = self%a%real_text_of(self%id)
+    end function expr_real_text
 
     function expr_exact_text(self) result(s)
         class(expr_t), intent(in) :: self
