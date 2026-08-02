@@ -114,8 +114,9 @@ the declared native subset and the available oracle overlap agree.
 
 The current native collection slice includes bounded `Array`, `ConstantArray`,
 and `Outer` expansion, bounded exact `Range`, `DiagonalMatrix`, rectangular
-`Diagonal`, bounded `LegendreP`, and bounded exact `CharacteristicPolynomial`
-for explicit square matrices up to dimension 16, exact
+`Diagonal`, bounded `LegendreP`, bounded exact `CharacteristicPolynomial`
+for explicit square matrices up to dimension 16, and bounded non-negative
+`MatrixPower`, exact
 `RowReduce`, `NullSpace`, `MatrixRank`, bounded exact `LinearSolve` and
 `Minors`, structural `Length`, recursive `Flatten`, dynamic exact dimensions,
 and opaque preservation for unsupported
@@ -136,6 +137,9 @@ The characteristic-polynomial slice passes independent determinant tests and
 the two-file corpus probe, but does not change the aggregate tally: one source
 reassigns its `cp` binding later to plotting `Point` values, while the mapped
 form in the other source remains outside the translated assignment subset.
+The MatrixPower slice passes independent multiplication and identity tests;
+the measured corpus rows still have no scored increase because their exposed
+uses are inside unsupported `MatrixForm`/negative-power paths.
 It does not close the remaining
 parity gap. The highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and

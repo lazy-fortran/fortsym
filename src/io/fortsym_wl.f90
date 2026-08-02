@@ -79,6 +79,7 @@ module fortsym_wl
     integer, parameter :: MAX_LINEAR_SOLVE = 32
     integer, parameter :: MAX_LEGENDRE_DEGREE = 64
     integer, parameter :: MAX_CHARACTERISTIC_DIMENSION = 16
+    integer, parameter :: MAX_MATRIX_POWER = 32
     integer, parameter :: dp = real64
 
     !> One top-level assignment produced by a script.
@@ -1458,6 +1459,10 @@ contains
 
         case ("CharacteristicPolynomial")
             r = lower_characteristic_polynomial(s, r, ok, message)
+            if (.not. ok) return
+
+        case ("MatrixPower")
+            r = lower_matrix_power(s, r, ok, message)
             if (.not. ok) return
 
         case ("Integrate")
@@ -3170,6 +3175,88 @@ contains
         end if
         r = expanded%value
     end function lower_characteristic_polynomial
+
+    !> MatrixPower[m, n] for an explicit square matrix and bounded
+    !> non-negative integer exponent. Exponentiation by squaring keeps the
+    !> number of symbolic matrix products logarithmic in the exponent.
+    function lower_matrix_power(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                       :: r, base, result, identity, exponent_expr
+        type(expr_t), allocatable          :: matrix(:, :)
+        type(str_t)                        :: why
+        character(:), allocatable          :: identity_why
+        integer                            :: exponent, remaining, n, columns
+
+        r = e
+        ok = .true.
+        message = str("")
+        if (e%nargs() /= 2) then
+            call refuse(ok, message, "MatrixPower takes a matrix and an exponent")
+            return
+        end if
+        if (.not. is_matrix(e%arg(1))) return
+        exponent_expr = e%arg(2)
+        if (.not. exact_small_int(e%arg(2), exponent)) then
+            if (exponent_expr%kind() == NK_INT) then
+                if (exponent_expr%int_value() < 0_int64) then
+                    call refuse(ok, message, &
+                        "MatrixPower here requires a non-negative exponent")
+                else
+                    call refuse(ok, message, &
+                        "MatrixPower exceeds the built-in exponent bound")
+                end if
+            end if
+            return
+        end if
+        if (exponent < 0) then
+            call refuse(ok, message, &
+                "MatrixPower here requires a non-negative exponent")
+            return
+        end if
+        if (exponent > MAX_MATRIX_POWER) then
+            call refuse(ok, message, "MatrixPower exceeds the built-in exponent bound")
+            return
+        end if
+
+        call to_matrix(e%arg(1), matrix, ok)
+        if (.not. ok) return
+        n = size(matrix, 1)
+        columns = size(matrix, 2)
+        if (n /= columns) then
+            call refuse(ok, message, "MatrixPower needs a square matrix")
+            return
+        end if
+
+        identity = wl_identity_matrix(s%a, n, ok, identity_why)
+        if (.not. ok) then
+            call refuse(ok, message, "MatrixPower: "//identity_why)
+            return
+        end if
+        result = identity
+        base = e%arg(1)
+        remaining = exponent
+        do while (remaining > 0)
+            if (mod(remaining, 2) == 1) then
+                result = matrix_dot(s%a, result, base, ok, why)
+                if (.not. ok) then
+                    call refuse(ok, message, "MatrixPower: "//chars(why))
+                    return
+                end if
+            end if
+            remaining = remaining/2
+            if (remaining > 0) then
+                base = matrix_dot(s%a, base, base, ok, why)
+                if (.not. ok) then
+                    call refuse(ok, message, "MatrixPower: "//chars(why))
+                    return
+                end if
+            end if
+        end do
+        r = result
+    end function lower_matrix_power
 
     !> A zero-argument application of the given name, such as Infinity.
     function is_named(e, name) result(yes)
