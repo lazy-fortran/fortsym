@@ -13,7 +13,8 @@ program test_fortsym_plotfamily
     use fortsym_expr, only: expr_t
     use fortsym_parse, only: parse_expr_in
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
-    use fortsym_plot, only: plot_spec_t, curve_t, sample_curve, &
+    use fortsym_plot, only: plot_spec_t, curve_t, CURVE_LINE, CURVE_POINTS, &
+        sample_curve, &
         sample_parametric_curve, render_surface, set_grid_samples
     use fortsym_wl, only: wl_session_t, wl_session_begin, wl_run_source, &
         wl_binding_count, wl_binding_at, wl_binding_t
@@ -26,6 +27,7 @@ program test_fortsym_plotfamily
     call test_parametric_points_lie_on_the_curve()
     call test_log_axis_drops_non_positive_samples()
     call test_partly_undefined_field_refuses()
+    call test_listplot_joined_option()
     call test_show_keeps_every_curve()
     call test_graphics_primitives_refuse()
     call test_show_of_a_stranger_refuses()
@@ -103,7 +105,7 @@ contains
         spec%upper = 6.0_dp
         spec%samples = 64
         ok = sample_parametric_curve(expr_of(a, "Cos[t]"), &
-                                     expr_of(a, "Sin[t]"), spec, c, why)
+            expr_of(a, "Sin[t]"), spec, c, why)
         if (.not. ok) then
             call fail("the unit circle should be plottable: "//chars(why))
             return
@@ -167,11 +169,11 @@ contains
         sy%upper = 1.0_dp
         call set_grid_samples(sx, sy)
         ok = render_surface(expr_of(a, "Sqrt[x]"), sx, sy, &
-                            "fortsym-test-should-not-exist.png", why)
+            "fortsym-test-should-not-exist.png", why)
         if (ok) call fail("a half-undefined field was drawn anyway")
 
         ok = render_surface(expr_of(a, "x*y"), sx, sy, &
-                            "fortsym-test-control.png", why)
+            "fortsym-test-control.png", why)
         if (.not. ok) then
             call fail("a defined field was refused: "//chars(why))
             return
@@ -185,6 +187,37 @@ contains
         close (unit, status="delete")
     end subroutine test_partly_undefined_field_refuses
 
+    !> Wolfram's Joined option changes ListPlot from points to a polyline.
+    !> Inspecting the retained curve style is an independent semantic oracle:
+    !> it does not depend on PNG bytes or on the implementation's option path.
+    subroutine test_listplot_joined_option()
+        type(arena_t), target :: a
+        type(wl_session_t) :: s
+
+        call a%init()
+        call wl_session_begin(s, a)
+        call wl_run_source(s, &
+            "p = ListPlot[{{0, 0}, {1, 1}}, Joined -> True]")
+        if (s%plot_count /= 1) then
+            call fail("ListPlot Joined test made no plot")
+            return
+        end if
+        if (s%plots(1)%data%curves(1)%style /= CURVE_LINE) then
+            call fail("ListPlot Joined -> True did not make a line")
+        end if
+
+        call wl_session_begin(s, a)
+        call wl_run_source(s, &
+            "p = ListPlot[{{0, 0}, {1, 1}}, Joined -> False]")
+        if (s%plot_count /= 1) then
+            call fail("ListPlot Joined -> False made no plot")
+            return
+        end if
+        if (s%plots(1)%data%curves(1)%style /= CURVE_POINTS) then
+            call fail("ListPlot Joined -> False did not make points")
+        end if
+    end subroutine test_listplot_joined_option
+
     !> Show[p1, p2] must draw both curves. Two curves cannot produce the same
     !> bytes as one, so a Show that quietly returned its first argument, or
     !> drew only one of the two, fails here.
@@ -194,7 +227,7 @@ contains
 
         call run_and_size("s = Show[Plot[Sin[x], {x, 0, 6}]]", one, n_one)
         call run_and_size("s = Show[Plot[Sin[x], {x, 0, 6}], "// &
-                          "Plot[Cos[x], {x, 0, 6}]]", two, n_two)
+            "Plot[Cos[x], {x, 0, 6}]]", two, n_two)
         if (n_one <= 0 .or. n_two <= 0) then
             call fail("Show wrote no file")
             return

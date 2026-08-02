@@ -143,7 +143,9 @@ dimensions or computed heads. The independent tests cover literal, rational,
 symbolic, canonical empty-list, and bounded-preserved forms. Requested-
 precision `N` now has a bounded native path for 17--512 decimal digits, with a
 named refusal above that limit; list `Append`/`Join`, bounded list selectors,
-rectangular `Diagonal`, bounded `LegendreP`, bounded `CharacteristicPolynomial`, and multiline dot-product continuation also have
+rectangular `Diagonal`, bounded `LegendreP`, bounded `CharacteristicPolynomial`,
+scalar `Joined -> True/False` overrides for `ListPlot`/`ListLinePlot`, and
+multiline dot-product continuation also have
 independent tests. Unsupported selector and matrix shapes remain opaque.
 Relative to the prior numeric baseline, the parser slice added seven
 agreements, removed one binding error, and exposed two newly visible bindings
