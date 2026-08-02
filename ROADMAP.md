@@ -111,6 +111,7 @@ reported state.
 | current v22 focused numeric `Boole` slice (3 scripts, one worker) | 2.91 s / 404 MiB |
 | current v23 focused numeric `Which` slice (5 scripts, one worker) | 0.71 s / 404 MiB |
 | current v24 focused bounded `TrigReduce` slice (6 scripts, one worker) | 0.72 s / 404 MiB |
+| current v25 focused symbolic 2x2 `Solve` slice (1 script, one worker) | 0.78 s / 404 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
@@ -131,7 +132,7 @@ exact
 `Minors`, `Exponent` including exact fractional monomials, computed scalar
 `Solve` rule replacement, bounded list `Thread`, bounded positive-level `Map`, bounded numeric
 `Piecewise` branch selection, numeric `Boole` and `Which` conditions, bounded
-`TrigReduce`, bounded polynomial
+`TrigReduce`, bounded symbolic 2x2 `Solve`, bounded polynomial
 gcd/quotient/remainder and rational
 numerator/denominator extraction, structural `Length`, recursive `Flatten`, dynamic exact dimensions,
 bounded block-matrix `ArrayFlatten`, and opaque preservation for unsupported
@@ -212,7 +213,10 @@ bindings; its cached timeout/unavailable outcomes were not rerun. The
 v24 bounded `TrigReduce` transition then served a six-script warm slice in
 0.72 second at 404 MiB RSS. It preserved 101 agreements, 48 differences, 3
 unavailable oracle rows, 1 timeout, and 103 oracle-missing bindings; its cached
-timeout was not rerun. The
+timeout was not rerun. The v25 bounded symbolic 2x2 `Solve` transition then
+served the exposing corpus script in 0.78 second at 404 MiB RSS. It produced
+33 agreements, 10 differences, 1 unavailable oracle row, and 1 oracle-missing
+binding, with no timeout or runner error. The
 highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
 `DSolve`/`NDSolve`.

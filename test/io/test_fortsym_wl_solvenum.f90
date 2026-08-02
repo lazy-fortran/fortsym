@@ -45,6 +45,7 @@ program test_fortsym_wl_solvenum
     call test_solve_rule_replacement()
     call test_fractional_exponent()
     call test_solve_linear_system()
+    call test_solve_symbolic_linear_system()
     call test_linear_solve()
     call test_solve_refuses_what_it_cannot_verify()
     call test_n_precision()
@@ -244,7 +245,7 @@ contains
             probe = subs(resid, v, roots(k))
             if (.not. proves_zero(a, probe)) then
                 call fail(label, "root "//chars(print_expr(roots(k)))// &
-                          " does not satisfy the equation")
+                    " does not satisfy the equation")
             end if
         end do
     end subroutine check_roots
@@ -252,24 +253,24 @@ contains
     subroutine test_solve_roots_verify()
         ! Two distinct rational roots.
         call check_roots("quadratic", "q = Solve[x^2 - 5*x + 6 == 0, x]"//nl(), &
-                         "q", "x^2 - 5*x + 6", "x", 2)
+            "q", "x^2 - 5*x + 6", "x", 2)
         ! lhs == rhs rather than == 0: the residual is formed, not assumed.
         call check_roots("moved rhs", "q = Solve[x^2 == 9, x]"//nl(), &
-                         "q", "x^2 - 9", "x", 2)
+            "q", "x^2 - 9", "x", 2)
         ! A repeated root is listed with its multiplicity, as Wolfram does.
         call check_roots("double root", "q = Solve[x^2 - 4*x + 4 == 0, x]"//nl(), &
-                         "q", "x^2 - 4*x + 4", "x", 2)
+            "q", "x^2 - 4*x + 4", "x", 2)
         ! Quartic with two real and two imaginary roots, and no variable named:
         ! the single free symbol is inferred.
         call check_roots("quartic", "q = Solve[x^4 - 1 == 0]"//nl(), &
-                         "q", "x^4 - 1", "x", 4)
+            "q", "x^4 - 1", "x", 4)
         ! Irrational roots: exact surds, still verified by substitution.
         call check_roots("surd", "q = Solve[x^2 - 2 == 0, x]"//nl(), &
-                         "q", "x^2 - 2", "x", 2)
+            "q", "x^2 - 2", "x", 2)
         ! Symbolic coefficient, handled by the scalar solver rather than the
         ! polynomial one, and it must come back in the same shape.
         call check_roots("symbolic", "q = Solve[x + c0 == 0, x]"//nl(), &
-                         "q", "x + c0", "x", 1)
+            "q", "x + c0", "x", 1)
     end subroutine test_solve_roots_verify
 
     !> A bare root is the failure mode this guards: the value would be right
@@ -330,8 +331,8 @@ contains
 
         call a%init()
         call run_one(a, "e = Exponent[(u - v)*x^(2/5), x]"//nl()// &
-                     "f = Exponent[z + (u - z)*x^(2/5), x]"//nl(), &
-                     "e", value, ok, message)
+            "f = Exponent[z + (u - z)*x^(2/5), x]"//nl(), &
+            "e", value, ok, message)
         if (.not. ok) then
             call fail("fractional Exponent", "refused: "//message)
             return
@@ -343,7 +344,7 @@ contains
             call fail("fractional Exponent", "expected exact 2/5")
         end if
         call run_one(a, "f = Exponent[z + (u - z)*x^(2/5), x]"//nl(), &
-                     "f", shifted, ok, message)
+            "f", shifted, ok, message)
         if (.not. ok .or. shifted%kind() /= NK_RAT .or. &
             shifted%int_value() /= 2 .or. shifted%den_value() /= 5) then
             call fail("shifted fractional Exponent", "expected exact 2/5")
@@ -361,7 +362,7 @@ contains
 
         call a%init()
         call run_one(a, "q = Solve[{5*x + y == 3, 4*x - 3*y == 2}, {x, y}]"//nl(), &
-                     "q", value, ok, message)
+            "q", value, ok, message)
         if (.not. ok) then
             call fail("system", "refused: "//message)
             return
@@ -406,6 +407,74 @@ contains
             call fail("system", "second equation not satisfied")
     end subroutine test_solve_linear_system
 
+    subroutine test_solve_symbolic_linear_system()
+        type(arena_t), target :: a
+        type(expr_t) :: value, inner, rule, lhs, q0_value, d2_value
+        type(expr_t) :: e1, e2, probe
+        logical :: ok
+        logical :: numeric_defined
+        character(:), allocatable :: message
+        real(dp) :: numeric_residual
+        integer :: k
+
+        call a%init()
+        call run_one(a, "q = Solve[{"// &
+            "(qsrc - q0) + kap D2 == 0, "// &
+            "gam1 (1 - q0) - gam2 D2 == 0}, {q0, D2}]"//nl(), &
+            "q", value, ok, message)
+        if (.not. ok) then
+            call fail("symbolic system", "refused: "//message)
+            return
+        end if
+        if (chars(value%name()) /= "List" .or. value%nargs() /= 1) then
+            call fail("symbolic system", "expected one solution")
+            return
+        end if
+        inner = value%arg(1)
+        if (chars(inner%name()) /= "List" .or. inner%nargs() /= 2) then
+            call fail("symbolic system", "expected two rules")
+            return
+        end if
+        q0_value = num(a, 0)
+        d2_value = num(a, 0)
+        do k = 1, 2
+            rule = inner%arg(k)
+            lhs = rule%arg(1)
+            if (chars(lhs%name()) == "q0") q0_value = rule%arg(2)
+            if (chars(lhs%name()) == "D2") d2_value = rule%arg(2)
+        end do
+
+        e1 = parse_expr_in(a, "(qsrc - q0) + kap D2", &
+            dialect(DIA_WOLFRAM), ok, message)
+        e2 = parse_expr_in(a, "gam1 (1 - q0) - gam2 D2", &
+            dialect(DIA_WOLFRAM), ok, message)
+        if (.not. ok) then
+            call fail("symbolic system", "oracle text did not parse")
+            return
+        end if
+        probe = subs(subs(e1, sym(a, "q0"), q0_value), &
+            sym(a, "D2"), d2_value)
+        probe = subs(probe, sym(a, "qsrc"), num(a, 3))
+        probe = subs(probe, sym(a, "kap"), num(a, 7))
+        probe = subs(probe, sym(a, "gam1"), num(a, 2))
+        probe = subs(probe, sym(a, "gam2"), num(a, 5))
+        call numeric_value(probe, numeric_residual, numeric_defined, message)
+        if (.not. numeric_defined .or. abs(numeric_residual) > 1.0e-10_dp) then
+            call fail("symbolic system", "first numeric instance failed")
+            return
+        end if
+        probe = subs(subs(e2, sym(a, "q0"), q0_value), &
+            sym(a, "D2"), d2_value)
+        probe = subs(probe, sym(a, "qsrc"), num(a, 3))
+        probe = subs(probe, sym(a, "kap"), num(a, 7))
+        probe = subs(probe, sym(a, "gam1"), num(a, 2))
+        probe = subs(probe, sym(a, "gam2"), num(a, 5))
+        call numeric_value(probe, numeric_residual, numeric_defined, message)
+        if (.not. numeric_defined .or. abs(numeric_residual) > 1.0e-10_dp) then
+            call fail("symbolic system", "second numeric instance failed")
+        end if
+    end subroutine test_solve_symbolic_linear_system
+
     !> LinearSolve returns the unique exact solution and preserves the shape of
     !> a matrix right-hand side. The values below follow from ordinary
     !> elimination on paper, independently of fortsym's linalg routine.
@@ -417,7 +486,7 @@ contains
 
         call a%init()
         call run_one(a, "v = LinearSolve[{{2, 1}, {1, -1}}, {5, 1}]"//nl(), &
-                     "v", value, ok, message)
+            "v", value, ok, message)
         if (.not. ok) then
             call fail("LinearSolve vector", "refused: "//message)
             return
@@ -434,7 +503,7 @@ contains
         end if
 
         call run_one(a, "m = LinearSolve[{{2, 1}, {1, -1}}, "// &
-                     "{{5, 3}, {1, 0}}]"//nl(), "m", value, ok, message)
+            "{{5, 3}, {1, 0}}]"//nl(), "m", value, ok, message)
         if (.not. ok) then
             call fail("LinearSolve matrix RHS", "refused: "//message)
             return
@@ -467,22 +536,22 @@ contains
         end if
 
         call expect_refusal("singular LinearSolve", &
-                            "v = LinearSolve[{{1, 2}, {2, 4}}, {1, 2}]"//nl(), "v")
+            "v = LinearSolve[{{1, 2}, {2, 4}}, {1, 2}]"//nl(), "v")
     end subroutine test_linear_solve
 
     !> Refusals, each naming a case where a printed answer would be a claim
     !> fortsym cannot back.
     subroutine test_solve_refuses_what_it_cannot_verify()
         call expect_refusal("transcendental", &
-                            "q = Solve[Cos[x] == 0, x]"//nl(), "q")
+            "q = Solve[Cos[x] == 0, x]"//nl(), "q")
         call expect_refusal("quintic", &
-                            "q = Solve[x^5 - x - 1 == 0, x]"//nl(), "q")
+            "q = Solve[x^5 - x - 1 == 0, x]"//nl(), "q")
         call expect_refusal("nonlinear system", &
-                            "q = Solve[{x*y == 1, x + y == 3}, {x, y}]"//nl(), "q")
+            "q = Solve[{x*y == 1, x + y == 3}, {x, y}]"//nl(), "q")
         ! Two free symbols and no variable named: which one is meant is not
         ! decidable, and picking one would answer a different question.
         call expect_refusal("ambiguous unknown", &
-                            "q = Solve[x + y == 1]"//nl(), "q")
+            "q = Solve[x + y == 1]"//nl(), "q")
     end subroutine test_solve_refuses_what_it_cannot_verify
 
     subroutine expect_refusal(label, script, name)
@@ -495,31 +564,31 @@ contains
         call a%init()
         call run_one(a, script, name, value, ok, message)
         if (ok) call fail(label, "answered "//chars(print_expr(value))// &
-                          " instead of refusing")
+            " instead of refusing")
     end subroutine expect_refusal
 
     !> The digits of pi are the oracle. 3.14159 and 3.14 are facts about pi.
     subroutine test_n_precision()
         call expect_real("N six digits", "v = N[Pi, 6]"//nl(), "v", &
-                         3.14159_dp, 1.0e-13_dp)
+            3.14159_dp, 1.0e-13_dp)
         call expect_real("N three digits", "v = N[Pi, 3]"//nl(), "v", &
-                         3.14_dp, 1.0e-13_dp)
+            3.14_dp, 1.0e-13_dp)
         ! Rounding, not truncation: to 4 digits pi is 3.142, not 3.141.
         call expect_real("N rounds", "v = N[Pi, 4]"//nl(), "v", &
-                         3.142_dp, 1.0e-13_dp)
+            3.142_dp, 1.0e-13_dp)
         ! Full double precision when no digit count is asked for.
         call expect_real("N plain", "v = N[Pi]"//nl(), "v", &
-                         3.141592653589793_dp, 1.0e-15_dp)
+            3.141592653589793_dp, 1.0e-15_dp)
         call expect_big_real("N thirty digits", "v = N[Pi, 30]"//nl(), "v", &
-                             "3.1415926535897932384626")
+            "3.1415926535897932384626")
         call expect_big_real("N seventeen digits", "v = N[Pi, 17]"//nl(), "v", &
-                             "3.1415926535897932")
+            "3.1415926535897932")
         ! The explicit bound is a refusal, not an allocation proportional to an
         ! untrusted digit count.
         call expect_refusal("N above MPFR bound", "v = N[Pi, 600]"//nl(), "v")
         ! Elementwise over a list.
         call expect_list_real("N over a list", "v = N[{Pi, 2*Pi}, 5]"//nl(), &
-                              "v", [3.1416_dp, 6.2832_dp], 1.0e-12_dp)
+            "v", [3.1416_dp, 6.2832_dp], 1.0e-12_dp)
     end subroutine test_n_precision
 
     subroutine expect_real(label, script, name, expected, tol)
@@ -621,11 +690,11 @@ contains
         ! 1e-6 is above the documented 1e-10 threshold and must survive: a
         ! Chop that zeroes everything would pass the first check alone.
         call expect_real("chop keeps", "v = Chop[N[10^(-6)]]"//nl(), "v", &
-                         1.0e-6_dp, 1.0e-18_dp)
+            1.0e-6_dp, 1.0e-18_dp)
         ! An exact rational is not a floating-point artefact and is not chopped.
         call a%init()
         call run_one(a, "v = Chop[1/1000000000000000]"//nl(), "v", value, ok, &
-                     message)
+            message)
         if (.not. ok) then
             call fail("chop exact", "refused: "//message)
         else if (value%kind() == NK_INT) then
@@ -665,7 +734,7 @@ contains
         ! Cross: perpendicular to both operands, for symbolic components.
         call a%init()
         call run_one(a, "v = Cross[{a1, a2, a3}, {b1, b2, b3}]"//nl(), "v", &
-                     value, ok, message)
+            value, ok, message)
         if (.not. ok) then
             call fail("cross", "refused: "//message)
             return
@@ -692,7 +761,7 @@ contains
         ! dot products, so one concrete case pins the orientation.
         call a%init()
         call run_one(a, "v = Cross[{1, 0, 0}, {0, 1, 0}]"//nl(), "v", value, ok, &
-                     message)
+            message)
         if (.not. ok) then
             call fail("cross orientation", "refused: "//message)
         else
@@ -704,7 +773,7 @@ contains
                 end if
                 if (k < 3 .and. item%int_value() /= 0) &
                     call fail("cross orientation", "e1 x e2 has a nonzero "// &
-                              "component off the third axis")
+                    "component off the third axis")
                 if (k == 3 .and. item%int_value() /= 1) &
                     call fail("cross orientation", "e1 x e2 is not e3")
             end do
@@ -714,13 +783,13 @@ contains
         ! diagonal, or summed the whole matrix, would not satisfy it.
         call a%init()
         call run_one(a, "v = Tr[Dot[{{1, 2}, {3, 5}}, {{7, 11}, {13, 17}}]]"//nl(), &
-                     "v", t1, ok, message)
+            "v", t1, ok, message)
         if (.not. ok) then
             call fail("trace cyclic", "refused: "//message)
             return
         end if
         call run_one(a, "v = Tr[Dot[{{7, 11}, {13, 17}}, {{1, 2}, {3, 5}}]]"//nl(), &
-                     "v", t2, ok, message)
+            "v", t2, ok, message)
         if (.not. ok) then
             call fail("trace cyclic", "refused: "//message)
             return
@@ -746,7 +815,7 @@ contains
         ! squares are computed here independently of the evaluator's expansion.
         call a%init()
         call run_one(a, "g[i_] := i^2"//nl()//"v = Array[g, 3]"//nl(), "v", &
-                     value, ok, message)
+            value, ok, message)
         if (.not. ok) then
             call fail("array", "refused: "//message)
         else if (chars(value%name()) /= "List" .or. value%nargs() /= 3) then
@@ -786,7 +855,7 @@ contains
         ! this exercises the same bound-resolution path used by a corpus script.
         call a%init()
         call run_one(a, "n = 3"//nl()// &
-                     "v = ConstantArray[0, {2*n, 2*n}]"//nl(), "v", value, ok, message)
+            "v = ConstantArray[0, {2*n, 2*n}]"//nl(), "v", value, ok, message)
         if (.not. ok) then
             call fail("dynamic constant array", "refused: "//message)
         else if (chars(value%name()) /= "List" .or. value%nargs() /= 6) then
@@ -823,7 +892,7 @@ contains
         ! the two vectors. These four products are an independent oracle.
         call a%init()
         call run_one(a, "v = Outer[Times, {1, 2}, {3, 4}]"//nl(), "v", &
-                     value, ok, message)
+            value, ok, message)
         if (.not. ok) then
             call fail("outer", "refused: "//message)
         else if (chars(value%name()) /= "List" .or. value%nargs() /= 2) then
@@ -852,7 +921,7 @@ contains
         ! lists left-to-right and preserve every non-list leaf.
         call a%init()
         call run_one(a, "v = Flatten[{{1, 2}, {3, {4}}}]"//nl(), &
-                     "v", value, ok, message)
+            "v", value, ok, message)
         if (.not. ok) then
             call fail("flatten", "refused: "//message)
         else if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
@@ -965,11 +1034,11 @@ contains
                 call fail("range rationals", "wrong first entry")
             item = value%arg(2)
             if (item%kind() /= NK_RAT .or. item%int_value() /= 3 .or. &
-                    item%den_value() /= 4) &
+                item%den_value() /= 4) &
                 call fail("range rationals", "wrong middle entry")
             item = value%arg(3)
             if (item%kind() /= NK_RAT .or. item%int_value() /= 1 .or. &
-                    item%den_value() /= 2) &
+                item%den_value() /= 2) &
                 call fail("range rationals", "wrong final entry")
         end if
 
@@ -981,13 +1050,13 @@ contains
         call a%init()
         call run_one(a, "v = Range[1, 65]"//nl(), "v", value, ok, message)
         if (.not. ok .or. value%kind() /= NK_FUNC .or. &
-                chars(value%name()) /= "Range") &
+            chars(value%name()) /= "Range") &
             call fail("range bound", "large valid range was expanded past the safety bound")
 
         call a%init()
         call run_one(a, "v = Range[0, 2*Pi, Pi/2]"//nl(), "v", value, ok, message)
         if (.not. ok .or. value%kind() /= NK_FUNC .or. &
-                chars(value%name()) /= "Range") &
+            chars(value%name()) /= "Range") &
             call fail("range exact symbolic", "exact symbolic range was approximated")
         call expect_refusal("range zero step", "v = Range[1, 3, 0]"//nl(), "v")
 
@@ -998,7 +1067,7 @@ contains
             return
         end if
         if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
-                value%nargs() /= 3) then
+            value%nargs() /= 3) then
             call fail("diagonal matrix", "wrong matrix shape")
             return
         end if
@@ -1006,7 +1075,7 @@ contains
         do i = 1, 3
             row = value%arg(i)
             if (row%kind() /= NK_FUNC .or. chars(row%name()) /= "List" .or. &
-                    row%nargs() /= 3) then
+                row%nargs() /= 3) then
                 call fail("diagonal matrix", "row has wrong shape")
                 cycle
             end if
@@ -1031,7 +1100,7 @@ contains
 
         call a%init()
         call run_one(a, "v = Diagonal[{{1, 2, 3}, {x, 5, 6}}]"//nl(), "v", &
-                     value, ok, message)
+            value, ok, message)
         if (.not. ok) then
             call fail("diagonal extract", "refused: "//message)
         else if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
@@ -1090,7 +1159,7 @@ contains
 
         call a%init()
         call run_one(a, "v = CharacteristicPolynomial[{{1, 2}, {3, 4}}, z]"//nl(), &
-                     "v", value, ok, message)
+            "v", value, ok, message)
         if (.not. ok) then
             call fail("CharacteristicPolynomial", "refused: "//message)
             return
@@ -1106,7 +1175,7 @@ contains
 
         call a%init()
         call run_one(a, "v = CharacteristicPolynomial[s, z]"//nl(), "v", &
-                     value, ok, message)
+            value, ok, message)
         if (.not. ok) then
             call fail("CharacteristicPolynomial opaque", &
                 "symbolic matrix was refused")
@@ -1129,13 +1198,13 @@ contains
 
         call a%init()
         call run_one(a, "v = CoefficientList[1 + 2*x + 3*y + 4*x*y, {x, y}]"//nl(), &
-                     "v", value, ok, message)
+            "v", value, ok, message)
         if (.not. ok) then
             call fail("CoefficientList", "refused: "//message)
             return
         end if
         if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
-                value%nargs() /= 2) then
+            value%nargs() /= 2) then
             call fail("CoefficientList", "wrong outer list shape")
             return
         end if
@@ -1172,13 +1241,13 @@ contains
 
         call a%init()
         call run_one(a, "v = FoldList[Plus, 1, {2, 3, 4}]"//nl(), "v", &
-                     value, ok, message)
+            value, ok, message)
         if (.not. ok) then
             call fail("FoldList", "refused: "//message)
             return
         end if
         if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
-                value%nargs() /= size(expected)) then
+            value%nargs() /= size(expected)) then
             call fail("FoldList", "wrong prefix-list shape")
             return
         end if
@@ -1191,7 +1260,7 @@ contains
         end do
 
         call run_one(a, "v = FoldList[Plus, 7, {}]"//nl(), "v", &
-                     empty, ok, message)
+            empty, ok, message)
         item = empty
         if (.not. ok .or. item%nargs() /= 1) then
             call fail("FoldList empty", "initial value was not retained")
@@ -1255,7 +1324,7 @@ contains
 
         call a%init()
         call run_one(a, "p = PseudoInverse[{{1, 0}, {0, 1}, {1, 1}}]"//nl(), &
-                     "p", value, ok, message)
+            "p", value, ok, message)
         if (.not. ok .or. value%kind() /= NK_FUNC .or. value%nargs() /= 2) then
             call fail("PseudoInverse", "wrong result shape or refusal: "//message)
             return
@@ -1269,8 +1338,8 @@ contains
             do j = 1, 3
                 item = row%arg(j)
                 if (item%kind() /= NK_RAT .or. &
-                        item%int_value() /= numerators(i, j) .or. &
-                        item%den_value() /= denominators(i, j)) then
+                    item%int_value() /= numerators(i, j) .or. &
+                    item%den_value() /= denominators(i, j)) then
                     call fail("PseudoInverse", "normal-equation result is wrong")
                     return
                 end if
@@ -1290,7 +1359,7 @@ contains
 
         call a%init()
         call run_one(a, "v = SingularValueList[{{0.0, 0.0}, {0.0, -3.0}}]"//nl(), &
-                     "v", value, ok, message)
+            "v", value, ok, message)
         if (.not. ok .or. value%kind() /= NK_FUNC .or. value%nargs() /= 2) then
             call fail("SingularValueList", "wrong result shape or refusal: "//message)
             return
@@ -1298,7 +1367,7 @@ contains
         do k = 1, 2
             item = value%arg(k)
             if (item%kind() /= NK_REAL .or. abs(item%real_value() - expected(k)) > &
-                    1.0e-12_dp) then
+                1.0e-12_dp) then
                 call fail("SingularValueList", "wrong sorted singular value")
                 return
             end if
@@ -1316,12 +1385,12 @@ contains
         call a%init()
         call run_one(a, "v = Max[{1.0, 3.0, 2.0}]"//nl(), "v", value, ok, message)
         if (.not. ok .or. value%kind() /= NK_REAL .or. &
-                abs(value%real_value() - 3.0_dp) > 1.0e-12_dp) then
+            abs(value%real_value() - 3.0_dp) > 1.0e-12_dp) then
             call fail("Max", "wrong numeric maximum or refusal: "//message)
         end if
         call run_one(a, "v = Min[{1.0, 3.0, 2.0}]"//nl(), "v", value, ok, message)
         if (.not. ok .or. value%kind() /= NK_REAL .or. &
-                abs(value%real_value() - 1.0_dp) > 1.0e-12_dp) then
+            abs(value%real_value() - 1.0_dp) > 1.0e-12_dp) then
             call fail("Min", "wrong numeric minimum or refusal: "//message)
         end if
     end subroutine test_extrema
@@ -1339,20 +1408,20 @@ contains
 
         call a%init()
         call run_one(a, "v = ArrayFlatten[{{{{1, 2}, {3, 4}}, {{5}, {6}}}, "// &
-                     "{{{7, 8}}, {{9}}}}]"//nl(), "v", value, ok, message)
+            "{{{7, 8}}, {{9}}}}]"//nl(), "v", value, ok, message)
         if (.not. ok) then
             call fail("ArrayFlatten", "refused: "//message)
             return
         end if
         if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
-                value%nargs() /= 3) then
+            value%nargs() /= 3) then
             call fail("ArrayFlatten", "wrong output shape")
             return
         end if
         do i = 1, 3
             row = value%arg(i)
             if (row%kind() /= NK_FUNC .or. chars(row%name()) /= "List" .or. &
-                    row%nargs() /= 3) then
+                row%nargs() /= 3) then
                 call fail("ArrayFlatten", "wrong output shape")
                 return
             end if
@@ -1378,27 +1447,27 @@ contains
 
         call a%init()
         call run_one(a, "v = MatrixPower[{{1, 2}, {3, 4}}, 2]"//nl(), "v", &
-                     value, ok, message)
+            value, ok, message)
         if (.not. ok) then
             call fail("MatrixPower", "refused: "//message)
             return
         end if
         if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
-                value%nargs() /= 2) then
+            value%nargs() /= 2) then
             call fail("MatrixPower", "wrong matrix shape")
             return
         end if
         do i = 1, 2
             row = value%arg(i)
             if (row%kind() /= NK_FUNC .or. chars(row%name()) /= "List" .or. &
-                    row%nargs() /= 2) then
+                row%nargs() /= 2) then
                 call fail("MatrixPower", "wrong row shape")
                 cycle
             end if
             do j = 1, 2
                 item = row%arg(j)
                 if (item%kind() /= NK_INT .or. &
-                        item%int_value() /= expected(i, j)) then
+                    item%int_value() /= expected(i, j)) then
                     call fail("MatrixPower", "wrong independently multiplied entry")
                 end if
             end do
@@ -1406,7 +1475,7 @@ contains
 
         call a%init()
         call run_one(a, "v = MatrixPower[{{1, 2}, {3, 4}}, 0]"//nl(), "v", &
-                     value, ok, message)
+            value, ok, message)
         if (.not. ok) then
             call fail("MatrixPower identity", "zero exponent is not the identity")
         else if (value%kind() /= NK_FUNC .or. value%nargs() /= 2) then
@@ -1444,19 +1513,19 @@ contains
 
         call a%init()
         call run_one(a, "v = Minors[{{1, 2, 3, 4}, {0, 1, 4, 2}, "// &
-                     "{2, 0, 1, 3}}, 3]"//nl(), "v", value, ok, message)
+            "{2, 0, 1, 3}}, 3]"//nl(), "v", value, ok, message)
         if (.not. ok) then
             call fail("Minors dispatch", "refused: "//message)
             return
         end if
         if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
-                value%nargs() /= 1) then
+            value%nargs() /= 1) then
             call fail("Minors dispatch", "wrong row-combination shape")
             return
         end if
         row = value%arg(1)
         if (row%kind() /= NK_FUNC .or. chars(row%name()) /= "List" .or. &
-                row%nargs() /= 4) then
+            row%nargs() /= 4) then
             call fail("Minors dispatch", "wrong column-combination shape")
             return
         end if
