@@ -101,24 +101,25 @@ reported state.
 | scripts exceeding the time budget | 1 |
 | crashes | **0** |
 | native refresh with cached SymPy and Mathics rows | about 59 s |
-| warm compact raw-output and verdict audit | about 1.3 s |
+| warm compact raw-output and verdict audit | about 1.0 s |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The final binding-level audit reports 3,120 agreements, 790 declared
-differences, 20 unsupported outcomes, 40 timeouts, 125 errors, 197 oracle
+The final binding-level audit reports 3,124 agreements, 786 declared
+differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 197 oracle
 disagreements, and 800 oracle-missing bindings. The target remains open until
 the declared native subset and the available oracle overlap agree.
 
 The current native collection slice includes bounded `Array`, `ConstantArray`,
 and `Outer` expansion, bounded exact `Range` and `DiagonalMatrix`, exact
-`RowReduce`, `NullSpace`, and `MatrixRank`, structural `Length`, recursive
-`Flatten`, dynamic exact dimensions, and opaque preservation for unsupported
+`RowReduce`, `NullSpace`, `MatrixRank`, bounded exact `LinearSolve` and
+`Minors`, structural `Length`, recursive `Flatten`, dynamic exact dimensions,
+and opaque preservation for unsupported
 dimensions or computed heads. The independent tests cover literal, rational,
 symbolic, canonical empty-list, and bounded-preserved forms. The latest change
-moved 18 prior binding results from `differ` to `agree` in the full baseline
-without regressing an earlier agreement and reduced binding errors by 10. It
+moved 22 prior binding results from `differ` to `agree` in the full baseline
+without regressing an earlier agreement and reduced binding errors by 13. It
 does not close the remaining parity gap. The highest-impact work remains the
 plotting family, `Solve` beyond scalar linear cases, definite and multiple
 `Integrate`, requested-precision `N`, polynomial heads, and `DSolve`/`NDSolve`.
@@ -152,7 +153,7 @@ claims.
 The historical full refresh includes the SymPy refresh required by the
 translator cache-version change and took 4:54. The current native refresh with
 the oracle caches warm took about 59 seconds. Once raw results and comparison
-verdicts are cached, the same full audit takes about 1.3 seconds. These are
+verdicts are cached, the same full audit takes about 1.0 seconds. These are
 harness measurements, not a capability
 comparison: Mathics evaluates integrals fortsym refuses, and the native path
 still has one 60-second timeout.
