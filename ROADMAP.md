@@ -83,9 +83,8 @@ domain, parameters, precision, and error policy are numeric and explicit.
 
 ## Measured state
 
-Latest committed corpus-wide baseline, measured 2026-08-02, `fortsym-bench` at
-384 scripts (`--jobs 2`, 60-second script budget, after the diagonal
-singular-value slice and before the focused v18 transition):
+Latest measured corpus-wide state, measured 2026-08-02, `fortsym-bench` at
+384 scripts with the current native and comparison caches:
 
 This table is a committed native baseline. It is updated only after the root
 backend and benchmark harness revisions used to produce it have been committed.
@@ -94,12 +93,10 @@ reported state.
 
 | | |
 |---|---:|
-| scripts completing natively | **380 / 384 (99%)** |
-| of those with non-empty result sets | 344 |
-| valid empty native result sets | 36 |
-| scripts refusing with a named construct | 2 |
-| scripts exceeding the time budget | 1 |
-| scripts ending in a runner error | 1 |
+| native cache rows with successful results | **379 / 384 (99%)** |
+| native rows refusing with a named construct | 3 |
+| native rows exceeding the time budget | 1 |
+| native rows ending in a runner error | 1 |
 | crashes | **0** |
 | full audit after the bounded native singular-value refresh | 1:14.19 |
 | peak RSS during that refresh | 3.04 GiB |
@@ -118,10 +115,11 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,337 agreements, 650 declared
-differences, 7 unsupported outcomes, 73 timeouts, 90 errors, 197 oracle
-disagreements, and 717 oracle-missing bindings. The target remains open until
-the declared native subset and the available oracle overlap agree.
+The latest cache-only binding-level audit reports 3,310 agreements, 640 declared
+differences, 8 unsupported outcomes, 73 timeouts, 81 errors, 2 unavailable
+oracle rows, 202 oracle disagreements, and 674 oracle-missing bindings. The
+target remains open until the declared native subset and the available oracle
+overlap agree.
 
 The current native collection slice includes bounded `Array`, `ConstantArray`,
 and `Outer` expansion, bounded exact `Range`, `DiagonalMatrix`, rectangular
@@ -475,17 +473,16 @@ cases), piecewise with branch emission, public trig/power rewrites, and finally
 Binding opaque applied functions and their `Derivative` nodes to
 consumer-supplied procedures, and mapping special-function heads to a Fortran
 runtime. #41 is what unblocks SIMPLE's canonical-field Hessians; #42 is what
-lets KiLCA's orphaned generated kernels be regenerated. A standalone
-`.wl`-to-`.f90` translator for the full corpus does not exist yet: the native
-runner interprets `.wl` at runtime, and current codegen consumes an existing
-`expr_t` graph. This remains a separate completion gate for the Fortran parity
-target. The first bounded implementation is now available as
-`fortsym_wl_to_f90`: it translates one scalar top-level assignment by parsing
-the Wolfram right-hand side, inferring scalar inputs, and reusing the kernel
-emitter. Its focused test compiles the emitted subroutine and checks it against
-an independently derived numeric Fortran oracle. Multi-statement streams,
-non-Fortran names, and unsupported expression forms remain intentionally
-refused.
+lets KiLCA's orphaned generated kernels be regenerated. A standalone full-
+corpus `.wl`-to-`.f90` translator does not exist yet: the native runner
+interprets `.wl` at runtime, and current codegen consumes an existing `expr_t`
+graph. This remains a separate completion gate for the Fortran parity target.
+The current bounded implementation parses sequential streams of up to 128
+scalar assignments, expands earlier assignments, infers scalar inputs, and
+reuses the kernel emitter. Its focused test compiles the emitted subroutine and
+checks it against an independently derived numeric Fortran oracle. Control
+flow, forward or reassigned names, arrays, non-Fortran names, and unsupported
+expression forms remain intentionally refused.
 
 ## Roadmap maintenance
 

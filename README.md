@@ -168,29 +168,30 @@ interprets the Wolfram source at runtime for corpus runs, while code generation
 starts from an already-built `expr_t` graph. Full executable Fortran coverage
 of all corpus scripts remains open work.
 
-The first bounded source-to-source slice is callable for one scalar
-assignment. `fortsym_wl_to_f90 input.wl output.f90` accepts `r = 2*x + Sin[x]`
-(or `:=`), infers scalar inputs from the right-hand side, and emits a
-compilable Fortran subroutine using the existing kernel emitter. It deliberately
-refuses additional statements, non-Fortran symbol names, and unsupported
-expressions; this is an incremental entry point, not full corpus translation.
+The current bounded source-to-source slice accepts a sequential stream of up to
+128 scalar assignments. `fortsym_wl_to_f90 input.wl output.f90` accepts forms
+such as `r = 2*x + Sin[x]` and `s := r + 1`, infers scalar inputs, expands only
+earlier assignments, and emits a compilable Fortran subroutine using the
+existing kernel emitter. It deliberately refuses control flow, forward or
+reassigned names, arrays, non-Fortran identifiers, and unsupported expressions;
+this is an incremental entry point, not full corpus translation.
 
 The executable is installed by `fo install`; use `fo exec fortsym_wl_to_f90`
 for the repository-managed invocation.
 
-On the 384-file corpus sweep recorded 2026-08-02, the native runner completed
-380 scripts (344 with non-empty results and 36 valid empty result sets), timed
-out on one heavy script, reported one runner error, and explicitly refused two
-unsupported constructs. It did not crash. The latest bounded
+On the 384-file corpus sweep recorded 2026-08-02, the native cache contains 379
+successful script rows, three explicit unsupported rows, one timeout, and one
+runner error; it did not crash. The latest bounded
 CharacteristicPolynomial/LegendreP/Diagonal/list-selector/Coefficient/Solve/
 FoldList/ArrayFlatten/Total/PseudoInverse/SingularValueList audit refreshed 380
 native rows in 1:14.19 with a 3.04 GiB peak RSS. After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, a fully warm audit now takes 1.24 seconds
-at 456 MiB RSS and starts no backend subprocesses. The current committed
-whole-corpus cache-only tally is 3,337 agreements, 650 declared differences,
-7 unsupported outcomes, 73 timeouts, 90 errors, 197 oracle disagreements,
-and 717 oracle-missing bindings. The v18 Solve-rule/fractional-`Exponent`
+at 456 MiB RSS and starts no backend subprocesses. The current cache-only
+whole-corpus tally is 3,310 agreements, 640 declared differences, 8
+unsupported outcomes, 73 timeouts, 81 errors, 2 unavailable oracle rows, 202
+oracle disagreements, and 674 oracle-missing bindings. The v18
+Solve-rule/fractional-`Exponent`
 transition refreshed four SymPy rows in 10.46 seconds at 399 MiB RSS. A
 current one-worker audit of the affected 11-script slice, using the rebuilt
 native runner, took 42.39 seconds at 804 MiB RSS and reported 181 agreements,
