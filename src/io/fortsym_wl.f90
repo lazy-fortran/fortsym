@@ -940,6 +940,10 @@ contains
             r = lower_thread(s, e, ok, message)
             return
         end if
+        if (head == "Total") then
+            r = lower_total(s, e, ok, message)
+            return
+        end if
         if (head == "Array") then
             r = lower_array(s, e, ok, message)
             return
@@ -2064,6 +2068,57 @@ contains
         end do
         r = make_list(s, values)
     end function lower_thread
+
+    !> Total[list] over an explicit, bounded list.
+    !>
+    !> Use the same elementwise arithmetic path as Plus and FoldList so a list
+    !> of vectors is summed componentwise and shape mismatches are refused.
+    function lower_total(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, list, item
+        logical                           :: item_ok
+        type(str_t)                       :: item_message
+        integer                           :: k
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() /= 1) then
+            call refuse(ok, message, "Total takes one list")
+            return
+        end if
+        list = wl_eval(s, apply_bindings(s, e%arg(1)), item_ok, item_message)
+        if (.not. item_ok) then
+            call refuse(ok, message, "Total: "//chars(item_message))
+            return
+        end if
+        if (list%kind() /= NK_FUNC .or. chars(list%name()) /= "List") then
+            ! Keep a symbolic Total opaque, matching the other collection
+            ! heads when their concrete dimensions are not available.
+            r = e
+            return
+        end if
+        if (list%nargs() == 0) then
+            r = num(s%a, 0_int64)
+            return
+        end if
+        r = num(s%a, 0_int64)
+        do k = 1, list%nargs()
+            item = wl_eval(s, list%arg(k), item_ok, item_message)
+            if (.not. item_ok) then
+                call refuse(ok, message, "Total: "//chars(item_message))
+                return
+            end if
+            r = elementwise_arithmetic(s, r, item, NK_ADD, ok, message)
+            if (.not. ok) then
+                call refuse(ok, message, "Total: "//chars(message))
+                return
+            end if
+        end do
+    end function lower_total
 
     recursive function contains_slot_sequence(e) result(yes)
         type(expr_t), intent(in) :: e

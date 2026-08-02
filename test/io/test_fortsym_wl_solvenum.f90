@@ -56,6 +56,7 @@ program test_fortsym_wl_solvenum
     call test_characteristic_polynomial()
     call test_multivariate_coefficient_list()
     call test_fold_list()
+    call test_total()
     call test_array_flatten()
     call test_matrix_power()
     call test_minors_dispatch()
@@ -1147,6 +1148,42 @@ contains
             end if
         end if
     end subroutine test_fold_list
+
+    !> Total is checked against independent scalar and vector sums, including
+    !> Wolfram's empty-list identity.
+    subroutine test_total()
+        type(arena_t), target :: a
+        type(expr_t) :: value, row, item
+        logical :: ok
+        character(:), allocatable :: message
+
+        call a%init()
+        call run_one(a, "v = Total[{1, 2, 3, 4}]"//nl(), "v", value, ok, message)
+        if (.not. ok .or. value%kind() /= NK_INT .or. value%int_value() /= 10) then
+            call fail("Total scalar", "wrong scalar sum or refusal: "//message)
+            return
+        end if
+
+        call run_one(a, "v = Total[{{1, 2}, {3, 4}}]"//nl(), "v", value, ok, message)
+        if (.not. ok .or. value%kind() /= NK_FUNC .or. value%nargs() /= 2) then
+            call fail("Total vector", "wrong vector sum shape or refusal: "//message)
+            return
+        end if
+        row = value
+        item = row%arg(1)
+        if (item%kind() /= NK_INT .or. item%int_value() /= 4) then
+            call fail("Total vector", "wrong first component")
+        end if
+        item = row%arg(2)
+        if (item%kind() /= NK_INT .or. item%int_value() /= 6) then
+            call fail("Total vector", "wrong second component")
+        end if
+
+        call run_one(a, "v = Total[{}]"//nl(), "v", value, ok, message)
+        if (.not. ok .or. value%kind() /= NK_INT .or. value%int_value() /= 0) then
+            call fail("Total empty", "empty-list identity is not zero")
+        end if
+    end subroutine test_total
 
     !> ArrayFlatten is checked by its block-concatenation definition, including
     !> a non-square result so swapping row and column offsets cannot pass.
