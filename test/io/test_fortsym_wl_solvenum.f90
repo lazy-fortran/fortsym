@@ -58,6 +58,8 @@ program test_fortsym_wl_solvenum
     call test_fold_list()
     call test_total()
     call test_pseudoinverse()
+    call test_singular_value_list()
+    call test_extrema()
     call test_array_flatten()
     call test_matrix_power()
     call test_minors_dispatch()
@@ -1224,6 +1226,54 @@ contains
             end do
         end do
     end subroutine test_pseudoinverse
+
+    !> A diagonal matrix has singular values equal to sorted absolute diagonal
+    !> entries; this test also fixes the zero boundary.
+    subroutine test_singular_value_list()
+        type(arena_t), target :: a
+        type(expr_t) :: value, item
+        logical :: ok
+        character(:), allocatable :: message
+        real(dp), parameter :: expected(2) = [3.0_dp, 0.0_dp]
+        integer :: k
+
+        call a%init()
+        call run_one(a, "v = SingularValueList[{{0.0, 0.0}, {0.0, -3.0}}]"//nl(), &
+                     "v", value, ok, message)
+        if (.not. ok .or. value%kind() /= NK_FUNC .or. value%nargs() /= 2) then
+            call fail("SingularValueList", "wrong result shape or refusal: "//message)
+            return
+        end if
+        do k = 1, 2
+            item = value%arg(k)
+            if (item%kind() /= NK_REAL .or. abs(item%real_value() - expected(k)) > &
+                    1.0e-12_dp) then
+                call fail("SingularValueList", "wrong sorted singular value")
+                return
+            end if
+        end do
+    end subroutine test_singular_value_list
+
+    !> Numeric extrema reduce the explicit singular-value list to its operator
+    !> norm, while the opposite extremum fixes the ordering boundary.
+    subroutine test_extrema()
+        type(arena_t), target :: a
+        type(expr_t) :: value
+        logical :: ok
+        character(:), allocatable :: message
+
+        call a%init()
+        call run_one(a, "v = Max[{1.0, 3.0, 2.0}]"//nl(), "v", value, ok, message)
+        if (.not. ok .or. value%kind() /= NK_REAL .or. &
+                abs(value%real_value() - 3.0_dp) > 1.0e-12_dp) then
+            call fail("Max", "wrong numeric maximum or refusal: "//message)
+        end if
+        call run_one(a, "v = Min[{1.0, 3.0, 2.0}]"//nl(), "v", value, ok, message)
+        if (.not. ok .or. value%kind() /= NK_REAL .or. &
+                abs(value%real_value() - 1.0_dp) > 1.0e-12_dp) then
+            call fail("Min", "wrong numeric minimum or refusal: "//message)
+        end if
+    end subroutine test_extrema
 
     !> ArrayFlatten is checked by its block-concatenation definition, including
     !> a non-square result so swapping row and column offsets cannot pass.
