@@ -12,6 +12,8 @@ module fortsym_wl_solve
     !   * n equations, n variables, linear with rational coefficients ->
     !     fortsym_linalg's exact elimination, with the linearity itself proved
     !     by a zero test rather than assumed from the syntax.
+    !   * a bounded 2x2 linear system with symbolic coefficients ->
+    !     successive scalar elimination with the same reconstruction proof.
     !
     ! Everything else refuses. In particular a transcendental equation is never
     ! answered: Solve[Cos[x] == 0, x] has infinitely many roots and any finite
@@ -25,9 +27,9 @@ module fortsym_wl_solve
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_INT, NK_RAT
-    use fortsym_expr, only: expr_t, sym, num, func, func_in, is_valid, &
-        operator(+), operator(-), operator(*)
-    use fortsym_engine, only: engine_t, engine_result_t, VERDICT_TRUE
+    use fortsym_expr, only: expr_t, sym, num, func, func_in, &
+        operator(+), operator(-), operator(*), operator(/)
+    use fortsym_engine, only: engine_t, engine_result_t, VERDICT_TRUE, wall_seconds
     use fortsym_polysolve, only: solve_polynomial
     use fortsym_linalg, only: solve_exact_linear_system, &
         exact_linear_system_result_t
@@ -167,7 +169,7 @@ contains
 
     ! ------------------------------------------------------------- systems --
 
-    !> n linear equations in n unknowns with exact rational coefficients.
+    !> n linear equations in n unknowns, with a bounded symbolic 2x2 fallback.
     !>
     !> Linearity is proved, not assumed: the extracted coefficients are used to
     !> rebuild the equation and the difference must zero-test true. A quadratic
@@ -185,13 +187,14 @@ contains
         type(expr_t) :: resid, konst, coef, recon, probe
         type(engine_result_t) :: simplified, verdict
         integer :: n, i, j
-        logical :: good
+        logical :: all_exact, good
         character(8) :: tag
 
         r = eqns(1)
         ok = .false.
         why = ""
         n = size(vars)
+        all_exact = .true.
         allocate (m(n, n))
         allocate (rhs(n, 1))
 
@@ -213,10 +216,7 @@ contains
             end if
             konst = simplified%value
             if (.not. is_exact_rational(konst)) then
-                write (tag, "(i0)") i
-                why = "equation "//trim(tag)// &
-                      " has a constant term that is not an exact rational"
-                return
+                all_exact = .false.
             end if
             rhs(i, 1) = num(a, 0) - konst
 
@@ -229,10 +229,7 @@ contains
                 end if
                 coef = simplified%value
                 if (.not. is_exact_rational(coef)) then
-                    write (tag, "(i0)") i
-                    why = "equation "//trim(tag)// &
-                          " has a coefficient that is not an exact rational"
-                    return
+                    all_exact = .false.
                 end if
                 m(i, j) = coef
                 recon = recon + coef*vars(j)
@@ -246,10 +243,22 @@ contains
             if (verdict%verdict /= VERDICT_TRUE) then
                 write (tag, "(i0)") i
                 why = "equation "//trim(tag)// &
-                      " is not linear in the unknowns"
+                    " is not linear in the unknowns"
                 return
             end if
         end do
+
+        if (.not. all_exact .and. n == 2) then
+            r = solve_symbolic_two_by_two(engine, eqns, vars, ok, why)
+            if (ok) return
+            return
+        end if
+        if (.not. all_exact) then
+            write (tag, "(i0)") 1
+            why = "equation "//trim(tag)// &
+                " has symbolic coefficients outside the bounded 2x2 solver"
+            return
+        end if
 
         sol = solve_exact_linear_system(engine, m, rhs)
         if (.not. sol%ok) then
@@ -269,7 +278,7 @@ contains
             if (verdict%verdict /= VERDICT_TRUE) then
                 write (tag, "(i0)") i
                 why = "the computed solution could not be verified in "// &
-                      "equation "//trim(tag)
+                    "equation "//trim(tag)
                 return
             end if
         end do
@@ -282,6 +291,135 @@ contains
         r = func("List", [func("List", rules)])
         ok = .true.
     end function solve_linear_system
+
+    !> Solve a bounded symbolic 2x2 system by successive scalar elimination.
+    !> Each elimination proves its linear reconstruction before division. This
+    !> intentionally does not generalise to arbitrary symbolic Gaussian
+    !> elimination: a conditional pivot or a rapidly growing expression must
+    !> remain visible as a refusal.
+    function solve_symbolic_two_by_two(engine, eqns, vars, ok, why) result(r)
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: eqns(:), vars(:)
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(expr_t) :: r
+        type(expr_t) :: first, second
+        logical :: good
+
+        r = eqns(1)
+        ok = .false.
+        why = ""
+        if (size(eqns) /= 2 .or. size(vars) /= 2) then
+            why = "symbolic Solve needs a 2x2 system"
+            return
+        end if
+        call residual(eqns(1), first, good)
+        if (.not. good) then
+            why = "Solve needs every entry to be an equation lhs == rhs"
+            return
+        end if
+        call residual(eqns(2), second, good)
+        if (.not. good) then
+            why = "Solve needs every entry to be an equation lhs == rhs"
+            return
+        end if
+
+        r = solve_symbolic_order(engine, first, second, vars(1), vars(2), ok, why)
+        if (ok) return
+        r = solve_symbolic_order(engine, second, first, vars(1), vars(2), ok, why)
+    end function solve_symbolic_two_by_two
+
+    function solve_symbolic_order( &
+            engine, first, second, x, y, ok, why) result(r)
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: first, second, x, y
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(expr_t) :: r
+        type(expr_t) :: x_value, y_value, reduced, rules(2)
+        type(engine_result_t) :: x_solution, y_solution
+
+        r = first
+        ok = .false.
+        why = ""
+        x_solution = solve_symbolic_linear_equation(engine, first, x)
+        if (.not. x_solution%ok) then
+            why = "symbolic Solve first elimination: "// &
+                chars(x_solution%message)
+            return
+        end if
+        reduced = subs(second, x, x_solution%value)
+        y_solution = solve_symbolic_linear_equation(engine, reduced, y)
+        if (.not. y_solution%ok) then
+            why = "symbolic Solve second elimination: "// &
+                chars(y_solution%message)
+            return
+        end if
+        y_value = y_solution%value
+        x_value = subs(x_solution%value, y, y_value)
+
+        rules(1) = single_rule(x, x_value)
+        rules(2) = single_rule(y, y_value)
+        r = func("List", [func("List", rules)])
+        ok = .true.
+    end function solve_symbolic_order
+
+    function solve_symbolic_linear_equation(engine, equation, variable) result(r)
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: equation, variable
+        type(engine_result_t) :: r
+        type(engine_result_t) :: coefficient, constant, linearity, candidate
+        type(engine_result_t) :: coefficient_zero
+        type(expr_t) :: derivative
+        real(dp) :: started
+
+        started = wall_seconds()
+        r%value = equation
+        derivative = diff(equation, variable)
+        coefficient = engine%simplify(derivative)
+        if (.not. coefficient%ok) then
+            r = coefficient
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        linearity = zero_after_expansion( &
+            engine, diff(coefficient%value, variable))
+        if (linearity%verdict /= VERDICT_TRUE) then
+            r%message = str("symbolic equation is not linear in the variable")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        coefficient_zero = engine%zero_test(coefficient%value)
+        if (coefficient_zero%verdict == VERDICT_TRUE) then
+            r%message = str("symbolic linear coefficient is zero")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        constant = engine%simplify( &
+            subs(equation, variable, variable - variable))
+        if (.not. constant%ok) then
+            r = constant
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        linearity = zero_after_expansion( &
+            engine, equation - (constant%value + coefficient%value*variable))
+        if (linearity%verdict /= VERDICT_TRUE) then
+            r%message = str("symbolic linear reconstruction could not be verified")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        candidate = engine%simplify(-constant%value/coefficient%value)
+        if (.not. candidate%ok) then
+            r = candidate
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        r = candidate
+        r%ok = .true.
+        r%seconds = wall_seconds() - started
+    end function solve_symbolic_linear_equation
 
     ! ------------------------------------------------------------- helpers --
 
