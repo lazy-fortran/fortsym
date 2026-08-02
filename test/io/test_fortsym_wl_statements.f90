@@ -341,18 +341,26 @@ contains
     end subroutine test_matrix_span_selectors
 
     !> Curl is checked against its component definition, independently of the
-    !> evaluator: in 2D it is d_x F_y - d_y F_x, and in 3D it is the usual
-    !> right-handed three-component vector. Unsupported coordinate-system
-    !> forms must remain an explicit refusal.
+    !> evaluator: in 2D it is d_x F_y - d_y F_x, in 3D it is the usual
+    !> right-handed vector, and cylindrical components include the radial
+    !> metric factors. Unsupported coordinate-system forms remain refusals.
     subroutine test_bounded_curl()
         call expect("two-dimensional Curl", &
             "value = Curl[{x^2, x*y}, {x, y}]"//char(10), "value", "y")
         call expect("three-dimensional Curl", &
             "value = Curl[{0, x*y, 0}, {x, y, z}]"//char(10), &
             "value", "List(0, 0, y)")
-        call expect_refusal("coordinate-system Curl", &
+        call expect("cylindrical Curl hand derivation", &
+            "value = Curl[{r^2, r*z, r*theta}, "// &
+            "{r, theta, z}, ""Cylindrical""] /. "// &
+            "{r -> 2, theta -> 3, z -> 5}"//char(10), &
+            "value", "List(-1, -3, 10)")
+        call expect_refusal("unsupported coordinate-system Curl", &
             "value = Curl[{x, y}, {x, y}, ""Cartesian""]"//char(10), &
-            "Curl needs a field and an explicit coordinate list")
+            "Curl supports only the bounded Cylindrical coordinate form")
+        call expect_refusal("non-three-dimensional cylindrical Curl", &
+            "value = Curl[{x, y}, {x, y}, ""Cylindrical""]"//char(10), &
+            "Cylindrical Curl supports only explicit 3D lists")
     end subroutine test_bounded_curl
 
     !> List elements are evaluated independently. These hand-derived values
