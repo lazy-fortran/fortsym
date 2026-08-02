@@ -102,7 +102,7 @@ reported state.
 | crashes | **0** |
 | full audit after the bounded native ArrayFlatten refresh | 1:13.38 |
 | peak RSS during that refresh | 1.54 GiB |
-| warm compact raw-output and verdict audit | 1.12 s / 420 MiB |
+| warm compact raw-output and verdict audit | 1.15 s / 417 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
@@ -190,7 +190,7 @@ the SymPy oracle took 6:59.96 with two workers and a 3.86 GiB peak RSS. The
 subsequent native audit refreshed the bounded ArrayFlatten slice in 1:13.38
 with a 1.54 GiB peak RSS.
 Once raw results and comparison verdicts are cached, the same full audit takes
-1.12 seconds at 420 MiB RSS. Future compatible cache transitions retain
+1.15 seconds at 417 MiB RSS. Future compatible cache transitions retain
 unaffected older-version rows. These are
 harness measurements, not a
 capability comparison: Mathics evaluates integrals fortsym refuses, and the native path
