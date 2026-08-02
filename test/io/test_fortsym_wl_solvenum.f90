@@ -23,7 +23,7 @@ program test_fortsym_wl_solvenum
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_INT, NK_RAT, NK_REAL, &
         NK_BIG_REAL
     use fortsym_expr, only: expr_t, sym, num, real_expr, operator(-), operator(*), &
-        operator(+)
+        operator(+), operator(**)
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
@@ -54,6 +54,7 @@ program test_fortsym_wl_solvenum
     call test_range_and_diagonal_matrix()
     call test_legendre_wolfram()
     call test_characteristic_polynomial()
+    call test_multivariate_coefficient_list()
     call test_matrix_power()
     call test_minors_dispatch()
 
@@ -1058,6 +1059,49 @@ contains
                 "symbolic matrix was not preserved")
         end if
     end subroutine test_characteristic_polynomial
+
+    !> A multivariate coefficient list is checked by reconstructing the
+    !> polynomial from its nested entries. The reconstruction is independent
+    !> of the order in which the native evaluator extracts coefficients.
+    subroutine test_multivariate_coefficient_list()
+        type(arena_t), target :: a
+        type(expr_t) :: value, x, y, reconstructed, row, coefficient
+        logical :: ok
+        character(:), allocatable :: message
+        integer :: i, j
+
+        call a%init()
+        call run_one(a, "v = CoefficientList[1 + 2*x + 3*y + 4*x*y, {x, y}]"//nl(), &
+                     "v", value, ok, message)
+        if (.not. ok) then
+            call fail("CoefficientList", "refused: "//message)
+            return
+        end if
+        if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
+                value%nargs() /= 2) then
+            call fail("CoefficientList", "wrong outer list shape")
+            return
+        end if
+
+        x = sym(a, "x")
+        y = sym(a, "y")
+        reconstructed = num(a, 0)
+        do i = 1, value%nargs()
+            row = value%arg(i)
+            if (row%kind() /= NK_FUNC .or. chars(row%name()) /= "List") then
+                call fail("CoefficientList", "wrong inner list shape")
+                return
+            end if
+            do j = 1, row%nargs()
+                coefficient = row%arg(j)
+                reconstructed = reconstructed + coefficient * &
+                    x**(i - 1) * y**(j - 1)
+            end do
+        end do
+        if (.not. proves_zero(a, reconstructed - (1 + 2*x + 3*y + 4*x*y))) then
+            call fail("CoefficientList", "nested coefficients do not reconstruct")
+        end if
+    end subroutine test_multivariate_coefficient_list
 
     !> MatrixPower is checked against the independently multiplied entries of
     !> a concrete 2x2 matrix, including the exponent-zero identity boundary.

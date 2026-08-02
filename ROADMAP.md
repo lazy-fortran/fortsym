@@ -84,7 +84,7 @@ domain, parameters, precision, and error policy are numeric and explicit.
 ## Measured state
 
 Latest corpus-wide measurement, 2026-08-02, `fortsym-bench` at 384 scripts
-(`--jobs 2`, 60-second script budget, after the bounded list-selector slice):
+(`--jobs 2`, 60-second script budget, after the bounded Coefficient slice):
 
 This table is a committed native baseline. It is updated only after the root
 backend and benchmark harness revisions used to produce it have been committed.
@@ -100,16 +100,16 @@ reported state.
 | scripts exceeding the time budget | 1 |
 | scripts ending in a runner error | 1 |
 | crashes | **0** |
-| full native refresh with cached oracle rows | 82.7 s |
-| peak RSS during that refresh | 0.61 GiB |
-| warm compact raw-output and verdict audit | 1.01 s / 417 MiB |
+| full native refresh with cached oracle rows | 106.65 s |
+| peak RSS during that refresh | 0.57 GiB |
+| warm compact raw-output and verdict audit | 1.04 s / 423 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The final binding-level audit reports 3,141 agreements, 786 declared
+The final binding-level audit reports 3,149 agreements, 780 declared
 differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 199 oracle
-disagreements, and 799 oracle-missing bindings. The target remains open until
+disagreements, and 797 oracle-missing bindings. The target remains open until
 the declared native subset and the available oracle overlap agree.
 
 The current native collection slice includes bounded `Array`, `ConstantArray`,
@@ -140,6 +140,10 @@ form in the other source remains outside the translated assignment subset.
 The MatrixPower slice passes independent multiplication and identity tests;
 the measured corpus rows still have no scored increase because their exposed
 uses are inside unsupported `MatrixForm`/negative-power paths.
+The Coefficient slice added independent SymPy lowering for `Coefficient` and
+`CoefficientList`, native bounded multivariate `CoefficientList`, and eight
+agreements while removing eight differences and one oracle disagreement in the
+full cached audit.
 It does not close the remaining
 parity gap. The highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
@@ -175,9 +179,11 @@ claims.
 The historical full refresh includes the SymPy refresh required by the
 translator cache-version change and took 4:54. The latest LegendreP refresh of
 the SymPy oracle took 6:59.96 with two workers and a 3.86 GiB peak RSS. The
-subsequent native audit refreshed 380 rows with all compatible oracle rows
-cached in 82.7 seconds. Once raw results and comparison verdicts are cached,
-the same full audit takes 1.01 seconds. These are harness measurements, not a
+subsequent native audit refreshed 374 rows, reused 331 SymPy rows and 235
+Mathics rows, and refreshed 28 Coefficient-affected SymPy rows in 106.65
+seconds with a 0.57 GiB peak RSS. Once raw results and comparison verdicts are
+cached, the same full audit takes 1.04 seconds at 423 MiB RSS. These are
+harness measurements, not a
 capability comparison: Mathics evaluates integrals fortsym refuses, and the native path
 still has one 60-second timeout.
 
