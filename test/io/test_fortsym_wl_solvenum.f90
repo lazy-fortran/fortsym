@@ -42,6 +42,7 @@ program test_fortsym_wl_solvenum
     call test_solve_roots_verify()
     call test_solve_shape_is_rule_lists()
     call test_solve_linear_system()
+    call test_linear_solve()
     call test_solve_refuses_what_it_cannot_verify()
     call test_n_precision()
     call test_chop()
@@ -340,6 +341,70 @@ contains
         if (.not. proves_zero(a, probe)) &
             call fail("system", "second equation not satisfied")
     end subroutine test_solve_linear_system
+
+    !> LinearSolve returns the unique exact solution and preserves the shape of
+    !> a matrix right-hand side. The values below follow from ordinary
+    !> elimination on paper, independently of fortsym's linalg routine.
+    subroutine test_linear_solve()
+        type(arena_t), target :: a
+        type(expr_t) :: value, row, item
+        logical :: ok
+        character(:), allocatable :: message
+
+        call a%init()
+        call run_one(a, "v = LinearSolve[{{2, 1}, {1, -1}}, {5, 1}]"//nl(), &
+                     "v", value, ok, message)
+        if (.not. ok) then
+            call fail("LinearSolve vector", "refused: "//message)
+            return
+        end if
+        if (chars(value%name()) /= "List" .or. value%nargs() /= 2) then
+            call fail("LinearSolve vector", "expected {2, 1}")
+        else
+            item = value%arg(1)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 2) &
+                call fail("LinearSolve vector", "wrong first value")
+            item = value%arg(2)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 1) &
+                call fail("LinearSolve vector", "wrong second value")
+        end if
+
+        call run_one(a, "m = LinearSolve[{{2, 1}, {1, -1}}, "// &
+                     "{{5, 3}, {1, 0}}]"//nl(), "m", value, ok, message)
+        if (.not. ok) then
+            call fail("LinearSolve matrix RHS", "refused: "//message)
+            return
+        end if
+        if (chars(value%name()) /= "List" .or. value%nargs() /= 2) then
+            call fail("LinearSolve matrix RHS", "expected a 2x2 result")
+            return
+        end if
+        row = value%arg(1)
+        if (chars(row%name()) /= "List" .or. row%nargs() /= 2) then
+            call fail("LinearSolve matrix RHS", "wrong first result row")
+        else
+            item = row%arg(1)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 2) &
+                call fail("LinearSolve matrix RHS", "wrong first row value")
+            item = row%arg(2)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 1) &
+                call fail("LinearSolve matrix RHS", "wrong second row value")
+        end if
+        row = value%arg(2)
+        if (chars(row%name()) /= "List" .or. row%nargs() /= 2) then
+            call fail("LinearSolve matrix RHS", "wrong second result row")
+        else
+            item = row%arg(1)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 1) &
+                call fail("LinearSolve matrix RHS", "wrong first value in row")
+            item = row%arg(2)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 1) &
+                call fail("LinearSolve matrix RHS", "wrong second value in row")
+        end if
+
+        call expect_refusal("singular LinearSolve", &
+                            "v = LinearSolve[{{1, 2}, {2, 4}}, {1, 2}]"//nl(), "v")
+    end subroutine test_linear_solve
 
     !> Refusals, each naming a case where a printed answer would be a claim
     !> fortsym cannot back.

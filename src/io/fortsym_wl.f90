@@ -31,7 +31,9 @@ module fortsym_wl
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_matrix, only: matrix_transpose, matrix_dot, matrix_det, &
         matrix_inverse, matrix_row_reduce, matrix_null_space, matrix_rank, &
-        is_matrix, is_list
+        is_matrix, is_list, to_matrix, from_matrix
+    use fortsym_linalg, only: exact_linear_system_result_t, &
+        solve_exact_linear_system
     use fortsym_plot, only: plot_spec_t, read_plot_range, &
         plot_constant, curve_t, figure_data_t, CURVE_LINE, CURVE_POINTS, &
         sample_curve, sample_parametric_curve, render_figure, render_panels, &
@@ -68,6 +70,10 @@ module fortsym_wl
     integer, parameter :: MAX_FUNCTION_ARGS = 16
     integer, parameter :: MAX_TABLE_ITEMS = 10000
     integer, parameter :: MAX_PLOTS = 256
+    !> Exact elimination is cubic and builds every intermediate in the arena.
+    !> Keep the public LinearSolve route bounded even when a corpus script asks
+    !> for a much larger matrix.
+    integer, parameter :: MAX_LINEAR_SOLVE = 32
     integer, parameter :: dp = real64
 
     !> One top-level assignment produced by a script.
@@ -1251,6 +1257,18 @@ contains
                 call refuse(ok, message, "MatrixRank needs a rectangular matrix")
                 return
             end if
+
+        case ("LinearSolve")
+            if (r%nargs() /= 2) then
+                call refuse(ok, message, "LinearSolve needs a matrix and right-hand side")
+                return
+            end if
+            inner = wl_linear_solve(s%a, s%engine, r%arg(1), r%arg(2), ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "LinearSolve: "//why)
+                return
+            end if
+            r = inner
 
         case ("Length")
             if (r%nargs() /= 1) then
@@ -3921,6 +3939,103 @@ contains
         angle = base%arg(1)
         yes = .true.
     end function is_trig_square
+
+    !> Solve A . x == b for a bounded exact rational matrix.
+    !>
+    !> The linalg routine verifies the residual after elimination. This
+    !> adapter only handles the Wolfram list shapes and deliberately refuses
+    !> symbolic or inexact coefficients instead of returning a plausible
+    !> double-precision answer. A vector right-hand side returns a vector;
+    !> a matrix right-hand side preserves its matrix shape.
+    function wl_linear_solve(a, engine, matrix_expr, rhs_expr, ok, why) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(native_engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: matrix_expr, rhs_expr
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(expr_t) :: r
+        type(expr_t), allocatable :: matrix(:, :), rhs(:, :)
+        type(exact_linear_system_result_t) :: solution
+        logical :: shape_ok, rhs_matrix
+        integer :: n, k
+
+        r = matrix_expr
+        ok = .false.
+        why = ""
+
+        if (.not. is_matrix(matrix_expr)) then
+            why = "the coefficient argument is not a rectangular matrix"
+            return
+        end if
+        call to_matrix(matrix_expr, matrix, shape_ok)
+        if (.not. shape_ok) then
+            why = "the coefficient argument is not a rectangular matrix"
+            return
+        end if
+        n = size(matrix, 1)
+        if (n /= size(matrix, 2)) then
+            why = "the coefficient matrix is not square"
+            return
+        end if
+        if (n > MAX_LINEAR_SOLVE) then
+            why = "the coefficient matrix exceeds the built-in dimension bound"
+            return
+        end if
+
+        if (.not. is_list(rhs_expr)) then
+            why = "the right-hand side is not a list"
+            return
+        end if
+        rhs_matrix = is_matrix(rhs_expr)
+        if (rhs_matrix) then
+            call to_matrix(rhs_expr, rhs, shape_ok)
+            if (.not. shape_ok .or. size(rhs, 1) /= n) then
+                why = "the right-hand side matrix has incompatible dimensions"
+                return
+            end if
+            if (size(rhs, 2) > MAX_LINEAR_SOLVE) then
+                why = "the right-hand side exceeds the built-in column bound"
+                return
+            end if
+        else
+            if (rhs_expr%nargs() /= n) then
+                why = "the right-hand side vector has incompatible dimensions"
+                return
+            end if
+            allocate (rhs(n, 1))
+            do k = 1, n
+                if (is_list(rhs_expr%arg(k))) then
+                    why = "the right-hand side mixes vector and matrix shapes"
+                    return
+                end if
+                rhs(k, 1) = rhs_expr%arg(k)
+            end do
+        end if
+
+        solution = solve_exact_linear_system(engine, matrix, rhs)
+        if (.not. solution%ok) then
+            why = chars(solution%message)
+            return
+        end if
+        if (rhs_matrix) then
+            r = from_matrix(a, solution%values)
+        else
+            r = make_list_from_array(a, solution%values(:, 1))
+        end if
+        ok = .true.
+    end function wl_linear_solve
+
+    function make_list_from_array(a, values) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t), intent(in) :: values(:)
+        type(expr_t) :: r
+
+        if (size(values) == 0) then
+            r = func_in(a, "List")
+        else
+            r = func("List", values)
+        end if
+    end function make_list_from_array
 
     subroutine refuse(ok, message, why)
         logical,      intent(out) :: ok
