@@ -26,7 +26,7 @@ module fortsym_wl_num
     public :: wl_n, wl_chop, wl_identity_matrix, wl_cross, wl_trace, wl_length
     public :: wl_flatten, wl_append, wl_join
     public :: wl_first, wl_last, wl_rest, wl_most, wl_reverse, wl_take, wl_drop
-    public :: wl_range, wl_diagonal_matrix
+    public :: wl_range, wl_diagonal, wl_diagonal_matrix
     public :: N_MAX_DIGITS, CHOP_DEFAULT
 
     integer, parameter :: dp = real64
@@ -1039,6 +1039,44 @@ contains
         r = func("List", rows)
         ok = .true.
     end function wl_diagonal_matrix
+
+    !> Diagonal[m] as the main diagonal of a rectangular nested List.
+    !>
+    !> A non-square matrix is valid: Wolfram returns the entries through the
+    !> shorter dimension. The matrix shape is checked before indexing so a
+    !> ragged or symbolic argument is refused instead of being truncated.
+    function wl_diagonal(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t), allocatable :: entries(:)
+        type(expr_t) :: matrix, row
+        integer :: rows, cols, n, i
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() /= 1) then
+            why = "Diagonal here takes one matrix"
+            return
+        end if
+        matrix = e%arg(1)
+        if (.not. is_matrix(matrix)) then
+            why = "Diagonal needs a rectangular matrix"
+            return
+        end if
+        call matrix_shape(matrix, rows, cols)
+        n = min(rows, cols)
+        allocate (entries(n))
+        do i = 1, n
+            row = matrix%arg(i)
+            entries(i) = row%arg(i)
+        end do
+        r = func("List", entries)
+        ok = .true.
+    end function wl_diagonal
 
     subroutine build_exact_range(a, source, lo, hi, step, r, ok, why)
         type(arena_t), target,     intent(inout) :: a

@@ -44,7 +44,7 @@ module fortsym_wl
     use fortsym_wl_solve, only: wl_solve
     use fortsym_wl_num, only: wl_n, wl_chop, wl_identity_matrix, wl_cross, &
         wl_trace, wl_length, wl_flatten, wl_append, wl_join, wl_range, &
-        wl_diagonal_matrix, wl_first, wl_last, wl_rest, wl_most, wl_reverse, &
+        wl_diagonal, wl_diagonal_matrix, wl_first, wl_last, wl_rest, wl_most, wl_reverse, &
         wl_take, wl_drop, &
         CHOP_DEFAULT
     use fortsym_integrate, only: integrate
@@ -1437,6 +1437,13 @@ contains
             r = wl_diagonal_matrix(s%a, r, ok, why)
             if (.not. ok) then
                 call refuse(ok, message, "DiagonalMatrix: "//why)
+                return
+            end if
+
+        case ("Diagonal")
+            r = wl_diagonal(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Diagonal: "//why)
                 return
             end if
 
@@ -3125,7 +3132,7 @@ contains
         case ("Refine", "Assuming", "Simplify2", "Element")
             yes = .true.
             ! Matrices (#30)
-        case ("Eigenvalues", "LinearSolve", "MatrixPower", "MatrixForm", &
+        case ("Diagonal", "Eigenvalues", "LinearSolve", "MatrixPower", "MatrixForm", &
                 "Minors", "RowReduce", "NullSpace", "MatrixRank")
             yes = .true.
             ! Solving beyond the scalar linear case (#36)
