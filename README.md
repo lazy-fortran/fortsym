@@ -163,6 +163,10 @@ The benchmark keeps the original `.wl` file as the shared source for Mathics
 and the native backend. Python companions are generated separately for the
 SymPy oracle; their inventory and persistent oracle cache live in
 `fortsym-bench`.
+There is not yet a standalone `.wl`-to-`.f90` corpus translator: native Fortran
+currently interprets the Wolfram source at runtime, while code generation
+starts from an already-built `expr_t` graph. Full executable Fortran coverage
+of all corpus scripts remains open work.
 
 On the 384-file corpus sweep recorded 2026-08-02, the native runner completed
 380 scripts (344 with non-empty results and 36 valid empty result sets), timed
