@@ -479,7 +479,13 @@ lets KiLCA's orphaned generated kernels be regenerated. A standalone
 `.wl`-to-`.f90` translator for the full corpus does not exist yet: the native
 runner interprets `.wl` at runtime, and current codegen consumes an existing
 `expr_t` graph. This remains a separate completion gate for the Fortran parity
-target.
+target. The first bounded implementation is now available as
+`fortsym_wl_to_f90`: it translates one scalar top-level assignment by parsing
+the Wolfram right-hand side, inferring scalar inputs, and reusing the kernel
+emitter. Its focused test compiles the emitted subroutine and checks it against
+an independently derived numeric Fortran oracle. Multi-statement streams,
+non-Fortran names, and unsupported expression forms remain intentionally
+refused.
 
 ## Roadmap maintenance
 
