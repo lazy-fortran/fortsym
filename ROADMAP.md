@@ -107,6 +107,7 @@ reported state.
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
 | current v19 focused `Thread` slice (16 scripts, one worker) | 17.43 s / 508 MiB |
 | current v20 focused positive-level `Map` slice (6 scripts, one worker) | 1.00 s / 404 MiB |
+| current v21 focused numeric `Piecewise` slice (6 scripts, one worker) | 0.85 s / 403 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
@@ -125,7 +126,8 @@ for explicit square matrices up to dimension 16, and bounded non-negative
 exact
 `RowReduce`, `NullSpace`, `MatrixRank`, bounded exact `LinearSolve` and
 `Minors`, `Exponent` including exact fractional monomials, computed scalar
-`Solve` rule replacement, bounded list `Thread`, bounded positive-level `Map`, bounded polynomial
+`Solve` rule replacement, bounded list `Thread`, bounded positive-level `Map`, bounded numeric
+`Piecewise` branch selection, bounded polynomial
 gcd/quotient/remainder and rational
 numerator/denominator extraction, structural `Length`, recursive `Flatten`, dynamic exact dimensions,
 bounded block-matrix `ArrayFlatten`, and opaque preservation for unsupported
@@ -189,7 +191,11 @@ close the remaining parity gap. The v20 positive-level `Map` transition then
 refreshed six SymPy rows in 4.07 seconds at 403 MiB RSS. Its six-script focused
 audit took 1.00 second at 404 MiB RSS; the selected rows were dominated by
 plotting/file-I/O or Mathics failures, so the slice did not change the scored
-native tally. The
+native tally. The v21 bounded numeric `Piecewise` transition then ran the same
+six-script focused audit in 0.85 second at 403 MiB RSS. It preserved 21
+agreements, 6 differences, 3 unavailable oracle rows, 2 oracle disagreements,
+and 3 oracle-missing bindings, with no scored native tally change because the
+slice was dominated by symbolic/IO limitations outside this subset. The
 highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
 `DSolve`/`NDSolve`.

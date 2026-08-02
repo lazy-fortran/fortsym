@@ -194,13 +194,18 @@ refreshed six SymPy rows in 4.07 seconds at 403 MiB RSS. Its current six-script
 parity slice took 1.00 second at 404 MiB RSS; the nested-map bindings remain
 outside the scored intersection because the selected rows are dominated by
 plotting/file-I/O or Mathics failures. The
+v21 bounded numeric `Piecewise` transition then ran the same six-script slice
+in 0.85 second at 403 MiB RSS; it preserved 21 agreements, 6 differences, 3
+unavailable oracle rows, 2 oracle disagreements, and 3 oracle-missing
+bindings, with no scored native tally change. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,
 bounded non-negative `MatrixPower`, bounded block-matrix `ArrayFlatten`,
 `RowReduce`, `NullSpace`, `MatrixRank`,
 `LinearSolve`, `Minors`, `Length`, recursive `Flatten`, list
-`Append`/`Join`, bounded list `Thread`, bounded positive-level `Map`, and bounded list
+`Append`/`Join`, bounded list `Thread`, bounded positive-level `Map`, bounded
+numeric `Piecewise` branch selection, and bounded list
 selectors, bounded univariate and multivariate `CoefficientList`, bounded
 `FoldList[Plus, initial, list]`, bounded explicit-list `Total`, bounded
 full-rank numeric `PseudoInverse`, diagonal/zero numeric `SingularValueList`,

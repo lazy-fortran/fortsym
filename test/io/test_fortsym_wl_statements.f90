@@ -24,6 +24,7 @@ program test_fortsym_wl_statements
     call test_empty_script()
     call test_explicit_trig_simplify()
     call test_recursive_function()
+    call test_piecewise_evaluation()
     call test_pure_map_apply_replace()
     call test_list_threading()
     call test_list_selectors()
@@ -185,6 +186,17 @@ contains
             "f[n_] := If[n <= 0, 1, n*f[n - 1]]"//char(10)// &
             "value = f[4]"//char(10), "value", "24")
     end subroutine test_recursive_function
+
+    !> Piecewise branch selection is checked against direct numeric cases.
+    !> The expected values are independent of the evaluator implementation.
+    subroutine test_piecewise_evaluation()
+        call expect("first true Piecewise branch", &
+            "value = Piecewise[{{10, 1 < 2}, {20, 2 < 3}}, 0]"//char(10), &
+            "value", "10")
+        call expect("Piecewise default branch", &
+            "value = Piecewise[{{10, 1 > 2}}, 7]"//char(10), &
+            "value", "7")
+    end subroutine test_piecewise_evaluation
 
     !> Pure-function application and replacement are checked through their
     !> observable values. A parser-only implementation would accept these
