@@ -87,6 +87,8 @@ contains
         ! split, so it would not exercise this rule at all.
         call expect("trailing times", "b = 2 *"//char(10)//"  3"//char(10), &
             "b", "6")
+        call expect("trailing dot", "c = {1, 2} ."//char(10)// &
+            "  {x, y}"//char(10), "c", "x + y*2")
     end subroutine test_continuation_lines
 
     !> A continuation operator may be written at the start of the next line.
@@ -95,6 +97,8 @@ contains
             "a", "3")
         call expect("leading times", "b = 2"//char(10)//"  * 3"//char(10), &
             "b", "6")
+        call expect("leading dot", "c = {1, 2}"//char(10)// &
+            "  . {x, y}"//char(10), "c", "x + y*2")
     end subroutine test_leading_continuation_operators
 
     !> Two complete lines stay two statements. The continuation rule must not
