@@ -41,8 +41,9 @@ module fortsym_integrate
     !     denominator that is not linear or a recognised quadratic is refused
     !     rather than approached with partial fractions that would silently
     !     drop the non-elementary part.
-    !   * products of two factors that both depend on the variable. There is no
-    !     integration by parts and no substitution beyond the linear one.
+    !   * products of two non-exponential factors that both depend on the
+    !     variable. There is no integration by parts and no substitution beyond
+    !     the linear one.
     !   * a slope that is not provably nonzero. Dividing by a symbolic s is the
     !     one unsoundness the verifier cannot catch: F = f(s*v)/s differentiates
     !     back to the integrand *formally* even when s is zero, so the symbolic
@@ -57,7 +58,7 @@ module fortsym_integrate
     use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
-    use fortsym_expr, only: expr_t, sym, num, rat, func, is_valid, &
+    use fortsym_expr, only: expr_t, num, rat, is_valid, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), operator(/=), &
         sin, cos, tan, asin, atan, sinh, cosh, exp, log, sqrt
@@ -134,6 +135,7 @@ contains
         ! kind, and an unsimplified 2*(3*x**1) is a shape none of them match
         ! even though 6*x is.
         integrand = simplified(eng, e)
+        integrand = combine_exponential_product(eng, integrand, var)
 
         candidate = antiderivative(eng, integrand, var, found, reason)
         if (.not. found) then
@@ -230,18 +232,19 @@ contains
         found = .true.
     end function integrate_sum
 
-    !> Constant multiples come out of the integral. Two variable-dependent
-    !> factors do not: that needs parts or a substitution, neither of which is
-    !> implemented, so it is refused rather than approximated.
+    !> Constant multiples come out of the integral. Products of exponentials
+    !> are combined into one exponential before applying the ordinary rule;
+    !> other products of variable-dependent factors still need parts or a
+    !> substitution and are refused rather than approximated.
     recursive function integrate_product(eng, e, v, found, why) result(f)
         type(native_engine_t),     intent(inout) :: eng
         type(expr_t),              intent(in)    :: e, v
         logical,                   intent(out)   :: found
         character(:), allocatable, intent(out)   :: why
         type(expr_t)                             :: f
-        type(expr_t) :: coefficient, active, inner
+        type(expr_t) :: coefficient, active, inner, exponent
         character(:), allocatable :: reason
-        logical :: inner_ok
+        logical :: all_exponential, inner_ok
         integer :: k, n_active
 
         found = .false.
@@ -250,21 +253,23 @@ contains
 
         coefficient = num(e%a, 1)
         active = num(e%a, 1)
+        exponent = num(e%a, 0)
+        all_exponential = .true.
         n_active = 0
 
         do k = 1, e%nargs()
-            if (has_var(e%arg(k), v)) then
-                n_active = n_active + 1
-                active = e%arg(k)
-            else
-                coefficient = coefficient*e%arg(k)
-            end if
+            call collect_product_factor(e%arg(k), v, coefficient, exponent, &
+                active, n_active, all_exponential)
         end do
 
         if (n_active > 1) then
-            why = "product of "//itoa(n_active)//" factors that all depend "// &
-                  "on the variable: no rule for parts or substitution"
-            return
+            if (.not. all_exponential) then
+                why = "product of "//itoa(n_active)// &
+                    " factors that all depend on the variable: "// &
+                    "no rule for parts or substitution"
+                return
+            end if
+            active = exp(simplified(eng, exponent))
         end if
 
         inner = antiderivative(eng, active, v, inner_ok, reason)
@@ -276,6 +281,74 @@ contains
         f = coefficient*inner
         found = .true.
     end function integrate_product
+
+    recursive subroutine collect_product_factor( &
+            factor, v, coefficient, exponent, active, n_active, all_exponential)
+        type(expr_t), intent(in) :: factor, v
+        type(expr_t), intent(inout) :: coefficient, exponent, active
+        integer, intent(inout) :: n_active
+        logical, intent(inout) :: all_exponential
+        integer :: k
+
+        if (factor%kind() == NK_MUL) then
+            do k = 1, factor%nargs()
+                call collect_product_factor( &
+                    factor%arg(k), v, coefficient, exponent, active, &
+                    n_active, all_exponential)
+            end do
+            return
+        end if
+
+        if (.not. has_var(factor, v)) then
+            coefficient = coefficient*factor
+            return
+        end if
+
+        n_active = n_active + 1
+        if (factor%kind() == NK_FUNC) then
+            if (chars(factor%name()) == "exp" .or. &
+                chars(factor%name()) == "Exp") then
+                if (factor%nargs() == 1) then
+                    if (n_active == 1) then
+                        exponent = factor%arg(1)
+                        active = factor
+                    else
+                        if (factor%arg(1) == -exponent) then
+                            exponent = num(factor%a, 0)
+                        else
+                            exponent = exponent + factor%arg(1)
+                        end if
+                    end if
+                    return
+                end if
+            end if
+        end if
+        all_exponential = .false.
+        active = factor
+    end subroutine collect_product_factor
+
+    function combine_exponential_product(eng, e, v) result(r)
+        type(native_engine_t), intent(inout) :: eng
+        type(expr_t), intent(in) :: e, v
+        type(expr_t) :: r
+        type(expr_t) :: coefficient, active, exponent
+        integer :: k, n_active
+        logical :: all_exponential
+
+        r = e
+        if (e%kind() /= NK_MUL) return
+        coefficient = num(e%a, 1)
+        active = num(e%a, 1)
+        exponent = num(e%a, 0)
+        n_active = 0
+        all_exponential = .true.
+        do k = 1, e%nargs()
+            call collect_product_factor(e%arg(k), v, coefficient, exponent, &
+                active, n_active, all_exponential)
+        end do
+        if (n_active <= 1 .or. .not. all_exponential) return
+        r = coefficient*exp(simplified(eng, exponent))
+    end function combine_exponential_product
 
     !> Powers. Four separate rules meet here, and the exponent decides which.
     recursive function integrate_power(eng, e, v, found, why) result(f)
@@ -318,7 +391,7 @@ contains
             call number_of(base, base_value, numeric_base)
             if (.not. numeric_base) then
                 why = "exponential with a symbolic base: log(base) may be "// &
-                      "zero or undefined"
+                    "zero or undefined"
                 return
             end if
             if (base_value <= 0.0_dp .or. base_value == 1.0_dp) then
@@ -344,7 +417,7 @@ contains
         quadratic_base = .false.
         if (minus_one .or. minus_half) then
             f = integrate_quadratic(eng, base, minus_one, v, found, &
-                                    quadratic_base, why)
+                quadratic_base, why)
             if (found) return
         end if
 
@@ -354,14 +427,14 @@ contains
             ! branch that is missing, which the generic message does not.
             if (.not. quadratic_base) then
                 why = "power of a base that is neither linear nor a "// &
-                      "quadratic this module recognises"
+                    "quadratic this module recognises"
             end if
             return
         end if
 
         if (.not. numeric_expo) then
             why = "symbolic exponent: the antiderivative of u**n has one "// &
-                  "shape for n = -1 and another otherwise"
+                "shape for n = -1 and another otherwise"
             return
         end if
 
@@ -389,7 +462,7 @@ contains
     !> degenerate double root -- is refused, because doing the logarithmic case
     !> properly is the rational-function algorithm this module does not have.
     function integrate_quadratic(eng, q, reciprocal, v, found, recognised, &
-                                 why) result(f)
+            why) result(f)
         type(native_engine_t),     intent(inout) :: eng
         type(expr_t),              intent(in)    :: q, v
         logical,                   intent(in)    :: reciprocal
@@ -417,12 +490,12 @@ contains
         call number_of(c0, v0, n0)
         if (.not. (n2 .and. n1)) then
             why = "quadratic with symbolic coefficients: the sign of the "// &
-                  "discriminant decides the branch and is unknown"
+                "discriminant decides the branch and is unknown"
             return
         end if
         if (.not. n0) then
             why = "quadratic with symbolic coefficients: the sign of the "// &
-                  "discriminant decides the branch and is unknown"
+                "discriminant decides the branch and is unknown"
             return
         end if
         if (v2 == 0.0_dp) then
@@ -438,8 +511,8 @@ contains
             ! valid when D < 0, where the denominator has no real zero.
             if (disc >= 0.0_dp) then
                 why = "1/quadratic with a non-negative discriminant is a "// &
-                      "partial-fraction logarithm, which needs the rational "// &
-                      "algorithm this module does not implement"
+                    "partial-fraction logarithm, which needs the rational "// &
+                    "algorithm this module does not implement"
                 return
             end if
             root = sqrt(-(c1*c1 - 4*c2*c0))
@@ -453,7 +526,7 @@ contains
         !   -asin((2*c2*v + c1)/sqrt(D))/sqrt(-c2).
         if (v2 >= 0.0_dp .or. disc <= 0.0_dp) then
             why = "1/sqrt(quadratic) outside the arcsine case (needs a "// &
-                  "negative leading coefficient and a positive discriminant)"
+                "negative leading coefficient and a positive discriminant)"
             return
         end if
         root = sqrt(c1*c1 - 4*c2*c0)
@@ -492,15 +565,15 @@ contains
         call linear_in(eng, u, v, slope, offset, linear)
         if (.not. linear) then
             why = name//" of an argument that is not linear in the "// &
-                  "variable, with a provably nonzero slope"
+                "variable, with a provably nonzero slope"
             return
         end if
 
         select case (name)
         case ("sin");  primitive = -cos(u)
         case ("cos");  primitive = sin(u)
-        ! -log|cos u|, written with the square so that it stays real where
-        ! cos u < 0 and tan u is perfectly regular.
+            ! -log|cos u|, written with the square so that it stays real where
+            ! cos u < 0 and tan u is perfectly regular.
         case ("tan");  primitive = -log(cos(u)*cos(u))*rat(e%a, 1_int64, 2_int64)
         case ("exp");  primitive = exp(u)
         case ("sinh"); primitive = cosh(u)
@@ -556,8 +629,8 @@ contains
             ! otherwise let it.
             if (verdict%verdict == VERDICT_FALSE) then
                 why = "the derivative of the candidate does not reproduce "// &
-                      "the integrand (the symbolic zero test proved the "// &
-                      "residual is nonzero)"
+                    "the integrand (the symbolic zero test proved the "// &
+                    "residual is nonzero)"
                 return
             end if
         end if
@@ -565,7 +638,7 @@ contains
         call sample_check(derivative, integrand, v, good, why)
         if (.not. good) then
             why = "the derivative of the candidate does not reproduce the "// &
-                  "integrand ("//why//")"
+                "integrand ("//why//")"
         end if
     end subroutine verify
 
@@ -622,7 +695,7 @@ contains
 
         if (usable < MIN_USABLE_SAMPLES) then
             why = "the symbolic zero test was inconclusive and too few "// &
-                  "sample points are defined to decide numerically"
+                "sample points are defined to decide numerically"
             return
         end if
 

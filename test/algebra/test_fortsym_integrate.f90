@@ -18,13 +18,13 @@ program test_fortsym_integrate
     ! no implemented rule must come back as refusals with a reason, never as a
     ! plausible expression.
     use, intrinsic :: iso_fortran_env, only: real64, int64
-    use fortsym_string, only: str_t, str, chars
+    use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_FUNC, NK_RAT
     use fortsym_expr, only: expr_t, sym, num, rat, func, &
-                            operator(+), operator(-), operator(*), &
-                            operator(/), operator(**), &
-                            sin, cos, exp, log, sqrt, sinh, cosh, tan
-    use fortsym_eval, only: binding_t, eval_expr, free_symbols_of
+        operator(+), operator(-), operator(*), &
+        operator(/), operator(**), &
+        sin, cos, exp, log, sqrt, sinh, cosh, tan
+    use fortsym_eval, only: binding_t, eval_expr
     use fortsym_integrate, only: integrate
     implicit none
 
@@ -172,8 +172,8 @@ contains
         call check_against_quadrature("int x**(-3) dx", x**(-3), 0.5_dp, 1.5_dp)
         call check_against_quadrature("int sqrt(x) dx", sqrt(x), 0.2_dp, 1.4_dp)
         call check_against_quadrature("int x**(1/2) dx", &
-                                      x**rat(arena, 1_int64, 2_int64), &
-                                      0.2_dp, 1.4_dp)
+            x**rat(arena, 1_int64, 2_int64), &
+            0.2_dp, 1.4_dp)
     end subroutine test_power_rule
 
     !> The one exponent the power rule cannot take: n = -1 must produce a
@@ -181,16 +181,18 @@ contains
     subroutine test_reciprocal_is_log()
         call check_against_quadrature("int 1/x dx", 1/x, 0.4_dp, 1.6_dp)
         call check_against_quadrature("int 1/(2*x+3) dx", 1/(2*x + 3), &
-                                      0.1_dp, 1.1_dp)
+            0.1_dp, 1.1_dp)
     end subroutine test_reciprocal_is_log
 
     subroutine test_linearity()
         call check_against_quadrature("int (3*x**2 - 5*x + 7) dx", &
-                                      3*x**2 - 5*x + 7, 0.2_dp, 1.2_dp)
+            3*x**2 - 5*x + 7, 0.2_dp, 1.2_dp)
         call check_against_quadrature("int (sin(x) + 1/x) dx", &
-                                      sin(x) + 1/x, 0.4_dp, 1.4_dp)
+            sin(x) + 1/x, 0.4_dp, 1.4_dp)
         call check_against_quadrature("int 4*exp(x) dx", 4*exp(x), &
-                                      0.0_dp, 1.0_dp)
+            0.0_dp, 1.0_dp)
+        call check_against_quadrature("int exp(x)*exp(-x) dx", &
+            exp(x)*exp(-x), 0.0_dp, 1.0_dp)
     end subroutine test_linearity
 
     subroutine test_elementary_functions()
@@ -207,29 +209,29 @@ contains
     !> either way.
     subroutine test_linear_substitution()
         call check_against_quadrature("int sin(3*x+1) dx", sin(3*x + 1), &
-                                      0.1_dp, 1.1_dp)
+            0.1_dp, 1.1_dp)
         call check_against_quadrature("int exp(-2*x) dx", exp(-2*x), &
-                                      0.0_dp, 1.0_dp)
+            0.0_dp, 1.0_dp)
         call check_against_quadrature("int cos(x/2) dx", &
-                                      cos(x*rat(arena, 1_int64, 2_int64)), &
-                                      0.2_dp, 1.4_dp)
+            cos(x*rat(arena, 1_int64, 2_int64)), &
+            0.2_dp, 1.4_dp)
         call check_against_quadrature("int (2*x+1)**4 dx", (2*x + 1)**4, &
-                                      0.0_dp, 1.0_dp)
+            0.0_dp, 1.0_dp)
         call check_against_quadrature("int sqrt(4*x+1) dx", sqrt(4*x + 1), &
-                                      0.0_dp, 1.0_dp)
+            0.0_dp, 1.0_dp)
         call check_against_quadrature("int 2**x dx", num(arena, 2)**x, &
-                                      0.0_dp, 1.0_dp)
+            0.0_dp, 1.0_dp)
     end subroutine test_linear_substitution
 
     subroutine test_atan_and_asin()
         call check_against_quadrature("int 1/(1+x**2) dx", 1/(1 + x**2), &
-                                      0.0_dp, 1.3_dp)
+            0.0_dp, 1.3_dp)
         call check_against_quadrature("int 1/(x**2+2*x+5) dx", &
-                                      1/(x**2 + 2*x + 5), 0.0_dp, 1.5_dp)
+            1/(x**2 + 2*x + 5), 0.0_dp, 1.5_dp)
         call check_against_quadrature("int 1/sqrt(1-x**2) dx", &
-                                      1/sqrt(1 - x**2), 0.0_dp, 0.8_dp)
+            1/sqrt(1 - x**2), 0.0_dp, 0.8_dp)
         call check_against_quadrature("int 1/sqrt(4-x**2) dx", &
-                                      1/sqrt(4 - x**2), 0.0_dp, 1.5_dp)
+            1/sqrt(4 - x**2), 0.0_dp, 1.5_dp)
     end subroutine test_atan_and_asin
 
     !> A symbol other than the integration variable is a constant. y is bound
@@ -238,7 +240,7 @@ contains
     subroutine test_symbolic_constant_factor()
         call check_against_quadrature("int y*x**2 dx", y*x**2, 0.2_dp, 1.2_dp)
         call check_against_quadrature("int y*sin(x) dx", y*sin(x), &
-                                      0.2_dp, 1.2_dp)
+            0.2_dp, 1.2_dp)
     end subroutine test_symbolic_constant_factor
 
     !> Regression: an antiderivative containing a logarithm must be real on
@@ -247,11 +249,11 @@ contains
     !> integrand is the oracle; it never looks at the returned expression.
     subroutine test_negative_log_arguments()
         call check_against_quadrature("int 1/(x-2) dx on [0,1]", 1/(x - 2), &
-                                      0.0_dp, 1.0_dp)
+            0.0_dp, 1.0_dp)
         call check_against_quadrature("int 1/x dx on [-2,-1]", 1/x, &
-                                      -2.0_dp, -1.0_dp)
+            -2.0_dp, -1.0_dp)
         call check_against_quadrature("int tan(x) dx on [2,3]", tan(x), &
-                                      2.0_dp, 3.0_dp)
+            2.0_dp, 3.0_dp)
     end subroutine test_negative_log_arguments
 
     !> An exponent one part in 10**17 away from -1 rounds to -1.0 in real64,
@@ -275,9 +277,9 @@ contains
         ! antiderivative is a power with exponent n+1 = -1/10**17, and only
         ! n = -1 exactly gives a logarithm.
         call ok("int x**(-1-1e-17) dx is not a logarithm", &
-                .not. has_head(f, "log"))
+            .not. has_head(f, "log"))
         call ok("int x**(-1-1e-17) dx carries exponent -1/10**17", &
-                has_exact_rat(f, -1_int64, 100000000000000000_int64))
+            has_exact_rat(f, -1_int64, 100000000000000000_int64))
     end subroutine test_exponent_near_minus_one
 
     !> Does any node of `e` apply the named function?

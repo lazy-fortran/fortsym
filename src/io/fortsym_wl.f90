@@ -1597,7 +1597,7 @@ contains
             return
         end if
 
-        inner = e%arg(1)
+        inner = apply_bindings(s, e%arg(1))
         do k = e%nargs(), 2, -1
             spec = e%arg(k)
 
