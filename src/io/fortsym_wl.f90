@@ -85,6 +85,7 @@ module fortsym_wl
     integer, parameter :: MAX_MATRIX_POWER = 32
     integer, parameter :: MAX_FILE_NAME_COMPONENTS = 32
     integer, parameter :: MAX_FILE_NAME_LENGTH = 4096
+    integer, parameter :: MAX_RULE_PATTERNS = 32
     integer, parameter :: dp = real64
 
     !> One top-level assignment produced by a script.
@@ -2414,6 +2415,7 @@ contains
         logical,             intent(out)  :: ok
         type(str_t),         intent(out)  :: message
         type(expr_t) :: rhs
+        logical :: has_pattern
 
         output = input
         ok = .false.
@@ -2426,11 +2428,162 @@ contains
             call refuse(ok, message, "replacement needs Rule or RuleDelayed")
             return
         end if
-        rhs = wl_eval(s, apply_bindings(s, rule%arg(2)), ok, message)
-        if (.not. ok) return
-        output = subs(input, rule%arg(1), rhs)
+        has_pattern = contains_pattern(rule%arg(1))
+        if (has_pattern) then
+            output = replace_pattern(s, input, rule%arg(1), rule%arg(2), ok, message)
+            if (.not. ok) return
+        else
+            rhs = wl_eval(s, apply_bindings(s, rule%arg(2)), ok, message)
+            if (.not. ok) return
+            output = subs(input, rule%arg(1), rhs)
+        end if
         ok = .true.
     end subroutine apply_one_rule
+
+    !> Replace named blank patterns such as `rr_` in a RuleDelayed. This is the
+    !> small pattern subset needed by source-faithful corpus identities: a blank
+    !> matches one whole expression, repeated names must match the same one, and
+    !> the instantiated right-hand side is evaluated only after binding it.
+    recursive function replace_pattern(s, input, pattern, rhs, ok, message) result(output)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: input, pattern, rhs
+        logical,             intent(out)   :: ok
+        type(str_t),         intent(out)   :: message
+        type(expr_t)                      :: output, replacement
+        type(expr_t)                      :: child
+        type(expr_t)                      :: pattern_vars(MAX_RULE_PATTERNS)
+        type(expr_t)                      :: pattern_values(MAX_RULE_PATTERNS)
+        type(expr_t), allocatable         :: args(:)
+        logical                           :: matched, child_ok, child_changed
+        integer                           :: nvars, k
+
+        ok = .true.
+        message = str("")
+        output = input
+        nvars = 0
+        matched = match_pattern(pattern, input, pattern_vars, pattern_values, nvars)
+        if (matched) then
+            replacement = rhs
+            do k = 1, nvars
+                replacement = subs(replacement, pattern_vars(k), pattern_values(k))
+            end do
+            replacement = wl_eval(s, apply_bindings(s, replacement), ok, message)
+            if (.not. ok) return
+            output = replacement
+            return
+        end if
+
+        select case (input%kind())
+        case (NK_ADD, NK_MUL, NK_POW, NK_FUNC)
+            if (input%nargs() == 0) return
+            allocate (args(input%nargs()))
+            child_changed = .false.
+            do k = 1, input%nargs()
+                child = input%arg(k)
+                args(k) = replace_pattern(s, child, pattern, rhs, child_ok, message)
+                if (.not. child_ok) then
+                    ok = .false.
+                    return
+                end if
+                child_changed = child_changed .or. (args(k)%id /= child%id)
+            end do
+            if (.not. child_changed) return
+            select case (input%kind())
+            case (NK_ADD)
+                output = args(1)
+                do k = 2, size(args)
+                    output = output + args(k)
+                end do
+            case (NK_MUL)
+                output = args(1)
+                do k = 2, size(args)
+                    output = output*args(k)
+                end do
+            case (NK_POW)
+                output = args(1)**args(2)
+            case (NK_FUNC)
+                output = func(chars(input%name()), args)
+            end select
+        end select
+    end function replace_pattern
+
+    recursive function match_pattern(pattern, value, names, values, nvars) result(matched)
+        type(expr_t), intent(in)    :: pattern, value
+        type(expr_t), intent(inout) :: names(:), values(:)
+        integer,      intent(inout) :: nvars
+        logical                     :: matched
+        character(:), allocatable   :: name
+        integer                     :: saved, k, n
+
+        matched = .false.
+        if (is_blank_pattern(pattern)) then
+            name = chars(pattern%name())
+            n = len(name) - 1
+            do k = 1, nvars
+                if (chars(names(k)%name()) /= name(1:n)) cycle
+                matched = value%id == values(k)%id
+                return
+            end do
+            if (nvars >= size(names)) return
+            nvars = nvars + 1
+            names(nvars) = sym(pattern%a, name(1:n))
+            values(nvars) = value
+            matched = .true.
+            return
+        end if
+
+        if (pattern%kind() /= value%kind()) return
+        if (pattern%kind() == NK_FUNC) then
+            if (chars(pattern%name()) /= chars(value%name())) return
+        end if
+        if (pattern%nargs() /= value%nargs()) return
+        if (pattern%nargs() == 0) then
+            matched = pattern%id == value%id
+            return
+        end if
+
+        saved = nvars
+        matched = .true.
+        do k = 1, pattern%nargs()
+            if (.not. match_pattern(pattern%arg(k), value%arg(k), names, values, &
+                    nvars)) then
+                nvars = saved
+                matched = .false.
+                return
+            end if
+        end do
+    end function match_pattern
+
+    recursive function contains_pattern(e) result(found)
+        type(expr_t), intent(in) :: e
+        logical                  :: found
+        integer                  :: k
+
+        found = is_blank_pattern(e)
+        if (found) return
+        do k = 1, e%nargs()
+            if (contains_pattern(e%arg(k))) then
+                found = .true.
+                return
+            end if
+        end do
+    end function contains_pattern
+
+    function is_blank_pattern(e) result(found)
+        type(expr_t), intent(in) :: e
+        logical                  :: found
+        character(:), allocatable :: name
+        integer                   :: n
+
+        found = .false.
+        if (e%kind() /= NK_SYM) return
+        name = chars(e%name())
+        n = len(name)
+        if (n < 2) return
+        if (name(n:n) /= "_") return
+        if (name(n - 1:n - 1) == "_") return
+        found = .true.
+    end function is_blank_pattern
 
     recursive function lower_compound(s, e, ok, message) result(r)
         type(wl_session_t), intent(inout) :: s
