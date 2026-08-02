@@ -172,7 +172,7 @@ workers, refreshed 380 native rows, and
 reused all compatible SymPy and Mathics rows; it took 82.7 seconds with a
 0.61 GiB peak RSS. A fully warm audit now takes 1.01 seconds at 417 MiB RSS
 and starts no
-backend subprocesses. The current binding-level tally is 3,139 agreements,
+backend subprocesses. The current binding-level tally is 3,141 agreements,
 786 declared differences, 20 unsupported outcomes, 38 timeouts,
 122 errors, 199 oracle disagreements, and 799 oracle-missing bindings. The
 native collection slice also evaluates bounded exact `Range`,
