@@ -1427,6 +1427,14 @@ contains
             inner = r%arg(1)
             do k = 2, r%nargs()
                 if (.not. dottable(inner) .or. .not. dottable(r%arg(k))) then
+                    if (.not. scalar_matrix_dottable(inner, r%arg(k))) return
+                end if
+                if (scalar_matrix_dottable(inner, r%arg(k))) then
+                    inner = matrix_dot(s%a, inner, r%arg(k), ok, message)
+                    if (.not. ok) return
+                    cycle
+                end if
+                if (.not. dottable(inner) .or. .not. dottable(r%arg(k))) then
                     ! One operand is symbolic, so the product cannot be formed
                     ! and the whole application stays as written.
                     return
@@ -5402,6 +5410,14 @@ contains
         logical                  :: yes
         yes = is_list(e)
     end function dottable
+
+    function scalar_matrix_dottable(x, y) result(yes)
+        type(expr_t), intent(in) :: x, y
+        logical                  :: yes
+
+        yes = (is_matrix(x) .and. .not. is_list(y)) .or. &
+              (is_matrix(y) .and. .not. is_list(x))
+    end function scalar_matrix_dottable
 
     !> Substitute a scoping construct's local initialisers into its body.
     !>

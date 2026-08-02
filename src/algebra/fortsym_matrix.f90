@@ -169,6 +169,34 @@ contains
         xm = is_matrix(x)
         ym = is_matrix(y)
 
+        if (xm .and. .not. is_list(y)) then
+            call to_matrix(x, mx, ok)
+            if (.not. ok) return
+            allocate (p(size(mx, 1), size(mx, 2)))
+            do i = 1, size(mx, 1)
+                do j = 1, size(mx, 2)
+                    p(i, j) = mx(i, j)*y
+                end do
+            end do
+            r = from_matrix(a, p)
+            ok = .true.
+            return
+        end if
+
+        if (ym .and. .not. is_list(x)) then
+            call to_matrix(y, my, ok)
+            if (.not. ok) return
+            allocate (p(size(my, 1), size(my, 2)))
+            do i = 1, size(my, 1)
+                do j = 1, size(my, 2)
+                    p(i, j) = x*my(i, j)
+                end do
+            end do
+            r = from_matrix(a, p)
+            ok = .true.
+            return
+        end if
+
         if (xm .and. ym) then
             call to_matrix(x, mx, ok)
             if (.not. ok) return
