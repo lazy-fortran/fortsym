@@ -55,6 +55,7 @@ program test_fortsym_wl_solvenum
     call test_legendre_wolfram()
     call test_characteristic_polynomial()
     call test_multivariate_coefficient_list()
+    call test_fold_list()
     call test_matrix_power()
     call test_minors_dispatch()
 
@@ -1102,6 +1103,49 @@ contains
             call fail("CoefficientList", "nested coefficients do not reconstruct")
         end if
     end subroutine test_multivariate_coefficient_list
+
+    !> FoldList[Plus, ...] is checked against its defining prefix-sum
+    !> recurrence, including the initial value and the empty-list boundary.
+    subroutine test_fold_list()
+        type(arena_t), target :: a
+        type(expr_t) :: value, empty, item
+        logical :: ok
+        character(:), allocatable :: message
+        integer, parameter :: expected(4) = [1, 3, 6, 10]
+        integer :: k
+
+        call a%init()
+        call run_one(a, "v = FoldList[Plus, 1, {2, 3, 4}]"//nl(), "v", &
+                     value, ok, message)
+        if (.not. ok) then
+            call fail("FoldList", "refused: "//message)
+            return
+        end if
+        if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
+                value%nargs() /= size(expected)) then
+            call fail("FoldList", "wrong prefix-list shape")
+            return
+        end if
+        do k = 1, size(expected)
+            item = value%arg(k)
+            if (item%kind() /= NK_INT .or. item%int_value() /= expected(k)) then
+                call fail("FoldList", "prefix recurrence is wrong")
+                return
+            end if
+        end do
+
+        call run_one(a, "v = FoldList[Plus, 7, {}]"//nl(), "v", &
+                     empty, ok, message)
+        item = empty
+        if (.not. ok .or. item%nargs() /= 1) then
+            call fail("FoldList empty", "initial value was not retained")
+        else
+            item = item%arg(1)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 7) then
+                call fail("FoldList empty", "initial value was not retained")
+            end if
+        end if
+    end subroutine test_fold_list
 
     !> MatrixPower is checked against the independently multiplied entries of
     !> a concrete 2x2 matrix, including the exponent-zero identity boundary.

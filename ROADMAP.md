@@ -84,7 +84,7 @@ domain, parameters, precision, and error policy are numeric and explicit.
 ## Measured state
 
 Latest corpus-wide measurement, 2026-08-02, `fortsym-bench` at 384 scripts
-(`--jobs 2`, 60-second script budget, after the bounded Coefficient slice):
+(`--jobs 2`, 60-second script budget, after the bounded FoldList slice):
 
 This table is a committed native baseline. It is updated only after the root
 backend and benchmark harness revisions used to produce it have been committed.
@@ -100,14 +100,14 @@ reported state.
 | scripts exceeding the time budget | 1 |
 | scripts ending in a runner error | 1 |
 | crashes | **0** |
-| full audit with cached native and Mathics rows | 6:03.95 |
-| peak RSS during that refresh | 4.21 GiB |
-| warm compact raw-output and verdict audit | 1.13 s / 422 MiB |
+| full audit after the bounded native FoldList refresh | 1:13.07 |
+| peak RSS during that refresh | 3.03 GiB |
+| warm compact raw-output and verdict audit | 1.14 s / 416 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The final binding-level audit reports 3,150 agreements, 780 declared
+The final binding-level audit reports 3,152 agreements, 779 declared
 differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 198 oracle
 disagreements, and 797 oracle-missing bindings. The target remains open until
 the declared native subset and the available oracle overlap agree.
@@ -144,9 +144,12 @@ The Coefficient slice added independent SymPy lowering for `Coefficient` and
 `CoefficientList`, native bounded multivariate `CoefficientList`, and eight
 agreements while removing eight differences and one oracle disagreement. The
 following Solve slice normalizes single-variable roots to Wolfram rule lists,
-adds one agreement, and removes one oracle disagreement. Its first source-level
-cache transition refreshed 336 SymPy companions; future transitions reuse
-unaffected rows directly across cache versions.
+adds one agreement, and removes one oracle disagreement. The bounded
+`FoldList[Plus, initial, list]` slice then removes one declared difference;
+the refreshed native collection also makes one previously hidden binding an
+agreement, for a net gain of two agreements and one fewer difference. Cache
+version 14 keeps unaffected older-version SymPy rows reusable, including the
+version-13 Solve rows, instead of forcing another broad oracle refresh.
 It does not close the remaining
 parity gap. The highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
@@ -182,10 +185,10 @@ claims.
 The historical full refresh includes the SymPy refresh required by the
 translator cache-version change and took 4:54. The latest LegendreP refresh of
 the SymPy oracle took 6:59.96 with two workers and a 3.86 GiB peak RSS. The
-subsequent native audit reused all 380 native rows and 235 Mathics rows, and
-refreshed 336 Solve-affected SymPy rows in 6:03.95 with a 4.21 GiB peak RSS.
+subsequent native audit refreshed the bounded FoldList slice in 1:13.07
+with a 3.03 GiB peak RSS.
 Once raw results and comparison verdicts are cached, the same full audit takes
-1.13 seconds at 422 MiB RSS. Future compatible cache transitions retain
+1.14 seconds at 416 MiB RSS. Future compatible cache transitions retain
 unaffected older-version rows. These are
 harness measurements, not a
 capability comparison: Mathics evaluates integrals fortsym refuses, and the native path
