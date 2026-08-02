@@ -115,15 +115,15 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,666 agreements, 505 declared
+The latest cache-only binding-level audit reports 3,672 agreements, 502 declared
 differences, 7 unsupported outcomes, 74 timeouts, 61 errors, 2 unavailable
-oracle rows, 194 oracle disagreements, and 461 oracle-missing bindings. The
-v43-v46
+oracle rows, 194 oracle disagreements, and 458 oracle-missing bindings. The
+v43-v47
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
-parity, math3y, Cartesian-primitive, math8y, and perpendicular-block recoveries,
-with 17 independent tests.
+parity, math3y, Cartesian-primitive, math8y, perpendicular-block, math10y,
+math6-1y, and cylinder-spectrum recoveries, with 23 independent tests.
 The v37
 phase-transform and flux-coordinate companion translations, followed by the
 v38 NAE/DESC and Appendix-B translations, recovered 42 agreements and 52

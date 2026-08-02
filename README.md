@@ -188,14 +188,14 @@ native rows in 1:14.19 with a 3.04 GiB peak RSS. After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, a fully warm audit now takes about 0.56
 seconds at 344 MiB RSS and starts no backend subprocesses. The current
-cache-only whole-corpus tally is 3,666 agreements, 505 declared differences, 7
+cache-only whole-corpus tally is 3,672 agreements, 502 declared differences, 7
 unsupported outcomes, 74 timeouts, 61 errors, 2 unavailable oracle rows, 194
-oracle disagreements, and 461 oracle-missing bindings. The v43-v46 batches add
+oracle disagreements, and 458 oracle-missing bindings. The v43-v47 batches add
 source-faithful ECNL equation strings, numeric validity estimates,
 Maxwell/flux-pumping companions, math10y and Suydam recoveries, large-step LTE
 reconstruction, Sympl3 field forms, normal-stability numeric parity, math3y,
-and Cartesian-primitive, math8y, and perpendicular-block recoveries, with 17
-independent tests. The v18
+and Cartesian-primitive, math8y, perpendicular-block, math10y, math6-1y, and
+cylinder-spectrum recoveries, with 23 independent tests. The v18
 Solve-rule/fractional-`Exponent`
 transition refreshed four SymPy rows in 10.46 seconds at 399 MiB RSS. A
 current one-worker audit of the affected 11-script slice, using the rebuilt
@@ -281,8 +281,8 @@ magnetic norm and its dependent geometry bindings, adding seven agreements
 with an independent test. The v41 cylinder-spectrum companion recovers the
 source-faithful force-balance and pressure-slope bindings with an independent
 test. The v42 Bacc/Rosa/Posch companion recovers the source magnetic-field
-integral and removes one oracle disagreement. The v43-v46 batches raise the
-score to 3,666 agreements and 505 differences, with 461 oracle-missing bindings;
+integral and removes one oracle disagreement. The v43-v47 batches raise the
+score to 3,672 agreements and 502 differences, with 458 oracle-missing bindings;
 the successful
 Mathics inventory remains 255 rows, with 60 errors and 69 bounded timeouts.
 
