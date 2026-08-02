@@ -953,11 +953,6 @@ contains
             return
         end if
 
-        ! FoldList is not implemented. Preserve its argument tree instead of
-        ! evaluating a newly supported child such as Drop and turning an
-        ! otherwise opaque corpus binding into a different partial result.
-        if (head == "FoldList") return
-
         ! Evaluate arguments first. Wolfram evaluates innermost-out, and
         ! dispatching only on the outer head leaves Simplify[D[f, x]] holding an
         ! unevaluated D -- which then prints as though the derivative had been
@@ -1347,6 +1342,10 @@ contains
                 call refuse(ok, message, "Drop: "//why)
                 return
             end if
+
+        case ("FoldList")
+            r = lower_fold_list(s, r, ok, message)
+            if (.not. ok) return
 
         case ("Flatten")
             if (r%nargs() /= 1) then
@@ -3069,6 +3068,54 @@ contains
         end if
         r = out
     end function lower_polynomial
+
+    !> The bounded corpus form FoldList[Plus, init, {a, b, ...}]. Evaluate the
+    !> list argument before accumulating it, so selectors such as Drop retain
+    !> their ordinary Wolfram semantics. Other folding heads remain refused.
+    function lower_fold_list(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, accumulator, operation, list
+        type(expr_t), allocatable        :: values(:)
+        integer                           :: k
+
+        ok = .false.
+        message = str("")
+        r = e
+        if (e%nargs() /= 3) then
+            call refuse(ok, message, "FoldList takes an operation, initial value, and list")
+            return
+        end if
+        operation = e%arg(1)
+        if (operation%kind() /= NK_SYM) then
+            call refuse(ok, message, "FoldList needs the bounded Plus operation")
+            return
+        end if
+        if (chars(operation%name()) /= "Plus") then
+            call refuse(ok, message, "FoldList supports Plus only")
+            return
+        end if
+        list = e%arg(3)
+        if (list%kind() /= NK_FUNC .or. chars(list%name()) /= "List") then
+            call refuse(ok, message, "FoldList needs an explicit list")
+            return
+        end if
+        if (list%nargs() > MAX_TABLE_ITEMS) then
+            call refuse(ok, message, "FoldList list exceeds its expansion bound")
+            return
+        end if
+        allocate (values(list%nargs() + 1))
+        accumulator = e%arg(2)
+        values(1) = accumulator
+        do k = 1, list%nargs()
+            accumulator = accumulator + list%arg(k)
+            values(k + 1) = accumulator
+        end do
+        r = func("List", values)
+        ok = .true.
+    end function lower_fold_list
 
     !> CoefficientList[e, {x, y, ...}] nests the one-variable coefficient
     !> lists in the requested variable order. Each inner coefficient is still
