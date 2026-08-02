@@ -31,6 +31,7 @@ program test_fortsym_wl_statements
     call test_derivative_rule_pattern()
     call test_list_threading()
     call test_scalar_matrix_dot()
+    call test_matrix_power_identity()
     call test_list_selectors()
     call test_bounded_file_name_join()
     call test_matrix_span_selectors()
@@ -318,6 +319,17 @@ contains
             "value = 5 . {{2, 0}, {0, 3}}"//char(10), "value", &
             "List(List(10, 0), List(0, 15))")
     end subroutine test_scalar_matrix_dot
+
+    !> The Gram matrix in the generalized-subspace corpus is the identity:
+    !> sqrt(3)^2/4 + 1/4 = 1. Therefore I^(-1/2) = I, and multiplying the
+    !> identity by the hand-derived cross matrix changes nothing.
+    subroutine test_matrix_power_identity()
+        call expect("fractional identity MatrixPower", &
+            "gram = {{1, 0}, {0, Sqrt[3]^2/4 + 1/4}}"//char(10)// &
+            "normalized = MatrixPower[gram, -1/2] . "// &
+            "{{1, 0}, {0, 1/2}}"//char(10), &
+            "normalized", "List(List(1, 0), List(0, 1/2))")
+    end subroutine test_matrix_power_identity
 
     !> Selectors are checked against the hand-calculated item order, including
     !> negative counts and one-based inclusive ranges.

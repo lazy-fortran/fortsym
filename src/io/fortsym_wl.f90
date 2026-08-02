@@ -28,7 +28,7 @@ module fortsym_wl
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
     use fortsym_eval, only: free_symbols_of
-    use fortsym_engine, only: engine_result_t, wall_seconds
+    use fortsym_engine, only: engine_result_t, wall_seconds, VERDICT_TRUE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_matrix, only: matrix_transpose, matrix_dot, matrix_det, &
         matrix_inverse, matrix_row_reduce, matrix_null_space, matrix_rank, &
@@ -4560,6 +4560,15 @@ contains
         end if
         if (.not. is_matrix(e%arg(1))) return
         exponent_expr = e%arg(2)
+        call to_matrix(e%arg(1), matrix, ok)
+        if (.not. ok) return
+        if (is_identity_matrix(s, matrix)) then
+            if (exponent_expr%kind() == NK_INT .or. &
+                    exponent_expr%kind() == NK_RAT) then
+                r = e%arg(1)
+                return
+            end if
+        end if
         if (.not. exact_small_int(e%arg(2), exponent)) then
             if (exponent_expr%kind() == NK_INT) then
                 if (exponent_expr%int_value() < 0_int64) then
@@ -4582,8 +4591,6 @@ contains
             return
         end if
 
-        call to_matrix(e%arg(1), matrix, ok)
-        if (.not. ok) return
         n = size(matrix, 1)
         columns = size(matrix, 2)
         if (n /= columns) then
@@ -4618,6 +4625,33 @@ contains
         end do
         r = result
     end function lower_matrix_power
+
+    !> Prove an explicit matrix is the identity before applying a fractional
+    !> MatrixPower. An unknown zero test is not enough: only a defended identity
+    !> may inherit every exact integer or rational power.
+    function is_identity_matrix(s, matrix) result(yes)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),        intent(in)    :: matrix(:, :)
+        logical                            :: yes
+        type(engine_result_t)              :: verdict
+        integer                            :: i, j, n, columns
+
+        yes = .false.
+        n = size(matrix, 1)
+        columns = size(matrix, 2)
+        if (n /= columns) return
+        do i = 1, n
+            do j = 1, columns
+                if (i == j) then
+                    verdict = s%engine%zero_test(matrix(i, j) - num(s%a, 1))
+                else
+                    verdict = s%engine%zero_test(matrix(i, j))
+                end if
+                if (verdict%verdict /= VERDICT_TRUE) return
+            end do
+        end do
+        yes = .true.
+    end function is_identity_matrix
 
     !> ArrayFlatten[{{block11, block12, ...}, {block21, ...}, ...}] for a
     !> bounded rectangular block matrix. Every block row must have one common
