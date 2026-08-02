@@ -49,6 +49,7 @@ program test_fortsym_wl_solvenum
     call test_linear_solve()
     call test_solve_refuses_what_it_cannot_verify()
     call test_n_precision()
+    call test_implicit_scientific_power()
     call test_chop()
     call test_identity_cross_trace()
     call test_array_collections()
@@ -590,6 +591,17 @@ contains
         call expect_list_real("N over a list", "v = N[{Pi, 2*Pi}, 5]"//nl(), &
             "v", [3.1416_dp, 6.2832_dp], 1.0e-12_dp)
     end subroutine test_n_precision
+
+    !> An implicit scientific literal must not absorb the next factor into its
+    !> negative exponent.  The exact source algebra reduces to
+    !> (165/100*15)/(241/100) = 2475/241 before the 2/3 power; the decimal
+    !> prefix below is an independent high-precision oracle for that value.
+    subroutine test_implicit_scientific_power()
+        call expect_big_real("implicit scientific power", &
+            "eta0 = 241/100 10^-9"//nl()// &
+            "v = N[(165/100 10^-9 15/eta0)^(2/3), 20]"//nl(), "v", &
+            "4.7246768213475920150")
+    end subroutine test_implicit_scientific_power
 
     subroutine expect_real(label, script, name, expected, tol)
         character(*), intent(in) :: label, script, name
