@@ -166,15 +166,16 @@ SymPy oracle; their inventory and persistent oracle cache live in
 On the 384-file corpus sweep recorded 2026-08-02, the native runner completed
 380 scripts (344 with non-empty results and 36 valid empty result sets), timed
 out on one heavy script, reported one runner error, and explicitly refused two
-unsupported constructs. It did not crash. The latest bounded Diagonal/list-
-selector audit used two workers, refreshed 380 native rows, and reused all
-compatible SymPy and Mathics rows; it took 83.0 seconds with a 0.79 GiB peak
-RSS. A fully warm audit now takes 1.05 seconds at 421 MiB RSS and starts no
+unsupported constructs. It did not crash. The latest bounded LegendreP/
+Diagonal/list-selector audit used two workers, refreshed 380 native rows, and
+reused all compatible SymPy and Mathics rows; it took 82.7 seconds with a
+0.61 GiB peak RSS. A fully warm audit now takes 1.01 seconds at 417 MiB RSS
+and starts no
 backend subprocesses. The current binding-level tally is 3,139 agreements,
-788 declared differences, 20 unsupported outcomes, 38 timeouts,
+786 declared differences, 20 unsupported outcomes, 38 timeouts,
 122 errors, 199 oracle disagreements, and 799 oracle-missing bindings. The
 native collection slice also evaluates bounded exact `Range`,
-`DiagonalMatrix`, rectangular `Diagonal`, `RowReduce`, `NullSpace`,
+`DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, `RowReduce`, `NullSpace`,
 `MatrixRank`, `LinearSolve`, `Minors`, `Length`, recursive `Flatten`, list
 `Append`/`Join` and bounded list
 selectors, and bounded requested-precision `N`; multiline Wolfram dot products
