@@ -193,6 +193,9 @@ contains
         call expect("pure function Map", &
             "values = Map[#^2 &, {1, 2, 3}]"//char(10), &
             "values", "List(1, 4, 9)")
+        call expect("level-two pure function Map", &
+            "values = Map[#^2 &, {{1, 2}, {3, 4}}, {2}]"//char(10), &
+            "values", "List(List(1, 4), List(9, 16))")
         call expect("Apply Plus", &
             "value = Apply[Plus, {1, 2, 3}]"//char(10), &
             "value", "6")

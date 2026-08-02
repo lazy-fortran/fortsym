@@ -106,6 +106,7 @@ reported state.
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
 | current v19 focused `Thread` slice (16 scripts, one worker) | 17.43 s / 508 MiB |
+| current v20 focused positive-level `Map` slice (6 scripts, one worker) | 1.00 s / 404 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
@@ -124,7 +125,7 @@ for explicit square matrices up to dimension 16, and bounded non-negative
 exact
 `RowReduce`, `NullSpace`, `MatrixRank`, bounded exact `LinearSolve` and
 `Minors`, `Exponent` including exact fractional monomials, computed scalar
-`Solve` rule replacement, bounded list `Thread`, bounded polynomial
+`Solve` rule replacement, bounded list `Thread`, bounded positive-level `Map`, bounded polynomial
 gcd/quotient/remainder and rational
 numerator/denominator extraction, structural `Length`, recursive `Flatten`, dynamic exact dimensions,
 bounded block-matrix `ArrayFlatten`, and opaque preservation for unsupported
@@ -184,7 +185,11 @@ audit took 17.43 seconds at 508 MiB RSS, converted two native `Thread`
 bindings from differences to agreements, and reported 249 agreements, 58
 differences, 1 unavailable oracle row, 1 timeout, 5 errors, 26 oracle
 disagreements, and 58 oracle-missing bindings. These focused slices do not
-close the remaining parity gap. The
+close the remaining parity gap. The v20 positive-level `Map` transition then
+refreshed six SymPy rows in 4.07 seconds at 403 MiB RSS. Its six-script focused
+audit took 1.00 second at 404 MiB RSS; the selected rows were dominated by
+plotting/file-I/O or Mathics failures, so the slice did not change the scored
+native tally. The
 highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
 `DSolve`/`NDSolve`.
@@ -226,7 +231,8 @@ seconds; the v17 polynomial transition refreshed eight rows in 11.28 seconds;
 the v18 Solve-rule/fractional-`Exponent` transition refreshed four rows in
 10.46 seconds at 399 MiB RSS; the v19 bounded `Thread` transition refreshed 16
 rows in 16.51 seconds at 399 MiB RSS. The latest warm audit takes 1.24 seconds
-at 456 MiB RSS.
+at 456 MiB RSS. The v20 positive-level `Map` transition refreshed six rows in
+4.07 seconds at 403 MiB RSS.
 Once raw results and comparison verdicts are cached, the same full audit takes
 1.24 seconds at 456 MiB RSS. Future compatible cache transitions retain
 unaffected older-version rows. These are

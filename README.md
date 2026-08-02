@@ -189,14 +189,18 @@ transition refreshed 16 rows in 16.51 seconds at 399 MiB RSS. Its current
 two native `Thread` bindings from differences to agreements, and reported 249
 agreements, 58 differences, 1 unavailable oracle row, 1 timeout, 5 errors, 26
 oracle disagreements, and 58 oracle-missing bindings. Neither focused result
-replaces a new whole-corpus baseline. The
+replaces a new whole-corpus baseline. The v20 positive-level `Map` transition
+refreshed six SymPy rows in 4.07 seconds at 403 MiB RSS. Its current six-script
+parity slice took 1.00 second at 404 MiB RSS; the nested-map bindings remain
+outside the scored intersection because the selected rows are dominated by
+plotting/file-I/O or Mathics failures. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,
 bounded non-negative `MatrixPower`, bounded block-matrix `ArrayFlatten`,
 `RowReduce`, `NullSpace`, `MatrixRank`,
 `LinearSolve`, `Minors`, `Length`, recursive `Flatten`, list
-`Append`/`Join`, bounded list `Thread`, and bounded list
+`Append`/`Join`, bounded list `Thread`, bounded positive-level `Map`, and bounded list
 selectors, bounded univariate and multivariate `CoefficientList`, bounded
 `FoldList[Plus, initial, list]`, bounded explicit-list `Total`, bounded
 full-rank numeric `PseudoInverse`, diagonal/zero numeric `SingularValueList`,
