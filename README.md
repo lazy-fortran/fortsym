@@ -188,9 +188,9 @@ native rows in 1:14.19 with a 3.04 GiB peak RSS. After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, a fully warm audit now takes 1.24 seconds
 at 456 MiB RSS and starts no backend subprocesses. The current cache-only
-whole-corpus tally is 3,467 agreements, 514 declared differences, 8
+whole-corpus tally is 3,474 agreements, 508 declared differences, 8
 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable oracle rows, 209
-oracle disagreements, and 636 oracle-missing bindings. The v18
+oracle disagreements, and 635 oracle-missing bindings. The v18
 Solve-rule/fractional-`Exponent`
 transition refreshed four SymPy rows in 10.46 seconds at 399 MiB RSS. A
 current one-worker audit of the affected 11-script slice, using the rebuilt
