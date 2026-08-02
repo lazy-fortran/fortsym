@@ -15,6 +15,7 @@ program test_fortsym_wl_f90
     call test_safe_setup_compiles_and_agrees(nfail)
     call test_scalar_minmax_compiles_and_agrees(nfail)
     call test_constant_if_compiles_and_agrees(nfail)
+    call test_bounded_do_compiles_and_agrees(nfail)
     call test_bounded_refusals(nfail)
 
     if (nfail == 0) then
@@ -304,6 +305,57 @@ contains
         call check("constant If source agrees with independent oracle", &
             status == 0, nfail)
     end subroutine test_constant_if_compiles_and_agrees
+
+    subroutine test_bounded_do_compiles_and_agrees(nfail)
+        integer, intent(inout) :: nfail
+        type(str_t) :: code
+        character(:), allocatable :: message
+        logical :: ok
+        integer :: unit, ios, status
+        character(*), parameter :: generated = "/tmp/fortsym_wl_f90_do.f90"
+        character(*), parameter :: driver = "/tmp/fortsym_wl_f90_do_driver.f90"
+        character(*), parameter :: executable = "/tmp/fortsym_wl_f90_do_driver"
+
+        code = translate_wl_assignments( &
+            "Do[result = x + i, {i, 1, 3}]", ok, message)
+        call check("bounded Do assignment accepted", ok, nfail)
+        if (.not. ok) then
+            print *, "translation message:", message
+            return
+        end if
+
+        open (newunit=unit, file=generated, status="replace", action="write", &
+            iostat=ios)
+        call check("bounded Do generated source opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") chars(code)
+        close (unit)
+
+        open (newunit=unit, file=driver, status="replace", action="write", &
+            iostat=ios)
+        call check("bounded Do oracle driver opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") &
+            "program independent_bounded_do_oracle"//new_line("a")// &
+            "  use, intrinsic :: iso_fortran_env, only: real64"//new_line("a")// &
+            "  real(real64) :: x, result, expected"//new_line("a")// &
+            "  x = 2.5_real64"//new_line("a")// &
+            "  expected = x + 3.0_real64"//new_line("a")// &
+            "  call fortsym_generated_assignment(x, result)"//new_line("a")// &
+            "  if (abs(result - expected) > 1.0e-14_real64) error stop 1"// &
+            new_line("a")// &
+            "  print *, 'PASS independent bounded Do oracle'"//new_line("a")// &
+            "end program independent_bounded_do_oracle"
+        close (unit)
+
+        call execute_command_line("gfortran -std=f2018 -Wall -Werror -o "// &
+            executable//" "//generated//" "//driver, exitstat=status)
+        call check("bounded Do generated source compiles", status == 0, nfail)
+        if (status /= 0) return
+        call execute_command_line(executable, exitstat=status)
+        call check("bounded Do source agrees with independent oracle", &
+            status == 0, nfail)
+    end subroutine test_bounded_do_compiles_and_agrees
 
     subroutine test_bounded_refusals(nfail)
         integer, intent(inout) :: nfail

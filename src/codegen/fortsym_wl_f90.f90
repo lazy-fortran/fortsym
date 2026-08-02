@@ -99,6 +99,15 @@ contains
                 return
             end if
             if (handled) statement = cleaned_source
+            if (.not. handled) then
+                call lower_bounded_do_statement(statement, cleaned_source, handled, &
+                    parsed, parse_message)
+                if (.not. parsed) then
+                    message = parse_message
+                    return
+                end if
+                if (handled) statement = cleaned_source
+            end if
 
             eq = top_level_assignment(statement)
             if (eq == 0) then
@@ -204,6 +213,232 @@ contains
         end if
         ok = .true.
     end function translate_wl_assignments
+
+    !> Lower a stateless bounded Do assignment to its final iteration.
+    !>
+    !> A straight-line emitter cannot represent a runtime loop, but
+    !> `Do[result = x + i, {i, 1, 3}]` has the same scalar result as
+    !> `result = x + 3`: every iteration overwrites the target and the body
+    !> does not read it. Keep recursive accumulations and symbolic ranges
+    !> refused rather than silently changing their meaning.
+    subroutine lower_bounded_do_statement(text, lowered, handled, ok, message)
+        character(*),              intent(in)  :: text
+        character(:), allocatable, intent(out) :: lowered
+        logical,                   intent(out) :: handled, ok
+        character(:), allocatable, intent(out) :: message
+
+        character(:), allocatable :: whole, args, body, range
+        character(:), allocatable :: iterator, lhs, rhs, replacement
+        character(:), allocatable :: first_text, last_text
+        character(32) :: replacement_buffer
+        integer :: open, close, comma_one, range_open, range_close
+        integer :: comma_two, extra_comma, eq, width
+        integer :: first_value, last_value, ios
+        logical :: body_assignment
+
+        lowered = ""
+        handled = .false.
+        ok = .true.
+        message = ""
+        whole = trim(adjustl(text))
+        open = index(whole, "[")
+        if (open <= 1) return
+        if (whole(:open - 1) /= "Do") return
+        handled = .true.
+        close = matching_close(whole, open, "[", "]")
+        if (close /= len(whole)) then
+            ok = .false.
+            message = "bounded Do must have one balanced argument list"
+            return
+        end if
+
+        args = whole(open + 1:close - 1)
+        call next_top_level_comma(args, 1, comma_one)
+        if (comma_one == 0) then
+            ok = .false.
+            message = "bounded Do needs a body and an iterator range"
+            return
+        end if
+        body = trim(adjustl(args(:comma_one - 1)))
+        range = trim(adjustl(args(comma_one + 1:)))
+        eq = top_level_assignment(body)
+        if (eq == 0) then
+            ok = .false.
+            message = "bounded Do body must be a scalar assignment"
+            return
+        end if
+        width = 1
+        if (body(eq:eq) == ":") width = 2
+        lhs = trim(adjustl(body(:eq - 1)))
+        rhs = trim(adjustl(body(eq + width:)))
+        body_assignment = valid_target_name(lhs) .and. len(rhs) > 0
+        if (.not. body_assignment) then
+            ok = .false.
+            message = "bounded Do body must assign a Fortran scalar"
+            return
+        end if
+
+        range_open = index(range, "{")
+        range_close = len(range)
+        if (range_close < 2) then
+            ok = .false.
+            message = "bounded Do range must be a list"
+            return
+        end if
+        if (range_open /= 1 .or. range(range_close:range_close) /= "}") then
+            ok = .false.
+            message = "bounded Do range must be a list"
+            return
+        end if
+        range = trim(adjustl(range(range_open + 1:range_close - 1)))
+        call next_top_level_comma(range, 1, comma_one)
+        if (comma_one == 0) then
+            ok = .false.
+            message = "bounded Do range needs an iterator and an endpoint"
+            return
+        end if
+        iterator = trim(adjustl(range(:comma_one - 1)))
+        if (.not. valid_fortran_name(iterator)) then
+            ok = .false.
+            message = "bounded Do iterator must be a Fortran name"
+            return
+        end if
+        call next_top_level_comma(range, comma_one + 1, comma_two)
+        call next_top_level_comma(range, comma_two + 1, extra_comma)
+        if (comma_two == 0) then
+            first_text = "1"
+            last_text = trim(adjustl(range(comma_one + 1:)))
+        else
+            if (extra_comma /= 0) then
+                ok = .false.
+                message = "bounded Do accepts only a two- or three-item range"
+                return
+            end if
+            first_text = trim(adjustl(range(comma_one + 1:comma_two - 1)))
+            last_text = trim(adjustl(range(comma_two + 1:)))
+        end if
+        read (first_text, *, iostat=ios) first_value
+        if (ios /= 0) then
+            ok = .false.
+            message = "bounded Do lower bound must be an exact integer"
+            return
+        end if
+        read (last_text, *, iostat=ios) last_value
+        if (ios /= 0) then
+            ok = .false.
+            message = "bounded Do upper bound must be an exact integer"
+            return
+        end if
+        if (last_value < first_value) then
+            ok = .false.
+            message = "bounded Do empty ranges are not representable"
+            return
+        end if
+        if (symbol_occurs(rhs, lhs)) then
+            ok = .false.
+            message = "bounded Do body may not read its assignment target"
+            return
+        end if
+        write (replacement_buffer, "(i0)") last_value
+        replacement = trim(replacement_buffer)
+        lowered = lhs//" = "//replace_symbol(rhs, iterator, replacement)
+    end subroutine lower_bounded_do_statement
+
+    !> Return the matching closing delimiter, or zero for an unbalanced form.
+    pure function matching_close(text, open, opening, closing) result(close)
+        character(*), intent(in) :: text, opening, closing
+        integer,      intent(in) :: open
+        integer                  :: close
+        integer :: depth, k
+
+        close = 0
+        depth = 0
+        do k = open, len(text)
+            if (text(k:k) == opening) then
+                depth = depth + 1
+            else if (text(k:k) == closing) then
+                depth = depth - 1
+                if (depth == 0) then
+                    close = k
+                    return
+                end if
+            end if
+        end do
+    end function matching_close
+
+    pure function symbol_occurs(text, symbol) result(found)
+        character(*), intent(in) :: text, symbol
+        logical                  :: found
+        integer :: k, last
+
+        found = .false.
+        if (len(symbol) == 0) return
+        last = len(text) - len(symbol) + 1
+        if (last < 1) return
+        do k = 1, last
+            if (text(k:k + len(symbol) - 1) /= symbol) cycle
+            if (k > 1) then
+                if (is_symbol_character(text(k - 1:k - 1))) cycle
+            end if
+            if (k + len(symbol) <= len(text)) then
+                if (is_symbol_character(text(k + len(symbol):k + len(symbol)))) cycle
+            end if
+            found = .true.
+            return
+        end do
+    end function symbol_occurs
+
+    function replace_symbol(text, symbol, replacement) result(result)
+        character(*), intent(in) :: text, symbol, replacement
+        character(:), allocatable :: result
+        integer :: k, n
+
+        result = ""
+        k = 1
+        n = len(symbol)
+        do while (k <= len(text))
+            if (k + n - 1 <= len(text)) then
+                if (text(k:k + n - 1) == symbol) then
+                    if (.not. symbol_occurs_at(text, k, symbol)) then
+                        result = result//text(k:k)
+                        k = k + 1
+                        cycle
+                    end if
+                    result = result//replacement
+                    k = k + n
+                    cycle
+                end if
+            end if
+            result = result//text(k:k)
+            k = k + 1
+        end do
+    end function replace_symbol
+
+    pure function symbol_occurs_at(text, position, symbol) result(found)
+        character(*), intent(in) :: text, symbol
+        integer,      intent(in) :: position
+        logical                  :: found
+
+        found = .true.
+        if (position > 1) then
+            if (is_symbol_character(text(position - 1:position - 1))) then
+                found = .false.
+                return
+            end if
+        end if
+        if (position + len(symbol) <= len(text)) then
+            if (is_symbol_character(text(position + len(symbol):position + len(symbol)))) then
+                found = .false.
+            end if
+        end if
+    end function symbol_occurs_at
+
+    pure function is_symbol_character(c) result(yes)
+        character, intent(in) :: c
+        logical                :: yes
+
+        yes = is_letter(c) .or. is_digit(c) .or. c == "_" .or. c == "$"
+    end function is_symbol_character
 
     !> Lower the bounded static form If[True|False, assignment, assignment].
     !> Symbolic conditions and all other branch shapes remain refused instead
