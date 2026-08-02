@@ -911,6 +911,13 @@ contains
             r = lower_table(s, e, ok, message)
             return
         end if
+        ! Sum and Product also own their iterator variables. Their bodies must
+        ! not be walked before finite ranges substitute those variables:
+        ! Sum[coord[[j]], {j, 3}] otherwise refuses in Part.
+        if (head == "Sum" .or. head == "Product") then
+            r = lower_sum(s, e, head == "Sum", ok, message)
+            return
+        end if
 
         ! If is control flow, not an ordinary function: evaluating both
         ! branches before choosing one would recurse forever on definitions
@@ -3443,46 +3450,112 @@ contains
         type(str_t),        intent(out)   :: message
         type(expr_t)                      :: r
         type(expr_t) :: spec, var
+        type(expr_t), allocatable :: specs(:), values(:)
+        integer(int64) :: total
+        logical :: finite
+        integer :: k
         character(:), allocatable :: why
 
         ok = .true.
         message = str("")
         r = e
 
-        ! A multi-index Sum has more than one iterator spec; nesting them here
-        ! would need each inner closed form to survive the outer summation,
-        ! which is not established, so it refuses.
-        if (e%nargs() /= 2) then
-            call refuse(ok, message, "Sum or Product over several indices")
-            return
-        end if
-        spec = e%arg(2)
-        if (spec%kind() /= NK_FUNC) then
+        if (e%nargs() < 2) then
             call refuse(ok, message, "Sum needs a {k, lo, hi} range")
-            return
-        end if
-        if (chars(spec%name()) /= "List" .or. spec%nargs() /= 3) then
-            call refuse(ok, message, "Sum needs a {k, lo, hi} range")
-            return
-        end if
-        var = spec%arg(1)
-        if (var%kind() /= NK_SYM) then
-            call refuse(ok, message, "Sum needs a plain index variable")
             return
         end if
 
-        if (is_sum) then
-            r = sum_closed_form(s%a, e%arg(1), var, spec%arg(2), spec%arg(3), &
-                ok, why)
-        else
-            r = product_closed_form(s%a, e%arg(1), var, spec%arg(2), &
-                spec%arg(3), ok, why)
+        ! Preserve symbolic one-index closed forms. If no form applies, use
+        ! exact bounded enumeration so indexed Parts are evaluated after
+        ! numeric iterator substitution.
+        if (e%nargs() == 2) then
+            spec = e%arg(2)
+            if (spec%kind() == NK_FUNC .and. chars(spec%name()) == "List" &
+                    .and. spec%nargs() == 3) then
+                var = spec%arg(1)
+                if (var%kind() == NK_SYM) then
+                    if (is_sum) then
+                        r = sum_closed_form(s%a, e%arg(1), var, spec%arg(2), &
+                            spec%arg(3), ok, why)
+                    else
+                        r = product_closed_form(s%a, e%arg(1), var, &
+                            spec%arg(2), spec%arg(3), ok, why)
+                    end if
+                    if (ok) return
+                end if
+            end if
         end if
-        if (.not. ok) then
-            call refuse(ok, message, "Sum: "//why)
+
+        allocate (specs(e%nargs() - 1))
+        do k = 1, size(specs)
+            specs(k) = e%arg(k + 1)
+        end do
+        finite = .true.
+        total = 1_int64
+        do k = 1, size(specs)
+            call table_values(s, specs(k), var, values, ok, message)
+            if (.not. ok) then
+                finite = .false.
+                exit
+            end if
+            if (size(values) > 0) then
+                if (total > int(MAX_TABLE_ITEMS, int64) / &
+                        int(size(values), int64)) then
+                    call refuse(ok, message, "Sum expansion exceeds its bound")
+                    return
+                end if
+                total = total*int(size(values), int64)
+            else
+                total = 0_int64
+            end if
+        end do
+        if (.not. finite) then
+            call refuse(ok, message, "Sum needs bounded integer iterators")
             return
         end if
+        r = finite_sum_level(s, e%arg(1), specs, 1, is_sum, ok, message)
     end function lower_sum
+
+    !> Evaluate a bounded Cartesian product of numeric iterator values.
+    recursive function finite_sum_level(s, body, specs, level, is_sum, ok, &
+            message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t), intent(in) :: body, specs(:)
+        integer, intent(in) :: level
+        logical, intent(in) :: is_sum
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: message
+        type(expr_t) :: r, term, next_body, var
+        type(expr_t), allocatable :: values(:)
+        integer :: k
+
+        ok = .true.
+        message = str("")
+        if (level > size(specs)) then
+            r = wl_eval(s, apply_bindings(s, body), ok, message)
+            if (ok) r = auto_evaluate(s, r)
+            return
+        end if
+
+        call table_values(s, specs(level), var, values, ok, message)
+        if (.not. ok) return
+        if (is_sum) then
+            r = num(s%a, 0)
+        else
+            r = num(s%a, 1)
+        end if
+        do k = 1, size(values)
+            next_body = subs(body, var, values(k))
+            term = finite_sum_level(s, next_body, specs, level + 1, is_sum, &
+                ok, message)
+            if (.not. ok) return
+            if (is_sum) then
+                r = r + term
+            else
+                r = r*term
+            end if
+        end do
+    end function finite_sum_level
 
     !> Re, Im, Conjugate, Arg and ComplexExpand.
     !>

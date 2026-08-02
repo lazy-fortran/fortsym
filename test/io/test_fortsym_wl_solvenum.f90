@@ -68,6 +68,7 @@ program test_fortsym_wl_solvenum
     call test_array_flatten()
     call test_matrix_power()
     call test_minors_dispatch()
+    call test_indexed_part_in_finite_sum()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_solvenum"
@@ -1589,6 +1590,28 @@ contains
                 call fail("Minors dispatch", "wrong determinant value")
         end do
     end subroutine test_minors_dispatch
+
+    subroutine test_indexed_part_in_finite_sum()
+        type(arena_t), target :: a
+        type(expr_t) :: value
+        logical :: ok
+        character(:), allocatable :: message
+
+        call a%init()
+        call run_one(a, "coord = {1, 2, 3}"//nl()// &
+            "field = Table[Sum[coord[[j]]*i, {i, 2}, {j, 3}], {k, 2}]"//nl()// &
+            "contracted = field . {1, 2}"//nl(), "contracted", value, ok, message)
+        if (.not. ok) then
+            call fail("indexed Part in finite Sum", "refused: "//message)
+            return
+        end if
+        if (value%kind() /= NK_INT) then
+            call fail("indexed Part in finite Sum", "result is not an integer")
+        else if (value%int_value() /= 54) then
+            call fail("indexed Part in finite Sum", &
+                "expected 54, got "//chars(print_expr(value)))
+        end if
+    end subroutine test_indexed_part_in_finite_sum
 
     pure function nl() result(c)
         character(1) :: c
