@@ -168,14 +168,15 @@ out on one heavy script at the external 60-second limit, and explicitly refused
 two unsupported constructs. It did not crash. The benchmark reused the
 available cached SymPy and Mathics rows; no oracle subprocess was needed. A
 native refresh with those oracle caches warm took about 59 seconds with four
-workers. A fully warm audit takes about 1.3 seconds and starts no backend
-subprocesses. The final binding-level tally is 3,120 agreements, 790 declared
-differences, 20 unsupported outcomes, 40 timeouts, 125 errors, 197 oracle
+workers. A fully warm audit takes about 1.0 seconds and starts no backend
+subprocesses. The final binding-level tally is 3,124 agreements, 786 declared
+differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 197 oracle
 disagreements, and 800 oracle-missing bindings. The native collection slice now
 also evaluates bounded exact `Range`, `DiagonalMatrix`, `RowReduce`,
-`NullSpace`, `MatrixRank`, `Length`, and recursive `Flatten` forms; the latest
-change introduced no native script-completion regression, moved 18 prior
-differences to agreement, and reduced binding errors by 10.
+`NullSpace`, `MatrixRank`, `LinearSolve`, `Minors`, `Length`, and recursive
+`Flatten` forms; the latest matrix changes introduced no native
+script-completion regression, moved 22 prior differences to agreement, and
+reduced binding errors by 13.
 
 ## Build
 
