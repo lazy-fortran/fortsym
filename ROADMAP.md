@@ -105,6 +105,7 @@ reported state.
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
+| current v19 focused `Thread` slice (16 scripts, one worker) | 17.43 s / 508 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
@@ -123,7 +124,8 @@ for explicit square matrices up to dimension 16, and bounded non-negative
 exact
 `RowReduce`, `NullSpace`, `MatrixRank`, bounded exact `LinearSolve` and
 `Minors`, `Exponent` including exact fractional monomials, computed scalar
-`Solve` rule replacement, bounded polynomial gcd/quotient/remainder and rational
+`Solve` rule replacement, bounded list `Thread`, bounded polynomial
+gcd/quotient/remainder and rational
 numerator/denominator extraction, structural `Length`, recursive `Flatten`, dynamic exact dimensions,
 bounded block-matrix `ArrayFlatten`, and opaque preservation for unsupported
 dimensions or computed heads. The independent tests cover literal, rational,
@@ -154,7 +156,7 @@ adds one agreement, and removes one oracle disagreement. The bounded
 `FoldList[Plus, initial, list]` slice then removes one declared difference;
 the refreshed native collection also makes one previously hidden binding an
 agreement, for a net gain of two agreements and one fewer difference. Cache
-version 18 keeps unaffected older-version SymPy rows reusable, including the
+version 19 keeps unaffected older-version SymPy rows reusable, including the
 version-16 diagonal/extrema rows and older quoted-string rows, instead of
 forcing another broad oracle refresh.
 The bounded `ArrayFlatten` slice then evaluates rectangular block matrices and
@@ -176,7 +178,13 @@ The v18 transition then lets serialized SymPy `Rule`/`RuleDelayed` heads feed
 refreshed four affected SymPy rows in 10.46 seconds at 399 MiB RSS. The
 current 11-script focused audit with the rebuilt native runner took 42.39
 seconds at 804 MiB RSS and confirmed five computed-Solve/fractional-Exponent
-bindings as agreements. It does not close the remaining parity gap. The
+bindings as agreements. The v19 bounded `Thread` transition then refreshed 16
+SymPy rows in 16.51 seconds at 399 MiB RSS. Its current 16-script focused
+audit took 17.43 seconds at 508 MiB RSS, converted two native `Thread`
+bindings from differences to agreements, and reported 249 agreements, 58
+differences, 1 unavailable oracle row, 1 timeout, 5 errors, 26 oracle
+disagreements, and 58 oracle-missing bindings. These focused slices do not
+close the remaining parity gap. The
 highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
 `DSolve`/`NDSolve`.
@@ -216,8 +224,9 @@ subsequent native `Total`/`PseudoInverse`/`SingularValueList` audit took 1:14.19
 with a 3.04 GiB peak RSS; the v16 SymPy transition refreshed 22 rows in 8.93
 seconds; the v17 polynomial transition refreshed eight rows in 11.28 seconds;
 the v18 Solve-rule/fractional-`Exponent` transition refreshed four rows in
-10.46 seconds at 399 MiB RSS. The latest warm audit takes 1.24 seconds at 456
-MiB RSS.
+10.46 seconds at 399 MiB RSS; the v19 bounded `Thread` transition refreshed 16
+rows in 16.51 seconds at 399 MiB RSS. The latest warm audit takes 1.24 seconds
+at 456 MiB RSS.
 Once raw results and comparison verdicts are cached, the same full audit takes
 1.24 seconds at 456 MiB RSS. Future compatible cache transitions retain
 unaffected older-version rows. These are
