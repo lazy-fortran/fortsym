@@ -2,12 +2,10 @@ module fortsym_wl_num
     ! N, Chop, and the cheap exact structural heads for the Wolfram subset.
     !
     ! N[expr, p] is the operation with the most room to be confidently wrong.
-    ! fortsym evaluates in real64, which carries roughly 15.95 decimal digits,
-    ! so a request for 30 digits cannot be honoured and is refused rather than
-    ! padded -- the padding would be indistinguishable from a correct answer.
-    ! A request for 16 or fewer digits *can* be honoured: the double already
-    ! holds at least that much information, and rounding to p significant
-    ! digits is then a statement real64 supports.
+    ! Requests through 16 digits use the independent native real64 evaluator;
+    ! larger requests use SymEngine's MPFR evaluator and retain its decimal
+    ! result as a bounded precision-bearing arena leaf. A result is never
+    ! padded with zeroes to simulate precision the evaluator did not provide.
     !
     ! Chop drops approximate numbers below a threshold. Only NK_REAL leaves are
     ! chopped: an exact rational is not an artefact of floating point and
@@ -15,11 +13,13 @@ module fortsym_wl_num
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_FUNC, NK_REAL, &
-        NK_ADD, NK_MUL, NK_POW
-    use fortsym_expr, only: expr_t, num, rat, func, func_in, real_expr, is_valid, &
+        NK_BIG_REAL, NK_ADD, NK_MUL, NK_POW
+    use fortsym_expr, only: expr_t, num, rat, func, func_in, real_expr, &
+        real_text_expr, is_valid, &
         operator(+), operator(-), operator(*), operator(**)
     use fortsym_matrix, only: is_list, is_matrix, matrix_shape, to_matrix
     use fortsym_numeric, only: numeric_value
+    use fortsym_engine_symengine, only: symengine_evalf_text
     implicit none
     private
 
@@ -30,11 +30,11 @@ module fortsym_wl_num
 
     integer, parameter :: dp = real64
 
-    !> real64 holds 15.95 decimal digits, so 16 is the largest request it can
-    !> answer without inventing information. 17 digits round-trips a double but
-    !> the seventeenth digit is an artefact of the binary value, not a decimal
-    !> the user asked for, so it is not offered.
-    integer, parameter :: N_MAX_DIGITS = 16
+    !> MPFR digit bound. The lower real64 path is intentionally separate so the
+    !> requested-precision route cannot turn a double into a falsely precise
+    !> decimal merely because the request was 17 digits.
+    integer, parameter :: N_MAX_DIGITS = 512
+    integer, parameter :: N_MACHINE_DIGITS = 16
 
     !> Wolfram's documented default Chop tolerance.
     real(dp), parameter :: CHOP_DEFAULT = 1.0e-10_dp
@@ -162,13 +162,6 @@ contains
         ok = .false.
         why = ""
 
-        if (digits > N_MAX_DIGITS) then
-            why = "N with more significant digits than real64 carries: "// &
-                  "fortsym evaluates in double precision, and padding the "// &
-                  "request would look like a high-precision answer"
-            return
-        end if
-
         if (e%kind() == NK_FUNC) then
             if (chars(e%name()) == "List") then
                 allocate (items(e%nargs()))
@@ -184,6 +177,11 @@ contains
                 ok = .true.
                 return
             end if
+        end if
+
+        if (digits > N_MACHINE_DIGITS) then
+            call high_precision_n(a, e, digits, r, ok, why)
+            return
         end if
 
         call numeric_value(e, value, ok, why)
@@ -206,6 +204,24 @@ contains
         ok = is_valid(r)
         if (.not. ok) why = "N: the rounded value could not be built"
     end function wl_n
+
+    subroutine high_precision_n(a, e, digits, r, ok, why)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        integer,                   intent(in)    :: digits
+        type(expr_t),              intent(out)   :: r
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        character(:), allocatable :: text
+        logical :: made
+
+        r = e
+        text = symengine_evalf_text(e, digits, ok, why)
+        if (.not. ok) return
+        r = real_text_expr(a, text, made)
+        ok = made
+        if (.not. ok) why = "N: the MPFR decimal could not be retained"
+    end subroutine high_precision_n
 
     !> Round to `digits` significant decimal digits.
     !>
@@ -255,6 +271,17 @@ contains
         select case (e%kind())
         case (NK_REAL)
             if (abs(e%real_value()) < tol) r = num(a, 0)
+        case (NK_BIG_REAL)
+            if (len(chars(e%real_text())) > 0) then
+                block
+                    real(dp) :: value
+                    integer :: ios
+                    character(:), allocatable :: text
+                    text = chars(e%real_text())
+                    read (text, *, iostat=ios) value
+                    if (ios == 0 .and. abs(value) < tol) r = num(a, 0)
+                end block
+            end if
         case (NK_ADD, NK_MUL, NK_POW)
             do k = 1, e%nargs()
                 if (k == 1) then

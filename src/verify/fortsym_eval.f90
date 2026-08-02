@@ -14,7 +14,8 @@ module fortsym_eval
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
-        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
+        NK_BIG_REAL
     use fortsym_expr, only: expr_t
     use fortsym_exact, only: exact_to_real
     implicit none
@@ -102,6 +103,7 @@ contains
         real(dp)                       :: v
         integer :: k
         real(dp) :: acc, base, expo
+        character(:), allocatable :: text
 
         v = 0.0_dp
         if (.not. defined) return
@@ -116,6 +118,11 @@ contains
 
         case (NK_BIG_INT, NK_BIG_RAT)
             v = exact_to_real(chars(a%exact_text_of(id)), defined)
+
+        case (NK_BIG_REAL)
+            text = chars(a%real_text_of(id))
+            read (text, *, iostat=k) v
+            if (k /= 0) defined = .false.
 
         case (NK_REAL)
             v = a%real_of(id)

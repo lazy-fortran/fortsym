@@ -18,7 +18,8 @@ module fortsym_print
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     use fortsym_string, only: str_t, strbuf_t, str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
-        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
+        NK_BIG_REAL
     use fortsym_expr, only: expr_t
     use fortsym_exact, only: exact_to_real
     use fortsym_dialect, only: dialect_t, dialect, fn_spelling, const_spelling, &
@@ -141,6 +142,7 @@ contains
         logical                  :: ok
         real(dp) :: projected
         integer :: k
+        character(:), allocatable :: text
 
         ok = .true.
         if (visited(id)) return
@@ -149,6 +151,15 @@ contains
         case (NK_BIG_INT, NK_BIG_RAT)
             projected = exact_to_real(chars(a%exact_text_of(id)), ok)
             if (ok) ok = ieee_is_finite(projected)
+            return
+        case (NK_BIG_REAL)
+            text = chars(a%real_text_of(id))
+            read (text, *, iostat=k) projected
+            if (k /= 0) then
+                ok = .false.
+            else
+                ok = ieee_is_finite(projected)
+            end if
             return
         end select
         do k = 1, a%nargs_of(id)
@@ -198,6 +209,8 @@ contains
             call emit_rational(b, a, id, d, context)
         case (NK_BIG_INT, NK_BIG_RAT)
             call emit_big_exact(b, a, id, d, context)
+        case (NK_BIG_REAL)
+            call emit_big_real(b, a, id, d, context)
         case (NK_REAL)
             call emit_real(b, a, id, d, context)
         case (NK_SYM)
@@ -338,6 +351,50 @@ contains
         call b%append(chars(d%real_suffix))
         if (wrap) call b%append(")")
     end subroutine emit_real
+
+    !> Emit a retained MPFR decimal without reducing it to real64 in CAS
+    !> dialects. Fortran has only the real64 kernel path, so it receives the
+    !> same checked projection used by fortran_representable.
+    subroutine emit_big_real(b, a, id, d, context, magnitude_only)
+        type(strbuf_t),  intent(inout) :: b
+        type(arena_t),   intent(in)    :: a
+        integer,         intent(in)    :: id
+        type(dialect_t), intent(in)    :: d
+        integer,         intent(in)    :: context
+        logical, intent(in), optional  :: magnitude_only
+        character(:), allocatable :: text
+        real(dp) :: projected
+        logical :: magnitude, negative, wrap
+        integer :: ios
+
+        text = chars(a%real_text_of(id))
+        magnitude = .false.
+        if (present(magnitude_only)) magnitude = magnitude_only
+        negative = .false.
+        if (len(text) > 0) negative = text(1:1) == "-"
+
+        if (d%id == DIA_FORTRAN) then
+            read (text, *, iostat=ios) projected
+            if (ios /= 0 .or. .not. ieee_is_finite(projected)) return
+            if (magnitude) projected = abs(projected)
+            wrap = projected < 0.0_dp .and. context >= PREC_MUL
+            if (wrap) call b%append("(")
+            call b%append(chars(str(projected)))
+            call b%append(chars(d%real_suffix))
+            if (wrap) call b%append(")")
+            return
+        end if
+
+        if (magnitude .and. negative) then
+            text = text(2:)
+            negative = .false.
+        end if
+        if (d%id == DIA_WOLFRAM) text = wolfram_exponent(text)
+        wrap = negative .and. context >= PREC_MUL
+        if (wrap) call b%append("(")
+        call b%append(text)
+        if (wrap) call b%append(")")
+    end subroutine emit_big_real
 
     !> Shortest decimal form that still round-trips through real64.
     !>
@@ -512,6 +569,8 @@ contains
             yes = exact_is_negative(a, id)
         case (NK_REAL)
             yes = a%real_of(id) < 0.0_dp
+        case (NK_BIG_REAL)
+            yes = big_real_is_negative(a, id)
         case (NK_MUL)
             if (count_big_exact_factor(a, id) > 1) return
             do k = 1, a%nargs_of(id)
@@ -547,6 +606,8 @@ contains
             call emit_compact_exact_magnitude(b, a, id, d, context)
         case (NK_BIG_INT, NK_BIG_RAT)
             call emit_big_exact(b, a, id, d, context, magnitude_only=.true.)
+        case (NK_BIG_REAL)
+            call emit_big_real(b, a, id, d, context, magnitude_only=.true.)
         case (NK_REAL)
             call b%append(chars(str(-a%real_of(id))))
             call b%append(chars(d%real_suffix))
@@ -874,7 +935,7 @@ contains
         logical                   :: yes
         yes = a%kind_of(id) == NK_INT .or. a%kind_of(id) == NK_RAT .or. &
             a%kind_of(id) == NK_BIG_INT .or. a%kind_of(id) == NK_BIG_RAT .or. &
-            a%kind_of(id) == NK_REAL
+            a%kind_of(id) == NK_REAL .or. a%kind_of(id) == NK_BIG_REAL
     end function is_numeric
 
     function numeric_is_negative(a, id) result(yes)
@@ -890,8 +951,21 @@ contains
             yes = exact_is_negative(a, id)
         case (NK_REAL)
             yes = a%real_of(id) < 0.0_dp
+        case (NK_BIG_REAL)
+            yes = big_real_is_negative(a, id)
         end select
     end function numeric_is_negative
+
+    pure function big_real_is_negative(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: yes
+        character(:), allocatable :: text
+
+        text = chars(a%real_text_of(id))
+        yes = .false.
+        if (len(text) > 0) yes = text(1:1) == "-"
+    end function big_real_is_negative
 
     function exact_is_negative(a, id) result(yes)
         type(arena_t), intent(in) :: a
