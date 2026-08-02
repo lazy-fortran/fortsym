@@ -1052,6 +1052,10 @@ contains
             end do
             r = inner
 
+        case ("Curl")
+            r = lower_curl(s, r, ok, message)
+            if (.not. ok) return
+
         case ("LegendreP")
             if (r%nargs() == 2) then
                 inner = lower_legendre(s, r, ok, message)
@@ -3439,6 +3443,62 @@ contains
         r = out
     end function lower_rewrite
 
+    !> Curl of an explicit two- or three-component list in explicit Cartesian
+    !> coordinates.  The coordinate-system forms accepted by Wolfram are not
+    !> equivalent without metric factors, so they remain named refusals here.
+    function lower_curl(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, field, coords
+        integer                           :: n
+
+        ok = .true.
+        message = str("")
+        r = e
+
+        if (e%nargs() /= 2) then
+            call refuse(ok, message, &
+                "Curl needs a field and an explicit coordinate list")
+            return
+        end if
+        field = e%arg(1)
+        coords = e%arg(2)
+        if (.not. is_list(field)) then
+            call refuse(ok, message, "Curl needs an explicit list field")
+            return
+        end if
+        if (.not. is_list(coords)) then
+            call refuse(ok, message, &
+                "Curl needs an explicit coordinate list")
+            return
+        end if
+
+        n = field%nargs()
+        if (n /= coords%nargs()) then
+            call refuse(ok, message, &
+                "Curl field and coordinates have different ranks")
+            return
+        end if
+        select case (n)
+        case (2)
+            r = diff(field%arg(2), coords%arg(1)) - &
+                diff(field%arg(1), coords%arg(2))
+        case (3)
+            r = func("List", [ &
+                diff(field%arg(3), coords%arg(2)) - &
+                diff(field%arg(2), coords%arg(3)), &
+                diff(field%arg(1), coords%arg(3)) - &
+                diff(field%arg(3), coords%arg(1)), &
+                diff(field%arg(2), coords%arg(1)) - &
+                diff(field%arg(1), coords%arg(2))])
+        case default
+            call refuse(ok, message, &
+                "Curl supports only explicit 2D or 3D lists")
+        end select
+    end function lower_curl
+
     !> Part[expr, i, j, ...] on explicit lists only. Indexing a literal list
     !> by positive integers is unambiguous. A bounded two-ended Span is also
     !> accepted, which covers matrix slices such as [[2 ;; 3, 2 ;; 3]].
@@ -4299,6 +4359,9 @@ contains
         case ("Apply", "MapApply", "Function", "Slot", "SlotSequence", &
                 "Span", "SetDelayed", "CompoundExpression", "StringJoin", &
                 "ReplaceRepeated", "Condition", "DerivativeOperator")
+            yes = .true.
+            ! Curl is lowered only for explicit Cartesian list fields.
+        case ("Curl")
             yes = .true.
         case default
             yes = .false.

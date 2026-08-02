@@ -31,6 +31,7 @@ program test_fortsym_wl_statements
     call test_list_threading()
     call test_list_selectors()
     call test_matrix_span_selectors()
+    call test_bounded_curl()
     call test_list_child_evaluation()
     call test_parenthesized_wolfram_multiplication()
 
@@ -78,6 +79,41 @@ contains
             nfail = nfail + 1
         end if
     end subroutine expect
+
+    !> Refusals are part of the public boundary: an unsupported form must not
+    !> leak an unevaluated command that looks like a successful result.
+    subroutine expect_refusal(label, source, expected)
+        character(*), intent(in) :: label, source, expected
+        type(arena_t), target :: a
+        type(wl_session_t) :: s
+        type(wl_binding_t) :: b
+        integer :: k
+        logical :: found
+
+        call a%init()
+        call wl_session_begin(s, a)
+        call wl_run_source(s, source)
+
+        found = .false.
+        do k = 1, wl_binding_count(s)
+            b = wl_binding_at(s, k)
+            if (chars(b%name) /= "value") cycle
+            found = .true.
+            if (b%ok) then
+                print *, "FAIL ", label, ": unexpectedly evaluated"
+                nfail = nfail + 1
+            else if (chars(b%message) /= expected) then
+                print *, "FAIL ", label, ": refused with ", &
+                    chars(b%message), " want ", expected
+                nfail = nfail + 1
+            end if
+        end do
+
+        if (.not. found) then
+            print *, "FAIL ", label, ": no binding named value"
+            nfail = nfail + 1
+        end if
+    end subroutine expect_refusal
 
     !> A line ending in an operator continues onto the next.
     !>
@@ -290,6 +326,21 @@ contains
             "block = value[[2 ;; 3, 2 ;; 3]]"//char(10), &
             "block", "List(List(5, 6), List(8, 9))")
     end subroutine test_matrix_span_selectors
+
+    !> Curl is checked against its component definition, independently of the
+    !> evaluator: in 2D it is d_x F_y - d_y F_x, and in 3D it is the usual
+    !> right-handed three-component vector. Unsupported coordinate-system
+    !> forms must remain an explicit refusal.
+    subroutine test_bounded_curl()
+        call expect("two-dimensional Curl", &
+            "value = Curl[{x^2, x*y}, {x, y}]"//char(10), "value", "y")
+        call expect("three-dimensional Curl", &
+            "value = Curl[{0, x*y, 0}, {x, y, z}]"//char(10), &
+            "value", "List(0, 0, y)")
+        call expect_refusal("coordinate-system Curl", &
+            "value = Curl[{x, y}, {x, y}, ""Cartesian""]"//char(10), &
+            "Curl needs a field and an explicit coordinate list")
+    end subroutine test_bounded_curl
 
     !> List elements are evaluated independently. These hand-derived values
     !> catch the tempting but incorrect optimization of leaving List children
