@@ -20,7 +20,7 @@ module fortsym_wl
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
     use fortsym_expr, only: expr_t, sym, num, func, func_in, &
-        operator(+), operator(-), operator(*), operator(**)
+        operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
     use fortsym_parse, only: parse_expr_in
     use fortsym_assume, only: assumption_context_t
@@ -77,6 +77,7 @@ module fortsym_wl
     !> Keep the public LinearSolve route bounded even when a corpus script asks
     !> for a much larger matrix.
     integer, parameter :: MAX_LINEAR_SOLVE = 32
+    integer, parameter :: MAX_LEGENDRE_DEGREE = 64
     integer, parameter :: dp = real64
 
     !> One top-level assignment produced by a script.
@@ -1027,6 +1028,13 @@ contains
                 inner = diff(inner, var)
             end do
             r = inner
+
+        case ("LegendreP")
+            if (r%nargs() == 2) then
+                inner = lower_legendre(s, r, ok, message)
+                if (.not. ok) return
+                r = inner
+            end if
 
         case ("Module", "Block", "With")
             if (r%nargs() < 2) then
@@ -3036,6 +3044,50 @@ contains
         end if
         r = out
     end function lower_polynomial
+
+    !> LegendreP[n, x] for a bounded exact non-negative degree.
+    !>
+    !> The three-term recurrence is exact and avoids factorial overflow. The
+    !> native engine expands the recurrence before returning so the result has
+    !> the same canonical polynomial shape as the independent SymPy oracle.
+    function lower_legendre(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                       :: r, x, p0, p1, p2
+        type(engine_result_t)              :: expanded
+        integer                            :: degree, k
+
+        r = e
+        ok = .true.
+        message = str("")
+        if (e%nargs() /= 2) return
+        if (.not. exact_small_int(e%arg(1), degree)) return
+        if (degree > MAX_LEGENDRE_DEGREE) then
+            call refuse(ok, message, "LegendreP degree exceeds the bounded native path")
+            return
+        end if
+
+        x = e%arg(2)
+        if (degree == 0) then
+            r = num(s%a, 1)
+            return
+        end if
+        p0 = num(s%a, 1)
+        p1 = x
+        do k = 2, degree
+            p2 = (num(s%a, 2*k - 1)*x*p1 - num(s%a, k - 1)*p0)/num(s%a, k)
+            p0 = p1
+            p1 = p2
+        end do
+        expanded = s%engine%expand(p1)
+        if (.not. expanded%ok) then
+            call refuse(ok, message, "LegendreP: "//chars(expanded%message))
+            return
+        end if
+        r = expanded%value
+    end function lower_legendre
 
     !> A zero-argument application of the given name, such as Infinity.
     function is_named(e, name) result(yes)
