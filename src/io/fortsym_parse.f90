@@ -753,17 +753,21 @@ contains
 
     !> Precedence climbing. Parses a unary/primary term, then folds in binary
     !> operators whose binding power is at least min_bp.
-    recursive function parse_binary(p, a, d, min_bp) result(e)
+    recursive function parse_binary(p, a, d, min_bp, power_rhs) result(e)
         type(parser_t),        intent(inout) :: p
         type(arena_t), target, intent(inout) :: a
         type(dialect_t),       intent(in)    :: d
         integer,               intent(in)    :: min_bp
+        logical, optional,     intent(in)    :: power_rhs
         type(expr_t)                         :: e
         type(expr_t) :: rhs
         character(:), allocatable :: op
         integer :: bp, next_bp
+        logical :: rhs_is_power
 
-        e = parse_unary(p, a, d)
+        rhs_is_power = .false.
+        if (present(power_rhs)) rhs_is_power = power_rhs
+        e = parse_unary(p, a, d, rhs_is_power)
         if (p%failed) return
 
         do
@@ -777,6 +781,11 @@ contains
             ! Handled before the operator test because there is no token to
             ! test -- the absence of one is the operator.
             if (d%implicit_multiplication .and. starts_primary(p)) then
+                ! An implicit product at the factor boundary must stay outside
+                ! a unary sign used as a power's right operand.  Otherwise
+                ! `10^-9 15` is read as `10^(-(9*15))` instead of
+                ! `(10^-9)*15`; explicit multiplication still follows the
+                ! ordinary precedence-climbing path below.
                 if (bp_times() < min_bp) exit
                 rhs = parse_binary(p, a, d, bp_times() + 1)
                 if (p%failed) return
@@ -832,7 +841,7 @@ contains
                 next_bp = bp + 1
             end if
 
-            rhs = parse_binary(p, a, d, next_bp)
+            rhs = parse_binary(p, a, d, next_bp, op == "**" .or. op == "^")
             if (p%failed) return
 
             select case (op)
@@ -896,10 +905,11 @@ contains
         end do
     end function parse_binary
 
-    recursive function parse_unary(p, a, d) result(e)
+    recursive function parse_unary(p, a, d, power_rhs) result(e)
         type(parser_t),        intent(inout) :: p
         type(arena_t), target, intent(inout) :: a
         type(dialect_t),       intent(in)    :: d
+        logical,               intent(in)    :: power_rhs
         type(expr_t)                         :: e
 
         if (p%tok == T_OP) then
@@ -918,7 +928,15 @@ contains
                 call advance(p, d)
                 ! Unary minus binds tighter than +/- but looser than **, so -x**2
                 ! is -(x**2), matching Fortran and every engine here.
-                e = parse_binary(p, a, d, bp_times())
+                ! In a power's right operand, the sign belongs to the next
+                ! factor only: `10^-9 15` means `(10^-9)*15`. At the top
+                ! level the looser unary-minus binding is retained, so
+                ! `-x**2` remains `-(x**2)`.
+                if (power_rhs) then
+                    e = parse_binary(p, a, d, bp_times() + 1)
+                else
+                    e = parse_binary(p, a, d, bp_times())
+                end if
                 ! Negating a failed parse walks a partially built node whose
                 ! arena pointer was never set, which segfaults instead of
                 ! reporting the error that already happened.
