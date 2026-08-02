@@ -84,7 +84,7 @@ domain, parameters, precision, and error policy are numeric and explicit.
 ## Measured state
 
 Latest corpus-wide measurement, 2026-08-02, `fortsym-bench` at 384 scripts
-(`--jobs 2`, 60-second script budget, after the bounded FoldList slice):
+(`--jobs 2`, 60-second script budget, after the bounded ArrayFlatten slice):
 
 This table is a committed native baseline. It is updated only after the root
 backend and benchmark harness revisions used to produce it have been committed.
@@ -100,14 +100,14 @@ reported state.
 | scripts exceeding the time budget | 1 |
 | scripts ending in a runner error | 1 |
 | crashes | **0** |
-| full audit after the bounded native FoldList refresh | 1:13.07 |
-| peak RSS during that refresh | 3.03 GiB |
-| warm compact raw-output and verdict audit | 1.14 s / 416 MiB |
+| full audit after the bounded native ArrayFlatten refresh | 1:13.38 |
+| peak RSS during that refresh | 1.54 GiB |
+| warm compact raw-output and verdict audit | 1.12 s / 420 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The final binding-level audit reports 3,152 agreements, 779 declared
+The final binding-level audit reports 3,155 agreements, 776 declared
 differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 198 oracle
 disagreements, and 797 oracle-missing bindings. The target remains open until
 the declared native subset and the available oracle overlap agree.
@@ -119,7 +119,7 @@ for explicit square matrices up to dimension 16, and bounded non-negative
 `MatrixPower`, exact
 `RowReduce`, `NullSpace`, `MatrixRank`, bounded exact `LinearSolve` and
 `Minors`, structural `Length`, recursive `Flatten`, dynamic exact dimensions,
-and opaque preservation for unsupported
+bounded block-matrix `ArrayFlatten`, and opaque preservation for unsupported
 dimensions or computed heads. The independent tests cover literal, rational,
 symbolic, canonical empty-list, and bounded-preserved forms. Requested-
 precision `N` now has a bounded native path for 17--512 decimal digits, with a
@@ -150,6 +150,8 @@ the refreshed native collection also makes one previously hidden binding an
 agreement, for a net gain of two agreements and one fewer difference. Cache
 version 14 keeps unaffected older-version SymPy rows reusable, including the
 version-13 Solve rows, instead of forcing another broad oracle refresh.
+The bounded `ArrayFlatten` slice then evaluates rectangular block matrices and
+adds three agreements while removing three declared differences.
 It does not close the remaining
 parity gap. The highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
@@ -185,10 +187,10 @@ claims.
 The historical full refresh includes the SymPy refresh required by the
 translator cache-version change and took 4:54. The latest LegendreP refresh of
 the SymPy oracle took 6:59.96 with two workers and a 3.86 GiB peak RSS. The
-subsequent native audit refreshed the bounded FoldList slice in 1:13.07
-with a 3.03 GiB peak RSS.
+subsequent native audit refreshed the bounded ArrayFlatten slice in 1:13.38
+with a 1.54 GiB peak RSS.
 Once raw results and comparison verdicts are cached, the same full audit takes
-1.14 seconds at 416 MiB RSS. Future compatible cache transitions retain
+1.12 seconds at 420 MiB RSS. Future compatible cache transitions retain
 unaffected older-version rows. These are
 harness measurements, not a
 capability comparison: Mathics evaluates integrals fortsym refuses, and the native path
