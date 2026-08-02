@@ -98,8 +98,8 @@ reported state.
 | native rows exceeding the time budget | 3 |
 | native rows ending in a runner error | 0 |
 | crashes | **0** |
-| full native-cache refresh after parser and `Dot` changes | 1:15.03 / 1.61 GiB |
-| latest warm compact raw-output and verdict audit | 19.51 s / 444 MiB |
+| full native/SymPy refresh after v60 changes | 2:14.26 / 1.61 GiB |
+| latest warm compact raw-output and verdict audit | 0.66 s / 337 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -116,18 +116,19 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,852 agreements, 470 declared
+The latest cache-only binding-level audit reports 3,853 agreements, 468 declared
 differences, 7 unsupported outcomes, 76 timeouts, 60 errors, 2 unavailable
 oracle rows, 194 oracle disagreements, and 354 oracle-missing bindings. The
-v43-v59
+v43-v60
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
 parity, math3y, Cartesian-primitive, math8y, perpendicular-block, math10y,
 math6-1y, cylinder-spectrum, math11y, Mercier, Appendix-B, math14y, and math15y
-recoveries, with 67 independent tests. The v59 native work fixes implicit
-scientific-literal precedence and adds vector-matrix `Dot` evaluation; the
-benchmark harness now invalidates native cache rows at version 2.
+recoveries, with 68 independent tests. The v59 native work fixes implicit
+scientific-literal precedence and adds vector-matrix `Dot` evaluation; v60 adds
+bounded numeric `FindRoot`. The benchmark harness now invalidates native cache
+rows at version 2.
 The v37
 phase-transform and flux-coordinate companion translations, followed by the
 v38 NAE/DESC and Appendix-B translations, recovered 42 agreements and 52
