@@ -163,8 +163,8 @@ The benchmark keeps the original `.wl` file as the shared source for Mathics
 and the native backend. Python companions are generated separately for the
 SymPy oracle; their inventory and persistent oracle cache live in
 `fortsym-bench`.
-There is not yet a standalone `.wl`-to-`.f90` corpus translator: native Fortran
-currently interprets the Wolfram source at runtime, while code generation
+There is not yet a full-corpus `.wl`-to-`.f90` translator: native Fortran still
+interprets the Wolfram source at runtime for corpus runs, while code generation
 starts from an already-built `expr_t` graph. Full executable Fortran coverage
 of all corpus scripts remains open work.
 
@@ -174,6 +174,9 @@ assignment. `fortsym_wl_to_f90 input.wl output.f90` accepts `r = 2*x + Sin[x]`
 compilable Fortran subroutine using the existing kernel emitter. It deliberately
 refuses additional statements, non-Fortran symbol names, and unsupported
 expressions; this is an incremental entry point, not full corpus translation.
+
+The executable is installed by `fo install`; use `fo exec fortsym_wl_to_f90`
+for the repository-managed invocation.
 
 On the 384-file corpus sweep recorded 2026-08-02, the native runner completed
 380 scripts (344 with non-empty results and 36 valid empty result sets), timed
@@ -185,9 +188,9 @@ native rows in 1:14.19 with a 3.04 GiB peak RSS. After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, a fully warm audit now takes 1.24 seconds
 at 456 MiB RSS and starts no backend subprocesses. The current committed
-whole-corpus binding-level tally is 3,219 agreements, 716 declared differences,
-20 unsupported outcomes, 38 timeouts, 117 errors, 192 oracle disagreements,
-and 798 oracle-missing bindings. The v18 Solve-rule/fractional-`Exponent`
+whole-corpus cache-only tally is 3,337 agreements, 650 declared differences,
+7 unsupported outcomes, 73 timeouts, 90 errors, 197 oracle disagreements,
+and 717 oracle-missing bindings. The v18 Solve-rule/fractional-`Exponent`
 transition refreshed four SymPy rows in 10.46 seconds at 399 MiB RSS. A
 current one-worker audit of the affected 11-script slice, using the rebuilt
 native runner, took 42.39 seconds at 804 MiB RSS and reported 181 agreements,
