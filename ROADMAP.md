@@ -98,8 +98,8 @@ reported state.
 | native rows exceeding the time budget | 3 |
 | native rows ending in a runner error | 0 |
 | crashes | **0** |
-| full native/SymPy refresh after v67 changes | 3:07.12 / 1.61 GiB |
-| latest warm compact raw-output and verdict audit | 1.02 s / 491 MiB |
+| v70 native/SymPy audit after identity-power and oracle changes | 8:14.64 / 1.61 GiB |
+| latest v70 warm compact raw-output and verdict audit | 0.70 s / 492 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -116,10 +116,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,863 agreements, 465 declared
+The latest cache-only binding-level audit reports 3,861 agreements, 471 declared
 differences, 7 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable
-oracle rows, 208 oracle disagreements, and 349 oracle-missing bindings across
-4,888 bindings. The v43-v69
+oracle rows, 205 oracle disagreements, and 349 oracle-missing bindings across
+4,889 bindings. The v43-v70
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -127,7 +127,9 @@ parity, math3y, Cartesian-primitive, math8y, perpendicular-block, math10y,
 math6-1y, cylinder-spectrum, math11y, Mercier, Appendix-B, math14y, and math15y
 recoveries, with 75 independent tests. The v59 native work fixes implicit
 scientific-literal precedence and adds vector-matrix `Dot` evaluation; v60 adds
-bounded numeric `FindRoot`. The benchmark harness now invalidates native cache
+bounded numeric `FindRoot`. The v70 cycle adds exact identity-matrix fractional
+powers and source-faithful numeric `Abs`/Mathics root handling, with selective
+SymPy cache invalidation. The benchmark harness now invalidates native cache
 rows at version 2.
 The v37
 phase-transform and flux-coordinate companion translations, followed by the
