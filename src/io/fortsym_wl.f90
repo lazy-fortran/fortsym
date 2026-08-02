@@ -1082,6 +1082,10 @@ contains
             r = lower_curl(s, r, ok, message)
             if (.not. ok) return
 
+        case ("LeviCivitaTensor")
+            r = lower_levi_civita_tensor(s, r, ok, message)
+            if (.not. ok) return
+
         case ("LegendreP")
             if (r%nargs() == 2) then
                 inner = lower_legendre(s, r, ok, message)
@@ -3979,6 +3983,57 @@ contains
                 "Curl supports only explicit 2D or 3D lists")
         end select
     end function lower_curl
+
+    !> The explicit three-dimensional Levi-Civita tensor used by bounded
+    !> coordinate calculations.  Keep the dimension restriction deliberate:
+    !> this materialises only the small tensor whose entries are independently
+    !> defined by epsilon_123 = +1 and total antisymmetry.
+    function lower_levi_civita_tensor(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, zero, one, minus_one
+        type(expr_t)                      :: rows(3), planes(3)
+        integer                           :: dimension
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() /= 1) then
+            call refuse(ok, message, "LeviCivitaTensor takes one dimension")
+            return
+        end if
+        if (.not. exact_small_int(e%arg(1), dimension)) then
+            call refuse(ok, message, "LeviCivitaTensor needs an exact dimension")
+            return
+        end if
+        if (dimension /= 3) then
+            call refuse(ok, message, "LeviCivitaTensor supports only dimension 3")
+            return
+        end if
+
+        zero = num(s%a, 0_int64)
+        one = num(s%a, 1_int64)
+        minus_one = num(s%a, -1_int64)
+
+        planes(1) = func("List", [zero, zero, zero])
+        planes(2) = func("List", [zero, zero, one])
+        planes(3) = func("List", [zero, minus_one, zero])
+        rows(1) = func("List", planes)
+
+        planes(1) = func("List", [zero, zero, minus_one])
+        planes(2) = func("List", [zero, zero, zero])
+        planes(3) = func("List", [one, zero, zero])
+        rows(2) = func("List", planes)
+
+        planes(1) = func("List", [zero, one, zero])
+        planes(2) = func("List", [minus_one, zero, zero])
+        planes(3) = func("List", [zero, zero, zero])
+        rows(3) = func("List", planes)
+
+        r = func("List", rows)
+    end function lower_levi_civita_tensor
 
     !> Join a bounded list of literal path components.
     !>
