@@ -50,6 +50,7 @@ program test_fortsym_wl_solvenum
     call test_solve_refuses_what_it_cannot_verify()
     call test_n_precision()
     call test_implicit_scientific_power()
+    call test_find_root()
     call test_chop()
     call test_identity_cross_trace()
     call test_array_collections()
@@ -602,6 +603,14 @@ contains
             "v = N[(165/100 10^-9 15/eta0)^(2/3), 20]"//nl(), "v", &
             "4.7246768213475920150")
     end subroutine test_implicit_scientific_power
+
+    !> The decimal is an independent high-precision oracle for Log[2], not a
+    !> check that the implementation agrees with its own Newton iteration.
+    subroutine test_find_root()
+        call expect_real("numeric FindRoot", &
+            "root = FindRoot[Exp[-x] == 1/2, {x, 1/2}]"//nl()// &
+            "v = x /. root"//nl(), "v", 0.69314718055994530942_dp, 1.0e-14_dp)
+    end subroutine test_find_root
 
     subroutine expect_real(label, script, name, expected, tol)
         character(*), intent(in) :: label, script, name

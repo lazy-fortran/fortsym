@@ -1128,6 +1128,10 @@ contains
             end if
             r = inner
 
+        case ("FindRoot")
+            r = lower_find_root(s, r, ok, message)
+            if (.not. ok) return
+
             ! Matrix heads on operands that are not concrete matrices stay
             ! unevaluated rather than refusing. That is not a guess: Transpose[jac]
             ! where jac is a symbol is exactly what Mathics returns too, so
@@ -1589,6 +1593,115 @@ contains
 
         end select
     end function wl_eval
+
+    !> Bounded one-variable numeric FindRoot for a closed real equation.
+    !>
+    !> This deliberately accepts only the common {x, x0} form.  A central
+    !> finite-difference Newton step keeps the implementation independent of
+    !> the symbolic algebra engine and refuses a non-numeric probe, a flat
+    !> derivative, or a non-convergent iteration instead of returning a guess.
+    function lower_find_root(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,             intent(out)  :: ok
+        type(str_t),         intent(out)  :: message
+        type(expr_t)                      :: r, equation, residual, spec
+        type(expr_t)                      :: variable, probe
+        type(expr_t), allocatable         :: rule_args(:), result_args(:)
+        real(dp) :: x, f, fplus, fminus, derivative, next, h
+        logical :: good
+        character(:), allocatable :: why
+        integer :: iteration
+
+        ok = .false.
+        message = str("")
+        r = e
+        if (e%nargs() < 2 .or. e%nargs() > 3) then
+            call refuse(ok, message, "FindRoot needs an equation and {x, x0}")
+            return
+        end if
+
+        equation = e%arg(1)
+        if (equation%kind() /= NK_FUNC .or. chars(equation%name()) /= "Equal" .or. &
+            equation%nargs() /= 2) then
+            call refuse(ok, message, "FindRoot needs one equation lhs == rhs")
+            return
+        end if
+        spec = e%arg(2)
+        if (spec%kind() /= NK_FUNC .or. chars(spec%name()) /= "List" .or. &
+            spec%nargs() /= 2) then
+            call refuse(ok, message, "FindRoot needs {symbol, starting value}")
+            return
+        end if
+        variable = spec%arg(1)
+        if (variable%kind() /= NK_SYM) then
+            call refuse(ok, message, "FindRoot needs {symbol, starting value}")
+            return
+        end if
+        call numeric_value(spec%arg(2), x, good, why)
+        if (.not. good) then
+            call refuse(ok, message, "FindRoot start: "//why)
+            return
+        end if
+
+        residual = equation%arg(1) - equation%arg(2)
+        do iteration = 1, 64
+            probe = subs(residual, variable, real_expr(s%a, x))
+            call numeric_value(probe, f, good, why)
+            if (.not. good) then
+                call refuse(ok, message, "FindRoot probe: "//why)
+                return
+            end if
+            if (abs(f) <= 2.0e-14_dp) exit
+
+            h = sqrt(epsilon(1.0_dp))*max(1.0_dp, abs(x))
+            probe = subs(residual, variable, real_expr(s%a, x + h))
+            call numeric_value(probe, fplus, good, why)
+            if (.not. good) then
+                call refuse(ok, message, "FindRoot derivative: "//why)
+                return
+            end if
+            probe = subs(residual, variable, real_expr(s%a, x - h))
+            call numeric_value(probe, fminus, good, why)
+            if (.not. good) then
+                call refuse(ok, message, "FindRoot derivative: "//why)
+                return
+            end if
+            derivative = (fplus - fminus)/(2.0_dp*h)
+            if (abs(derivative) <= epsilon(1.0_dp)) then
+                call refuse(ok, message, "FindRoot derivative is too small")
+                return
+            end if
+            next = x - f/derivative
+            if (next /= next .or. abs(next) > huge(1.0_dp)/4.0_dp) then
+                call refuse(ok, message, "FindRoot step is not finite")
+                return
+            end if
+            if (abs(next - x) <= 2.0e-14_dp*max(1.0_dp, abs(next))) then
+                x = next
+                exit
+            end if
+            x = next
+        end do
+
+        if (iteration > 64) then
+            call refuse(ok, message, "FindRoot exceeded its iteration bound")
+            return
+        end if
+        probe = subs(residual, variable, real_expr(s%a, x))
+        call numeric_value(probe, f, good, why)
+        if (.not. good .or. abs(f) > 2.0e-12_dp) then
+            call refuse(ok, message, "FindRoot did not converge")
+            return
+        end if
+
+        allocate (rule_args(2), result_args(1))
+        rule_args(1) = variable
+        rule_args(2) = real_expr(s%a, x)
+        result_args(1) = func("Rule", rule_args)
+        r = func("List", result_args)
+        ok = .true.
+    end function lower_find_root
 
     !> Integrate[f, spec, ...]. A spec is a bare variable x, a {x} that means
     !> the same, or a {x, a, b} that asks for a definite integral.
@@ -4427,7 +4540,7 @@ contains
                 "Minors", "RowReduce", "NullSpace", "MatrixRank")
             yes = .true.
             ! Solving beyond the scalar linear case (#36)
-        case ("Reduce", "NSolve", "FindRoot", "Eliminate", "Roots", "ToRadicals")
+        case ("Reduce", "NSolve", "Eliminate", "Roots", "ToRadicals")
             yes = .true.
             ! Series and sums (#35, #39)
         case ("SeriesCoefficient")
