@@ -118,9 +118,9 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The final binding-level audit reports 3,219 agreements, 716 declared
-differences, 20 unsupported outcomes, 38 timeouts, 117 errors, 192 oracle
-disagreements, and 798 oracle-missing bindings. The target remains open until
+The latest cache-only binding-level audit reports 3,337 agreements, 650 declared
+differences, 7 unsupported outcomes, 73 timeouts, 90 errors, 197 oracle
+disagreements, and 717 oracle-missing bindings. The target remains open until
 the declared native subset and the available oracle overlap agree.
 
 The current native collection slice includes bounded `Array`, `ConstantArray`,
@@ -138,7 +138,7 @@ exact
 gcd/quotient/remainder and rational
 numerator/denominator extraction, verified exponential-product `Integrate`,
 structural `Length`, recursive `Flatten`, dynamic exact dimensions,
-bounded block-matrix `ArrayFlatten`, and opaque preservation for unsupported
+bounded block-matrix `ArrayFlatten`, bounded Cartesian `Curl`, and opaque preservation for unsupported
 dimensions or computed heads. The independent tests cover literal, rational,
 symbolic, canonical empty-list, and bounded-preserved forms. Requested-
 precision `N` now has a bounded native path for 17--512 decimal digits, with a
