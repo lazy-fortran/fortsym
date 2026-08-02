@@ -651,9 +651,103 @@ contains
         if (j == 0) then
             out = a%int(0_int64)
         else
-            out = a%add(result(1:j))
+            out = factor_common_add(a, result(1:j))
         end if
     end function simplify_add
+
+    function factor_common_add(a, terms) result(out)
+        ! Pull a common positive rational factor from an exact sum.  This is
+        ! a canonicalization, not a heuristic simplification: every term is
+        ! multiplied by the reciprocal factor before the factored product is
+        ! built.  It makes exact polynomial forms independent of whether the
+        ! parser attached decimal-looking rational constants to each term or
+        ! to the whole denominator.
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: terms(:)
+        integer                      :: out, i, base, term, inner
+        integer(int64)               :: common_n, common_d, n, d, gcd_n, gcd_d
+        integer(int64)               :: lcm_d
+        integer, allocatable         :: normalized(:)
+        type(exact_coefficient_t)    :: coefficient, inverse, scaled
+        logical                      :: exact, ok, changed
+
+        if (size(terms) < 2) then
+            out = a%add(terms)
+            return
+        end if
+
+        common_n = 0_int64
+        common_d = 1_int64
+        do i = 1, size(terms)
+            call split_coefficient(a, terms(i), base, coefficient, exact)
+            if (.not. exact .or. .not. coefficient%compact) then
+                out = a%add(terms)
+                return
+            end if
+            n = coefficient%numerator
+            d = coefficient%denominator
+            if (n == MIN_I64) then
+                out = a%add(terms)
+                return
+            end if
+            if (n == 0_int64) cycle
+            if (common_n == 0_int64) then
+                common_n = abs(n)
+            else
+                common_n = gcd_positive(common_n, abs(n))
+            end if
+            gcd_d = gcd_positive(common_d, d)
+            call checked_mul(common_d/gcd_d, d, lcm_d, ok)
+            if (.not. ok) then
+                out = a%add(terms)
+                return
+            end if
+            common_d = lcm_d
+        end do
+
+        if (common_n == 0_int64) then
+            out = a%add(terms)
+            return
+        end if
+        changed = common_n /= common_d
+        if (.not. changed) then
+            out = a%add(terms)
+            return
+        end if
+
+        inverse = coefficient_one()
+        inverse%numerator = common_d
+        inverse%denominator = common_n
+        allocate (normalized(size(terms)))
+        do i = 1, size(terms)
+            call split_coefficient(a, terms(i), base, coefficient, exact)
+            if (.not. exact) then
+                out = a%add(terms)
+                return
+            end if
+            call coefficient_mul(a, coefficient, inverse, scaled, ok)
+            if (.not. ok) then
+                out = a%add(terms)
+                return
+            end if
+            term = coefficient_node(a, scaled)
+            if (base /= 0) then
+                if (coefficient_is_one(scaled)) then
+                    term = base
+                else
+                    term = a%mul([term, base])
+                end if
+            end if
+            normalized(i) = term
+        end do
+
+        ! Run the ordinary like-term cancellation on the normalized inner
+        ! sum.  Factoring before that pass would hide x + 1 - x inside a
+        ! product and can make downstream coefficient extraction refuse a
+        ! polynomial that was previously recognized.
+        inner = simplify_add(a, normalized)
+        out = a%mul([a%rat(common_n, common_d), inner])
+    end function factor_common_add
 
     subroutine split_coefficient(a, id, base, coefficient, exact)
         type(arena_t), intent(inout) :: a

@@ -32,6 +32,7 @@ program test_fortsym_native
 
     call test_exact_arithmetic()
     call test_like_terms_and_powers()
+    call test_common_rational_factor()
     call test_expansion()
     call test_expansion_limits()
     call test_differentiation()
@@ -140,6 +141,22 @@ contains
         r = engine%simplify((x**2)**3)
         call check("nested integer powers combine", r%value == x**6)
     end subroutine test_like_terms_and_powers
+
+    subroutine test_common_rational_factor()
+        type(engine_result_t) :: r
+        type(expr_t) :: expected
+
+        ! Independent oracle: factor 1/500 from the denominator, then
+        ! multiply its reciprocal by the outer 1/5.  No implementation text
+        ! is used to construct the expected expression.
+        expected = rat(arena, 100_int64, 1_int64) / (num(arena, 3_int64)*x**2 + &
+            num(arena, 25_int64))
+        r = engine%simplify((rat(arena, 3_int64, 500_int64)*x**2 + &
+            rat(arena, 1_int64, 20_int64))**(-1) / num(arena, 5_int64))
+        call check("common rational factor simplification succeeds", r%ok)
+        call check("common rational factor has canonical quotient", &
+            r%value == expected)
+    end subroutine test_common_rational_factor
 
     subroutine test_expansion()
         type(engine_result_t) :: r
