@@ -188,9 +188,9 @@ native rows in 1:14.19 with a 3.04 GiB peak RSS. After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, a fully warm audit now takes 1.24 seconds
 at 456 MiB RSS and starts no backend subprocesses. The current cache-only
-whole-corpus tally is 3,495 agreements, 502 declared differences, 8
-unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable oracle rows, 209
-oracle disagreements, and 620 oracle-missing bindings. The v18
+whole-corpus tally is 3,537 agreements, 512 declared differences, 8
+unsupported outcomes, 75 timeouts, 61 errors, 2 unavailable oracle rows, 209
+oracle disagreements, and 568 oracle-missing bindings. The v18
 Solve-rule/fractional-`Exponent`
 transition refreshed four SymPy rows in 10.46 seconds at 399 MiB RSS. A
 current one-worker audit of the affected 11-script slice, using the rebuilt
@@ -267,7 +267,8 @@ refreshes the `math8y`, `sympl3_`, and general-Maxwell companions, and adds a
 Mathics Boolean-assumptions shim. The v36 cycle expands the helical-core
 derivative and bounded Solve companions; v37 adds source-faithful
 phase-transform and flux-coordinate SymPy companions with independent tests.
-The current score is 3,495 agreements, 502 differences, and 620
+The v38 cycle adds source-faithful NAE/DESC geometry and Appendix-B integral
+companions. The current score is 3,537 agreements, 512 differences, and 568
 oracle-missing bindings; the successful Mathics inventory remains 255 rows,
 with 60 errors and 69 bounded timeouts.
 

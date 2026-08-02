@@ -115,11 +115,13 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,495 agreements, 502 declared
-differences, 8 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable
-oracle rows, 209 oracle disagreements, and 620 oracle-missing bindings. The v37
-phase-transform and flux-coordinate companion translations recovered 21
-agreements and 15 previously oracle-missing bindings in the warm audit. The
+The latest cache-only binding-level audit reports 3,537 agreements, 512 declared
+differences, 8 unsupported outcomes, 75 timeouts, 61 errors, 2 unavailable
+oracle rows, 209 oracle disagreements, and 568 oracle-missing bindings. The v37
+phase-transform and flux-coordinate companion translations, followed by the
+v38 NAE/DESC and Appendix-B translations, recovered 42 agreements and 52
+previously oracle-missing bindings in the warm audit while resolving one SymPy
+timeout. The
 target remains open until the declared native subset and the available oracle
 overlap agree.
 
