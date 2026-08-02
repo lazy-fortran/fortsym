@@ -195,7 +195,7 @@ source-faithful ECNL equation strings, numeric validity estimates,
 Maxwell/flux-pumping companions, math10y and Suydam recoveries, large-step LTE
 reconstruction, Sympl3 field forms, normal-stability numeric parity, math3y,
 and Cartesian-primitive, math8y, perpendicular-block, math10y, math6-1y, and
-cylinder-spectrum recoveries, with 23 independent tests. The v18
+cylinder-spectrum recoveries, with 20 independent tests. The v18
 Solve-rule/fractional-`Exponent`
 transition refreshed four SymPy rows in 10.46 seconds at 399 MiB RSS. A
 current one-worker audit of the affected 11-script slice, using the rebuilt
