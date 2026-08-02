@@ -1427,6 +1427,25 @@ contains
                 return
             end if
         end do
+
+        ! N[..., 30] makes each zero an arbitrary-precision decimal. The
+        ! singular values of the hand-derived zero matrix are still exactly
+        ! {0, 0}; this is the boundary used by the large-step operator norm.
+        call run_one(a, "v = SingularValueList[N[{{0, 0}, {0, 0}}, 30]]"//nl(), &
+            "v", value, ok, message)
+        if (.not. ok .or. value%kind() /= NK_FUNC .or. value%nargs() /= 2) then
+            call fail("SingularValueList arbitrary-precision zero", &
+                "wrong result shape or refusal: "//message)
+            return
+        end if
+        do k = 1, 2
+            item = value%arg(k)
+            if (item%kind() /= NK_REAL .or. abs(item%real_value()) > 1.0e-12_dp) then
+                call fail("SingularValueList arbitrary-precision zero", &
+                    "zero matrix did not produce zero singular values")
+                return
+            end if
+        end do
     end subroutine test_singular_value_list
 
     !> Numeric extrema reduce the explicit singular-value list to its operator

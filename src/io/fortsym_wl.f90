@@ -19,7 +19,8 @@ module fortsym_wl
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
     use fortsym_print, only: print_expr
-    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW
+    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW, &
+        NK_BIG_REAL
     use fortsym_expr, only: expr_t, sym, num, func, func_in, real_expr, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
@@ -2834,8 +2835,8 @@ contains
         real(dp), allocatable             :: singular(:)
         real(dp)                          :: item_value, swap
         logical                           :: numeric_ok
-        character(:), allocatable         :: why
-        integer                           :: i, j, k, count
+        character(:), allocatable         :: why, text
+        integer                           :: i, j, k, count, ios
 
         ok = .true.
         message = str("")
@@ -2854,7 +2855,17 @@ contains
         singular = 0.0_dp
         do i = 1, size(matrix, 1)
             do j = 1, size(matrix, 2)
-                call numeric_value(matrix(i, j), item_value, numeric_ok, why)
+                if (matrix(i, j)%kind() == NK_BIG_REAL) then
+                    ! N[..., p] retains p>machine digits as decimal text. The
+                    ! singular-value path is bounded to real64, but it can
+                    ! still prove a zero matrix (and its norm) from that text.
+                    text = chars(matrix(i, j)%real_text())
+                    read (text, *, iostat=ios) item_value
+                    numeric_ok = ios == 0
+                    if (.not. numeric_ok) why = "arbitrary-precision real is not finite"
+                else
+                    call numeric_value(matrix(i, j), item_value, numeric_ok, why)
+                end if
                 if (.not. numeric_ok) return
                 if (i /= j .and. abs(item_value) > 1.0e-12_dp) return
                 if (i == j .and. i <= count) singular(i) = abs(item_value)
