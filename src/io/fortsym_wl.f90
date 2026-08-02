@@ -925,6 +925,10 @@ contains
             r = lower_boole(s, e, ok, message)
             return
         end if
+        if (head == "Which") then
+            r = lower_which(s, e, ok, message)
+            return
+        end if
 
         ! These heads carry evaluation rules for their arguments. Evaluating a
         ! pure function before Map sees it would refuse Function/Slot, and
@@ -1831,6 +1835,74 @@ contains
             r = num(s%a, 0)
         end if
     end function lower_boole
+
+    !> Select the first true branch of a bounded numeric Which expression.
+    recursive function lower_which(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, condition, branch_value
+        type(expr_t), allocatable         :: output(:)
+        logical                           :: arg_ok, decided, truth, have_unknown
+        type(str_t)                       :: arg_message
+        integer                           :: k, noutput
+
+        ok = .true.
+        message = str("")
+        r = e
+        if (e%nargs() < 2 .or. mod(e%nargs(), 2) /= 0) then
+            call refuse(ok, message, "Which needs condition-value pairs")
+            return
+        end if
+
+        allocate (output(e%nargs()))
+        noutput = 0
+        have_unknown = .false.
+        do k = 1, e%nargs(), 2
+            condition = wl_eval(s, e%arg(k), arg_ok, arg_message)
+            if (.not. arg_ok) then
+                call refuse(ok, message, chars(arg_message))
+                return
+            end if
+            call condition_value(condition, decided, truth)
+            if (decided) then
+                if (truth) then
+                    branch_value = wl_eval(s, e%arg(k + 1), arg_ok, arg_message)
+                    if (.not. arg_ok) then
+                        call refuse(ok, message, chars(arg_message))
+                        return
+                    end if
+                    if (.not. have_unknown) then
+                        r = branch_value
+                        return
+                    end if
+                    noutput = noutput + 1
+                    output(noutput) = condition
+                    noutput = noutput + 1
+                    output(noutput) = branch_value
+                end if
+                cycle
+            end if
+
+            have_unknown = .true.
+            branch_value = wl_eval(s, e%arg(k + 1), arg_ok, arg_message)
+            if (.not. arg_ok) then
+                call refuse(ok, message, chars(arg_message))
+                return
+            end if
+            noutput = noutput + 1
+            output(noutput) = condition
+            noutput = noutput + 1
+            output(noutput) = branch_value
+        end do
+
+        if (have_unknown) then
+            r = func("Which", output(:noutput))
+        else
+            r = func("Which", output(:0))
+        end if
+    end function lower_which
 
     !> Map[f, {x1, x2, ...}] for a named or pure one-argument function.
     !>
