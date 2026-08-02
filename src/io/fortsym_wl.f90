@@ -3635,28 +3635,52 @@ contains
         r = out
     end function lower_rewrite
 
-    !> Curl of an explicit two- or three-component list in explicit Cartesian
-    !> coordinates.  The coordinate-system forms accepted by Wolfram are not
-    !> equivalent without metric factors, so they remain named refusals here.
+    !> Curl of an explicit two- or three-component list in Cartesian
+    !> coordinates, plus the bounded physical-component cylindrical form.
+    !>
+    !> The three-argument cylindrical form is deliberately narrow.  For
+    !> A = (A_r, A_theta, A_z), Wolfram's physical components use
+    !>
+    !>   { (d_theta A_z - d_z (r A_theta))/r,
+    !>     d_z A_r - d_r A_z,
+    !>     (d_r (r A_theta) - d_theta A_r)/r }.
+    !>
+    !> Other coordinate systems and non-three-dimensional cylindrical fields
+    !> remain explicit refusals rather than silently receiving Cartesian
+    !> derivatives.
     function lower_curl(s, e, ok, message) result(r)
         type(wl_session_t), intent(inout) :: s
         type(expr_t),       intent(in)    :: e
         logical,            intent(out)   :: ok
         type(str_t),        intent(out)   :: message
-        type(expr_t)                      :: r, field, coords
+        type(expr_t)                      :: r, field, coords, system
         integer                           :: n
+        logical                           :: cylindrical
 
         ok = .true.
         message = str("")
         r = e
 
-        if (e%nargs() /= 2) then
+        cylindrical = .false.
+        if (e%nargs() == 2) then
+            field = e%arg(1)
+            coords = e%arg(2)
+        else if (e%nargs() == 3) then
+            system = e%arg(3)
+            if (system%kind() /= NK_SYM .or. &
+                    chars(system%name()) /= '"Cylindrical"') then
+                call refuse(ok, message, &
+                    "Curl supports only the bounded Cylindrical coordinate form")
+                return
+            end if
+            cylindrical = .true.
+            field = e%arg(1)
+            coords = e%arg(2)
+        else
             call refuse(ok, message, &
                 "Curl needs a field and an explicit coordinate list")
             return
         end if
-        field = e%arg(1)
-        coords = e%arg(2)
         if (.not. is_list(field)) then
             call refuse(ok, message, "Curl needs an explicit list field")
             return
@@ -3673,18 +3697,34 @@ contains
                 "Curl field and coordinates have different ranks")
             return
         end if
+        if (cylindrical .and. n /= 3) then
+            call refuse(ok, message, &
+                "Cylindrical Curl supports only explicit 3D lists")
+            return
+        end if
         select case (n)
         case (2)
             r = diff(field%arg(2), coords%arg(1)) - &
                 diff(field%arg(1), coords%arg(2))
         case (3)
-            r = func("List", [ &
-                diff(field%arg(3), coords%arg(2)) - &
-                diff(field%arg(2), coords%arg(3)), &
-                diff(field%arg(1), coords%arg(3)) - &
-                diff(field%arg(3), coords%arg(1)), &
-                diff(field%arg(2), coords%arg(1)) - &
-                diff(field%arg(1), coords%arg(2))])
+            if (cylindrical) then
+                r = func("List", [ &
+                    (diff(field%arg(3), coords%arg(2)) - &
+                    diff(coords%arg(1)*field%arg(2), coords%arg(3)))/ &
+                    coords%arg(1), &
+                    diff(field%arg(1), coords%arg(3)) - &
+                    diff(field%arg(3), coords%arg(1)), &
+                    (diff(coords%arg(1)*field%arg(2), coords%arg(1)) - &
+                    diff(field%arg(1), coords%arg(2)))/coords%arg(1)])
+            else
+                r = func("List", [ &
+                    diff(field%arg(3), coords%arg(2)) - &
+                    diff(field%arg(2), coords%arg(3)), &
+                    diff(field%arg(1), coords%arg(3)) - &
+                    diff(field%arg(3), coords%arg(1)), &
+                    diff(field%arg(2), coords%arg(1)) - &
+                    diff(field%arg(1), coords%arg(2))])
+            end if
         case default
             call refuse(ok, message, &
                 "Curl supports only explicit 2D or 3D lists")
