@@ -78,6 +78,7 @@ module fortsym_wl
     !> for a much larger matrix.
     integer, parameter :: MAX_LINEAR_SOLVE = 32
     integer, parameter :: MAX_LEGENDRE_DEGREE = 64
+    integer, parameter :: MAX_CHARACTERISTIC_DIMENSION = 16
     integer, parameter :: dp = real64
 
     !> One top-level assignment produced by a script.
@@ -1454,6 +1455,10 @@ contains
                 call refuse(ok, message, "Diagonal: "//why)
                 return
             end if
+
+        case ("CharacteristicPolynomial")
+            r = lower_characteristic_polynomial(s, r, ok, message)
+            if (.not. ok) return
 
         case ("Integrate")
             r = lower_integrate(s, r, ok, message)
@@ -3089,6 +3094,83 @@ contains
         r = expanded%value
     end function lower_legendre
 
+    !> CharacteristicPolynomial[m, z] for a bounded explicit square matrix.
+    !>
+    !> Form z I - m and reuse the fraction-free determinant implementation.
+    !> The expansion after elimination gives the canonical polynomial form used
+    !> by the independent SymPy translation. A symbolic or malformed matrix is
+    !> left opaque; a square matrix beyond the resource bound is refused.
+    function lower_characteristic_polynomial(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                       :: r, matrix_expr, normalized
+        type(expr_t), allocatable          :: matrix(:, :), shifted(:, :)
+        type(engine_result_t)              :: expanded
+        character(:), allocatable          :: why
+        logical                            :: normalized_ok
+        integer                            :: n, columns, i, j
+
+        r = e
+        ok = .true.
+        message = str("")
+        if (e%nargs() /= 2) then
+            call refuse(ok, message, &
+                "CharacteristicPolynomial takes a matrix and a variable")
+            return
+        end if
+        if (.not. is_matrix(e%arg(1))) return
+
+        call to_matrix(e%arg(1), matrix, ok)
+        if (.not. ok) return
+        n = size(matrix, 1)
+        columns = size(matrix, 2)
+        if (n /= columns) then
+            call refuse(ok, message, &
+                "CharacteristicPolynomial needs a square matrix")
+            return
+        end if
+        if (n > MAX_CHARACTERISTIC_DIMENSION) then
+            call refuse(ok, message, &
+                "CharacteristicPolynomial exceeds the built-in dimension bound")
+            return
+        end if
+
+        allocate (shifted(n, n))
+        do i = 1, n
+            do j = 1, n
+                if (i == j) then
+                    shifted(i, j) = e%arg(2) - matrix(i, j)
+                else
+                    shifted(i, j) = num(s%a, -1)*matrix(i, j)
+                end if
+            end do
+        end do
+        matrix_expr = from_matrix(s%a, shifted)
+        r = matrix_det(s%a, matrix_expr, ok, message)
+        if (.not. ok) return
+
+        ! Bareiss divisions are exact mathematically, but the expression arena
+        ! still stores them as rational nodes when a symbolic pivot is used.
+        ! Put the determinant over one rational denominator and cancel before
+        ! asking the native expander for the final polynomial form.
+        call poly_together(s%a, r, normalized, normalized_ok, why)
+        if (.not. normalized_ok) then
+            call refuse(ok, message, "CharacteristicPolynomial: "//why)
+            return
+        end if
+        r = normalized
+
+        expanded = s%engine%expand(r)
+        if (.not. expanded%ok) then
+            call refuse(ok, message, "CharacteristicPolynomial: "// &
+                chars(expanded%message))
+            return
+        end if
+        r = expanded%value
+    end function lower_characteristic_polynomial
+
     !> A zero-argument application of the given name, such as Infinity.
     function is_named(e, name) result(yes)
         type(expr_t), intent(in) :: e
@@ -3184,7 +3266,7 @@ contains
         case ("Refine", "Assuming", "Simplify2", "Element")
             yes = .true.
             ! Matrices (#30)
-        case ("Diagonal", "Eigenvalues", "LinearSolve", "MatrixPower", "MatrixForm", &
+        case ("Diagonal", "CharacteristicPolynomial", "Eigenvalues", "LinearSolve", "MatrixPower", "MatrixForm", &
                 "Minors", "RowReduce", "NullSpace", "MatrixRank")
             yes = .true.
             ! Solving beyond the scalar linear case (#36)

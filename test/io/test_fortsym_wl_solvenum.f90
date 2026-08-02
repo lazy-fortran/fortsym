@@ -53,6 +53,7 @@ program test_fortsym_wl_solvenum
     call test_append_and_join()
     call test_range_and_diagonal_matrix()
     call test_legendre_wolfram()
+    call test_characteristic_polynomial()
     call test_minors_dispatch()
 
     if (nfail == 0) then
@@ -1018,6 +1019,44 @@ contains
             call fail("LegendreP dispatch", "Rodrigues polynomial value is wrong")
         end if
     end subroutine test_legendre_wolfram
+
+    !> The characteristic polynomial is checked at a point against its
+    !> defining determinant, not against the native expression's spelling.
+    subroutine test_characteristic_polynomial()
+        type(arena_t), target :: a
+        type(expr_t) :: value, point
+        logical :: ok, defined
+        character(:), allocatable :: message
+        real(dp) :: got
+
+        call a%init()
+        call run_one(a, "v = CharacteristicPolynomial[{{1, 2}, {3, 4}}, z]"//nl(), &
+                     "v", value, ok, message)
+        if (.not. ok) then
+            call fail("CharacteristicPolynomial", "refused: "//message)
+            return
+        end if
+        point = subs(value, sym(a, "z"), real_expr(a, 5.0_dp))
+        call numeric_value(point, got, defined, message)
+        if (.not. defined) then
+            call fail("CharacteristicPolynomial", "result is not numerically defined")
+        else if (abs(got - (-2.0_dp)) > 1.0e-13_dp) then
+            call fail("CharacteristicPolynomial", &
+                "determinant at z=5 does not match det(5 I - A)")
+        end if
+
+        call a%init()
+        call run_one(a, "v = CharacteristicPolynomial[s, z]"//nl(), "v", &
+                     value, ok, message)
+        if (.not. ok) then
+            call fail("CharacteristicPolynomial opaque", &
+                "symbolic matrix was refused")
+        else if (value%kind() /= NK_FUNC .or. &
+                chars(value%name()) /= "CharacteristicPolynomial") then
+            call fail("CharacteristicPolynomial opaque", &
+                "symbolic matrix was not preserved")
+        end if
+    end subroutine test_characteristic_polynomial
 
     !> Exercise the public Wolfram dispatch as well as the matrix primitive.
     !> The four values are independent 3x3 determinants of the same 3x4

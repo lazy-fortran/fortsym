@@ -114,7 +114,8 @@ the declared native subset and the available oracle overlap agree.
 
 The current native collection slice includes bounded `Array`, `ConstantArray`,
 and `Outer` expansion, bounded exact `Range`, `DiagonalMatrix`, rectangular
-`Diagonal`, and bounded `LegendreP`, exact
+`Diagonal`, bounded `LegendreP`, and bounded exact `CharacteristicPolynomial`
+for explicit square matrices up to dimension 16, exact
 `RowReduce`, `NullSpace`, `MatrixRank`, bounded exact `LinearSolve` and
 `Minors`, structural `Length`, recursive `Flatten`, dynamic exact dimensions,
 and opaque preservation for unsupported
@@ -122,7 +123,7 @@ dimensions or computed heads. The independent tests cover literal, rational,
 symbolic, canonical empty-list, and bounded-preserved forms. Requested-
 precision `N` now has a bounded native path for 17--512 decimal digits, with a
 named refusal above that limit; list `Append`/`Join`, bounded list selectors,
-rectangular `Diagonal`, bounded `LegendreP`, and multiline dot-product continuation also have
+rectangular `Diagonal`, bounded `LegendreP`, bounded `CharacteristicPolynomial`, and multiline dot-product continuation also have
 independent tests. Unsupported selector and matrix shapes remain opaque.
 Relative to the prior numeric baseline, the parser slice added seven
 agreements, removed one binding error, and exposed two newly visible bindings
@@ -131,6 +132,10 @@ the aggregate tally, and the diagonal slice added one agreement while removing
 two declared differences after both translators preserved unsupported symbolic
 shapes. Its downstream `Last[Diagonal[s]]` case is correctly oracle-missing.
 The Legendre slice added two agreements and removed two declared differences.
+The characteristic-polynomial slice passes independent determinant tests and
+the two-file corpus probe, but does not change the aggregate tally: one source
+reassigns its `cp` binding later to plotting `Point` values, while the mapped
+form in the other source remains outside the translated assignment subset.
 It does not close the remaining
 parity gap. The highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
