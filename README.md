@@ -198,6 +198,10 @@ v21 bounded numeric `Piecewise` transition then ran the same six-script slice
 in 0.85 second at 403 MiB RSS; it preserved 21 agreements, 6 differences, 3
 unavailable oracle rows, 2 oracle disagreements, and 3 oracle-missing
 bindings, with no scored native tally change. The
+v22 numeric `Boole` transition then refreshed three SymPy rows in 2.91
+seconds at 404 MiB RSS and ran a three-script parity slice with 21 agreements,
+7 differences, 1 unavailable oracle row, 1 oracle disagreement, and 1
+oracle-missing binding; it also produced no scored native tally change. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,
@@ -205,7 +209,8 @@ bounded non-negative `MatrixPower`, bounded block-matrix `ArrayFlatten`,
 `RowReduce`, `NullSpace`, `MatrixRank`,
 `LinearSolve`, `Minors`, `Length`, recursive `Flatten`, list
 `Append`/`Join`, bounded list `Thread`, bounded positive-level `Map`, bounded
-numeric `Piecewise` branch selection, and bounded list
+numeric `Piecewise` branch selection, numeric `Boole` conditions, and bounded
+list
 selectors, bounded univariate and multivariate `CoefficientList`, bounded
 `FoldList[Plus, initial, list]`, bounded explicit-list `Total`, bounded
 full-rank numeric `PseudoInverse`, diagonal/zero numeric `SingularValueList`,
