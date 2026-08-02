@@ -198,6 +198,11 @@ contains
             return
         end if
 
+        if (is_list(x) .and. .not. xm .and. ym) then
+            r = vector_times_matrix(a, x, y, ok, why)
+            return
+        end if
+
         if (is_list(x) .and. is_list(y) .and. .not. ym) then
             r = vector_dot(x, y, ok, why)
             return
@@ -235,6 +240,36 @@ contains
         r = func("List", out)
         ok = .true.
     end function matrix_times_vector
+
+    function vector_times_matrix(a, x, y, ok, why) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t),          intent(in)    :: x, y
+        logical,               intent(out)   :: ok
+        type(str_t),           intent(out)   :: why
+        type(expr_t)                         :: r
+        type(expr_t), allocatable :: m(:, :), out(:)
+        integer :: j, k
+
+        r = x
+        why = str("")
+        call to_matrix(y, m, ok)
+        if (.not. ok) return
+        if (x%nargs() /= size(m, 1)) then
+            ok = .false.
+            why = str("Dot with mismatched dimensions")
+            return
+        end if
+
+        allocate (out(size(m, 2)))
+        do j = 1, size(m, 2)
+            out(j) = x%arg(1)*m(1, j)
+            do k = 2, size(m, 1)
+                out(j) = out(j) + x%arg(k)*m(k, j)
+            end do
+        end do
+        r = func("List", out)
+        ok = .true.
+    end function vector_times_matrix
 
     function vector_dot(x, y, ok, why) result(r)
         type(expr_t), intent(in)  :: x, y
