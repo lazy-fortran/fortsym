@@ -31,6 +31,7 @@ module fortsym_wl
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_matrix, only: matrix_transpose, matrix_dot, matrix_det, &
         matrix_inverse, matrix_row_reduce, matrix_null_space, matrix_rank, &
+        matrix_minors, &
         is_matrix, is_list, to_matrix, from_matrix
     use fortsym_linalg, only: exact_linear_system_result_t, &
         solve_exact_linear_system
@@ -1313,6 +1314,26 @@ contains
             if (is_matrix(r%arg(1))) then
                 r = matrix_det(s%a, r%arg(1), ok, message)
                 if (.not. ok) return
+            end if
+
+        case ("Minors")
+            if (r%nargs() < 1 .or. r%nargs() > 2) then
+                call refuse(ok, message, "Minors takes a matrix and optional order")
+                return
+            end if
+            order = 0
+            if (r%nargs() == 2) then
+                if (.not. exact_small_int(r%arg(2), order) .or. order == 0) then
+                    call refuse(ok, message, "Minors needs a positive exact order")
+                    return
+                end if
+            end if
+            if (is_matrix(r%arg(1))) then
+                r = matrix_minors(s%a, r%arg(1), order, ok, message)
+                if (.not. ok) return
+            else if (is_list(r%arg(1))) then
+                call refuse(ok, message, "Minors needs a rectangular matrix")
+                return
             end if
 
         case ("Inverse")
@@ -3035,7 +3056,7 @@ contains
             yes = .true.
             ! Matrices (#30)
         case ("Eigenvalues", "LinearSolve", "MatrixPower", "MatrixForm", &
-                "RowReduce", "NullSpace", "MatrixRank")
+                "Minors", "RowReduce", "NullSpace", "MatrixRank")
             yes = .true.
             ! Solving beyond the scalar linear case (#36)
         case ("Reduce", "NSolve", "FindRoot", "Eliminate", "Roots", "ToRadicals")
