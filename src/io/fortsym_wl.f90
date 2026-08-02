@@ -478,6 +478,7 @@ contains
         type(expr_t) :: parsed
         logical :: ok
         character(:), allocatable :: why
+        type(str_t) :: message
 
         parsed = parse_expr_in(s%a, text, dialect(DIA_WOLFRAM), ok, why)
         if (.not. ok) return
@@ -486,6 +487,8 @@ contains
         select case (chars(parsed%name()))
         case ("Clear", "Remove")
             call clear_names(s, parsed)
+        case ("Do")
+            parsed = wl_eval(s, parsed, ok, message)
         case default
             ! Bare expressions are deliberately discarded. Only named
             ! assignments are part of the benchmark output protocol.
@@ -910,6 +913,14 @@ contains
         ! line into an accidental memory/time bomb.
         if (head == "Table") then
             r = lower_table(s, e, ok, message)
+            return
+        end if
+        ! Do is a side-effecting bounded iterator. Handle it before the generic
+        ! argument walk so a Set in the body can update the session binding in
+        ! written order; evaluating Set as an ordinary function would only
+        ! preserve an unevaluated node.
+        if (head == "Do") then
+            r = lower_do(s, e, ok, message)
             return
         end if
         ! Sum and Product also own their iterator variables. Their bodies must
@@ -3015,6 +3026,72 @@ contains
         r = lower_table_level(s, e%arg(1), e, 2, ok, message)
     end function lower_table
 
+    !> Lower the bounded side-effecting subset Do[body, {i, n}] and
+    !> Do[body, {i, lo, hi}]. Only a plain-symbol Set body is accepted: this is
+    !> the session mutation needed by generated coefficient recurrences, while
+    !> refusing general procedural bodies keeps the evaluator's boundary
+    !> explicit.
+    recursive function lower_do(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)  :: ok
+        type(str_t),        intent(out)  :: message
+        type(expr_t)                     :: r, var, body, target, rhs
+        type(expr_t), allocatable        :: values(:)
+        type(str_t)                      :: rhs_message
+        logical                          :: rhs_ok
+        integer                          :: k
+
+        ok = .true.
+        message = str("")
+        r = func_in(s%a, "Null")
+        if (e%nargs() /= 2) then
+            call refuse(ok, message, "Do needs a body and one iterator")
+            return
+        end if
+
+        call table_values(s, e%arg(2), var, values, ok, message)
+        if (.not. ok) return
+        body = e%arg(1)
+        if (body%kind() /= NK_FUNC) then
+            call refuse(ok, message, "Do supports only a plain-symbol Set body")
+            return
+        end if
+        if (chars(body%name()) /= "Set") then
+            call refuse(ok, message, "Do supports only a plain-symbol Set body")
+            return
+        end if
+        if (body%nargs() /= 2) then
+            call refuse(ok, message, "Do supports only a plain-symbol Set body")
+            return
+        end if
+        target = body%arg(1)
+        if (target%kind() /= NK_SYM) then
+            call refuse(ok, message, "Do supports only a plain-symbol Set body")
+            return
+        end if
+
+        do k = 1, size(values)
+            body = subs(e%arg(1), var, values(k))
+            rhs = apply_bindings(s, body%arg(2))
+            rhs = wl_eval(s, rhs, rhs_ok, rhs_message)
+            if (.not. rhs_ok) then
+                call refuse(ok, message, "Do body: "//chars(rhs_message))
+                return
+            end if
+            rhs = auto_evaluate(s, rhs)
+            if (s%n >= MAX_BINDINGS) then
+                call refuse(ok, message, "Do exceeds the binding safety bound")
+                return
+            end if
+            s%n = s%n + 1
+            s%bindings(s%n)%name = str(chars(target%name()))
+            s%bindings(s%n)%value = rhs
+            s%bindings(s%n)%ok = .true.
+            s%bindings(s%n)%message = str("")
+        end do
+    end function lower_do
+
     !> Lower one iterator and recurse through the remaining iterator specs.
     recursive function lower_table_level(s, body, table, level, ok, message) &
             result(r)
@@ -4876,7 +4953,7 @@ contains
             ! implement. They must refuse rather than print an unevaluated form as
             ! though it were a result.
         case ("Apply", "MapApply", "Function", "Slot", "SlotSequence", &
-                "Span", "SetDelayed", "CompoundExpression", "StringJoin", &
+                "Span", "Do", "SetDelayed", "CompoundExpression", "StringJoin", &
                 "ReplaceRepeated", "Condition", "DerivativeOperator", &
                 "FileNameJoin")
             yes = .true.
