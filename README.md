@@ -168,6 +168,13 @@ currently interprets the Wolfram source at runtime, while code generation
 starts from an already-built `expr_t` graph. Full executable Fortran coverage
 of all corpus scripts remains open work.
 
+The first bounded source-to-source slice is callable for one scalar
+assignment. `fortsym_wl_to_f90 input.wl output.f90` accepts `r = 2*x + Sin[x]`
+(or `:=`), infers scalar inputs from the right-hand side, and emits a
+compilable Fortran subroutine using the existing kernel emitter. It deliberately
+refuses additional statements, non-Fortran symbol names, and unsupported
+expressions; this is an incremental entry point, not full corpus translation.
+
 On the 384-file corpus sweep recorded 2026-08-02, the native runner completed
 380 scripts (344 with non-empty results and 36 valid empty result sets), timed
 out on one heavy script, reported one runner error, and explicitly refused two
