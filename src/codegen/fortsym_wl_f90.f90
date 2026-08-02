@@ -449,6 +449,14 @@ contains
                     ok = .false.
                     return
                 end if
+            case ("Min", "Max")
+                ! Fortran's MIN/MAX intrinsics require at least two scalar
+                ! arguments; keep unary Wolfram forms refused rather than
+                ! emitting a call that will not compile.
+                if (e%nargs() < 2) then
+                    ok = .false.
+                    return
+                end if
             case default
                 ok = .false.
                 return
