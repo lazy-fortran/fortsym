@@ -43,7 +43,8 @@ module fortsym_wl
     use fortsym_numeric, only: numeric_value
     use fortsym_wl_solve, only: wl_solve
     use fortsym_wl_num, only: wl_n, wl_chop, wl_identity_matrix, wl_cross, &
-        wl_trace, wl_length, wl_flatten, wl_range, wl_diagonal_matrix, &
+        wl_trace, wl_length, wl_flatten, wl_append, wl_join, wl_range, &
+        wl_diagonal_matrix, &
         CHOP_DEFAULT
     use fortsym_integrate, only: integrate
     use fortsym_defint, only: definite_integral
@@ -1290,6 +1291,20 @@ contains
             r = wl_flatten(s%a, r%arg(1), ok, why)
             if (.not. ok) then
                 call refuse(ok, message, "Flatten: "//why)
+                return
+            end if
+
+        case ("Append")
+            r = wl_append(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Append: "//why)
+                return
+            end if
+
+        case ("Join")
+            r = wl_join(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Join: "//why)
                 return
             end if
 

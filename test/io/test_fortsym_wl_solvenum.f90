@@ -20,7 +20,7 @@ program test_fortsym_wl_solvenum
     !     satisfies for a generic pair.
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: chars
-    use fortsym_arena, only: arena_t, NK_FUNC, NK_INT, NK_RAT, NK_REAL, &
+    use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_INT, NK_RAT, NK_REAL, &
         NK_BIG_REAL
     use fortsym_expr, only: expr_t, sym, num, operator(-), operator(*), &
         operator(+)
@@ -50,6 +50,7 @@ program test_fortsym_wl_solvenum
     call test_identity_cross_trace()
     call test_array_collections()
     call test_flatten()
+    call test_append_and_join()
     call test_range_and_diagonal_matrix()
     call test_minors_dispatch()
 
@@ -811,6 +812,60 @@ contains
 
         call expect_refusal("flatten levels", "v = Flatten[{{1}}, 1]"//nl(), "v")
     end subroutine test_flatten
+
+    !> Append and Join construct lists without changing their element order.
+    !> The expected entries are derived from the list definitions, not copied
+    !> from the native printer.
+    subroutine test_append_and_join()
+        type(arena_t), target :: a
+        type(expr_t) :: value, item
+        logical :: ok
+        character(:), allocatable :: message
+
+        call a%init()
+        call run_one(a, "v = Append[{1, 2}, x]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("append", "refused: "//message)
+        else if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
+                value%nargs() /= 3) then
+            call fail("append", "wrong result shape")
+        else
+            item = value%arg(1)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 1) &
+                call fail("append", "first entry changed")
+            item = value%arg(2)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 2) &
+                call fail("append", "second entry changed")
+            item = value%arg(3)
+            if (item%kind() /= NK_SYM .or. chars(item%name()) /= "x") &
+                call fail("append", "appended entry is wrong")
+        end if
+
+        call a%init()
+        call run_one(a, "v = Join[{1, 2}, {x, 3}, {}]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("join", "refused: "//message)
+        else if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
+                value%nargs() /= 4) then
+            call fail("join", "wrong result shape")
+        else
+            item = value%arg(1)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 1) &
+                call fail("join", "first entry changed")
+            item = value%arg(2)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 2) &
+                call fail("join", "second entry changed")
+            item = value%arg(3)
+            if (item%kind() /= NK_SYM .or. chars(item%name()) /= "x") &
+                call fail("join", "third entry changed")
+            item = value%arg(4)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 3) &
+                call fail("join", "fourth entry changed")
+        end if
+
+        call expect_refusal("append non-list", "v = Append[x, 1]"//nl(), "v")
+        call expect_refusal("join non-list", "v = Join[{1}, x]"//nl(), "v")
+    end subroutine test_append_and_join
 
     !> Range is an arithmetic progression and DiagonalMatrix is a structural
     !> embedding. These checks derive the expected entries from those
