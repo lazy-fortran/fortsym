@@ -4519,13 +4519,13 @@ contains
         type(expr_t) :: data, item
         type(str_t) :: file
         logical :: nested, joined_effective
+        logical, allocatable :: joined_by_dataset(:)
         integer :: k, n
 
         r = e
         ok = .true.
         message = str("")
         joined_effective = joined
-        call list_plot_joined_option(e, joined_effective)
         data = e%arg(1)
         if (.not. is_list(data)) then
             call refuse(ok, message, "ListPlot needs an explicit list of data")
@@ -4552,13 +4552,15 @@ contains
             n = 1
         end if
         allocate (fd%curves(n))
+        allocate (joined_by_dataset(n))
+        call list_plot_joined_option(e, joined_effective, joined_by_dataset)
         do k = 1, n
             if (nested) then
                 item = data%arg(k)
             else
                 item = data
             end if
-            if (.not. dataset_curve(item, joined_effective, fd%curves(k), &
+            if (.not. dataset_curve(item, joined_by_dataset(k), fd%curves(k), &
                                     message)) then
                 ok = .false.
                 return
@@ -4571,15 +4573,17 @@ contains
         r = sym(s%a, chars(file))
     end function render_list_plot
 
-    !> Apply the scalar Joined option used by ListPlot. ListLinePlot supplies
-    !> the same default through its `joined` argument; an explicit option is
-    !> allowed to override either head, as in Wolfram Language.
-    subroutine list_plot_joined_option(e, joined)
+    !> Apply scalar or per-dataset Joined options used by ListPlot. ListLinePlot
+    !> supplies the same default through its `joined` argument; an explicit
+    !> option is allowed to override either head, as in Wolfram Language.
+    subroutine list_plot_joined_option(e, joined, joined_by_dataset)
         type(expr_t), intent(in)    :: e
         logical,      intent(inout) :: joined
-        type(expr_t) :: rule, key, value
-        integer :: k
+        logical,      intent(out)   :: joined_by_dataset(:)
+        type(expr_t) :: rule, key, value, item
+        integer :: j, k
 
+        joined_by_dataset = joined
         do k = 2, e%nargs()
             rule = e%arg(k)
             if (.not. is_option(rule)) cycle
@@ -4587,13 +4591,27 @@ contains
             if (key%kind() /= NK_SYM) cycle
             if (chars(key%name()) /= "Joined") cycle
             value = rule%arg(2)
-            if (value%kind() /= NK_SYM) cycle
-            select case (chars(value%name()))
-            case ("True")
-                joined = .true.
-            case ("False")
-                joined = .false.
-            end select
+            if (value%kind() == NK_SYM) then
+                select case (chars(value%name()))
+                case ("True")
+                    joined = .true.
+                    joined_by_dataset = joined
+                case ("False")
+                    joined = .false.
+                    joined_by_dataset = joined
+                end select
+            else if (is_list(value)) then
+                do j = 1, min(size(joined_by_dataset), value%nargs())
+                    item = value%arg(j)
+                    if (item%kind() /= NK_SYM) cycle
+                    select case (chars(item%name()))
+                    case ("True")
+                        joined_by_dataset(j) = .true.
+                    case ("False")
+                        joined_by_dataset(j) = .false.
+                    end select
+                end do
+            end if
         end do
     end subroutine list_plot_joined_option
 

@@ -216,6 +216,32 @@ contains
         if (s%plots(1)%data%curves(1)%style /= CURVE_POINTS) then
             call fail("ListPlot Joined -> False did not make points")
         end if
+
+        call wl_session_begin(s, a)
+        call wl_run_source(s, &
+            "p = ListPlot[{{{0, 0}, {1, 1}}, {{0, 1}, {1, 0}}}, "// &
+            "Joined -> {True, False}]")
+        if (s%plot_count /= 1 .or. size(s%plots(1)%data%curves) /= 2) then
+            call fail("ListPlot list-valued Joined made the wrong curves")
+            return
+        end if
+        if (s%plots(1)%data%curves(1)%style /= CURVE_LINE .or. &
+            s%plots(1)%data%curves(2)%style /= CURVE_POINTS) then
+            call fail("ListPlot list-valued Joined styles were not per dataset")
+        end if
+
+        call wl_session_begin(s, a)
+        call wl_run_source(s, &
+            "p = ListLinePlot[{{{0, 0}, {1, 1}}, {{0, 1}, {1, 0}}}, "// &
+            "Joined -> {False, True}]")
+        if (s%plot_count /= 1 .or. size(s%plots(1)%data%curves) /= 2) then
+            call fail("ListLinePlot list-valued Joined made the wrong curves")
+            return
+        end if
+        if (s%plots(1)%data%curves(1)%style /= CURVE_POINTS .or. &
+            s%plots(1)%data%curves(2)%style /= CURVE_LINE) then
+            call fail("ListLinePlot list-valued Joined styles were not per dataset")
+        end if
     end subroutine test_listplot_joined_option
 
     !> Show[p1, p2] must draw both curves. Two curves cannot produce the same
