@@ -311,7 +311,7 @@ contains
             ! "&" closes a pure function and "!" is factorial -- so a line ending
             ! in either is complete, and continuing it would glue the next
             ! statement on.
-        case ("+", "-", "*", "/", "^", ",", "=", "<", ">", "|", &
+        case ("+", "-", "*", "/", ".", "^", ",", "=", "<", ">", "|", &
                 "@", ":", "~", "(", "[", "{")
             yes = .true.
         end select
@@ -339,7 +339,7 @@ contains
 
         c = source(k:k)
         select case (c)
-        case ("+", "-", "*", "/", "^", "=", "<", ">", "|", &
+        case ("+", "-", "*", "/", ".", "^", "=", "<", ">", "|", &
                 "@", ":", "~", "(", "[", "{")
             yes = .true.
         end select
