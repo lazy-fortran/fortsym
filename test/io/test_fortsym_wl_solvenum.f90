@@ -813,6 +813,39 @@ contains
         else if (t1%int_value() /= 151) then
             call fail("trace value", "trace disagrees with the hand calculation")
         end if
+
+        ! A row vector times a matrix is the first operation in the chained
+        ! metric products used by the large-step corpus. Check its columns
+        ! independently from the implementation, then check that its vector
+        ! result can feed the existing vector dot product.
+        call a%init()
+        call run_one(a, "v = {2, 3} . {{5, 7, 11}, {13, 17, 19}}"//nl(), &
+            "v", value, ok, message)
+        if (.not. ok) then
+            call fail("vector-matrix dot", "refused: "//message)
+        else if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
+                 value%nargs() /= 3) then
+            call fail("vector-matrix dot", "result is not a three-component vector")
+        else
+            item = value%arg(1)
+            if (item%int_value() /= 49) &
+                call fail("vector-matrix dot", "first column is not 2*5 + 3*13")
+            item = value%arg(2)
+            if (item%int_value() /= 65) &
+                call fail("vector-matrix dot", "second column is not 2*7 + 3*17")
+            item = value%arg(3)
+            if (item%int_value() /= 79) &
+                call fail("vector-matrix dot", "third column is not 2*11 + 3*19")
+        end if
+
+        call a%init()
+        call run_one(a, "v = {2, 3} . {{5, 7, 11}, {13, 17, 19}} . {23, 29, 31}"//nl(), &
+            "v", value, ok, message)
+        if (.not. ok) then
+            call fail("chained vector-matrix dot", "refused: "//message)
+        else if (value%kind() /= NK_INT .or. value%int_value() /= 5461) then
+            call fail("chained vector-matrix dot", "chain disagrees with 49*23 + 65*29 + 79*31")
+        end if
     end subroutine test_identity_cross_trace
 
     subroutine test_array_collections()
