@@ -72,6 +72,8 @@ module fortsym_wl
     integer, parameter :: MAX_FUNCTIONS = 256
     integer, parameter :: MAX_FUNCTION_ARGS = 16
     integer, parameter :: MAX_TABLE_ITEMS = 10000
+    integer, parameter :: MAX_MAP_LEVEL = 4
+    integer, parameter :: MAX_MAP_NODES = 20000
     integer, parameter :: MAX_PLOTS = 256
     !> Exact elimination is cubic and builds every intermediate in the arena.
     !> Keep the public LinearSolve route bounded even when a corpus script asks
@@ -1685,30 +1687,55 @@ contains
 
     !> Map[f, {x1, x2, ...}] for a named or pure one-argument function.
     !>
-    !> The corpus uses this form for bounded data preparation. Levels other
-    !> than one, SlotSequence and non-list expressions remain explicit
-    !> refusals rather than being approximated.
+    !> The optional {level} form maps recursively over bounded nested lists.
+    !> SlotSequence and non-list expressions remain explicit refusals rather
+    !> than being approximated.
     recursive function lower_map(s, e, ok, message) result(r)
         type(wl_session_t), intent(inout) :: s
         type(expr_t),       intent(in)    :: e
         logical,            intent(out)   :: ok
         type(str_t),        intent(out)   :: message
-        type(expr_t)                      :: r, mapper, data, mapped, item
-        type(expr_t), allocatable         :: values(:)
-        logical :: item_ok
-        type(str_t) :: item_message
-        integer :: k
+        type(expr_t)                      :: r, mapper, data, spec
+        logical                           :: item_ok
+        type(str_t)                       :: item_message
+        integer                           :: level, map_budget
 
         ok = .true.
         message = str("")
         r = e
 
-        if (e%nargs() /= 2) then
+        if (e%nargs() < 2 .or. e%nargs() > 3) then
             call refuse(ok, message, "Map needs a function and a list")
             return
         end if
         mapper = e%arg(1)
-        data = e%arg(2)
+        level = 1
+        if (e%nargs() == 3) then
+            spec = e%arg(3)
+            if (spec%kind() /= NK_FUNC) then
+                call refuse(ok, message, "Map level must be a one-item list")
+                return
+            end if
+            if (chars(spec%name()) /= "List" .or. spec%nargs() /= 1) then
+                call refuse(ok, message, "Map level must be a one-item list")
+                return
+            end if
+            if (.not. exact_small_int(spec%arg(1), level)) then
+                call refuse(ok, message, "Map level must be an exact integer")
+                return
+            end if
+        end if
+        if (level < 1 .or. level > MAX_MAP_LEVEL) then
+            call refuse(ok, message, "Map level is outside the bounded subset")
+            return
+        end if
+
+        data = apply_bindings(s, e%arg(2))
+        data = wl_eval(s, data, item_ok, item_message)
+        if (.not. item_ok) then
+            call refuse(ok, message, chars(item_message))
+            return
+        end if
         if (data%kind() /= NK_FUNC) then
             call refuse(ok, message, "Map needs a list")
             return
@@ -1718,17 +1745,44 @@ contains
             return
         end if
 
-        data = wl_eval(s, data, item_ok, item_message)
-        if (.not. item_ok) then
-            call refuse(ok, message, chars(item_message))
-            return
-        end if
-        if (data%kind() /= NK_FUNC .or. chars(data%name()) /= "List") then
-            call refuse(ok, message, "Map needs a list")
-            return
-        end if
+        map_budget = MAX_MAP_NODES
+        r = map_at_level(s, mapper, data, level, map_budget, ok, message)
+        if (.not. ok) return
+    end function lower_map
 
+    !> Apply Map at one positive list level with a shared expansion budget.
+    recursive function map_at_level(s, mapper, data, level, budget, ok, &
+            message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: mapper, data
+        integer,            intent(in)    :: level
+        integer,            intent(inout) :: budget
+        logical,            intent(out)  :: ok
+        type(str_t),        intent(out)  :: message
+        type(expr_t)                      :: r, item, mapped
+        type(expr_t), allocatable         :: values(:)
+        logical                           :: item_ok
+        type(str_t)                       :: item_message
+        integer                           :: k
+
+        ok = .true.
+        message = str("")
+        r = data
+        if (data%kind() /= NK_FUNC) then
+            call refuse(ok, message, "Map level reaches a non-list expression")
+            return
+        end if
+        if (chars(data%name()) /= "List") then
+            call refuse(ok, message, "Map level reaches a non-list expression")
+            return
+        end if
+        if (data%nargs() > budget) then
+            call refuse(ok, message, "Map expansion exceeds its safety bound")
+            return
+        end if
+        budget = budget - data%nargs()
         allocate (values(data%nargs()))
+
         do k = 1, data%nargs()
             item = apply_bindings(s, data%arg(k))
             item = wl_eval(s, item, item_ok, item_message)
@@ -1736,15 +1790,24 @@ contains
                 call refuse(ok, message, chars(item_message))
                 return
             end if
-            call apply_mapper(s, mapper, [item], mapped, item_ok, item_message)
-            if (.not. item_ok) then
-                call refuse(ok, message, chars(item_message))
-                return
+            if (level == 1) then
+                call apply_mapper(s, mapper, [item], mapped, item_ok, item_message)
+                if (.not. item_ok) then
+                    call refuse(ok, message, chars(item_message))
+                    return
+                end if
+                values(k) = mapped
+            else
+                values(k) = map_at_level(s, mapper, item, level - 1, budget, &
+                    item_ok, item_message)
+                if (.not. item_ok) then
+                    call refuse(ok, message, chars(item_message))
+                    return
+                end if
             end if
-            values(k) = mapped
         end do
-        r = func("List", values)
-    end function lower_map
+        r = make_list(s, values)
+    end function map_at_level
 
     !> Apply a pure or named function to an already evaluated argument list.
     !>
