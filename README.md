@@ -206,6 +206,10 @@ v23 numeric `Which` transition then served a five-script warm slice in 0.71
 second at 404 MiB RSS: 60 agreements, 16 differences, 1 timeout, 1
 unavailable oracle row, 3 oracle disagreements, and 73 oracle-missing
 bindings. Its cached timeout/unavailable outcomes were not rerun. The
+v24 bounded `TrigReduce` transition then served a six-script warm slice in
+0.72 second at 404 MiB RSS: 101 agreements, 48 differences, 3 unavailable
+oracle rows, 1 timeout, and 103 oracle-missing bindings. Its cached timeout
+was not rerun. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,
@@ -214,7 +218,7 @@ bounded non-negative `MatrixPower`, bounded block-matrix `ArrayFlatten`,
 `LinearSolve`, `Minors`, `Length`, recursive `Flatten`, list
 `Append`/`Join`, bounded list `Thread`, bounded positive-level `Map`, bounded
 numeric `Piecewise` branch selection, numeric `Boole` conditions, numeric
-`Which` selection, and bounded list
+`Which` selection, bounded `TrigReduce`, and bounded list
 selectors, bounded univariate and multivariate `CoefficientList`, bounded
 `FoldList[Plus, initial, list]`, bounded explicit-list `Total`, bounded
 full-rank numeric `PseudoInverse`, diagonal/zero numeric `SingularValueList`,
