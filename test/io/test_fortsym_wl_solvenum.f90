@@ -54,6 +54,7 @@ program test_fortsym_wl_solvenum
     call test_range_and_diagonal_matrix()
     call test_legendre_wolfram()
     call test_characteristic_polynomial()
+    call test_matrix_power()
     call test_minors_dispatch()
 
     if (nfail == 0) then
@@ -1057,6 +1058,71 @@ contains
                 "symbolic matrix was not preserved")
         end if
     end subroutine test_characteristic_polynomial
+
+    !> MatrixPower is checked against the independently multiplied entries of
+    !> a concrete 2x2 matrix, including the exponent-zero identity boundary.
+    subroutine test_matrix_power()
+        type(arena_t), target :: a
+        type(expr_t) :: value, row, item
+        logical :: ok
+        character(:), allocatable :: message
+        integer, parameter :: expected(2, 2) = reshape([7, 15, 10, 22], [2, 2])
+        integer :: i, j
+
+        call a%init()
+        call run_one(a, "v = MatrixPower[{{1, 2}, {3, 4}}, 2]"//nl(), "v", &
+                     value, ok, message)
+        if (.not. ok) then
+            call fail("MatrixPower", "refused: "//message)
+            return
+        end if
+        if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
+                value%nargs() /= 2) then
+            call fail("MatrixPower", "wrong matrix shape")
+            return
+        end if
+        do i = 1, 2
+            row = value%arg(i)
+            if (row%kind() /= NK_FUNC .or. chars(row%name()) /= "List" .or. &
+                    row%nargs() /= 2) then
+                call fail("MatrixPower", "wrong row shape")
+                cycle
+            end if
+            do j = 1, 2
+                item = row%arg(j)
+                if (item%kind() /= NK_INT .or. &
+                        item%int_value() /= expected(i, j)) then
+                    call fail("MatrixPower", "wrong independently multiplied entry")
+                end if
+            end do
+        end do
+
+        call a%init()
+        call run_one(a, "v = MatrixPower[{{1, 2}, {3, 4}}, 0]"//nl(), "v", &
+                     value, ok, message)
+        if (.not. ok) then
+            call fail("MatrixPower identity", "zero exponent is not the identity")
+        else if (value%kind() /= NK_FUNC .or. value%nargs() /= 2) then
+            call fail("MatrixPower identity", "zero exponent is not a 2x2 matrix")
+        else
+            row = value%arg(1)
+            item = row%arg(1)
+            if (item%int_value() /= 1) call fail("MatrixPower identity", &
+                "identity has wrong (1,1) entry")
+            item = row%arg(2)
+            if (item%int_value() /= 0) call fail("MatrixPower identity", &
+                "identity has wrong (1,2) entry")
+            row = value%arg(2)
+            item = row%arg(1)
+            if (item%int_value() /= 0) call fail("MatrixPower identity", &
+                "identity has wrong (2,1) entry")
+            item = row%arg(2)
+            if (item%int_value() /= 1) call fail("MatrixPower identity", &
+                "identity has wrong (2,2) entry")
+        end if
+        call expect_refusal("matrix power negative exponent", &
+            "v = MatrixPower[{{1, 2}, {3, 4}}, -1]"//nl(), "v")
+    end subroutine test_matrix_power
 
     !> Exercise the public Wolfram dispatch as well as the matrix primitive.
     !> The four values are independent 3x3 determinants of the same 3x4

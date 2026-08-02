@@ -178,7 +178,8 @@ backend subprocesses. The current binding-level tally is 3,139 agreements,
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,
-`RowReduce`, `NullSpace`, `MatrixRank`, `LinearSolve`, `Minors`, `Length`, recursive `Flatten`, list
+bounded non-negative `MatrixPower`, `RowReduce`, `NullSpace`, `MatrixRank`,
+`LinearSolve`, `Minors`, `Length`, recursive `Flatten`, list
 `Append`/`Join` and bounded list
 selectors, and bounded requested-precision `N`; multiline Wolfram dot products
 are preserved by both the native parser and the SymPy translator. Unsupported
