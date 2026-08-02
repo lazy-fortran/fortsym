@@ -188,9 +188,9 @@ native rows in 1:14.19 with a 3.04 GiB peak RSS. After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, a fully warm audit now takes 1.24 seconds
 at 456 MiB RSS and starts no backend subprocesses. The current cache-only
-whole-corpus tally is 3,449 agreements, 531 declared differences, 8
-unsupported outcomes, 76 timeouts, 67 errors, 2 unavailable oracle rows, 203
-oracle disagreements, and 643 oracle-missing bindings. The v18
+whole-corpus tally is 3,467 agreements, 514 declared differences, 8
+unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable oracle rows, 209
+oracle disagreements, and 636 oracle-missing bindings. The v18
 Solve-rule/fractional-`Exponent`
 transition refreshed four SymPy rows in 10.46 seconds at 399 MiB RSS. A
 current one-worker audit of the affected 11-script slice, using the rebuilt
@@ -260,9 +260,12 @@ selector shapes remain opaque rather than losing a binding. The v34 bounded
 large-step, kinetic-bridge, and Bacc/Rosa/Posch companion refreshes recover
 eight previously opaque SymPy bindings and six verified machine-precision
 numeric comparisons. The Mathics 10.0.1 UV runner now restores `$Assumptions`
-safely after local integrals; its failures remain cached as 66 errors and 69
+safely after local integrals; its failures remain cached as 60 errors and 69
 timeouts rather than being rerun. The remaining parity gap is still
-substantial and is tracked in [ROADMAP.md](ROADMAP.md).
+substantial and is tracked in [ROADMAP.md](ROADMAP.md). The v35 cycle also
+refreshes the `math8y`, `sympl3_`, and general-Maxwell companions, and adds a
+Mathics Boolean-assumptions shim; the successful Mathics inventory is now 255
+rows, with 60 errors and 69 bounded timeouts.
 
 ## Build
 

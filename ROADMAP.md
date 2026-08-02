@@ -115,9 +115,9 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,449 agreements, 531 declared
-differences, 8 unsupported outcomes, 76 timeouts, 67 errors, 2 unavailable
-oracle rows, 203 oracle disagreements, and 643 oracle-missing bindings. The
+The latest cache-only binding-level audit reports 3,467 agreements, 514 declared
+differences, 8 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable
+oracle rows, 209 oracle disagreements, and 636 oracle-missing bindings. The
 target remains open until the declared native subset and the available oracle
 overlap agree.
 
@@ -241,11 +241,11 @@ That number is now established, and it changes the target.
 
 | | scripts | share |
 |---|---:|---:|
-| Mathics produces results | 249 | 65% |
+| Mathics produces results | 255 | 66% |
 | fortsym-wl completes | 379 | 99% |
-| **Mathics and fortsym-wl both complete** | **246** | **64%** |
+| **Mathics and fortsym-wl both complete** | **252** | **66%** |
 
-Mathics fails or is unavailable on 135 scripts: 66 errors, 69 timeouts, and
+Mathics fails or is unavailable on 129 scripts: 60 errors, 69 timeouts, and
 no unavailable rows. Those outcomes are cached by source digest, runner
 version, and executable fingerprint, so later native audits do not rerun the
 oracle.
