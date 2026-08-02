@@ -12,6 +12,7 @@ program test_fortsym_wl_f90
     nfail = 0
     call test_stream_compiles_and_agrees(nfail)
     call test_comment_preamble_compiles_and_agrees(nfail)
+    call test_safe_setup_compiles_and_agrees(nfail)
     call test_scalar_minmax_compiles_and_agrees(nfail)
     call test_bounded_refusals(nfail)
 
@@ -139,6 +140,64 @@ contains
             status == 0, nfail)
     end subroutine test_comment_preamble_compiles_and_agrees
 
+    subroutine test_safe_setup_compiles_and_agrees(nfail)
+        integer, intent(inout) :: nfail
+        type(str_t) :: code
+        character(:), allocatable :: message
+        logical :: ok
+        integer :: unit, ios, status
+        character(*), parameter :: generated = &
+            "/tmp/fortsym_wl_f90_safe_setup.f90"
+        character(*), parameter :: driver = &
+            "/tmp/fortsym_wl_f90_safe_setup_driver.f90"
+        character(*), parameter :: executable = &
+            "/tmp/fortsym_wl_f90_safe_setup_driver"
+
+        code = translate_wl_assignments( &
+            "(* notebook setup *)"//new_line("a")// &
+            "ClearAll[""Global`*""]; Clear[x, y]; ClearAll[result];"// &
+            new_line("a")// &
+            "result = x*y + 1", ok, message)
+        call check("safe leading setup accepted", ok, nfail)
+        if (.not. ok) then
+            print *, "translation message:", message
+            return
+        end if
+
+        open (newunit=unit, file=generated, status="replace", action="write", &
+            iostat=ios)
+        call check("safe setup source opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") chars(code)
+        close (unit)
+
+        open (newunit=unit, file=driver, status="replace", action="write", &
+            iostat=ios)
+        call check("safe setup oracle driver opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") &
+            "program independent_safe_setup_oracle"//new_line("a")// &
+            "  use, intrinsic :: iso_fortran_env, only: real64"//new_line("a")// &
+            "  real(real64) :: x, y, result, expected"//new_line("a")// &
+            "  x = 2.5_real64"//new_line("a")// &
+            "  y = -4.0_real64"//new_line("a")// &
+            "  expected = x*y + 1.0_real64"//new_line("a")// &
+            "  call fortsym_generated_assignment(x, y, result)"//new_line("a")// &
+            "  if (abs(result - expected) > 1.0e-14_real64) error stop 1"// &
+            new_line("a")// &
+            "  print *, 'PASS independent safe-setup oracle'"//new_line("a")// &
+            "end program independent_safe_setup_oracle"
+        close (unit)
+
+        call execute_command_line("gfortran -std=f2018 -Wall -Werror -o "// &
+            executable//" "//generated//" "//driver, exitstat=status)
+        call check("safe setup source compiles", status == 0, nfail)
+        if (status /= 0) return
+        call execute_command_line(executable, exitstat=status)
+        call check("safe setup source agrees with independent oracle", &
+            status == 0, nfail)
+    end subroutine test_safe_setup_compiles_and_agrees
+
     subroutine test_scalar_minmax_compiles_and_agrees(nfail)
         integer, intent(inout) :: nfail
         type(str_t) :: code
@@ -223,6 +282,22 @@ contains
 
         code = translate_wl_assignments("r = Max[x]", ok, message)
         call check("unary Max refused", .not. ok, nfail)
+
+        code = translate_wl_assignments( &
+            "Set[x, 1]; result = x + 1", ok, message)
+        call check("value-setting setup refused", .not. ok, nfail)
+
+        code = translate_wl_assignments( &
+            "Needs[""Some`Package`""]; result = x + 1", ok, message)
+        call check("import setup refused", .not. ok, nfail)
+
+        code = translate_wl_assignments( &
+            "Clear[Sin]; result = x + 1", ok, message)
+        call check("builtin-clearing setup refused", .not. ok, nfail)
+
+        code = translate_wl_assignments( &
+            "clear[x]; result = x + 1", ok, message)
+        call check("case-mismatched setup refused", .not. ok, nfail)
 
         code = translate_wl_assignments("(* unclosed preamble", ok, message)
         call check("unclosed comment preamble refused", .not. ok, nfail)
