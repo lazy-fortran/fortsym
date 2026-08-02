@@ -30,6 +30,7 @@ program test_fortsym_wl_statements
     call test_pure_map_apply_replace()
     call test_list_threading()
     call test_list_selectors()
+    call test_matrix_span_selectors()
     call test_list_child_evaluation()
     call test_parenthesized_wolfram_multiplication()
 
@@ -280,6 +281,15 @@ contains
             "value = Drop[{a, b, c, d}, {2, 3}]"//char(10), &
             "value", "List(a, d)")
     end subroutine test_list_selectors
+
+    !> A two-dimensional Part applies each inclusive Span one level at a time.
+    !> The expected block is the hand-calculated lower-right 2x2 submatrix.
+    subroutine test_matrix_span_selectors()
+        call expect("matrix span selectors", &
+            "value = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}"//char(10)// &
+            "block = value[[2 ;; 3, 2 ;; 3]]"//char(10), &
+            "block", "List(List(5, 6), List(8, 9))")
+    end subroutine test_matrix_span_selectors
 
     !> List elements are evaluated independently. These hand-derived values
     !> catch the tempting but incorrect optimization of leaving List children
