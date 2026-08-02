@@ -472,7 +472,11 @@ cases), piecewise with branch emission, public trig/power rewrites, and finally
 Binding opaque applied functions and their `Derivative` nodes to
 consumer-supplied procedures, and mapping special-function heads to a Fortran
 runtime. #41 is what unblocks SIMPLE's canonical-field Hessians; #42 is what
-lets KiLCA's orphaned generated kernels be regenerated.
+lets KiLCA's orphaned generated kernels be regenerated. A standalone
+`.wl`-to-`.f90` translator for the full corpus does not exist yet: the native
+runner interprets `.wl` at runtime, and current codegen consumes an existing
+`expr_t` graph. This remains a separate completion gate for the Fortran parity
+target.
 
 ## Roadmap maintenance
 
