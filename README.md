@@ -169,10 +169,11 @@ out on one heavy script, reported one runner error, and explicitly refused two
 unsupported constructs. It did not crash. The latest bounded
 CharacteristicPolynomial/LegendreP/Diagonal/list-selector/Coefficient/Solve/
 FoldList/ArrayFlatten audit refreshed 380 native rows in 1:13.38 with a 1.54
-GiB peak RSS. A fully warm audit now takes 1.15 seconds at 417 MiB RSS and
-starts no backend subprocesses. The current binding-level tally is 3,155
-agreements, 776 declared differences, 20 unsupported outcomes, 38 timeouts,
-122 errors, 198 oracle disagreements, and 797 oracle-missing bindings. The
+GiB peak RSS. After the quoted-string translator alignment, a fully warm audit
+now takes 1.13 seconds at 421 MiB RSS and starts no backend subprocesses. The
+current binding-level tally is 3,206 agreements, 731 declared differences, 20
+unsupported outcomes, 38 timeouts, 122 errors, 192 oracle disagreements, and
+797 oracle-missing bindings. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,

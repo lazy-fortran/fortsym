@@ -84,7 +84,7 @@ domain, parameters, precision, and error policy are numeric and explicit.
 ## Measured state
 
 Latest corpus-wide measurement, 2026-08-02, `fortsym-bench` at 384 scripts
-(`--jobs 2`, 60-second script budget, after the bounded ArrayFlatten slice):
+(`--jobs 2`, 60-second script budget, after quoted-string translator alignment):
 
 This table is a committed native baseline. It is updated only after the root
 backend and benchmark harness revisions used to produce it have been committed.
@@ -102,13 +102,13 @@ reported state.
 | crashes | **0** |
 | full audit after the bounded native ArrayFlatten refresh | 1:13.38 |
 | peak RSS during that refresh | 1.54 GiB |
-| warm compact raw-output and verdict audit | 1.15 s / 417 MiB |
+| warm compact raw-output and verdict audit | 1.13 s / 421 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The final binding-level audit reports 3,155 agreements, 776 declared
-differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 198 oracle
+The final binding-level audit reports 3,206 agreements, 731 declared
+differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 192 oracle
 disagreements, and 797 oracle-missing bindings. The target remains open until
 the declared native subset and the available oracle overlap agree.
 
@@ -148,11 +148,14 @@ adds one agreement, and removes one oracle disagreement. The bounded
 `FoldList[Plus, initial, list]` slice then removes one declared difference;
 the refreshed native collection also makes one previously hidden binding an
 agreement, for a net gain of two agreements and one fewer difference. Cache
-version 14 keeps unaffected older-version SymPy rows reusable, including the
-version-13 Solve rows, instead of forcing another broad oracle refresh.
+version 15 keeps unaffected older-version SymPy rows reusable, including the
+version-14 FoldList/ArrayFlatten rows, instead of forcing another broad oracle
+refresh.
 The bounded `ArrayFlatten` slice then evaluates rectangular block matrices and
-adds three agreements while removing three declared differences.
-It does not close the remaining
+adds three agreements while removing three declared differences. The
+quoted-string translator alignment then maps SymPy string atoms to the native
+comparison hash, adds 51 agreements, and removes 45 differences plus six oracle
+disagreements. It does not close the remaining
 parity gap. The highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
 `DSolve`/`NDSolve`.
@@ -188,9 +191,10 @@ The historical full refresh includes the SymPy refresh required by the
 translator cache-version change and took 4:54. The latest LegendreP refresh of
 the SymPy oracle took 6:59.96 with two workers and a 3.86 GiB peak RSS. The
 subsequent native audit refreshed the bounded ArrayFlatten slice in 1:13.38
-with a 1.54 GiB peak RSS.
+with a 1.54 GiB peak RSS. The quoted-string translator refresh then took 2:00.16
+with a 543 MiB peak RSS; its warm audit takes 1.13 seconds at 421 MiB RSS.
 Once raw results and comparison verdicts are cached, the same full audit takes
-1.15 seconds at 417 MiB RSS. Future compatible cache transitions retain
+1.13 seconds at 421 MiB RSS. Future compatible cache transitions retain
 unaffected older-version rows. These are
 harness measurements, not a
 capability comparison: Mathics evaluates integrals fortsym refuses, and the native path
