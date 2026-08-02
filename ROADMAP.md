@@ -102,14 +102,14 @@ reported state.
 | crashes | **0** |
 | full audit after the bounded native singular-value refresh | 1:14.19 |
 | peak RSS during that refresh | 3.04 GiB |
-| warm compact raw-output and verdict audit | 1.06 s / 422 MiB |
+| latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The final binding-level audit reports 3,218 agreements, 718 declared
-differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 192 oracle
-disagreements, and 797 oracle-missing bindings. The target remains open until
+The final binding-level audit reports 3,219 agreements, 716 declared
+differences, 20 unsupported outcomes, 38 timeouts, 117 errors, 192 oracle
+disagreements, and 798 oracle-missing bindings. The target remains open until
 the declared native subset and the available oracle overlap agree.
 
 The current native collection slice includes bounded `Array`, `ConstantArray`,
@@ -120,7 +120,8 @@ for explicit square matrices up to dimension 16, and bounded non-negative
 `PseudoInverse`, diagonal/zero numeric `SingularValueList`, numeric `Max`/`Min`,
 exact
 `RowReduce`, `NullSpace`, `MatrixRank`, bounded exact `LinearSolve` and
-`Minors`, structural `Length`, recursive `Flatten`, dynamic exact dimensions,
+`Minors`, `Exponent`, bounded polynomial gcd/quotient/remainder and rational
+numerator/denominator extraction, structural `Length`, recursive `Flatten`, dynamic exact dimensions,
 bounded block-matrix `ArrayFlatten`, and opaque preservation for unsupported
 dimensions or computed heads. The independent tests cover literal, rational,
 symbolic, canonical empty-list, and bounded-preserved forms. Requested-
@@ -150,8 +151,9 @@ adds one agreement, and removes one oracle disagreement. The bounded
 `FoldList[Plus, initial, list]` slice then removes one declared difference;
 the refreshed native collection also makes one previously hidden binding an
 agreement, for a net gain of two agreements and one fewer difference. Cache
-version 16 keeps unaffected older-version SymPy rows reusable, including the
-version-15 quoted-string rows, instead of forcing another broad oracle refresh.
+version 17 keeps unaffected older-version SymPy rows reusable, including the
+version-16 diagonal/extrema rows and older quoted-string rows, instead of
+forcing another broad oracle refresh.
 The bounded `ArrayFlatten` slice then evaluates rectangular block matrices and
 adds three agreements while removing three declared differences. The
 quoted-string translator alignment then maps SymPy string atoms to the native
@@ -161,7 +163,12 @@ removes four differences across explicit scalar and vector-list sums. The
 bounded full-rank numeric `PseudoInverse` slice adds two agreements and removes
 two differences in the duplicated matrix-course cases. The diagonal/zero
 `SingularValueList` and numeric extrema slice then adds seven agreements and
-removes seven differences. It does not close the
+removes seven differences. The SymPy v17 transition adds bounded `Exponent`,
+`PolynomialGCD`, `PolynomialQuotient`, `PolynomialRemainder`, `Numerator`, and
+`Denominator` lowering; it turns one native binding into an agreement and
+exposes one non-polynomial form as oracle-missing, for a net aggregate change
+of one agreement, two fewer differences, and one more oracle-missing binding.
+It does not close the
 remaining
 parity gap. The highest-impact work remains the plotting family, `Solve` beyond
 scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
@@ -200,9 +207,10 @@ the SymPy oracle took 6:59.96 with two workers and a 3.86 GiB peak RSS. The
 quoted-string translator refresh took 2:00.16 with a 543 MiB peak RSS. The
 subsequent native `Total`/`PseudoInverse`/`SingularValueList` audit took 1:14.19
 with a 3.04 GiB peak RSS; the v16 SymPy transition refreshed 22 rows in 8.93
-seconds. Its warm audit takes 1.06 seconds at 422 MiB RSS.
+seconds; the v17 polynomial transition refreshed eight rows in 11.28 seconds.
+The latest warm audit takes 1.24 seconds at 456 MiB RSS.
 Once raw results and comparison verdicts are cached, the same full audit takes
-1.06 seconds at 422 MiB RSS. Future compatible cache transitions retain
+1.24 seconds at 456 MiB RSS. Future compatible cache transitions retain
 unaffected older-version rows. These are
 harness measurements, not a
 capability comparison: Mathics evaluates integrals fortsym refuses, and the native path

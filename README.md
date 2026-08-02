@@ -170,11 +170,12 @@ unsupported constructs. It did not crash. The latest bounded
 CharacteristicPolynomial/LegendreP/Diagonal/list-selector/Coefficient/Solve/
 FoldList/ArrayFlatten/Total/PseudoInverse/SingularValueList audit refreshed 380
 native rows in 1:14.19 with a 3.04 GiB peak RSS. After the quoted-string,
-Total, PseudoInverse, and diagonal singular-value slices, a fully warm audit
-now takes 1.06 seconds at 422 MiB RSS and starts no backend subprocesses. The
-current binding-level tally is 3,218 agreements, 718 declared differences, 20
-unsupported outcomes, 38 timeouts, 122 errors, 192 oracle disagreements, and
-797 oracle-missing bindings. The
+Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
+polynomial translator transition, a fully warm audit now takes 1.24 seconds
+at 456 MiB RSS and starts no backend subprocesses. The current binding-level
+tally is 3,219 agreements, 716 declared differences, 20 unsupported outcomes,
+38 timeouts, 117 errors, 192 oracle disagreements, and 798 oracle-missing
+bindings. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,
