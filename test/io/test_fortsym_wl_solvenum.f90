@@ -967,6 +967,24 @@ contains
             end do
         end do
         call expect_refusal("diagonal matrix non-list", "v = DiagonalMatrix[x]"//nl(), "v")
+
+        call a%init()
+        call run_one(a, "v = Diagonal[{{1, 2, 3}, {x, 5, 6}}]"//nl(), "v", &
+                     value, ok, message)
+        if (.not. ok) then
+            call fail("diagonal extract", "refused: "//message)
+        else if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
+                value%nargs() /= 2) then
+            call fail("diagonal extract", "wrong rectangular result shape")
+        else
+            item = value%arg(1)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 1) &
+                call fail("diagonal extract", "first diagonal entry is wrong")
+            item = value%arg(2)
+            if (item%kind() /= NK_INT .or. item%int_value() /= 5) &
+                call fail("diagonal extract", "second diagonal entry is wrong")
+        end if
+        call expect_refusal("diagonal non-matrix", "v = Diagonal[x]"//nl(), "v")
     end subroutine test_range_and_diagonal_matrix
 
     !> Exercise the public Wolfram dispatch as well as the matrix primitive.
