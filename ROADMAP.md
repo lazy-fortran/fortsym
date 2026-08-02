@@ -115,9 +115,9 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,564 agreements, 510 declared
+The latest cache-only binding-level audit reports 3,574 agreements, 503 declared
 differences, 8 unsupported outcomes, 75 timeouts, 61 errors, 2 unavailable
-oracle rows, 209 oracle disagreements, and 543 oracle-missing bindings. The v37
+oracle rows, 208 oracle disagreements, and 541 oracle-missing bindings. The v37
 phase-transform and flux-coordinate companion translations, followed by the
 v38 NAE/DESC and Appendix-B translations, recovered 42 agreements and 52
 previously oracle-missing bindings in the warm audit while resolving one SymPy
@@ -125,6 +125,13 @@ timeout. The v39 math6-2y, math11y, two-component-energy, and
 dynamo-diagnostics companions recover a further 27 agreements and 25
 oracle-missing bindings; the dynamo bridge reduces its focused runtime from
 about 29 seconds to 1.1 seconds. The
+v40 memo-feedback companion recovers the source magnetic-norm binding with an
+independent test, adding one agreement and removing one oracle-missing
+binding. The v41 cylinder-spectrum companion recovers the source-faithful
+force-balance and pressure-slope bindings with an independent test, adding one
+agreement and removing one oracle-missing binding. The v42
+Bacc/Rosa/Posch companion recovers the source magnetic-field integral with an
+independent numerical quadrature test and removes one oracle disagreement. The
 target remains open until the declared native subset and the available oracle
 overlap agree.
 

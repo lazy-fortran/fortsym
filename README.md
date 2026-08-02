@@ -188,9 +188,9 @@ native rows in 1:14.19 with a 3.04 GiB peak RSS. After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, a fully warm audit now takes about 0.61
 seconds at 344 MiB RSS and starts no backend subprocesses. The current
-cache-only whole-corpus tally is 3,564 agreements, 510 declared differences, 8
+cache-only whole-corpus tally is 3,574 agreements, 503 declared differences, 8
 unsupported outcomes, 75 timeouts, 61 errors, 2 unavailable oracle rows, 209
-oracle disagreements, and 543 oracle-missing bindings. The v18
+oracle disagreements, and 541 oracle-missing bindings. The v18
 Solve-rule/fractional-`Exponent`
 transition refreshed four SymPy rows in 10.46 seconds at 399 MiB RSS. A
 current one-worker audit of the affected 11-script slice, using the rebuilt
@@ -271,9 +271,14 @@ The v38 cycle adds source-faithful NAE/DESC geometry and Appendix-B integral
 companions. The v39 cycle adds source-faithful math6-2y, math11y,
 two-component-energy, and dynamo-diagnostics companions with independent
 tests; the dynamo bridge also reduces its focused runtime from about 29
-seconds to 1.1 seconds. The current score is 3,564 agreements, 510
-differences, and 543 oracle-missing bindings; the successful Mathics inventory
-remains 255 rows, with 60 errors and 69 bounded timeouts.
+seconds to 1.1 seconds. The v40 memo-feedback companion recovers the source
+magnetic norm and its dependent geometry bindings, adding seven agreements
+with an independent test. The v41 cylinder-spectrum companion recovers the
+source-faithful force-balance and pressure-slope bindings with an independent
+test. The v42 Bacc/Rosa/Posch companion recovers the source magnetic-field
+integral and removes one oracle disagreement. The current score is 3,574
+agreements, 503 differences, and 541 oracle-missing bindings; the successful
+Mathics inventory remains 255 rows, with 60 errors and 69 bounded timeouts.
 
 ## Build
 
