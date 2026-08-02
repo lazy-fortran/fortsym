@@ -1464,6 +1464,10 @@ contains
             r = lower_matrix_power(s, r, ok, message)
             if (.not. ok) return
 
+        case ("ArrayFlatten")
+            r = lower_array_flatten(s, r, ok, message)
+            if (.not. ok) return
+
         case ("Integrate")
             r = lower_integrate(s, r, ok, message)
             if (.not. ok) return
@@ -3359,6 +3363,102 @@ contains
         r = result
     end function lower_matrix_power
 
+    !> ArrayFlatten[{{block11, block12, ...}, {block21, ...}, ...}] for a
+    !> bounded rectangular block matrix. Every block row must have one common
+    !> height and every block column one common width; silently padding a
+    !> malformed block array would produce a different matrix.
+    function lower_array_flatten(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, block_rows, blocks, block
+        type(expr_t), allocatable         :: matrix(:, :), out(:, :)
+        integer, allocatable              :: heights(:), widths(:)
+        integer                           :: block_row_count, block_col_count
+        integer                           :: row, column, i, j
+        integer                           :: row_offset, column_offset
+        integer                           :: total_rows, total_columns
+
+        r = e
+        ok = .true.
+        message = str("")
+        if (e%nargs() /= 1) then
+            call refuse(ok, message, "ArrayFlatten takes one block array")
+            return
+        end if
+        block_rows = e%arg(1)
+        if (.not. is_list(block_rows) .or. block_rows%nargs() == 0) then
+            call refuse(ok, message, "ArrayFlatten needs a non-empty block array")
+            return
+        end if
+        block_row_count = block_rows%nargs()
+        blocks = block_rows%arg(1)
+        if (.not. is_list(blocks) .or. blocks%nargs() == 0) then
+            call refuse(ok, message, "ArrayFlatten needs rows of matrix blocks")
+            return
+        end if
+        block_col_count = blocks%nargs()
+        allocate (heights(block_row_count), widths(block_col_count))
+        heights = 0
+        widths = 0
+
+        do row = 1, block_row_count
+            blocks = block_rows%arg(row)
+            if (.not. is_list(blocks) .or. blocks%nargs() /= block_col_count) then
+                call refuse(ok, message, "ArrayFlatten needs a rectangular block array")
+                return
+            end if
+            do column = 1, block_col_count
+                block = blocks%arg(column)
+                if (.not. is_matrix(block)) then
+                    call refuse(ok, message, "ArrayFlatten blocks must be matrices")
+                    return
+                end if
+                call to_matrix(block, matrix, ok)
+                if (.not. ok) return
+                if (heights(row) == 0) then
+                    heights(row) = size(matrix, 1)
+                else if (heights(row) /= size(matrix, 1)) then
+                    call refuse(ok, message, "ArrayFlatten block row heights disagree")
+                    return
+                end if
+                if (widths(column) == 0) then
+                    widths(column) = size(matrix, 2)
+                else if (widths(column) /= size(matrix, 2)) then
+                    call refuse(ok, message, "ArrayFlatten block column widths disagree")
+                    return
+                end if
+            end do
+        end do
+
+        total_rows = sum(heights)
+        total_columns = sum(widths)
+        if (total_rows*total_columns > MAX_TABLE_ITEMS) then
+            call refuse(ok, message, "ArrayFlatten exceeds its expansion bound")
+            return
+        end if
+        allocate (out(total_rows, total_columns))
+        row_offset = 0
+        do row = 1, block_row_count
+            column_offset = 0
+            blocks = block_rows%arg(row)
+            do column = 1, block_col_count
+                block = blocks%arg(column)
+                call to_matrix(block, matrix, ok)
+                if (.not. ok) return
+                do i = 1, size(matrix, 1)
+                    do j = 1, size(matrix, 2)
+                        out(row_offset + i, column_offset + j) = matrix(i, j)
+                    end do
+                end do
+                column_offset = column_offset + widths(column)
+            end do
+            row_offset = row_offset + heights(row)
+        end do
+        r = from_matrix(s%a, out)
+    end function lower_array_flatten
+
     !> A zero-argument application of the given name, such as Infinity.
     function is_named(e, name) result(yes)
         type(expr_t), intent(in) :: e
@@ -3454,7 +3554,7 @@ contains
         case ("Refine", "Assuming", "Simplify2", "Element")
             yes = .true.
             ! Matrices (#30)
-        case ("Diagonal", "CharacteristicPolynomial", "Eigenvalues", "LinearSolve", "MatrixPower", "MatrixForm", &
+        case ("ArrayFlatten", "Diagonal", "CharacteristicPolynomial", "Eigenvalues", "LinearSolve", "MatrixPower", "MatrixForm", &
                 "Minors", "RowReduce", "NullSpace", "MatrixRank")
             yes = .true.
             ! Solving beyond the scalar linear case (#36)

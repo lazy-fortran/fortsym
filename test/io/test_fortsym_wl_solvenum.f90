@@ -56,6 +56,7 @@ program test_fortsym_wl_solvenum
     call test_characteristic_polynomial()
     call test_multivariate_coefficient_list()
     call test_fold_list()
+    call test_array_flatten()
     call test_matrix_power()
     call test_minors_dispatch()
 
@@ -1146,6 +1147,46 @@ contains
             end if
         end if
     end subroutine test_fold_list
+
+    !> ArrayFlatten is checked by its block-concatenation definition, including
+    !> a non-square result so swapping row and column offsets cannot pass.
+    subroutine test_array_flatten()
+        type(arena_t), target :: a
+        type(expr_t) :: value, row, item
+        logical :: ok
+        character(:), allocatable :: message
+        integer, parameter :: expected(3, 3) = &
+            reshape([1, 3, 7, 2, 4, 8, 5, 6, 9], [3, 3])
+        integer :: i, j
+
+        call a%init()
+        call run_one(a, "v = ArrayFlatten[{{{{1, 2}, {3, 4}}, {{5}, {6}}}, "// &
+                     "{{{7, 8}}, {{9}}}}]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("ArrayFlatten", "refused: "//message)
+            return
+        end if
+        if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
+                value%nargs() /= 3) then
+            call fail("ArrayFlatten", "wrong output shape")
+            return
+        end if
+        do i = 1, 3
+            row = value%arg(i)
+            if (row%kind() /= NK_FUNC .or. chars(row%name()) /= "List" .or. &
+                    row%nargs() /= 3) then
+                call fail("ArrayFlatten", "wrong output shape")
+                return
+            end if
+            do j = 1, 3
+                item = row%arg(j)
+                if (item%kind() /= NK_INT .or. item%int_value() /= expected(i, j)) then
+                    call fail("ArrayFlatten", "block concatenation is wrong")
+                    return
+                end if
+            end do
+        end do
+    end subroutine test_array_flatten
 
     !> MatrixPower is checked against the independently multiplied entries of
     !> a concrete 2x2 matrix, including the exponent-zero identity boundary.

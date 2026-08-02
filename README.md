@@ -168,15 +168,16 @@ On the 384-file corpus sweep recorded 2026-08-02, the native runner completed
 out on one heavy script, reported one runner error, and explicitly refused two
 unsupported constructs. It did not crash. The latest bounded
 CharacteristicPolynomial/LegendreP/Diagonal/list-selector/Coefficient/Solve/
-FoldList audit refreshed 380 native rows in 1:13.07 with a 3.03 GiB peak RSS.
-A fully warm audit now takes 1.14 seconds at 416 MiB RSS and starts no backend
-subprocesses. The current binding-level tally is 3,152 agreements, 779
-declared differences, 20 unsupported outcomes, 38 timeouts, 122 errors, 198
-oracle disagreements, and 797 oracle-missing bindings. The
+FoldList/ArrayFlatten audit refreshed 380 native rows in 1:13.38 with a 1.54
+GiB peak RSS. A fully warm audit now takes 1.12 seconds at 420 MiB RSS and
+starts no backend subprocesses. The current binding-level tally is 3,155
+agreements, 776 declared differences, 20 unsupported outcomes, 38 timeouts,
+122 errors, 198 oracle disagreements, and 797 oracle-missing bindings. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,
-bounded non-negative `MatrixPower`, `RowReduce`, `NullSpace`, `MatrixRank`,
+bounded non-negative `MatrixPower`, bounded block-matrix `ArrayFlatten`,
+`RowReduce`, `NullSpace`, `MatrixRank`,
 `LinearSolve`, `Minors`, `Length`, recursive `Flatten`, list
 `Append`/`Join` and bounded list
 selectors, bounded univariate and multivariate `CoefficientList`, bounded
