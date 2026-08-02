@@ -115,9 +115,13 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,574 agreements, 503 declared
-differences, 8 unsupported outcomes, 75 timeouts, 61 errors, 2 unavailable
-oracle rows, 208 oracle disagreements, and 541 oracle-missing bindings. The v37
+The latest cache-only binding-level audit reports 3,661 agreements, 508 declared
+differences, 7 unsupported outcomes, 74 timeouts, 61 errors, 2 unavailable
+oracle rows, 194 oracle disagreements, and 463 oracle-missing bindings. The v43
+parity batch adds source-faithful ECNL equation strings, numeric validity
+estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
+large-step LTE reconstruction, and Sympl3 field forms, with 12 independent
+tests. The v37
 phase-transform and flux-coordinate companion translations, followed by the
 v38 NAE/DESC and Appendix-B translations, recovered 42 agreements and 52
 previously oracle-missing bindings in the warm audit while resolving one SymPy
@@ -132,8 +136,8 @@ force-balance and pressure-slope bindings with an independent test, adding one
 agreement and removing one oracle-missing binding. The v42
 Bacc/Rosa/Posch companion recovers the source magnetic-field integral with an
 independent numerical quadrature test and removes one oracle disagreement. The
-target remains open until the declared native subset and the available oracle
-overlap agree.
+v43 batch is committed and cached, but the target remains open until the
+declared native subset and the available oracle overlap agree.
 
 The current native collection slice includes bounded `Array`, `ConstantArray`,
 and `Outer` expansion, bounded exact `Range`, `DiagonalMatrix`, rectangular
@@ -285,11 +289,11 @@ with a 3.04 GiB peak RSS; the v16 SymPy transition refreshed 22 rows in 8.93
 seconds; the v17 polynomial transition refreshed eight rows in 11.28 seconds;
 the v18 Solve-rule/fractional-`Exponent` transition refreshed four rows in
 10.46 seconds at 399 MiB RSS; the v19 bounded `Thread` transition refreshed 16
-rows in 16.51 seconds at 399 MiB RSS. The latest warm audit takes 1.24 seconds
-at 456 MiB RSS. The v20 positive-level `Map` transition refreshed six rows in
+rows in 16.51 seconds at 399 MiB RSS. The latest warm audit takes 0.56 seconds
+at 344 MiB RSS. The v20 positive-level `Map` transition refreshed six rows in
 4.07 seconds at 403 MiB RSS.
 Once raw results and comparison verdicts are cached, the same full audit takes
-1.24 seconds at 456 MiB RSS. Future compatible cache transitions retain
+0.56 seconds at 344 MiB RSS. Future compatible cache transitions retain
 unaffected older-version rows. These are
 harness measurements, not a
 capability comparison: Mathics evaluates integrals fortsym refuses, and the native path
