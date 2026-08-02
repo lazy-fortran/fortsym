@@ -11,6 +11,7 @@ module fortsym_matrix
     ! and produces enormous unsimplified sums; Bareiss is O(n^3) and every
     ! intermediate is an exact polynomial in the entries, which is what keeps
     ! the result readable and the arithmetic exact. See doc/provenance.md.
+    use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_FUNC
     use fortsym_expr, only: expr_t, num, func, func_in, operator(+), &
@@ -22,7 +23,7 @@ module fortsym_matrix
 
     public :: is_list, is_matrix, matrix_shape
     public :: matrix_transpose, matrix_dot, matrix_det, matrix_inverse
-    public :: matrix_row_reduce, matrix_null_space, matrix_rank
+    public :: matrix_row_reduce, matrix_null_space, matrix_rank, matrix_minors
     public :: to_matrix, from_matrix
 
     ! Exact row reduction can grow intermediate expressions quickly. Keep the
@@ -32,6 +33,7 @@ module fortsym_matrix
     integer, parameter :: MAX_RREF_ROWS = 64
     integer, parameter :: MAX_RREF_COLS = 64
     integer, parameter :: MAX_RREF_ENTRIES = 1024
+    integer, parameter :: MAX_MINOR_OUTPUT = 1024
 
 contains
 
@@ -500,6 +502,114 @@ contains
         r = num(a, rank)
     end function matrix_rank
 
+    !> All exact minors of a requested order.
+    !>
+    !> The result is nested by the selected row combinations and then the
+    !> selected column combinations, matching the Wolfram `Minors` shape. A
+    !> zero order means the default maximal order. Combination counts are
+    !> bounded before any submatrices are allocated, so a large input refuses
+    !> rather than expanding an unexpectedly huge collection of determinants.
+    function matrix_minors(a, e, order, ok, why) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t), intent(in) :: e
+        integer, intent(in) :: order
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(expr_t) :: r, determinant
+        type(expr_t), allocatable :: m(:, :), minor(:, :)
+        type(expr_t), allocatable :: row_results(:), column_results(:)
+        integer, allocatable :: row_choices(:, :), column_choices(:, :)
+        integer, allocatable :: choice(:)
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: simplified
+        integer :: rows, cols, k, row_count, column_count
+        integer :: i, j, p, q, next
+        logical :: count_ok, shape_ok
+
+        r = e
+        ok = .false.
+        why = str("")
+        call to_matrix(e, m, shape_ok)
+        if (.not. shape_ok) then
+            why = str("Minors on something that is not a matrix")
+            return
+        end if
+
+        rows = size(m, 1)
+        cols = size(m, 2)
+        k = order
+        if (k == 0) k = min(rows, cols)
+        if (k < 1 .or. k > min(rows, cols)) then
+            why = str("Minors order is outside the matrix dimensions")
+            return
+        end if
+
+        call combination_count(rows, k, row_count, count_ok)
+        if (.not. count_ok) then
+            why = str("Minors exceeds the built-in combination bound")
+            return
+        end if
+        call combination_count(cols, k, column_count, count_ok)
+        if (.not. count_ok) then
+            why = str("Minors exceeds the built-in combination bound")
+            return
+        end if
+        if (int(row_count, int64)*int(column_count, int64) > &
+                int(MAX_MINOR_OUTPUT, int64)) then
+            why = str("Minors exceeds the built-in result bound")
+            return
+        end if
+
+        allocate (row_choices(k, row_count), column_choices(k, column_count))
+        allocate (row_results(row_count))
+        allocate (choice(k))
+        engine = make_native_engine(a)
+        next = 0
+        call fill_combinations(rows, k, 1, 1, choice, &
+                               row_choices, next)
+        next = 0
+        call fill_combinations(cols, k, 1, 1, choice, &
+                               column_choices, next)
+        deallocate (choice)
+
+        do i = 1, row_count
+            allocate (column_results(column_count))
+            do j = 1, column_count
+                allocate (minor(k, k))
+                do p = 1, k
+                    do q = 1, k
+                        minor(p, q) = m(row_choices(p, i), column_choices(q, j))
+                    end do
+                end do
+                ! Bareiss is the scalable route, but a symbolic pivot in a
+                ! small minor can leave a denominator that is mathematically
+                ! cancelled but not yet visible to the native simplifier.
+                ! The direct 1x1--3x3 identities stay polynomial and therefore
+                ! preserve the exact symbolic Minors result.
+                if (k <= 3) then
+                    determinant = small_determinant(minor)
+                    ok = .true.
+                else
+                    determinant = matrix_det(a, from_matrix(a, minor), ok, why)
+                end if
+                deallocate (minor)
+                if (.not. ok) return
+                simplified = engine%simplify(determinant)
+                if (.not. simplified%ok) then
+                    why = str("Minors could not simplify a determinant")
+                    ok = .false.
+                    return
+                end if
+                column_results(j) = simplified%value
+            end do
+            row_results(i) = func("List", column_results)
+            deallocate (column_results)
+        end do
+
+        r = func("List", row_results)
+        ok = .true.
+    end function matrix_minors
+
     !> In-place exact RREF and its pivot columns.
     subroutine rref(a, m, rank, pivots, ok, why)
         type(arena_t), target,     intent(inout) :: a
@@ -631,5 +741,70 @@ contains
         text = chars(e%exact_text())
         yes = text == "0"
     end function is_literal_zero
+
+    subroutine combination_count(n, k, count, ok)
+        integer, intent(in) :: n, k
+        integer, intent(out) :: count
+        logical, intent(out) :: ok
+        integer(int64) :: value, numerator
+        integer :: i
+
+        value = 1_int64
+        ok = .false.
+        count = 0
+        if (k < 0 .or. k > n) return
+        do i = 1, k
+            numerator = int(n - k + i, int64)
+            if (value > int(MAX_MINOR_OUTPUT, int64)*int(i, int64)/numerator) &
+                return
+            value = value*numerator/int(i, int64)
+        end do
+        count = int(value)
+        ok = .true.
+    end subroutine combination_count
+
+    recursive subroutine fill_combinations(n, k, start, depth, choice, choices, next)
+        integer, intent(in) :: n, k, start
+        integer, intent(in) :: depth
+        integer, intent(inout) :: choice(:)
+        integer, intent(inout) :: choices(:, :)
+        integer, intent(inout) :: next
+        integer :: candidate
+
+        if (depth > k) then
+            next = next + 1
+            choices(:, next) = choice
+            return
+        end if
+        do candidate = start, n - (k - depth)
+            choice(depth) = candidate
+            call fill_combinations(n, k, candidate + 1, depth + 1, &
+                                   choice, choices, next)
+        end do
+    end subroutine fill_combinations
+
+    function small_determinant(m) result(r)
+        type(expr_t), intent(in) :: m(:, :)
+        type(expr_t) :: r
+        integer :: n
+
+        n = size(m, 1)
+        select case (n)
+        case (1)
+            r = m(1, 1)
+        case (2)
+            r = m(1, 1)*m(2, 2) - m(1, 2)*m(2, 1)
+        case (3)
+            r = m(1, 1)*m(2, 2)*m(3, 3) - &
+                m(1, 1)*m(2, 3)*m(3, 2) - &
+                m(1, 2)*m(2, 1)*m(3, 3) + &
+                m(1, 2)*m(2, 3)*m(3, 1) + &
+                m(1, 3)*m(2, 1)*m(3, 2) - &
+                m(1, 3)*m(2, 2)*m(3, 1)
+        case default
+            ! The caller only selects this helper for orders through three.
+            r = m(1, 1)
+        end select
+    end function small_determinant
 
 end module fortsym_matrix

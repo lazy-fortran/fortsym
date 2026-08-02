@@ -50,6 +50,7 @@ program test_fortsym_wl_solvenum
     call test_array_collections()
     call test_flatten()
     call test_range_and_diagonal_matrix()
+    call test_minors_dispatch()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_solvenum"
@@ -884,6 +885,42 @@ contains
         end do
         call expect_refusal("diagonal matrix non-list", "v = DiagonalMatrix[x]"//nl(), "v")
     end subroutine test_range_and_diagonal_matrix
+
+    !> Exercise the public Wolfram dispatch as well as the matrix primitive.
+    !> The four values are independent 3x3 determinants of the same 3x4
+    !> matrix used by the algebra-level test.
+    subroutine test_minors_dispatch()
+        type(arena_t), target :: a
+        type(expr_t) :: value, row, item
+        logical :: ok
+        character(:), allocatable :: message
+        integer :: k
+        integer, parameter :: expected(4) = [11, 3, -10, 15]
+
+        call a%init()
+        call run_one(a, "v = Minors[{{1, 2, 3, 4}, {0, 1, 4, 2}, "// &
+                     "{2, 0, 1, 3}}, 3]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("Minors dispatch", "refused: "//message)
+            return
+        end if
+        if (value%kind() /= NK_FUNC .or. chars(value%name()) /= "List" .or. &
+                value%nargs() /= 1) then
+            call fail("Minors dispatch", "wrong row-combination shape")
+            return
+        end if
+        row = value%arg(1)
+        if (row%kind() /= NK_FUNC .or. chars(row%name()) /= "List" .or. &
+                row%nargs() /= 4) then
+            call fail("Minors dispatch", "wrong column-combination shape")
+            return
+        end if
+        do k = 1, 4
+            item = row%arg(k)
+            if (item%kind() /= NK_INT .or. item%int_value() /= expected(k)) &
+                call fail("Minors dispatch", "wrong determinant value")
+        end do
+    end subroutine test_minors_dispatch
 
     pure function nl() result(c)
         character(1) :: c

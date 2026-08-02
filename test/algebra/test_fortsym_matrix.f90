@@ -23,6 +23,7 @@ program test_fortsym_matrix
     call test_inverse_is_a_two_sided_inverse()
     call test_transpose_is_an_involution()
     call test_rref_null_space_and_rank()
+    call test_minors()
     call test_shape_errors_are_refused()
 
     if (nfail == 0) then
@@ -313,6 +314,44 @@ contains
             nfail = nfail + 1
         end if
     end subroutine test_rref_null_space_and_rank
+
+    !> A 3x4 matrix has four maximal minors. These values are obtained from
+    !> the ordinary 3x3 determinant formula independently of matrix_minors;
+    !> checking all four also catches a row/column-combination ordering error.
+    subroutine test_minors()
+        type(arena_t), target :: a
+        type(expr_t) :: matrix, minors, row
+        logical :: ok
+        type(str_t) :: why
+
+        call a%init()
+        matrix = func("List", [ &
+            func("List", [num(a, 1), num(a, 2), num(a, 3), num(a, 4)]), &
+            func("List", [num(a, 0), num(a, 1), num(a, 4), num(a, 2)]), &
+            func("List", [num(a, 2), num(a, 0), num(a, 1), num(a, 3)])])
+
+        minors = matrix_minors(a, matrix, 3, ok, why)
+        if (.not. ok) then
+            print *, "FAIL minors: ", chars(why)
+            nfail = nfail + 1
+            return
+        end if
+        if (chars(minors%name()) /= "List" .or. minors%nargs() /= 1) then
+            print *, "FAIL minors: expected one row-combination result"
+            nfail = nfail + 1
+            return
+        end if
+        row = minors%arg(1)
+        if (chars(row%name()) /= "List" .or. row%nargs() /= 4) then
+            print *, "FAIL minors: expected four column-combination results"
+            nfail = nfail + 1
+            return
+        end if
+        call expect_entry("minor 123", minors, 1, 1, "11")
+        call expect_entry("minor 124", minors, 1, 2, "3")
+        call expect_entry("minor 134", minors, 1, 3, "-10")
+        call expect_entry("minor 234", minors, 1, 4, "15")
+    end subroutine test_minors
 
     subroutine expect_entry(label, matrix, row_index, col_index, expected)
         character(*), intent(in) :: label, expected
