@@ -22,7 +22,7 @@ program test_fortsym_wl_solvenum
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_INT, NK_RAT, NK_REAL, &
         NK_BIG_REAL
-    use fortsym_expr, only: expr_t, sym, num, operator(-), operator(*), &
+    use fortsym_expr, only: expr_t, sym, num, real_expr, operator(-), operator(*), &
         operator(+)
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -52,6 +52,7 @@ program test_fortsym_wl_solvenum
     call test_flatten()
     call test_append_and_join()
     call test_range_and_diagonal_matrix()
+    call test_legendre_wolfram()
     call test_minors_dispatch()
 
     if (nfail == 0) then
@@ -992,6 +993,31 @@ contains
             call fail("diagonal non-matrix", "unsupported argument was not preserved")
         end if
     end subroutine test_range_and_diagonal_matrix
+
+    !> LegendreP is checked at an independently chosen numeric point against
+    !> the defining Rodrigues polynomial for degree three.
+    subroutine test_legendre_wolfram()
+        type(arena_t), target :: a
+        type(expr_t) :: value, point
+        logical :: ok, defined
+        character(:), allocatable :: message
+        real(dp) :: got, expected
+
+        call a%init()
+        call run_one(a, "v = LegendreP[3, x]"//nl(), "v", value, ok, message)
+        if (.not. ok) then
+            call fail("LegendreP dispatch", "refused: "//message)
+            return
+        end if
+        point = subs(value, sym(a, "x"), real_expr(a, 0.3_dp))
+        call numeric_value(point, got, defined, message)
+        expected = (5.0_dp*0.3_dp**3 - 3.0_dp*0.3_dp)/2.0_dp
+        if (.not. defined) then
+            call fail("LegendreP dispatch", "result is not numerically defined")
+        else if (abs(got - expected) > 1.0e-13_dp) then
+            call fail("LegendreP dispatch", "Rodrigues polynomial value is wrong")
+        end if
+    end subroutine test_legendre_wolfram
 
     !> Exercise the public Wolfram dispatch as well as the matrix primitive.
     !> The four values are independent 3x3 determinants of the same 3x4
