@@ -83,7 +83,7 @@ domain, parameters, precision, and error policy are numeric and explicit.
 
 ## Measured state
 
-Latest measured corpus-wide state, measured 2026-08-02, `fortsym-bench` at
+Latest measured corpus-wide state, measured 2026-08-03, `fortsym-bench` at
 384 scripts with the current native and comparison caches:
 
 This table is a committed native baseline. It is updated only after the root
@@ -98,8 +98,8 @@ reported state.
 | native rows exceeding the time budget | 3 |
 | native rows ending in a runner error | 0 |
 | crashes | **0** |
-| full native/SymPy refresh after v60 changes | 2:14.26 / 1.61 GiB |
-| latest warm compact raw-output and verdict audit | 0.66 s / 337 MiB |
+| full native/SymPy refresh after v67 changes | 3:07.12 / 1.61 GiB |
+| latest warm compact raw-output and verdict audit | 3:57.52 / 426 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -116,16 +116,16 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,853 agreements, 468 declared
-differences, 7 unsupported outcomes, 76 timeouts, 60 errors, 2 unavailable
-oracle rows, 194 oracle disagreements, and 354 oracle-missing bindings. The
-v43-v60
+The latest cache-only binding-level audit reports 3,863 agreements, 465 declared
+differences, 7 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable
+oracle rows, 208 oracle disagreements, and 349 oracle-missing bindings across
+4,888 bindings. The v43-v68
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
 parity, math3y, Cartesian-primitive, math8y, perpendicular-block, math10y,
 math6-1y, cylinder-spectrum, math11y, Mercier, Appendix-B, math14y, and math15y
-recoveries, with 68 independent tests. The v59 native work fixes implicit
+recoveries, with 75 independent tests. The v59 native work fixes implicit
 scientific-literal precedence and adds vector-matrix `Dot` evaluation; v60 adds
 bounded numeric `FindRoot`. The benchmark harness now invalidates native cache
 rows at version 2.
