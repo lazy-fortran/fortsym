@@ -20,6 +20,7 @@ program test_fortsym_wl_statements
     call test_complete_lines_still_separate()
     call test_postfix_ends_a_line()
     call test_table_evaluation()
+    call test_bounded_do()
     call test_clear_and_compound_expression()
     call test_empty_script()
     call test_explicit_trig_simplify()
@@ -191,6 +192,16 @@ contains
             "values = Table[i + n, {i, n}]"//char(10), &
             "values", "List(4, 5, 6)")
     end subroutine test_table_evaluation
+
+    !> Do's side effect is checked by an independent finite sum: the squares
+    !> 1^2 + 2^2 + 3^2 + 4^2 equal 30. A discarded Do body would leave total at
+    !> zero, while an off-by-one iterator would produce a different integer.
+    subroutine test_bounded_do()
+        call expect("bounded Do accumulation", &
+            "total = 0"//char(10)// &
+            "Do[total = total + k^2, {k, 4}]"//char(10)// &
+            "value = total"//char(10), "value", "30")
+    end subroutine test_bounded_do
 
     !> Clear removes an earlier value, and a top-level comma keeps compound
     !> expressions in their written order. The expected result must therefore
