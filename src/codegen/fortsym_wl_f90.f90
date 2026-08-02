@@ -57,6 +57,7 @@ contains
         character(:), allocatable :: statement, lhs, rhs, parse_message
         character(:), allocatable :: cleaned_source
         integer :: nstatements, ninputs, k, j, eq, width
+        integer :: first_statement
         integer :: nold
         logical :: parsed, representable
         type(expr_t) :: root
@@ -69,6 +70,17 @@ contains
         if (.not. parsed) return
         call split_stream(cleaned_source, statements, nstatements, parsed, message)
         if (.not. parsed) return
+        first_statement = 1
+        do while (first_statement <= nstatements)
+            if (.not. safe_setup_statement(chars(statements(first_statement)))) exit
+            first_statement = first_statement + 1
+        end do
+        if (first_statement > 1) then
+            do k = first_statement, nstatements
+                statements(k - first_statement + 1) = statements(k)
+            end do
+            nstatements = nstatements - first_statement + 1
+        end if
         if (nstatements == 0) then
             message = "expected at least one top-level name = expression assignment"
             return
@@ -246,6 +258,78 @@ contains
             cleaned = ""
         end if
     end subroutine strip_leading_comments
+
+    !> Recognize only stateless notebook reset statements at the stream head.
+    !> The translator starts with a fresh arena and never consults a persistent
+    !> Wolfram symbol table, so clearing ordinary user symbols cannot change
+    !> the scalar assignment expressions emitted below. Definitions, options,
+    !> attributes, imports, and value assignments are deliberately not included.
+    pure function safe_setup_statement(text) result(ok)
+        character(*), intent(in) :: text
+        logical                   :: ok
+        character(:), allocatable :: whole, head, args, item
+        integer :: open, close, k, start
+
+        whole = trim(adjustl(text))
+        ok = .false.
+        if (len(whole) == 0) return
+        open = index(whole, "[")
+        close = len(whole)
+        if (open <= 1 .or. close <= open + 1) return
+        if (whole(close:close) /= "]") return
+
+        head = trim(adjustl(whole(:open - 1)))
+        args = trim(adjustl(whole(open + 1:close - 1)))
+        if (head == "ClearAll" .and. &
+            args == '"Global`*"') then
+            ok = .true.
+            return
+        end if
+        if (.not. (head == "Clear" .or. head == "ClearAll")) return
+        if (len(args) == 0) return
+
+        start = 1
+        do k = 1, len(args)
+            if (args(k:k) == ",") then
+                if (k == start) return
+                item = trim(adjustl(args(start:k - 1)))
+                if (.not. safe_setup_name(item)) return
+                start = k + 1
+            end if
+        end do
+        if (start > len(args)) return
+        item = trim(adjustl(args(start:)))
+        if (.not. safe_setup_name(item)) return
+        ok = .true.
+    end function safe_setup_statement
+
+    pure function safe_setup_name(name) result(ok)
+        character(*), intent(in) :: name
+        logical                   :: ok
+
+        ok = valid_fortran_name(name)
+        if (.not. ok) return
+        if (same_fortran_name(name, GENERATED_NAME) .or. &
+            same_fortran_name(name, "dp") .or. &
+            name_starts_with(name, TEMP_PREFIX)) then
+            ok = .false.
+            return
+        end if
+        if (same_fortran_name(name, "i") .or. same_fortran_name(name, "pi") .or. &
+            same_fortran_name(name, "e") .or. same_fortran_name(name, "sin") .or. &
+            same_fortran_name(name, "cos") .or. same_fortran_name(name, "tan") .or. &
+            same_fortran_name(name, "asin") .or. same_fortran_name(name, "acos") .or. &
+            same_fortran_name(name, "atan") .or. same_fortran_name(name, "sinh") .or. &
+            same_fortran_name(name, "cosh") .or. same_fortran_name(name, "tanh") .or. &
+            same_fortran_name(name, "asinh") .or. same_fortran_name(name, "acosh") .or. &
+            same_fortran_name(name, "atanh") .or. same_fortran_name(name, "exp") .or. &
+            same_fortran_name(name, "log") .or. same_fortran_name(name, "sqrt") .or. &
+            same_fortran_name(name, "abs") .or. same_fortran_name(name, "erf") .or. &
+            same_fortran_name(name, "erfc") .or. same_fortran_name(name, "gamma") .or. &
+            same_fortran_name(name, "atan2") .or. same_fortran_name(name, "min") .or. &
+            same_fortran_name(name, "max") .or. same_fortran_name(name, "clear") .or. &
+            same_fortran_name(name, "clearall")) ok = .false.
+    end function safe_setup_name
 
     !> Split only at top-level semicolons and newlines. Wolfram comments and
     !> nested brackets are skipped, so a multiline function call remains one
