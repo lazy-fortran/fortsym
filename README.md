@@ -15,9 +15,10 @@ answers, and keeps the one that produces the smallest kernel.
 The native Fortran backend currently performs arbitrary-precision integer and
 rational arithmetic with a checked 64-bit fast path, collection of like terms
 and integer powers, bounded polynomial expansion, differentiation, Taylor
-coefficients and series, scalar linear solving, bounded requested-precision
-`N[expr, p]` evaluation (17--512 decimal digits), and conservative zero
-decisions. Broader domains remain on the documented roadmap.
+coefficients and series, scalar linear solving with computed-rule replacement,
+exact fractional-monomial `Exponent`, bounded requested-precision `N[expr, p]`
+evaluation (17--512 decimal digits), and conservative zero decisions. Broader
+domains remain on the documented roadmap.
 
 Guarded native rewrites accept an explicit `assumption_context_t`. Positive,
 nonnegative, nonzero, and real-valued facts are stored on interned expressions.
@@ -172,10 +173,17 @@ FoldList/ArrayFlatten/Total/PseudoInverse/SingularValueList audit refreshed 380
 native rows in 1:14.19 with a 3.04 GiB peak RSS. After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, a fully warm audit now takes 1.24 seconds
-at 456 MiB RSS and starts no backend subprocesses. The current binding-level
-tally is 3,219 agreements, 716 declared differences, 20 unsupported outcomes,
-38 timeouts, 117 errors, 192 oracle disagreements, and 798 oracle-missing
-bindings. The
+at 456 MiB RSS and starts no backend subprocesses. The current committed
+whole-corpus binding-level tally is 3,219 agreements, 716 declared differences,
+20 unsupported outcomes, 38 timeouts, 117 errors, 192 oracle disagreements,
+and 798 oracle-missing bindings. The v18 Solve-rule/fractional-`Exponent`
+transition refreshed four SymPy rows in 10.46 seconds at 399 MiB RSS. A
+current one-worker audit of the affected 11-script slice, using the rebuilt
+native runner, took 42.39 seconds at 804 MiB RSS and reported 181 agreements,
+63 differences, 2 unavailable oracle rows, 9 errors, and 54 oracle-missing
+bindings. This focused result is not a replacement for a new whole-corpus
+baseline; it confirms that the five computed-Solve/fractional-`Exponent`
+bindings exposed by the slice now agree. The
 native collection slice also evaluates bounded exact `Range`,
 `DiagonalMatrix`, rectangular `Diagonal`, bounded `LegendreP`, bounded exact
 `CharacteristicPolynomial` for explicit square matrices up to dimension 16,
