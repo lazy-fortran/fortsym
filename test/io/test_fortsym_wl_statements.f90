@@ -30,6 +30,7 @@ program test_fortsym_wl_statements
     call test_pure_map_apply_replace()
     call test_list_threading()
     call test_list_selectors()
+    call test_bounded_file_name_join()
     call test_matrix_span_selectors()
     call test_bounded_curl()
     call test_list_child_evaluation()
@@ -317,6 +318,18 @@ contains
             "value = Drop[{a, b, c, d}, {2, 3}]"//char(10), &
             "value", "List(a, d)")
     end subroutine test_list_selectors
+
+    !> Literal path joining is checked against the hand-built POSIX path. A
+    !> computed component must refuse: resolving it would require filesystem
+    !> state that this expression evaluator intentionally does not own.
+    subroutine test_bounded_file_name_join()
+        call expect("literal FileNameJoin", &
+            "value = FileNameJoin[{""root"", ""figures"", ""plot.pdf""}]"// &
+            char(10), "value", '"root/figures/plot.pdf"')
+        call expect_refusal("computed FileNameJoin component", &
+            "value = FileNameJoin[{root, ""figures""}]"//char(10), &
+            "FileNameJoin needs non-empty literal string components")
+    end subroutine test_bounded_file_name_join
 
     !> A two-dimensional Part applies each inclusive Span one level at a time.
     !> The expected block is the hand-calculated lower-right 2x2 submatrix.
