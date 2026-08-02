@@ -28,6 +28,8 @@ module fortsym_integrate
     !     that gives a logarithm;
     !   * elementary antiderivatives with a *linear* argument f(s*v + b) --
     !     sin, cos, tan, exp, log, sqrt, sinh, cosh -- divided by the slope;
+    !   * squares of sin and cos with a linear argument, via the double-angle
+    !     identities;
     !   * an exponential with a constant base and a linear exponent;
     !   * 1/q and 1/sqrt(q) for a quadratic q with numeric coefficients, in the
     !     arctangent and arcsine cases respectively.
@@ -105,6 +107,7 @@ contains
         type(expr_t)                             :: f
         type(native_engine_t) :: eng
         type(expr_t) :: integrand, candidate
+        type(engine_result_t) :: expanded
         character(:), allocatable :: reason
         logical :: found, good
 
@@ -135,6 +138,11 @@ contains
         ! kind, and an unsimplified 2*(3*x**1) is a shape none of them match
         ! even though 6*x is.
         integrand = simplified(eng, e)
+        ! Distribute bounded polynomial products before dispatching rules. The
+        ! verifier still checks the final candidate, while the expansion
+        ! exposes terms such as r*(r**2 + c) to the existing power rules.
+        expanded = eng%expand(integrand)
+        if (expanded%ok) integrand = expanded%value
         integrand = combine_exponential_product(eng, integrand, var)
 
         candidate = antiderivative(eng, integrand, var, found, reason)
@@ -357,7 +365,7 @@ contains
         logical,                   intent(out)   :: found
         character(:), allocatable, intent(out)   :: why
         type(expr_t)                             :: f
-        type(expr_t) :: base, expo, slope, offset
+        type(expr_t) :: base, expo, slope, offset, angle
         real(dp) :: expo_value, base_value
         logical  :: linear, numeric_expo, numeric_base
         logical  :: minus_one, minus_half, quadratic_base
@@ -378,6 +386,35 @@ contains
             f = antiderivative(eng, simplified(eng, &
                 base%arg(1)**(expo*rat(e%a, 1_int64, 2_int64))), v, found, why)
             return
+        end if
+
+        ! sin(u)**2 and cos(u)**2 are elementary after the double-angle
+        ! identity. Keep the same linear-argument and nonzero-slope proof as
+        ! the ordinary function rules; otherwise a formal division by a zero
+        ! slope would look verified while describing a different function.
+        if (exponent_equals(expo, 2_int64, 1_int64)) then
+            if (base%kind() == NK_FUNC) then
+                if (base%nargs() == 1) then
+                    if (chars(base%name()) == "sin" .or. &
+                        chars(base%name()) == "cos") then
+                        angle = base%arg(1)
+                        call linear_in(eng, angle, v, slope, offset, linear)
+                        if (linear) then
+                            if (chars(base%name()) == "sin") then
+                                f = v*rat(e%a, 1_int64, 2_int64) - &
+                                    sin(num(e%a, 2)*angle)/ &
+                                    (num(e%a, 4)*slope)
+                            else
+                                f = v*rat(e%a, 1_int64, 2_int64) + &
+                                    sin(num(e%a, 2)*angle)/ &
+                                    (num(e%a, 4)*slope)
+                            end if
+                            found = .true.
+                            return
+                        end if
+                    end if
+                end if
+            end if
         end if
 
         ! b**(s*v + c): an exponential in disguise. Requires a numeric base

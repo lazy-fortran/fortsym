@@ -22,12 +22,11 @@ program test_fortsym_defint
     ! produced -- -2 for int_{-1}^{1} x^{-2}, a negative area under a positive
     ! integrand -- is asserted never to come back.
     use, intrinsic :: iso_fortran_env, only: real64, int64
-    use fortsym_string, only: str_t
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, num, &
-                            operator(+), operator(-), operator(*), &
-                            operator(/), operator(**), &
-                            sin, cos, exp, log, sqrt, tan
+        operator(+), operator(-), operator(*), &
+        operator(/), operator(**), &
+        sin, cos, exp, log, sqrt, tan, pi_expr
     use fortsym_eval, only: binding_t, eval_expr
     use fortsym_defint, only: definite_integral
     implicit none
@@ -51,6 +50,7 @@ program test_fortsym_defint
     call test_singular_refusals()
     call test_domain_refusals()
     call test_parameter_refusal()
+    call test_symbolic_endpoint()
 
     if (nfail /= 0) then
         print *, "test_fortsym_defint: ", nfail, " check(s) FAILED"
@@ -102,7 +102,7 @@ contains
         end if
         if (abs(forward - simpson(x**2 + 1, 0.0_dp, 2.0_dp)) > TOL) then
             call fail("orientation: the forward integral disagrees with "// &
-                      "quadrature")
+                "quadrature")
         end if
     end subroutine test_orientation_and_degenerate
 
@@ -118,15 +118,15 @@ contains
         ! up to within eps of the singular point has to blow up.
         call diverges_at("1/x**2 at 0", 1/x**2, -1.0_dp, 1.0_dp, 0.0_dp)
         call diverges_at("1/(x**2-1) at 1", 1/(x**2 - 1), 0.0_dp, 2.0_dp, &
-                         1.0_dp)
+            1.0_dp)
         call diverges_at("1/(x-1)**2 at 1", 1/(x - 1)**2, 0.0_dp, 2.0_dp, &
-                         1.0_dp)
+            1.0_dp)
 
         ! The specific wrong answer this module exists to prevent. The
         ! fundamental theorem applied blindly to 1/x**2 on [-1,1] gives -2,
         ! and -2 is a negative area under a strictly positive integrand.
         call never_returns("int_-1^1 1/x**2 must never be -2", 1/x**2, &
-                           -1.0_dp, 1.0_dp, -2.0_dp)
+            -1.0_dp, 1.0_dp, -2.0_dp)
     end subroutine test_singular_refusals
 
     !> Leaving the reals is as disqualifying as blowing up.
@@ -151,10 +151,53 @@ contains
         call refuses("int_0^1 sqrt(x+c)", sqrt(x + c), 0.0_dp, 1.0_dp)
 
         call agrees_for_parameter("int_0^3 (c*x**2 + x)", c*x**2 + x, c, &
-                                  0.0_dp, 3.0_dp)
+            0.0_dp, 3.0_dp)
         call agrees_for_parameter("int_-1^2 (x**3 - c)", x**3 - c, c, &
-                                  -1.0_dp, 2.0_dp)
+            -1.0_dp, 2.0_dp)
     end subroutine test_parameter_refusal
+
+    subroutine test_symbolic_endpoint()
+        type(expr_t) :: upper, formula
+        type(binding_t) :: b, empty
+        real(dp) :: got, want
+        logical :: ok
+        character(:), allocatable :: why
+
+        upper = sym(arena, "upper")
+        call definite_integral(arena, x**2, x, num(arena, 0), upper, &
+            formula, ok, why)
+        if (.not. ok) then
+            call fail("symbolic finite endpoint was refused: "//why)
+            return
+        end if
+
+        allocate (b%names(1))
+        allocate (b%values(1))
+        b%names(1) = upper%name()
+        b%values(1) = 2.0_dp
+        b%n = 1
+        got = eval_expr(formula, b, ok)
+        want = simpson(x**2, 0.0_dp, 2.0_dp)
+        if (.not. ok .or. abs(got - want) > TOL) then
+            call fail("symbolic endpoint formula disagrees with quadrature")
+        end if
+
+        upper = num(arena, 2)*pi_expr(arena)
+        call definite_integral(arena, cos(x)**2, x, num(arena, 0), upper, &
+            formula, ok, why)
+        if (.not. ok) then
+            call fail("symbolic Pi endpoint was refused: "//why)
+            return
+        end if
+        allocate (empty%names(0))
+        allocate (empty%values(0))
+        empty%n = 0
+        got = eval_expr(formula, empty, ok)
+        want = simpson(cos(x)**2, 0.0_dp, 2.0_dp*acos(-1.0_dp))
+        if (.not. ok .or. abs(got - want) > TOL) then
+            call fail("symbolic Pi endpoint formula disagrees with quadrature")
+        end if
+    end subroutine test_symbolic_endpoint
 
     !> Integrate symbolically in `x` with `p` left free, then instantiate `p`
     !> at several values and check each against quadrature of the original
@@ -174,10 +217,10 @@ contains
         values = [-2.0_dp, -0.5_dp, 1.0_dp, 4.0_dp]
 
         call definite_integral(arena, f, x, real_of(lo), real_of(hi), &
-                               formula, ok, why)
+            formula, ok, why)
         if (.not. ok) then
             call fail(label//": refused, but the integrand is entire in x "// &
-                      "for every value of the parameter")
+                "for every value of the parameter")
             return
         end if
 
@@ -218,7 +261,7 @@ contains
 
         value = 0.0_dp
         call definite_integral(arena, f, x, real_of(lo), real_of(hi), &
-                               result_expr, ok, why)
+            result_expr, ok, why)
         if (.not. ok) return
 
         allocate (empty%names(0))
@@ -237,7 +280,7 @@ contains
         call symbolic_value(f, lo, hi, got, ok)
         if (.not. ok) then
             call fail(label//": refused, but the integral is elementary "// &
-                      "and the integrand is continuous")
+                "and the integrand is continuous")
             return
         end if
         want = simpson(f, lo, hi)
@@ -294,12 +337,12 @@ contains
         do k = 1, 5
             eps = 10.0_dp**(-k)
             area = abs(simpson(f, lo, point - eps)) + &
-                   abs(simpson(f, point + eps, hi))
+                abs(simpson(f, point + eps, hi))
             if (k == 1) then
                 first = area
             else if (area <= previous) then
                 call fail(label//": the partial areas stopped growing, so "// &
-                          "the refusal is not justified by a pole")
+                    "the refusal is not justified by a pole")
                 return
             end if
             previous = area
@@ -311,7 +354,7 @@ contains
         ! cannot do.
         if (previous < 1.5_dp*first) then
             call fail(label//": the partial areas settled down, so the "// &
-                      "integral converges and the refusal is wrong")
+                "integral converges and the refusal is wrong")
         end if
     end subroutine diverges_at
 

@@ -113,6 +113,7 @@ reported state.
 | current v24 focused bounded `TrigReduce` slice (6 scripts, one worker) | 0.72 s / 404 MiB |
 | current v25 focused symbolic 2x2 `Solve` slice (1 script, one worker) | 0.78 s / 404 MiB |
 | current v26 focused exponential-product `Integrate` slice (3 scripts, one worker) | 0.78 s / 404 MiB |
+| current v27 focused nested-limit `Integrate` slice (1 script, one worker) | 0.77 s / 402 MiB |
 
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
@@ -223,9 +224,13 @@ v26 verified exponential-product `Integrate` transition then served a
 three-script slice in 0.78 second at 404 MiB RSS. It produced 5 agreements, 1
 difference, 1 unsupported backend outcome, 1 unavailable oracle row, and 1
 oracle disagreement, with no timeout or runner error. The
+v27 native definite/multiple-`Integrate` transition then evaluated the measured
+nested-limit script in a warm one-worker audit in 0.77 seconds at 402 MiB RSS.
+Native and SymPy now produce the complete outer-to-inner result; Mathics
+retains a partial unevaluated result, so the three bindings remain explicit
+oracle disagreements rather than being scored as native errors. The
 highest-impact work remains the plotting family, `Solve` beyond
-scalar linear cases, definite and multiple `Integrate`, polynomial heads, and
-`DSolve`/`NDSolve`.
+scalar linear cases, polynomial heads, and `DSolve`/`NDSolve`.
 
 ### The oracle ceiling (#47)
 

@@ -901,7 +901,9 @@ contains
         integer,       intent(in)    :: args(:)
         integer                      :: out
         integer(int64) :: order, den
+        integer(int64) :: pi_multiple
         logical :: exact
+        logical :: pi_multiple_ok
 
         out = a%func(name, args)
         if (size(args) == 0) return
@@ -909,8 +911,24 @@ contains
         select case (name)
         case ("sin", "tan", "sinh", "tanh", "asin", "atan", "asinh")
             if (is_zero_id(a, args(1))) out = a%int(0_int64)
+            if (name == "sin") then
+                call integer_pi_multiple(a, args(1), pi_multiple, &
+                    pi_multiple_ok)
+                if (pi_multiple_ok) out = a%int(0_int64)
+            end if
         case ("cos", "cosh", "exp")
             if (is_zero_id(a, args(1))) out = a%int(1_int64)
+            if (name == "cos") then
+                call integer_pi_multiple(a, args(1), pi_multiple, &
+                    pi_multiple_ok)
+                if (pi_multiple_ok) then
+                    if (modulo(pi_multiple, 2_int64) == 0_int64) then
+                        out = a%int(1_int64)
+                    else
+                        out = a%int(-1_int64)
+                    end if
+                end if
+            end if
         case ("log")
             if (is_one_id(a, args(1))) out = a%int(0_int64)
         case ("sqrt", "abs")
@@ -929,6 +947,54 @@ contains
             end if
         end select
     end function simplify_function
+
+    !> Recognise n*pi without approximating pi. Only an integer coefficient is
+    !> accepted, so a symbolic or fractional multiple cannot be simplified by
+    !> this identity.
+    subroutine integer_pi_multiple(a, id, multiple, ok)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        integer(int64), intent(out) :: multiple
+        logical,        intent(out) :: ok
+        integer :: k, factor
+        integer(int64) :: numerator, denominator, product
+        logical :: exact, saw_pi, product_ok
+
+        multiple = 0_int64
+        ok = .false.
+        saw_pi = .false.
+
+        if (a%kind_of(id) == NK_CONST) then
+            if (chars(a%name_of(id)) == "pi") then
+                multiple = 1_int64
+                ok = .true.
+            end if
+            return
+        end if
+        if (a%kind_of(id) /= NK_MUL) return
+
+        multiple = 1_int64
+        do k = 1, a%nargs_of(id)
+            factor = a%arg_of(id, k)
+            if (a%kind_of(factor) == NK_CONST) then
+                if (chars(a%name_of(factor)) == "pi") then
+                    if (saw_pi) then
+                        ok = .false.
+                        return
+                    end if
+                    saw_pi = .true.
+                    cycle
+                end if
+            end if
+            call exact_value(a, factor, numerator, denominator, exact)
+            if (.not. exact) return
+            if (denominator /= 1_int64) return
+            call checked_mul(multiple, numerator, product, product_ok)
+            if (.not. product_ok) return
+            multiple = product
+        end do
+        ok = saw_pi
+    end subroutine integer_pi_multiple
 
     recursive function expand_id(a, id, memo, done) result(out)
         type(arena_t), intent(inout) :: a
