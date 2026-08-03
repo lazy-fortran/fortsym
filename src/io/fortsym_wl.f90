@@ -839,11 +839,21 @@ contains
         ! turn Table[i, {i, 3}] into Table[99, {99, 3}] when a script happened
         ! to use i earlier; resolve other globals after each local index has
         ! been substituted instead.
-        if (parsed%kind() == NK_FUNC .and. chars(parsed%name()) == "Table") then
-            value = wl_eval(s, parsed, ok, message)
-        else
-            value = wl_eval(s, apply_bindings(s, parsed), ok, message)
+        if (parsed%kind() == NK_FUNC) then
+            if (chars(parsed%name()) == "Table") then
+                value = wl_eval(s, parsed, ok, message)
+                return
+            end if
+            ! FileNameJoin validates the source's literal components before
+            ! any session binding is substituted. Otherwise a dynamic
+            ! component such as dir could silently turn into a string and
+            ! cross the boundary of this deliberately explicit subset.
+            if (chars(parsed%name()) == "FileNameJoin") then
+                value = wl_eval(s, parsed, ok, message)
+                return
+            end if
         end if
+        value = wl_eval(s, apply_bindings(s, parsed), ok, message)
     end subroutine wl_eval_text
 
     !> Replace bound symbols by their values.
@@ -4028,7 +4038,12 @@ contains
             call refuse(ok, message, "FileNameJoin needs a list")
             return
         end if
-        if (parts%nargs() < 1 .or. parts%nargs() > MAX_FILE_NAME_COMPONENTS) then
+        if (parts%nargs() < 1) then
+            call refuse(ok, message, &
+                "FileNameJoin component count is outside the bounded subset")
+            return
+        end if
+        if (parts%nargs() > MAX_FILE_NAME_COMPONENTS) then
             call refuse(ok, message, &
                 "FileNameJoin component count is outside the bounded subset")
             return
@@ -4043,14 +4058,18 @@ contains
             end if
             if (k == 1) then
                 path = component
-            else if (path(len(path):len(path)) == "/" .and. &
-                    component(1:1) == "/") then
-                path = path//component(2:)
-            else if (path(len(path):len(path)) == "/" .or. &
-                    component(1:1) == "/") then
-                path = path//component
             else
-                path = path//"/"//component
+                ! POSIX join semantics reset the accumulated path when a
+                ! later component is absolute. Do each substring access only
+                ! after the earlier validation that makes it safe; Fortran
+                ! does not guarantee short-circuit evaluation for .and./.or.
+                if (component(1:1) == "/") then
+                    path = component
+                else if (path(len(path):len(path)) == "/") then
+                    path = path//component
+                else
+                    path = path//"/"//component
+                end if
             end if
             if (len(path) > MAX_FILE_NAME_LENGTH) then
                 call refuse(ok, message, "FileNameJoin path exceeds its safety bound")
@@ -4077,13 +4096,18 @@ contains
         text = chars(e%name())
         n = len(text)
         if (n < 2) return
-        if (text(1:1) /= '"' .or. text(n:n) /= '"') return
+        if (text(1:1) /= '"') return
+        if (text(n:n) /= '"') return
         value = text(2:n - 1)
         if (len(value) == 0) then
             value = ""
             return
         end if
-        if (index(value, '"') /= 0 .or. index(value, char(92)) /= 0) then
+        if (index(value, '"') /= 0) then
+            value = ""
+            return
+        end if
+        if (index(value, char(92)) /= 0) then
             value = ""
             return
         end if
