@@ -15,6 +15,7 @@ program test_fortsym_wl_f90
     call test_safe_setup_compiles_and_agrees(nfail)
     call test_scalar_minmax_compiles_and_agrees(nfail)
     call test_constant_if_compiles_and_agrees(nfail)
+    call test_bounded_while_compiles_and_agrees(nfail)
     call test_bounded_do_compiles_and_agrees(nfail)
     call test_bounded_for_compiles_and_agrees(nfail)
     call test_bounded_refusals(nfail)
@@ -306,6 +307,60 @@ contains
         call check("constant If source agrees with independent oracle", &
             status == 0, nfail)
     end subroutine test_constant_if_compiles_and_agrees
+
+    subroutine test_bounded_while_compiles_and_agrees(nfail)
+        integer, intent(inout) :: nfail
+        type(str_t) :: code
+        character(:), allocatable :: message
+        logical :: ok
+        integer :: unit, ios, status
+        character(*), parameter :: generated = "/tmp/fortsym_wl_f90_while.f90"
+        character(*), parameter :: driver = "/tmp/fortsym_wl_f90_while_driver.f90"
+        character(*), parameter :: executable = "/tmp/fortsym_wl_f90_while_driver"
+
+        code = translate_wl_assignments( &
+            "While[x != y, x = y]", ok, message)
+        call check("bounded While assignment accepted", ok, nfail)
+        if (.not. ok) then
+            print *, "translation message:", message
+            return
+        end if
+
+        open (newunit=unit, file=generated, status="replace", action="write", &
+            iostat=ios)
+        call check("bounded While generated source opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") chars(code)
+        close (unit)
+
+        open (newunit=unit, file=driver, status="replace", action="write", &
+            iostat=ios)
+        call check("bounded While oracle driver opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") &
+            "program independent_bounded_while_oracle"//new_line("a")// &
+            "  use, intrinsic :: iso_fortran_env, only: real64"//new_line("a")// &
+            "  real(real64) :: x, y"//new_line("a")// &
+            "  y = 1.0_real64"//new_line("a")// &
+            "  x = 3.0_real64"//new_line("a")// &
+            "  call fortsym_generated_assignment(y, x)"//new_line("a")// &
+            "  if (abs(x - y) > 1.0e-14_real64) error stop 1"//new_line("a")// &
+            "  y = 0.0_real64"//new_line("a")// &
+            "  x = 0.0_real64"//new_line("a")// &
+            "  call fortsym_generated_assignment(y, x)"//new_line("a")// &
+            "  if (abs(x - y) > 1.0e-14_real64) error stop 2"//new_line("a")// &
+            "  print *, 'PASS independent bounded While oracle'"//new_line("a")// &
+            "end program independent_bounded_while_oracle"
+        close (unit)
+
+        call execute_command_line("gfortran -std=f2018 -Wall -Werror -o "// &
+            executable//" "//generated//" "//driver, exitstat=status)
+        call check("bounded While generated source compiles", status == 0, nfail)
+        if (status /= 0) return
+        call execute_command_line(executable, exitstat=status)
+        call check("bounded While source agrees with independent oracle", &
+            status == 0, nfail)
+    end subroutine test_bounded_while_compiles_and_agrees
 
     subroutine test_bounded_do_compiles_and_agrees(nfail)
         integer, intent(inout) :: nfail
