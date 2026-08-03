@@ -71,6 +71,7 @@ contains
         if (.not. parsed) return
         call split_stream(cleaned_source, statements, nstatements, parsed, message)
         if (.not. parsed) return
+        call remove_standalone_nulls(statements, nstatements)
         first_statement = 1
         do while (first_statement <= nstatements)
             if (.not. safe_setup_statement(chars(statements(first_statement)))) exit
@@ -272,6 +273,27 @@ contains
         end if
         ok = .true.
     end function translate_wl_assignments
+
+    !> Remove top-level `Null` expressions, which are Wolfram's ordinary
+    !> no-value result used to separate notebook cells.  Only an exact,
+    !> standalone statement is discarded; `x = Null` and `f[Null]` still go
+    !> through the normal parser and refusal path.
+    pure subroutine remove_standalone_nulls(statements, nstatements)
+        type(str_t), intent(inout) :: statements(:)
+        integer,      intent(inout) :: nstatements
+
+        integer :: read_index, write_index
+
+        write_index = 0
+        do read_index = 1, nstatements
+            if (chars(statements(read_index)) == "Null") cycle
+            write_index = write_index + 1
+            if (write_index /= read_index) then
+                statements(write_index) = statements(read_index)
+            end if
+        end do
+        nstatements = write_index
+    end subroutine remove_standalone_nulls
 
     !> Lower one bounded scalar reassignment stream.
     !>
@@ -1728,6 +1750,7 @@ contains
         character(*), intent(in) :: name
         logical                   :: ok
         ok = valid_target_name(name)
+        if (ok .and. same_fortran_name(name, "Null")) ok = .false.
     end function valid_input_name
 
     pure function same_fortran_name(left, right) result(yes)
