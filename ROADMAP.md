@@ -137,6 +137,7 @@ reported state.
 | latest v108 UV warm compact raw-output and verdict audit | 1.10 s / 500 MiB |
 | latest v109 cache-rebuild raw-output and verdict audit | 62.60 s / 553 MiB |
 | latest v111 comparison-cache audit | 68.03 s / 542 MiB |
+| latest v122 cached whole-corpus audit | 16.99 s / 489 MiB |
 | v108 cache-preserving native refresh | 121.39 s / 1.61 GiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
@@ -154,11 +155,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest v111 cache-only binding-level audit reports 3,981 agreements, 433
+The latest v122 cache-only binding-level audit reports 4,015 agreements, 400
 declared differences, 7 unsupported outcomes, 75 timeouts, 59 errors, 2
-unavailable oracle rows, 197 oracle disagreements, and 266 oracle-missing
-bindings across 4,879 emitted bindings from 375 translated sources out of 384
-corpus sources. The v43-v111
+unavailable oracle rows, 197 oracle disagreements, and 265 oracle-missing
+bindings across 4,879 emitted bindings from 384 corpus sources. The v43-v122
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -233,7 +233,7 @@ Mathics list arithmetic as an explicit difference. A trial
 Levi-Civita native
 lowering was
 reverted after its measured corpus regression. The benchmark harness now
-invalidates native cache rows at version 2 and comparison verdicts at version 18.
+invalidates native cache rows at version 2 and comparison verdicts at version 20.
 The v109 cycle adds bounded archive-tu math6-1y and vector2d companion recovery,
 equation-aware equivalence for explicitly declared rearrangements, and the
 source-faithful literal-only native FileNameJoin subset. Its aggregate audit

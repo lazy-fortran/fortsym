@@ -195,11 +195,13 @@ RSS; the rebuild also refreshed changed SymPy rows. The v108 warm audit takes
 After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, the warm audit starts no backend
-subprocesses. The latest v111 cache-only whole-corpus tally is 3,981
-agreements, 433 declared differences, 7 unsupported outcomes, 75 timeouts, 59
-errors, 2 unavailable oracle rows, 197 oracle disagreements, and 266
-oracle-missing bindings across 4,879 emitted bindings from 375 translated
-sources out of 384 corpus sources. The v43-v60 batches add
+subprocesses. The latest v122 cache-only whole-corpus tally is 4,015
+agreements, 400 declared differences, 7 unsupported outcomes, 75 timeouts, 59
+errors, 2 unavailable oracle rows, 197 oracle disagreements, and 265
+oracle-missing bindings across 4,879 emitted bindings from 384 corpus sources.
+It took 16.99 seconds and peaked at 489 MiB RSS; raw SymPy, Mathics, and native
+results plus comparison verdicts were reused from the persistent caches. The
+v43-v122 batches add
 source-faithful ECNL equation strings, numeric validity estimates,
 Maxwell/flux-pumping companions, math10y and Suydam recoveries, large-step LTE
 reconstruction, Sympl3 field forms, normal-stability numeric parity, math3y,
@@ -301,18 +303,18 @@ Mathics inventory remains 255 rows, with 60 errors and 69 bounded timeouts.
 
 ## Current corpus state
 
-The v108 audit on 2026-08-03 uses native commit `f89a054`, SymPy cache version
-29, comparison cache version 17, and Mathics3 10.0.1 installed as a UV tool. It
-reports 3,961 agreements, 457 declared differences, 7 unsupported outcomes,
-75 timeouts, 59 backend errors, 2 unavailable oracle rows, 192 oracle
-disagreements, and 268 oracle-missing bindings across 4,880 emitted bindings
-from the 384-source corpus. The one-worker cold native refresh took 121.39
-seconds at 1.61 GiB RSS; the all-warm UV compact-cache audit takes 1.10 seconds
-at about 500 MiB RSS. v108 adds exact-list native `Position`/`Union`, standalone
-`Null` source-to-Fortran separators, the Bacc/Rosa/Posch derivation cluster,
-the Sympl3 orbit cluster, and malformed Mathics list-arithmetic classification.
-The comparator now reports malformed trees as explicit differences rather than
-errors. Full corpus parity remains open work.
+The v122 audit on 2026-08-03 uses native commit `89ec752`, SymPy cache version
+29, comparison cache version 20, and Mathics3 10.0.1 installed as a UV tool. It
+reports 4,015 agreements, 400 declared differences, 7 unsupported outcomes,
+75 timeouts, 59 backend errors, 2 unavailable oracle rows, 197 oracle
+disagreements, and 265 oracle-missing bindings across 4,879 emitted bindings
+from the 384-source corpus. The cached one-worker audit took 16.99 seconds at
+489 MiB RSS and reused raw SymPy, Mathics, native, and comparison-cache rows.
+The v122 closeout adds source-faithful Flux44, separatrix, KiLCA collision,
+normal-stability, and Neort appA companion recoveries. The comparator now also
+bounds expensive equivalence attempts by expression size, preventing a
+pathological SymPy simplification from hanging the corpus run. Full corpus
+parity remains open work.
 
 The v109 follow-up advances the comparison cache to version 18, recovers bounded
 `archive-tu/math6-1y` and `vector2d` bindings, and adds equation-aware comparison
