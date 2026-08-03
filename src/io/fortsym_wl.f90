@@ -48,7 +48,7 @@ module fortsym_wl
     use fortsym_wl_num, only: wl_n, wl_chop, wl_identity_matrix, wl_cross, &
         wl_trace, wl_length, wl_flatten, wl_append, wl_join, wl_range, &
         wl_diagonal, wl_diagonal_matrix, wl_first, wl_last, wl_rest, wl_most, wl_reverse, &
-        wl_take, wl_drop, list_slice, &
+        wl_take, wl_drop, &
         CHOP_DEFAULT
     use fortsym_integrate, only: integrate
     use fortsym_defint, only: definite_integral
@@ -4205,17 +4205,15 @@ contains
     end function literal_path_component
 
     !> Part[expr, i, j, ...] on explicit lists only. Indexing a literal list
-    !> by positive integers is unambiguous. A bounded two-ended Span is also
-    !> accepted, which covers matrix slices such as [[2 ;; 3, 2 ;; 3]].
+    !> by positive integers is unambiguous. All selects one complete list
+    !> level, which covers matrix rows and columns without general symbolic
+    !> Part evaluation.
     function lower_part(s, e, ok, message) result(r)
         type(wl_session_t), intent(inout) :: s
         type(expr_t),       intent(in)    :: e
         logical,            intent(out)   :: ok
         type(str_t),        intent(out)   :: message
-        type(expr_t)                      :: r, spec
-        integer :: k, index, first, last, j
-        character(:), allocatable :: why
-        type(expr_t), allocatable :: items(:)
+        type(expr_t)                      :: r
 
         ok = .true.
         message = str("")
@@ -4226,79 +4224,78 @@ contains
             return
         end if
 
-        r = e%arg(1)
-        do k = 2, e%nargs()
-            spec = e%arg(k)
-            if (r%kind() /= NK_FUNC .or. chars(r%name()) /= "List") then
-                call refuse(ok, message, "Part of a non-list")
-                return
-            end if
-            if (part_span_bounds(spec, first, last)) then
-                if (k == 2) then
-                    r = list_slice(s%a, r, first, last, ok, why)
-                    if (.not. ok) then
-                        call refuse(ok, message, "Part: "//why)
-                        return
-                    end if
-                else
-                    allocate (items(r%nargs()))
-                    do j = 1, r%nargs()
-                        items(j) = list_slice(s%a, r%arg(j), first, last, ok, why)
-                        if (.not. ok) then
-                            call refuse(ok, message, "Part: "//why)
-                            return
-                        end if
-                    end do
-                    r = func("List", items)
-                end if
-            else
-                if (.not. exact_small_int(spec, index)) then
-                    if (spec%kind() == NK_FUNC) then
-                        call refuse(ok, message, "Part with non-literal head "// &
-                            chars(spec%name()))
-                    else
-                        call refuse(ok, message, "Part with a non-literal index")
-                    end if
-                    return
-                end if
-                if (index < 1 .or. index > r%nargs()) then
-                    call refuse(ok, message, "Part index out of range")
-                    return
-                end if
-                r = r%arg(index)
-            end if
-        end do
+        r = lower_part_select(s, e%arg(1), e, 2, ok, message)
     end function lower_part
 
-    !> Read the concrete positive two-ended Span used by bounded matrix slices.
-    !> Open-ended, stepped, negative, and out-of-range spans remain refusals.
-    function part_span_bounds(spec, first, last) result(good)
-        type(expr_t), intent(in)  :: spec
-        integer,      intent(out) :: first, last
-        logical                   :: good
+    recursive function lower_part_select(s, value, e, selector, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: value, e
+        integer,            intent(in)    :: selector
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, spec
+        type(expr_t), allocatable         :: items(:)
+        integer                           :: index, j
 
-        first = 0
-        last = 0
-        good = .false.
-        if (spec%kind() /= NK_FUNC .or. chars(spec%name()) /= "Span") return
-        if (spec%nargs() /= 2) return
-        if (.not. part_span_integer(spec%arg(1), first)) return
-        if (.not. part_span_integer(spec%arg(2), last)) return
-        good = first >= 1 .and. first <= last
-    end function part_span_bounds
+        ok = .true.
+        message = str("")
+        r = value
+        if (selector > e%nargs()) return
+        if (selector - 1 > MAX_POSITION_DEPTH) then
+            call refuse(ok, message, "Part selector depth exceeds the bound")
+            return
+        end if
+        if (value%kind() /= NK_FUNC) then
+            call refuse(ok, message, "Part of a non-list")
+            return
+        end if
+        if (chars(value%name()) /= "List") then
+            call refuse(ok, message, "Part of a non-list")
+            return
+        end if
 
-    function part_span_integer(e, value) result(good)
-        type(expr_t), intent(in)  :: e
-        integer,      intent(out) :: value
-        logical                   :: good
-        character(:), allocatable :: text
-        integer :: ios
+        spec = e%arg(selector)
+        if (spec%kind() == NK_SYM) then
+            if (chars(spec%name()) == "All") then
+                if (selector == e%nargs()) return
+                if (value%nargs() > MAX_POSITION_RESULTS) then
+                    call refuse(ok, message, "Part All expansion exceeds the bound")
+                    return
+                end if
+                allocate (items(value%nargs()))
+                do j = 1, value%nargs()
+                    items(j) = lower_part_select(s, value%arg(j), e, selector + 1, &
+                        ok, message)
+                    if (.not. ok) return
+                end do
+                r = func("List", items)
+                return
+            end if
+        end if
 
-        value = 0
-        text = chars(print_expr(e))
-        read (text, *, iostat=ios) value
-        good = ios == 0 .and. value >= 0 .and. value < 1000
-    end function part_span_integer
+        if (.not. exact_small_int(spec, index)) then
+            if (spec%kind() == NK_INT) then
+                call refuse(ok, message, "Part index must be a positive integer")
+                return
+            end if
+            if (spec%kind() == NK_FUNC) then
+                call refuse(ok, message, "Part with non-literal head "// &
+                    chars(spec%name()))
+            else
+                call refuse(ok, message, "Part with a non-literal index")
+            end if
+            return
+        end if
+        if (index < 1) then
+            call refuse(ok, message, "Part index must be a positive integer")
+            return
+        end if
+        if (index > value%nargs()) then
+            call refuse(ok, message, "Part index out of range")
+            return
+        end if
+        r = lower_part_select(s, value%arg(index), e, selector + 1, ok, message)
+    end function lower_part_select
 
     !> Polynomial and rational-function heads, over exact rationals.
     !>
