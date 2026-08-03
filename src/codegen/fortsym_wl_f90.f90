@@ -714,7 +714,8 @@ contains
     !> A straight-line emitter cannot represent a runtime loop, but a body that
     !> overwrites a different scalar target and never reads that target has the
     !> same result as its last iteration. Only exact integer bounds and unit
-    !> increments are accepted; all other For forms remain refused.
+    !> increments are accepted; all other For forms remain refused. Both
+    !> inclusive and nonempty strict bounds are supported.
     subroutine lower_bounded_for_statement(text, lowered, handled, ok, message)
         character(*),              intent(in)  :: text
         character(:), allocatable, intent(out) :: lowered
@@ -723,10 +724,11 @@ contains
 
         character(:), allocatable :: whole, args, start, test, step, body
         character(:), allocatable :: iterator, start_name, start_text
-        character(:), allocatable :: bound_name, lhs, rhs
+        character(:), allocatable :: bound_name, lhs, rhs, test_operator
         character(32) :: replacement_buffer
         integer :: open, close, comma_one, comma_two, comma_three
-        integer :: eq, width, relation, start_value, bound_value, ios
+        integer :: eq, width, relation, operator_width
+        integer :: start_value, bound_value, final_value, ios
         logical :: descending
 
         lowered = ""
@@ -795,17 +797,32 @@ contains
 
         relation = index(test, "<=")
         descending = .false.
+        test_operator = "<="
+        operator_width = 2
+        if (relation == 0) then
+            relation = index(test, "<")
+            test_operator = "<"
+            operator_width = 1
+        end if
         if (relation == 0) then
             relation = index(test, ">=")
             descending = .true.
+            test_operator = ">="
+            operator_width = 2
+        end if
+        if (relation == 0) then
+            relation = index(test, ">")
+            descending = .true.
+            test_operator = ">"
+            operator_width = 1
         end if
         if (relation == 0) then
             ok = .false.
-            message = "bounded For test must use an inclusive integer bound"
+            message = "bounded For test must use an integer bound"
             return
         end if
         iterator = trim(adjustl(test(:relation - 1)))
-        bound_name = trim(adjustl(test(relation + 2:)))
+        bound_name = trim(adjustl(test(relation + operator_width:)))
         if (iterator /= start_name) then
             ok = .false.
             message = "bounded For test must use its iterator"
@@ -819,16 +836,46 @@ contains
         end if
 
         if (descending) then
-            if (step /= start_name//"--" .or. start_value < bound_value) then
+            if (step /= start_name//"--") then
                 ok = .false.
-                message = "bounded For requires a nonempty unit descending range"
+                message = "bounded For requires a unit descending step"
                 return
             end if
+            if (test_operator == ">=") then
+                if (start_value < bound_value) then
+                    ok = .false.
+                    message = "bounded For requires a nonempty descending range"
+                    return
+                end if
+                final_value = bound_value
+            else
+                if (start_value <= bound_value .or. bound_value == huge(bound_value)) then
+                    ok = .false.
+                    message = "bounded For strict descending range is empty or overflows"
+                    return
+                end if
+                final_value = bound_value + 1
+            end if
         else
-            if (step /= start_name//"++" .or. start_value > bound_value) then
+            if (step /= start_name//"++") then
                 ok = .false.
-                message = "bounded For requires a nonempty unit ascending range"
+                message = "bounded For requires a unit ascending step"
                 return
+            end if
+            if (test_operator == "<=") then
+                if (start_value > bound_value) then
+                    ok = .false.
+                    message = "bounded For requires a nonempty ascending range"
+                    return
+                end if
+                final_value = bound_value
+            else
+                if (start_value >= bound_value .or. bound_value == -huge(bound_value) - 1) then
+                    ok = .false.
+                    message = "bounded For strict ascending range is empty or overflows"
+                    return
+                end if
+                final_value = bound_value - 1
             end if
         end if
 
@@ -852,7 +899,7 @@ contains
             message = "bounded For body may not read its assignment target"
             return
         end if
-        write (replacement_buffer, "(i0)") bound_value
+        write (replacement_buffer, "(i0)") final_value
         lowered = lhs//" = "//replace_symbol(rhs, start_name, &
             trim(replacement_buffer))
     end subroutine lower_bounded_for_statement

@@ -21,6 +21,7 @@ program test_fortsym_wl_f90
     call test_bounded_while_integer_step_compiles_and_agrees(nfail)
     call test_bounded_do_compiles_and_agrees(nfail)
     call test_bounded_for_compiles_and_agrees(nfail)
+    call test_bounded_for_strict_compiles_and_agrees(nfail)
     call test_bounded_refusals(nfail)
 
     if (nfail == 0) then
@@ -671,6 +672,99 @@ contains
         call check("bounded For source agrees with independent oracle", &
             status == 0, nfail)
     end subroutine test_bounded_for_compiles_and_agrees
+
+    subroutine test_bounded_for_strict_compiles_and_agrees(nfail)
+        integer, intent(inout) :: nfail
+        type(str_t) :: code
+        character(:), allocatable :: message
+        logical :: ok
+        integer :: unit, ios, status
+        character(*), parameter :: generated = &
+            "/tmp/fortsym_wl_f90_for_strict.f90"
+        character(*), parameter :: driver = &
+            "/tmp/fortsym_wl_f90_for_strict_driver.f90"
+        character(*), parameter :: executable = &
+            "/tmp/fortsym_wl_f90_for_strict_driver"
+
+        code = translate_wl_assignments( &
+            "For[i = 1, i < 4, i++, result = x + 2*i]", ok, message)
+        call check("strict ascending For assignment accepted", ok, nfail)
+        if (.not. ok) then
+            print *, "translation message:", message
+            return
+        end if
+
+        open (newunit=unit, file=generated, status="replace", action="write", &
+            iostat=ios)
+        call check("strict For generated source opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") chars(code)
+        close (unit)
+
+        open (newunit=unit, file=driver, status="replace", action="write", &
+            iostat=ios)
+        call check("strict For oracle driver opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") &
+            "program independent_strict_for_oracle"//new_line("a")// &
+            "  use, intrinsic :: iso_fortran_env, only: real64"//new_line("a")// &
+            "  real(real64) :: x, result, expected"//new_line("a")// &
+            "  x = 2.5_real64"//new_line("a")// &
+            "  expected = x + 2.0_real64*3.0_real64"//new_line("a")// &
+            "  call fortsym_generated_assignment(x, result)"//new_line("a")// &
+            "  if (abs(result - expected) > 1.0e-14_real64) error stop 1"// &
+            new_line("a")// &
+            "  print *, 'PASS independent strict ascending For oracle'"// &
+            new_line("a")// &
+            "end program independent_strict_for_oracle"
+        close (unit)
+
+        call execute_command_line("gfortran -std=f2018 -Wall -Werror -o "// &
+            executable//" "//generated//" "//driver, exitstat=status)
+        call check("strict For generated source compiles", status == 0, nfail)
+        if (status /= 0) return
+        call execute_command_line(executable, exitstat=status)
+        call check("strict ascending For agrees with independent oracle", &
+            status == 0, nfail)
+
+        code = translate_wl_assignments( &
+            "For[i = 4, i > -1, i--, result = x + 2*i]", ok, message)
+        call check("strict descending For assignment accepted", ok, nfail)
+        if (.not. ok) then
+            print *, "translation message:", message
+            return
+        end if
+        open (newunit=unit, file=generated, status="replace", action="write", &
+            iostat=ios)
+        call check("strict descending source opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") chars(code)
+        close (unit)
+        open (newunit=unit, file=driver, status="replace", action="write", &
+            iostat=ios)
+        call check("strict descending oracle opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") &
+            "program independent_strict_descending_for_oracle"//new_line("a")// &
+            "  use, intrinsic :: iso_fortran_env, only: real64"//new_line("a")// &
+            "  real(real64) :: x, result, expected"//new_line("a")// &
+            "  x = 2.5_real64"//new_line("a")// &
+            "  expected = x"//new_line("a")// &
+            "  call fortsym_generated_assignment(x, result)"//new_line("a")// &
+            "  if (abs(result - expected) > 1.0e-14_real64) error stop 2"// &
+            new_line("a")// &
+            "  print *, 'PASS independent strict descending For oracle'"// &
+            new_line("a")// &
+            "end program independent_strict_descending_for_oracle"
+        close (unit)
+        call execute_command_line("gfortran -std=f2018 -Wall -Werror -o "// &
+            executable//" "//generated//" "//driver, exitstat=status)
+        call check("strict descending source compiles", status == 0, nfail)
+        if (status /= 0) return
+        call execute_command_line(executable, exitstat=status)
+        call check("strict descending For agrees with independent oracle", &
+            status == 0, nfail)
+    end subroutine test_bounded_for_strict_compiles_and_agrees
 
     subroutine test_bounded_refusals(nfail)
         integer, intent(inout) :: nfail
