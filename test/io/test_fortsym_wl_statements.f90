@@ -39,6 +39,7 @@ program test_fortsym_wl_statements
     call test_bounded_curl()
     call test_list_child_evaluation()
     call test_parenthesized_wolfram_multiplication()
+    call test_literal_characters_and_chained_set()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wl_statements"
@@ -437,5 +438,17 @@ contains
             "value = rho (x + 1)"//char(10), &
             "value", "rho*(x + 1)")
     end subroutine test_parenthesized_wolfram_multiplication
+
+    !> Characters splits a literal string into literal one-character strings,
+    !> and chained Set returns the assigned value while retaining both names.
+    subroutine test_literal_characters_and_chained_set()
+        call expect("literal Characters", &
+            "value = Characters[""123""]"//char(10), &
+            "value", "List(""1"", ""2"", ""3"")")
+        call expect("chained Set value", &
+            "eq = f1 = x^2 == 0"//char(10), "eq", "Equal(x**2, 0)")
+        call expect("chained Set inner binding", &
+            "eq = f1 = x^2 == 0"//char(10), "f1", "Equal(x**2, 0)")
+    end subroutine test_literal_characters_and_chained_set
 
 end program test_fortsym_wl_statements
