@@ -106,6 +106,8 @@ reported state.
 | latest v78 UV warm compact raw-output and verdict audit | 1.00 s / 488 MiB |
 | latest v79 UV warm compact raw-output and verdict audit | 1.33 s / 489 MiB |
 | latest v80 UV warm compact raw-output and verdict audit | 1.10 s / 488 MiB |
+| latest v81 UV warm compact raw-output and verdict audit | 1.06 s / 488 MiB |
+| v81 native cache-preserving rebuild audit | 1:32.48 / 1.54 GiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -122,10 +124,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,866 agreements, 482 declared
+The latest cache-only binding-level audit reports 3,874 agreements, 481 declared
 differences, 7 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable
-oracle rows, 200 oracle disagreements, and 333 oracle-missing bindings across
-4,884 bindings. The v43-v80
+oracle rows, 200 oracle disagreements, and 327 oracle-missing bindings across
+4,885 bindings. The v43-v81
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -146,8 +148,9 @@ recovery and bounded stateless `While` lowering. The v78 cycle adds three
 source-faithful `math10y` ellipsoid bindings and a cylinder-spectrum recovery.
 The v79 cycle adds source-faithful `jDotB` and memo34 radial-product bindings.
 The v80 cycle adds final `math10y` `Which` coverage and large-step recurrence
-bindings; these pass focused tests but do not change the scored tally. A trial
-Levi-Civita native
+bindings; these pass focused tests but do not change the scored tally. The v81
+cycle adds dynamic bounded `If` codegen, six `vector2d` fields, and a flux
+access-condition correction. A trial Levi-Civita native
 lowering was
 reverted after its measured corpus regression. The benchmark harness now
 invalidates native cache rows at version 2.
