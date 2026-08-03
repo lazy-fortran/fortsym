@@ -130,6 +130,7 @@ reported state.
 | latest v101 UV warm compact raw-output and verdict audit | 0.99 s / 489 MiB |
 | latest v102 UV warm compact raw-output and verdict audit | 1.44 s / 489 MiB |
 | latest v103 UV warm compact raw-output and verdict audit | 1.10 s / 489 MiB |
+| latest v104 UV warm compact raw-output and verdict audit | 1.09 s / 489 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -146,10 +147,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,929 agreements, 474 declared
+The latest cache-only binding-level audit reports 3,934 agreements, 473 declared
 differences, 7 unsupported outcomes, 75 timeouts, 61 errors, 2 unavailable
-oracle rows, 197 oracle disagreements, and 282 oracle-missing bindings across
-4,885 bindings. The v43-v103
+oracle rows, 197 oracle disagreements, and 278 oracle-missing bindings across
+4,885 bindings. The v43-v104
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -209,7 +210,9 @@ adapter; the full adapter inventory remains 1 translated / 383 refused. The v102
 cycle adds large-step Hessian precision, Bacc Hopf/impedance parity, vector2d
 `g12`, geomint `Aphi`, and flux impedance parity. The v103 cycle adds large-step
 `gIS`, another `math10y` Fourier binding, archive `math6-1y`, two-component
-kernel weighting, and Bacc uniform-loss parity. A trial
+kernel weighting, and Bacc uniform-loss parity. The v104 cycle adds project/GH
+notebook bindings, an ECNL orbit node, archive `math6-1y`, appA flux coordinates,
+and gvec Fourier-row parity. A trial
 Levi-Civita native
 lowering was
 reverted after its measured corpus regression. The benchmark harness now
