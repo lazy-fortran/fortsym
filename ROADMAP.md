@@ -103,6 +103,7 @@ reported state.
 | latest v75 warm compact raw-output and verdict audit | 0.81 s / 491 MiB |
 | latest v76 UV warm compact raw-output and verdict audit | 0.90 s / 490 MiB |
 | latest v77 UV warm compact raw-output and verdict audit | 1.06 s / 488 MiB |
+| latest v78 UV warm compact raw-output and verdict audit | 1.00 s / 488 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -119,10 +120,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,865 agreements, 476 declared
+The latest cache-only binding-level audit reports 3,865 agreements, 481 declared
 differences, 7 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable
-oracle rows, 203 oracle disagreements, and 337 oracle-missing bindings across
-4,884 bindings. The v43-v77
+oracle rows, 201 oracle disagreements, and 334 oracle-missing bindings across
+4,884 bindings. The v43-v78
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -139,7 +140,9 @@ lowering. The v75 refresh records the named-derivative companion alignment; it
 does not increase the agreement tally. The v76 cycle adds source-faithful
 `math10y`/`math11y` recoveries and bounded stateless `For` lowering in the native
 source-to-Fortran translator. The v77 cycle adds a source-faithful `math15y`
-recovery and bounded stateless `While` lowering. A trial Levi-Civita native
+recovery and bounded stateless `While` lowering. The v78 cycle adds three
+source-faithful `math10y` ellipsoid bindings and a cylinder-spectrum recovery.
+A trial Levi-Civita native
 lowering was
 reverted after its measured corpus regression. The benchmark harness now
 invalidates native cache rows at version 2.
