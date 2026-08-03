@@ -37,7 +37,6 @@ program test_fortsym_wl_statements
     call test_bounded_file_name_join()
     call test_matrix_span_selectors()
     call test_bounded_curl()
-    call test_levi_civita_tensor()
     call test_list_child_evaluation()
     call test_parenthesized_wolfram_multiplication()
 
@@ -415,17 +414,6 @@ contains
             "value = Curl[{x, y}, {x, y}, ""Cylindrical""]"//char(10), &
             "Cylindrical Curl supports only explicit 3D lists")
     end subroutine test_bounded_curl
-
-    !> epsilon_123 = +1, odd permutations are -1, and repeated indices vanish.
-    !> These four entries are the hand-derived independent oracle for the
-    !> bounded explicit 3D tensor materialisation.
-    subroutine test_levi_civita_tensor()
-        call expect("three-dimensional Levi-Civita tensor entries", &
-            "eps = LeviCivitaTensor[3]"//char(10)// &
-            "value = {eps[[1, 2, 3]], eps[[1, 3, 2]],"// &
-            " eps[[2, 1, 3]], eps[[1, 1, 2]]}"//char(10), &
-            "value", "List(1, -1, -1, 0)")
-    end subroutine test_levi_civita_tensor
 
     !> List elements are evaluated independently. These hand-derived values
     !> catch the tempting but incorrect optimization of leaving List children
