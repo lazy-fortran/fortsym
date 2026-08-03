@@ -431,6 +431,10 @@ contains
                 do while (p%pos <= n)
                     if (p%src(p%pos:p%pos) == "]") then
                         p%pos = p%pos + 1
+                        do while (p%pos <= n)
+                            if (.not. is_name_char(p%src(p%pos:p%pos))) exit
+                            p%pos = p%pos + 1
+                        end do
                         p%tok = T_NAME
                         p%text = p%src(start:p%pos - 1)
                         return
