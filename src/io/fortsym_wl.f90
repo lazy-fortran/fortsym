@@ -2391,6 +2391,11 @@ contains
             call refuse(ok, message, chars(item_message))
             return
         end if
+        ! A command such as D is intentionally lowered before this wrapper
+        ! applies its rule.  Match top-level statement evaluation by folding
+        ! that result before substitution; otherwise raw powers such as 0**1
+        ! can survive a point replacement and corrupt a valid derivative.
+        r = auto_evaluate(s, r)
         rules = e%arg(2)
         ! A computed rule expression such as First[Solve[...]] must be
         ! evaluated before applying it. Keep literal RuleDelayed right-hand
@@ -2419,7 +2424,6 @@ contains
                 return
             end if
         end if
-
         if (repeated) then
             do iteration = 1, 64
                 before = r
