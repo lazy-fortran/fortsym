@@ -105,6 +105,7 @@ reported state.
 | latest v77 UV warm compact raw-output and verdict audit | 1.06 s / 488 MiB |
 | latest v78 UV warm compact raw-output and verdict audit | 1.00 s / 488 MiB |
 | latest v79 UV warm compact raw-output and verdict audit | 1.33 s / 489 MiB |
+| latest v80 UV warm compact raw-output and verdict audit | 1.10 s / 488 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -124,7 +125,7 @@ correctness. Scoring against an oracle is what makes it coverage.
 The latest cache-only binding-level audit reports 3,866 agreements, 482 declared
 differences, 7 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable
 oracle rows, 200 oracle disagreements, and 333 oracle-missing bindings across
-4,884 bindings. The v43-v79
+4,884 bindings. The v43-v80
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -144,7 +145,9 @@ source-to-Fortran translator. The v77 cycle adds a source-faithful `math15y`
 recovery and bounded stateless `While` lowering. The v78 cycle adds three
 source-faithful `math10y` ellipsoid bindings and a cylinder-spectrum recovery.
 The v79 cycle adds source-faithful `jDotB` and memo34 radial-product bindings.
-A trial Levi-Civita native
+The v80 cycle adds final `math10y` `Which` coverage and large-step recurrence
+bindings; these pass focused tests but do not change the scored tally. A trial
+Levi-Civita native
 lowering was
 reverted after its measured corpus regression. The benchmark harness now
 invalidates native cache rows at version 2.
