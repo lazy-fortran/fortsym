@@ -124,6 +124,7 @@ reported state.
 | latest v95 UV warm compact raw-output and verdict audit | 0.89 s / 489 MiB |
 | latest v96 UV warm compact raw-output and verdict audit | 0.89 s / 489 MiB |
 | latest v97 UV warm compact raw-output and verdict audit | 0.86 s / 489 MiB |
+| latest v98 UV warm compact raw-output and verdict audit | 0.93 s / 489 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -140,10 +141,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,912 agreements, 479 declared
+The latest cache-only binding-level audit reports 3,915 agreements, 479 declared
 differences, 7 unsupported outcomes, 75 timeouts, 61 errors, 2 unavailable
-oracle rows, 197 oracle disagreements, and 294 oracle-missing bindings across
-4,885 bindings. The v43-v97
+oracle rows, 197 oracle disagreements, and 291 oracle-missing bindings across
+4,885 bindings. The v43-v98
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -191,7 +192,9 @@ flux-handedness, and project-NTV recoveries. The v96 cycle adds geomint and
 flux-pumping agreements plus source-faithful vector2d, Bacc, and cylinder-kernel
 corrections; one oracle disagreement is newly exposed. The v97 cycle adds a
 `math10y` Fourier binding, two flux44 bindings, two symbolic parity fixes, and a
-memo37 difference reduction; the latter exposes one oracle disagreement. A trial
+memo37 difference reduction; the latter exposes one oracle disagreement. The v98
+cycle adds gvec `II_tt`, two-component `qField`, and another `math10y` binding;
+the archive plot recovery remains a declared native-serialization difference. A trial
 Levi-Civita native
 lowering was
 reverted after its measured corpus regression. The benchmark harness now
