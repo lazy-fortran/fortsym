@@ -35,7 +35,7 @@ program test_fortsym_wl_statements
     call test_matrix_power_identity()
     call test_list_selectors()
     call test_bounded_file_name_join()
-    call test_matrix_span_selectors()
+    call test_matrix_all_selectors()
     call test_bounded_curl()
     call test_list_child_evaluation()
     call test_parenthesized_wolfram_multiplication()
@@ -370,6 +370,18 @@ contains
         call expect("Drop inclusive range", &
             "value = Drop[{a, b, c, d}, {2, 3}]"//char(10), &
             "value", "List(a, d)")
+        call expect("nested positive Part", "value = {{a, b}, {c, d}}[[2, 1]]"// &
+            char(10), "value", "c")
+        call expect_refusal("Part zero index", "value = {a, b}[[0]]"//char(10), &
+            "Part index must be a positive integer")
+        call expect_refusal("Part negative index", &
+            "value = {a, b}[[-1]]"//char(10), &
+            "Part index must be a positive integer")
+        call expect_refusal("Part symbolic index", "value = {a, b}[[i]]"//char(10), &
+            "Part with a non-literal index")
+        call expect_refusal("Part Span selector", &
+            "value = {a, b, c}[[1 ;; 2]]"//char(10), &
+            "Part with non-literal head Span")
     end subroutine test_list_selectors
 
     !> Literal path joining is checked against the hand-built POSIX path. A
@@ -384,14 +396,21 @@ contains
             "FileNameJoin needs non-empty literal string components")
     end subroutine test_bounded_file_name_join
 
-    !> A two-dimensional Part applies each inclusive Span one level at a time.
-    !> The expected block is the hand-calculated lower-right 2x2 submatrix.
-    subroutine test_matrix_span_selectors()
-        call expect("matrix span selectors", &
+    !> All selects complete list levels. These are the hand-calculated matrix
+    !> row and column projections used by the corpus.
+    subroutine test_matrix_all_selectors()
+        call expect("matrix column selector", &
             "value = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}"//char(10)// &
-            "block = value[[2 ;; 3, 2 ;; 3]]"//char(10), &
-            "block", "List(List(5, 6), List(8, 9))")
-    end subroutine test_matrix_span_selectors
+            "column = value[[All, 2]]"//char(10), "column", &
+            "List(2, 5, 8)")
+        call expect("matrix row selector", &
+            "value = {{1, 2, 3}, {4, 5, 6}, {7, 8, 9}}"//char(10)// &
+            "row = value[[2, All]]"//char(10), "row", "List(4, 5, 6)")
+        call expect("matrix all selector", &
+            "value = {{1, 2}, {3, 4}}"//char(10)// &
+            "copy = value[[All, All]]"//char(10), "copy", &
+            "List(List(1, 2), List(3, 4))")
+    end subroutine test_matrix_all_selectors
 
     !> Curl is checked against its component definition, independently of the
     !> evaluator: in 2D it is d_x F_y - d_y F_x, in 3D it is the usual
