@@ -171,7 +171,9 @@ refused, with no compile error, timeout, or runner error. Full executable
 Fortran coverage of all corpus scripts remains open work.
 
 The current bounded source-to-source slice accepts a sequential stream of up to
-128 scalar assignments. `fortsym_wl_to_f90 input.wl output.f90` accepts forms
+128 scalar assignments. Standalone top-level `Null` statements are accepted as
+no-op cell separators; `Null` used as a value remains refused. The
+`fortsym_wl_to_f90 input.wl output.f90` command accepts forms
 such as `r = 2*x + Sin[x]` and `s := r + 1`, infers scalar inputs, expands only
 earlier assignments, and emits a compilable Fortran subroutine using the
 existing kernel emitter, including n-ary scalar `Min` and `Max` intrinsics. It
@@ -182,21 +184,21 @@ this is an incremental entry point, not full corpus translation.
 The executable is installed by `fo install`; use `fo exec fortsym_wl_to_f90`
 for the repository-managed invocation.
 
-On the 384-file corpus sweep recorded 2026-08-02, the native cache contains 378
-successful script rows, three explicit unsupported rows, three timeouts, and no
-runner errors; it did not crash. The latest bounded
+On the 384-file corpus sweep recorded 2026-08-03, the v108 native cache contains
+378 successful script rows, three explicit unsupported rows, three timeouts,
+and no native runner errors; it did not crash. The latest bounded
 CharacteristicPolynomial/LegendreP/Diagonal/list-selector/Coefficient/Solve/
 FoldList/ArrayFlatten/Total/PseudoInverse/SingularValueList audit was followed
-by a native-cache refresh of 384 rows in 2:14.26 with a 1.61 GiB peak RSS;
-the rebuild also refreshed changed SymPy rows. A warm audit now takes 0.66
-seconds at 337 MiB RSS.
+by a native-cache refresh of 384 rows in 121.39 seconds with a 1.61 GiB peak
+RSS; the rebuild also refreshed changed SymPy rows. The v108 warm audit takes
+1.10 seconds at about 500 MiB RSS.
 After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, the warm audit starts no backend
-subprocesses. The current cache-only whole-corpus tally is 3,853 agreements,
-468 declared differences, 7
-unsupported outcomes, 76 timeouts, 60 errors, 2 unavailable oracle rows, 194
-oracle disagreements, and 354 oracle-missing bindings. The v43-v60 batches add
+subprocesses. The current v108 cache-only whole-corpus tally is 3,961
+agreements, 457 declared differences, 7 unsupported outcomes, 75 timeouts, 59
+errors, 2 unavailable oracle rows, 192 oracle disagreements, and 268
+oracle-missing bindings across 4,880 emitted bindings. The v43-v60 batches add
 source-faithful ECNL equation strings, numeric validity estimates,
 Maxwell/flux-pumping companions, math10y and Suydam recoveries, large-step LTE
 reconstruction, Sympl3 field forms, normal-stability numeric parity, math3y,
@@ -298,21 +300,18 @@ Mathics inventory remains 255 rows, with 60 errors and 69 bounded timeouts.
 
 ## Current corpus state
 
-The v107 audit on 2026-08-03 uses native commit `c1186ba`, SymPy cache version
-29, and Mathics3 10.0.1 installed as a UV tool. It reports 3,943 agreements,
-471 declared differences, 7 unsupported outcomes, 75 timeouts, 60 backend
-errors, 2 unavailable oracle rows, 194 oracle disagreements, and 274
-oracle-missing bindings across 4,885 bindings. Its all-warm UV compact-cache
-audit takes 1.02 seconds at about 500 MiB RSS. The v107 harness fixes Mathics
-arbitrary-precision InputForm parsing (precision suffixes are metadata, not a
-multiplication), invalidates stale comparison verdicts, and reuses compatible
-legacy Mathics rows; only 13 Curl-sensitive rows required refresh. Exact
-identity-matrix powers, bounded `Do`, numeric `Abs`, Mathics algebraic-root
-protection, named-derivative SymPy lowering, native matrix `Dot` threading,
-named-blank `RuleDelayed` matching, transformed `math11y` ODEs, `gc_drift`
-gradients, large-step fast-free bindings, and gvec validation bindings are
-covered by independent tests. A trial Levi-Civita lowering was reverted after
-its measured corpus regression. Full corpus parity remains open work.
+The v108 audit on 2026-08-03 uses native commit `f89a054`, SymPy cache version
+29, comparison cache version 17, and Mathics3 10.0.1 installed as a UV tool. It
+reports 3,961 agreements, 457 declared differences, 7 unsupported outcomes,
+75 timeouts, 59 backend errors, 2 unavailable oracle rows, 192 oracle
+disagreements, and 268 oracle-missing bindings across 4,880 emitted bindings
+from the 384-source corpus. The one-worker cold native refresh took 121.39
+seconds at 1.61 GiB RSS; the all-warm UV compact-cache audit takes 1.10 seconds
+at about 500 MiB RSS. v108 adds exact-list native `Position`/`Union`, standalone
+`Null` source-to-Fortran separators, the Bacc/Rosa/Posch derivation cluster,
+the Sympl3 orbit cluster, and malformed Mathics list-arithmetic classification.
+The comparator now reports malformed trees as explicit differences rather than
+errors. Full corpus parity remains open work.
 
 ## Build
 
