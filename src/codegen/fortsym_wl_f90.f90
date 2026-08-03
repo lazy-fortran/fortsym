@@ -100,6 +100,15 @@ contains
             end if
             if (handled) statement = cleaned_source
             if (.not. handled) then
+                call lower_bounded_while_statement(statement, cleaned_source, handled, &
+                    parsed, parse_message)
+                if (.not. parsed) then
+                    message = parse_message
+                    return
+                end if
+                if (handled) statement = cleaned_source
+            end if
+            if (.not. handled) then
                 call lower_bounded_do_statement(statement, cleaned_source, handled, &
                     parsed, parse_message)
                 if (.not. parsed) then
@@ -222,6 +231,85 @@ contains
         end if
         ok = .true.
     end function translate_wl_assignments
+
+    !> Lower the one-step, stateless While form that is always bounded.
+    !>
+    !> `While[x != y, x = y]` executes zero or one times and leaves x equal to
+    !> y in either case.  Requiring the condition and assignment to have the
+    !> same scalar target and right-hand side makes the lowering source-faithful
+    !> without guessing about symbolic loop bounds or termination.
+    subroutine lower_bounded_while_statement(text, lowered, handled, ok, message)
+        character(*),              intent(in)  :: text
+        character(:), allocatable, intent(out) :: lowered
+        logical,                   intent(out) :: handled, ok
+        character(:), allocatable, intent(out) :: message
+
+        character(:), allocatable :: whole, args, condition, body
+        character(:), allocatable :: condition_lhs, condition_rhs
+        character(:), allocatable :: body_lhs, body_rhs
+        integer :: open, close, comma, relation, eq, width
+
+        lowered = ""
+        handled = .false.
+        ok = .true.
+        message = ""
+        whole = trim(adjustl(text))
+        open = index(whole, "[")
+        if (open <= 1) return
+        if (whole(:open - 1) /= "While") return
+        handled = .true.
+        close = matching_close(whole, open, "[", "]")
+        if (close /= len(whole)) then
+            ok = .false.
+            message = "bounded While must have one balanced argument list"
+            return
+        end if
+
+        args = whole(open + 1:close - 1)
+        call next_top_level_comma(args, 1, comma)
+        if (comma == 0) then
+            ok = .false.
+            message = "bounded While needs a condition and a body"
+            return
+        end if
+        condition = trim(adjustl(args(:comma - 1)))
+        body = trim(adjustl(args(comma + 1:)))
+        relation = index(condition, "!=")
+        if (relation == 0) then
+            ok = .false.
+            message = "bounded While requires an unequal scalar condition"
+            return
+        end if
+        condition_lhs = trim(adjustl(condition(:relation - 1)))
+        condition_rhs = trim(adjustl(condition(relation + 2:)))
+        if (.not. valid_target_name(condition_lhs) .or. len(condition_rhs) == 0) then
+            ok = .false.
+            message = "bounded While condition must compare a scalar target"
+            return
+        end if
+
+        eq = top_level_assignment(body)
+        if (eq == 0) then
+            ok = .false.
+            message = "bounded While body must be a scalar assignment"
+            return
+        end if
+        width = 1
+        if (body(eq:eq) == ":") width = 2
+        body_lhs = trim(adjustl(body(:eq - 1)))
+        body_rhs = trim(adjustl(body(eq + width:)))
+        if (.not. valid_target_name(body_lhs) .or. len(body_rhs) == 0) then
+            ok = .false.
+            message = "bounded While body must assign a Fortran scalar"
+            return
+        end if
+        if (body_lhs /= condition_lhs .or. body_rhs /= condition_rhs) then
+            ok = .false.
+            message = "bounded While body must assign the condition's value"
+            return
+        end if
+        lowered = body_lhs//" = "//body_rhs
+    end subroutine lower_bounded_while_statement
 
     !> Lower a stateless bounded Do assignment to its final iteration.
     !>
