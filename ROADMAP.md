@@ -111,6 +111,7 @@ reported state.
 | latest v82 UV warm compact raw-output and verdict audit | 1.06 s / 489 MiB |
 | latest v83 UV warm compact raw-output and verdict audit | 0.93 s / 489 MiB |
 | latest v84 UV warm compact raw-output and verdict audit | 0.95 s / 489 MiB |
+| latest v85 UV warm compact raw-output and verdict audit | 1.79 s / 490 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -127,10 +128,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,875 agreements, 485 declared
+The latest cache-only binding-level audit reports 3,875 agreements, 486 declared
 differences, 7 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable
-oracle rows, 197 oracle disagreements, and 325 oracle-missing bindings across
-4,885 bindings. The v43-v84
+oracle rows, 196 oracle disagreements, and 325 oracle-missing bindings across
+4,885 bindings. The v43-v85
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -158,7 +159,8 @@ binding and a source-faithful cylinder-spectrum derivative tree. The v83 cycle
 adds a `math10y` theta binding, two-component density contraction, and
 source-faithful perpendicular-block projection. The v84 cycle adds a symbolic
 `peng` Dot preservation, physical-weighted energy, and sequential SWR recovery;
-the unresolved-class counts improve, but the agreement tally does not. A trial
+the unresolved-class counts improve, but the agreement tally does not. The v85
+cycle adds bounded integer `While` increment/decrement lowering. A trial
 Levi-Civita native
 lowering was
 reverted after its measured corpus regression. The benchmark harness now
