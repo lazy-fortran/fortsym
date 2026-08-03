@@ -84,7 +84,7 @@ domain, parameters, precision, and error policy are numeric and explicit.
 ## Measured state
 
 Latest measured corpus-wide state, measured 2026-08-03, `fortsym-bench` at
-384 scripts with the current native and comparison caches:
+commit `9d3c41d` with native commit `ab97c34` and comparison cache version 21:
 
 This table is a committed native baseline. It is updated only after the root
 backend and benchmark harness revisions used to produce it have been committed.
@@ -140,6 +140,7 @@ reported state.
 | latest v122 cached whole-corpus audit | 16.99 s / 489 MiB |
 | v124 native-fingerprint refresh | 100.03 s / 803 MiB |
 | latest v124 cache-only whole-corpus audit | 0.98 s / 489 MiB |
+| final Part-enabled native audit | 78.42 s / 803 MiB |
 | v108 cache-preserving native refresh | 121.39 s / 1.61 GiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
@@ -157,14 +158,18 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest v124 stable binding-level audit reports 4,024 agreements, 386
-declared differences, 7 unsupported outcomes, 74 timeouts, 59 errors, 2
-unavailable oracle rows, 205 oracle disagreements, and 262 oracle-missing
-bindings across 4,879 emitted bindings from 384 corpus sources. Its native
-fingerprint refresh took 100.03 seconds and peaked at 803 MiB RSS; the warm
-cache-only follow-up took 0.98 seconds at 489 MiB RSS. A broader native
-Solve/Part/Integrate expansion was reverted after the bounded audit reached the
-180-second limit; no OOM-prone experiment is part of the current baseline. The
+The final bounded binding-level audit reports 4,034 agreements, 388 declared
+differences, 7 unsupported outcomes, 74 timeouts, 59 errors, 2 unavailable
+oracle rows, 205 oracle disagreements, and 345 oracle-missing bindings across
+4,974 emitted bindings from 384 corpus sources; 375 scripts completed. It took
+78.42 seconds at 822,224 KiB RSS (about 803 MiB). The native commit
+`ab97c34` adds bounded literal/nested-list integer and `All` `Part` selectors;
+unsupported symbolic, negative, out-of-range, and over-bound selectors still
+refuse explicitly. Mathics3 10.0.1 is installed through UV, and raw SymPy,
+Mathics, native, and comparison results remain cached. This is the stopping
+point for this slice: the corpus is not yet at 100% parity, and the remaining
+differences, oracle limitations, timeouts, errors, and missing bindings are
+intentionally reported rather than relabeled as agreement. The
 v43-v124
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
