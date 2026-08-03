@@ -20,9 +20,10 @@ module fortsym_wl
     use fortsym_string, only: str_t, str, chars
     use fortsym_print, only: print_expr
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_FUNC, NK_SYM, NK_ADD, NK_MUL, NK_POW, &
-        NK_BIG_REAL
+        NK_REAL, NK_BIG_REAL, NK_BIG_INT, NK_BIG_RAT
     use fortsym_expr, only: expr_t, sym, num, func, func_in, real_expr, &
-        operator(+), operator(-), operator(*), operator(/), operator(**)
+        operator(+), operator(-), operator(*), operator(/), operator(**), &
+        operator(==)
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
     use fortsym_parse, only: parse_expr_in
     use fortsym_assume, only: assumption_context_t
@@ -87,6 +88,9 @@ module fortsym_wl
     integer, parameter :: MAX_FILE_NAME_COMPONENTS = 32
     integer, parameter :: MAX_FILE_NAME_LENGTH = 4096
     integer, parameter :: MAX_RULE_PATTERNS = 32
+    integer, parameter :: MAX_POSITION_RESULTS = 10000
+    integer, parameter :: MAX_POSITION_DEPTH = 64
+    integer, parameter :: MAX_UNION_ITEMS = 10000
     integer, parameter :: dp = real64
 
     !> One top-level assignment produced by a script.
@@ -1576,6 +1580,20 @@ contains
         case ("Part")
             r = lower_part(s, r, ok, message)
             if (.not. ok) return
+
+        case ("Position")
+            r = wl_position(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Position: "//why)
+                return
+            end if
+
+        case ("Union")
+            r = wl_union(s%a, r, ok, why)
+            if (.not. ok) then
+                call refuse(ok, message, "Union: "//why)
+                return
+            end if
 
         case ("Together", "Cancel", "Factor", "Apart", "Collect", &
                 "Coefficient", "CoefficientList", "Exponent", &
@@ -4966,7 +4984,7 @@ contains
         case ("Apply", "MapApply", "Function", "Slot", "SlotSequence", &
                 "Span", "Do", "SetDelayed", "CompoundExpression", "StringJoin", &
                 "ReplaceRepeated", "Condition", "DerivativeOperator", &
-                "FileNameJoin")
+                "FileNameJoin", "Position", "Union")
             yes = .true.
             ! Curl is lowered only for explicit Cartesian list fields.
         case ("Curl")
@@ -5851,6 +5869,282 @@ contains
             r = func("List", values)
         end if
     end function make_list
+
+    !> Position exact structural matches in an explicit List tree.
+    !>
+    !> This is deliberately smaller than Wolfram's pattern language: the source
+    !> must be an explicit list and the pattern is compared structurally. Every
+    !> matching node, including a nested list, gets its one-based path. A
+    !> bounded result buffer keeps a malformed or unexpectedly large source from
+    !> turning the verifier into an allocation or traversal bomb.
+    function wl_position(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t), allocatable                :: positions(:)
+        integer                                  :: n
+        integer                                  :: path(MAX_POSITION_DEPTH)
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() /= 2) then
+            why = "needs an explicit list and one exact pattern"
+            return
+        end if
+        if (.not. is_list(e%arg(1))) then
+            why = "the expression must be an explicit list"
+            return
+        end if
+        if (is_position_pattern(e%arg(2))) then
+            why = "pattern matching is outside the explicit structural subset"
+            return
+        end if
+
+        allocate (positions(MAX_POSITION_RESULTS))
+        path = 0
+        n = 0
+        call collect_positions(e%arg(1), e%arg(2), path, 0, positions, n, &
+            ok, why)
+        if (.not. ok) return
+        if (n == 0) then
+            r = func_in(a, "List")
+        else
+            r = func("List", positions(:n))
+        end if
+    end function wl_position
+
+    !> Visit one explicit list node for wl_position.
+    recursive subroutine collect_positions(item, pattern, path, depth, results, &
+            n, ok, why)
+        type(expr_t),              intent(in)    :: item, pattern
+        integer,                   intent(in)    :: path(:), depth
+        type(expr_t),              intent(inout) :: results(:)
+        integer,                   intent(inout) :: n
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t), allocatable :: path_values(:)
+        integer :: k
+        integer :: child_path(size(path))
+
+        ok = .true.
+        why = ""
+        if (item == pattern) then
+            if (n >= size(results)) then
+                ok = .false.
+                why = "result count exceeds the built-in bound"
+                return
+            end if
+            n = n + 1
+            if (depth == 0) then
+                results(n) = func_in(item%a, "List")
+            else
+                allocate (path_values(depth))
+                do k = 1, depth
+                    path_values(k) = num(item%a, int(path(k), int64))
+                end do
+                results(n) = func("List", path_values)
+            end if
+        end if
+
+        if (.not. is_list(item)) return
+        if (depth >= size(path)) then
+            ok = .false.
+            why = "nesting depth exceeds the built-in bound"
+            return
+        end if
+        do k = 1, item%nargs()
+            child_path = path
+            child_path(depth + 1) = k
+            call collect_positions(item%arg(k), pattern, child_path, depth + 1, &
+                results, n, ok, why)
+            if (.not. ok) return
+        end do
+    end subroutine collect_positions
+
+    !> Pattern heads are intentionally refused instead of being mistaken for
+    !> literal nodes and silently returning an empty answer.
+    function is_position_pattern(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+        character(:), allocatable :: name
+
+        yes = .false.
+        if (e%kind() /= NK_FUNC) return
+        name = chars(e%name())
+        select case (name)
+        case ("Pattern", "Blank", "BlankSequence", "BlankNullSequence")
+            yes = .true.
+        end select
+    end function is_position_pattern
+
+    !> Union of one or more explicit lists, with structural deduplication.
+    !>
+    !> Wolfram's result is sorted rather than preserving input order. The
+    !> bounded native order puts numeric atoms first (by numeric value), then
+    !> symbols, then compound expressions by their printed structural form.
+    !> This covers the explicit-list corpus use without pretending to implement
+    !> SameTest or arbitrary ordering rules.
+    function wl_union(a, e, ok, why) result(r)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t)                             :: r
+        type(expr_t), allocatable                :: values(:), scratch(:)
+        type(expr_t)                             :: list_item, item
+        integer                                  :: total, unique, k, j, m
+        logical                                  :: seen
+
+        r = e
+        ok = .false.
+        why = ""
+        if (e%nargs() < 1) then
+            why = "needs at least one explicit list"
+            return
+        end if
+        total = 0
+        do k = 1, e%nargs()
+            list_item = e%arg(k)
+            if (.not. is_list(list_item)) then
+                why = "all arguments must be explicit lists"
+                return
+            end if
+            if (list_item%nargs() > MAX_UNION_ITEMS - total) then
+                why = "item count exceeds the built-in bound"
+                return
+            end if
+            total = total + list_item%nargs()
+        end do
+
+        if (total == 0) then
+            r = func_in(a, "List")
+            ok = .true.
+            return
+        end if
+        allocate (values(total))
+        unique = 0
+        do k = 1, e%nargs()
+            list_item = e%arg(k)
+            do j = 1, list_item%nargs()
+                item = list_item%arg(j)
+                seen = .false.
+                if (unique > 0) then
+                    do m = 1, unique
+                        if (values(m) == item) then
+                            seen = .true.
+                            exit
+                        end if
+                    end do
+                end if
+                if (seen) cycle
+                unique = unique + 1
+                values(unique) = item
+            end do
+        end do
+
+        allocate (scratch(unique))
+        call sort_union(values(:unique), scratch)
+        r = func("List", values(:unique))
+        ok = .true.
+    end function wl_union
+
+    !> Stable merge sort for the bounded union result.
+    subroutine sort_union(values, scratch)
+        type(expr_t), intent(inout) :: values(:)
+        type(expr_t), intent(inout) :: scratch(:)
+        integer :: width, left, middle, right, i, j, out
+
+        if (size(values) < 2) return
+        width = 1
+        do while (width < size(values))
+            left = 1
+            do while (left <= size(values))
+                middle = left + min(width, size(values) - left + 1)
+                right = middle - 1 + min(width, size(values) - middle + 1)
+                i = left
+                j = middle
+                out = left
+                do while (i < middle)
+                    if (j > right) exit
+                    if (union_less(values(j), values(i))) then
+                        scratch(out) = values(j)
+                        j = j + 1
+                    else
+                        scratch(out) = values(i)
+                        i = i + 1
+                    end if
+                    out = out + 1
+                end do
+                do while (i < middle)
+                    scratch(out) = values(i)
+                    i = i + 1
+                    out = out + 1
+                end do
+                do while (j <= right)
+                    scratch(out) = values(j)
+                    j = j + 1
+                    out = out + 1
+                end do
+                left = right + 1
+            end do
+            values = scratch
+            if (width > size(values)/2) exit
+            width = 2*width
+        end do
+    end subroutine sort_union
+
+    function union_less(left, right) result(less)
+        type(expr_t), intent(in) :: left, right
+        logical                  :: less
+        logical :: left_numeric, right_numeric, left_ok, right_ok
+        real(dp) :: left_value, right_value
+        character(:), allocatable :: left_text, right_text, why
+
+        left_numeric = is_union_numeric(left)
+        right_numeric = is_union_numeric(right)
+        if (left_numeric) then
+            if (.not. right_numeric) then
+                less = .true.
+                return
+            end if
+        end if
+        if (.not. left_numeric) then
+            if (right_numeric) then
+                less = .false.
+                return
+            end if
+        end if
+        if (left_numeric) then
+            if (right_numeric) then
+                call numeric_value(left, left_value, left_ok, why)
+                call numeric_value(right, right_value, right_ok, why)
+                if (left_ok) then
+                    if (right_ok) then
+                        less = left_value < right_value
+                        if (left_value /= right_value) return
+                    end if
+                end if
+            end if
+        end if
+        left_text = chars(print_expr(left))
+        right_text = chars(print_expr(right))
+        less = left_text < right_text
+    end function union_less
+
+    function is_union_numeric(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+
+        select case (e%kind())
+        case (NK_INT, NK_RAT, NK_BIG_INT, NK_BIG_RAT, NK_REAL, NK_BIG_REAL)
+            yes = .true.
+        case default
+            yes = .false.
+        end select
+    end function is_union_numeric
 
     !> Recognise only the assumption-free identity sin(u)^2 + cos(u)^2 = 1.
     !>
