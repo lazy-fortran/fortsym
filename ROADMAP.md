@@ -135,6 +135,7 @@ reported state.
 | latest v106 UV warm compact raw-output and verdict audit | 0.87 s / 489 MiB |
 | latest v107 UV warm compact raw-output and verdict audit | 1.02 s / 500 MiB |
 | latest v108 UV warm compact raw-output and verdict audit | 1.10 s / 500 MiB |
+| latest v109 cache-rebuild raw-output and verdict audit | 62.60 s / 553 MiB |
 | v108 cache-preserving native refresh | 121.39 s / 1.61 GiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
@@ -152,10 +153,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,961 agreements, 457 declared
+The latest cache-only binding-level audit reports 3,964 agreements, 456 declared
 differences, 7 unsupported outcomes, 75 timeouts, 59 errors, 2 unavailable
-oracle rows, 192 oracle disagreements, and 268 oracle-missing bindings across
-4,880 emitted bindings from 384 sources. The v43-v108
+oracle rows, 192 oracle disagreements, and 266 oracle-missing bindings across
+4,880 emitted bindings from 384 sources. The v43-v109
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -230,7 +231,12 @@ Mathics list arithmetic as an explicit difference. A trial
 Levi-Civita native
 lowering was
 reverted after its measured corpus regression. The benchmark harness now
-invalidates native cache rows at version 2 and comparison verdicts at version 17.
+invalidates native cache rows at version 2 and comparison verdicts at version 18.
+The v109 cycle adds bounded archive-tu math6-1y and vector2d companion recovery,
+equation-aware equivalence for explicitly declared rearrangements, and the
+source-faithful literal-only native FileNameJoin subset. Its aggregate audit
+reuses the v108 native rows; the FileNameJoin behavior is covered by focused
+Fortran tests.
 The v37
 phase-transform and flux-coordinate companion translations, followed by the
 v38 NAE/DESC and Appendix-B translations, recovered 42 agreements and 52
