@@ -298,13 +298,13 @@ Mathics inventory remains 255 rows, with 60 errors and 69 bounded timeouts.
 
 ## Current corpus state
 
-The v75 audit on 2026-08-03 uses native commit `102608f`, SymPy cache version
-29, and Mathics3 10.0.1 installed as a UV tool. It reports 3,864 agreements,
-474 declared differences, 7 unsupported outcomes, 76 timeouts, 61 backend
-errors, 2 unavailable oracle rows, 203 oracle disagreements, and 340
-oracle-missing bindings across 4,884 bindings. The cache-preserving refresh
-took 6.10 seconds at about 491 MiB RSS; the warm compact-cache audit takes
-0.81 seconds at about 491 MiB RSS. The preceding native cold pass took 1:10.89
+The v76 audit on 2026-08-03 uses native commit `bfa76f6`, SymPy cache version
+29, and Mathics3 10.0.1 installed as a UV tool. It reports 3,865 agreements,
+475 declared differences, 7 unsupported outcomes, 76 timeouts, 61 backend
+errors, 2 unavailable oracle rows, 203 oracle disagreements, and 338
+oracle-missing bindings across 4,884 bindings. The UV warm compact-cache audit
+reuses 378 native, 376 SymPy, and 255 Mathics rows in 0.90 seconds at about
+490 MiB RSS. The preceding native cold pass took 1:10.89
 and peaked at 1.61 GiB RSS. Exact identity-matrix powers, bounded `Do`, numeric
 `Abs`, Mathics algebraic-root protection, named-derivative SymPy lowering,
 native matrix `Dot` threading, and named-blank `RuleDelayed` matching are
