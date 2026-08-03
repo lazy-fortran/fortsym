@@ -1197,6 +1197,35 @@ contains
             end if
             r = inner
 
+        case ("Set")
+            if (r%nargs() /= 2) then
+                call refuse(ok, message, "Set needs a symbol and a value")
+                return
+            end if
+            var = r%arg(1)
+            if (var%kind() /= NK_SYM) then
+                call refuse(ok, message, "Set needs a plain symbol on the left")
+                return
+            end if
+            ! A nested Set occurs in chained source such as
+            ! ``eq = f1 = expression``. Preserve both bindings and return the
+            ! assigned value, matching Wolfram's value semantics.
+            inner = r%arg(2)
+            if (s%n >= MAX_BINDINGS) then
+                call refuse(ok, message, "Set exceeds the binding safety bound")
+                return
+            end if
+            s%n = s%n + 1
+            s%bindings(s%n)%name = str(chars(var%name()))
+            s%bindings(s%n)%value = inner
+            s%bindings(s%n)%ok = .true.
+            s%bindings(s%n)%message = str("")
+            r = inner
+
+        case ("Characters")
+            r = lower_characters(s, r, ok, message)
+            if (.not. ok) return
+
         case ("Chop")
             if (r%nargs() < 1 .or. r%nargs() > 2) then
                 call refuse(ok, message, "Chop takes an expression and an "// &
@@ -4085,6 +4114,63 @@ contains
         ! InputForm string for the independent comparison parser as well.
         r = sym(s%a, '"'//path//'"')
     end function lower_file_name_join
+
+    !> Characters["text"] for the bounded literal-string subset.
+    !>
+    !> Strings are represented as quoted opaque symbols in the expression
+    !> arena. Splitting a validated literal into quoted one-character symbols
+    !> preserves Wolfram's list-valued string semantics without pretending that
+    !> arbitrary symbolic string computation is implemented.
+    function lower_characters(s, e, ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t),       intent(in)    :: e
+        logical,            intent(out)   :: ok
+        type(str_t),        intent(out)   :: message
+        type(expr_t)                      :: r, value
+        type(expr_t), allocatable         :: items(:)
+        character(:), allocatable         :: text
+        integer                           :: k, n
+
+        ok = .false.
+        message = str("")
+        r = e
+        if (e%nargs() /= 1) then
+            call refuse(ok, message, "Characters needs one argument")
+            return
+        end if
+        value = e%arg(1)
+        if (value%kind() /= NK_SYM) then
+            call refuse(ok, message, "Characters needs a literal string")
+            return
+        end if
+        text = chars(value%name())
+        n = len(text)
+        if (n < 2) then
+            call refuse(ok, message, "Characters needs a literal string")
+            return
+        end if
+        if (text(1:1) /= '"') then
+            call refuse(ok, message, "Characters needs a literal string")
+            return
+        end if
+        if (text(n:n) /= '"') then
+            call refuse(ok, message, "Characters needs a literal string")
+            return
+        end if
+
+        text = text(2:n - 1)
+        if (len(text) == 0) then
+            r = func_in(s%a, "List")
+            ok = .true.
+            return
+        end if
+        allocate (items(len(text)))
+        do k = 1, len(text)
+            items(k) = sym(s%a, '"'//text(k:k)//'"')
+        end do
+        r = func("List", items)
+        ok = .true.
+    end function lower_characters
 
     !> Extract an unescaped, non-empty literal string used by FileNameJoin.
     function literal_path_component(e, value) result(ok)
