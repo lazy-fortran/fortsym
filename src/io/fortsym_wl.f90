@@ -49,7 +49,6 @@ module fortsym_wl
         wl_trace, wl_length, wl_flatten, wl_append, wl_join, wl_range, &
         wl_diagonal, wl_diagonal_matrix, wl_first, wl_last, wl_rest, wl_most, wl_reverse, &
         wl_take, wl_drop, list_slice, &
-        wl_levi_civita_tensor, &
         CHOP_DEFAULT
     use fortsym_integrate, only: integrate
     use fortsym_defint, only: definite_integral
@@ -967,21 +966,6 @@ contains
             r = lower_which(s, e, ok, message)
             return
         end if
-        ! Module/Block/With local initialisers must be substituted before the
-        ! generic argument walk.  Their bodies can contain Table-owned indices
-        ! into a local list; evaluating the body first would see the local name
-        ! as a scalar and reject a valid Part expression.
-        if (head == "Module" .or. head == "Block" .or. head == "With") then
-            r = scoped_body(s, e, ok, message)
-            if (.not. ok) return
-            r = wl_eval(s, apply_bindings(s, r), arg_ok, arg_message)
-            if (.not. arg_ok) then
-                call refuse(ok, message, chars(arg_message))
-                return
-            end if
-            r = auto_evaluate(s, r)
-            return
-        end if
 
         ! These heads carry evaluation rules for their arguments. Evaluating a
         ! pure function before Map sees it would refuse Function/Slot, and
@@ -1543,21 +1527,6 @@ contains
                     return
                 end if
                 r = inner
-            end if
-
-        case ("LeviCivitaTensor")
-            if (r%nargs() /= 1) then
-                call refuse(ok, message, "LeviCivitaTensor needs one rank")
-                return
-            end if
-            if (.not. exact_small_int(r%arg(1), order)) then
-                call refuse(ok, message, "LeviCivitaTensor needs an exact rank")
-                return
-            end if
-            r = wl_levi_civita_tensor(s%a, order, ok, why)
-            if (.not. ok) then
-                call refuse(ok, message, "LeviCivitaTensor: "//why)
-                return
             end if
 
         case ("Range")
@@ -4161,8 +4130,6 @@ contains
         integer :: k, index, first, last, j
         character(:), allocatable :: why
         type(expr_t), allocatable :: items(:)
-        logical :: item_ok
-        type(str_t) :: item_message
 
         ok = .true.
         message = str("")
@@ -4173,12 +4140,7 @@ contains
             return
         end if
 
-        r = apply_bindings(s, e%arg(1))
-        r = wl_eval(s, r, item_ok, item_message)
-        if (.not. item_ok) then
-            call refuse(ok, message, "Part base: "//chars(item_message))
-            return
-        end if
+        r = e%arg(1)
         do k = 2, e%nargs()
             spec = e%arg(k)
             if (r%kind() /= NK_FUNC .or. chars(r%name()) /= "List") then
