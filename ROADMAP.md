@@ -133,6 +133,7 @@ reported state.
 | latest v104 UV warm compact raw-output and verdict audit | 1.09 s / 489 MiB |
 | latest v105 UV warm compact raw-output and verdict audit | 1.03 s / 489 MiB |
 | latest v106 UV warm compact raw-output and verdict audit | 0.87 s / 489 MiB |
+| latest v107 UV warm compact raw-output and verdict audit | 1.02 s / 500 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -149,10 +150,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,943 agreements, 472 declared
-differences, 7 unsupported outcomes, 75 timeouts, 61 errors, 2 unavailable
-oracle rows, 193 oracle disagreements, and 274 oracle-missing bindings across
-4,885 bindings. The v43-v106
+The latest cache-only binding-level audit reports 3,943 agreements, 471 declared
+differences, 7 unsupported outcomes, 75 timeouts, 60 errors, 2 unavailable
+oracle rows, 194 oracle disagreements, and 274 oracle-missing bindings across
+4,885 bindings. The v43-v107
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -217,11 +218,14 @@ notebook bindings, an ECNL orbit node, archive `math6-1y`, appA flux coordinates
 and gvec Fourier-row parity. The v105 cycle adds project/GH notebook
 coefficients, gvec Fourier/validation bindings, and the `gc_drift` remainder
 recovery. The v106 cycle resolves four oracle disagreements across memo37,
-cylinder, peng, and math5y bindings. A trial
+cylinder, peng, and math5y bindings. The v107 cycle fixes Mathics
+arbitrary-precision InputForm parsing, invalidates stale comparison verdicts,
+and preserves compatible legacy Mathics cache rows; only 13 Curl-sensitive
+rows required refresh. A trial
 Levi-Civita native
 lowering was
 reverted after its measured corpus regression. The benchmark harness now
-invalidates native cache rows at version 2.
+invalidates native cache rows at version 2 and comparison verdicts at version 16.
 The v37
 phase-transform and flux-coordinate companion translations, followed by the
 v38 NAE/DESC and Appendix-B translations, recovered 42 agreements and 52

@@ -298,19 +298,20 @@ Mathics inventory remains 255 rows, with 60 errors and 69 bounded timeouts.
 
 ## Current corpus state
 
-The v106 audit on 2026-08-03 uses native commit `c1186ba`, SymPy cache version
+The v107 audit on 2026-08-03 uses native commit `c1186ba`, SymPy cache version
 29, and Mathics3 10.0.1 installed as a UV tool. It reports 3,943 agreements,
-472 declared differences, 7 unsupported outcomes, 75 timeouts, 61 backend
-errors, 2 unavailable oracle rows, 193 oracle disagreements, and 274
-oracle-missing bindings across 4,885 bindings. The cache-preserving pass took
-1.96 seconds at about 489 MiB RSS; its all-warm UV compact-cache audit takes
-0.87 seconds at about 489 MiB RSS. The preceding native refresh took 92.48
-seconds at about 1.54 GiB RSS; the earlier native cold pass took 1:10.89
-and peaked at 1.61 GiB RSS. Exact identity-matrix powers, bounded `Do`, numeric
-`Abs`, Mathics algebraic-root protection, named-derivative SymPy lowering,
-native matrix `Dot` threading, named-blank `RuleDelayed` matching, transformed
-`math11y` ODEs, `gc_drift` gradients, large-step fast-free bindings, and gvec
-validation bindings are covered by independent tests. A trial Levi-Civita lowering was reverted after
+471 declared differences, 7 unsupported outcomes, 75 timeouts, 60 backend
+errors, 2 unavailable oracle rows, 194 oracle disagreements, and 274
+oracle-missing bindings across 4,885 bindings. Its all-warm UV compact-cache
+audit takes 1.02 seconds at about 500 MiB RSS. The v107 harness fixes Mathics
+arbitrary-precision InputForm parsing (precision suffixes are metadata, not a
+multiplication), invalidates stale comparison verdicts, and reuses compatible
+legacy Mathics rows; only 13 Curl-sensitive rows required refresh. Exact
+identity-matrix powers, bounded `Do`, numeric `Abs`, Mathics algebraic-root
+protection, named-derivative SymPy lowering, native matrix `Dot` threading,
+named-blank `RuleDelayed` matching, transformed `math11y` ODEs, `gc_drift`
+gradients, large-step fast-free bindings, and gvec validation bindings are
+covered by independent tests. A trial Levi-Civita lowering was reverted after
 its measured corpus regression. Full corpus parity remains open work.
 
 ## Build
