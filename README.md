@@ -298,18 +298,19 @@ Mathics inventory remains 255 rows, with 60 errors and 69 bounded timeouts.
 
 ## Current corpus state
 
-The v91 audit on 2026-08-03 uses native commit `c1186ba`, SymPy cache version
-29, and Mathics3 10.0.1 installed as a UV tool. It reports 3,886 agreements,
-487 declared differences, 7 unsupported outcomes, 75 timeouts, 61 backend
-errors, 2 unavailable oracle rows, 195 oracle disagreements, and 314
+The v92 audit on 2026-08-03 uses native commit `c1186ba`, SymPy cache version
+29, and Mathics3 10.0.1 installed as a UV tool. It reports 3,893 agreements,
+484 declared differences, 7 unsupported outcomes, 75 timeouts, 61 backend
+errors, 2 unavailable oracle rows, 195 oracle disagreements, and 310
 oracle-missing bindings across 4,885 bindings. The cache-preserving pass took
-3.97 seconds at about 488 MiB RSS; its all-warm UV compact-cache audit takes
-0.92 seconds at about 489 MiB RSS. The preceding native refresh took 92.48
+2.74 seconds at about 489 MiB RSS; its all-warm UV compact-cache audit takes
+1.01 seconds at about 489 MiB RSS. The preceding native refresh took 92.48
 seconds at about 1.54 GiB RSS; the earlier native cold pass took 1:10.89
 and peaked at 1.61 GiB RSS. Exact identity-matrix powers, bounded `Do`, numeric
 `Abs`, Mathics algebraic-root protection, named-derivative SymPy lowering,
-native matrix `Dot` threading, and named-blank `RuleDelayed` matching are
-covered by independent tests. A trial Levi-Civita lowering was reverted after
+native matrix `Dot` threading, named-blank `RuleDelayed` matching, transformed
+`math11y` ODEs, `gc_drift` gradients, large-step fast-free bindings, and gvec
+validation bindings are covered by independent tests. A trial Levi-Civita lowering was reverted after
 its measured corpus regression. Full corpus parity remains open work.
 
 ## Build
