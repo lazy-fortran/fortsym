@@ -101,6 +101,7 @@ reported state.
 | v74 native/SymPy audit after cache and native parity changes | 1:10.89 / 1.61 GiB |
 | v75 cache-preserving oracle refresh | 6.10 s / 491 MiB |
 | latest v75 warm compact raw-output and verdict audit | 0.81 s / 491 MiB |
+| latest v76 UV warm compact raw-output and verdict audit | 0.90 s / 490 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -117,10 +118,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,864 agreements, 474 declared
+The latest cache-only binding-level audit reports 3,865 agreements, 475 declared
 differences, 7 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable
-oracle rows, 203 oracle disagreements, and 340 oracle-missing bindings across
-4,884 bindings. The v43-v75
+oracle rows, 203 oracle disagreements, and 338 oracle-missing bindings across
+4,884 bindings. The v43-v76
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -134,7 +135,9 @@ SymPy cache invalidation. The v71 cycle adds bounded `Do` assignment loops and
 six source-faithful `math10y` companion recoveries; v74 adds named-derivative
 lowering, two joined-plot recoveries, and bounded source-to-Fortran `Do`
 lowering. The v75 refresh records the named-derivative companion alignment; it
-does not increase the agreement tally. A trial Levi-Civita native lowering was
+does not increase the agreement tally. The v76 cycle adds source-faithful
+`math10y`/`math11y` recoveries and bounded stateless `For` lowering in the native
+source-to-Fortran translator. A trial Levi-Civita native lowering was
 reverted after its measured corpus regression. The benchmark harness now
 invalidates native cache rows at version 2.
 The v37
