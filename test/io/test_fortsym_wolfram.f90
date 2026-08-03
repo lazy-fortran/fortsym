@@ -31,6 +31,7 @@ program test_fortsym_wolfram
     call test_juxtaposition()
     call test_postfix_and_application()
     call test_associations()
+    call test_named_character_suffixes()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wolfram"
@@ -246,6 +247,16 @@ contains
         call same("named character", a, "Sin[\[Alpha]]", &
             sin(sym(a, "\[Alpha]")))
     end subroutine test_postfix_and_application
+
+    subroutine test_named_character_suffixes()
+        type(arena_t), target :: a
+
+        call a%init()
+        call same("named character with digit suffix", a, "\[Mu]0", &
+            sym(a, "\[Mu]0"))
+        call same("named character with letter suffix", a, "\[Gamma]se", &
+            sym(a, "\[Gamma]se"))
+    end subroutine test_named_character_suffixes
 
     subroutine test_associations()
         type(arena_t), target :: a
