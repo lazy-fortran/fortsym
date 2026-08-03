@@ -6,14 +6,15 @@ module fortsym_wl_f90
     ! statements, infers scalar inputs, expands references to earlier
     ! assignments, and delegates Fortran emission to the existing kernel
     ! generator. Unsupported source is refused explicitly.
-    use fortsym_string, only: str_t, str, chars
+    use fortsym_string, only: str_t, strbuf_t, str, chars
     use fortsym_arena, only: arena_t, NK_CONST, NK_FUNC
     use fortsym_expr, only: expr_t, sym
-    use fortsym_dialect, only: dialect, DIA_WOLFRAM
+    use fortsym_dialect, only: dialect, DIA_FORTRAN, DIA_WOLFRAM
     use fortsym_parse, only: parse_expr_in
     use fortsym_eval, only: free_symbols_of
     use fortsym_subs, only: subs_many
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
+    use fortsym_print, only: print_expr_in, fortran_representable
     implicit none
     private
 
@@ -84,6 +85,24 @@ contains
         if (nstatements == 0) then
             message = "expected at least one top-level name = expression assignment"
             return
+        end if
+
+        ! Dynamic If needs statement-level control flow in the generated
+        ! subroutine, so it is handled before the ordinary expression kernel.
+        ! The bounded helper deliberately accepts only a scalar comparison and
+        ! two assignments to one target; everything else stays on the normal
+        ! refusal path below.
+        if (nstatements == 1) then
+            call translate_dynamic_if_statement(chars(statements(1)), code, handled, &
+                parsed, parse_message)
+            if (.not. parsed) then
+                message = parse_message
+                return
+            end if
+            if (handled) then
+                ok = .true.
+                return
+            end if
         end if
 
         call a%init()
@@ -765,6 +784,316 @@ contains
             return
         end if
     end subroutine lower_constant_if_statement
+
+    !> Emit the bounded dynamic form If[comparison, assignment, assignment].
+    !>
+    !> This is intentionally a complete, small source-to-source path rather
+    !> than a conditional expression rewrite: both Wolfram branches are
+    !> evaluated only when selected, just as they are by Fortran IF.  The
+    !> condition is restricted to one scalar comparison so the emitted code
+    !> remains independently auditable and cannot accidentally accept a
+    !> symbolic Wolfram predicate as Fortran syntax.
+    subroutine translate_dynamic_if_statement(text, code, handled, ok, message)
+        character(*),              intent(in)  :: text
+        type(str_t),               intent(out) :: code
+        logical,                   intent(out) :: handled, ok
+        character(:), allocatable, intent(out) :: message
+
+        type(arena_t), target :: a
+        type(expr_t) :: condition_left, condition_right, yes_root, no_root
+        type(strbuf_t) :: b
+        type(str_t), allocatable :: inputs(:)
+        type(str_t) :: rendered_left, rendered_right, rendered_yes, rendered_no
+        character(:), allocatable :: whole, args, condition, yes_branch, no_branch
+        character(:), allocatable :: left_text, right_text, operator_text
+        character(:), allocatable :: yes_lhs, yes_rhs, no_lhs, no_rhs
+        character(:), allocatable :: parse_message
+        integer :: open, close, comma_one, comma_two, extra_comma
+        integer :: eq, width, ninputs
+        logical :: parsed, good
+
+        code = str("")
+        handled = .false.
+        ok = .true.
+        message = ""
+        whole = trim(adjustl(text))
+        open = index(whole, "[")
+        if (open <= 1) return
+        if (whole(:open - 1) /= "If") return
+        handled = .true.
+
+        close = matching_close(whole, open, "[", "]")
+        if (close /= len(whole)) then
+            ok = .false.
+            message = "If statement must have one balanced argument list"
+            return
+        end if
+        args = whole(open + 1:close - 1)
+        call next_top_level_comma(args, 1, comma_one)
+        if (comma_one == 0) then
+            ok = .false.
+            message = "bounded If needs a condition and two assignments"
+            return
+        end if
+        call next_top_level_comma(args, comma_one + 1, comma_two)
+        if (comma_two == 0) then
+            ok = .false.
+            message = "bounded If needs a condition and two assignments"
+            return
+        end if
+        call next_top_level_comma(args, comma_two + 1, extra_comma)
+        if (extra_comma /= 0) then
+            ok = .false.
+            message = "bounded If accepts exactly two assignment branches"
+            return
+        end if
+
+        condition = trim(adjustl(args(:comma_one - 1)))
+        yes_branch = trim(adjustl(args(comma_one + 1:comma_two - 1)))
+        no_branch = trim(adjustl(args(comma_two + 1:)))
+        if (condition == "True" .or. condition == "False") then
+            handled = .false.
+            return
+        end if
+
+        if (index(condition, "&&") > 0 .or. index(condition, "||") > 0) then
+            ok = .false.
+            message = "bounded If condition must be one scalar comparison"
+            return
+        end if
+
+        call split_scalar_comparison(condition, left_text, operator_text, right_text, good)
+        if (.not. good) then
+            ok = .false.
+            message = "bounded If condition must be one scalar comparison"
+            return
+        end if
+        if (operator_text == "!=") operator_text = "/="
+
+        eq = top_level_assignment(yes_branch)
+        if (eq == 0) then
+            ok = .false.
+            message = "bounded If branches must be assignments"
+            return
+        end if
+        width = 1
+        if (yes_branch(eq:eq) == ":") width = 2
+        yes_lhs = trim(adjustl(yes_branch(:eq - 1)))
+        yes_rhs = trim(adjustl(yes_branch(eq + width:)))
+
+        eq = top_level_assignment(no_branch)
+        if (eq == 0) then
+            ok = .false.
+            message = "bounded If branches must be assignments"
+            return
+        end if
+        width = 1
+        if (no_branch(eq:eq) == ":") width = 2
+        no_lhs = trim(adjustl(no_branch(:eq - 1)))
+        no_rhs = trim(adjustl(no_branch(eq + width:)))
+        if (.not. valid_target_name(yes_lhs) .or. &
+            .not. valid_target_name(no_lhs) .or. &
+            .not. same_fortran_name(yes_lhs, no_lhs)) then
+            ok = .false.
+            message = "bounded If branches must assign the same Fortran scalar"
+            return
+        end if
+        if (len(yes_rhs) == 0 .or. len(no_rhs) == 0) then
+            ok = .false.
+            message = "bounded If branches must have right-hand sides"
+            return
+        end if
+
+        call a%init()
+        condition_left = parse_expr_in(a, left_text, dialect(DIA_WOLFRAM), &
+            parsed, parse_message)
+        if (.not. parsed) then
+            ok = .false.
+            message = "cannot parse bounded If condition: "//parse_message
+            return
+        end if
+        condition_right = parse_expr_in(a, right_text, dialect(DIA_WOLFRAM), &
+            parsed, parse_message)
+        if (.not. parsed) then
+            ok = .false.
+            message = "cannot parse bounded If condition: "//parse_message
+            return
+        end if
+        yes_root = parse_expr_in(a, yes_rhs, dialect(DIA_WOLFRAM), parsed, parse_message)
+        if (.not. parsed) then
+            ok = .false.
+            message = "cannot parse bounded If branch: "//parse_message
+            return
+        end if
+        no_root = parse_expr_in(a, no_rhs, dialect(DIA_WOLFRAM), parsed, parse_message)
+        if (.not. parsed) then
+            ok = .false.
+            message = "cannot parse bounded If branch: "//parse_message
+            return
+        end if
+
+        if (.not. fortran_representable(condition_left) .or. &
+            .not. fortran_representable(condition_right) .or. &
+            .not. fortran_representable(yes_root) .or. &
+            .not. fortran_representable(no_root)) then
+            ok = .false.
+            message = "bounded If contains an expression outside scalar Fortran grammar"
+            return
+        end if
+
+        allocate (inputs(MAX_ASSIGNMENTS))
+        ninputs = 0
+        call collect_dynamic_if_inputs(condition_left, yes_lhs, inputs, ninputs, ok, message)
+        if (.not. ok) return
+        call collect_dynamic_if_inputs(condition_right, yes_lhs, inputs, ninputs, ok, message)
+        if (.not. ok) return
+        call collect_dynamic_if_inputs(yes_root, yes_lhs, inputs, ninputs, ok, message)
+        if (.not. ok) return
+        call collect_dynamic_if_inputs(no_root, yes_lhs, inputs, ninputs, ok, message)
+        if (.not. ok) return
+
+        rendered_left = print_expr_in(condition_left, dialect(DIA_FORTRAN), good)
+        rendered_right = print_expr_in(condition_right, dialect(DIA_FORTRAN), good)
+        rendered_yes = print_expr_in(yes_root, dialect(DIA_FORTRAN), good)
+        rendered_no = print_expr_in(no_root, dialect(DIA_FORTRAN), good)
+        if (.not. good) then
+            ok = .false.
+            message = "bounded If expression could not be emitted as Fortran"
+            return
+        end if
+
+        call b%append("! Generated by fortsym. Do not edit.")
+        call b%newline()
+        call b%append("! Generator: fortsym_wl_f90")
+        call b%newline()
+        call b%newline()
+        call b%append("subroutine fortsym_generated_assignment(")
+        call append_dynamic_if_names(b, inputs, ninputs, yes_lhs)
+        call b%append(")")
+        call b%newline()
+        call b%append("    use, intrinsic :: iso_fortran_env, only: dp => real64")
+        call b%newline()
+        call b%append("    implicit none")
+        call b%newline()
+        if (ninputs > 0) then
+            call b%append("    real(dp), intent(in) :: ")
+            call append_dynamic_if_names(b, inputs, ninputs)
+            call b%newline()
+        end if
+        call b%append("    real(dp), intent(out) :: "//yes_lhs)
+        call b%newline()
+        call b%newline()
+        call b%append("    if ("//chars(rendered_left)//" "// &
+            operator_text//" "//chars(rendered_right)//") then")
+        call b%newline()
+        call b%append("        "//yes_lhs//" = "//chars(rendered_yes))
+        call b%newline()
+        call b%append("    else")
+        call b%newline()
+        call b%append("        "//yes_lhs//" = "//chars(rendered_no))
+        call b%newline()
+        call b%append("    end if")
+        call b%newline()
+        call b%append("end subroutine fortsym_generated_assignment")
+        call b%newline()
+        code = b%to_str()
+    end subroutine translate_dynamic_if_statement
+
+    subroutine collect_dynamic_if_inputs(root, target, inputs, ninputs, ok, message)
+        type(expr_t),               intent(in)    :: root
+        character(*),               intent(in)    :: target
+        type(str_t),                intent(inout) :: inputs(:)
+        integer,                    intent(inout) :: ninputs
+        logical,                    intent(out)   :: ok
+        character(:), allocatable,  intent(out)   :: message
+        type(str_t), allocatable :: names(:)
+        integer :: k
+
+        ok = .true.
+        message = ""
+        names = free_symbols_of(root)
+        do k = 1, size(names)
+            if (.not. valid_input_name(chars(names(k)))) then
+                ok = .false.
+                message = "bounded If contains a non-Fortran symbol: "//chars(names(k))
+                return
+            end if
+            if (same_fortran_name(chars(names(k)), target)) then
+                ok = .false.
+                message = "bounded If right-hand side may not read its output target"
+                return
+            end if
+            if (.not. name_in_list(chars(names(k)), inputs, ninputs)) then
+                if (ninputs >= size(inputs)) then
+                    ok = .false.
+                    message = "bounded If input symbol count exceeds the limit"
+                    return
+                end if
+                ninputs = ninputs + 1
+                inputs(ninputs) = names(k)
+            end if
+        end do
+    end subroutine collect_dynamic_if_inputs
+
+    subroutine append_dynamic_if_names(b, names, n, final_name)
+        type(strbuf_t), intent(inout) :: b
+        type(str_t),    intent(in)    :: names(:)
+        integer,        intent(in)    :: n
+        character(*),   intent(in), optional :: final_name
+        integer :: k
+
+        do k = 1, n
+            if (k > 1) call b%append(", ")
+            call b%append(chars(names(k)))
+        end do
+        if (present(final_name)) then
+            if (n > 0) call b%append(", ")
+            call b%append(final_name)
+        end if
+    end subroutine append_dynamic_if_names
+
+    subroutine split_scalar_comparison(text, left, operator, right, ok)
+        character(*),              intent(in)  :: text
+        character(:), allocatable, intent(out) :: left, operator, right
+        logical,                   intent(out) :: ok
+        integer :: depth, k, width
+        character(2) :: candidate
+
+        left = ""
+        operator = ""
+        right = ""
+        ok = .false.
+        depth = 0
+        k = 1
+        do while (k <= len(text))
+            select case (text(k:k))
+            case ("[", "{", "("); depth = depth + 1
+            case ("]", "}", ")"); depth = depth - 1
+            case default
+                if (depth == 0) then
+                    width = 1
+                    if (k < len(text)) then
+                        candidate = text(k:k + 1)
+                        if (candidate == "<=" .or. candidate == ">=" .or. &
+                            candidate == "!=" .or. candidate == "==") width = 2
+                    end if
+                    if (text(k:k) == "<" .or. text(k:k) == ">" .or. &
+                        (text(k:k) == "=" .and. width == 2) .or. &
+                        (text(k:k) == "!" .and. width == 2)) then
+                        if (len_trim(text(:k - 1)) == 0 .or. &
+                            len_trim(text(k + width:)) == 0) return
+                        left = trim(adjustl(text(:k - 1)))
+                        operator = text(k:k + width - 1)
+                        right = trim(adjustl(text(k + width:)))
+                        ok = .true.
+                        return
+                    end if
+                    if (width == 2) k = k + 1
+                end if
+            end select
+            k = k + 1
+        end do
+    end subroutine split_scalar_comparison
 
     pure subroutine next_top_level_comma(text, first, position)
         character(*), intent(in)  :: text

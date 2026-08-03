@@ -15,6 +15,7 @@ program test_fortsym_wl_f90
     call test_safe_setup_compiles_and_agrees(nfail)
     call test_scalar_minmax_compiles_and_agrees(nfail)
     call test_constant_if_compiles_and_agrees(nfail)
+    call test_dynamic_if_compiles_and_agrees(nfail)
     call test_bounded_while_compiles_and_agrees(nfail)
     call test_bounded_do_compiles_and_agrees(nfail)
     call test_bounded_for_compiles_and_agrees(nfail)
@@ -308,6 +309,60 @@ contains
             status == 0, nfail)
     end subroutine test_constant_if_compiles_and_agrees
 
+    subroutine test_dynamic_if_compiles_and_agrees(nfail)
+        integer, intent(inout) :: nfail
+        type(str_t) :: code
+        character(:), allocatable :: message
+        logical :: ok
+        integer :: unit, ios, status
+        character(*), parameter :: generated = "/tmp/fortsym_wl_f90_dynamic_if.f90"
+        character(*), parameter :: driver = "/tmp/fortsym_wl_f90_dynamic_if_driver.f90"
+        character(*), parameter :: executable = "/tmp/fortsym_wl_f90_dynamic_if_driver"
+
+        code = translate_wl_assignments( &
+            "If[x > 0, result = x + 1, result = -x - 1]", ok, message)
+        call check("dynamic If assignment accepted", ok, nfail)
+        if (.not. ok) then
+            print *, "translation message:", message
+            return
+        end if
+
+        open (newunit=unit, file=generated, status="replace", action="write", &
+            iostat=ios)
+        call check("dynamic If generated source opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") chars(code)
+        close (unit)
+
+        open (newunit=unit, file=driver, status="replace", action="write", &
+            iostat=ios)
+        call check("dynamic If oracle driver opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") &
+            "program independent_dynamic_if_oracle"//new_line("a")// &
+            "  use, intrinsic :: iso_fortran_env, only: real64"//new_line("a")// &
+            "  real(real64) :: x, result"//new_line("a")// &
+            "  x = 2.5_real64"//new_line("a")// &
+            "  call fortsym_generated_assignment(x, result)"//new_line("a")// &
+            "  if (abs(result - 3.5_real64) > 1.0e-14_real64) error stop 1"// &
+            new_line("a")// &
+            "  x = -2.5_real64"//new_line("a")// &
+            "  call fortsym_generated_assignment(x, result)"//new_line("a")// &
+            "  if (abs(result - 1.5_real64) > 1.0e-14_real64) error stop 2"// &
+            new_line("a")// &
+            "  print *, 'PASS independent dynamic If oracle'"//new_line("a")// &
+            "end program independent_dynamic_if_oracle"
+        close (unit)
+
+        call execute_command_line("gfortran -std=f2018 -Wall -Werror -o "// &
+            executable//" "//generated//" "//driver, exitstat=status)
+        call check("dynamic If generated source compiles", status == 0, nfail)
+        if (status /= 0) return
+        call execute_command_line(executable, exitstat=status)
+        call check("dynamic If source agrees with independent oracle", &
+            status == 0, nfail)
+    end subroutine test_dynamic_if_compiles_and_agrees
+
     subroutine test_bounded_while_compiles_and_agrees(nfail)
         integer, intent(inout) :: nfail
         type(str_t) :: code
@@ -471,8 +526,8 @@ contains
         logical :: ok
 
         code = translate_wl_assignments( &
-            "If[x > 0, a = x, a = -x]", ok, message)
-        call check("control flow statement refused", .not. ok, nfail)
+            "If[x > 0 && y > 0, a = x, a = -x]", ok, message)
+        call check("unsupported dynamic If condition refused", .not. ok, nfail)
 
         code = translate_wl_assignments("r = $x + 1", ok, message)
         call check("non-Fortran symbol refused", .not. ok, nfail)
