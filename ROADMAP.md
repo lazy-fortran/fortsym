@@ -134,6 +134,8 @@ reported state.
 | latest v105 UV warm compact raw-output and verdict audit | 1.03 s / 489 MiB |
 | latest v106 UV warm compact raw-output and verdict audit | 0.87 s / 489 MiB |
 | latest v107 UV warm compact raw-output and verdict audit | 1.02 s / 500 MiB |
+| latest v108 UV warm compact raw-output and verdict audit | 1.10 s / 500 MiB |
+| v108 cache-preserving native refresh | 121.39 s / 1.61 GiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -150,16 +152,16 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,943 agreements, 471 declared
-differences, 7 unsupported outcomes, 75 timeouts, 60 errors, 2 unavailable
-oracle rows, 194 oracle disagreements, and 274 oracle-missing bindings across
-4,885 bindings. The v43-v107
+The latest cache-only binding-level audit reports 3,961 agreements, 457 declared
+differences, 7 unsupported outcomes, 75 timeouts, 59 errors, 2 unavailable
+oracle rows, 192 oracle disagreements, and 268 oracle-missing bindings across
+4,880 emitted bindings from 384 sources. The v43-v108
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
 parity, math3y, Cartesian-primitive, math8y, perpendicular-block, math10y,
 math6-1y, cylinder-spectrum, math11y, Mercier, Appendix-B, math14y, and math15y
-recoveries, with 75 independent tests. The v59 native work fixes implicit
+recoveries, with independent behavioral tests. The v59 native work fixes implicit
 scientific-literal precedence and adds vector-matrix `Dot` evaluation; v60 adds
 bounded numeric `FindRoot`. The v70 cycle adds exact identity-matrix fractional
 powers and source-faithful numeric `Abs`/Mathics root handling, with selective
@@ -221,11 +223,14 @@ recovery. The v106 cycle resolves four oracle disagreements across memo37,
 cylinder, peng, and math5y bindings. The v107 cycle fixes Mathics
 arbitrary-precision InputForm parsing, invalidates stale comparison verdicts,
 and preserves compatible legacy Mathics cache rows; only 13 Curl-sensitive
-rows required refresh. A trial
+rows required refresh. The v108 cycle adds exact-list native `Position` and
+`Union`, accepts standalone source-to-Fortran `Null` separators, recovers the
+Bacc/Rosa/Posch derivation and Sympl3 orbit clusters, and classifies malformed
+Mathics list arithmetic as an explicit difference. A trial
 Levi-Civita native
 lowering was
 reverted after its measured corpus regression. The benchmark harness now
-invalidates native cache rows at version 2 and comparison verdicts at version 16.
+invalidates native cache rows at version 2 and comparison verdicts at version 17.
 The v37
 phase-transform and flux-coordinate companion translations, followed by the
 v38 NAE/DESC and Appendix-B translations, recovered 42 agreements and 52
