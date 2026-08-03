@@ -138,6 +138,8 @@ reported state.
 | latest v109 cache-rebuild raw-output and verdict audit | 62.60 s / 553 MiB |
 | latest v111 comparison-cache audit | 68.03 s / 542 MiB |
 | latest v122 cached whole-corpus audit | 16.99 s / 489 MiB |
+| v124 native-fingerprint refresh | 100.03 s / 803 MiB |
+| latest v124 cache-only whole-corpus audit | 0.98 s / 489 MiB |
 | v108 cache-preserving native refresh | 121.39 s / 1.61 GiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
@@ -155,10 +157,15 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest v122 cache-only binding-level audit reports 4,015 agreements, 400
-declared differences, 7 unsupported outcomes, 75 timeouts, 59 errors, 2
-unavailable oracle rows, 197 oracle disagreements, and 265 oracle-missing
-bindings across 4,879 emitted bindings from 384 corpus sources. The v43-v122
+The latest v124 stable binding-level audit reports 4,024 agreements, 386
+declared differences, 7 unsupported outcomes, 74 timeouts, 59 errors, 2
+unavailable oracle rows, 205 oracle disagreements, and 262 oracle-missing
+bindings across 4,879 emitted bindings from 384 corpus sources. Its native
+fingerprint refresh took 100.03 seconds and peaked at 803 MiB RSS; the warm
+cache-only follow-up took 0.98 seconds at 489 MiB RSS. A broader native
+Solve/Part/Integrate expansion was reverted after the bounded audit reached the
+180-second limit; no OOM-prone experiment is part of the current baseline. The
+v43-v124
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
