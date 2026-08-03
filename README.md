@@ -195,10 +195,11 @@ RSS; the rebuild also refreshed changed SymPy rows. The v108 warm audit takes
 After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, the warm audit starts no backend
-subprocesses. The latest v109 cache-only whole-corpus tally is 3,964
-agreements, 456 declared differences, 7 unsupported outcomes, 75 timeouts, 59
-errors, 2 unavailable oracle rows, 192 oracle disagreements, and 266
-oracle-missing bindings across 4,880 emitted bindings. The v43-v60 batches add
+subprocesses. The latest v111 cache-only whole-corpus tally is 3,981
+agreements, 433 declared differences, 7 unsupported outcomes, 75 timeouts, 59
+errors, 2 unavailable oracle rows, 197 oracle disagreements, and 266
+oracle-missing bindings across 4,879 emitted bindings from 375 translated
+sources out of 384 corpus sources. The v43-v60 batches add
 source-faithful ECNL equation strings, numeric validity estimates,
 Maxwell/flux-pumping companions, math10y and Suydam recoveries, large-step LTE
 reconstruction, Sympl3 field forms, normal-stability numeric parity, math3y,
