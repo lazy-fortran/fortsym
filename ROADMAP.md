@@ -125,6 +125,8 @@ reported state.
 | latest v96 UV warm compact raw-output and verdict audit | 0.89 s / 489 MiB |
 | latest v97 UV warm compact raw-output and verdict audit | 0.86 s / 489 MiB |
 | latest v98 UV warm compact raw-output and verdict audit | 0.93 s / 489 MiB |
+| latest v99 UV warm compact raw-output and verdict audit | 1.01 s / 489 MiB |
+| latest v100 UV warm compact raw-output and verdict audit | 0.93 s / 489 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -141,10 +143,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,915 agreements, 479 declared
+The latest cache-only binding-level audit reports 3,922 agreements, 476 declared
 differences, 7 unsupported outcomes, 75 timeouts, 61 errors, 2 unavailable
-oracle rows, 197 oracle disagreements, and 291 oracle-missing bindings across
-4,885 bindings. The v43-v98
+oracle rows, 197 oracle disagreements, and 287 oracle-missing bindings across
+4,885 bindings. The v43-v100
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -194,7 +196,11 @@ corrections; one oracle disagreement is newly exposed. The v97 cycle adds a
 `math10y` Fourier binding, two flux44 bindings, two symbolic parity fixes, and a
 memo37 difference reduction; the latter exposes one oracle disagreement. The v98
 cycle adds gvec `II_tt`, two-component `qField`, and another `math10y` binding;
-the archive plot recovery remains a declared native-serialization difference. A trial
+the archive plot recovery remains a declared native-serialization difference. The
+v99 cycle adds gvec `II_zz`, two-component `fluxTslope`, another `math11y` binding,
+and the bounded `Do` source-to-Fortran adapter. The full adapter inventory emits 1
+of 384 sources and refuses 383. The v100 cycle adds ECNL, `math13y`, `math15y`,
+and appA flux-coordinate recoveries. A trial
 Levi-Civita native
 lowering was
 reverted after its measured corpus regression. The benchmark harness now
