@@ -17,6 +17,7 @@ program test_fortsym_wl_f90
     call test_constant_if_compiles_and_agrees(nfail)
     call test_dynamic_if_compiles_and_agrees(nfail)
     call test_bounded_while_compiles_and_agrees(nfail)
+    call test_bounded_while_integer_step_compiles_and_agrees(nfail)
     call test_bounded_do_compiles_and_agrees(nfail)
     call test_bounded_for_compiles_and_agrees(nfail)
     call test_bounded_refusals(nfail)
@@ -416,6 +417,100 @@ contains
         call check("bounded While source agrees with independent oracle", &
             status == 0, nfail)
     end subroutine test_bounded_while_compiles_and_agrees
+
+    subroutine test_bounded_while_integer_step_compiles_and_agrees(nfail)
+        integer, intent(inout) :: nfail
+        type(str_t) :: code
+        character(:), allocatable :: message
+        logical :: ok
+        integer :: unit, ios, status
+        character(*), parameter :: generated = "/tmp/fortsym_wl_f90_while_step.f90"
+        character(*), parameter :: driver = "/tmp/fortsym_wl_f90_while_step_driver.f90"
+        character(*), parameter :: executable = "/tmp/fortsym_wl_f90_while_step_driver"
+
+        code = translate_wl_assignments( &
+            "While[i < 4, i++]", ok, message)
+        call check("integer-step While increment accepted", ok, nfail)
+        if (.not. ok) then
+            print *, "translation message:", message
+            return
+        end if
+
+        open (newunit=unit, file=generated, status="replace", action="write", &
+            iostat=ios)
+        call check("integer-step While generated source opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") chars(code)
+        close (unit)
+
+        open (newunit=unit, file=driver, status="replace", action="write", &
+            iostat=ios)
+        call check("integer-step While oracle driver opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") &
+            "program independent_integer_step_while_oracle"//new_line("a")// &
+            "  integer :: i"//new_line("a")// &
+            "  i = 1"//new_line("a")// &
+            "  call fortsym_generated_assignment(i)"//new_line("a")// &
+            "  if (i /= 4) error stop 1"//new_line("a")// &
+            "  i = 4"//new_line("a")// &
+            "  call fortsym_generated_assignment(i)"//new_line("a")// &
+            "  if (i /= 4) error stop 2"//new_line("a")// &
+            "  i = 7"//new_line("a")// &
+            "  call fortsym_generated_assignment(i)"//new_line("a")// &
+            "  if (i /= 7) error stop 3"//new_line("a")// &
+            "  print *, 'PASS independent integer-step While oracle'"//new_line("a")// &
+            "end program independent_integer_step_while_oracle"
+        close (unit)
+
+        call execute_command_line("gfortran -std=f2018 -Wall -Werror -o "// &
+            executable//" "//generated//" "//driver, exitstat=status)
+        call check("integer-step While generated source compiles", status == 0, nfail)
+        if (status /= 0) return
+        call execute_command_line(executable, exitstat=status)
+        call check("integer-step While source agrees with independent oracle", &
+            status == 0, nfail)
+
+        code = translate_wl_assignments( &
+            "While[i >= -2, i--]", ok, message)
+        call check("integer-step While decrement accepted", ok, nfail)
+        if (.not. ok) then
+            print *, "translation message:", message
+            return
+        end if
+        open (newunit=unit, file=generated, status="replace", action="write", &
+            iostat=ios)
+        call check("integer-step decrement source opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") chars(code)
+        close (unit)
+        open (newunit=unit, file=driver, status="replace", action="write", &
+            iostat=ios)
+        call check("integer-step decrement oracle opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") &
+            "program independent_integer_step_decrement_oracle"//new_line("a")// &
+            "  integer :: i"//new_line("a")// &
+            "  i = -4"//new_line("a")// &
+            "  call fortsym_generated_assignment(i)"//new_line("a")// &
+            "  if (i /= -4) error stop 4"//new_line("a")// &
+            "  i = -2"//new_line("a")// &
+            "  call fortsym_generated_assignment(i)"//new_line("a")// &
+            "  if (i /= -3) error stop 5"//new_line("a")// &
+            "  i = 1"//new_line("a")// &
+            "  call fortsym_generated_assignment(i)"//new_line("a")// &
+            "  if (i /= -3) error stop 6"//new_line("a")// &
+            "  print *, 'PASS independent integer-step decrement oracle'"//new_line("a")// &
+            "end program independent_integer_step_decrement_oracle"
+        close (unit)
+        call execute_command_line("gfortran -std=f2018 -Wall -Werror -o "// &
+            executable//" "//generated//" "//driver, exitstat=status)
+        call check("integer-step decrement source compiles", status == 0, nfail)
+        if (status /= 0) return
+        call execute_command_line(executable, exitstat=status)
+        call check("integer-step decrement agrees with independent oracle", &
+            status == 0, nfail)
+    end subroutine test_bounded_while_integer_step_compiles_and_agrees
 
     subroutine test_bounded_do_compiles_and_agrees(nfail)
         integer, intent(inout) :: nfail
