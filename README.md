@@ -195,9 +195,9 @@ RSS; the rebuild also refreshed changed SymPy rows. The v108 warm audit takes
 After the quoted-string,
 Total, PseudoInverse, and diagonal singular-value slices, plus the v17 bounded
 polynomial translator transition, the warm audit starts no backend
-subprocesses. The current v108 cache-only whole-corpus tally is 3,961
-agreements, 457 declared differences, 7 unsupported outcomes, 75 timeouts, 59
-errors, 2 unavailable oracle rows, 192 oracle disagreements, and 268
+subprocesses. The latest v109 cache-only whole-corpus tally is 3,964
+agreements, 456 declared differences, 7 unsupported outcomes, 75 timeouts, 59
+errors, 2 unavailable oracle rows, 192 oracle disagreements, and 266
 oracle-missing bindings across 4,880 emitted bindings. The v43-v60 batches add
 source-faithful ECNL equation strings, numeric validity estimates,
 Maxwell/flux-pumping companions, math10y and Suydam recoveries, large-step LTE
@@ -312,6 +312,14 @@ at about 500 MiB RSS. v108 adds exact-list native `Position`/`Union`, standalone
 the Sympl3 orbit cluster, and malformed Mathics list-arithmetic classification.
 The comparator now reports malformed trees as explicit differences rather than
 errors. Full corpus parity remains open work.
+
+The v109 follow-up advances the comparison cache to version 18, recovers bounded
+`archive-tu/math6-1y` and `vector2d` bindings, and adds equation-aware comparison
+for explicitly annotated rearrangements. Root commit `23b0e07` also adds the
+bounded literal-only `FileNameJoin` subset; its focused Fortran regression passes.
+The aggregate v109 audit reuses the cached native rows from v108; the new native
+subset is verified separately so the fast cache-only timing does not hide a
+full native refresh.
 
 ## Build
 
