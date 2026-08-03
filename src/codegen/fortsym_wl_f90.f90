@@ -108,6 +108,15 @@ contains
                 end if
                 if (handled) statement = cleaned_source
             end if
+            if (.not. handled) then
+                call lower_bounded_for_statement(statement, cleaned_source, handled, &
+                    parsed, parse_message)
+                if (.not. parsed) then
+                    message = parse_message
+                    return
+                end if
+                if (handled) statement = cleaned_source
+            end if
 
             eq = top_level_assignment(statement)
             if (eq == 0) then
@@ -343,6 +352,154 @@ contains
         replacement = trim(replacement_buffer)
         lowered = lhs//" = "//replace_symbol(rhs, iterator, replacement)
     end subroutine lower_bounded_do_statement
+
+    !> Lower a stateless bounded For assignment to its final iteration.
+    !>
+    !> A straight-line emitter cannot represent a runtime loop, but a body that
+    !> overwrites a different scalar target and never reads that target has the
+    !> same result as its last iteration. Only exact integer bounds and unit
+    !> increments are accepted; all other For forms remain refused.
+    subroutine lower_bounded_for_statement(text, lowered, handled, ok, message)
+        character(*),              intent(in)  :: text
+        character(:), allocatable, intent(out) :: lowered
+        logical,                   intent(out) :: handled, ok
+        character(:), allocatable, intent(out) :: message
+
+        character(:), allocatable :: whole, args, start, test, step, body
+        character(:), allocatable :: iterator, start_name, start_text
+        character(:), allocatable :: bound_name, lhs, rhs
+        character(32) :: replacement_buffer
+        integer :: open, close, comma_one, comma_two, comma_three
+        integer :: eq, width, relation, start_value, bound_value, ios
+        logical :: descending
+
+        lowered = ""
+        handled = .false.
+        ok = .true.
+        message = ""
+        whole = trim(adjustl(text))
+        open = index(whole, "[")
+        if (open <= 1) return
+        if (whole(:open - 1) /= "For") return
+        handled = .true.
+        close = matching_close(whole, open, "[", "]")
+        if (close /= len(whole)) then
+            ok = .false.
+            message = "bounded For must have one balanced argument list"
+            return
+        end if
+
+        args = whole(open + 1:close - 1)
+        call next_top_level_comma(args, 1, comma_one)
+        if (comma_one == 0) then
+            ok = .false.
+            message = "bounded For needs start, test, increment, and body"
+            return
+        end if
+        call next_top_level_comma(args, comma_one + 1, comma_two)
+        call next_top_level_comma(args, comma_two + 1, comma_three)
+        if (comma_two == 0 .or. comma_three == 0) then
+            ok = .false.
+            message = "bounded For needs start, test, increment, and body"
+            return
+        end if
+        call next_top_level_comma(args, comma_three + 1, relation)
+        if (relation /= 0) then
+            ok = .false.
+            message = "bounded For accepts exactly four arguments"
+            return
+        end if
+
+        start = trim(adjustl(args(:comma_one - 1)))
+        test = trim(adjustl(args(comma_one + 1:comma_two - 1)))
+        step = trim(adjustl(args(comma_two + 1:comma_three - 1)))
+        body = trim(adjustl(args(comma_three + 1:)))
+
+        eq = top_level_assignment(start)
+        if (eq == 0) then
+            ok = .false.
+            message = "bounded For start must assign an exact integer"
+            return
+        end if
+        width = 1
+        if (start(eq:eq) == ":") width = 2
+        start_name = trim(adjustl(start(:eq - 1)))
+        start_text = trim(adjustl(start(eq + width:)))
+        if (.not. valid_fortran_name(start_name)) then
+            ok = .false.
+            message = "bounded For iterator must be a Fortran name"
+            return
+        end if
+        read (start_text, *, iostat=ios) start_value
+        if (ios /= 0) then
+            ok = .false.
+            message = "bounded For start must be an exact integer"
+            return
+        end if
+
+        relation = index(test, "<=")
+        descending = .false.
+        if (relation == 0) then
+            relation = index(test, ">=")
+            descending = .true.
+        end if
+        if (relation == 0) then
+            ok = .false.
+            message = "bounded For test must use an inclusive integer bound"
+            return
+        end if
+        iterator = trim(adjustl(test(:relation - 1)))
+        bound_name = trim(adjustl(test(relation + 2:)))
+        if (iterator /= start_name) then
+            ok = .false.
+            message = "bounded For test must use its iterator"
+            return
+        end if
+        read (bound_name, *, iostat=ios) bound_value
+        if (ios /= 0) then
+            ok = .false.
+            message = "bounded For bound must be an exact integer"
+            return
+        end if
+
+        if (descending) then
+            if (step /= start_name//"--" .or. start_value < bound_value) then
+                ok = .false.
+                message = "bounded For requires a nonempty unit descending range"
+                return
+            end if
+        else
+            if (step /= start_name//"++" .or. start_value > bound_value) then
+                ok = .false.
+                message = "bounded For requires a nonempty unit ascending range"
+                return
+            end if
+        end if
+
+        eq = top_level_assignment(body)
+        if (eq == 0) then
+            ok = .false.
+            message = "bounded For body must be a scalar assignment"
+            return
+        end if
+        width = 1
+        if (body(eq:eq) == ":") width = 2
+        lhs = trim(adjustl(body(:eq - 1)))
+        rhs = trim(adjustl(body(eq + width:)))
+        if (.not. valid_target_name(lhs) .or. len(rhs) == 0) then
+            ok = .false.
+            message = "bounded For body must assign a Fortran scalar"
+            return
+        end if
+        if (lhs == start_name .or. symbol_occurs(rhs, lhs)) then
+            ok = .false.
+            message = "bounded For body may not read its assignment target"
+            return
+        end if
+        write (replacement_buffer, "(i0)") bound_value
+        lowered = lhs//" = "//replace_symbol(rhs, start_name, &
+            trim(replacement_buffer))
+    end subroutine lower_bounded_for_statement
 
     !> Return the matching closing delimiter, or zero for an unbalanced form.
     pure function matching_close(text, open, opening, closing) result(close)
