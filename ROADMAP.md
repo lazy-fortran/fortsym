@@ -109,6 +109,7 @@ reported state.
 | latest v81 UV warm compact raw-output and verdict audit | 1.06 s / 488 MiB |
 | v81 native cache-preserving rebuild audit | 1:32.48 / 1.54 GiB |
 | latest v82 UV warm compact raw-output and verdict audit | 1.06 s / 489 MiB |
+| latest v83 UV warm compact raw-output and verdict audit | 0.93 s / 489 MiB |
 | peak RSS during that refresh | 3.04 GiB |
 | latest warm compact raw-output and verdict audit after SymPy v17 | 1.24 s / 456 MiB |
 | current v18 focused native/SymPy/Mathics slice (11 scripts, one worker) | 42.39 s / 804 MiB |
@@ -125,10 +126,10 @@ reported state.
 Read that honestly: 99% is *native scripts that ran and emitted bindings*, not
 correctness. Scoring against an oracle is what makes it coverage.
 
-The latest cache-only binding-level audit reports 3,875 agreements, 481 declared
+The latest cache-only binding-level audit reports 3,876 agreements, 481 declared
 differences, 7 unsupported outcomes, 76 timeouts, 61 errors, 2 unavailable
-oracle rows, 198 oracle disagreements, and 327 oracle-missing bindings across
-4,885 bindings. The v43-v82
+oracle rows, 198 oracle disagreements, and 326 oracle-missing bindings across
+4,885 bindings. The v43-v83
 parity batch adds source-faithful ECNL equation strings, numeric validity
 estimates, Maxwell/flux-pumping companions, math10y and Suydam recoveries,
 large-step LTE reconstruction, Sympl3 field forms, normal-stability numeric
@@ -152,8 +153,9 @@ The v80 cycle adds final `math10y` `Which` coverage and large-step recurrence
 bindings; these pass focused tests but do not change the scored tally. The v81
 cycle adds dynamic bounded `If` codegen, six `vector2d` fields, and a flux
 access-condition correction. The v82 cycle adds a memo37 factored-derivative
-binding and a source-faithful cylinder-spectrum derivative tree. A trial
-Levi-Civita native
+binding and a source-faithful cylinder-spectrum derivative tree. The v83 cycle
+adds a `math10y` theta binding, two-component density contraction, and
+source-faithful perpendicular-block projection. A trial Levi-Civita native
 lowering was
 reverted after its measured corpus regression. The benchmark harness now
 invalidates native cache rows at version 2.
