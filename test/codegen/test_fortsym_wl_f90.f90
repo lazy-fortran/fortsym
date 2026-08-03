@@ -13,6 +13,7 @@ program test_fortsym_wl_f90
     call test_stream_compiles_and_agrees(nfail)
     call test_comment_preamble_compiles_and_agrees(nfail)
     call test_safe_setup_compiles_and_agrees(nfail)
+    call test_scalar_reassignment_compiles_and_agrees(nfail)
     call test_scalar_minmax_compiles_and_agrees(nfail)
     call test_constant_if_compiles_and_agrees(nfail)
     call test_dynamic_if_compiles_and_agrees(nfail)
@@ -145,6 +146,63 @@ contains
         call check("comment-preamble source agrees with independent oracle", &
             status == 0, nfail)
     end subroutine test_comment_preamble_compiles_and_agrees
+
+    subroutine test_scalar_reassignment_compiles_and_agrees(nfail)
+        integer, intent(inout) :: nfail
+        type(str_t) :: code
+        character(:), allocatable :: message
+        logical :: ok
+        integer :: unit, ios, status
+        character(*), parameter :: generated = &
+            "/tmp/fortsym_wl_f90_reassignment.f90"
+        character(*), parameter :: driver = &
+            "/tmp/fortsym_wl_f90_reassignment_driver.f90"
+        character(*), parameter :: executable = &
+            "/tmp/fortsym_wl_f90_reassignment_driver"
+
+        code = translate_wl_assignments( &
+            "result = x + 2"//new_line("a")// &
+            "result = result**2 - 1", ok, message)
+        call check("bounded scalar reassignment accepted", ok, nfail)
+        if (.not. ok) then
+            print *, "translation message:", message
+            return
+        end if
+
+        open (newunit=unit, file=generated, status="replace", action="write", &
+            iostat=ios)
+        call check("reassignment generated source opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") chars(code)
+        close (unit)
+
+        open (newunit=unit, file=driver, status="replace", action="write", &
+            iostat=ios)
+        call check("reassignment oracle driver opens", ios == 0, nfail)
+        if (ios /= 0) return
+        write (unit, "(a)") &
+            "program independent_scalar_reassignment_oracle"//new_line("a")// &
+            "  use, intrinsic :: iso_fortran_env, only: real64"//new_line("a")// &
+            "  real(real64) :: x, result, first_value, expected"//new_line("a")// &
+            "  x = 0.75_real64"//new_line("a")// &
+            "  first_value = x + 2.0_real64"//new_line("a")// &
+            "  expected = first_value**2 - 1.0_real64"//new_line("a")// &
+            "  call fortsym_generated_assignment(x, result)"//new_line("a")// &
+            "  if (abs(result - expected) > 1.0e-14_real64) error stop 1"// &
+            new_line("a")// &
+            "  print *, 'PASS independent scalar reassignment oracle'"// &
+            new_line("a")// &
+            "end program independent_scalar_reassignment_oracle"
+        close (unit)
+
+        call execute_command_line("gfortran -std=f2018 -Wall -Werror -o "// &
+            executable//" "//generated//" "//driver, exitstat=status)
+        call check("reassignment generated source compiles", status == 0, nfail)
+        if (status /= 0) return
+        call execute_command_line(executable, exitstat=status)
+        call check("reassignment source agrees with independent oracle", &
+            status == 0, nfail)
+    end subroutine test_scalar_reassignment_compiles_and_agrees
 
     subroutine test_safe_setup_compiles_and_agrees(nfail)
         integer, intent(inout) :: nfail
@@ -669,8 +727,12 @@ contains
         call check("non-scalar target refused", .not. ok, nfail)
 
         code = translate_wl_assignments( &
-            "r = x"//new_line("a")//"r = r + 1", ok, message)
-        call check("reassignment refused", .not. ok, nfail)
+            "r = x"//new_line("a")//"r = r + 1"//new_line("a")// &
+            "r = r + 2", ok, message)
+        call check("three-way reassignment remains refused", .not. ok, nfail)
+        code = translate_wl_assignments( &
+            "r = r + 1"//new_line("a")//"r = r + 2", ok, message)
+        call check("recursive first reassignment remains refused", .not. ok, nfail)
     end subroutine test_bounded_refusals
 
     subroutine check(label, condition, nfail)

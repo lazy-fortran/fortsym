@@ -118,6 +118,16 @@ contains
         end if
 
         call a%init()
+        call translate_bounded_scalar_reassignment(a, statements, nstatements, code, &
+            handled, parsed, parse_message)
+        if (.not. parsed) then
+            message = parse_message
+            return
+        end if
+        if (handled) then
+            ok = .true.
+            return
+        end if
         allocate (roots(nstatements), old_symbols(nstatements))
         allocate (targets(nstatements))
         nold = 0
@@ -262,6 +272,131 @@ contains
         end if
         ok = .true.
     end function translate_wl_assignments
+
+    !> Lower one bounded scalar reassignment stream.
+    !>
+    !> For exactly two assignments to the same scalar target, the first value
+    !> can be substituted into the second RHS because the accepted expression
+    !> grammar is side-effect free.  The emitted kernel exposes only the final
+    !> target, so its Fortran interface has no duplicate dummy arguments.  A
+    !> longer stream, recursive first assignment, or non-scalar target remains
+    !> on the ordinary refusal path.
+    subroutine translate_bounded_scalar_reassignment(a, statements, nstatements, &
+        code, handled, ok, message)
+        type(arena_t), target, intent(inout) :: a
+        type(str_t), intent(in) :: statements(:)
+        integer, intent(in) :: nstatements
+        type(str_t), intent(out) :: code
+        logical, intent(out) :: handled, ok
+        character(:), allocatable, intent(out) :: message
+
+        type(expr_t) :: first_root, second_root, final_root, target_symbol
+        type(kernel_spec_t) :: spec
+        type(str_t), allocatable :: names(:), inputs(:)
+        character(:), allocatable :: first, second, first_lhs, first_rhs
+        character(:), allocatable :: second_lhs, second_rhs, parse_message
+        integer :: first_eq, second_eq, first_width, second_width
+        integer :: ninputs, j
+        logical :: parsed, representable
+
+        code = str("")
+        handled = .false.
+        ok = .true.
+        message = ""
+        if (nstatements /= 2) return
+
+        first = chars(statements(1))
+        second = chars(statements(2))
+        first_eq = top_level_assignment(first)
+        second_eq = top_level_assignment(second)
+        if (first_eq == 0 .or. second_eq == 0) return
+
+        first_width = 1
+        if (first(first_eq:first_eq) == ":") first_width = 2
+        second_width = 1
+        if (second(second_eq:second_eq) == ":") second_width = 2
+        first_lhs = trim(adjustl(first(:first_eq - 1)))
+        first_rhs = trim(adjustl(first(first_eq + first_width:)))
+        second_lhs = trim(adjustl(second(:second_eq - 1)))
+        second_rhs = trim(adjustl(second(second_eq + second_width:)))
+        if (.not. valid_target_name(first_lhs) .or. &
+            .not. valid_target_name(second_lhs)) return
+        if (first_lhs /= second_lhs) return
+        handled = .true.
+        if (len(first_rhs) == 0 .or. len(second_rhs) == 0) then
+            ok = .false.
+            message = "scalar reassignment needs two right-hand sides"
+            return
+        end if
+        if (symbol_occurs(first_rhs, first_lhs)) then
+            ok = .false.
+            message = "first scalar assignment may not read its target"
+            return
+        end if
+
+        first_root = parse_expr_in(a, first_rhs, dialect(DIA_WOLFRAM), parsed, &
+            parse_message)
+        if (.not. parsed) then
+            ok = .false.
+            message = "cannot parse first scalar assignment: "//parse_message
+            return
+        end if
+        second_root = parse_expr_in(a, second_rhs, dialect(DIA_WOLFRAM), parsed, &
+            parse_message)
+        if (.not. parsed) then
+            ok = .false.
+            message = "cannot parse second scalar assignment: "//parse_message
+            return
+        end if
+        target_symbol = sym(a, first_lhs)
+        final_root = subs_many(second_root, [target_symbol], [first_root])
+        if (final_root%node_count() > MAX_EXPRESSION_NODES) then
+            ok = .false.
+            message = "expanded scalar reassignment exceeds the bounded node limit"
+            return
+        end if
+        representable = supported_fortran_expression(final_root)
+        if (.not. representable) then
+            ok = .false.
+            message = "scalar reassignment is outside the supported scalar Fortran grammar"
+            return
+        end if
+
+        allocate (inputs(MAX_ASSIGNMENTS))
+        ninputs = 0
+        names = free_symbols_of(final_root)
+        do j = 1, size(names)
+            if (.not. valid_input_name(chars(names(j)))) then
+                ok = .false.
+                message = "right-hand side contains a non-Fortran symbol: "// &
+                    chars(names(j))
+                return
+            end if
+            if (same_fortran_name(chars(names(j)), first_lhs)) then
+                ok = .false.
+                message = "recursive scalar reassignment is unsupported"
+                return
+            end if
+            if (.not. name_in_list(chars(names(j)), inputs, ninputs)) then
+                ninputs = ninputs + 1
+                inputs(ninputs) = names(j)
+            end if
+        end do
+
+        spec%name = str(GENERATED_NAME)
+        spec%mode = KERNEL_SUBROUTINE
+        spec%generator = str("fortsym_wl_f90")
+        spec%regenerate_command = str("fortsym_wl_to_f90 input.wl output.f90")
+        spec%temp_prefix = str(TEMP_PREFIX)
+        allocate (spec%args(ninputs), spec%outputs(1))
+        if (ninputs > 0) spec%args = inputs(1:ninputs)
+        spec%outputs(1) = str(first_lhs)
+        code = emit_kernel([final_root], spec, representable)
+        if (len(chars(code)) == 0) then
+            ok = .false.
+            message = "scalar reassignment could not be emitted as Fortran"
+        end if
+    end subroutine translate_bounded_scalar_reassignment
 
     !> Lower the one-step, stateless While form that is always bounded.
     !>
