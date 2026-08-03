@@ -31,7 +31,6 @@ module fortsym_wl_solve
         operator(+), operator(-), operator(*), operator(/)
     use fortsym_engine, only: engine_t, engine_result_t, VERDICT_TRUE, wall_seconds
     use fortsym_polysolve, only: solve_polynomial
-    use fortsym_poly, only: poly_together, poly_numerator, poly_denominator
     use fortsym_linalg, only: solve_exact_linear_system, &
         exact_linear_system_result_t
     use fortsym_subs, only: subs
@@ -124,11 +123,10 @@ contains
         character(:), allocatable, intent(out)   :: why
         type(expr_t)                             :: r
         type(expr_t), allocatable :: roots(:), rules(:)
-        type(expr_t)          :: resid, together, numerator, denominator, probe
+        type(expr_t)          :: resid
         type(engine_result_t) :: res
-        type(engine_result_t) :: verdict
         character(:), allocatable :: poly_why
-        logical :: good, together_ok
+        logical :: good
         integer :: k
 
         r = eqn
@@ -151,46 +149,6 @@ contains
             r = rule_set(a, rules)
             why = ""
             return
-        end if
-
-        ! A rational equation can have a polynomial numerator without being a
-        ! polynomial syntactically. Clear denominators only through the audited
-        ! Together route, and accept a root only after the solver's numerator
-        ! proof and the original denominator are independently checked. This covers
-        ! bounded rearrangements such as s == (1 + g)/(1 - g) without turning
-        ! Solve into a general rational or transcendental solver.
-        call poly_together(a, resid, together, together_ok, poly_why)
-        if (together_ok) then
-            numerator = poly_numerator(a, together)
-            denominator = poly_denominator(a, together)
-            call solve_polynomial(a, numerator, var, roots, ok, poly_why)
-            if (.not. ok) then
-                res = solve_symbolic_linear_equation(engine, numerator, var)
-                if (res%ok) then
-                    deallocate (roots)
-                    allocate (roots(1))
-                    roots(1) = res%value
-                    ok = .true.
-                end if
-            end if
-            if (ok) then
-                do k = 1, size(roots)
-                    probe = subs(denominator, var, roots(k))
-                    verdict = engine%zero_test(probe)
-                    if (verdict%verdict == VERDICT_TRUE) then
-                        ok = .false.
-                        why = "rational root has a zero denominator"
-                        return
-                    end if
-                end do
-                allocate (rules(size(roots)))
-                do k = 1, size(roots)
-                    rules(k) = single_rule(var, roots(k))
-                end do
-                r = rule_set(a, rules)
-                why = ""
-                return
-            end if
         end if
 
         ! Not a polynomial in the unknown, or of a degree with no exact root

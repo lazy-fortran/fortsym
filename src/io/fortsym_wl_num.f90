@@ -28,7 +28,6 @@ module fortsym_wl_num
     public :: wl_first, wl_last, wl_rest, wl_most, wl_reverse, wl_take, wl_drop
     public :: list_slice
     public :: wl_range, wl_diagonal, wl_diagonal_matrix
-    public :: wl_levi_civita_tensor
     public :: N_MAX_DIGITS, CHOP_DEFAULT
 
     integer, parameter :: dp = real64
@@ -839,59 +838,6 @@ contains
         r = func("List", rows)
         ok = .true.
     end function wl_identity_matrix
-
-    !> LeviCivitaTensor[3] as an explicit three-dimensional List.
-    !>
-    !> The native evaluator only needs the rank-three tensor used by the
-    !> corpus' curvilinear-coordinate curls. Returning the concrete tensor
-    !> makes Part and subsequent symbolic differentiation see the same list
-    !> structure as Wolfram, while keeping the implementation bounded.
-    function wl_levi_civita_tensor(a, n, ok, why) result(r)
-        type(arena_t), target,     intent(inout) :: a
-        integer,                   intent(in)    :: n
-        logical,                   intent(out)   :: ok
-        character(:), allocatable, intent(out)   :: why
-        type(expr_t)                             :: r
-        type(expr_t), allocatable                :: planes(:), rows(:), entries(:)
-        integer                                  :: i, j, k
-
-        r = num(a, 0)
-        ok = .false.
-        why = ""
-        if (n /= 3) then
-            why = "LeviCivitaTensor currently supports rank 3 only"
-            return
-        end if
-
-        allocate (planes(3), rows(3), entries(3))
-        do i = 1, 3
-            do j = 1, 3
-                do k = 1, 3
-                    entries(k) = num(a, levi_civita_3(i, j, k))
-                end do
-                rows(j) = func("List", entries)
-            end do
-            planes(i) = func("List", rows)
-        end do
-        r = func("List", planes)
-        ok = .true.
-    end function wl_levi_civita_tensor
-
-    !> The sign of the three-dimensional permutation, with repeated indices 0.
-    pure function levi_civita_3(i, j, k) result(value)
-        integer, intent(in) :: i, j, k
-        integer             :: value
-
-        if (i == j .or. i == k .or. j == k) then
-            value = 0
-        else if ((i == 1 .and. j == 2 .and. k == 3) .or. &
-                 (i == 2 .and. j == 3 .and. k == 1) .or. &
-                 (i == 3 .and. j == 1 .and. k == 2)) then
-            value = 1
-        else
-            value = -1
-        end if
-    end function levi_civita_3
 
     !> Cross[x, y] for two three-component vectors.
     !>

@@ -49,7 +49,6 @@ module fortsym_wl
         wl_trace, wl_length, wl_flatten, wl_append, wl_join, wl_range, &
         wl_diagonal, wl_diagonal_matrix, wl_first, wl_last, wl_rest, wl_most, wl_reverse, &
         wl_take, wl_drop, list_slice, &
-        wl_levi_civita_tensor, &
         CHOP_DEFAULT
     use fortsym_integrate, only: integrate
     use fortsym_defint, only: definite_integral
@@ -1788,24 +1787,6 @@ contains
         inner = apply_bindings(s, e%arg(1))
         do k = e%nargs(), 2, -1
             spec = e%arg(k)
-
-            ! The bounded native integrators do not consume assumptions, but
-            ! an explicit Assumptions option does not alter an integral that
-            ! they can prove from its algebra and bounds. Accept only that
-            ! named option; every other option remains a refusal rather than
-            ! being silently ignored.
-            if (spec%kind() == NK_FUNC) then
-                if (chars(spec%name()) == "Rule") then
-                    if (spec%nargs() == 2) then
-                        var = spec%arg(1)
-                        if (var%kind() == NK_SYM) then
-                            if (chars(var%name()) == "Assumptions") cycle
-                        end if
-                    end if
-                    call refuse(ok, message, "Integrate option is not implemented")
-                    return
-                end if
-            end if
 
             if (spec%kind() == NK_SYM) then
                 inner = integrate(s%a, inner, spec, ok, why)
@@ -4145,12 +4126,10 @@ contains
         type(expr_t),       intent(in)    :: e
         logical,            intent(out)   :: ok
         type(str_t),        intent(out)   :: message
-        type(expr_t)                      :: r, spec, base
+        type(expr_t)                      :: r, spec
         integer :: k, index, first, last, j
         character(:), allocatable :: why
         type(expr_t), allocatable :: items(:)
-        logical :: item_ok
-        type(str_t) :: item_message
 
         ok = .true.
         message = str("")
@@ -4162,36 +4141,6 @@ contains
         end if
 
         r = e%arg(1)
-        if (r%kind() == NK_FUNC) then
-            if (chars(r%name()) == "Solve") then
-                base = wl_eval(s, r, item_ok, item_message)
-                if (.not. item_ok) then
-                    call refuse(ok, message, "Part base: "//chars(item_message))
-                    return
-                end if
-                r = base
-            end if
-        end if
-        base = r
-        if (r%kind() == NK_SYM) base = apply_bindings(s, r)
-        if (base%kind() == NK_FUNC) then
-            if (chars(base%name()) == "LeviCivitaTensor") then
-                if (base%nargs() /= 1) then
-                    call refuse(ok, message, "LeviCivitaTensor needs one rank")
-                    return
-                end if
-                if (.not. exact_small_int(base%arg(1), index)) then
-                    call refuse(ok, message, "LeviCivitaTensor needs an exact rank")
-                    return
-                end if
-                base = wl_levi_civita_tensor(s%a, index, ok, why)
-                if (.not. ok) then
-                    call refuse(ok, message, "LeviCivitaTensor: "//why)
-                    return
-                end if
-                r = base
-            end if
-        end if
         do k = 2, e%nargs()
             spec = e%arg(k)
             if (r%kind() /= NK_FUNC .or. chars(r%name()) /= "List") then
