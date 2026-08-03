@@ -298,16 +298,17 @@ Mathics inventory remains 255 rows, with 60 errors and 69 bounded timeouts.
 
 ## Current corpus state
 
-The v71 audit on 2026-08-03 uses native commit `1e937ed`, SymPy cache version
-28, and Mathics3 10.0.1 installed as a UV tool. It reports 3,865 agreements,
-470 declared differences, 7 unsupported outcomes, 76 timeouts, 61 backend
-errors, 2 unavailable oracle rows, 205 oracle disagreements, and 342
-oracle-missing bindings across 4,885 bindings. The one-worker cold audit took
-1:11.60 and peaked at 1.61 GiB RSS; the warm compact-cache audit takes 0.75
+The v74 audit on 2026-08-03 uses native commit `102608f`, SymPy cache version
+29, and Mathics3 10.0.1 installed as a UV tool. It reports 3,864 agreements,
+472 declared differences, 7 unsupported outcomes, 76 timeouts, 61 backend
+errors, 2 unavailable oracle rows, 205 oracle disagreements, and 340
+oracle-missing bindings across 4,884 bindings. The one-worker cold audit took
+1:10.89 and peaked at 1.61 GiB RSS; the warm compact-cache audit takes 0.90
 seconds at 492 MiB RSS. Exact identity-matrix powers, bounded `Do`, numeric
-`Abs`, Mathics algebraic-root protection, native matrix `Dot` threading, and
-named-blank `RuleDelayed` matching are covered by independent tests. Full
-corpus parity remains open work.
+`Abs`, Mathics algebraic-root protection, named-derivative SymPy lowering,
+native matrix `Dot` threading, and named-blank `RuleDelayed` matching are
+covered by independent tests. A trial Levi-Civita lowering was reverted after
+its measured corpus regression. Full corpus parity remains open work.
 
 ## Build
 
