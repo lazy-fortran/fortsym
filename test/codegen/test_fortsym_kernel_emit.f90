@@ -106,6 +106,24 @@ contains
         call ok("CUDA emitter maps powers to CUDA math", &
             index(chars(cuda_source), "pow(") > 0)
 
+        spec%args = [str("x"), str("bad-name")]
+        fortran_source = emit_fortran_kernel_ir(ir, spec, good, message)
+        call ok("invalid identifiers are refused", .not. good)
+
+        spec%args = [str("x"), str("x")]
+        fortran_source = emit_fortran_kernel_ir(ir, spec, good, message)
+        call ok("duplicate arguments are refused", .not. good)
+
+        spec%args = [str("x"), str("y")]
+        spec%outputs = [str("r"), str("r")]
+        cuda_source = emit_cuda_device_ir(ir, spec, good, message)
+        call ok("duplicate outputs are refused", .not. good)
+
+        spec%outputs = [str("r"), str("s")]
+        spec%args = [str("x"), str("y")]
+        cuda_source = emit_cuda_device_ir(ir, spec, good, message)
+        call ok("CUDA emitter restores the valid specification", good)
+
         call execute_command_line("command -v nvcc > /dev/null 2>&1", &
             wait=.true., exitstat=stat)
         if (stat /= 0) then
@@ -151,6 +169,7 @@ contains
                 exitstat=stat)
             call ok("generated CUDA agrees with independent oracle", stat == 0)
         end if
+
     end subroutine test_emitters_share_ir
 
 end program test_fortsym_kernel_emit

@@ -179,8 +179,8 @@ contains
 
         ok = .false.
         message = ""
-        if (len(chars(spec%name)) == 0) then
-            message = "kernel emitter: kernel name is empty"
+        if (.not. valid_identifier(chars(spec%name))) then
+            message = "kernel emitter: kernel name is invalid"
             return
         end if
         if (.not. allocated(spec%args)) then
@@ -205,19 +205,35 @@ contains
             return
         end if
         do k = 1, size(spec%args)
-            if (len(chars(spec%args(k))) == 0) then
-                message = "kernel emitter: argument name is empty"
+            if (.not. valid_identifier(chars(spec%args(k)))) then
+                message = "kernel emitter: argument name is invalid"
+                return
+            end if
+            if (duplicate_name(spec%args, k)) then
+                message = "kernel emitter: argument names are duplicated"
                 return
             end if
         end do
         do k = 1, size(spec%outputs)
-            if (len(chars(spec%outputs(k))) == 0) then
-                message = "kernel emitter: output name is empty"
+            if (.not. valid_identifier(chars(spec%outputs(k)))) then
+                message = "kernel emitter: output name is invalid"
+                return
+            end if
+            if (duplicate_name(spec%outputs, k)) then
+                message = "kernel emitter: output names are duplicated"
+                return
+            end if
+            if (is_argument(chars(spec%outputs(k)), spec%args)) then
+                message = "kernel emitter: input and output names overlap"
                 return
             end if
         end do
         prefix = chars(spec%temp_prefix)
         if (len(prefix) == 0) prefix = "t"
+        if (.not. valid_identifier(prefix)) then
+            message = "kernel emitter: temporary prefix is invalid"
+            return
+        end if
 
         do k = 1, ir%n_nodes
             first = ir%nodes(k)%first_operand
@@ -302,6 +318,39 @@ contains
         end do
         ok = .true.
     end subroutine validate
+
+    logical function valid_identifier(name)
+        character(*), intent(in) :: name
+        integer :: k, code
+
+        valid_identifier = .false.
+        if (len(name) == 0) return
+        code = iachar(name(1:1))
+        if (.not. ((code >= iachar("A") .and. code <= iachar("Z")) .or. &
+            (code >= iachar("a") .and. code <= iachar("z")))) return
+        do k = 2, len(name)
+            code = iachar(name(k:k))
+            if (.not. ((code >= iachar("A") .and. code <= iachar("Z")) .or. &
+                (code >= iachar("a") .and. code <= iachar("z")) .or. &
+                (code >= iachar("0") .and. code <= iachar("9")) .or. &
+                code == iachar("_"))) return
+        end do
+        valid_identifier = .true.
+    end function valid_identifier
+
+    logical function duplicate_name(names, index)
+        type(str_t), intent(in) :: names(:)
+        integer, intent(in) :: index
+        integer :: k
+
+        duplicate_name = .false.
+        do k = 1, index - 1
+            if (chars(names(k)) == chars(names(index))) then
+                duplicate_name = .true.
+                return
+            end if
+        end do
+    end function duplicate_name
 
     function render_node(ir, index, prefix, backend, ok, message) result(text)
         type(kernel_ir_t), intent(in) :: ir
@@ -466,8 +515,8 @@ contains
         supported_function = .false.
         select case (name)
         case ("sin", "cos", "tan", "asin", "acos", "atan", "atan2", &
-            "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", &
-            "log", "sqrt", "abs", "erf", "erfc")
+                "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", &
+                "log", "sqrt", "abs", "erf", "erfc")
             supported_function = .true.
         case ("gamma")
             supported_function = backend == BACKEND_FORTRAN .or. &

@@ -641,7 +641,15 @@ symbolic arena and IR must not acquire backend syntax or launch state.
 - [x] Lower a reachable expression DAG into a deterministic, topological IR
   with explicit operands, output roots, typed literals, and named symbols.
 - [x] Emit equivalent Fortran and CUDA device leaves from the same IR and
-  validate both against an independent numerical oracle.
+  validate both against an independent numerical oracle. The emitter now
+  refuses invalid identifiers, duplicate arguments or outputs, input/output
+  name overlap, and invalid temporary prefixes before producing source.
+
+The CUDA result is deliberately a scalar `__device__` leaf. It has no launch
+geometry, allocation, stream, or autodiff policy; those belong to the consumer
+backend. This keeps the same IR suitable for later HIP and SYCL emitters and
+lets FortML own its resident tiled wrapper while consuming a proven source
+generation contract.
 
 ## Roadmap maintenance
 
