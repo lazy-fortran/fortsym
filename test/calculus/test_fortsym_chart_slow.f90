@@ -1,4 +1,4 @@
-program test_fortsym_chart
+program test_fortsym_chart_slow
     ! Differential geometry, checked against the identities that hold for any
     ! chart.
     !
@@ -48,12 +48,12 @@ program test_fortsym_chart
     ! inside it where a reader -- and fo lint -- cannot see it. Stating it here
     ! as well makes this program's own failure path explicit.
     if (s%failed /= 0) then
-        print *, "test_fortsym_chart: ", s%failed, " check(s) FAILED"
+        print *, "test_fortsym_chart_slow: ", s%failed, " check(s) FAILED"
         error stop 1
     end if
 
     call suite_end(s, "/tmp/fortsym_chart.json")
-    print *, "test_fortsym_chart: all checks passed"
+    print *, "test_fortsym_chart_slow: all checks passed"
 
 contains
 
@@ -245,4 +245,4 @@ contains
         t = label(1:n)
     end function trim_label
 
-end program test_fortsym_chart
+end program test_fortsym_chart_slow
