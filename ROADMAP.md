@@ -644,6 +644,10 @@ symbolic arena and IR must not acquire backend syntax or launch state.
   validate both against an independent numerical oracle. The emitter now
   refuses invalid identifiers, duplicate arguments or outputs, input/output
   name overlap, and invalid temporary prefixes before producing source.
+- [x] Add the `gen_rbf_leaf` consumer generator and commit its FortML Fortran
+  output with the exact FortSym revision and regeneration command. FortML's
+  independent kernel tests now consume that generated primal leaf; generated
+  derivative products remain consumer-owned until their ABI is complete.
 
 The 2026-08-06 native `fo` run compiled and executed both generated leaves;
 the CUDA fixture used `nvcc` and the device oracle on the available NVIDIA
