@@ -640,7 +640,7 @@ symbolic arena and IR must not acquire backend syntax or launch state.
 
 - [x] Lower a reachable expression DAG into a deterministic, topological IR
   with explicit operands, output roots, typed literals, and named symbols.
-- [ ] Emit equivalent Fortran and CUDA device leaves from the same IR and
+- [x] Emit equivalent Fortran and CUDA device leaves from the same IR and
   validate both against an independent numerical oracle.
 
 ## Roadmap maintenance
