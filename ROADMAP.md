@@ -632,6 +632,17 @@ checks it against an independently derived numeric Fortran oracle. Control
 flow, forward or reassigned names, arrays, non-Fortran names, and unsupported
 expression forms remain intentionally refused.
 
+The code-generation boundary is being split into a backend-neutral kernel IR
+and separate emitters. The IR owns the lowered, shared DAG and output roots;
+Fortran, CUDA, HIP, and SYCL emitters own syntax, capability checks, and launch
+policy. A backend-specific `select case` is acceptable at that edge, but the
+symbolic arena and IR must not acquire backend syntax or launch state.
+
+- [x] Lower a reachable expression DAG into a deterministic, topological IR
+  with explicit operands, output roots, typed literals, and named symbols.
+- [ ] Emit equivalent Fortran and CUDA device leaves from the same IR and
+  validate both against an independent numerical oracle.
+
 ## Roadmap maintenance
 
 The top-level roadmap is the release-level plan. `doc/roadmap.md` holds the
