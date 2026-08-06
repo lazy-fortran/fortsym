@@ -38,3 +38,4 @@ __pycache__/
 
 # Agent worktrees and scratch state. Never repository content.
 .claude/
+.provenance/
