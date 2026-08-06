@@ -645,6 +645,12 @@ symbolic arena and IR must not acquire backend syntax or launch state.
   refuses invalid identifiers, duplicate arguments or outputs, input/output
   name overlap, and invalid temporary prefixes before producing source.
 
+The 2026-08-06 native `fo` run compiled and executed both generated leaves;
+the CUDA fixture used `nvcc` and the device oracle on the available NVIDIA
+toolchain. The emitted CUDA object remains a backend-owned scalar device leaf:
+launch geometry, residency, and autodiff stay in FortML, so HIP/SYCL can use
+the same IR boundary later.
+
 The CUDA result is deliberately a scalar `__device__` leaf. It has no launch
 geometry, allocation, stream, or autodiff policy; those belong to the consumer
 backend. This keeps the same IR suitable for later HIP and SYCL emitters and
