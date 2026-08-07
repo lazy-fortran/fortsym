@@ -353,6 +353,16 @@ contains
         text = chars(print_expr_in(x**2, d))
         call eq_text("fortran integer exponent stays integer", text, "x**2")
 
+        ! MAX and MIN require homogeneous argument types.  Kernel symbols are
+        ! real(dp), so exact integer bounds must acquire the same real kind at
+        ! this call site without changing integer-only contexts above.
+        text = chars(print_expr_in(func("max", [num(a, 0), x]), d))
+        call eq_text("fortran max types exact bound as real", text, &
+            "max(0.0_dp, x)")
+        text = chars(print_expr_in(func("min", [x, num(a, -1)]), d))
+        call eq_text("fortran min types exact bound as real", text, &
+            "min(x, -1.0_dp)")
+
         text = chars(print_expr_in(exact(a, "18446744073709551616"), d))
         call eq_text("fortran large integer projects to binary64", text, &
             "1.8446744073709552E+019_dp")

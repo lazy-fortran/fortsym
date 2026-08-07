@@ -1014,6 +1014,18 @@ contains
         integer,         intent(in)    :: ids(:)
         type(str_t),     intent(in)    :: names(:)
         integer :: k
+        character(:), allocatable :: canonical_name
+        logical :: homogeneous_real_arguments
+
+        canonical_name = chars(a%name_of(id))
+        ! Generated kernels declare their scalar symbols as real(dp).  Fortran
+        ! requires every argument of the generic MAX and MIN intrinsics to have
+        ! the same declared type and kind, so an exact bound such as zero must
+        ! be emitted as 0.0_dp beside a symbolic real argument.  This is a
+        ! call-site typing rule: integer powers and discrete Bessel orders must
+        ! remain integers.
+        homogeneous_real_arguments = d%id == DIA_FORTRAN .and. &
+            (canonical_name == "max" .or. canonical_name == "min")
 
         ! List[] is an internal spelling for the empty list. Wolfram's
         ! InputForm writes that value as {}, and preserving the surface form is
@@ -1025,7 +1037,7 @@ contains
             return
         end if
 
-        call b%append(chars(fn_spelling(d, chars(a%name_of(id)))))
+        call b%append(chars(fn_spelling(d, canonical_name)))
         ! Wolfram applies with brackets. Emitting parentheses here would produce
         ! text this dialect's own parser reads as a product, so the round trip
         ! would silently change the expression instead of failing.
@@ -1038,7 +1050,13 @@ contains
             if (k > 1) call b%append(", ")
             ! Arguments sit inside brackets already, so they need none of
             ! their own whatever their precedence.
-            call emit(b, a, a%arg_of(id, k), d, PREC_ADD, ids, names)
+            if (homogeneous_real_arguments .and. &
+                    a%kind_of(a%arg_of(id, k)) == NK_INT .and. &
+                    subst_slot(a%arg_of(id, k), ids) == 0) then
+                call emit_integer_as_real(b, a, a%arg_of(id, k), d)
+            else
+                call emit(b, a, a%arg_of(id, k), d, PREC_ADD, ids, names)
+            end if
         end do
         if (d%bracket_application) then
             call b%append("]")
@@ -1046,5 +1064,18 @@ contains
             call b%append(")")
         end if
     end subroutine emit_function
+
+    !> Emit a compact exact integer in the real kind used by generated kernels.
+    !> This is intentionally called only from typed intrinsic-argument sites;
+    !> applying it globally would turn integer exponents into real powers.
+    subroutine emit_integer_as_real(b, a, id, d)
+        type(strbuf_t),  intent(inout) :: b
+        type(arena_t),   intent(in)    :: a
+        integer,         intent(in)    :: id
+        type(dialect_t), intent(in)    :: d
+
+        call b%append(chars(str(a%num_of(id))))
+        call b%append(chars(d%int_real_suffix))
+    end subroutine emit_integer_as_real
 
 end module fortsym_print
