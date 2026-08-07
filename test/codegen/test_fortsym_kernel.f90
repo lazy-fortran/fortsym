@@ -41,6 +41,7 @@ program test_fortsym_kernel
     call test_device_leaf_annotations()
     call test_product_codegen_scales_linearly()
     call test_simplified_negative_product_emission()
+    call test_undeclared_symbol_is_refused()
     call test_pure_procedure()
     call test_ordering_is_topological()
     call test_codegen_is_construction_history_independent()
@@ -721,6 +722,21 @@ contains
             index(code, "pure subroutine k") > 0)
     end subroutine test_pure_procedure
 
+    subroutine test_undeclared_symbol_is_refused()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+        logical :: accepted
+
+        call a%init()
+        roots(1) = parsed(a, "x + undeclared_parameter")
+        spec = spec_for("k", ["x"], ["r"])
+        code = chars(emit_kernel(roots, spec, accepted))
+        call ok("undeclared kernel symbol is refused", .not. accepted)
+        call ok("refused kernel source is empty", len(code) == 0)
+    end subroutine test_undeclared_symbol_is_refused
+
     !> A temporary must be assigned before anything uses it.
     subroutine test_ordering_is_topological()
         type(arena_t), target :: a
@@ -764,7 +780,10 @@ contains
         roots(1) = parsed(a, &
             "aaaa*bbbb + cccc*dddd + eeee*ffff + gggg*hhhh + iiii*jjjj + "// &
             "kkkk*llll + mmmm*nnnn + oooo*pppp + qqqq*rrrr + ssss*tttt")
-        code = chars(emit_kernel(roots, spec_for("k", ["aaaa"], ["r"])))
+        code = chars(emit_kernel(roots, spec_for("k", &
+            ["aaaa", "bbbb", "cccc", "dddd", "eeee", "ffff", "gggg", &
+            "hhhh", "iiii", "jjjj", "kkkk", "llll", "mmmm", "nnnn", &
+            "oooo", "pppp", "qqqq", "rrrr", "ssss", "tttt"], ["r"])))
 
         call ok("long statement is continued", index(code, "&") > 0)
 
@@ -777,7 +796,9 @@ contains
         roots(1) = parsed(a, &
             "1.0e-8*aaaa + 1.0e-8*bbbb + 1.0e-8*cccc + 1.0e-8*dddd + "// &
             "1.0e-8*eeee + 1.0e-8*ffff + 1.0e-8*gggg + 1.0e-8*hhhh")
-        code = chars(emit_kernel(roots, spec_for("k", ["aaaa"], ["r"])))
+        code = chars(emit_kernel(roots, spec_for("k", &
+            ["aaaa", "bbbb", "cccc", "dddd", "eeee", "ffff", "gggg", &
+            "hhhh"], ["r"])))
         call ok("never breaks inside an exponent", index(code, "e- &") == 0)
         call ok("never breaks after an exponent sign", index(code, "e-&") == 0)
 
@@ -814,7 +835,8 @@ contains
             if (simplified%ok) products(k) = simplified%value
         end do
         code = chars(emit_kernel(products, spec_for("k", &
-            ["target", "node_1", "node_2", "node_3", "node_4"], &
+            [character(len=12) :: "target", "node_1", "node_2", "node_3", "node_4", &
+            "weight_1_bar", "weight_2_bar", "weight_3_bar", "weight_4_bar"], &
             ["target_bar", "node_1_bar", "node_2_bar", "node_3_bar", &
             "node_4_bar"])))
         call ok("power operator is exercised", index(code, "**") > 0)
