@@ -1020,7 +1020,7 @@ contains
         ! necessary for an independent parser to distinguish it from an empty
         ! call such as Directory[].
         if (d%id == DIA_WOLFRAM .and. chars(a%name_of(id)) == "List" .and. &
-                a%nargs_of(id) == 0) then
+            a%nargs_of(id) == 0) then
             call b%append("{}")
             return
         end if
@@ -1038,7 +1038,17 @@ contains
             if (k > 1) call b%append(", ")
             ! Arguments sit inside brackets already, so they need none of
             ! their own whatever their precedence.
-            call emit(b, a, a%arg_of(id, k), d, PREC_ADD, ids, names)
+            if (d%id == DIA_FORTRAN .and. &
+                a%kind_of(a%arg_of(id, k)) == NK_INT .and. &
+                .not. fortran_intrinsic_integer_argument(a, id, k)) then
+                ! Kernel arguments are real scalars. Fortran does not convert
+                ! integer actual arguments for generic intrinsics such as
+                ! max/min/atan2, even when another argument is real.
+                call b%append(chars(str(a%num_of(a%arg_of(id, k)))))
+                call b%append(chars(d%int_real_suffix))
+            else
+                call emit(b, a, a%arg_of(id, k), d, PREC_ADD, ids, names)
+            end if
         end do
         if (d%bracket_application) then
             call b%append("]")
@@ -1046,5 +1056,16 @@ contains
             call b%append(")")
         end if
     end subroutine emit_function
+
+    pure function fortran_intrinsic_integer_argument(a, id, position) &
+            result(is_integer)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id, position
+        logical :: is_integer
+
+        ! Fortran's bessel_jn takes an integer order followed by a real value.
+        ! Other supported mathematical kernel arguments are real scalars.
+        is_integer = chars(a%name_of(id)) == "besselj" .and. position == 1
+    end function fortran_intrinsic_integer_argument
 
 end module fortsym_print
