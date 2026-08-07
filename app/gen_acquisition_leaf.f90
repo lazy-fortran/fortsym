@@ -96,6 +96,9 @@ program gen_acquisition_leaf
     spec%outputs = [str('ei'), str('ei_d_mu'), str('ei_d_sigma'), &
         str('pi_value'), str('pi_d_mu'), str('pi_d_sigma')]
     spec%temp_prefix = str('t')
+    ! FortBO calls this leaf from `pure` scalar helpers, so the emitted
+    ! procedure must itself be pure.
+    spec%pure_procedure = .true.
     spec%generator = str('gen_acquisition_leaf')
     spec%generator_revision = str(trim(revision(:revision_length)))
     spec%regenerate_command = str( &
