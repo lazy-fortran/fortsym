@@ -78,6 +78,11 @@ module fortsym_kernel
         logical                  :: openmp_declare_target = .false.
         !> Mark a generated leaf kernel for sequential OpenACC device calls.
         logical                  :: openacc_routine_seq = .false.
+        !> Request NVFORTRAN source-directed inlining. The compiler honors this
+        !> only with -Minline=pragma; other Fortran compilers treat it as a
+        !> comment. Keeping the request in generated source lets hot device
+        !> leaves opt in without imposing NVIDIA flags on every consumer.
+        logical                  :: nvfortran_inline = .false.
         !> Emit a side-effect-free Fortran subroutine.
         logical                  :: pure_procedure = .false.
         !> Emit an elemental subroutine. Elemental dummy arguments must remain
@@ -506,6 +511,10 @@ contains
         scalar_type = chars(spec%scalar_type)
         if (len(scalar_type) == 0) scalar_type = "real(dp)"
 
+        if (spec%nvfortran_inline) then
+            call b%append("!NVF$ INLINE")
+            call b%newline()
+        end if
         if (spec%pure_procedure) call header%append("pure ")
         if (spec%elemental_procedure) call header%append("elemental ")
         call header%append("subroutine ")
