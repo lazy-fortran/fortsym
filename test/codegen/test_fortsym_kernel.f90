@@ -33,6 +33,7 @@ program test_fortsym_kernel
     call test_explicit_regeneration_command()
     call test_generator_revision()
     call test_module_wrapper()
+    call test_intrinsic_integer_argument_is_real()
     call test_complex_kernel()
     call test_array_shaped_arguments()
     call test_rank_two_array_arguments()
@@ -359,6 +360,50 @@ contains
             call ok("module-wrapped kernel runs", stat == 0)
         end if
     end subroutine test_module_wrapper
+
+    subroutine test_intrinsic_integer_argument_is_real()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+        integer :: unit, ios, stat
+
+        call a%init()
+        roots(1) = func("max", [num(a, 0), sym(a, "x")])
+        spec = spec_for("clamp_zero", ["x"], ["r"])
+        spec%module_name = str("generated_clamp_zero")
+        code = chars(emit_kernel(roots, spec))
+
+        open (newunit=unit, file="/tmp/fortsym_gen_intrinsic.f90", &
+            status="replace", action="write", iostat=ios)
+        if (ios /= 0) then
+            call ok("intrinsic fixture opens", .false.)
+            return
+        end if
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_intrinsic"
+        write (unit, "(a)") "  use generated_clamp_zero, only: clamp_zero"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(dp) :: r"
+        write (unit, "(a)") "  call clamp_zero(-2.0_dp, r)"
+        write (unit, "(a)") "  if (r /= 0.0_dp) error stop 1"
+        write (unit, "(a)") "  call clamp_zero(3.0_dp, r)"
+        write (unit, "(a)") "  if (r /= 3.0_dp) error stop 2"
+        write (unit, "(a)") "end program drive_intrinsic"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -J /tmp -o /tmp/fortsym_gen_intrinsic "// &
+            "/tmp/fortsym_gen_intrinsic.f90 "// &
+            "> /tmp/fortsym_gen_intrinsic.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("real intrinsic literal kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_gen_intrinsic", &
+                wait=.true., exitstat=stat)
+            call ok("real intrinsic literal kernel runs", stat == 0)
+        end if
+    end subroutine test_intrinsic_integer_argument_is_real
 
     subroutine test_complex_kernel()
         type(arena_t), target :: a
