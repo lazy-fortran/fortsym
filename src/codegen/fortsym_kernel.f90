@@ -532,15 +532,43 @@ contains
 
         argument_length = len_trim(argument_name)
         symbol_length = len_trim(symbol_name)
-        matches = symbol_name(:symbol_length) == argument_name(:argument_length)
+        matches = same_fortran_name(symbol_name(:symbol_length), &
+            argument_name(:argument_length))
         if (matches) return
         matches = symbol_length > argument_length + 2
         if (.not. matches) return
-        matches = symbol_name(:argument_length) == argument_name(:argument_length)
+        matches = same_fortran_name(symbol_name(:argument_length), &
+            argument_name(:argument_length))
         if (.not. matches) return
         matches = symbol_name(argument_length + 1:argument_length + 1) == "(" .and. &
             symbol_name(symbol_length:symbol_length) == ")"
     end function symbol_matches_argument
+
+    pure function same_fortran_name(left, right) result(matches)
+        character(*), intent(in) :: left, right
+        logical :: matches
+        integer :: i
+
+        matches = len(left) == len(right)
+        if (.not. matches) return
+        do i = 1, len(left)
+            if (lower_ascii(left(i:i)) /= lower_ascii(right(i:i))) then
+                matches = .false.
+                return
+            end if
+        end do
+    end function same_fortran_name
+
+    pure function lower_ascii(character_value) result(lower)
+        character, intent(in) :: character_value
+        character :: lower
+
+        if (character_value >= "A" .and. character_value <= "Z") then
+            lower = achar(iachar(character_value) + iachar("a") - iachar("A"))
+        else
+            lower = character_value
+        end if
+    end function lower_ascii
 
     subroutine append_subroutine(b, roots, spec, res)
         type(strbuf_t), intent(inout) :: b

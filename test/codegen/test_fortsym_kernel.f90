@@ -42,6 +42,7 @@ program test_fortsym_kernel
     call test_product_codegen_scales_linearly()
     call test_simplified_negative_product_emission()
     call test_undeclared_symbol_is_refused()
+    call test_fortran_symbol_case_is_ignored()
     call test_pure_procedure()
     call test_ordering_is_topological()
     call test_codegen_is_construction_history_independent()
@@ -736,6 +737,21 @@ contains
         call ok("undeclared kernel symbol is refused", .not. accepted)
         call ok("refused kernel source is empty", len(code) == 0)
     end subroutine test_undeclared_symbol_is_refused
+
+    subroutine test_fortran_symbol_case_is_ignored()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+        logical :: accepted
+
+        call a%init()
+        roots(1) = parsed(a, "Phi_eff + x")
+        spec = spec_for("k", [character(len=7) :: "phi_eff", "x"], ["r"])
+        code = chars(emit_kernel(roots, spec, accepted))
+        call ok("Fortran kernel symbols match inputs case-insensitively", &
+            accepted .and. len(code) > 0)
+    end subroutine test_fortran_symbol_case_is_ignored
 
     !> A temporary must be assigned before anything uses it.
     subroutine test_ordering_is_topological()
