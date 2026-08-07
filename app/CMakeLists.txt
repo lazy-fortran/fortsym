@@ -10,6 +10,9 @@ target_link_libraries(gen_legendre_recurrence PRIVATE fortsym)
 add_executable(gen_rbf_derivatives gen_rbf_derivatives.f90)
 target_link_libraries(gen_rbf_derivatives PRIVATE fortsym)
 
+add_executable(gen_matern12_hvp gen_matern12_hvp.f90)
+target_link_libraries(gen_matern12_hvp PRIVATE fortsym)
+
 add_executable(gen_toroidal_kernels gen_toroidal_kernels.f90)
 target_link_libraries(gen_toroidal_kernels PRIVATE fortsym)
 
