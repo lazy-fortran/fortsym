@@ -18,6 +18,7 @@ module fortsym_kernel
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
     use fortsym_print, only: print_expr_sub, fortran_roots_representable
+    use fortsym_eval, only: free_symbols_of
     implicit none
     private
 
@@ -415,6 +416,7 @@ contains
         logical :: valid
 
         valid = fortran_roots_representable(roots)
+        if (valid) valid = kernel_symbols_are_declared(roots, spec%args)
         if (present(ok)) ok = valid
         if (.not. valid) then
             s = str("")
@@ -493,6 +495,52 @@ contains
 
         s = b%to_str()
     end function emit_kernel
+
+    !> Refuse a kernel whose expression DAG contains a symbol absent from the
+    !> declared input interface. Otherwise implicit-none compilation catches
+    !> the generator defect only after invalid source has already been written.
+    function kernel_symbols_are_declared(roots, args) result(valid)
+        type(expr_t), intent(in) :: roots(:)
+        type(str_t), allocatable, intent(in) :: args(:)
+        type(str_t), allocatable :: symbols(:)
+        logical :: valid, found
+        integer :: i, j, k
+
+        valid = .true.
+        do k = 1, size(roots)
+            symbols = free_symbols_of(roots(k))
+            do i = 1, size(symbols)
+                found = .false.
+                if (allocated(args)) then
+                    do j = 1, size(args)
+                        if (symbol_matches_argument(chars(symbols(i)), &
+                            chars(args(j)))) found = .true.
+                    end do
+                end if
+                if (.not. found) then
+                    valid = .false.
+                    return
+                end if
+            end do
+        end do
+    end function kernel_symbols_are_declared
+
+    function symbol_matches_argument(symbol_name, argument_name) result(matches)
+        character(*), intent(in) :: symbol_name, argument_name
+        logical :: matches
+        integer :: argument_length, symbol_length
+
+        argument_length = len_trim(argument_name)
+        symbol_length = len_trim(symbol_name)
+        matches = symbol_name(:symbol_length) == argument_name(:argument_length)
+        if (matches) return
+        matches = symbol_length > argument_length + 2
+        if (.not. matches) return
+        matches = symbol_name(:argument_length) == argument_name(:argument_length)
+        if (.not. matches) return
+        matches = symbol_name(argument_length + 1:argument_length + 1) == "(" .and. &
+            symbol_name(symbol_length:symbol_length) == ")"
+    end function symbol_matches_argument
 
     subroutine append_subroutine(b, roots, spec, res)
         type(strbuf_t), intent(inout) :: b
