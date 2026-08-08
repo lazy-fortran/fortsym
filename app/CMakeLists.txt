@@ -16,6 +16,9 @@ target_link_libraries(gen_matern12_hvp PRIVATE fortsym)
 add_executable(gen_matern32_hvp gen_matern32_hvp.f90)
 target_link_libraries(gen_matern32_hvp PRIVATE fortsym)
 
+add_executable(gen_matern52_hvp gen_matern52_hvp.f90)
+target_link_libraries(gen_matern52_hvp PRIVATE fortsym)
+
 add_executable(gen_toroidal_kernels gen_toroidal_kernels.f90)
 target_link_libraries(gen_toroidal_kernels PRIVATE fortsym)
 
