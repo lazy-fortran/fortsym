@@ -957,9 +957,29 @@ renders it verbatim, so one such name breaks several outputs to improve one.
 That the emission boundary currently checks numeric representability but not
 names is #72.
 
-Documentation lands with the code (#71). A convenience layer whose surrounding
-guidance still threads arenas by hand in every example will not be used, and the
-verbosity it removes stays in consumer programs.
+Names are **case-sensitive**, and that is a feature rather than an accident of
+strings. It is what lets `gamma` and `Gamma` be different symbols rendering as
+`\gamma` and `\Gamma`, and the same for `Phi`/`phi`, `Theta`/`theta`,
+`Sigma`/`sigma` and the ordinary distinctions between `B` and `b` or `T` and
+`t`. Half of standard notation is unavailable without it, which is a large part
+of why emitting LaTeX from these names works at all.
+
+Fortran identifiers are case-insensitive, so the two conventions meet at the
+emission boundary and only there. That case has to be **tolerated, not refused**:
+a derivation using both `Gamma` and `gamma` is correct, and rejecting it would
+push one output target's limitation back onto the mathematics. The symbolic
+layer and the typeset output keep both names exactly as written; the Fortran
+emitter resolves the collision deterministically, renames only the symbols that
+actually collide, and emits the mapping into the generated source so a kernel
+stays traceable to its derivation. What must never happen is the silent alias —
+two quantities sharing one variable, compiling cleanly, returning a wrong
+number (#72).
+
+Documentation lands with the code (#71), including the `symbolic` skill in the
+internal prompts repository. That skill teaches the explicit-arena form today
+and is read more often than any document here, so it is named in the issue
+rather than left to a general clause — no acceptance check in this repository
+can reach it, and #71 does not close while it is outstanding.
 
 ## Roadmap maintenance
 
