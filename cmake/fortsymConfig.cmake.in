@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(SymEngine 0.14 CONFIG)
+find_dependency(MPFR)
+find_dependency(FLINT)
+include("${CMAKE_CURRENT_LIST_DIR}/fortsymTargets.cmake")

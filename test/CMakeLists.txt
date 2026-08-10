@@ -69,7 +69,15 @@ fortsym_add_test(test_fortsym_toroidal calculus/test_fortsym_toroidal.f90)
 fortsym_add_test(test_fortsym_fparse parse_fortran/test_fortsym_fparse.f90)
 
 # --- C ABI over SymEngine ---
-fortsym_add_test(test_fortsym_capi capi/test_fortsym_capi.f90)
+add_executable(test_fortsym_capi capi/test_fortsym_capi.c)
+target_link_libraries(test_fortsym_capi PRIVATE fortsym)
+target_include_directories(test_fortsym_capi PRIVATE ${PROJECT_SOURCE_DIR}/src/capi)
+add_test(NAME test_fortsym_capi COMMAND test_fortsym_capi)
+add_executable(test_fortsym_header_cpp capi/test_fortsym_header.cpp)
+target_include_directories(test_fortsym_header_cpp PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/capi)
+target_link_libraries(test_fortsym_header_cpp PRIVATE fortsym)
+add_test(NAME test_fortsym_header_cpp COMMAND test_fortsym_header_cpp)
 
 # --- privacy-safe consumer evidence tooling ---
 find_package(Python3 COMPONENTS Interpreter REQUIRED)

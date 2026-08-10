@@ -4,6 +4,7 @@ project(fortsym LANGUAGES Fortran C CXX)
 
 # Standard install directory variables (CMAKE_INSTALL_BINDIR etc.).
 include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
 
 # Export compile_commands.json so clangd resolves the C++ shim include paths.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -54,3 +55,30 @@ if(FORTSYM_BUILD_TESTING)
     enable_testing()
     add_subdirectory(test)
 endif()
+
+install(TARGETS fortsym
+    EXPORT fortsymTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES src/capi/fortsym.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    FILES_MATCHING PATTERN "*.mod")
+install(EXPORT fortsymTargets
+    FILE fortsymTargets.cmake
+    NAMESPACE fortsym::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/fortsym)
+configure_package_config_file(
+    cmake/fortsymConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/fortsymConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/fortsym)
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/fortsymConfigVersion.cmake
+    VERSION 0.1.0
+    COMPATIBILITY SameMajorVersion)
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/fortsymConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/fortsymConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/fortsym)

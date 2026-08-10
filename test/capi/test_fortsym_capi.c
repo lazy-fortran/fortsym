@@ -1,0 +1,107 @@
+#include "fortsym.h"
+
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+static void expect_text(const fortsym_expr *expression, const char *expected)
+{
+    char buffer[256];
+    char message[128];
+    size_t required = 0;
+    int status = fortsym_expr_text(expression, buffer, sizeof buffer,
+                                   &required, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    if (required != strlen(expected) + 1 || strcmp(buffer, expected) != 0)
+        fprintf(stderr, "got [%s] required=%zu expected [%s]\\n", buffer,
+                required, expected);
+    assert(required == strlen(expected) + 1);
+    assert(strcmp(buffer, expected) == 0);
+}
+
+int main(void)
+{
+    char message[128];
+    char buffer[256];
+    size_t required = 0;
+    int64_t integer_value = 0;
+    int kind = 0;
+    int equal = 0;
+    int status;
+    fortsym_arena *arena = NULL;
+    fortsym_arena *other_arena = NULL;
+    fortsym_expr *x = NULL;
+    fortsym_expr *y = NULL;
+    fortsym_expr *one = NULL;
+    fortsym_expr *sum = NULL;
+    fortsym_expr *product = NULL;
+    fortsym_expr *derivative = NULL;
+    fortsym_expr *replacement = NULL;
+    fortsym_expr *substituted = NULL;
+    fortsym_expr *foreign = NULL;
+
+    assert(fortsym_abi_version() == 1);
+    status = fortsym_arena_new(&arena, message, sizeof message);
+    assert(status == FORTSYM_OK && arena != NULL);
+    status = fortsym_symbol(arena, "x", &x, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_symbol(arena, "y", &y, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_int(arena, 1, &one, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_add(arena, x, one, &sum, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_multiply(arena, sum, y, &product, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(product, "y*(x + 1)");
+
+    status = fortsym_expr_kind(one, &kind, message, sizeof message);
+    assert(status == FORTSYM_OK && kind == FORTSYM_INT);
+    status = fortsym_expr_int_value(one, &integer_value, message, sizeof message);
+    assert(status == FORTSYM_OK && integer_value == 1);
+    status = fortsym_expr_exact_text(one, buffer, sizeof buffer, &required,
+                                     message, sizeof message);
+    assert(status == FORTSYM_OK && strcmp(buffer, "1") == 0);
+
+    status = fortsym_differentiate(arena, x, x, &derivative, message,
+                                   sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(derivative, "1");
+    status = fortsym_int(arena, 2, &replacement, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_substitute(arena, product, x, replacement, &substituted, message,
+                                sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(substituted, "y*(1 + 2)");
+
+    status = fortsym_arena_new(&other_arena, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_add(other_arena, x, one, &foreign, message, sizeof message);
+    assert(status == FORTSYM_FOREIGN_ARENA);
+    assert(foreign == NULL);
+    fortsym_arena_free(other_arena);
+
+    status = fortsym_expr_equal(x, x, &equal, message, sizeof message);
+    assert(status == FORTSYM_OK && equal == 1);
+    status = fortsym_expr_argument(product, 99, &foreign, message,
+                                   sizeof message);
+    assert(status == FORTSYM_INVALID_ARGUMENT);
+    assert(strstr(message, "invalid") != NULL);
+
+    /* Expression ownership keeps the arena valid after its root is released. */
+    fortsym_arena_free(arena);
+    expect_text(product, "y*(x + 1)");
+
+    fortsym_expr_free(foreign);
+    fortsym_expr_free(substituted);
+    fortsym_expr_free(sum);
+    fortsym_expr_free(replacement);
+    fortsym_expr_free(derivative);
+    fortsym_expr_free(product);
+    fortsym_expr_free(one);
+    fortsym_expr_free(y);
+    fortsym_expr_free(x);
+    puts("test_fortsym_capi: all checks passed");
+    return 0;
+}
