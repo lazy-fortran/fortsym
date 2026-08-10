@@ -12,7 +12,8 @@ module fortsym_kernel
     ! which silently types anything beginning with s or t and turns a misspelled
     ! variable into a fresh zero. Every temporary here is declared.
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use fortsym_string, only: str_t, strbuf_t, str, chars
+    use fortsym_string, only: str_t, strbuf_t, str, chars, compare_str, &
+        operator(==)
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_ADD, NK_MUL, NK_POW, &
         NK_FUNC
     use fortsym_expr, only: expr_t
@@ -23,7 +24,9 @@ module fortsym_kernel
     private
 
     public :: kernel_spec_t, cse_result_t, operation_count_t
-    public :: cse_analyse, count_operations, emit_kernel, emit_statements
+    public :: operation_cost_record_t
+    public :: cse_analyse, count_operations, operation_cost
+    public :: emit_cost_record, emit_kernel, emit_statements
     public :: KERNEL_SUBROUTINE, KERNEL_SNIPPET
 
     integer, parameter :: dp = real64
@@ -110,7 +113,28 @@ module fortsym_kernel
         integer :: powers = 0
         integer :: functions = 0
         integer :: total = 0
+        !> Arithmetic FLOPs count additions, multiplications, and divisions.
+        !> A direct product term in a sum remains two FLOPs when it can be
+        !> emitted as one FMA instruction.
+        integer :: flops = 0
+        !> Structural arithmetic/call instructions, with FMA candidates
+        !> collapsed from one multiply plus one add. This is not a machine
+        !> disassembly count: powers and named functions remain one opaque
+        !> operation each.
+        integer :: instructions = 0
+        !> Number of direct product terms in sums eligible for FMA shaping.
+        integer :: fma_candidates = 0
     end type operation_count_t
+
+    !> Machine-readable cost metadata for one generated kernel. The total is
+    !> counted over the union of the hash-consed root DAGs; per_root entries
+    !> are counted independently so each output can be attributed as well.
+    type :: operation_cost_record_t
+        type(operation_count_t) :: total
+        type(operation_count_t), allocatable :: per_root(:)
+        type(str_t), allocatable :: transcendental_names(:)
+        integer, allocatable :: transcendental_counts(:)
+    end type operation_cost_record_t
 
 contains
 
@@ -122,31 +146,43 @@ contains
         type(expr_t), intent(in) :: roots(:)
         type(operation_count_t) :: counts
 
-        logical, allocatable :: visited(:)
+        logical, allocatable :: visited(:), fma_seen(:)
         type(arena_t), pointer :: a
         integer :: k
 
         if (size(roots) == 0) return
         a => roots(1)%a
         allocate (visited(a%size()), source=.false.)
+        allocate (fma_seen(a%size()), source=.false.)
         do k = 1, size(roots)
-            call count_node(a, roots(k)%id, visited, counts)
+            call count_node(a, roots(k)%id, visited, fma_seen, counts)
         end do
-        counts%total = counts%additions + counts%multiplications + &
-            counts%divisions + counts%powers + counts%functions
+        call finish_operation_count(counts)
     end function count_operations
 
-    recursive subroutine count_node(a, id, visited, counts)
+    subroutine finish_operation_count(counts)
+        type(operation_count_t), intent(inout) :: counts
+
+        counts%total = counts%additions + counts%multiplications + &
+            counts%divisions + counts%powers + counts%functions
+        counts%flops = counts%additions + counts%multiplications + counts%divisions
+        counts%instructions = counts%additions + counts%multiplications + &
+            counts%divisions + counts%powers + counts%functions - &
+            counts%fma_candidates
+    end subroutine finish_operation_count
+
+    recursive subroutine count_node(a, id, visited, fma_seen, counts)
         type(arena_t), intent(in) :: a
         integer, intent(in) :: id
         logical, intent(inout) :: visited(:)
+        logical, intent(inout) :: fma_seen(:)
         type(operation_count_t), intent(inout) :: counts
-        integer :: k, kind
+        integer :: k, kind, child
 
         if (visited(id)) return
         visited(id) = .true.
         do k = 1, a%nargs_of(id)
-            call count_node(a, a%arg_of(id, k), visited, counts)
+            call count_node(a, a%arg_of(id, k), visited, fma_seen, counts)
         end do
 
         kind = a%kind_of(id)
@@ -155,6 +191,13 @@ contains
             if (a%den_of(id) /= 1) counts%divisions = counts%divisions + 1
         case (NK_ADD)
             counts%additions = counts%additions + max(0, a%nargs_of(id) - 1)
+            do k = 1, a%nargs_of(id)
+                child = a%arg_of(id, k)
+                if (a%kind_of(child) == NK_MUL .and. .not. fma_seen(child)) then
+                    fma_seen(child) = .true.
+                    counts%fma_candidates = counts%fma_candidates + 1
+                end if
+            end do
         case (NK_MUL)
             counts%multiplications = counts%multiplications + &
                 max(0, a%nargs_of(id) - 1)
@@ -168,6 +211,193 @@ contains
             counts%functions = counts%functions + 1
         end select
     end subroutine count_node
+
+    !> Build the structured cost record that accompanies a kernel. Function
+    !> heads are aggregated over the distinct DAG and sorted so construction
+    !> history cannot change the machine-readable report.
+    function operation_cost(roots) result(record)
+        type(expr_t), intent(in) :: roots(:)
+        type(operation_cost_record_t) :: record
+
+        type(arena_t), pointer :: a
+        type(str_t), allocatable :: names(:)
+        integer, allocatable :: name_counts(:)
+        logical, allocatable :: visited(:)
+        integer :: k, n_names
+
+        record%total = count_operations(roots)
+        allocate (record%per_root(size(roots)))
+        do k = 1, size(roots)
+            record%per_root(k) = count_operations(roots(k:k))
+        end do
+
+        if (size(roots) == 0) then
+            allocate (record%transcendental_names(0))
+            allocate (record%transcendental_counts(0))
+            return
+        end if
+
+        a => roots(1)%a
+        allocate (names(a%size()))
+        allocate (name_counts(a%size()), source=0)
+        allocate (visited(a%size()), source=.false.)
+        n_names = 0
+        do k = 1, size(roots)
+            call collect_function_nodes(a, roots(k)%id, visited, names, &
+                name_counts, n_names)
+        end do
+        call sort_function_names(names, name_counts, n_names)
+        allocate (record%transcendental_names(n_names))
+        allocate (record%transcendental_counts(n_names))
+        if (n_names > 0) then
+            record%transcendental_names = names(1:n_names)
+            record%transcendental_counts = name_counts(1:n_names)
+        end if
+    end function operation_cost
+
+    recursive subroutine collect_function_nodes(a, id, visited, names, counts, n)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical, intent(inout) :: visited(:)
+        type(str_t), intent(inout) :: names(:)
+        integer, intent(inout) :: counts(:)
+        integer, intent(inout) :: n
+        integer :: k, j
+        type(str_t) :: name
+
+        if (visited(id)) return
+        visited(id) = .true.
+        do k = 1, a%nargs_of(id)
+            call collect_function_nodes(a, a%arg_of(id, k), visited, names, &
+                counts, n)
+        end do
+        if (a%kind_of(id) /= NK_FUNC) return
+
+        name = a%name_of(id)
+        do j = 1, n
+            if (names(j) == name) then
+                counts(j) = counts(j) + 1
+                return
+            end if
+        end do
+        n = n + 1
+        names(n) = name
+        counts(n) = 1
+    end subroutine collect_function_nodes
+
+    subroutine sort_function_names(names, counts, n)
+        type(str_t), intent(inout) :: names(:)
+        integer, intent(inout) :: counts(:)
+        integer, intent(in) :: n
+        type(str_t) :: name
+        integer :: count, i, j
+
+        do i = 2, n
+            name = names(i)
+            count = counts(i)
+            j = i - 1
+            do while (j >= 1)
+                if (compare_str(names(j), name) <= 0) exit
+                names(j + 1) = names(j)
+                counts(j + 1) = counts(j)
+                j = j - 1
+            end do
+            names(j + 1) = name
+            counts(j + 1) = count
+        end do
+    end subroutine sort_function_names
+
+    !> Serialize operation_cost as a compact JSON object. The schema is stable
+    !> enough for manifests while the explicit semantics field prevents readers
+    !> from mistaking structural counts for a machine disassembly.
+    function emit_cost_record(roots) result(s)
+        type(expr_t), intent(in) :: roots(:)
+        type(str_t) :: s
+
+        type(operation_cost_record_t) :: record
+        type(strbuf_t) :: b
+        integer :: k
+
+        record = operation_cost(roots)
+        call b%append('{"schema":"fortsym.operation_cost.v1",')
+        call b%append('"semantics":"distinct hash-consed DAG nodes; per-root entries are '// &
+            'counted independently; fma_candidates are direct product terms in sums",')
+        call b%append('"totals":')
+        call append_count_json(b, record%total)
+        call b%append(',"roots":[')
+        do k = 1, size(record%per_root)
+            if (k > 1) call b%append(',')
+            call b%append('{"index":')
+            call b%append(k)
+            call b%append(',"operations":')
+            call append_count_json(b, record%per_root(k))
+            call b%append('}')
+        end do
+        call b%append('],"transcendentals":{')
+        do k = 1, size(record%transcendental_names)
+            if (k > 1) call b%append(',')
+            call append_json_string(b, chars(record%transcendental_names(k)))
+            call b%append(':')
+            call b%append(record%transcendental_counts(k))
+        end do
+        call b%append('}}')
+        s = b%to_str()
+    end function emit_cost_record
+
+    subroutine append_count_json(b, counts)
+        type(strbuf_t), intent(inout) :: b
+        type(operation_count_t), intent(in) :: counts
+
+        call b%append('{"additions":')
+        call b%append(counts%additions)
+        call b%append(',"multiplications":')
+        call b%append(counts%multiplications)
+        call b%append(',"divisions":')
+        call b%append(counts%divisions)
+        call b%append(',"powers":')
+        call b%append(counts%powers)
+        call b%append(',"functions":')
+        call b%append(counts%functions)
+        call b%append(',"total":')
+        call b%append(counts%total)
+        call b%append(',"flops":')
+        call b%append(counts%flops)
+        call b%append(',"instructions":')
+        call b%append(counts%instructions)
+        call b%append(',"fma_candidates":')
+        call b%append(counts%fma_candidates)
+        call b%append('}')
+    end subroutine append_count_json
+
+    subroutine append_json_string(b, text)
+        type(strbuf_t), intent(inout) :: b
+        character(*), intent(in) :: text
+        integer :: k, code
+
+        call b%append('"')
+        do k = 1, len(text)
+            code = iachar(text(k:k))
+            select case (code)
+            case (8)
+                call b%append('\\b')
+            case (9)
+                call b%append('\\t')
+            case (10)
+                call b%append('\\n')
+            case (12)
+                call b%append('\\f')
+            case (13)
+                call b%append('\\r')
+            case (34)
+                call b%append('\\"')
+            case (92)
+                call b%append('\\\\')
+            case default
+                call b%append(text(k:k))
+            end select
+        end do
+        call b%append('"')
+    end subroutine append_json_string
 
     !> Decide which shared subexpressions deserve a temporary, and order the
     !> assignments so every temporary is defined before it is used.
@@ -410,10 +640,11 @@ contains
     end function is_exponent_sign
 
     !> A complete kernel: banner, subroutine header, declarations, body.
-    function emit_kernel(roots, spec, ok) result(s)
+    function emit_kernel(roots, spec, ok, cost_record) result(s)
         type(expr_t),        intent(in) :: roots(:)
         type(kernel_spec_t), intent(in) :: spec
         logical, intent(out), optional :: ok
+        type(str_t), intent(out), optional :: cost_record
         type(str_t)                     :: s
 
         type(strbuf_t)     :: b, body
@@ -423,10 +654,12 @@ contains
         valid = fortran_roots_representable(roots)
         if (valid) valid = kernel_symbols_are_declared(roots, spec%args)
         if (present(ok)) ok = valid
+        if (present(cost_record)) cost_record = str("")
         if (.not. valid) then
             s = str("")
             return
         end if
+        if (present(cost_record)) cost_record = emit_cost_record(roots)
 
         if (spec%openmp_declare_target) then
             if (len(chars(spec%module_name)) == 0) then

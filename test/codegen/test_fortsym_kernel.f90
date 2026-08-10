@@ -9,7 +9,7 @@ program test_fortsym_kernel
     ! mis-ordered CSE temporary. Golden strings are used only where formatting
     ! itself is the requirement.
     use, intrinsic :: iso_fortran_env, only: real64
-    use fortsym_string, only: str, chars
+    use fortsym_string, only: str, str_t, chars
     use fortsym_arena, only: arena_t
     use fortsym_expr
     use fortsym_parse, only: parse_expr
@@ -26,6 +26,7 @@ program test_fortsym_kernel
     call test_cse_finds_sharing()
     call test_cse_skips_atoms()
     call test_operation_count_uses_shared_dag()
+    call test_operation_cost_record()
     call test_projected_exact_operation_count()
     call test_unrepresentable_exact_is_refused()
     call test_temporaries_are_declared()
@@ -183,6 +184,50 @@ contains
         call ok("operation count functions", counts%functions == 2)
         call ok("operation count total", counts%total == 4)
     end subroutine test_operation_count_uses_shared_dag
+
+    subroutine test_operation_cost_record()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(2)
+        type(operation_cost_record_t) :: record
+        type(str_t) :: json
+        character(:), allocatable :: code
+
+        call a%init()
+        ! The product is shared by both outputs. The independent hand count is
+        ! two additions, one multiplication, and two named function calls.
+        roots(1) = parsed(a, "a*b + sin(a)")
+        roots(2) = parsed(a, "a*b + exp(b)")
+
+        record = operation_cost(roots)
+        call ok("cost record totals share the product", &
+            record%total%additions == 2 .and. &
+            record%total%multiplications == 1 .and. &
+            record%total%functions == 2)
+        call ok("cost record keeps FLOPs separate from instructions", &
+            record%total%flops == 3 .and. record%total%instructions == 4)
+        call ok("cost record identifies one FMA candidate", &
+            record%total%fma_candidates == 1)
+        call ok("cost record attributes each root", &
+            size(record%per_root) == 2 .and. &
+            all(record%per_root%flops == 2) .and. &
+            all(record%per_root%fma_candidates == 1))
+        call ok("cost record sorts transcendental names", &
+            size(record%transcendental_names) == 2 .and. &
+            chars(record%transcendental_names(1)) == "exp" .and. &
+            chars(record%transcendental_names(2)) == "sin" .and. &
+            all(record%transcendental_counts == [1, 1]))
+
+        json = emit_cost_record(roots)
+        call ok("cost record has a machine-readable schema", &
+            index(chars(json), '"schema":"fortsym.operation_cost.v1"') > 0)
+        call ok("cost record emits named transcendental counts", &
+            index(chars(json), '"transcendentals":{"exp":1,"sin":1}') > 0)
+
+        code = chars(emit_kernel(roots, spec_for("cost_k", ["a", "b"], &
+            ["r1", "r2"]), cost_record=json))
+        call ok("kernel emission supplies the same cost record", &
+            len(code) > 0 .and. index(chars(json), '"flops":3') > 0)
+    end subroutine test_operation_cost_record
 
     !> A large rational is projected once to a real64 literal, so the generated
     !> arithmetic and its independently counted work both contain no division.
