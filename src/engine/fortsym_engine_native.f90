@@ -13,7 +13,8 @@ module fortsym_engine_native
     use fortsym_expr, only: expr_t, num, operator(+), operator(-), operator(*), &
         operator(/), operator(**)
     use fortsym_exact, only: exact_add, exact_mul, exact_pow
-    use fortsym_assume, only: assumption_context_t, FACT_POSITIVE
+    use fortsym_assume, only: assumption_context_t, FACT_REAL, &
+        FACT_POSITIVE, FACT_NONNEGATIVE
     use fortsym_diff, only: diff_expr => diff
     use fortsym_subs, only: subs
     use fortsym_engine, only: engine_t, engine_result_t, wall_seconds, &
@@ -461,7 +462,8 @@ contains
         type(expr_t) :: base_expression
         integer, allocatable :: children(:)
         integer :: k, exponent_id, base_id
-        logical :: square
+        logical :: square, definitely_positive, definitely_nonnegative, real_valued
+        integer :: abs_argument(1)
 
         if (done(id)) then
             out = memo(id)
@@ -506,8 +508,18 @@ contains
                         call is_square_power(a, children(1), base_id, square)
                         if (square) then
                             base_expression%id = base_id
-                            if (context%has(base_expression, FACT_POSITIVE)) &
+                            definitely_positive = context%has(base_expression, &
+                                FACT_POSITIVE)
+                            definitely_nonnegative = context%has(base_expression, &
+                                FACT_NONNEGATIVE)
+                            real_valued = context%has(base_expression, FACT_REAL)
+                            if (definitely_positive .or. definitely_nonnegative) &
                                 out = base_id
+                            if (.not. (definitely_positive .or. &
+                                definitely_nonnegative) .and. real_valued) then
+                                abs_argument(1) = base_id
+                                out = a%func("abs", abs_argument)
+                            end if
                         end if
                     end if
                 end if

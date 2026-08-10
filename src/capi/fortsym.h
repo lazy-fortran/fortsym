@@ -44,6 +44,13 @@ enum fortsym_node_kind {
     FORTSYM_BIG_REAL = 12
 };
 
+enum fortsym_assumption_fact {
+    FORTSYM_FACT_REAL = 1,
+    FORTSYM_FACT_POSITIVE = 2,
+    FORTSYM_FACT_NONNEGATIVE = 4,
+    FORTSYM_FACT_NONZERO = 8
+};
+
 int fortsym_abi_version(void);
 
 int fortsym_arena_new(fortsym_arena **out, char *message, size_t capacity);
@@ -60,6 +67,8 @@ int fortsym_exact(fortsym_arena *arena, const char *value, fortsym_expr **out,
                   char *message, size_t capacity);
 int fortsym_symbol(fortsym_arena *arena, const char *name, fortsym_expr **out,
                    char *message, size_t capacity);
+int fortsym_assume(fortsym_arena *arena, const fortsym_expr *expression,
+                   int fact, char *message, size_t capacity);
 int fortsym_constant(fortsym_arena *arena, const char *name,
                      fortsym_expr **out, char *message, size_t capacity);
 int fortsym_add(fortsym_arena *arena, const fortsym_expr *left,

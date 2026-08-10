@@ -45,13 +45,35 @@ class _KindMeta(type):
         return isinstance(instance, Expr) and instance.kind in cls._kinds
 
 
+_ASSUMPTION_FACTS = {
+    "real": 1,
+    "positive": 2,
+    "nonnegative": 4,
+    "nonzero": 8,
+}
+
+
+def _apply_assumptions(expression, assumptions):
+    for name, value in assumptions.items():
+        if name == "commutative" and value is True:
+            continue
+        if name not in _ASSUMPTION_FACTS or value is not True:
+            raise UnsupportedOperationError(
+                f"symbol assumption {name}={value!r}"
+            )
+    for name, value in assumptions.items():
+        if name == "commutative":
+            continue
+        _default().assume(expression, _ASSUMPTION_FACTS[name])
+    return expression
+
+
 class Symbol(Expr, metaclass=_KindMeta):
     _kinds = frozenset({4})
 
     def __new__(cls, name, **assumptions):
-        if assumptions:
-            raise UnsupportedOperationError("symbol assumptions")
-        return _default().symbol(str(name))
+        expression = _default().symbol(str(name))
+        return _apply_assumptions(expression, assumptions)
 
 
 class Integer(Expr, metaclass=_KindMeta):
@@ -173,9 +195,8 @@ class Subs:
 
 
 def symbols(names, **assumptions):
-    if assumptions:
-        raise UnsupportedOperationError("symbol assumptions")
-    values = tuple(Symbol(name) for name in str(names).replace(",", " ").split())
+    values = tuple(Symbol(name, **assumptions)
+                   for name in str(names).replace(",", " ").split())
     return values[0] if len(values) == 1 else values
 
 

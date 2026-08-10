@@ -22,6 +22,7 @@ does not import SymPy. Unsupported names raise
 | Surface | Supported semantics |
 |---|---|
 | `Symbol`, `symbols`, `Integer`, `Rational`, `Float`, `pi`, `E`, `I` | exact native construction and structural equality |
+| `real=True`, `positive=True`, `nonnegative=True`, `nonzero=True` | native arena facts; positive/nonnegative/real facts affect guarded simplification |
 | `Add`, `Mul`, `Pow`, `Function` | native operator construction; `isinstance` checks use native node kinds |
 | `sin`, `cos`, `tan`, `exp`, `log`, `sqrt`, `Abs` | native applied-function nodes |
 | `diff`, `Derivative` | native differentiation, including repeated variables; `evaluate=False` retains a typed wrapper with `.doit()` |
@@ -31,5 +32,7 @@ does not import SymPy. Unsupported names raise
 | `factor`, `together`, `cancel`, `apart`, `collect`, `integrate`, `limit`, `series`, `solve`, `Matrix` | explicit refusal until their semantics are covered |
 
 The compatibility layer guarantees native structural equality only for
-operations listed as construction or transformation above. It does not claim
-SymPy's assumptions, matrix, ordering, or unevaluated-expression semantics.
+operations listed as construction or transformation above. Assumptions outside
+the listed four facts, false assumptions, and unsupported option combinations
+raise `UnsupportedOperationError`; they are not silently ignored. Matrix,
+ordering, and unevaluated-expression semantics remain outside the subset.

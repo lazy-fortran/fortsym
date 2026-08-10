@@ -40,6 +40,11 @@ int main(void)
     fortsym_expr *replacement = NULL;
     fortsym_expr *substituted = NULL;
     fortsym_expr *foreign = NULL;
+    fortsym_expr *two = NULL;
+    fortsym_expr *square = NULL;
+    fortsym_expr *root = NULL;
+    fortsym_expr *assumed = NULL;
+    const fortsym_expr *root_argument[1];
 
     assert(fortsym_abi_version() == 1);
     status = fortsym_arena_new(&arena, message, sizeof message);
@@ -63,6 +68,21 @@ int main(void)
     status = fortsym_expr_exact_text(one, buffer, sizeof buffer, &required,
                                      message, sizeof message);
     assert(status == FORTSYM_OK && strcmp(buffer, "1") == 0);
+
+    status = fortsym_int(arena, 2, &two, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_power(arena, x, two, &square, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    root_argument[0] = square;
+    status = fortsym_function(arena, "sqrt", root_argument, 1, &root,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_assume(arena, x, FORTSYM_FACT_POSITIVE, message,
+                            sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, root, &assumed, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(assumed, "x");
 
     status = fortsym_differentiate(arena, x, x, &derivative, message,
                                    sizeof message);
@@ -94,6 +114,10 @@ int main(void)
     expect_text(product, "y*(x + 1)");
 
     fortsym_expr_free(foreign);
+    fortsym_expr_free(assumed);
+    fortsym_expr_free(root);
+    fortsym_expr_free(square);
+    fortsym_expr_free(two);
     fortsym_expr_free(substituted);
     fortsym_expr_free(sum);
     fortsym_expr_free(replacement);

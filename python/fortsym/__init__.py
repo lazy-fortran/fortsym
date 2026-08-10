@@ -135,6 +135,11 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.assume = declare(
+        "fortsym_assume",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.c_int, _CHAR_PTR, _SIZE],
+    )
     lib.expr_free = declare("fortsym_expr_free", None, [_CVOID])
     lib.expr_kind = declare(
         "fortsym_expr_kind", ctypes.c_int,
@@ -289,6 +294,14 @@ class Arena:
 
     def constant(self, name: str):
         return self._result(self._lib.constant, self._require(), name.encode())
+
+    def assume(self, expression: "Expr", fact: int):
+        expression = self._check(expression)
+        message = _message()
+        status = self._lib.assume(self._require(), expression._handle,
+                                  int(fact), message, len(message))
+        if status:
+            raise FortSymError(status, _decode(message), "assume")
 
     def function(self, name: str, arguments: Iterable["Expr"]):
         values = list(arguments)

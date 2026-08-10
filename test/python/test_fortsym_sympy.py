@@ -26,8 +26,21 @@ class SympySubsetTest(unittest.TestCase):
         with self.assertRaises(sp.UnsupportedOperationError):
             sp.factor(sp.Symbol("z") + 1)
         with self.assertRaises(sp.UnsupportedOperationError):
-            sp.symbols("z", real=True)
+            sp.symbols("z", integer=True)
+        with self.assertRaises(sp.UnsupportedOperationError):
+            sp.symbols("z", positive=False)
         self.assertNotIn("sympy", sys.modules)
+
+    def test_supported_assumptions_reach_native_simplifier(self):
+        x = sp.Symbol("x", real=True)
+        self.assertEqual(sp.simplify(sp.sqrt(x**2)), sp.Abs(x))
+
+        y = sp.Symbol("y", nonnegative=True)
+        self.assertEqual(sp.simplify(sp.sqrt(y**2)), y)
+
+        z = sp.Symbol("z", positive=True)
+        self.assertEqual(sp.simplify(sp.sqrt(z**2)), z)
+        self.assertEqual(sp.simplify(sp.Abs(z)), z)
 
 
 if __name__ == "__main__":

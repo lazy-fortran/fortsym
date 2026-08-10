@@ -5,7 +5,7 @@ module fortsym_public_capi
         c_int, c_int64_t, c_null_char, c_null_ptr, c_ptr, c_size_t, c_loc, &
         c_f_pointer
     use fortsym_string, only: str_t
-    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
+    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
         NK_BIG_REAL
     use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, const, &
@@ -14,6 +14,9 @@ module fortsym_public_capi
     use fortsym_print, only: print_expr
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
+    use fortsym_assume_api, only: assumption_context_t, init_assumption_context, &
+        record_assumption, &
+        FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine, only: engine_result_t
     implicit none
@@ -29,6 +32,7 @@ module fortsym_public_capi
 
     type :: arena_owner_t
         type(arena_t) :: value
+        type(assumption_context_t), pointer :: assumptions => null()
         integer       :: references = 1
     end type arena_owner_t
 
@@ -39,7 +43,7 @@ module fortsym_public_capi
 
     public :: fortsym_abi_version, fortsym_arena_new, fortsym_arena_free
     public :: fortsym_int, fortsym_rational, fortsym_real, fortsym_exact
-    public :: fortsym_symbol, fortsym_constant
+    public :: fortsym_symbol, c_fortsym_assume, fortsym_constant
     public :: fortsym_add, fortsym_subtract, fortsym_multiply, fortsym_divide
     public :: fortsym_power, fortsym_add_many, fortsym_function
     public :: fortsym_substitute, fortsym_differentiate, fortsym_expr_free
@@ -74,6 +78,8 @@ contains
         end if
         allocate (a)
         call a%value%init()
+        allocate (a%assumptions)
+        call init_assumption_context(a%assumptions, a%value)
         call c_store_pointer(out, c_loc(a))
         status = FORTSYM_OK
     end function fortsym_arena_new
@@ -187,6 +193,36 @@ contains
         e = sym(a%value, from_c_string(name))
         call make_handle(a, e, out, status, message, capacity)
     end function fortsym_symbol
+
+    function c_fortsym_assume(raw, expression_raw, fact, message, capacity) &
+            bind(c, name="fortsym_assume") result(status)
+        type(c_ptr), value :: raw, expression_raw
+        integer(c_int), value :: fact
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a, ep_arena
+        type(expr_owner_t), pointer :: ep
+        type(expr_t) :: expression
+
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        ep_arena => ep%arena
+        if (.not. associated(ep_arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (fact /= FACT_REAL .and. fact /= FACT_POSITIVE .and. &
+                fact /= FACT_NONNEGATIVE .and. fact /= FACT_NONZERO) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call record_assumption(a%assumptions, expression, int(fact))
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end function c_fortsym_assume
 
     function fortsym_constant(raw, name, out, message, capacity) &
             bind(c, name="fortsym_constant") result(status)
@@ -456,7 +492,7 @@ contains
             call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
             return
         end if
-        engine = make_native_engine(a%value)
+        engine = make_native_engine(a%value, a%assumptions)
         result = engine%expand(expression)
         if (.not. result%ok) then
             call fail(status, message, capacity, FORTSYM_UNSUPPORTED)
@@ -487,7 +523,7 @@ contains
             call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
             return
         end if
-        engine = make_native_engine(a%value)
+        engine = make_native_engine(a%value, a%assumptions)
         result = engine%simplify(expression)
         if (.not. result%ok) then
             call fail(status, message, capacity, FORTSYM_UNSUPPORTED)
@@ -810,6 +846,7 @@ contains
         a%references = a%references - 1
         if (a%references <= 0) then
             call a%value%clear()
+            if (associated(a%assumptions)) deallocate (a%assumptions)
             deallocate (a)
         end if
     end subroutine release_arena
