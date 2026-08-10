@@ -95,6 +95,11 @@ movement, memory management, or runtime dispatch. The historical dual-target
 flags remain as a compatibility default so committed FortNum kernels remain
 byte-identical while new callers can request one target explicitly.
 
+The IR emitter also accepts explicit source policies for small-power expansion,
+constant folding, constant-division elimination, and FMA shaping. These are
+deterministic source choices rather than compiler fast-math flags; the `pure`
+procedure option remains opt-in for compatibility with downstream consumers.
+
 **Cross-check engines.** When several engines answer, agreement raises
 confidence and **disagreement is reported as a finding**, not averaged away: it
 means one of them is wrong. Per-engine timings fall out of normal operation, so

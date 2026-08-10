@@ -24,7 +24,7 @@ module fortsym_kernel_emit
     implicit none
     private
 
-    public :: kernel_emit_spec_t
+    public :: kernel_emission_policy_t, kernel_emit_spec_t
     public :: emit_fortran_kernel_ir, emit_cuda_device_ir
     public :: emit_table
     public :: TARGET_DEFAULT, TARGET_FORTRAN_CPU
@@ -39,6 +39,21 @@ module fortsym_kernel_emit
     integer, parameter :: TARGET_FORTRAN_OPENACC = TARGET_FORTRAN_OPENACC_VALUE
     integer, parameter :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC = TARGET_DUAL_VALUE
     integer, parameter :: TARGET_CUDA = TARGET_CUDA_VALUE
+
+    !> Named, unconditional source-emission policies. These are structural
+    !> choices made from the exact expression before a compiler sees floats;
+    !> they do not rely on fast-math reassociation.
+    type :: kernel_emission_policy_t
+        !> Expand positive integer powers through this degree. Zero disables
+        !> expansion while retaining exact neutral-element folding.
+        integer :: small_power_limit = 3
+        !> Remove exact zero/one neutral elements and fold exact constant powers.
+        logical :: fold_exact_constants = .true.
+        !> Turn a constant reciprocal into a real literal before emission.
+        logical :: eliminate_constant_divisions = .true.
+        !> Inline one-use product terms in sums so compilers can form an FMA.
+        logical :: shape_fma = .true.
+    end type kernel_emission_policy_t
 
     interface emit_table
         module procedure emit_table_expr_1d
@@ -60,6 +75,8 @@ module fortsym_kernel_emit
         !> undecorated IR-emitter output; explicit targets select spelling and
         !> Fortran device decoration without changing the IR.
         integer :: target = TARGET_DEFAULT
+        !> Source choices applied to this kernel's lowered IR.
+        type(kernel_emission_policy_t) :: policy
         !! Emit the Fortran leaf as a `pure` procedure. Generated kernels only
         !! ever call intrinsics on their arguments, so purity is always sound;
         !! it is opt-in solely so existing committed kernels stay byte-identical
@@ -426,13 +443,19 @@ contains
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: message
         type(str_t) :: source
+        type(kernel_ir_t) :: prepared
 
         call validate(ir, spec, BACKEND_FORTRAN, ok, message)
         if (.not. ok) then
             source = str("")
             return
         end if
-        source = emit_source(ir, spec, BACKEND_FORTRAN)
+        call apply_emission_policy(ir, spec%policy, prepared, ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        source = emit_source(prepared, spec, BACKEND_FORTRAN)
     end function emit_fortran_kernel_ir
 
     function emit_cuda_device_ir(ir, spec, ok, message) result(source)
@@ -441,14 +464,284 @@ contains
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: message
         type(str_t) :: source
+        type(kernel_ir_t) :: prepared
 
         call validate(ir, spec, BACKEND_CUDA, ok, message)
         if (.not. ok) then
             source = str("")
             return
         end if
-        source = emit_source(ir, spec, BACKEND_CUDA)
+        call apply_emission_policy(ir, spec%policy, prepared, ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        source = emit_source(prepared, spec, BACKEND_CUDA)
     end function emit_cuda_device_ir
+
+    !> Apply source-level policies to a validated, topological IR. The rewrite
+    !> keeps one output node for every input node (or aliases it to a child),
+    !> so provenance remains easy to inspect while neutral constants disappear
+    !> before declarations and assignments are emitted.
+    subroutine apply_emission_policy(input, policy, output, ok, message)
+        type(kernel_ir_t), intent(in) :: input
+        type(kernel_emission_policy_t), intent(in) :: policy
+        type(kernel_ir_t), intent(out) :: output
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+
+        integer, allocatable :: mapping(:), children(:)
+        integer :: i, k, node_count, operand_count
+        integer :: base, exponent, exponent_value
+        real(dp) :: value
+        logical :: folded
+
+        call output%clear()
+        ok = .false.
+        message = ""
+        if (policy%small_power_limit < 0) then
+            message = "kernel emitter: small power limit is negative"
+            return
+        end if
+        if (.not. allocated(input%nodes) .or. .not. allocated(input%operands) .or. &
+            .not. allocated(input%outputs)) then
+            message = "kernel emitter: IR storage is not allocated"
+            return
+        end if
+
+        allocate (mapping(input%n_nodes), source=0)
+        allocate (output%nodes(input%n_nodes))
+        allocate (output%operands(input%n_operands))
+        allocate (output%outputs(size(input%outputs)))
+        node_count = 0
+        operand_count = 0
+
+        do i = 1, input%n_nodes
+            select case (input%nodes(i)%operation)
+            case (IR_LITERAL, IR_SYMBOL, IR_CONSTANT)
+                call append_node(output, input%nodes(i)%operation, &
+                    [integer ::], input%nodes(i)%value, &
+                    input%nodes(i)%name, node_count, operand_count)
+                mapping(i) = node_count
+            case (IR_FUNCTION)
+                allocate (children(input%nodes(i)%n_operands))
+                do k = 1, size(children)
+                    children(k) = mapping(input%operands( &
+                        input%nodes(i)%first_operand + k - 1))
+                end do
+                call append_node(output, IR_FUNCTION, children, &
+                    input%nodes(i)%value, input%nodes(i)%name, node_count, &
+                    operand_count)
+                mapping(i) = node_count
+                deallocate (children)
+            case (IR_ADD, IR_MUL)
+                allocate (children(input%nodes(i)%n_operands))
+                do k = 1, size(children)
+                    children(k) = mapping(input%operands( &
+                        input%nodes(i)%first_operand + k - 1))
+                end do
+                call fold_reduction(output, input%nodes(i)%operation, children, &
+                    policy%fold_exact_constants, node_count, operand_count, &
+                    mapping(i), folded)
+                deallocate (children)
+            case (IR_POW)
+                base = mapping(input%operands(input%nodes(i)%first_operand))
+                exponent = mapping(input%operands( &
+                    input%nodes(i)%first_operand + 1))
+                folded = .false.
+                if (policy%fold_exact_constants) then
+                    if (literal_equals(output, exponent, 1.0_dp)) then
+                        mapping(i) = base
+                        folded = .true.
+                    else if (literal_equals(output, exponent, 0.0_dp) .and. &
+                            .not. literal_equals(output, base, 0.0_dp)) then
+                        call append_literal(output, 1.0_dp, node_count, &
+                            operand_count, mapping(i))
+                        folded = .true.
+                    else if (literal_equals(output, base, 1.0_dp)) then
+                        call append_literal(output, 1.0_dp, node_count, &
+                            operand_count, mapping(i))
+                        folded = .true.
+                    else if (literal_equals(output, base, 0.0_dp) .and. &
+                            literal_integer(output, exponent, exponent_value) .and. &
+                            exponent_value > 0) then
+                        call append_literal(output, 0.0_dp, node_count, &
+                            operand_count, mapping(i))
+                        folded = .true.
+                    end if
+                end if
+                if (.not. folded .and. policy%eliminate_constant_divisions .and. &
+                    literal_integer(output, exponent, exponent_value) .and. &
+                    exponent_value == -1 .and. &
+                    literal_value(output, base, value) .and. value /= 0.0_dp) then
+                    call append_literal(output, 1.0_dp/value, node_count, &
+                        operand_count, mapping(i))
+                    folded = .true.
+                end if
+                if (.not. folded) then
+                    call append_node(output, IR_POW, [base, exponent], 0.0_dp, &
+                        str(""), node_count, operand_count)
+                    mapping(i) = node_count
+                end if
+            case default
+                message = "kernel emitter: policy saw unknown IR operation"
+                return
+            end select
+        end do
+
+        do i = 1, size(input%outputs)
+            output%outputs(i) = mapping(input%outputs(i))
+        end do
+        output%n_nodes = node_count
+        output%n_operands = operand_count
+        call trim_ir_storage(output)
+        ok = .true.
+    end subroutine apply_emission_policy
+
+    subroutine append_node(ir, operation, operands, value, name, node_count, &
+            operand_count)
+        type(kernel_ir_t), intent(inout) :: ir
+        integer, intent(in) :: operation, operands(:)
+        real(dp), intent(in) :: value
+        type(str_t), intent(in) :: name
+        integer, intent(inout) :: node_count, operand_count
+
+        node_count = node_count + 1
+        ir%nodes(node_count)%operation = operation
+        ir%nodes(node_count)%value = value
+        ir%nodes(node_count)%name = name
+        ir%nodes(node_count)%first_operand = operand_count + 1
+        ir%nodes(node_count)%n_operands = size(operands)
+        if (size(operands) > 0) then
+            ir%operands(operand_count + 1:operand_count + size(operands)) = operands
+            operand_count = operand_count + size(operands)
+        end if
+    end subroutine append_node
+
+    subroutine append_literal(ir, value, node_count, operand_count, index)
+        type(kernel_ir_t), intent(inout) :: ir
+        real(dp), intent(in) :: value
+        integer, intent(inout) :: node_count, operand_count
+        integer, intent(out) :: index
+
+        call append_node(ir, IR_LITERAL, [integer ::], value, str(""), &
+            node_count, operand_count)
+        index = node_count
+    end subroutine append_literal
+
+    subroutine fold_reduction(ir, operation, children, enabled, node_count, &
+            operand_count, index, folded)
+        type(kernel_ir_t), intent(inout) :: ir
+        integer, intent(in) :: operation, children(:)
+        logical, intent(in) :: enabled
+        integer, intent(inout) :: node_count, operand_count
+        integer, intent(out) :: index
+        logical, intent(out) :: folded
+
+        integer, allocatable :: retained(:)
+        integer :: k, nretained
+        real(dp) :: value
+
+        folded = .false.
+        nretained = 0
+        allocate (retained(size(children)))
+        if (enabled) then
+            if (operation == IR_MUL) then
+                do k = 1, size(children)
+                    if (literal_equals(ir, children(k), 0.0_dp)) then
+                        call append_literal(ir, 0.0_dp, node_count, &
+                            operand_count, index)
+                        deallocate (retained)
+                        folded = .true.
+                        return
+                    end if
+                end do
+            end if
+            do k = 1, size(children)
+                if (operation == IR_ADD .and. literal_equals(ir, children(k), &
+                    0.0_dp)) cycle
+                if (operation == IR_MUL .and. literal_equals(ir, children(k), &
+                    1.0_dp)) cycle
+                nretained = nretained + 1
+                retained(nretained) = children(k)
+            end do
+        else
+            retained = children
+            nretained = size(children)
+        end if
+
+        if (nretained == 0) then
+            value = 0.0_dp
+            if (operation == IR_MUL) value = 1.0_dp
+            call append_literal(ir, value, node_count, operand_count, index)
+            folded = .true.
+        else if (nretained == 1) then
+            index = retained(1)
+            folded = .true.
+        else if (nretained < size(children)) then
+            call append_node(ir, operation, retained(1:nretained), 0.0_dp, &
+                str(""), node_count, operand_count)
+            index = node_count
+            folded = .true.
+        else
+            call append_node(ir, operation, children, 0.0_dp, str(""), &
+                node_count, operand_count)
+            index = node_count
+        end if
+        deallocate (retained)
+    end subroutine fold_reduction
+
+    logical function literal_value(ir, index, value)
+        type(kernel_ir_t), intent(in) :: ir
+        integer, intent(in) :: index
+        real(dp), intent(out) :: value
+
+        value = 0.0_dp
+        literal_value = index >= 1 .and. index <= size(ir%nodes)
+        if (.not. literal_value) then
+            value = 0.0_dp
+            return
+        end if
+        literal_value = ir%nodes(index)%operation == IR_LITERAL
+        if (literal_value) value = ir%nodes(index)%value
+    end function literal_value
+
+    logical function literal_equals(ir, index, expected)
+        type(kernel_ir_t), intent(in) :: ir
+        integer, intent(in) :: index
+        real(dp), intent(in) :: expected
+        real(dp) :: value
+
+        literal_equals = literal_value(ir, index, value) .and. value == expected
+    end function literal_equals
+
+    logical function literal_integer(ir, index, value)
+        type(kernel_ir_t), intent(in) :: ir
+        integer, intent(in) :: index
+        integer, intent(out) :: value
+        real(dp) :: real_value
+
+        literal_integer = literal_value(ir, index, real_value)
+        if (.not. literal_integer) then
+            value = 0
+            return
+        end if
+        value = nint(real_value)
+        literal_integer = real(value, dp) == real_value
+    end function literal_integer
+
+    subroutine trim_ir_storage(ir)
+        type(kernel_ir_t), intent(inout) :: ir
+        type(kernel_ir_node_t), allocatable :: nodes(:)
+        integer, allocatable :: operands(:)
+
+        allocate (nodes(ir%n_nodes))
+        if (ir%n_nodes > 0) nodes = ir%nodes(1:ir%n_nodes)
+        allocate (operands(ir%n_operands))
+        if (ir%n_operands > 0) operands = ir%operands(1:ir%n_operands)
+        call move_alloc(nodes, ir%nodes)
+        call move_alloc(operands, ir%operands)
+    end subroutine trim_ir_storage
 
     function emit_source(ir, spec, backend) result(source)
         type(kernel_ir_t), intent(in) :: ir
@@ -458,11 +751,15 @@ contains
         type(strbuf_t) :: b
         character(:), allocatable :: prefix, rhs
         logical :: ok, emit_openmp, emit_openacc
+        logical, allocatable :: skip_nodes(:)
+        integer, allocatable :: use_counts(:)
         character(:), allocatable :: message
         integer :: k
 
         call target_directives(spec%target, .false., .false., emit_openmp, &
             emit_openacc)
+        call count_ir_uses(ir, use_counts)
+        call mark_fma_children(ir, spec%policy, use_counts, skip_nodes)
 
         prefix = chars(spec%temp_prefix)
         if (len(prefix) == 0) prefix = "t"
@@ -497,8 +794,8 @@ contains
                 call append_declaration(b, "real(real64), intent(out)", &
                     spec%outputs)
             end if
-            if (count_compounds(ir) > 0) then
-                call append_temporary_declaration(b, prefix, ir)
+            if (count_compounds(ir, skip_nodes) > 0) then
+                call append_temporary_declaration(b, prefix, ir, skip_nodes)
             end if
         else
             call b%append("/* Generated by fortsym. Do not edit. */")
@@ -521,7 +818,9 @@ contains
         call b%newline()
         do k = 1, ir%n_nodes
             if (.not. is_compound(ir%nodes(k)%operation)) cycle
-            rhs = render_node(ir, k, prefix, backend, ok, message)
+            if (skip_nodes(k)) cycle
+            rhs = render_node(ir, k, prefix, backend, spec%policy, use_counts, &
+                ok, message)
             if (.not. ok) error stop "validated kernel IR became unrenderable"
             if (backend == BACKEND_FORTRAN) then
                 call b%append("    ")
@@ -765,16 +1064,19 @@ contains
         end do
     end function duplicate_name
 
-    function render_node(ir, index, prefix, backend, ok, message) result(text)
+    recursive function render_node(ir, index, prefix, backend, policy, use_counts, &
+            ok, message) result(text)
         type(kernel_ir_t), intent(in) :: ir
         integer, intent(in) :: index, backend
         character(*), intent(in) :: prefix
+        type(kernel_emission_policy_t), intent(in) :: policy
+        integer, intent(in) :: use_counts(:)
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: message
         character(:), allocatable :: text
         type(strbuf_t) :: b
-        character(:), allocatable :: name
-        integer :: k, operand
+        character(:), allocatable :: name, rendered_child
+        integer :: k, operand, exponent
 
         ok = .false.
         message = ""
@@ -801,12 +1103,33 @@ contains
                     end if
                 end if
                 operand = ir%operands(ir%nodes(index)%first_operand + k - 1)
-                call b%append(operand_reference(ir, operand, prefix, backend))
+                if (should_inline_fma(ir, index, operand, policy, use_counts)) then
+                    rendered_child = render_node(ir, operand, prefix, backend, &
+                        policy, use_counts, ok, message)
+                    if (.not. ok) return
+                    call b%append(rendered_child)
+                else
+                    call b%append(operand_reference(ir, operand, prefix, backend))
+                end if
             end do
             call b%append(")")
             text = chars(b%to_str())
         case (IR_POW)
             operand = ir%operands(ir%nodes(index)%first_operand)
+            if (policy%small_power_limit > 0 .and. &
+                literal_integer(ir, ir%operands(ir%nodes(index)%first_operand + 1), &
+                exponent) .and. exponent >= 2 .and. &
+                exponent <= policy%small_power_limit) then
+                call b%append("(")
+                do k = 1, exponent
+                    if (k > 1) call b%append(" * ")
+                    call b%append(operand_reference(ir, operand, prefix, backend))
+                end do
+                call b%append(")")
+                text = chars(b%to_str())
+                ok = .true.
+                return
+            end if
             call b%append("(")
             call b%append(operand_reference(ir, operand, prefix, backend))
             if (backend == BACKEND_FORTRAN) then
@@ -842,6 +1165,57 @@ contains
         end select
         ok = .true.
     end function render_node
+
+    subroutine count_ir_uses(ir, use_counts)
+        type(kernel_ir_t), intent(in) :: ir
+        integer, allocatable, intent(out) :: use_counts(:)
+        integer :: i, k, operand
+
+        allocate (use_counts(ir%n_nodes), source=0)
+        do i = 1, ir%n_nodes
+            do k = 1, ir%nodes(i)%n_operands
+                operand = ir%operands(ir%nodes(i)%first_operand + k - 1)
+                use_counts(operand) = use_counts(operand) + 1
+            end do
+        end do
+        do i = 1, size(ir%outputs)
+            use_counts(ir%outputs(i)) = use_counts(ir%outputs(i)) + 1
+        end do
+    end subroutine count_ir_uses
+
+    subroutine mark_fma_children(ir, policy, use_counts, skip_nodes)
+        type(kernel_ir_t), intent(in) :: ir
+        type(kernel_emission_policy_t), intent(in) :: policy
+        integer, intent(in) :: use_counts(:)
+        logical, allocatable, intent(out) :: skip_nodes(:)
+        integer :: i, k, operand
+
+        allocate (skip_nodes(ir%n_nodes), source=.false.)
+        if (.not. policy%shape_fma) return
+        do i = 1, ir%n_nodes
+            if (ir%nodes(i)%operation /= IR_ADD) cycle
+            do k = 1, ir%nodes(i)%n_operands
+                operand = ir%operands(ir%nodes(i)%first_operand + k - 1)
+                if (should_inline_fma(ir, i, operand, policy, use_counts)) then
+                    skip_nodes(operand) = .true.
+                end if
+            end do
+        end do
+    end subroutine mark_fma_children
+
+    logical function should_inline_fma(ir, add_index, operand, policy, use_counts)
+        type(kernel_ir_t), intent(in) :: ir
+        integer, intent(in) :: add_index, operand
+        type(kernel_emission_policy_t), intent(in) :: policy
+        integer, intent(in) :: use_counts(:)
+
+        should_inline_fma = .false.
+        if (.not. policy%shape_fma) return
+        if (ir%nodes(add_index)%operation /= IR_ADD) return
+        if (operand < 1 .or. operand > ir%n_nodes) return
+        should_inline_fma = ir%nodes(operand)%operation == IR_MUL .and. &
+            ir%nodes(operand)%n_operands >= 2 .and. use_counts(operand) == 1
+    end function should_inline_fma
 
     function operand_reference(ir, index, prefix, backend) result(text)
         type(kernel_ir_t), intent(in) :: ir
@@ -976,14 +1350,20 @@ contains
             operation == IR_POW .or. operation == IR_FUNCTION
     end function is_compound
 
-    integer function count_compounds(ir)
+    integer function count_compounds(ir, skip_nodes)
         type(kernel_ir_t), intent(in) :: ir
+        logical, intent(in), optional :: skip_nodes(:)
         integer :: k
 
         count_compounds = 0
         do k = 1, ir%n_nodes
             if (is_compound(ir%nodes(k)%operation)) count_compounds = &
                 count_compounds + 1
+            if (present(skip_nodes)) then
+                if (skip_nodes(k) .and. is_compound(ir%nodes(k)%operation)) then
+                    count_compounds = count_compounds - 1
+                end if
+            end if
         end do
     end function count_compounds
 
@@ -1021,10 +1401,11 @@ contains
         call b%newline()
     end subroutine append_declaration
 
-    subroutine append_temporary_declaration(b, prefix, ir)
+    subroutine append_temporary_declaration(b, prefix, ir, skip_nodes)
         type(strbuf_t), intent(inout) :: b
         character(*), intent(in) :: prefix
         type(kernel_ir_t), intent(in) :: ir
+        logical, intent(in), optional :: skip_nodes(:)
         integer :: k
         logical :: first
 
@@ -1032,6 +1413,9 @@ contains
         first = .true.
         do k = 1, ir%n_nodes
             if (.not. is_compound(ir%nodes(k)%operation)) cycle
+            if (present(skip_nodes)) then
+                if (skip_nodes(k)) cycle
+            end if
             if (.not. first) call b%append(", ")
             call b%append(prefix//chars(str(k)))
             first = .false.

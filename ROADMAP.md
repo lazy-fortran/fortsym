@@ -778,6 +778,14 @@ assert that no Fortran directives are emitted, OpenMP and OpenACC tests assert
 exclusive decoration, and the compatibility path retains the historical
 dual-target output used by committed FortNum kernels.
 
+Issue #63 (explicit emission policy) is complete as of 2026-08-10. The IR
+emitter now exposes named controls for small-power expansion, exact zero/one
+folding, constant reciprocal elimination, and one-use product shaping for FMA.
+Generated Fortran is compiled and checked against an independently written
+numeric oracle; the same test disables each policy family and verifies the
+conservative spelling remains available. The `pure_procedure` default remains
+unchanged while `fortnum#73` is open.
+
 **Target as a descriptor (#61).** Generated kernels now carry only the
 decoration requested by their stable target identity. The four targets
 consumers need are CPU Fortran, OpenMP offload, OpenACC, and CUDA; the IR gains
