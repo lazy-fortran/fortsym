@@ -55,6 +55,7 @@ target_sources(fortsym PRIVATE
     algebra/fortsym_quadratic_poly.f90
     algebra/fortsym_quadratic_multipoly.f90
     verify/fortsym_rk.f90
+    verify/fortsym_rk_reduced.f90
 
     # differential geometry
     calculus/fortsym_diff.f90
