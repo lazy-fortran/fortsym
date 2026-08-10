@@ -35,7 +35,7 @@ module fortsym_wl_solve
         exact_linear_system_result_t
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
-    use fortsym_eval, only: free_symbols_of
+    use fortsym_eval, only: collect_free_symbols
     implicit none
     private
 
@@ -476,7 +476,7 @@ contains
         ok = .false.
         why = ""
         allocate (vars(0))
-        names = free_symbols_of(e)
+        call collect_free_symbols(e, names)
         if (size(names) /= 1) then
             why = "Solve without a variable needs exactly one free symbol"
             return

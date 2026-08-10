@@ -20,7 +20,7 @@ module fortsym_numeric
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str_t, chars
     use fortsym_expr, only: expr_t
-    use fortsym_eval, only: binding_t, eval_expr, free_symbols_of
+    use fortsym_eval, only: binding_t, eval_expr, collect_free_symbols
     implicit none
     private
 
@@ -43,20 +43,22 @@ contains
         logical,                   intent(out) :: ok
         character(:), allocatable, intent(out) :: why
         type(str_t), allocatable :: names(:)
+        type(binding_t) :: empty
         logical :: defined
 
         value = 0.0_dp
         ok = .false.
         why = ""
 
-        names = free_symbols_of(e)
+        call collect_free_symbols(e, names)
         if (size(names) > 0) then
             why = "free symbol "//chars(names(1))// &
                   ": N needs a closed expression"
             return
         end if
 
-        value = eval_expr(e, empty_binding(), defined)
+        empty = empty_binding()
+        value = eval_expr(e, empty, defined)
         if (.not. defined) then
             value = 0.0_dp
             why = "expression has no real numeric value at this point "// &

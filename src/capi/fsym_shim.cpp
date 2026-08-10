@@ -829,6 +829,57 @@ int fsym_mpfr_is_shared(void)
     }
 }
 
+int fsym_mpfr_ulp_error(const char *reference, double observed, double *error)
+{
+    try {
+        if (reference == nullptr || error == nullptr
+            || !std::isfinite(observed)) {
+            return 0;
+        }
+
+        MpfrValue exact(512);
+        MpfrValue got(512);
+        MpfrValue difference(512);
+        MpfrValue magnitude(512);
+        MpfrValue minimum_normal(512);
+        MpfrValue ulp(512);
+        if (mpfr_set_str(exact.value, reference, 10, MPFR_RNDN) != 0
+            || !mpfr_number_p(exact.value)) {
+            return 0;
+        }
+
+        mpfr_set_d(got.value, observed, MPFR_RNDN);
+        mpfr_sub(difference.value, got.value, exact.value, MPFR_RNDN);
+        mpfr_abs(difference.value, difference.value, MPFR_RNDN);
+
+        /* For a normal binary64 value with exponent e, the local spacing is
+         * 2**(e - 53).  Below the normal range it is the fixed subnormal
+         * spacing 2**-1074. */
+        mpfr_set_ui(minimum_normal.value, 1, MPFR_RNDN);
+        mpfr_mul_2si(minimum_normal.value, minimum_normal.value, -1022,
+                     MPFR_RNDN);
+        mpfr_abs(magnitude.value, exact.value, MPFR_RNDN);
+        mpfr_set_ui(ulp.value, 1, MPFR_RNDN);
+        if (mpfr_cmp(magnitude.value, minimum_normal.value) < 0) {
+            mpfr_mul_2si(ulp.value, ulp.value, -1074, MPFR_RNDN);
+        } else {
+            const long exponent
+                = static_cast<long>(mpfr_get_exp(exact.value)) - 53L;
+            mpfr_mul_2si(ulp.value, ulp.value, exponent, MPFR_RNDN);
+        }
+
+        mpfr_div(difference.value, difference.value, ulp.value, MPFR_RNDN);
+        const double result = mpfr_get_d(difference.value, MPFR_RNDN);
+        if (!std::isfinite(result)) {
+            return 0;
+        }
+        *error = result;
+        return 1;
+    } catch (...) {
+        return 0;
+    }
+}
+
 /* ---------------------------------------------------- algebraic numbers -- */
 
 size_t fsym_algebraic_normalize(const char *value)

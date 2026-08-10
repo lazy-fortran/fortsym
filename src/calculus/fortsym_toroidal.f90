@@ -27,7 +27,9 @@ contains
         type(expr_t) :: coordinates(DIM), position(DIM), denominator
 
         denominator = cosh(eta) - cos(theta)
-        coordinates = [eta, theta, phi]
+        coordinates(1) = eta
+        coordinates(2) = theta
+        coordinates(3) = phi
         position(1) = scale*sinh(eta)*cos(phi)/denominator
         position(2) = scale*sinh(eta)*sin(phi)/denominator
         position(3) = scale*sin(theta)/denominator

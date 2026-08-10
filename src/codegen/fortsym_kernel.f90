@@ -19,7 +19,7 @@ module fortsym_kernel
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
     use fortsym_print, only: print_expr_sub, fortran_roots_representable
-    use fortsym_eval, only: free_symbols_of
+    use fortsym_eval, only: collect_free_symbols
     use fortsym_kernel_target, only: TARGET_DEFAULT_VALUE => TARGET_DEFAULT, &
         TARGET_FORTRAN_CPU_VALUE => TARGET_FORTRAN_CPU, &
         TARGET_FORTRAN_OPENMP_TARGET_VALUE => TARGET_FORTRAN_OPENMP_TARGET, &
@@ -835,7 +835,7 @@ contains
 
         valid = .true.
         do k = 1, size(roots)
-            symbols = free_symbols_of(roots(k))
+            call collect_free_symbols(roots(k), symbols)
             do i = 1, size(symbols)
                 found = .false.
                 if (allocated(args)) then

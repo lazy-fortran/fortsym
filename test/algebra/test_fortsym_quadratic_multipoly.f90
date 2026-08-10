@@ -126,6 +126,7 @@ contains
     subroutine test_substitution()
         type(qmpoly_t) :: p, replaced
         type(quadratic_t) :: value
+        type(quadratic_t) :: points(2)
         logical :: s
 
         p = qmpoly_add(qmpoly_pow(x(), 2, s), y(), s)
@@ -134,7 +135,9 @@ contains
         call ok("substitution can make a polynomial vanish identically", &
                 qmpoly_is_zero(replaced))
         ! Evaluating at an irrational point.
-        value = qmpoly_eval_all(p, [quad_root(D, s), quad_rational("1", D, s)], s)
+        points(1) = quad_root(D, s)
+        points(2) = quad_rational("1", D, s)
+        value = qmpoly_eval_all(p, points, s)
         call ok("x^2 + y at (sqrt 6, 1) is exactly 7", &
                 quad_equal(value, quad_rational("7", D, s)))
     end subroutine test_substitution

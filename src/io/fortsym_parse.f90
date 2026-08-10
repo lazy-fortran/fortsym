@@ -899,6 +899,7 @@ contains
         logical, optional,     intent(in)    :: power_rhs
         type(expr_t)                         :: e
         type(expr_t) :: rhs
+        type(expr_t) :: one(1), pair(2)
         character(:), allocatable :: op
         integer :: bp, next_bp
         logical :: rhs_is_power
@@ -939,7 +940,8 @@ contains
             ! expression to its left as the body and has no right operand.
             if (op == "&") then
                 call advance(p, d)
-                e = func("Function", [e])
+                one(1) = e
+                e = func("Function", one)
                 cycle
             end if
 
@@ -948,12 +950,15 @@ contains
             if (op == ";;") then
                 call advance(p, d)
                 if (.not. starts_expression(p)) then
-                    e = func("Span", [e])
+                    one(1) = e
+                    e = func("Span", one)
                     cycle
                 end if
                 rhs = parse_binary(p, a, d, bp + 1)
                 if (p%failed) return
-                e = func("Span", [e, rhs])
+                pair(1) = e
+                pair(2) = rhs
+                e = func("Span", pair)
                 cycle
             end if
 
@@ -962,12 +967,15 @@ contains
             if (op == ";") then
                 call advance(p, d)
                 if (.not. starts_expression(p)) then
-                    e = func("CompoundExpression", [e])
+                    one(1) = e
+                    e = func("CompoundExpression", one)
                     cycle
                 end if
                 rhs = parse_binary(p, a, d, bp + 1)
                 if (p%failed) return
-                e = func("CompoundExpression", [e, rhs])
+                pair(1) = e
+                pair(2) = rhs
+                e = func("CompoundExpression", pair)
                 cycle
             end if
 
@@ -1007,24 +1015,39 @@ contains
                 ! Relations stay structural. Deciding x > 0 needs an assumption
                 ! context, and folding it to a boolean here would answer a question
                 ! nobody asked with information nobody supplied.
-            case ("=="); e = func("Equal", [e, rhs])
-            case ("!="); e = func("Unequal", [e, rhs])
-            case ("<"); e = func("Less", [e, rhs])
-            case (">"); e = func("Greater", [e, rhs])
-            case ("<="); e = func("LessEqual", [e, rhs])
-            case (">="); e = func("GreaterEqual", [e, rhs])
-            case ("&&"); e = func("And", [e, rhs])
-            case ("||"); e = func("Or", [e, rhs])
-            case ("->"); e = func("Rule", [e, rhs])
-            case (":>"); e = func("RuleDelayed", [e, rhs])
-            case ("|"); e = func("Alternatives", [e, rhs])
-            case ("?"); e = func("PatternTest", [e, rhs])
-            case ("/."); e = func("ReplaceAll", [e, rhs])
-            case ("/;"); e = func("Condition", [e, rhs])
+            case ("=="); pair(1) = e; pair(2) = rhs
+                e = func("Equal", pair)
+            case ("!="); pair(1) = e; pair(2) = rhs
+                e = func("Unequal", pair)
+            case ("<"); pair(1) = e; pair(2) = rhs
+                e = func("Less", pair)
+            case (">"); pair(1) = e; pair(2) = rhs
+                e = func("Greater", pair)
+            case ("<="); pair(1) = e; pair(2) = rhs
+                e = func("LessEqual", pair)
+            case (">="); pair(1) = e; pair(2) = rhs
+                e = func("GreaterEqual", pair)
+            case ("&&"); pair(1) = e; pair(2) = rhs
+                e = func("And", pair)
+            case ("||"); pair(1) = e; pair(2) = rhs
+                e = func("Or", pair)
+            case ("->"); pair(1) = e; pair(2) = rhs
+                e = func("Rule", pair)
+            case (":>"); pair(1) = e; pair(2) = rhs
+                e = func("RuleDelayed", pair)
+            case ("|"); pair(1) = e; pair(2) = rhs
+                e = func("Alternatives", pair)
+            case ("?"); pair(1) = e; pair(2) = rhs
+                e = func("PatternTest", pair)
+            case ("/."); pair(1) = e; pair(2) = rhs
+                e = func("ReplaceAll", pair)
+            case ("/;"); pair(1) = e; pair(2) = rhs
+                e = func("Condition", pair)
                 ! Dot is non-commutative matrix product, so it stays a structural
                 ! head rather than becoming Times: folding it would let the
                 ! simplifier reorder factors and silently transpose the result.
-            case ("."); e = func("Dot", [e, rhs])
+            case ("."); pair(1) = e; pair(2) = rhs
+                e = func("Dot", pair)
                 ! f @ x is f[x]. Applying the head rather than building an operator
                 ! node keeps one representation for application, so Simplify @ e
                 ! reaches the same lowering as Simplify[e].
@@ -1036,15 +1059,24 @@ contains
                 ! argument's list structure at evaluation time, and this subset has
                 ! no evaluator for them, so they are heads that refuse by name
                 ! rather than results.
-            case ("/@"); e = func("Map", [e, rhs])
-            case ("@@"); e = func("Apply", [e, rhs])
-            case ("@@@"); e = func("MapApply", [e, rhs])
-            case ("//."); e = func("ReplaceRepeated", [e, rhs])
-            case ("<>"); e = func("StringJoin", [e, rhs])
-            case ("="); e = func("Set", [e, rhs])
-            case (":="); e = func("SetDelayed", [e, rhs])
-            case ("^="); e = func("UpSet", [e, rhs])
-            case ("^:="); e = func("UpSetDelayed", [e, rhs])
+            case ("/@"); pair(1) = e; pair(2) = rhs
+                e = func("Map", pair)
+            case ("@@"); pair(1) = e; pair(2) = rhs
+                e = func("Apply", pair)
+            case ("@@@"); pair(1) = e; pair(2) = rhs
+                e = func("MapApply", pair)
+            case ("//."); pair(1) = e; pair(2) = rhs
+                e = func("ReplaceRepeated", pair)
+            case ("<>"); pair(1) = e; pair(2) = rhs
+                e = func("StringJoin", pair)
+            case ("="); pair(1) = e; pair(2) = rhs
+                e = func("Set", pair)
+            case (":="); pair(1) = e; pair(2) = rhs
+                e = func("SetDelayed", pair)
+            case ("^="); pair(1) = e; pair(2) = rhs
+                e = func("UpSet", pair)
+            case ("^:="); pair(1) = e; pair(2) = rhs
+                e = func("UpSetDelayed", pair)
             case default
                 call fail(p, "unknown operator '"//op//"'")
                 return
@@ -1105,6 +1137,7 @@ contains
         type(dialect_t),       intent(in)    :: d
         logical,               intent(in)    :: power_rhs
         type(expr_t)                         :: e
+        type(expr_t) :: one(1), pair(2)
 
         if (p%tok == T_OP) then
             if (p%text == ";;") then
@@ -1116,7 +1149,9 @@ contains
                 end if
                 e = parse_binary(p, a, d, binding_power(";;") + 1)
                 if (p%failed) return
-                e = func("Span", [num(a, 1_int64), e])
+                pair(1) = num(a, 1_int64)
+                pair(2) = e
+                e = func("Span", pair)
                 return
             else if (p%text == "-") then
                 call advance(p, d)
@@ -1272,6 +1307,7 @@ contains
         type(expr_t)                         :: e
         character(:), allocatable :: name, canon
         type(expr_t), allocatable :: fargs(:)
+        type(expr_t) :: one(1), pair(2)
         integer :: nargs, nprimes
 
         select case (p%tok)
@@ -1409,8 +1445,9 @@ contains
         case (T_SLOT)
             ! Slot[n] stays structural: it only means something inside the
             ! Function that binds it, and this subset has no applier for one.
-            e = func("Slot", [num(a, p%ivalue)])
-            if (p%text == "SlotSequence") e = func("SlotSequence", [num(a, p%ivalue)])
+            one(1) = num(a, p%ivalue)
+            e = func("Slot", one)
+            if (p%text == "SlotSequence") e = func("SlotSequence", one)
             call advance(p, d)
             e = parse_postfix(p, a, d, e)
             return
@@ -1522,15 +1559,19 @@ contains
         type(expr_t),          intent(in)    :: base
         type(expr_t)                         :: e
         type(expr_t), allocatable :: fargs(:)
+        type(expr_t) :: one(1), pair(2)
         integer :: nargs
 
         e = base
         do
             if (p%tok == T_BLANK) then
                 select case (p%text)
-                case ("_"); e = func("Pattern", [e, func_in(a, "Blank")])
-                case ("__"); e = func("Pattern", [e, func_in(a, "BlankSequence")])
-                case ("___"); e = func("Pattern", [e, func_in(a, "BlankNullSequence")])
+                case ("_"); pair(1) = e; pair(2) = func_in(a, "Blank")
+                    e = func("Pattern", pair)
+                case ("__"); pair(1) = e; pair(2) = func_in(a, "BlankSequence")
+                    e = func("Pattern", pair)
+                case ("___"); pair(1) = e; pair(2) = func_in(a, "BlankNullSequence")
+                    e = func("Pattern", pair)
                 end select
                 call advance(p, d)
                 cycle
@@ -1552,7 +1593,8 @@ contains
             call parse_arg_list(p, a, d, fargs, nargs, T_RBRACKET)
             if (p%failed) return
             if (nargs == 0) then
-                e = func("Apply", [e])
+                one(1) = e
+                e = func("Apply", one)
             else
                 e = build_apply(a, e, fargs, nargs)
             end if
@@ -1623,6 +1665,7 @@ contains
         type(expr_t)                         :: e
         type(expr_t) :: order, target_fn
         type(expr_t) :: parts(3)
+        type(expr_t) :: pair(2)
 
         matched = .false.
         e = head
@@ -1637,7 +1680,9 @@ contains
             if (order%kind() /= NK_INT) return
             if (argument%kind() /= NK_SYM) return
             matched = .true.
-            e = func("DerivativeOperator", [argument, order])
+            pair(1) = argument
+            pair(2) = order
+            e = func("DerivativeOperator", pair)
             return
         end if
 
@@ -1659,7 +1704,7 @@ contains
         type(dialect_t),       intent(in)    :: d
         type(expr_t),          intent(in)    :: head, argument
         type(expr_t)                         :: e
-        type(expr_t) :: parts(1)
+        type(expr_t) :: parts(1), pair(2)
 
         parts(1) = argument
         if (head%kind() == NK_SYM) then
@@ -1669,7 +1714,9 @@ contains
         else
             ! A computed head is not something this subset can apply, so it
             ! stays structural rather than being guessed at.
-            e = func("Apply", [head, argument])
+            pair(1) = head
+            pair(2) = argument
+            e = func("Apply", pair)
         end if
     end function apply_head
 

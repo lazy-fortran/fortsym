@@ -53,9 +53,13 @@ program gen_legendre_recurrence
         "fo exec gen_legendre_recurrence -- OUTPUT_PATH FORTSYM_REVISION")
     spec%pure_procedure = .true.
     allocate (spec%args(5), spec%outputs(2))
-    spec%args = [str("degree"), str("order"), str("x"), &
-        str("previous"), str("current")]
-    spec%outputs = [str("next"), str("derivative")]
+    spec%args(1) = str("degree")
+    spec%args(2) = str("order")
+    spec%args(3) = str("x")
+    spec%args(4) = str("previous")
+    spec%args(5) = str("current")
+    spec%outputs(1) = str("next")
+    spec%outputs(2) = str("derivative")
 
     open (newunit=unit, file=trim(output), status="replace", action="write", &
         iostat=ios)

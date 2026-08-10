@@ -396,7 +396,12 @@ contains
         ! tell.
         call refuses("int sin(y*x) dx", sin(y*x), "nonzero slope")
         ! No rule at all for this head.
-        call refuses("int gamma(x) dx", func("gamma", [x]), "gamma")
+        block
+            type(expr_t) :: gamma_args(1), gamma_expression
+            gamma_args(1) = x
+            gamma_expression = func("gamma", gamma_args)
+            call refuses("int gamma(x) dx", gamma_expression, "gamma")
+        end block
     end subroutine test_refusals
 
 end program test_fortsym_integrate

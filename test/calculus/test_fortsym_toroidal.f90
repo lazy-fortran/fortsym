@@ -28,9 +28,19 @@ program test_fortsym_toroidal
     scale = sym(arena, "scale")
     n = sym(arena, "n")
     m = sym(arena, "m")
-    bindings%names = [str("eta"), str("theta"), str("phi"), &
-        str("scale"), str("n"), str("m")]
-    bindings%values = [1.1_dp, 0.7_dp, 0.4_dp, 1.3_dp, 2.0_dp, 1.0_dp]
+    allocate (bindings%names(6), bindings%values(6))
+    bindings%names(1) = str("eta")
+    bindings%names(2) = str("theta")
+    bindings%names(3) = str("phi")
+    bindings%names(4) = str("scale")
+    bindings%names(5) = str("n")
+    bindings%names(6) = str("m")
+    bindings%values(1) = 1.1_dp
+    bindings%values(2) = 0.7_dp
+    bindings%values(3) = 0.4_dp
+    bindings%values(4) = 1.3_dp
+    bindings%values(5) = 2.0_dp
+    bindings%values(6) = 1.0_dp
     bindings%n = 6
 
     denominator = cosh(eta) - cos(theta)

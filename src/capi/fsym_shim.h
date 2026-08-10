@@ -124,6 +124,13 @@ int fsym_flint_is_shared(void);
 /*! Non-zero only when mpfr_get_d resolves from a shared object. */
 int fsym_mpfr_is_shared(void);
 
+/*! Compare a binary64 observation with a decimal high-precision reference.
+ *  The returned error is the absolute difference divided by the binary64 ulp
+ *  at the reference value.  The reference is parsed at 512 bits, and no
+ *  rounded binary64 copy of it is used for the subtraction. */
+int fsym_mpfr_ulp_error(const char *reference, double observed,
+                        double *error);
+
 /* ---------------------------------------------------- algebraic numbers -- */
 
 /*! Binary operations accepted by fsym_algebraic_binary. */

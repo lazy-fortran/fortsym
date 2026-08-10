@@ -21,7 +21,7 @@ module fortsym_eval
     implicit none
     private
 
-    public :: binding_t, eval_expr, free_symbols_of
+    public :: binding_t, eval_expr, free_symbols_of, collect_free_symbols
 
     integer, parameter :: dp = real64
 
@@ -43,6 +43,15 @@ contains
     function free_symbols_of(e) result(names)
         type(expr_t), intent(in) :: e
         type(str_t), allocatable :: names(:)
+        call collect_free_symbols(e, names)
+    end function free_symbols_of
+
+    !> Collect free symbols into caller-owned storage. The subroutine form is
+    !> used on hot and diagnostic paths so an allocatable function result is
+    !> never passed through an assumed-shape argument as a hidden temporary.
+    subroutine collect_free_symbols(e, names)
+        type(expr_t), intent(in) :: e
+        type(str_t), allocatable, intent(out) :: names(:)
         type(str_t), allocatable :: buffer(:)
         logical,     allocatable :: seen(:)
         integer :: n
@@ -53,7 +62,7 @@ contains
         call gather(e%a, e%id, buffer, n, seen)
         allocate (names(n))
         if (n > 0) names(1:n) = buffer(1:n)
-    end function free_symbols_of
+    end subroutine collect_free_symbols
 
     recursive subroutine gather(a, id, buffer, n, seen)
         type(arena_t),            intent(in)    :: a

@@ -81,6 +81,25 @@ contains
         end if
     end subroutine ok
 
+    function func_one(name, argument) result(e)
+        character(*), intent(in) :: name
+        type(expr_t), intent(in) :: argument
+        type(expr_t) :: e, arguments(1)
+
+        arguments(1) = argument
+        e = func(name, arguments)
+    end function func_one
+
+    function func_two(name, first, second) result(e)
+        character(*), intent(in) :: name
+        type(expr_t), intent(in) :: first, second
+        type(expr_t) :: e, arguments(2)
+
+        arguments(1) = first
+        arguments(2) = second
+        e = func(name, arguments)
+    end function func_two
+
     !> The expressions every property is checked on. Each mixes a construction
     !> the module handles with one it has to recurse through.
     function probe(k) result(e)
@@ -90,15 +109,15 @@ contains
         select case (k)
         case (1); e = z**num(arena, 3)
         case (2); e = (num(arena, 2) + i_expr(arena))*z
-        case (3); e = func("exp", [z])
-        case (4); e = func("sin", [z])
-        case (5); e = func("cos", [z])
+        case (3); e = func_one("exp", z)
+        case (4); e = func_one("sin", z)
+        case (5); e = func_one("cos", z)
         case (6); e = z**num(arena, -2)
-        case (7); e = func("exp", [z])*func("sin", [z]) + z**num(arena, 4)
+        case (7); e = func_one("exp", z)*func_one("sin", z) + z**num(arena, 4)
         case (8)
             e = z**num(arena, 2) - num(arena, 3)*z &
                 + rat(arena, 1_int64, 3_int64)
-        case (9); e = func("cos", [z**num(arena, 2)])*z
+        case (9); e = func_one("cos", z**num(arena, 2))*z
         case default
             ! nprobe() and this list are separate constants; an index outside
             ! the list must stop the run rather than hand back an expr_t that
@@ -311,11 +330,11 @@ contains
         call re_part(e, facts, out, good, why)
         call ok("a sum containing it is refused too", .not. good)
 
-        e = func("exp", [u])
+        e = func_one("exp", u)
         call abs_of(e, facts, out, good, why)
         call ok("Abs of exp(u) is refused", .not. good)
 
-        e = func("zeta", [num(arena, 2)])
+        e = func_one("zeta", num(arena, 2))
         call re_part(e, facts, out, good, why)
         call ok("Re of an unknown constant head is refused", .not. good)
     end subroutine test_unknown_reality_refused
@@ -333,11 +352,11 @@ contains
         call re_part(e, facts, out, good, why)
         call ok("symbolic exponent is refused", .not. good)
 
-        e = func("log", [z])
+        e = func_one("log", z)
         call re_part(e, facts, out, good, why)
         call ok("log is refused", .not. good)
 
-        e = func("sqrt", [z])
+        e = func_one("sqrt", z)
         call conjugate(e, facts, out, good, why)
         call ok("conj of sqrt is refused", .not. good)
 
@@ -355,12 +374,12 @@ contains
         logical :: good
         character(:), allocatable :: why
 
-        e = func("tan", [z])
+        e = func_one("tan", z)
         call re_part(e, facts, out, good, why)
         call ok("tan has no split rule", .not. good)
         call ok("refusal names the head", index(why, "tan") > 0)
 
-        e = func("besselj", [num(arena, 0), z])
+        e = func_two("besselj", num(arena, 0), z)
         call conjugate(e, facts, out, good, why)
         call ok("besselj has no conjugation rule", .not. good)
     end subroutine test_unknown_heads_refused

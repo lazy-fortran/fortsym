@@ -218,7 +218,11 @@ contains
             .not. r%ok .and. index(chars(r%message), "unsafe") > 0)
 
         x = sym(arena, "x")
-        unsafe = func("system", [x])
+        block
+            type(expr_t) :: function_arguments(1)
+            function_arguments(1) = x
+            unsafe = func("system", function_arguments)
+        end block
         r = sp%simplify(unsafe)
         call ok("sympy rejects unaudited function heads", &
             .not. r%ok .and. index(chars(r%message), "unsafe") > 0)

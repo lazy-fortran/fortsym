@@ -11,7 +11,7 @@ module fortsym_wl_f90
     use fortsym_expr, only: expr_t, sym
     use fortsym_dialect, only: dialect, DIA_FORTRAN, DIA_WOLFRAM
     use fortsym_parse, only: parse_expr_in
-    use fortsym_eval, only: free_symbols_of
+    use fortsym_eval, only: collect_free_symbols
     use fortsym_subs, only: subs_many
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     use fortsym_print, only: print_expr_in, fortran_representable
@@ -61,7 +61,7 @@ contains
         integer :: first_statement
         integer :: nold
         logical :: parsed, representable, handled
-        type(expr_t) :: root
+        type(expr_t) :: root, old_one(1), new_one(1), one_root(1)
 
         code = str("")
         ok = .false.
@@ -209,7 +209,7 @@ contains
                 return
             end if
 
-            names = free_symbols_of(root)
+            call collect_free_symbols(root, names)
             do j = 1, size(names)
                 if (.not. valid_input_name(chars(names(j)))) then
                     message = "right-hand side contains a non-Fortran symbol: "// &
@@ -231,7 +231,7 @@ contains
         allocate (inputs(MAX_ASSIGNMENTS))
         ninputs = 0
         do k = 1, nstatements
-            names = free_symbols_of(roots(k))
+            call collect_free_symbols(roots(k), names)
             do j = 1, size(names)
                 if (name_in_list(chars(names(j)), targets, nstatements)) then
                     message = "right-hand side refers to an assignment target "// &
@@ -313,6 +313,7 @@ contains
         character(:), allocatable, intent(out) :: message
 
         type(expr_t) :: first_root, second_root, final_root, target_symbol
+        type(expr_t) :: old_one(1), new_one(1), one_root(1)
         type(kernel_spec_t) :: spec
         type(str_t), allocatable :: names(:), inputs(:)
         character(:), allocatable :: first, second, first_lhs, first_rhs
@@ -371,7 +372,9 @@ contains
             return
         end if
         target_symbol = sym(a, first_lhs)
-        final_root = subs_many(second_root, [target_symbol], [first_root])
+        old_one(1) = target_symbol
+        new_one(1) = first_root
+        final_root = subs_many(second_root, old_one, new_one)
         if (final_root%node_count() > MAX_EXPRESSION_NODES) then
             ok = .false.
             message = "expanded scalar reassignment exceeds the bounded node limit"
@@ -386,7 +389,7 @@ contains
 
         allocate (inputs(MAX_ASSIGNMENTS))
         ninputs = 0
-        names = free_symbols_of(final_root)
+        call collect_free_symbols(final_root, names)
         do j = 1, size(names)
             if (.not. valid_input_name(chars(names(j)))) then
                 ok = .false.
@@ -413,7 +416,8 @@ contains
         allocate (spec%args(ninputs), spec%outputs(1))
         if (ninputs > 0) spec%args = inputs(1:ninputs)
         spec%outputs(1) = str(first_lhs)
-        code = emit_kernel([final_root], spec, representable)
+        one_root(1) = final_root
+        code = emit_kernel(one_root, spec, representable)
         if (len(chars(code)) == 0) then
             ok = .false.
             message = "scalar reassignment could not be emitted as Fortran"
@@ -1329,7 +1333,7 @@ contains
 
         ok = .true.
         message = ""
-        names = free_symbols_of(root)
+        call collect_free_symbols(root, names)
         do k = 1, size(names)
             if (.not. valid_input_name(chars(names(k)))) then
                 ok = .false.

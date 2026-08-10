@@ -187,7 +187,7 @@ contains
 
         type(quadratic_t), allocatable :: reduced(:, :), rhs(:), part(:)
         integer :: rows, cols, j, kept, radicand, status
-        integer, allocatable :: keep(:)
+        integer, allocatable :: keep(:), next_keep(:)
         type(quadratic_t) :: zero, one
 
         rows = size(matrix, 1)
@@ -199,7 +199,12 @@ contains
 
         allocate (keep(0))
         do j = 1, cols
-            if (.not. is_free(j)) keep = [keep, j]
+            if (.not. is_free(j)) then
+                allocate (next_keep(size(keep) + 1))
+                if (size(keep) > 0) next_keep(:size(keep)) = keep
+                next_keep(size(keep) + 1) = j
+                call move_alloc(next_keep, keep)
+            end if
         end do
         kept = size(keep)
         allocate (reduced(rows, kept), rhs(rows), column(cols))

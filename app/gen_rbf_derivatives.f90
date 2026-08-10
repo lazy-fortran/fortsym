@@ -41,8 +41,10 @@ program gen_rbf_derivatives
     distance = sym(arena, 'distance')
     lengthscale = sym(arena, 'lengthscale')
     value = variance*exp_expr(-0.5_dp*distance*lengthscale**(-2))
-    roots = [value, diff(value, variance), diff(value, distance), &
-        diff(value, lengthscale)]
+    roots(1) = value
+    roots(2) = diff(value, variance)
+    roots(3) = diff(value, distance)
+    roots(4) = diff(value, lengthscale)
     do k = 1, size(roots)
         simplified = eng%simplify(roots(k))
         if (.not. simplified%ok) then
@@ -59,9 +61,13 @@ program gen_rbf_derivatives
         error stop 1
     end if
     spec%name = str('fortml_generated_rbf_leaf_derivatives')
-    spec%args = [str('variance'), str('distance'), str('lengthscale')]
-    spec%outputs = [str('value'), str('dvariance'), str('ddistance'), &
-        str('dlengthscale')]
+    spec%args(1) = str('variance')
+    spec%args(2) = str('distance')
+    spec%args(3) = str('lengthscale')
+    spec%outputs(1) = str('value')
+    spec%outputs(2) = str('dvariance')
+    spec%outputs(3) = str('ddistance')
+    spec%outputs(4) = str('dlengthscale')
     spec%temp_prefix = str('t')
     spec%generator = str('gen_rbf_derivatives')
     spec%generator_revision = str(trim(revision(:revision_length)))

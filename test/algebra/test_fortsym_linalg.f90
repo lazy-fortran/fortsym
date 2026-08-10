@@ -33,10 +33,14 @@ contains
         type(exact_linear_system_result_t) :: result
         type(expr_t) :: matrix(2, 2), right_hand_sides(2, 2)
 
-        matrix(1, :) = [num(arena, 2), num(arena, 1)]
-        matrix(2, :) = [num(arena, 1), num(arena, -1)]
-        right_hand_sides(:, 1) = [num(arena, 5), num(arena, 1)]
-        right_hand_sides(:, 2) = [num(arena, 1), num(arena, 2)]
+        matrix(1, 1) = num(arena, 2)
+        matrix(1, 2) = num(arena, 1)
+        matrix(2, 1) = num(arena, 1)
+        matrix(2, 2) = num(arena, -1)
+        right_hand_sides(1, 1) = num(arena, 5)
+        right_hand_sides(2, 1) = num(arena, 1)
+        right_hand_sides(1, 2) = num(arena, 1)
+        right_hand_sides(2, 2) = num(arena, 2)
 
         result = solve_exact_linear_system(engine, matrix, right_hand_sides)
         call check(result%ok, "integer system with two right-hand sides solves")
@@ -78,11 +82,18 @@ contains
         type(expr_t) :: matrix(3, 3), permuted_matrix(3, 3)
         type(expr_t) :: right_hand_side(3, 1), permuted_rhs(3, 1)
 
-        matrix(1, :) = [num(arena, 1), num(arena, 2), num(arena, 0)]
-        matrix(2, :) = [num(arena, 0), num(arena, 1), num(arena, 3)]
-        matrix(3, :) = [num(arena, 2), num(arena, 0), num(arena, 1)]
-        right_hand_side(:, 1) = [ &
-            num(arena, 5), num(arena, 11), num(arena, 5)]
+        matrix(1, 1) = num(arena, 1)
+        matrix(1, 2) = num(arena, 2)
+        matrix(1, 3) = num(arena, 0)
+        matrix(2, 1) = num(arena, 0)
+        matrix(2, 2) = num(arena, 1)
+        matrix(2, 3) = num(arena, 3)
+        matrix(3, 1) = num(arena, 2)
+        matrix(3, 2) = num(arena, 0)
+        matrix(3, 3) = num(arena, 1)
+        right_hand_side(1, 1) = num(arena, 5)
+        right_hand_side(2, 1) = num(arena, 11)
+        right_hand_side(3, 1) = num(arena, 5)
         permuted_matrix(1, :) = matrix(3, :)
         permuted_matrix(2, :) = matrix(1, :)
         permuted_matrix(3, :) = matrix(2, :)
@@ -179,9 +190,12 @@ contains
         type(expr_t) :: singular(2, 2), singular_rhs(2, 1)
         type(expr_t) :: symbolic(1, 1)
 
-        singular(1, :) = [num(arena, 1), num(arena, 2)]
-        singular(2, :) = [num(arena, 2), num(arena, 4)]
-        singular_rhs(:, 1) = [num(arena, 1), num(arena, 2)]
+        singular(1, 1) = num(arena, 1)
+        singular(1, 2) = num(arena, 2)
+        singular(2, 1) = num(arena, 2)
+        singular(2, 2) = num(arena, 4)
+        singular_rhs(1, 1) = num(arena, 1)
+        singular_rhs(2, 1) = num(arena, 2)
         result = solve_exact_linear_system(engine, singular, singular_rhs)
         call check(.not. result%ok, "singular system is rejected")
 

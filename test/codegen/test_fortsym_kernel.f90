@@ -21,6 +21,17 @@ program test_fortsym_kernel
     implicit none
 
     integer, parameter :: dp = real64
+    character(len=1), parameter :: X_ARGS(1) = [character(len=1) :: "x"]
+    character(len=1), parameter :: XY_ARGS(2) = [character(len=1) :: "x", "y"]
+    character(len=1), parameter :: AB_ARGS(2) = [character(len=1) :: "a", "b"]
+    character(len=1), parameter :: XV_ARGS(2) = [character(len=1) :: "x", "v"]
+    character(len=1), parameter :: XU_ARGS(2) = [character(len=1) :: "x", "u"]
+    character(len=1), parameter :: R_OUT(1) = [character(len=1) :: "r"]
+    character(len=3), parameter :: VJP_OUT(1) = [character(len=3) :: "vjp"]
+    character(len=5), parameter :: VALUE_OUT(1) = [character(len=5) :: "value"]
+    character(len=3), parameter :: JVP_OUT(1) = [character(len=3) :: "jvp"]
+    character(len=1), parameter :: Y_OUT(1) = [character(len=1) :: "y"]
+    character(len=2), parameter :: R12_OUT(2) = [character(len=2) :: "r1", "r2"]
     integer :: nfail = 0
 
     call test_cse_finds_sharing()
@@ -104,6 +115,25 @@ contains
         end do
     end function spec_for
 
+    function func_one(name, first) result(e)
+        character(*), intent(in) :: name
+        type(expr_t), intent(in) :: first
+        type(expr_t) :: e, arguments(1)
+
+        arguments(1) = first
+        e = func(name, arguments)
+    end function func_one
+
+    function func_two(name, first, second) result(e)
+        character(*), intent(in) :: name
+        type(expr_t), intent(in) :: first, second
+        type(expr_t) :: e, arguments(2)
+
+        arguments(1) = first
+        arguments(2) = second
+        e = func(name, arguments)
+    end function func_two
+
     subroutine test_cse_finds_sharing()
         type(arena_t), target :: a
         type(expr_t) :: shared, roots(1)
@@ -153,7 +183,7 @@ contains
         call a%init()
         roots(1) = parsed(a, "sin(x*y) + sin(x*y)*sin(x*y)")
 
-        spec = spec_for("cse_full", ["x", "y"], ["r"])
+        spec = spec_for("cse_full", XY_ARGS, R_OUT)
         full_code = chars(emit_kernel(roots, spec))
         call ok("full CSE remains the default", index(full_code, "real(dp) :: t1") > 0)
 
@@ -219,9 +249,9 @@ contains
         roots_b(1) = 1 + by*bx + exp(shared_b) + shared_b**2
 
         code_a = chars(emit_kernel(roots_a, &
-            spec_for("stable_k", ["x", "y"], ["r"])))
+            spec_for("stable_k", XY_ARGS, R_OUT)))
         code_b = chars(emit_kernel(roots_b, &
-            spec_for("stable_k", ["x", "y"], ["r"])))
+            spec_for("stable_k", XY_ARGS, R_OUT)))
         call ok("codegen is byte-identical across construction histories", &
             code_a == code_b)
     end subroutine test_codegen_is_construction_history_independent
@@ -283,8 +313,8 @@ contains
         call ok("cost record emits named transcendental counts", &
             index(chars(json), '"transcendentals":{"exp":1,"sin":1}') > 0)
 
-        code = chars(emit_kernel(roots, spec_for("cost_k", ["a", "b"], &
-            ["r1", "r2"]), cost_record=json))
+        code = chars(emit_kernel(roots, spec_for("cost_k", AB_ARGS, R12_OUT), &
+            cost_record=json))
         call ok("kernel emission supplies the same cost record", &
             len(code) > 0 .and. index(chars(json), '"flops":3') > 0)
     end subroutine test_operation_cost_record
@@ -302,7 +332,7 @@ contains
             "18446744073709551617/18446744073709551616")
         counts = count_operations(roots)
         code = chars(emit_kernel(roots, &
-            spec_for("exact_k", ["x"], ["r"])))
+            spec_for("exact_k", X_ARGS, R_OUT)))
         call ok("projected exact count has no division", &
             counts%divisions == 0 .and. counts%total == 0)
         call ok("projected exact code is one literal", &
@@ -318,7 +348,7 @@ contains
         call a%init()
         roots(1) = exact(a, "1"//repeat("0", 400))
         code = chars(emit_kernel(roots, &
-            spec_for("too_large_k", ["x"], ["r"]), good))
+            spec_for("too_large_k", X_ARGS, R_OUT), good))
         call ok("non-finite exact kernel reports refusal", .not. good)
         call ok("non-finite exact kernel emits no partial source", &
             len(code) == 0)
@@ -331,7 +361,7 @@ contains
 
         call a%init()
         roots(1) = parsed(a, "sin(x*y) + sin(x*y)*sin(x*y)")
-        code = chars(emit_kernel(roots, spec_for("k", ["x", "y"], ["r"])))
+        code = chars(emit_kernel(roots, spec_for("k", XY_ARGS, R_OUT)))
 
         ! Every temporary must be declared. KiLCA's generated kernels used
         ! implicit real(dp) (s-t) instead, which types anything beginning with s
@@ -355,7 +385,7 @@ contains
         y = sym(a, "y")
         shared = exp(x*y)
         roots(1) = shared + shared*shared
-        spec = spec_for("k", ["x", "y"], ["r"])
+        spec = spec_for("k", XY_ARGS, R_OUT)
         spec%temp_prefix = str("")
         code = chars(emit_kernel(roots, spec))
 
@@ -381,7 +411,7 @@ contains
         call ok("erfc VJP simplification succeeds", simplified%ok)
         if (.not. simplified%ok) return
         roots(1) = simplified%value
-        code = chars(emit_kernel(roots, spec_for("k", ["x", "u"], ["vjp"])))
+        code = chars(emit_kernel(roots, spec_for("k", XU_ARGS, VJP_OUT)))
         call ok("negative product has no doubled unary sign", &
             index(code, "--") == 0)
         call ok("negative product has no embedded negative factor", &
@@ -396,7 +426,7 @@ contains
 
         call a%init()
         roots(1) = parsed(a, "x*x")
-        spec = spec_for("k", ["x"], ["r"])
+        spec = spec_for("k", X_ARGS, R_OUT)
         spec%regenerate_command = str("fpm run --example gen_k")
         code = chars(emit_kernel(roots, spec))
         call ok("explicit regeneration command", &
@@ -411,7 +441,7 @@ contains
 
         call a%init()
         roots(1) = parsed(a, "x*x")
-        spec = spec_for("k", ["x"], ["r"])
+        spec = spec_for("k", X_ARGS, R_OUT)
         spec%generator_revision = str("fortsym@0123456789abcdef")
         code = chars(emit_kernel(roots, spec))
         call ok("generator revision", &
@@ -427,7 +457,7 @@ contains
 
         call a%init()
         roots(1) = parsed(a, "x*x")
-        spec = spec_for("k", ["x"], ["r"])
+        spec = spec_for("k", X_ARGS, R_OUT)
         spec%module_name = str("generated_k")
         code = chars(emit_kernel(roots, spec))
         call ok("module wrapper declaration", &
@@ -475,8 +505,8 @@ contains
         integer :: unit, ios, stat
 
         call a%init()
-        roots(1) = func("max", [num(a, 0), sym(a, "x")])
-        spec = spec_for("clamp_zero", ["x"], ["r"])
+        roots(1) = func_two("max", num(a, 0), sym(a, "x"))
+        spec = spec_for("clamp_zero", X_ARGS, R_OUT)
         spec%module_name = str("generated_clamp_zero")
         code = chars(emit_kernel(roots, spec))
 
@@ -525,11 +555,11 @@ contains
         call a%init()
         ! exp(x(1)) mixes both rules in one expression: exp takes a real
         ! argument, while the subscript inside it must stay an integer.
-        roots(1) = func("exp", [func("x", [num(a, 1)])])
-        spec = spec_for("index_first", ["x"], ["r"])
+        roots(1) = func_one("exp", func_one("x", num(a, 1)))
+        spec = spec_for("index_first", X_ARGS, R_OUT)
         spec%module_name = str("generated_index_first")
         allocate (spec%arg_shapes(1))
-        spec%arg_shapes = [str("(2)")]
+        spec%arg_shapes(1) = str("(2)")
         code = chars(emit_kernel(roots, spec))
 
         call ok("subscript is not emitted as a real literal", &
@@ -574,7 +604,7 @@ contains
 
         call a%init()
         roots(1) = parsed(a, "y/x")
-        spec = spec_for("complex_quotient", ["x", "y"], ["value"])
+        spec = spec_for("complex_quotient", XY_ARGS, VALUE_OUT)
         spec%module_name = str("generated_complex_quotient")
         spec%scalar_type = str("complex(dp)")
         code = chars(emit_kernel(roots, spec))
@@ -622,13 +652,14 @@ contains
 
         call a%init()
         roots(1) = sym(a, "x(1)")*sym(a, "v(1)")
-        spec = spec_for("array_product", ["x", "v"], ["jvp"])
+        spec = spec_for("array_product", XV_ARGS, JVP_OUT)
         spec%module_name = str("generated_array_product")
         allocate (spec%arg_shapes(2), spec%output_shapes(1), &
             spec%output_references(1))
-        spec%arg_shapes = [str("(1)"), str("(1)")]
-        spec%output_shapes = [str("(1)")]
-        spec%output_references = [str("jvp(1)")]
+        spec%arg_shapes(1) = str("(1)")
+        spec%arg_shapes(2) = str("(1)")
+        spec%output_shapes(1) = str("(1)")
+        spec%output_references(1) = str("jvp(1)")
         code = chars(emit_kernel(roots, spec))
         call ok("array input declarations", &
             index(code, "intent(in) :: x(1), v(1)") > 0)
@@ -674,18 +705,21 @@ contains
         integer :: unit, ios, stat
 
         call a%init()
-        roots = [sym(a, "x(1,1)")*sym(a, "v(1,1)"), &
-            sym(a, "x(2,1)")*sym(a, "v(2,1)"), &
-            sym(a, "x(1,2)")*sym(a, "v(1,2)"), &
-            sym(a, "x(2,2)")*sym(a, "v(2,2)")]
-        spec = spec_for("matrix_product", ["x", "v"], ["jvp"])
+        roots(1) = sym(a, "x(1,1)")*sym(a, "v(1,1)")
+        roots(2) = sym(a, "x(2,1)")*sym(a, "v(2,1)")
+        roots(3) = sym(a, "x(1,2)")*sym(a, "v(1,2)")
+        roots(4) = sym(a, "x(2,2)")*sym(a, "v(2,2)")
+        spec = spec_for("matrix_product", XV_ARGS, JVP_OUT)
         spec%module_name = str("generated_matrix_product")
         allocate (spec%arg_shapes(2), spec%output_shapes(1), &
             spec%output_references(4))
-        spec%arg_shapes = [str("(2,2)"), str("(2,2)")]
-        spec%output_shapes = [str("(2,2)")]
-        spec%output_references = [str("jvp(1,1)"), str("jvp(2,1)"), &
-            str("jvp(1,2)"), str("jvp(2,2)")]
+        spec%arg_shapes(1) = str("(2,2)")
+        spec%arg_shapes(2) = str("(2,2)")
+        spec%output_shapes(1) = str("(2,2)")
+        spec%output_references(1) = str("jvp(1,1)")
+        spec%output_references(2) = str("jvp(2,1)")
+        spec%output_references(3) = str("jvp(1,2)")
+        spec%output_references(4) = str("jvp(2,2)")
         code = chars(emit_kernel(roots, spec))
         call ok("rank-two input declarations", &
             index(code, "intent(in) :: x(2,2), v(2,2)") > 0)
@@ -732,11 +766,12 @@ contains
         call a%init()
         roots(1) = sym(a, "x") + 1
         roots(2) = sym(a, "x")*2
-        spec = spec_for("array_fill", ["x"], ["y"])
+        spec = spec_for("array_fill", X_ARGS, Y_OUT)
         spec%module_name = str("generated_array_fill")
         allocate (spec%output_shapes(1), spec%output_references(2))
         spec%output_shapes(1) = str("(2)")
-        spec%output_references = [str("y(1)"), str("y(2)")]
+        spec%output_references(1) = str("y(1)")
+        spec%output_references(2) = str("y(2)")
         code = chars(emit_kernel(roots, spec))
         call ok("multi-element array declared once", &
             index(code, "intent(out) :: y(2)") > 0)
@@ -783,7 +818,7 @@ contains
 
         call a%init()
         roots(1) = sym(a, "x")*sym(a, "v")
-        spec = spec_for("elemental_product", ["x", "v"], ["jvp"])
+        spec = spec_for("elemental_product", XV_ARGS, JVP_OUT)
         spec%module_name = str("generated_elemental_product")
         spec%pure_procedure = .true.
         spec%elemental_procedure = .true.
@@ -831,7 +866,7 @@ contains
 
         call a%init()
         roots(1) = parsed(a, "x*x")
-        spec = spec_for("k", ["x"], ["r"])
+        spec = spec_for("k", X_ARGS, R_OUT)
         spec%module_name = str("generated_device_leaf")
         spec%pure_procedure = .true.
         spec%openmp_declare_target = .true.
@@ -910,6 +945,7 @@ contains
         type(expr_t), allocatable :: x(:), direction(:), variables(:)
         type(expr_t), allocatable :: tangents(:), cotangent(:), products(:)
         type(expr_t) :: forward(1)
+        type(expr_t) :: value_root(1)
         type(expr_t), allocatable :: roots(:)
         type(expr_t) :: value, sum_x
         type(operation_count_t) :: operations
@@ -933,9 +969,11 @@ contains
             end if
         end do
         value = value + sum_x**2/2
-        cotangent = [sym(a, prefix//"u")]
-        products = vjp([value], variables, cotangent)
-        forward = jvp([value], variables, tangents)
+        allocate (cotangent(1))
+        cotangent(1) = sym(a, prefix//"u")
+        value_root(1) = value
+        products = vjp(value_root, variables, cotangent)
+        forward = jvp(value_root, variables, tangents)
         allocate (roots(n + 2))
         roots(1) = value
         roots(2) = forward(1)
@@ -952,7 +990,7 @@ contains
 
         call a%init()
         roots(1) = parsed(a, "x*x")
-        spec = spec_for("k", ["x"], ["r"])
+        spec = spec_for("k", X_ARGS, R_OUT)
         spec%pure_procedure = .true.
         code = chars(emit_kernel(roots, spec))
         call ok("pure procedure prefix", &
@@ -968,7 +1006,7 @@ contains
 
         call a%init()
         roots(1) = parsed(a, "x + undeclared_parameter")
-        spec = spec_for("k", ["x"], ["r"])
+        spec = spec_for("k", X_ARGS, R_OUT)
         code = chars(emit_kernel(roots, spec, accepted))
         call ok("undeclared kernel symbol is refused", .not. accepted)
         call ok("refused kernel source is empty", len(code) == 0)
@@ -980,10 +1018,13 @@ contains
         type(kernel_spec_t) :: spec
         character(:), allocatable :: code
         logical :: accepted
+        character(len=7) :: case_args(2)
 
         call a%init()
         roots(1) = parsed(a, "Phi_eff + x")
-        spec = spec_for("k", [character(len=7) :: "phi_eff", "x"], ["r"])
+        case_args(1) = "phi_eff"
+        case_args(2) = "x"
+        spec = spec_for("k", case_args, R_OUT)
         code = chars(emit_kernel(roots, spec, accepted))
         call ok("Fortran kernel symbols match inputs case-insensitively", &
             accepted .and. len(code) > 0)
@@ -1001,7 +1042,7 @@ contains
         ! depend on the other.
         roots(1) = parsed(a, &
             "sin(exp(x + y))*sin(exp(x + y)) + exp(x + y) + sin(exp(x + y))")
-        code = chars(emit_kernel(roots, spec_for("k", ["x", "y"], ["r"])))
+        code = chars(emit_kernel(roots, spec_for("k", XY_ARGS, R_OUT)))
 
         def1 = index(code, "    t1 = ")
         def2 = index(code, "    t2 = ")
@@ -1026,16 +1067,19 @@ contains
         type(native_engine_t) :: engine
         type(engine_result_t) :: simplified
         character(:), allocatable :: code
+        character(len=4) :: long_args(20), short_args(8)
+        character(len=12) :: product_args(9), product_outputs(5)
         integer :: longest, k
 
         call a%init()
         roots(1) = parsed(a, &
             "aaaa*bbbb + cccc*dddd + eeee*ffff + gggg*hhhh + iiii*jjjj + "// &
             "kkkk*llll + mmmm*nnnn + oooo*pppp + qqqq*rrrr + ssss*tttt")
-        code = chars(emit_kernel(roots, spec_for("k", &
-            ["aaaa", "bbbb", "cccc", "dddd", "eeee", "ffff", "gggg", &
-            "hhhh", "iiii", "jjjj", "kkkk", "llll", "mmmm", "nnnn", &
-            "oooo", "pppp", "qqqq", "rrrr", "ssss", "tttt"], ["r"])))
+        long_args = [character(len=4) :: "aaaa", "bbbb", "cccc", "dddd", &
+            "eeee", "ffff", "gggg", "hhhh", "iiii", "jjjj", "kkkk", &
+            "llll", "mmmm", "nnnn", "oooo", "pppp", "qqqq", "rrrr", &
+            "ssss", "tttt"]
+        code = chars(emit_kernel(roots, spec_for("k", long_args, R_OUT)))
 
         call ok("long statement is continued", index(code, "&") > 0)
 
@@ -1048,9 +1092,9 @@ contains
         roots(1) = parsed(a, &
             "1.0e-8*aaaa + 1.0e-8*bbbb + 1.0e-8*cccc + 1.0e-8*dddd + "// &
             "1.0e-8*eeee + 1.0e-8*ffff + 1.0e-8*gggg + 1.0e-8*hhhh")
-        code = chars(emit_kernel(roots, spec_for("k", &
-            ["aaaa", "bbbb", "cccc", "dddd", "eeee", "ffff", "gggg", &
-            "hhhh"], ["r"])))
+        short_args = [character(len=4) :: "aaaa", "bbbb", "cccc", "dddd", &
+            "eeee", "ffff", "gggg", "hhhh"]
+        code = chars(emit_kernel(roots, spec_for("k", short_args, R_OUT)))
         call ok("never breaks inside an exponent", index(code, "e- &") == 0)
         call ok("never breaks after an exponent sign", index(code, "e-&") == 0)
 
@@ -1058,27 +1102,45 @@ contains
         ! turn valid `x**2` into the invalid continuation `x* &` / `*2`.
         call a%clear()
         call a%init()
-        variables = [sym(a, "target"), sym(a, "node_1"), sym(a, "node_2"), &
-            sym(a, "node_3"), sym(a, "node_4")]
-        values = [ &
-            (variables(1) - variables(3))*(variables(1) - variables(4))* &
+        variables(1) = sym(a, "target")
+        variables(2) = sym(a, "node_1")
+        variables(3) = sym(a, "node_2")
+        variables(4) = sym(a, "node_3")
+        variables(5) = sym(a, "node_4")
+        values(1) = (variables(1) - variables(3))*(variables(1) - variables(4))* &
             (variables(1) - variables(5))/ &
             ((variables(2) - variables(3))*(variables(2) - variables(4))* &
-            (variables(2) - variables(5))), &
-            (variables(1) - variables(2))*(variables(1) - variables(4))* &
+            (variables(2) - variables(5)))
+        values(2) = (variables(1) - variables(2))*(variables(1) - variables(4))* &
             (variables(1) - variables(5))/ &
             ((variables(3) - variables(2))*(variables(3) - variables(4))* &
-            (variables(3) - variables(5))), &
-            (variables(1) - variables(2))*(variables(1) - variables(3))* &
+            (variables(3) - variables(5)))
+        values(3) = (variables(1) - variables(2))*(variables(1) - variables(3))* &
             (variables(1) - variables(5))/ &
             ((variables(4) - variables(2))*(variables(4) - variables(3))* &
-            (variables(4) - variables(5))), &
-            (variables(1) - variables(2))*(variables(1) - variables(3))* &
+            (variables(4) - variables(5)))
+        values(4) = (variables(1) - variables(2))*(variables(1) - variables(3))* &
             (variables(1) - variables(4))/ &
             ((variables(5) - variables(2))*(variables(5) - variables(3))* &
-            (variables(5) - variables(4)))]
-        cotangents = [sym(a, "weight_1_bar"), sym(a, "weight_2_bar"), &
-            sym(a, "weight_3_bar"), sym(a, "weight_4_bar")]
+            (variables(5) - variables(4)))
+        cotangents(1) = sym(a, "weight_1_bar")
+        cotangents(2) = sym(a, "weight_2_bar")
+        cotangents(3) = sym(a, "weight_3_bar")
+        cotangents(4) = sym(a, "weight_4_bar")
+        product_args(1) = "target"
+        product_args(2) = "node_1"
+        product_args(3) = "node_2"
+        product_args(4) = "node_3"
+        product_args(5) = "node_4"
+        product_args(6) = "weight_1_bar"
+        product_args(7) = "weight_2_bar"
+        product_args(8) = "weight_3_bar"
+        product_args(9) = "weight_4_bar"
+        product_outputs(1) = "target_bar"
+        product_outputs(2) = "node_1_bar"
+        product_outputs(3) = "node_2_bar"
+        product_outputs(4) = "node_3_bar"
+        product_outputs(5) = "node_4_bar"
         products = vjp(values, variables, cotangents)
         engine = make_native_engine(a)
         do k = 1, size(products)
@@ -1086,11 +1148,8 @@ contains
             call ok("cubic VJP simplification succeeds", simplified%ok)
             if (simplified%ok) products(k) = simplified%value
         end do
-        code = chars(emit_kernel(products, spec_for("k", &
-            [character(len=12) :: "target", "node_1", "node_2", "node_3", "node_4", &
-            "weight_1_bar", "weight_2_bar", "weight_3_bar", "weight_4_bar"], &
-            ["target_bar", "node_1_bar", "node_2_bar", "node_3_bar", &
-            "node_4_bar"])))
+        code = chars(emit_kernel(products, spec_for("k", product_args, &
+            product_outputs)))
         call ok("power operator is exercised", index(code, "**") > 0)
         call ok("never splits the power operator", .not. contains_split_power(code))
     end subroutine test_line_wrapping
@@ -1169,7 +1228,7 @@ contains
 
         call a%init()
         roots(1) = parsed(a, "x*y + 1")
-        sp = spec_for("k", ["x", "y"], ["r"])
+        sp = spec_for("k", XY_ARGS, R_OUT)
         sp%mode = KERNEL_SNIPPET
         code = chars(emit_kernel(roots, sp))
 
@@ -1212,7 +1271,7 @@ contains
             exact(a, "-18446744073709551616")*&
             exact(a, "-"//huge_numerator//"/"//huge_denominator)*&
             real_expr(a, 2.0_dp**(-64))
-        code = chars(emit_kernel(roots, spec_for("k", ["x", "y"], ["r"])))
+        code = chars(emit_kernel(roots, spec_for("k", XY_ARGS, R_OUT)))
 
         open (newunit=unit, file="/tmp/fortsym_gen_kernel.f90", &
             status="replace", action="write", iostat=ios)

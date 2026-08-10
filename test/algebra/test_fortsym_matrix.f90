@@ -14,7 +14,7 @@ program test_fortsym_matrix
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_subs, only: subs
-    use fortsym_eval, only: free_symbols_of
+    use fortsym_eval, only: collect_free_symbols
     implicit none
 
     integer :: nfail = 0
@@ -104,7 +104,7 @@ contains
         integer :: k, value
 
         r = e
-        names = free_symbols_of(e)
+        call collect_free_symbols(e, names)
         do k = 1, size(names)
             ! Distinct and non-degenerate: equal entries make a determinant
             ! vanish for reasons that have nothing to do with correctness.

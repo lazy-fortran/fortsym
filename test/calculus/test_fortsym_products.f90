@@ -225,7 +225,8 @@ contains
         res1(1) = y1(1)**2 - pp
 
         rhs = implicit_tangent_rhs(res1, p1, dp1)
-        ry = jvp(res1, y1, [num(arena, 1)])
+        rhs(1) = num(arena, 1)
+        ry = jvp(res1, y1, rhs)
 
         ! R_p = -1, so the right-hand side -R_p*dp must be +1.
         call check_zero(s, eng, "implicit tangent rhs = -R_p dp", rhs(1) - 1)

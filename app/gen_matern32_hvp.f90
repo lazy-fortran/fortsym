@@ -59,8 +59,14 @@ program gen_matern32_hvp
     distance_b_d = y_b*diff(value_d, distance)
     lv_b_d = y_b*diff(value_d, lv)
     ll_b_d = y_b*diff(value_d, ll)
-    roots = [value, value_d, distance_b, distance_b_d, lv_b, lv_b_d, &
-        ll_b, ll_b_d]
+    roots(1) = value
+    roots(2) = value_d
+    roots(3) = distance_b
+    roots(4) = distance_b_d
+    roots(5) = lv_b
+    roots(6) = lv_b_d
+    roots(7) = ll_b
+    roots(8) = ll_b_d
 
     do k = 1, size(roots)
         simplified = eng%simplify(roots(k))
@@ -78,11 +84,21 @@ program gen_matern32_hvp
         error stop 1
     end if
     spec%name = str('fortml_generated_matern32_hvp_core')
-    spec%args = [str('distance'), str('distance_d'), str('lv'), &
-        str('lv_d'), str('ll'), str('ll_d'), str('y_b')]
-    spec%outputs = [str('y'), str('y_d'), str('distance_b'), &
-        str('distance_b_d'), str('lv_b'), str('lv_b_d'), str('ll_b'), &
-        str('ll_b_d')]
+    spec%args(1) = str('distance')
+    spec%args(2) = str('distance_d')
+    spec%args(3) = str('lv')
+    spec%args(4) = str('lv_d')
+    spec%args(5) = str('ll')
+    spec%args(6) = str('ll_d')
+    spec%args(7) = str('y_b')
+    spec%outputs(1) = str('y')
+    spec%outputs(2) = str('y_d')
+    spec%outputs(3) = str('distance_b')
+    spec%outputs(4) = str('distance_b_d')
+    spec%outputs(5) = str('lv_b')
+    spec%outputs(6) = str('lv_b_d')
+    spec%outputs(7) = str('ll_b')
+    spec%outputs(8) = str('ll_b_d')
     spec%temp_prefix = str('fs_t')
     spec%generator = str('gen_matern32_hvp')
     spec%generator_revision = str(trim(revision(:revision_length)))

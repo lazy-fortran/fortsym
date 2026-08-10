@@ -196,6 +196,7 @@ contains
         character(*), intent(in) :: name
         type(expr_t), intent(in) :: x, dx
         type(expr_t) :: tangent
+        type(expr_t) :: one_arg(1), two_args(2)
 
         select case (name)
         case ("sin");   tangent = cos(x)*dx
@@ -218,12 +219,18 @@ contains
         case ("erfc")
             tangent = -2*exp(-x**2)*dx/sqrt(pi_of(x%a))
         case ("gamma")
-            tangent = func("gamma", [x])* &
-                func("polygamma", [zero_of(x%a), x])*dx
+            one_arg(1) = x
+            two_args(1) = zero_of(x%a)
+            two_args(2) = x
+            tangent = func("gamma", one_arg)* &
+                func("polygamma", two_args)*dx
         case ("loggamma")
-            tangent = func("polygamma", [zero_of(x%a), x])*dx
+            two_args(1) = zero_of(x%a)
+            two_args(2) = x
+            tangent = func("polygamma", two_args)*dx
         case default
-            tangent = func("Derivative_"//name, [x])*dx
+            one_arg(1) = x
+            tangent = func("Derivative_"//name, one_arg)*dx
         end select
     end function function_tangent
 

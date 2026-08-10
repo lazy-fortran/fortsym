@@ -211,17 +211,25 @@ contains
 
         n = 19
         allocate (cases(n))
-        cases = [ &
-            num(arena, 0_int64), &
-            num(arena, -7_int64), &
-            rat(arena, 2_int64, 3_int64), &
-            rat(arena, -2_int64, 3_int64), &
-            real_expr(arena, 1.5_dp), &
-            real_expr(arena, -2.25_dp), &
-            x, y, -x, x + y, x - y, x*y, x/y, x**3, x**(-2), &
-            sin(x) + cos(y), log(x + 2.0_dp), &
-            (x + y*2) * (x - y), left_deep + right_deep &
-        ]
+        cases(1) = num(arena, 0_int64)
+        cases(2) = num(arena, -7_int64)
+        cases(3) = rat(arena, 2_int64, 3_int64)
+        cases(4) = rat(arena, -2_int64, 3_int64)
+        cases(5) = real_expr(arena, 1.5_dp)
+        cases(6) = real_expr(arena, -2.25_dp)
+        cases(7) = x
+        cases(8) = y
+        cases(9) = -x
+        cases(10) = x + y
+        cases(11) = x - y
+        cases(12) = x*y
+        cases(13) = x/y
+        cases(14) = x**3
+        cases(15) = x**(-2)
+        cases(16) = sin(x) + cos(y)
+        cases(17) = log(x + 2.0_dp)
+        cases(18) = (x + y*2) * (x - y)
+        cases(19) = left_deep + right_deep
 
         do k = 1, n
             original = cases(k)

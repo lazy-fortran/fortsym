@@ -22,7 +22,7 @@ module fortsym_check
     use fortsym_expr, only: expr_t, operator(-)
     use fortsym_engine, only: engine_t, engine_result_t, &
         VERDICT_TRUE, VERDICT_FALSE
-    use fortsym_eval, only: binding_t, eval_expr, free_symbols_of
+    use fortsym_eval, only: binding_t, eval_expr, collect_free_symbols
     use fortsym_print, only: print_expr
     implicit none
     private
@@ -153,7 +153,7 @@ contains
         tried = 0
         agreed = 0
 
-        names = free_symbols_of(e)
+        call collect_free_symbols(e, names)
         b%n = size(names)
         allocate (b%names(b%n), b%values(b%n))
         if (b%n > 0) b%names = names

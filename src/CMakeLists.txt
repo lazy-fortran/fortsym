@@ -53,6 +53,8 @@ target_sources(fortsym PRIVATE
 
     # verification
     verify/fortsym_eval.f90
+    verify/fortsym_numeric.f90
+    verify/fortsym_accuracy.f90
     verify/fortsym_check.f90
     verify/fortsym_rk_trees.f90
     core/fortsym_quadratic.f90

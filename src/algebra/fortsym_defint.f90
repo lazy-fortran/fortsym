@@ -46,7 +46,7 @@ module fortsym_defint
     use fortsym_expr, only: expr_t, num, is_valid, operator(-)
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
-    use fortsym_eval, only: binding_t, eval_expr, free_symbols_of
+    use fortsym_eval, only: binding_t, eval_expr, collect_free_symbols
     use fortsym_integrate, only: integrate
     use fortsym_polysolve, only: solve_polynomial
     use fortsym_engine, only: engine_result_t
@@ -159,7 +159,7 @@ contains
         ! that one is continuous for *every* value of the parameter, so there
         ! is nothing left for the unknown to decide.
         parametric = .false.
-        names = free_symbols_of(e)
+        call collect_free_symbols(e, names)
         do k = 1, size(names)
             if (chars(names(k)) /= chars(var%name())) then
                 if (.not. entire_in(e, var)) then
@@ -1018,7 +1018,7 @@ contains
         integer :: k
 
         yes = .false.
-        names = free_symbols_of(e)
+        call collect_free_symbols(e, names)
         do k = 1, size(names)
             if (chars(names(k)) == chars(v%name())) then
                 yes = .true.
@@ -1038,7 +1038,7 @@ contains
         value = 0.0_dp
         ok = .false.
 
-        names = free_symbols_of(e)
+        call collect_free_symbols(e, names)
         if (size(names) > 0) return
 
         allocate (empty%names(0))

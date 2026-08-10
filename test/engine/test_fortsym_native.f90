@@ -311,7 +311,8 @@ contains
         r = engine%diff(f, x)
         call check("native differentiation succeeds", r%ok)
 
-        bindings%names = [str("x")]
+        allocate (bindings%names(1))
+        bindings%names(1) = str("x")
         allocate (bindings%values(1))
         bindings%n = 1
         point = 1.25_dp
@@ -453,8 +454,9 @@ contains
         real(dp) :: value
         logical :: defined
 
-        bindings%names = [str("x")]
-        bindings%values = [0.0_dp]
+        allocate (bindings%names(1), bindings%values(1))
+        bindings%names(1) = str("x")
+        bindings%values(1) = 0.0_dp
         bindings%n = 1
 
         original = x*x**(-1)
@@ -541,8 +543,9 @@ contains
         real(dp) :: lv, rv
         logical :: left_ok, right_ok
 
-        bindings%names = [str("x")]
-        bindings%values = [point]
+        allocate (bindings%names(1), bindings%values(1))
+        bindings%names(1) = str("x")
+        bindings%values(1) = point
         bindings%n = 1
         lv = eval_expr(left, bindings, left_ok)
         rv = eval_expr(right, bindings, right_ok)

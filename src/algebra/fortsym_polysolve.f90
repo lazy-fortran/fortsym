@@ -225,7 +225,9 @@ contains
             end if
             r%n = a%num_of(id)
             r%d = 1_int64
-            c = [r]
+            deallocate (c)
+            allocate (c(1))
+            c(1) = r
             ok = .true.
 
         case (NK_RAT)
@@ -235,7 +237,9 @@ contains
                       "checked 64-bit arithmetic"
                 return
             end if
-            c = [r]
+            deallocate (c)
+            allocate (c(1))
+            c(1) = r
 
         case (NK_SYM)
             if (chars(a%name_of(id)) == vname) then

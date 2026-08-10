@@ -126,6 +126,7 @@ contains
         type(expr_t), intent(in) :: e, v
         type(expr_t)             :: d
         type(expr_t) :: x, dx, y, dy, denom, term
+        type(expr_t) :: one_arg(1), two_args(2)
         type(expr_t), allocatable :: list_args(:)
         type(arena_t), pointer :: a
         character(:), allocatable :: name
@@ -226,8 +227,15 @@ contains
         case ("sqrt");  d = dx/(2*sqrt(x))
         case ("erf");   d = 2*exp(-x**2)*dx/sqrt(pi_of(a))
         case ("erfc");  d = -2*exp(-x**2)*dx/sqrt(pi_of(a))
-        case ("gamma"); d = func("gamma", [x])*func("polygamma", [zero_of(a), x])*dx
-        case ("loggamma"); d = func("polygamma", [zero_of(a), x])*dx
+        case ("gamma")
+            one_arg(1) = x
+            two_args(1) = zero_of(a)
+            two_args(2) = x
+            d = func("gamma", one_arg)*func("polygamma", two_args)*dx
+        case ("loggamma")
+            two_args(1) = zero_of(a)
+            two_args(2) = x
+            d = func("polygamma", two_args)*dx
         case default
             ! The chain rule must visit every argument. Treating only arg(1)
             ! silently made d psi(r,u)/du zero. Partial derivatives are kept as
