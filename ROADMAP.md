@@ -75,6 +75,15 @@ installs the package sources, and CI builds a wheel in a clean virtualenv. The
 focused Python suite and full `fo test` pass; the existing CUDA emitter fixture
 remains the only known full-suite failure on this host.
 
+Issue #56 (Fortran renderer/parser round-trip) is complete as of 2026-08-10:
+the fparse regression suite now checks an enumerated independent population
+covering signed and rational literals, real kind suffixes, precedence, powers,
+intrinsics, and deep expression chains. It also closes the exactness gap found
+by that property: typed-real quotients emitted for exact rationals are recovered
+as rational nodes in the Fortran dialect, while ordinary real quotients remain
+real. The focused and full `fo test` runs pass apart from the pre-existing CUDA
+emitter fixture.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.

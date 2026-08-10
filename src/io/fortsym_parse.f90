@@ -19,12 +19,12 @@ module fortsym_parse
     use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, &
         NK_BIG_RAT, NK_MUL, NK_SYM, NK_FUNC
-    use fortsym_expr, only: expr_t, sym, num, exact, real_expr, const, func, &
+    use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, const, func, &
         func_in, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_exact, only: exact_sub, exact_div
     use fortsym_dialect, only: dialect_t, dialect, fn_canonical, DIA_WOLFRAM, &
-        const_canonical, DIA_NATIVE
+        DIA_FORTRAN, const_canonical, DIA_NATIVE
     implicit none
     private
 
@@ -969,7 +969,12 @@ contains
                     e = e - rhs
                 end if
             case ("*"); e = e*rhs
-            case ("/"); e = divide(a, e, rhs)
+            case ("/")
+                if (d%id == DIA_FORTRAN) then
+                    e = fortran_real_ratio(a, e, rhs)
+                else
+                    e = divide(a, e, rhs)
+                end if
             case ("**", "^"); e = e**rhs
                 ! Relations stay structural. Deciding x > 0 needs an assumption
                 ! context, and folding it to a boolean here would answer a question
@@ -1018,6 +1023,53 @@ contains
             end select
         end do
     end function parse_binary
+
+    ! The Fortran printer writes an exact rational as a quotient of typed real
+    ! literals so a compiler cannot perform integer division. Recover that
+    ! exact node when both operands are integral real literals; ordinary real
+    ! quotients remain real expressions.
+    function fortran_real_ratio(a, left, right) result(e)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t), intent(in) :: left, right
+        type(expr_t) :: e
+        integer(int64) :: numerator, denominator
+        logical :: left_ok, right_ok
+
+        call integral_real_value(left, numerator, left_ok)
+        call integral_real_value(right, denominator, right_ok)
+        if (left_ok .and. right_ok .and. denominator /= 0_int64) then
+            e = rat(a, numerator, denominator)
+        else
+            e = divide(a, left, right)
+        end if
+    end function fortran_real_ratio
+
+    recursive subroutine integral_real_value(e, value, ok)
+        type(expr_t), intent(in) :: e
+        type(expr_t) :: factor
+        integer(int64), intent(out) :: value
+        logical, intent(out) :: ok
+        real(dp) :: projected
+
+        value = 0_int64
+        ok = .false.
+        select case (e%kind())
+        case (NK_REAL)
+            projected = e%real_value()
+            if (projected /= projected) return
+            if (abs(projected) >= real(huge(0_int64), dp)) return
+            value = nint(projected, kind=int64)
+            ok = real(value, dp) == projected
+        case (NK_MUL)
+            if (e%nargs() /= 2) return
+            factor = e%arg(1)
+            if (factor%kind() /= NK_INT) return
+            if (factor%int_value() /= -1_int64) return
+            factor = e%arg(2)
+            call integral_real_value(factor, value, ok)
+            if (ok) value = -value
+        end select
+    end subroutine integral_real_value
 
     recursive function parse_unary(p, a, d, power_rhs) result(e)
         type(parser_t),        intent(inout) :: p
