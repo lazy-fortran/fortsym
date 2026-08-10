@@ -11,11 +11,11 @@ program test_fortsym_rk
     ! Rejection is tested by perturbing one published coefficient. A checker
     ! that accepted a corrupted tableau would be worthless, and a residual that
     ! merely got small would mean the arithmetic had stopped being exact.
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, dp => real64
     use fortsym_string, only: str_t, str, chars
     use fortsym_rk, only: butcher_t, rk_from_rows, rk_is_consistent, &
         rk_attains_order, rk_error_weights, rk_is_fsal, rk_weight_sum, &
-        rk_order_residuals
+        rk_order_residuals, rk_is_zero, rk_order_residuals_real
     use fortsym_rk_trees, only: tree_table_t, build_rooted_trees, &
         tree_count_of_order, tree_gamma
     implicit none
@@ -31,6 +31,8 @@ program test_fortsym_rk
     call test_dormand_prince()
     call test_corrupted_tableau_is_rejected()
     call test_classical_rk4()
+    call test_zero_spellings()
+    call test_real_order_residuals()
 
     write (*, "(a,i0,a,i0,a)") "test_fortsym_rk: ", n_pass, " passed, ", &
         n_fail, " failed"
@@ -253,6 +255,52 @@ contains
         call ok("classical RK4 does not attain order 5", &
                 .not. rk_attains_order(tableau, tableau%b, 5))
     end subroutine test_classical_rk4
+
+    !> Zero has more than one spelling, and consumers decide which stages a
+    !> kernel takes by asking whether a weight vanishes. A predicate that only
+    !> recognised the literal "0" would put a stage into an argument list on a
+    !> platform whose FLINT renders zero some other way, so every spelling has
+    !> to be recognised as the same value.
+    subroutine test_zero_spellings()
+        call ok("plain zero is zero", rk_is_zero(str("0")))
+        call ok("signed zero is zero", rk_is_zero(str("-0")))
+        call ok("zero over one is zero", rk_is_zero(str("0/1")))
+        call ok("zero over many is zero", rk_is_zero(str("0/57600")))
+        call ok("a non-zero rational is not zero", &
+                .not. rk_is_zero(str("1/57600")))
+        call ok("a tiny rational is not zero", &
+                .not. rk_is_zero(str("1/1000000000000000000000")))
+    end subroutine test_zero_spellings
+
+    !> The real-arithmetic path has to agree with the exact one where both
+    !> apply, and has to reject a perturbed coefficient. Classical RK4 is the
+    !> fixture because its coefficients are exact in binary, so a correct
+    !> tableau gives residuals at rounding level and nothing else.
+    subroutine test_real_order_residuals()
+        real(dp) :: a(4, 4), b(4)
+        real(dp), allocatable :: residuals(:)
+        logical :: got
+
+        a = 0.0_dp
+        a(2, 1) = 0.5_dp
+        a(3, 2) = 0.5_dp
+        a(4, 3) = 1.0_dp
+        b = [1.0_dp/6.0_dp, 1.0_dp/3.0_dp, 1.0_dp/3.0_dp, 1.0_dp/6.0_dp]
+
+        residuals = rk_order_residuals_real(a, b, 4, got)
+        call ok("real residuals compute", got)
+        if (.not. got) return
+        call ok("real residuals cover every tree to order 4", &
+                size(residuals) == 8)
+        call ok("classical RK4 satisfies order 4 at rounding level", &
+                maxval(abs(residuals)) < 1.0e-15_dp)
+
+        ! One coefficient moved well beyond rounding.
+        a(4, 3) = 1.0_dp + 1.0e-6_dp
+        residuals = rk_order_residuals_real(a, b, 4, got)
+        call ok("a perturbed coefficient shows up in the residuals", &
+                got .and. maxval(abs(residuals)) > 1.0e-8_dp)
+    end subroutine test_real_order_residuals
 
     pure function digit(value) result(text)
         integer, intent(in) :: value

@@ -4,8 +4,14 @@ module fortsym_rk
     !>
     !> A tableau here is never a set of decimal constants. Every coefficient is
     !> an exact rational carried through FLINT, so a residual that should be
-    !> zero is the string "0" and not something near it. That is what makes the
+    !> zero is exactly zero and not something near it. That is what makes the
     !> order conditions a proof rather than a tolerance check.
+    !>
+    !> Zero is tested with rk_is_zero rather than by comparing against the
+    !> literal "0". The canonical spelling a value renders to is FLINT's to
+    !> choose, so a build linked against a different FLINT can spell the same
+    !> zero differently, and a literal comparison then silently misclassifies
+    !> it. Every zero test here goes through one renderer on both sides.
     !>
     !> The intended use is generation: state a tableau once, verify it, then
     !> derive the stage expressions, the embedded error weights and the FSAL
@@ -22,7 +28,8 @@ module fortsym_rk
     public :: rk_row_sum_residuals, rk_is_consistent
     public :: rk_order_residuals, rk_attains_order
     public :: rk_error_weights, rk_is_fsal
-    public :: rk_weight_sum
+    public :: rk_weight_sum, rk_is_zero
+    public :: rk_order_residuals_real
 
     integer, parameter :: dp = real64
 
@@ -113,6 +120,22 @@ contains
         stages = tableau%stages
     end function rk_stages
 
+    !> True when this exact value is zero.
+    !>
+    !> Both sides are normalised through the same renderer, so this does not
+    !> depend on how FLINT chooses to spell a canonical zero.
+    function rk_is_zero(value) result(is_zero)
+        type(str_t), intent(in) :: value
+        logical :: is_zero
+        type(str_t) :: canonical, zero
+        logical :: left_ok, right_ok
+
+        canonical = exact_normalize(chars(value), left_ok)
+        zero = exact_normalize("0", right_ok)
+        is_zero = left_ok .and. right_ok .and. &
+                  chars(canonical) == chars(zero)
+    end function rk_is_zero
+
     !> sum_j a(i,j) - c(i) for every stage.
     !>
     !> Zero everywhere is the consistency condition. It is the cheapest check
@@ -157,7 +180,7 @@ contains
         consistent = ok
         if (.not. ok) return
         do i = 1, size(residuals)
-            if (chars(residuals(i)) /= "0") consistent = .false.
+            if (.not. rk_is_zero(residuals(i))) consistent = .false.
         end do
     end function rk_is_consistent
 
@@ -180,7 +203,7 @@ contains
     !>
     !> Entry k is sum_i w_i Phi_i(t_k) - 1/gamma(t_k) for the k-th tree in the
     !> canonical enumeration. The method attains the order exactly when every
-    !> entry is "0".
+    !> entry is zero.
     !>
     !> `weights` selects which solution is being tested, so the same routine
     !> checks the main weights at order p and the embedded ones at p-1.
@@ -259,9 +282,74 @@ contains
         attains = ok
         if (.not. ok) return
         do k = 1, size(residuals)
-            if (chars(residuals(k)) /= "0") attains = .false.
+            if (.not. rk_is_zero(residuals(k))) attains = .false.
         end do
     end function rk_attains_order
+
+    !> The order-condition residuals for a tableau given in floating point.
+    !>
+    !> Not every published method has exact rational coefficients. DOP853's
+    !> nodes involve a square root and its tableau is distributed as decimals,
+    !> so there is nothing exact to test and the residuals cannot vanish. What
+    !> they can do is sit at the level of the coefficients' own precision, and
+    !> a residual far above that is a transcription error rather than rounding.
+    !>
+    !> `a` is the full square coupling matrix with zeros above the diagonal.
+    !> Returns one residual per rooted tree up to `order`.
+    function rk_order_residuals_real(a, weights, order, ok) result(residuals)
+        real(dp), intent(in) :: a(:, :), weights(:)
+        integer, intent(in) :: order
+        logical, intent(out) :: ok
+        real(dp), allocatable :: residuals(:)
+
+        type(tree_table_t) :: trees
+        real(dp), allocatable :: phi(:)
+        real(dp) :: total
+        integer :: k, i, stages
+
+        allocate (residuals(0))
+        stages = size(weights)
+        ok = size(a, 1) == stages .and. size(a, 2) == stages
+        if (.not. ok) return
+
+        call build_rooted_trees(order, trees, ok)
+        if (.not. ok) return
+
+        allocate (phi(stages))
+        deallocate (residuals)
+        allocate (residuals(trees%n))
+        do k = 1, trees%n
+            do i = 1, stages
+                phi(i) = tree_phi_real(a, trees, k, i)
+            end do
+            total = 0.0_dp
+            do i = 1, stages
+                total = total + weights(i)*phi(i)
+            end do
+            residuals(k) = total - 1.0_dp/real(tree_gamma(trees, k), dp)
+        end do
+        ok = .true.
+    end function rk_order_residuals_real
+
+    recursive function tree_phi_real(a, trees, k, i) result(value)
+        real(dp), intent(in) :: a(:, :)
+        type(tree_table_t), intent(in) :: trees
+        integer, intent(in) :: k, i
+        real(dp) :: value
+        integer :: j, m, child
+        real(dp) :: factor
+
+        value = 1.0_dp
+        do m = 1, trees%nchild(k)
+            child = trees%child(m, k)
+            factor = 0.0_dp
+            do j = 1, size(a, 2)
+                if (a(i, j) == 0.0_dp) cycle
+                factor = factor + a(i, j)*tree_phi_real(a, trees, child, j)
+            end do
+            value = value*factor
+        end do
+    end function tree_phi_real
 
     !> Phi_i(t): 1 at a leaf, otherwise the product over the root's subtrees of
     !> sum_j a_ij Phi_j(subtree).
@@ -281,7 +369,7 @@ contains
             child = trees%child(m, k)
             factor = str("0")
             do j = 1, tableau%stages
-                if (chars(tableau%a(i, j)) == "0") cycle
+                if (rk_is_zero(tableau%a(i, j))) cycle
                 sub = tree_phi(tableau, trees, child, j, ok)
                 if (.not. ok) return
                 term = exact_mul(chars(tableau%a(i, j)), chars(sub), ok)
@@ -321,14 +409,18 @@ contains
     !> derivative of one step is the first of the next.
     function rk_is_fsal(tableau) result(fsal)
         type(butcher_t), intent(in) :: tableau
-        logical :: fsal
+        logical :: fsal, ok
         integer :: j, s
 
         s = tableau%stages
         fsal = s > 1
         if (.not. fsal) return
         do j = 1, s
-            if (chars(tableau%a(s, j)) /= chars(tableau%b(j))) fsal = .false.
+            if (.not. rk_is_zero(exact_sub(chars(tableau%a(s, j)), &
+                                           chars(tableau%b(j)), ok))) then
+                fsal = .false.
+            end if
+            if (.not. ok) fsal = .false.
         end do
     end function rk_is_fsal
 
