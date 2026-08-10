@@ -34,6 +34,7 @@ program test_fortsym_kernel
     call test_generator_revision()
     call test_module_wrapper()
     call test_intrinsic_integer_argument_is_real()
+    call test_array_subscript_stays_integer()
     call test_complex_kernel()
     call test_array_shaped_arguments()
     call test_rank_two_array_arguments()
@@ -404,6 +405,60 @@ contains
             call ok("real intrinsic literal kernel runs", stat == 0)
         end if
     end subroutine test_intrinsic_integer_argument_is_real
+
+    !> Indexing a declared array is emitted through the same path as a call, so
+    !> the real-literal rule for intrinsic arguments must not reach it. The
+    !> oracle is the Fortran standard, not the current printer: a subscript has
+    !> to be an integer, so x(1.0_dp) does not compile at all.
+    subroutine test_array_subscript_stays_integer()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+        integer :: unit, ios, stat
+
+        call a%init()
+        ! exp(x(1)) mixes both rules in one expression: exp takes a real
+        ! argument, while the subscript inside it must stay an integer.
+        roots(1) = func("exp", [func("x", [num(a, 1)])])
+        spec = spec_for("index_first", ["x"], ["r"])
+        spec%module_name = str("generated_index_first")
+        allocate (spec%arg_shapes(1))
+        spec%arg_shapes = [str("(2)")]
+        code = chars(emit_kernel(roots, spec))
+
+        call ok("subscript is not emitted as a real literal", &
+            index(code, "x(1.0") == 0)
+        call ok("subscript is emitted as an integer", index(code, "x(1)") > 0)
+
+        open (newunit=unit, file="/tmp/fortsym_gen_subscript.f90", &
+            status="replace", action="write", iostat=ios)
+        if (ios /= 0) then
+            call ok("subscript fixture opens", .false.)
+            return
+        end if
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_subscript"
+        write (unit, "(a)") "  use generated_index_first, only: index_first"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(dp) :: r"
+        write (unit, "(a)") "  call index_first([0.0_dp, 9.0_dp], r)"
+        write (unit, "(a)") "  if (abs(r - 1.0_dp) > 1.0e-12_dp) error stop 1"
+        write (unit, "(a)") "end program drive_subscript"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -J /tmp -o /tmp/fortsym_gen_subscript "// &
+            "/tmp/fortsym_gen_subscript.f90 "// &
+            "> /tmp/fortsym_gen_subscript.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("indexed kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_gen_subscript", &
+                wait=.true., exitstat=stat)
+            call ok("indexed kernel runs", stat == 0)
+        end if
+    end subroutine test_array_subscript_stays_integer
 
     subroutine test_complex_kernel()
         type(arena_t), target :: a
