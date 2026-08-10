@@ -10,6 +10,7 @@ module fortsym_assume
 
     public :: assumption_context_t, assumption_t
     public :: assume, positive, nonnegative, nonzero, real_valued
+    public :: init_assumption_context, record_assumption
     public :: FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO
 
     integer, parameter :: FACT_REAL = 1
@@ -34,6 +35,24 @@ module fortsym_assume
     end type assumption_context_t
 
 contains
+
+    subroutine init_assumption_context(context, home)
+        type(assumption_context_t), intent(inout) :: context
+        type(arena_t), target,       intent(inout) :: home
+
+        call context_init(context, home)
+    end subroutine init_assumption_context
+
+    subroutine record_assumption(context, expression, facts)
+        type(assumption_context_t), intent(inout) :: context
+        type(expr_t),                intent(in)    :: expression
+        integer,                     intent(in)    :: facts
+        type(assumption_t) :: fact
+
+        fact%expression = expression
+        fact%facts = facts
+        call assume(context, fact)
+    end subroutine record_assumption
 
     subroutine context_init(self, home)
         class(assumption_context_t), intent(inout) :: self
