@@ -33,6 +33,17 @@ that can should get the work.
 
 Your code never names an engine.
 
+## Python and SymPy boundary
+
+Python callers use the installed `fortsym` package through the stable C ABI.
+`DIA_SYMPY` describes the expression spelling used by the subprocess adapter,
+which provides simplification and zero-test checks. It does not interpret an
+arbitrary SymPy script or provide a SymPy session. The existing consumer
+inventory contains no SymPy-authored derivation that requires one, so the
+supported Python path is host-language composition through the package API.
+The Wolfram session remains a separate compatibility surface because the
+repository has an existing `.wl` derivation corpus to read.
+
 ```fortran
 type(expr_t) :: x, y, e
 

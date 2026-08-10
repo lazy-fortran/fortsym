@@ -101,6 +101,15 @@ layout. Independent compiler/run fixtures cover exact rationals, negative
 full-precision values, matrix shape, and quadratic radicals; emitted rank-one
 tables read back element-wise through `parse_fortran_array`.
 
+Issue #60 (SymPy frontend scope) is complete as of 2026-08-10: the README and
+dialect documentation record that `DIA_SYMPY` is an expression spelling for
+the subprocess simplification adapter, while Python callers use the installed
+package through the C ABI. A SymPy script session is not part of the supported
+surface because the consumer inventory contains no derivation that requires
+one; the bounded Wolfram session remains tied to the existing `.wl` corpus.
+The Python package smoke tests verify that this route works without importing
+SymPy.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.
