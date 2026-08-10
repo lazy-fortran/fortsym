@@ -116,6 +116,16 @@ one; the bounded Wolfram session remains tied to the existing `.wl` corpus.
 The Python package smoke tests verify that this route works without importing
 SymPy.
 
+Issue #62 (machine-readable symbolic cost record) is complete as of
+2026-08-10: kernel operation counts now expose separate FLOP, structural
+instruction, and FMA-candidate measures; `operation_cost` attributes totals
+and per-root records while aggregating named function heads; and
+`emit_kernel(..., cost_record=...)` supplies the deterministic
+`fortsym.operation_cost.v1` JSON record. The codegen tests hand-verify shared
+DAG accounting, FMA semantics, per-root attribution, named transcendental
+counts, and the optional kernel handoff; the record documents that it is
+symbolic metadata rather than a machine-disassembly claim.
+
 Issue #59 (Wolfram coverage against existing material) is in progress as of
 2026-08-10. The first real flux-pumping derivation measured 30 evaluated and
 20 explicitly refused top-level bindings. Bounded function-valued rules,

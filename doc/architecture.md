@@ -26,6 +26,16 @@ native backend operates on it directly.
 7. `src/verify` supplies independent real evaluation and three-valued checks.
 8. `src/codegen` selects shared subexpressions and emits Fortran kernels.
 
+Kernel emission can also return an optional machine-readable operation-cost
+record through `emit_kernel(..., cost_record=record)`. The record uses the
+`fortsym.operation_cost.v1` JSON schema: totals count distinct nodes in the
+union of the hash-consed output DAGs, `roots` count each output independently,
+and `transcendentals` reports named function heads separately. `flops` counts
+additions, multiplications, and divisions; `instructions` is the corresponding
+structural operation count after collapsing direct multiply-plus-add patterns
+into `fma_candidates`. These are symbolic cost metadata, not a disassembly or
+runtime claim.
+
 An engine capability is a promise that its corresponding type-bound operation
 is callable. A capability bit without an operation entry point is invalid and
 must not be used for dispatch.
