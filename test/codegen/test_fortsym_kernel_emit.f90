@@ -3,13 +3,16 @@ program test_fortsym_kernel_emit
     ! run here; when nvcc and a CUDA device are available, the CUDA leaf is
     ! launched through a tiny independent wrapper and checked against the same
     ! host formula.
-    use, intrinsic :: iso_fortran_env, only: real64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, sin_expr => sin, exp_expr => exp, &
-        operator(+), operator(*), operator(/), operator(**)
+        operator(+), operator(*), operator(/), operator(**), num, rat, real_expr, &
+        operator(==)
     use fortsym_kernel_ir, only: kernel_ir_t, lower_kernel_ir
     use fortsym_kernel_emit
+    use fortsym_fparse, only: parse_fortran_array
+    use fortsym_quadratic, only: quadratic_t, quad
     use fortsym_proc, only: proc_available
     implicit none
 
@@ -17,6 +20,7 @@ program test_fortsym_kernel_emit
     integer :: nfail = 0
 
     call test_emitters_share_ir()
+    call test_emit_tables()
 
     if (nfail == 0) then
         print *, "test_fortsym_kernel_emit: all checks passed"
@@ -175,5 +179,122 @@ contains
         end if
 
     end subroutine test_emitters_share_ir
+
+    subroutine test_emit_tables()
+        type(arena_t), target :: arena
+        type(expr_t) :: values(4), matrix(2, 2)
+        type(quadratic_t) :: quadratic(2)
+        type(expr_t), allocatable :: parsed(:)
+        type(str_t) :: source, matrix_source, quadratic_source
+        character(8) :: comments(4)
+        character(:), allocatable :: message
+        integer :: unit, ios, stat, n
+        logical :: good, quadratic_ok
+
+        call arena%init()
+        values = [rat(arena, 1_int64, 3_int64), real_expr(arena, -1.25_dp), &
+            num(arena, 4_int64), rat(arena, -2_int64, 3_int64)]
+        comments = ["c0      ", "negative", "integer ", "rational"]
+        source = emit_table("values", values, "real(dp)", comments, good, message)
+        call ok("rank-one table emitter accepts exact values", good)
+        call ok("table emitter uses one typed declaration", &
+            index(chars(source), "real(dp), parameter :: values(4)") > 0)
+        call ok("table emitter preserves comments", &
+            index(chars(source), "! negative") > 0)
+        call ok("table emitter avoids narrow overflow fields", &
+            index(chars(source), "****") == 0)
+
+        open (newunit=unit, file="/tmp/fortsym_table.f90", status="replace", &
+            action="write", iostat=ios)
+        call ok("table fixture opens", ios == 0)
+        if (ios /= 0) return
+        write (unit, "(a)") "program drive_fortsym_table"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") chars(source)
+        write (unit, "(a)") "  if (abs(values(1) - 1.0_dp/3.0_dp) > 1.0e-15_dp) error stop 1"
+        write (unit, "(a)") "  if (abs(values(2) + 1.25_dp) > 1.0e-15_dp) error stop 2"
+        write (unit, "(a)") "  if (values(3) /= 4.0_dp) error stop 3"
+        write (unit, "(a)") "  if (abs(values(4) + 2.0_dp/3.0_dp) > 1.0e-15_dp) error stop 4"
+        write (unit, "(a)") "end program drive_fortsym_table"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -o /tmp/fortsym_table /tmp/fortsym_table.f90 > /tmp/fortsym_table.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("generated rank-one table compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_table", wait=.true., exitstat=stat)
+            call ok("generated rank-one table matches independent values", stat == 0)
+        end if
+
+        call parse_fortran_array(arena, "/tmp/fortsym_table.f90", "values", &
+            parsed, n, good, message)
+        call ok("emitted table reads back through fparse", good .and. n == 4)
+        if (good) then
+            call ok("readback preserves first exact value", parsed(1) == values(1))
+            call ok("readback preserves last exact value", parsed(4) == values(4))
+        end if
+
+        matrix = reshape([num(arena, 1_int64), num(arena, 2_int64), &
+            num(arena, 3_int64), num(arena, 4_int64)], shape(matrix))
+        matrix_source = emit_table("matrix", matrix, "real(dp)", ok=good, &
+            message=message)
+        call ok("rank-two table emitter accepts a matrix", good)
+        call ok("rank-two table uses reshape", index(chars(matrix_source), &
+            "reshape([") > 0)
+
+        matrix_source = emit_table("matrix", matrix, "real(dp)", ok=good, &
+            message=message)
+        open (newunit=unit, file="/tmp/fortsym_matrix.f90", status="replace", &
+            action="write", iostat=ios)
+        call ok("rank-two fixture opens", ios == 0)
+        if (ios == 0) then
+            write (unit, "(a)") "program drive_fortsym_matrix"
+            write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+            write (unit, "(a)") "  implicit none"
+            write (unit, "(a)") chars(matrix_source)
+            write (unit, "(a)") "  if (matrix(1, 1) /= 1.0_dp) error stop 1"
+            write (unit, "(a)") "  if (matrix(2, 2) /= 4.0_dp) error stop 2"
+            write (unit, "(a)") "end program drive_fortsym_matrix"
+            close (unit)
+            call execute_command_line( &
+                "gfortran -o /tmp/fortsym_matrix /tmp/fortsym_matrix.f90 > /tmp/fortsym_matrix.log 2>&1", &
+                wait=.true., exitstat=stat)
+            call ok("generated rank-two table compiles", stat == 0)
+            if (stat == 0) then
+                call execute_command_line("/tmp/fortsym_matrix", wait=.true., exitstat=stat)
+                call ok("generated rank-two table matches independent values", stat == 0)
+            end if
+        end if
+
+        quadratic(1) = quad("1/2", "1/3", 6, quadratic_ok)
+        quadratic(2) = quad("0", "-1", 6, quadratic_ok)
+        quadratic_source = emit_table("quadratic", quadratic, "real(dp)", ok=good, &
+            message=message)
+        call ok("quadratic table emitter accepts exact values", good)
+        call ok("quadratic table preserves radicals", &
+            index(chars(quadratic_source), "sqrt(6.0d0)") > 0)
+        open (newunit=unit, file="/tmp/fortsym_quadratic_table.f90", status="replace", &
+            action="write", iostat=ios)
+        call ok("quadratic fixture opens", ios == 0)
+        if (ios == 0) then
+            write (unit, "(a)") "program drive_fortsym_quadratic"
+            write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+            write (unit, "(a)") "  implicit none"
+            write (unit, "(a)") chars(quadratic_source)
+            write (unit, "(a)") "  if (abs(quadratic(1) - (0.5_dp + sqrt(6.0_dp)/3.0_dp)) > 1.0e-15_dp) error stop 1"
+            write (unit, "(a)") "  if (abs(quadratic(2) + sqrt(6.0_dp)) > 1.0e-15_dp) error stop 2"
+            write (unit, "(a)") "end program drive_fortsym_quadratic"
+            close (unit)
+            call execute_command_line( &
+                "gfortran -o /tmp/fortsym_quadratic_table /tmp/fortsym_quadratic_table.f90 > /tmp/fortsym_quadratic_table.log 2>&1", &
+                wait=.true., exitstat=stat)
+            call ok("generated quadratic table compiles", stat == 0)
+            if (stat == 0) then
+                call execute_command_line("/tmp/fortsym_quadratic_table", wait=.true., exitstat=stat)
+                call ok("generated quadratic table matches independent values", stat == 0)
+            end if
+        end if
+    end subroutine test_emit_tables
 
 end program test_fortsym_kernel_emit

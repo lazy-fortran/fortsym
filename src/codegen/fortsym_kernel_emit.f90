@@ -10,11 +10,23 @@ module fortsym_kernel_emit
     use fortsym_kernel_ir, only: kernel_ir_t, kernel_ir_node_t, IR_LITERAL, &
         IR_SYMBOL, IR_CONSTANT, IR_ADD, IR_MUL, IR_POW, IR_FUNCTION
     use fortsym_string, only: str_t, strbuf_t, str, chars
+    use fortsym_expr, only: expr_t
+    use fortsym_quadratic, only: quadratic_t
+    use fortsym_dialect, only: dialect, DIA_FORTRAN
+    use fortsym_print, only: print_expr_in
     implicit none
     private
 
     public :: kernel_emit_spec_t
     public :: emit_fortran_kernel_ir, emit_cuda_device_ir
+    public :: emit_table
+
+    interface emit_table
+        module procedure emit_table_expr_1d
+        module procedure emit_table_expr_2d
+        module procedure emit_table_quadratic_1d
+        module procedure emit_table_quadratic_2d
+    end interface emit_table
 
     integer, parameter :: dp = real64
     integer, parameter :: BACKEND_FORTRAN = 1
@@ -37,6 +49,353 @@ module fortsym_kernel_emit
     end type kernel_emit_spec_t
 
 contains
+
+    !> Emit a typed rank-one constant table. Every value goes through the same
+    !> Fortran renderer used by kernel emission; comments are placed after the
+    !> continuation marker so they cannot hide a required token.
+    function emit_table_expr_1d(name, values, declared_kind, comments, ok, message) &
+            result(source)
+        character(*), intent(in) :: name, declared_kind
+        type(expr_t), intent(in) :: values(:)
+        character(*), intent(in), optional :: comments(:)
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(str_t) :: source
+        type(strbuf_t) :: b
+        integer :: k
+
+        call validate_table_header(name, declared_kind, size(values), ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        if (present(comments)) then
+            if (size(comments) /= size(values)) then
+                ok = .false.
+                message = "table emitter: comment count does not match table size"
+                source = str("")
+                return
+            end if
+        end if
+
+        call append_table_header(b, name, declared_kind, [size(values)])
+        do k = 1, size(values)
+            if (present(comments)) then
+                call append_table_value(b, values(k), k == size(values), ok, &
+                    message, comments(k), trailer=rank_one_trailer(k == size(values)))
+            else
+                call append_table_value(b, values(k), k == size(values), ok, message, &
+                    trailer=rank_one_trailer(k == size(values)))
+            end if
+            if (.not. ok) then
+                source = str("")
+                return
+            end if
+        end do
+        source = b%to_str()
+    end function emit_table_expr_1d
+
+    !> Emit a rank-two table as a Fortran RESHAPE over the same flat typed
+    !> constructor. Fortran array constructors are rank one; column-major
+    !> flattening therefore preserves the declared `(rows, columns)` shape.
+    function emit_table_expr_2d(name, values, declared_kind, comments, ok, message) &
+            result(source)
+        character(*), intent(in) :: name, declared_kind
+        type(expr_t), intent(in) :: values(:, :)
+        character(*), intent(in), optional :: comments(:, :)
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(str_t) :: source
+        type(strbuf_t) :: b
+        integer :: i, j, flat, total
+
+        call validate_table_header(name, declared_kind, size(values), ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        if (present(comments)) then
+            if (any(shape(comments) /= shape(values))) then
+                ok = .false.
+                message = "table emitter: comment shape does not match table shape"
+                source = str("")
+                return
+            end if
+        end if
+
+        total = size(values)
+        call append_table_header(b, name, declared_kind, &
+            [size(values, 1), size(values, 2)])
+        flat = 0
+        do j = 1, size(values, 2)
+            do i = 1, size(values, 1)
+                flat = flat + 1
+                if (present(comments)) then
+                    call append_table_value(b, values(i, j), flat == total, ok, &
+                        message, comments(i, j), trailer=table_trailer(size(values, 1), &
+                        size(values, 2), flat == total))
+                else
+                    call append_table_value(b, values(i, j), flat == total, ok, message, &
+                        trailer=table_trailer(size(values, 1), size(values, 2), flat == total))
+                end if
+                if (.not. ok) then
+                    source = str("")
+                    return
+                end if
+            end do
+        end do
+        source = b%to_str()
+    end function emit_table_expr_2d
+
+    function emit_table_quadratic_1d(name, values, declared_kind, comments, ok, message) &
+            result(source)
+        character(*), intent(in) :: name, declared_kind
+        type(quadratic_t), intent(in) :: values(:)
+        character(*), intent(in), optional :: comments(:)
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(str_t) :: source
+        type(strbuf_t) :: b
+        integer :: k
+
+        call validate_table_header(name, declared_kind, size(values), ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        if (present(comments)) then
+            if (size(comments) /= size(values)) then
+                ok = .false.
+                message = "table emitter: comment count does not match table size"
+                source = str("")
+                return
+            end if
+        end if
+
+        call append_table_header(b, name, declared_kind, [size(values)])
+        do k = 1, size(values)
+            if (present(comments)) then
+                call append_quadratic_value(b, values(k), k == size(values), ok, &
+                    message, comments(k), trailer=rank_one_trailer(k == size(values)))
+            else
+                call append_quadratic_value(b, values(k), k == size(values), ok, message, &
+                    trailer=rank_one_trailer(k == size(values)))
+            end if
+            if (.not. ok) then
+                source = str("")
+                return
+            end if
+        end do
+        source = b%to_str()
+    end function emit_table_quadratic_1d
+
+    function emit_table_quadratic_2d(name, values, declared_kind, comments, ok, message) &
+            result(source)
+        character(*), intent(in) :: name, declared_kind
+        type(quadratic_t), intent(in) :: values(:, :)
+        character(*), intent(in), optional :: comments(:, :)
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(str_t) :: source
+        type(strbuf_t) :: b
+        integer :: i, j, flat, total
+
+        call validate_table_header(name, declared_kind, size(values), ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        if (present(comments)) then
+            if (any(shape(comments) /= shape(values))) then
+                ok = .false.
+                message = "table emitter: comment shape does not match table shape"
+                source = str("")
+                return
+            end if
+        end if
+
+        total = size(values)
+        call append_table_header(b, name, declared_kind, &
+            [size(values, 1), size(values, 2)])
+        flat = 0
+        do j = 1, size(values, 2)
+            do i = 1, size(values, 1)
+                flat = flat + 1
+                if (present(comments)) then
+                    call append_quadratic_value(b, values(i, j), flat == total, ok, &
+                        message, comments(i, j), trailer=table_trailer(size(values, 1), &
+                        size(values, 2), flat == total))
+                else
+                    call append_quadratic_value(b, values(i, j), flat == total, ok, message, &
+                        trailer=table_trailer(size(values, 1), size(values, 2), flat == total))
+                end if
+                if (.not. ok) then
+                    source = str("")
+                    return
+                end if
+            end do
+        end do
+        source = b%to_str()
+    end function emit_table_quadratic_2d
+
+    subroutine append_table_header(b, name, declared_kind, shape)
+        type(strbuf_t), intent(inout) :: b
+        character(*), intent(in) :: name, declared_kind
+        integer, intent(in) :: shape(:)
+
+        call b%append(declared_kind//", parameter :: "//name//"(")
+        call b%append(chars(str(shape(1))))
+        if (size(shape) == 2) then
+            call b%append(",")
+            call b%append(chars(str(shape(2))))
+        end if
+        if (size(shape) == 1) then
+            call b%append(") = [ "//declared_kind//" :: &")
+        else
+            call b%append(") = reshape([ "//declared_kind//" :: &")
+        end if
+        call b%newline()
+    end subroutine append_table_header
+
+    subroutine validate_table_header(name, declared_kind, count, ok, message)
+        character(*), intent(in) :: name, declared_kind
+        integer, intent(in) :: count
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+
+        ok = .false.
+        message = ""
+        if (.not. valid_identifier(name)) then
+            message = "table emitter: table name is invalid"
+            return
+        end if
+        if (len_trim(declared_kind) == 0) then
+            message = "table emitter: declared kind is empty"
+            return
+        end if
+        if (count == 0) then
+            message = "table emitter: table is empty"
+            return
+        end if
+        ok = .true.
+    end subroutine validate_table_header
+
+    subroutine append_table_value(b, value, last, ok, message, comment, trailer)
+        type(strbuf_t), intent(inout) :: b
+        type(expr_t), intent(in) :: value
+        logical, intent(in) :: last
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        character(*), intent(in), optional :: comment
+        character(*), intent(in), optional :: trailer
+        type(str_t) :: rendered
+
+        rendered = print_expr_in(value, dialect(DIA_FORTRAN), ok)
+        if (.not. ok) then
+            message = "table emitter: value is not Fortran-representable"
+            return
+        end if
+        call append_table_text(b, chars(rendered), last, comment, trailer)
+        message = ""
+    end subroutine append_table_value
+
+    subroutine append_quadratic_value(b, value, last, ok, message, comment, trailer)
+        type(strbuf_t), intent(inout) :: b
+        type(quadratic_t), intent(in) :: value
+        logical, intent(in) :: last
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        character(*), intent(in), optional :: comment
+        character(*), intent(in), optional :: trailer
+
+        ok = value%radicand > 1
+        if (.not. ok) then
+            message = "table emitter: quadratic radicand is invalid"
+            return
+        end if
+        call append_table_text(b, quadratic_fortran_text(value), last, comment, trailer)
+        message = ""
+    end subroutine append_quadratic_value
+
+    subroutine append_table_text(b, rendered, last, comment, trailer)
+        type(strbuf_t), intent(inout) :: b
+        character(*), intent(in) :: rendered
+        logical, intent(in) :: last
+        character(*), intent(in), optional :: comment
+        character(*), intent(in), optional :: trailer
+
+        call b%append("    ")
+        call b%append(rendered)
+        if (last .and. present(trailer)) call b%append(trailer)
+        if (.not. last) call b%append(", &")
+        if (present(comment)) then
+            if (len_trim(comment) > 0) then
+                call b%append("  ! ")
+                call b%append(trim(comment))
+            end if
+        end if
+        call b%newline()
+    end subroutine append_table_text
+
+    function quadratic_fortran_text(value) result(text)
+        type(quadratic_t), intent(in) :: value
+        character(:), allocatable :: text
+        character(:), allocatable :: a, b, root, d
+
+        a = rational_fortran_text(chars(value%a))
+        b = rational_fortran_text(chars(value%b))
+        d = integer_fortran_text(value%radicand)
+        root = "sqrt("//d//")"
+        if (b == "0.0d0") then
+            text = a
+        else if (a == "0.0d0") then
+            text = b//"*"//root
+        else
+            text = a//" + ("//b//")*"//root
+        end if
+    end function quadratic_fortran_text
+
+    function rational_fortran_text(value) result(text)
+        character(*), intent(in) :: value
+        character(:), allocatable :: text
+        integer :: slash
+
+        slash = index(value, "/")
+        if (slash == 0) then
+            text = trim(value)//".0d0"
+        else
+            text = trim(value(:slash - 1))//".0d0/"//trim(value(slash + 1:))//".0d0"
+        end if
+    end function rational_fortran_text
+
+    function integer_fortran_text(value) result(text)
+        integer, intent(in) :: value
+        character(:), allocatable :: text
+        character(32) :: buffer
+
+        write (buffer, "(i0)") value
+        text = trim(buffer)//".0d0"
+    end function integer_fortran_text
+
+    function rank_one_trailer(last) result(text)
+        logical, intent(in) :: last
+        character(:), allocatable :: text
+
+        text = ""
+        if (last) text = " ]"
+    end function rank_one_trailer
+
+    function table_trailer(rows, columns, last) result(text)
+        integer, intent(in) :: rows, columns
+        logical, intent(in) :: last
+        character(:), allocatable :: text
+
+        text = ""
+        if (last) then
+            text = "], ["//chars(str(rows))//", "//chars(str(columns))//"]"
+            text = text//")"
+        end if
+    end function table_trailer
 
     function emit_fortran_kernel_ir(ir, spec, ok, message) result(source)
         type(kernel_ir_t), intent(in) :: ir

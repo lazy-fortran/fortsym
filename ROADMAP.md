@@ -89,9 +89,17 @@ Issue #57 (Fortran declaration and array readback) is complete as of
 declarations, including array specs and multi-entity declarations, while
 rejecting pointer initialization. Fortran `[]` and `(/.../)` constructors parse
 through the dialect parser, and `parse_fortran_array` returns their elements
-with explicit refusals for nested, implied-do, and typed constructors. The
-focused and full `fo test` runs pass apart from the pre-existing CUDA emitter
-fixture.
+with explicit refusals for nested and implied-do constructors. Typed
+constructors are accepted when reading generated tables; the focused and full
+`fo test` runs pass apart from the pre-existing CUDA emitter fixture.
+
+Issue #58 (typed constant-table emission) is complete as of 2026-08-10:
+`emit_table` now accepts rank-one and rank-two `expr_t` and `quadratic_t`
+tables, renders every element through the shared Fortran path, preserves
+per-element comments, and emits typed constructors with safe continuation
+layout. Independent compiler/run fixtures cover exact rationals, negative
+full-precision values, matrix shape, and quadratic radicals; emitted rank-one
+tables read back element-wise through `parse_fortran_array`.
 
 ## Performance contract
 
