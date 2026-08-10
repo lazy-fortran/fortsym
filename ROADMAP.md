@@ -112,10 +112,12 @@ SymPy.
 
 Issue #59 (Wolfram coverage against existing material) is in progress as of
 2026-08-10. The first real flux-pumping derivation measured 30 evaluated and
-20 explicitly refused top-level bindings, for 60% reachable coverage. The
-binding names and refusal diagnostics are recorded in
-`doc/wolfram-coverage-39.md`; the next gap is function-valued rules and their
-downstream replacement semantics.
+20 explicitly refused top-level bindings. Bounded function-valued rules,
+canonical `Pattern[name, Blank[]]` matching, and real-valued `Table` ranges
+now raise the same run to 40 evaluated and 10 refused bindings, or 80%
+reachable coverage. The binding names and refusal diagnostics are recorded in
+`doc/wolfram-coverage-39.md`; the next gaps are definite integration and the
+numeric plotting path.
 
 ## Performance contract
 

@@ -930,6 +930,28 @@ contains
         end select
         head = chars(e%name())
 
+        ! A pure Function is a value. Keep its body and slots intact until a
+        ! collection or replacement operation supplies arguments; evaluating
+        ! the body here would lose the lexical parameter boundary.
+        if (head == "Function") then
+            if (e%nargs() < 1 .or. e%nargs() > 2) then
+                call refuse(ok, message, "Function needs a body and optional parameters")
+            end if
+            return
+        end if
+        if (head == "Blank") then
+            if (e%nargs() > 1) then
+                call refuse(ok, message, "Blank accepts at most one name")
+            end if
+            return
+        end if
+        if (head == "Pattern") then
+            if (e%nargs() /= 2) then
+                call refuse(ok, message, "Pattern needs a name and a blank")
+            end if
+            return
+        end if
+
         ! Table needs its iterator variables substituted before the body is
         ! evaluated. Running the generic innermost-out walk first would make
         ! Table[If[...], {i, 3}] refuse on If before it ever sees a value for
@@ -2497,7 +2519,7 @@ contains
         type(expr_t),       intent(out)   :: output
         logical,             intent(out)  :: ok
         type(str_t),         intent(out)  :: message
-        type(expr_t) :: rhs
+        type(expr_t) :: rhs, lhs
         logical :: has_pattern
 
         output = input
@@ -2516,12 +2538,87 @@ contains
             output = replace_pattern(s, input, rule%arg(1), rule%arg(2), ok, message)
             if (.not. ok) return
         else
+            lhs = rule%arg(1)
             rhs = wl_eval(s, apply_bindings(s, rule%arg(2)), ok, message)
             if (.not. ok) return
-            output = subs(input, rule%arg(1), rhs)
+            if (lhs%kind() == NK_SYM .and. rhs%kind() == NK_FUNC .and. &
+                chars(rhs%name()) == "Function") then
+                output = replace_function_heads(s, input, chars(lhs%name()), &
+                    rhs, ok, message)
+                if (.not. ok) return
+            else
+                output = subs(input, rule%arg(1), rhs)
+            end if
         end if
         ok = .true.
     end subroutine apply_one_rule
+
+    !> Replace a named head such as `t` in `t[x]` with a pure Function value.
+    !> ReplaceAll applies rules to heads as well as arguments. This bounded
+    !> implementation handles the function-valued rule used by source
+    !> derivations, while ordinary scalar replacement continues through subs.
+    recursive function replace_function_heads(s, input, head_name, mapper, ok, &
+            message) result(output)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t), intent(in) :: input, mapper
+        character(*), intent(in) :: head_name
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: message
+        type(expr_t) :: output, child, mapped
+        type(expr_t), allocatable :: args(:)
+        logical :: child_ok, changed
+        integer :: k
+
+        ok = .true.
+        message = str("")
+        output = input
+        if (input%kind() == NK_SYM) then
+            if (chars(input%name()) == head_name) output = mapper
+            return
+        end if
+        if (input%kind() /= NK_ADD .and. input%kind() /= NK_MUL .and. &
+            input%kind() /= NK_POW .and. input%kind() /= NK_FUNC) return
+        if (input%nargs() == 0) return
+
+        if (input%kind() == NK_FUNC .and. chars(input%name()) == head_name) then
+            allocate (args(input%nargs()))
+            do k = 1, input%nargs()
+                args(k) = wl_eval(s, apply_bindings(s, input%arg(k)), child_ok, message)
+                if (.not. child_ok) then
+                    ok = .false.
+                    return
+                end if
+            end do
+            call apply_mapper(s, mapper, args, mapped, ok, message)
+            if (ok) output = mapped
+            return
+        end if
+
+        allocate (args(input%nargs()))
+        changed = .false.
+        do k = 1, input%nargs()
+            child = input%arg(k)
+            args(k) = replace_function_heads(s, child, head_name, mapper, child_ok, message)
+            if (.not. child_ok) then
+                ok = .false.
+                return
+            end if
+            changed = changed .or. args(k)%id /= child%id
+        end do
+        if (.not. changed) return
+        select case (input%kind())
+        case (NK_ADD)
+            output = args(1)
+            do k = 2, size(args); output = output + args(k); end do
+        case (NK_MUL)
+            output = args(1)
+            do k = 2, size(args); output = output*args(k); end do
+        case (NK_POW)
+            output = args(1)**args(2)
+        case (NK_FUNC)
+            output = func(chars(input%name()), args)
+        end select
+    end function replace_function_heads
 
     !> Replace named blank patterns such as `rr_` in a RuleDelayed. This is the
     !> small pattern subset needed by source-faithful corpus identities: a blank
@@ -2600,16 +2697,19 @@ contains
 
         matched = .false.
         if (is_blank_pattern(pattern)) then
-            name = chars(pattern%name())
-            n = len(name) - 1
+            call blank_pattern_name(pattern, name, n)
+            if (n == 0) then
+                matched = .true.
+                return
+            end if
             do k = 1, nvars
-                if (chars(names(k)%name()) /= name(1:n)) cycle
+                if (chars(names(k)%name()) /= name) cycle
                 matched = value%id == values(k)%id
                 return
             end do
             if (nvars >= size(names)) return
             nvars = nvars + 1
-            names(nvars) = sym(pattern%a, name(1:n))
+            names(nvars) = sym(pattern%a, name)
             values(nvars) = value
             matched = .true.
             return
@@ -2659,14 +2759,47 @@ contains
         integer                   :: n
 
         found = .false.
-        if (e%kind() /= NK_SYM) return
-        name = chars(e%name())
-        n = len(name)
-        if (n < 2) return
-        if (name(n:n) /= "_") return
-        if (name(n - 1:n - 1) == "_") return
-        found = .true.
+        if (e%kind() == NK_SYM) then
+            name = chars(e%name())
+            n = len(name)
+            if (n >= 2) then
+                if (name(n:n) == "_" .and. name(n - 1:n - 1) /= "_") then
+                    found = .true.
+                end if
+            end if
+        else if (e%kind() == NK_FUNC .and. chars(e%name()) == "Blank") then
+            found = e%nargs() <= 1
+        else if (e%kind() == NK_FUNC .and. chars(e%name()) == "Pattern") then
+            found = e%nargs() == 2
+        end if
     end function is_blank_pattern
+
+    subroutine blank_pattern_name(e, name, length)
+        type(expr_t), intent(in) :: e
+        character(:), allocatable, intent(out) :: name
+        integer, intent(out) :: length
+        type(expr_t) :: child
+
+        name = ""
+        length = 0
+        if (e%kind() == NK_SYM) then
+            name = chars(e%name())
+            length = len(name) - 1
+            if (length > 0) name = name(:length)
+        else if (e%kind() == NK_FUNC .and. chars(e%name()) == "Blank" .and. &
+            e%nargs() == 1) then
+            child = e%arg(1)
+            if (child%kind() /= NK_SYM) return
+            name = chars(child%name())
+            length = len(name)
+        else if (e%kind() == NK_FUNC .and. chars(e%name()) == "Pattern" .and. &
+            e%nargs() == 2) then
+            child = e%arg(1)
+            if (child%kind() /= NK_SYM) return
+            name = chars(child%name())
+            length = len(name)
+        end if
+    end subroutine blank_pattern_name
 
     recursive function lower_compound(s, e, ok, message) result(r)
         type(wl_session_t), intent(inout) :: s
@@ -3572,8 +3705,11 @@ contains
         type(expr_t) :: explicit_values, item
         type(expr_t) :: bound
         integer(int64) :: lo, hi, step, count64, k64
+        real(dp) :: lo_real, hi_real, step_real, count_real
+        logical :: real_range
         integer :: k
         type(str_t) :: why
+        character(:), allocatable :: numeric_why
 
         ok = .false.
         message = str("")
@@ -3593,6 +3729,7 @@ contains
             call refuse(ok, message, "Table needs a plain index variable")
             return
         end if
+        real_range = .false.
 
         ! The explicit-value form, {i, {a, b, c}}, is common in generated
         ! scripts and costs no symbolic inference: evaluate each supplied
@@ -3619,31 +3756,81 @@ contains
                 return
             end if
 
-            if (.not. exact_integer(bound, hi)) then
-                call refuse(ok, message, "Table needs an integer upper bound")
-                return
-            end if
-            lo = 1_int64
-            step = 1_int64
-        else
-            bound = apply_bindings(s, spec%arg(2))
-            if (.not. exact_integer(bound, lo)) then
-                call refuse(ok, message, "Table needs integer range bounds")
-                return
-            end if
-            bound = apply_bindings(s, spec%arg(3))
-            if (.not. exact_integer(bound, hi)) then
-                call refuse(ok, message, "Table needs integer range bounds")
-                return
-            end if
-            step = 1_int64
-            if (spec%nargs() == 4) then
-                bound = apply_bindings(s, spec%arg(4))
-                if (.not. exact_integer(bound, step)) then
-                    call refuse(ok, message, "Table needs an integer step")
+            if (exact_integer(bound, hi)) then
+                lo = 1_int64
+                step = 1_int64
+            else
+                call numeric_value(bound, hi_real, ok, numeric_why)
+                if (.not. ok) then
+                    call refuse(ok, message, "Table upper bound: "//numeric_why)
                     return
                 end if
+                lo_real = 1.0_dp
+                step_real = 1.0_dp
+                real_range = .true.
             end if
+        else
+            bound = apply_bindings(s, spec%arg(2))
+            if (exact_integer(bound, lo)) then
+                lo_real = real(lo, dp)
+            else
+                call numeric_value(bound, lo_real, ok, numeric_why)
+                if (.not. ok) then
+                    call refuse(ok, message, "Table lower bound: "//numeric_why)
+                    return
+                end if
+                real_range = .true.
+            end if
+            bound = apply_bindings(s, spec%arg(3))
+            if (exact_integer(bound, hi)) then
+                hi_real = real(hi, dp)
+            else
+                call numeric_value(bound, hi_real, ok, numeric_why)
+                if (.not. ok) then
+                    call refuse(ok, message, "Table upper bound: "//numeric_why)
+                    return
+                end if
+                real_range = .true.
+            end if
+            step_real = 1.0_dp
+            if (spec%nargs() == 4) then
+                bound = apply_bindings(s, spec%arg(4))
+                if (exact_integer(bound, step)) then
+                    step_real = real(step, dp)
+                else
+                    call numeric_value(bound, step_real, ok, numeric_why)
+                    if (.not. ok) then
+                        call refuse(ok, message, "Table step: "//numeric_why)
+                        return
+                    end if
+                    real_range = .true.
+                end if
+            end if
+        end if
+
+        if (real_range) then
+            if (step_real == 0.0_dp) then
+                call refuse(ok, message, "Table step cannot be zero")
+                return
+            end if
+            if ((step_real > 0.0_dp .and. lo_real > hi_real) .or. &
+                (step_real < 0.0_dp .and. lo_real < hi_real)) then
+                count_real = 0.0_dp
+            else if (step_real > 0.0_dp) then
+                count_real = floor((hi_real - lo_real)/step_real + 1.0e-10_dp) + 1.0_dp
+            else
+                count_real = floor((lo_real - hi_real)/(-step_real) + 1.0e-10_dp) + 1.0_dp
+            end if
+            if (count_real < 0.0_dp .or. count_real > real(MAX_TABLE_ITEMS, dp)) then
+                call refuse(ok, message, "Table expansion exceeds its bound")
+                return
+            end if
+            allocate (values(int(count_real)))
+            do k = 1, size(values)
+                values(k) = real_expr(s%a, lo_real + real(k - 1, dp)*step_real)
+            end do
+            ok = .true.
+            return
         end if
 
         if (step == 0_int64) then

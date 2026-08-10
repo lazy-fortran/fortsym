@@ -192,6 +192,10 @@ contains
             "i = 99"//char(10)//"n = 3"//char(10)// &
             "values = Table[i + n, {i, n}]"//char(10), &
             "values", "List(4, 5, 6)")
+        call expect("real table range", &
+            "values = Table[i, {i, 0., 1., .5}]"//char(10), &
+            "values", "List(0.0000000000000000E+000, "// &
+            "5.0000000000000000E-001, 1.0000000000000000E+000)")
     end subroutine test_table_evaluation
 
     !> Do's side effect is checked by an independent finite sum: the squares
@@ -284,6 +288,9 @@ contains
         call expect("ReplaceAll rules", &
             "value = {x, y} /. {x -> 2, y -> 3}"//char(10), &
             "value", "List(2, 3)")
+        call expect("function-valued replacement rule", &
+            "value = {t[x], t[y]} /. {t -> Function[z, z + 1]}"//char(10), &
+            "value", "List(x + 1, y + 1)")
     end subroutine test_pure_map_apply_replace
 
     !> The force-balance rule is a delayed derivative rule with a named blank.
