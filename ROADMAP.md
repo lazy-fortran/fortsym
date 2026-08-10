@@ -152,6 +152,7 @@ arithmetic lowered while placing outputs at a declared `real64` boundary.
 Generated real32 source is compiled and run against an independently written
 Fortran oracle, and values that cannot remain finite in real32 are refused
 before emission. The default remains the historical real64 output.
+The GitHub issue is now closed; native and Nix-wrapped suites both pass 38/38.
 
 Build hygiene is also part of the current regression gate: the global
 `-Warray-temporaries` pass is clean across the library, applications, and
