@@ -1040,10 +1040,10 @@ contains
             ! their own whatever their precedence.
             if (d%id == DIA_FORTRAN .and. &
                 a%kind_of(a%arg_of(id, k)) == NK_INT .and. &
-                .not. fortran_intrinsic_integer_argument(a, id, k)) then
-                ! Kernel arguments are real scalars. Fortran does not convert
-                ! integer actual arguments for generic intrinsics such as
-                ! max/min/atan2, even when another argument is real.
+                fortran_real_intrinsic_argument(a, id, k)) then
+                ! Fortran does not convert integer actual arguments for generic
+                ! intrinsics such as max/min/atan2, even when another argument
+                ! is real, so an integer literal has to be written as a real.
                 call b%append(chars(str(a%num_of(a%arg_of(id, k)))))
                 call b%append(chars(d%int_real_suffix))
             else
@@ -1057,15 +1057,35 @@ contains
         end if
     end subroutine emit_function
 
-    pure function fortran_intrinsic_integer_argument(a, id, position) &
-            result(is_integer)
+    !> True when this Fortran intrinsic takes a real actual argument in this
+    !> position, so an integer literal there has to be written as a real.
+    !>
+    !> The test is a whitelist of intrinsics rather than a test for what is not
+    !> one. Indexing a declared array reaches emit_function with exactly the
+    !> shape of a call -- x(1) is indistinguishable from a one-argument
+    !> application -- and a subscript must stay an integer. Treating every
+    !> unrecognised head as an intrinsic emitted x(1.0_dp), which is not valid
+    !> Fortran.
+    pure function fortran_real_intrinsic_argument(a, id, position) &
+            result(is_real)
         type(arena_t), intent(in) :: a
         integer, intent(in) :: id, position
-        logical :: is_integer
+        logical :: is_real
 
-        ! Fortran's bessel_jn takes an integer order followed by a real value.
-        ! Other supported mathematical kernel arguments are real scalars.
-        is_integer = chars(a%name_of(id)) == "besselj" .and. position == 1
-    end function fortran_intrinsic_integer_argument
+        select case (chars(a%name_of(id)))
+        case ("sin", "cos", "tan", "asin", "acos", "atan", "atan2", &
+              "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
+              "exp", "log", "log10", "sqrt", "abs", &
+              "erf", "erfc", "gamma", "max", "min")
+            is_real = .true.
+        case ("besselj")
+            ! bessel_jn takes an integer order followed by a real value.
+            is_real = position > 1
+        case default
+            ! A declared kernel array being indexed, or any other head fortsym
+            ! does not know to be an intrinsic. Its integers stay integers.
+            is_real = .false.
+        end select
+    end function fortran_real_intrinsic_argument
 
 end module fortsym_print
