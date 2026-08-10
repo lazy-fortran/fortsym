@@ -8,15 +8,19 @@ program test_fortsym_fparse
     !
     ! A deliberately wrong derivative is included in the fixture. If the check
     ! did not catch that, it would be testing nothing.
-    use, intrinsic :: iso_fortran_env, only: real64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, operator(+), operator(-), &
-        operator(*), operator(/), operator(**), log
+        operator(*), operator(/), operator(**), num, rat, real_expr, &
+        operator(==), sin, cos, log
     use fortsym_diff, only: diff
     use fortsym_subs, only: subs
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
+    use fortsym_dialect, only: dialect, DIA_FORTRAN
+    use fortsym_print, only: print_expr_in
+    use fortsym_parse, only: parse_expr_in
     use fortsym_fparse
     implicit none
 
@@ -37,6 +41,7 @@ program test_fortsym_fparse
     call test_rejects_non_assignments()
     call test_case_insensitive()
     call test_continuations()
+    call test_fortran_round_trip()
     call test_verifies_a_real_kernel()
     call test_catches_a_wrong_derivative()
 
@@ -174,6 +179,56 @@ contains
         call ok("parses across a continuation", good)
         if (.not. good) print *, "   ", message
     end subroutine test_continuations
+
+    !> The parser is a correctness gate for generated source, so exercise the
+    !> inverse property over a fixed population rather than another collection
+    !> of hand-picked printer spellings.
+    subroutine test_fortran_round_trip()
+        type(expr_t), allocatable :: cases(:)
+        type(expr_t) :: x, y, left_deep, right_deep, original, back
+        type(str_t) :: rendered
+        character(:), allocatable :: text, message
+        logical :: rendered_ok, parsed_ok
+        integer :: k, n
+
+        x = sym(arena, "x")
+        y = sym(arena, "y")
+        left_deep = x
+        right_deep = y
+        do k = 1, 24
+            left_deep = left_deep + y
+            right_deep = x + right_deep
+        end do
+
+        n = 19
+        allocate (cases(n))
+        cases = [ &
+            num(arena, 0_int64), &
+            num(arena, -7_int64), &
+            rat(arena, 2_int64, 3_int64), &
+            rat(arena, -2_int64, 3_int64), &
+            real_expr(arena, 1.5_dp), &
+            real_expr(arena, -2.25_dp), &
+            x, y, -x, x + y, x - y, x*y, x/y, x**3, x**(-2), &
+            sin(x) + cos(y), log(x + 2.0_dp), &
+            (x + y*2) * (x - y), left_deep + right_deep &
+        ]
+
+        do k = 1, n
+            original = cases(k)
+            rendered = print_expr_in(original, dialect(DIA_FORTRAN), rendered_ok)
+            call ok("Fortran renderer accepts round-trip case", rendered_ok)
+            if (.not. rendered_ok) cycle
+            text = chars(rendered)
+            back = parse_expr_in(arena, text, dialect(DIA_FORTRAN), &
+                parsed_ok, message)
+            call ok("Fortran parser accepts rendered case", parsed_ok)
+            if (parsed_ok) then
+                if (.not. back == original) print *, "   round-trip case ", k, ": ", text
+                call ok("Fortran render/parse preserves structure", back == original)
+            end if
+        end do
+    end subroutine test_fortran_round_trip
 
     !> The real thing: check a hand-written derivative against the symbolic
     !> derivative of the definition, reading both from source.
