@@ -46,6 +46,14 @@ structural operation count after collapsing direct multiply-plus-add patterns
 into `fma_candidates`. These are symbolic cost metadata, not a disassembly or
 runtime claim.
 
+`kernel_emit_spec_t%policy` makes the source-level floating-point choices
+explicit: positive integer powers up to `small_power_limit` can be expanded,
+exact zero and one elements can be folded, constant reciprocals can be emitted
+as literals, and one-use products in sums can be shaped for FMA recognition.
+These transformations preserve the exact expression's real-valued semantics;
+they do not enable compiler reassociation. Purity remains an opt-in field until
+the downstream `fortnum#73` contract is settled.
+
 An engine capability is a promise that its corresponding type-bound operation
 is callable. A capability bit without an operation entry point is invalid and
 must not be used for dispatch.

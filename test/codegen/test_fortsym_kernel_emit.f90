@@ -20,6 +20,7 @@ program test_fortsym_kernel_emit
     integer :: nfail = 0
 
     call test_emitters_share_ir()
+    call test_emission_policies()
     call test_target_driven_emission()
     call test_emit_tables()
 
@@ -180,6 +181,89 @@ contains
         end if
 
     end subroutine test_emitters_share_ir
+
+    subroutine test_emission_policies()
+        type(arena_t), target :: arena
+        type(expr_t) :: x, y, z, zero, one, two, root, roots(1)
+        type(kernel_ir_t) :: ir
+        type(kernel_emit_spec_t) :: spec
+        type(str_t) :: source
+        character(:), allocatable :: default_source, conservative_source, message
+        logical :: good
+        integer :: unit, ios, stat
+
+        call arena%init()
+        x = sym(arena, "x")
+        y = sym(arena, "y")
+        z = sym(arena, "z")
+        zero = num(arena, 0_int64)
+        one = num(arena, 1_int64)
+        two = num(arena, 2_int64)
+        root = x**two + x*y + z + y/two + zero*x + one*x + zero
+        roots = [root]
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("policy test lowers its IR", good)
+        if (.not. good) return
+
+        spec%name = str("policy_leaf")
+        spec%args = [str("x"), str("y"), str("z")]
+        spec%outputs = [str("r")]
+        spec%generator = str("test_fortsym_kernel_emit")
+        spec%regenerate_command = str("ctest -R test_fortsym_kernel_emit")
+
+        source = emit_fortran_kernel_ir(ir, spec, good, message)
+        default_source = chars(source)
+        call ok("default emission policy is accepted", good)
+        call ok("default policy expands small powers", &
+            index(default_source, " ** ") == 0)
+        call ok("default policy eliminates the constant division", &
+            index(default_source, "5.0000000000000000E-001_real64") > 0)
+        call ok("default policy folds exact zero and one elements", &
+            index(default_source, "0.0000000000000000E+000_real64") == 0 .and. &
+            index(default_source, "1.0000000000000000E+000_real64") == 0)
+        call ok("default policy shapes a one-use product", &
+            index(default_source, " + (x * y)") > 0)
+
+        open (newunit=unit, file="/tmp/fortsym_policy.f90", status="replace", &
+            action="write", iostat=ios)
+        call ok("policy fixture opens", ios == 0)
+        if (ios == 0) then
+            write (unit, "(a)") default_source
+            write (unit, "(a)") "program drive_fortsym_policy"
+            write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: real64"
+            write (unit, "(a)") "  implicit none"
+            write (unit, "(a)") "  real(real64) :: r"
+            write (unit, "(a)") "  real(real64), parameter :: x = 0.37_real64"
+            write (unit, "(a)") "  real(real64), parameter :: y = -0.81_real64"
+            write (unit, "(a)") "  real(real64), parameter :: z = 1.23_real64"
+            write (unit, "(a)") "  call policy_leaf(x, y, z, r)"
+            write (unit, "(a)") "  if (abs(r - (x*x + x*y + z + y/2.0_real64 + x)) > 1.0e-14_real64) error stop 1"
+            write (unit, "(a)") "end program drive_fortsym_policy"
+            close (unit)
+            call execute_command_line( &
+                "gfortran -o /tmp/fortsym_policy /tmp/fortsym_policy.f90 "// &
+                "> /tmp/fortsym_policy.log 2>&1", wait=.true., exitstat=stat)
+            call ok("policy-generated Fortran compiles", stat == 0)
+            if (stat == 0) then
+                call execute_command_line("/tmp/fortsym_policy", wait=.true., &
+                    exitstat=stat)
+                call ok("policy-generated Fortran matches independent oracle", &
+                    stat == 0)
+            end if
+        end if
+
+        spec%policy%small_power_limit = 0
+        spec%policy%fold_exact_constants = .false.
+        spec%policy%eliminate_constant_divisions = .false.
+        spec%policy%shape_fma = .false.
+        source = emit_fortran_kernel_ir(ir, spec, good, message)
+        conservative_source = chars(source)
+        call ok("conservative emission policy is accepted", good)
+        call ok("conservative policy retains powers", &
+            index(conservative_source, " ** ") > 0)
+        call ok("conservative policy retains a product temporary", &
+            index(conservative_source, " = (x * y)") > 0)
+    end subroutine test_emission_policies
 
     subroutine test_target_driven_emission()
         type(arena_t), target :: arena
