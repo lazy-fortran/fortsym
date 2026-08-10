@@ -48,6 +48,7 @@ fortsym_add_test(test_fortsym_wl_f90 codegen/test_fortsym_wl_f90.f90)
 
 # --- verification ---
 fortsym_add_test(test_fortsym_check verify/test_fortsym_check.f90)
+fortsym_add_test(test_fortsym_quadratic core/test_fortsym_quadratic.f90)
 fortsym_add_test(test_fortsym_rk verify/test_fortsym_rk.f90)
 
 # --- differential geometry ---
