@@ -142,6 +142,7 @@ observation values, and the relative derivative-based condition number when
 it is defined. The sample matrix, domain, sequence, precision bound, and
 kernel refusal count are retained in the report. Its test uses an independently
 constructed one-ULP perturbation rather than reusing the instrument's result.
+The GitHub issue is now closed; native and Nix-wrapped suites both pass 38/38.
 
 Issue #66 (precision as an emission choice) is complete as of 2026-08-11:
 both kernel emitters expose explicit `PRECISION_REAL64`, `PRECISION_REAL32`,
