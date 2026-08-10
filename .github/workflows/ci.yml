@@ -13,6 +13,22 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# The toolchain comes from flake.nix, not from the runner image. fortsym pins
+# FLINT and MPFR to exact versions and needs SymEngine, and no distribution
+# repository carries that combination -- the previous apt-based workflow could
+# not install SymEngine at all. Nix resolves the whole closure from flake.lock,
+# so CI compiles against the same libraries a contributor does.
+#
+# Two caches keep that cheap. The Nix store cache restores the toolchain instead
+# of re-downloading it, and ccache covers the one large C++ build in the tree:
+# Yacas, which cmake/deps/yacas.cmake fetches at a pinned tag and which
+# therefore recompiles identically every run. Fortran is deliberately left off
+# the compiler launcher, because module files are side effects ccache does not
+# track.
+env:
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_MAXSIZE: 500M
+
 jobs:
   # Tier 1 only: the configuration every contributor and every consumer must be
   # able to build. No optional engine is installed here on purpose, so a change
@@ -21,30 +37,42 @@ jobs:
     name: cmake + ctest (Tier 1 only)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Install toolchain and Tier 1 dependencies
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake \
-            g++ \
-            gfortran \
-            libflint-dev \
-            libgmp-dev \
-            libmpfr-dev \
-            libsymengine-dev \
-            ninja-build
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-tier1-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix') }}
+          restore-prefixes-first-match: nix-tier1-${{ runner.os }}-
+          gc-max-store-size-linux: 2G
+          purge: true
+          purge-prefixes: nix-tier1-${{ runner.os }}-
+          purge-created: 604800
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-tier1-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-${{ github.sha }}
+          restore-keys: |
+            ccache-tier1-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-
+            ccache-tier1-${{ runner.os }}-
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+        run: |
+          nix develop --command cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
-        run: cmake --build build -j
+        run: nix develop --command cmake --build build -j
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: nix develop --command ctest --test-dir build --output-on-failure
 
   # With the optional engines present, so the council actually has several
   # voters and the cross-engine oracle is exercised. Not required: a Tier 2
@@ -54,37 +82,47 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Install toolchain, Tier 1 and Tier 2
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake \
-            g++ \
-            gfortran \
-            libflint-dev \
-            libgmp-dev \
-            libmpfr-dev \
-            libsymengine-dev \
-            maxima \
-            ninja-build \
-            python3-sympy
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-tier2-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix') }}
+          restore-prefixes-first-match: nix-tier2-${{ runner.os }}-
+          gc-max-store-size-linux: 4G
+          purge: true
+          purge-prefixes: nix-tier2-${{ runner.os }}-
+          purge-created: 604800
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-tier2-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-${{ github.sha }}
+          restore-keys: |
+            ccache-tier2-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-
+            ccache-tier2-${{ runner.os }}-
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+        run: |
+          nix develop .#tier2 --command cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
-        run: cmake --build build -j
+        run: nix develop .#tier2 --command cmake --build build -j
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: nix develop .#tier2 --command ctest --test-dir build --output-on-failure
 
       # The council prints a per-engine benchmark table as a by-product of its
       # own test run, so speed comparisons need no separate harness.
       - name: Benchmark table
-        run: ./build/bin/test_fortsym_council
+        run: nix develop .#tier2 --command ./build/bin/test_fortsym_council
 
   # Generated kernels are committed so they are reviewable in diffs and so
   # consumers need no CAS to build. This job regenerates them and fails on any
@@ -94,32 +132,63 @@ jobs:
     name: generated sources are current
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Install toolchain and Tier 1 dependencies
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            cmake g++ gfortran libflint-dev libgmp-dev libmpfr-dev \
-            libsymengine-dev ninja-build
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      - uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-generated-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix') }}
+          restore-prefixes-first-match: nix-generated-${{ runner.os }}-
+          gc-max-store-size-linux: 2G
+          purge: true
+          purge-prefixes: nix-generated-${{ runner.os }}-
+          purge-created: 604800
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-generated-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-${{ github.sha }}
+          restore-keys: |
+            ccache-generated-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-
+            ccache-generated-${{ runner.os }}-
 
       - name: Configure and build generators
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build -j
+          nix develop --command cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          nix develop --command cmake --build build -j
 
+      # Each committed file names the program that produced it in its header, so
+      # the gate is driven by the files themselves. A glob over build/bin/gen_*
+      # would be wrong: most generators write into a consumer's tree and take the
+      # output path as an argument, and running those here only proves that they
+      # reject an empty command line.
       - name: Regenerate and diff
         run: |
           set -euo pipefail
           shopt -s nullglob
-          generators=(build/bin/gen_*)
-          if [ ${#generators[@]} -eq 0 ]; then
-            echo "no generators yet; nothing to regenerate"
+          generated=(src/generated/*.f90)
+          if [ ${#generated[@]} -eq 0 ]; then
+            echo "no generated sources yet; nothing to regenerate"
             exit 0
           fi
-          for gen in "${generators[@]}"; do
-            echo "running $gen"
-            "$gen"
+          for file in "${generated[@]}"; do
+            gen=$(sed -n 's/^! Generator: //p' "$file" | head -n 1)
+            if [ -z "$gen" ]; then
+              echo "$file carries no '! Generator:' header line" >&2
+              exit 1
+            fi
+            if [ ! -x "build/bin/$gen" ]; then
+              echo "$file names generator '$gen', which the build did not produce" >&2
+              exit 1
+            fi
+            echo "regenerating $file with $gen"
+            "build/bin/$gen"
           done
           git diff --exit-code -- src/generated
