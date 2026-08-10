@@ -52,6 +52,7 @@ target_sources(fortsym PRIVATE
     verify/fortsym_rk_trees.f90
     core/fortsym_quadratic.f90
     algebra/fortsym_quadratic_linalg.f90
+    algebra/fortsym_quadratic_poly.f90
     verify/fortsym_rk.f90
 
     # differential geometry
