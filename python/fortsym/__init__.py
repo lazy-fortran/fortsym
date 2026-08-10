@@ -130,6 +130,11 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.simplify = declare(
+        "fortsym_simplify",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.expr_free = declare("fortsym_expr_free", None, [_CVOID])
     lib.expr_kind = declare(
         "fortsym_expr_kind", ctypes.c_int,
@@ -369,6 +374,19 @@ class Expr:
     def __truediv__(self, other): return self._binary(self._lib.divide, other)
     def __rtruediv__(self, other): return self._reverse_binary(self._lib.divide, other)
     def __pow__(self, other): return self._binary(self._lib.power, other)
+    def __rpow__(self, other): return self._reverse_binary(self._lib.power, other)
+    def __neg__(self): return self._reverse_binary(self._lib.subtract, 0)
+
+    @property
+    def args(self):
+        return tuple(self.argument(index) for index in range(self.arity))
+
+    def __bool__(self):
+        if self.kind in (1, 2, 10, 11):
+            return self.exact_text not in ("0", "0/1")
+        if self.kind == 3:
+            return float(str(self)) != 0.0
+        raise TypeError("symbolic expressions do not have a truth value")
 
     def subs(self, old, new):
         old, old_temporary = self._arena._coerce(old)
@@ -396,6 +414,10 @@ class Expr:
                                      self._require())
         result._pretty = True
         return result
+
+    def simplify(self):
+        return self._arena._result(self._lib.simplify, self._arena._require(),
+                                   self._require())
 
     @property
     def kind(self):

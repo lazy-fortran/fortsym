@@ -12,3 +12,24 @@ The CMake install places the package sources under
 Expression handles own their native references and are released by `close()`
 or garbage collection. Exact integers and `fractions.Fraction` values are
 passed as decimal strings when they do not fit the compact C ABI scalars.
+
+## `fortsym.sympy` compatibility subset
+
+`fortsym.sympy` is a drop-in import spelling for the declared subset below. It
+does not import SymPy. Unsupported names raise
+`fortsym.sympy.UnsupportedOperationError`; they do not return a guessed result.
+
+| Surface | Supported semantics |
+|---|---|
+| `Symbol`, `symbols`, `Integer`, `Rational`, `Float`, `pi`, `E`, `I` | exact native construction and structural equality |
+| `Add`, `Mul`, `Pow`, `Function` | native operator construction; `isinstance` checks use native node kinds |
+| `sin`, `cos`, `tan`, `exp`, `log`, `sqrt`, `Abs` | native applied-function nodes |
+| `diff`, `Derivative` | native differentiation, including repeated variables; `evaluate=False` retains a typed wrapper with `.doit()` |
+| `subs`, `expand` | native substitution and expansion |
+| `Subs` | typed wrapper with `.doit()` for explicit `(old, new)` pairs |
+| `simplify` | native bounded simplification |
+| `factor`, `together`, `cancel`, `apart`, `collect`, `integrate`, `limit`, `series`, `solve`, `Matrix` | explicit refusal until their semantics are covered |
+
+The compatibility layer guarantees native structural equality only for
+operations listed as construction or transformation above. It does not claim
+SymPy's assumptions, matrix, ordering, or unevaluated-expression semantics.

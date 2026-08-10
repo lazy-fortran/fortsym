@@ -90,6 +90,13 @@ set_tests_properties(
     PROPERTIES
         ENVIRONMENT "PYTHONPATH=${PROJECT_SOURCE_DIR}/python;FORTSYM_LIBRARY=$<TARGET_FILE:fortsym>")
 add_test(
+    NAME test_fortsym_sympy
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/python/test_fortsym_sympy.py)
+set_tests_properties(
+    test_fortsym_sympy
+    PROPERTIES
+        ENVIRONMENT "PYTHONPATH=${PROJECT_SOURCE_DIR}/python;FORTSYM_LIBRARY=$<TARGET_FILE:fortsym>")
+add_test(
     NAME test_consumer_audit
     COMMAND
         ${Python3_EXECUTABLE}

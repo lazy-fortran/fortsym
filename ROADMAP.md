@@ -75,6 +75,15 @@ hashing without importing SymPy. Source and wheel loading are documented, CMake
 installs the package sources, and CI builds a wheel in a clean virtualenv. The
 focused Python suite and full `fo test` pass.
 
+Issue #23 (SymPy-compatible Python surface) is in progress as of 2026-08-11:
+`fortsym.sympy` is now packaged and documented as a no-SymPy compatibility
+subset with native kind-aware `Symbol`, `Add`, `Mul`, `Pow`, and `Function`
+classes, explicit `Derivative`/`Subs` wrappers, operators, substitution,
+expansion, differentiation, and native simplification. Unsupported algebra,
+matrix, solver, calculus, and option surfaces refuse by name. The remaining
+gap is assumption propagation (`real=True`, `positive=True`, and related
+context-sensitive semantics) through the native C ABI.
+
 Issue #40 (public trig and power rewrites) is complete as of 2026-08-10:
 `trig_expand`, `trig_reduce`, `trig_to_exp`, `exp_to_trig`, and guarded
 `power_expand` are public operations returning rewritten expressions plus an
