@@ -15,8 +15,8 @@ subroutine fortsym_demo_kernel(x, y, f, dfdx, dfdy)
     t4 = cos(t1)
     t5 = t4 + 1
     f = t2**2 + t3/t5
-    dfdx = y*t3/t5 + y*t2*2*t4 + y*t2*t3/t5**2
-    dfdy = x*t3/t5 + x*t2*2*t4 + x*t2*t3/t5**2
+    dfdx = y*t4*t2*2 + y*t3*t2/t5**2 + y*t3/t5
+    dfdy = x*t4*t2*2 + x*t3*t2/t5**2 + x*t3/t5
 
 end subroutine fortsym_demo_kernel
 

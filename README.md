@@ -344,6 +344,11 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
+`flake.nix` provides the exact dependency closure CI builds against — FLINT and
+MPFR are pinned to a single version each, so a machine whose distribution ships
+another one cannot configure at all. `nix develop` enters Tier 1; `nix develop
+.#tier2` adds the optional engines.
+
 SymEngine is taken from the system by default; `-DFORTSYM_USE_SYSTEM_DEPS=OFF`
 builds it from source instead. Yacas is fetched and built at a pinned tag by
 the CMake path — a few seconds, nothing to install. The fpm path cannot build a
