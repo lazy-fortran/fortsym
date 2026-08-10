@@ -15,7 +15,7 @@ program test_fortsym_rk
     use fortsym_string, only: str_t, str, chars
     use fortsym_rk, only: butcher_t, rk_from_rows, rk_is_consistent, &
         rk_attains_order, rk_error_weights, rk_is_fsal, rk_weight_sum, &
-        rk_order_residuals
+        rk_order_residuals, rk_is_zero
     use fortsym_rk_trees, only: tree_table_t, build_rooted_trees, &
         tree_count_of_order, tree_gamma
     implicit none
@@ -31,6 +31,7 @@ program test_fortsym_rk
     call test_dormand_prince()
     call test_corrupted_tableau_is_rejected()
     call test_classical_rk4()
+    call test_zero_spellings()
 
     write (*, "(a,i0,a,i0,a)") "test_fortsym_rk: ", n_pass, " passed, ", &
         n_fail, " failed"
@@ -253,6 +254,22 @@ contains
         call ok("classical RK4 does not attain order 5", &
                 .not. rk_attains_order(tableau, tableau%b, 5))
     end subroutine test_classical_rk4
+
+    !> Zero has more than one spelling, and consumers decide which stages a
+    !> kernel takes by asking whether a weight vanishes. A predicate that only
+    !> recognised the literal "0" would put a stage into an argument list on a
+    !> platform whose FLINT renders zero some other way, so every spelling has
+    !> to be recognised as the same value.
+    subroutine test_zero_spellings()
+        call ok("plain zero is zero", rk_is_zero(str("0")))
+        call ok("signed zero is zero", rk_is_zero(str("-0")))
+        call ok("zero over one is zero", rk_is_zero(str("0/1")))
+        call ok("zero over many is zero", rk_is_zero(str("0/57600")))
+        call ok("a non-zero rational is not zero", &
+                .not. rk_is_zero(str("1/57600")))
+        call ok("a tiny rational is not zero", &
+                .not. rk_is_zero(str("1/1000000000000000000000")))
+    end subroutine test_zero_spellings
 
     pure function digit(value) result(text)
         integer, intent(in) :: value

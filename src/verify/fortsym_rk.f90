@@ -4,8 +4,14 @@ module fortsym_rk
     !>
     !> A tableau here is never a set of decimal constants. Every coefficient is
     !> an exact rational carried through FLINT, so a residual that should be
-    !> zero is the string "0" and not something near it. That is what makes the
+    !> zero is exactly zero and not something near it. That is what makes the
     !> order conditions a proof rather than a tolerance check.
+    !>
+    !> Zero is tested with rk_is_zero rather than by comparing against the
+    !> literal "0". The canonical spelling a value renders to is FLINT's to
+    !> choose, so a build linked against a different FLINT can spell the same
+    !> zero differently, and a literal comparison then silently misclassifies
+    !> it. Every zero test here goes through one renderer on both sides.
     !>
     !> The intended use is generation: state a tableau once, verify it, then
     !> derive the stage expressions, the embedded error weights and the FSAL
@@ -22,7 +28,7 @@ module fortsym_rk
     public :: rk_row_sum_residuals, rk_is_consistent
     public :: rk_order_residuals, rk_attains_order
     public :: rk_error_weights, rk_is_fsal
-    public :: rk_weight_sum
+    public :: rk_weight_sum, rk_is_zero
 
     integer, parameter :: dp = real64
 
@@ -113,6 +119,22 @@ contains
         stages = tableau%stages
     end function rk_stages
 
+    !> True when this exact value is zero.
+    !>
+    !> Both sides are normalised through the same renderer, so this does not
+    !> depend on how FLINT chooses to spell a canonical zero.
+    function rk_is_zero(value) result(is_zero)
+        type(str_t), intent(in) :: value
+        logical :: is_zero
+        type(str_t) :: canonical, zero
+        logical :: left_ok, right_ok
+
+        canonical = exact_normalize(chars(value), left_ok)
+        zero = exact_normalize("0", right_ok)
+        is_zero = left_ok .and. right_ok .and. &
+                  chars(canonical) == chars(zero)
+    end function rk_is_zero
+
     !> sum_j a(i,j) - c(i) for every stage.
     !>
     !> Zero everywhere is the consistency condition. It is the cheapest check
@@ -157,7 +179,7 @@ contains
         consistent = ok
         if (.not. ok) return
         do i = 1, size(residuals)
-            if (chars(residuals(i)) /= "0") consistent = .false.
+            if (.not. rk_is_zero(residuals(i))) consistent = .false.
         end do
     end function rk_is_consistent
 
@@ -180,7 +202,7 @@ contains
     !>
     !> Entry k is sum_i w_i Phi_i(t_k) - 1/gamma(t_k) for the k-th tree in the
     !> canonical enumeration. The method attains the order exactly when every
-    !> entry is "0".
+    !> entry is zero.
     !>
     !> `weights` selects which solution is being tested, so the same routine
     !> checks the main weights at order p and the embedded ones at p-1.
@@ -259,7 +281,7 @@ contains
         attains = ok
         if (.not. ok) return
         do k = 1, size(residuals)
-            if (chars(residuals(k)) /= "0") attains = .false.
+            if (.not. rk_is_zero(residuals(k))) attains = .false.
         end do
     end function rk_attains_order
 
@@ -281,7 +303,7 @@ contains
             child = trees%child(m, k)
             factor = str("0")
             do j = 1, tableau%stages
-                if (chars(tableau%a(i, j)) == "0") cycle
+                if (rk_is_zero(tableau%a(i, j))) cycle
                 sub = tree_phi(tableau, trees, child, j, ok)
                 if (.not. ok) return
                 term = exact_mul(chars(tableau%a(i, j)), chars(sub), ok)
@@ -321,14 +343,18 @@ contains
     !> derivative of one step is the first of the next.
     function rk_is_fsal(tableau) result(fsal)
         type(butcher_t), intent(in) :: tableau
-        logical :: fsal
+        logical :: fsal, ok
         integer :: j, s
 
         s = tableau%stages
         fsal = s > 1
         if (.not. fsal) return
         do j = 1, s
-            if (chars(tableau%a(s, j)) /= chars(tableau%b(j))) fsal = .false.
+            if (.not. rk_is_zero(exact_sub(chars(tableau%a(s, j)), &
+                                           chars(tableau%b(j)), ok))) then
+                fsal = .false.
+            end if
+            if (.not. ok) fsal = .false.
         end do
     end function rk_is_fsal
 
