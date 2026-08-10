@@ -675,9 +675,13 @@ contains
         spec%pure_procedure = .true.
         spec%openmp_declare_target = .true.
         spec%openacc_routine_seq = .true.
+        spec%nvfortran_inline = .true.
         code = chars(emit_kernel(roots, spec))
         call ok("OpenACC routine directive", &
             index(code, "!$acc routine seq") > 0)
+        call ok("NVFORTRAN inline pragma immediately precedes procedure", &
+            index(code, "!NVF$ INLINE"//new_line("a")// &
+            "    pure subroutine k(x, r)") > 0)
         call ok("OpenMP declare-target directive annotates the leaf", &
             index(code, "subroutine k(x, r)"//new_line("a")// &
             "        !$omp declare target") > 0)
