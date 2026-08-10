@@ -913,6 +913,46 @@ round-trip: there is no reader, and write-then-read would only prove two halves
 of one implementation agree. Reading foreign LaTeX, rendering to PDF, and
 notebook integration are out of scope.
 
+The conventions are validated against a real manuscript before they harden
+(#68), because fixtures are written by whoever wrote the emitter and agree with
+it by construction. Reaching the derivations that are stored as notebooks rather
+than scripts is a separate question with a separate answer (#69): a `.nb` file
+is a document expression built from typeset boxes, not the script text the
+existing parser reads.
+
+### M16 — The short form (#70, #71, #72)
+
+Also ordered by consumer need. Writing a derivation is more verbose than the
+mathematics justifies: an arena declared, initialised and threaded through every
+constructor, and an `only:` list renaming `exp`, `sqrt` and `erf` around the
+intrinsics in every program that uses them.
+
+M16 makes the ordinary case short — `use fortsym`, a default arena, and symbol
+creation by character assignment — while keeping `arena_t` and the explicit
+constructors a first-class documented API rather than a legacy path. The
+convenience layer is built on top of the explicit one with no private back door,
+so anything reachable conveniently is reachable explicitly. The default arena is
+global mutable state and therefore single-threaded; concurrent derivation uses
+explicit arenas, and that contract is documented rather than discovered. What is
+hidden is ownership, not semantics: no result changes and nothing is guessed.
+
+Assignment creates a symbol and never parses. Expression text keeps going
+through `parse_expr`, which reports `ok` and returns a diagnostic; overloading
+assignment to sometimes-parse would put a silent failure mode in the library's
+most-used call.
+
+Symbol names follow the printer's conventions — `varphi_2`, `gamma_1`,
+`theta_bar` — so that one spelling serves as a valid Fortran identifier, a
+readable symbolic name, and a correct typeset form with no registration. LaTeX
+markup never belongs in a name: the name is the arena identity and every dialect
+renders it verbatim, so one such name breaks several outputs to improve one.
+That the emission boundary currently checks numeric representability but not
+names is #72.
+
+Documentation lands with the code (#71). A convenience layer whose surrounding
+guidance still threads arenas by hand in every example will not be used, and the
+verbosity it removes stays in consumer programs.
+
 ## Roadmap maintenance
 
 The top-level roadmap is the release-level plan. `doc/roadmap.md` holds the
