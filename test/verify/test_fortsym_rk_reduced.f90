@@ -142,6 +142,48 @@ contains
         call matches("a115", t%a(11, 5), 1.09143734899672957818500254654_dp)
         call matches("a124", t%a(12, 4), -1.05344954667372501984066689879e+1_dp)
         call matches("a125", t%a(12, 5), -2.00087205822486249909675718444_dp)
+
+        call check_error_weights(t)
     end subroutine test_dop853_derivation
+
+    !> DOP853's two embedded estimators, section II.10. The oracle is again
+    !> dop853.f: its er coefficients are bbar - b, and bhh1, bhh2, bhh3 are the
+    !> third order weights on nodes c1, c9 and c12.
+    subroutine check_error_weights(t)
+        type(rk_dp8_t), intent(in) :: t
+        type(quadratic_t) :: bbar(RK_DP8_STAGES), btilde(RK_DP8_STAGES)
+        type(quadratic_t) :: er(RK_DP8_STAGES)
+        integer :: status, j
+        logical :: s
+
+        call rk_dp8_error_weights(t, bbar, btilde, status)
+        call ok("the error weights solve", status == RK_DP8_OK)
+        if (status /= RK_DP8_OK) return
+        do j = 1, RK_DP8_STAGES
+            er(j) = quad_sub(bbar(j), t%b(j), s)
+        end do
+
+        call matches("er1", er(1), 0.1312004499419488073250102996e-01_dp)
+        call matches("er6", er(6), -0.1225156446376204440720569753e+01_dp)
+        call matches("er7", er(7), -0.4957589496572501915214079952_dp)
+        call matches("er8", er(8), 0.1664377182454986536961530415e+01_dp)
+        call matches("er9", er(9), -0.3503288487499736816886487290_dp)
+        call matches("er10", er(10), 0.3341791187130174790297318841_dp)
+        call matches("er11", er(11), 0.8192320648511571246570742613e-01_dp)
+        call matches("er12", er(12), -0.2235530786388629525884427845e-01_dp)
+
+        call matches("bhh1", btilde(1), 0.244094488188976377952755905512_dp)
+        call matches("bhh2", btilde(9), 0.733846688281611857341361741547_dp)
+        call matches("bhh3", btilde(12), 0.220588235294117647058823529412e-1_dp)
+
+        ! The third order estimator is carried by three nodes only.
+        call ok("the third order estimator uses only c1, c9 and c12", &
+                quad_is_zero(btilde(2)) .and. quad_is_zero(btilde(6)) .and. &
+                quad_is_zero(btilde(8)) .and. quad_is_zero(btilde(11)))
+        ! Unlike the section II.5 pair, the fifth order estimator must not
+        ! share the last weight with the method, or it goes blind to stage 12.
+        call ok("bbar(12) differs from b(12), unlike the 8(6) pair", &
+                .not. quad_is_zero(er(12)))
+    end subroutine check_error_weights
 
 end program test_fortsym_rk_reduced

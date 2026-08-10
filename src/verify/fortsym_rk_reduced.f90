@@ -43,7 +43,7 @@ module fortsym_rk_reduced
     implicit none
     private
 
-    public :: rk_dp8_t, rk_dormand_prince_8
+    public :: rk_dp8_t, rk_dormand_prince_8, rk_dp8_error_weights
     public :: RK_DP8_OK, RK_DP8_NODES, RK_DP8_WEIGHTS, RK_DP8_ROWS
     public :: RK_DP8_FAMILY, RK_DP8_CLOSURE, RK_DP8_ARITHMETIC
 
@@ -73,6 +73,100 @@ module fortsym_rk_reduced
     end type pending_t
 
 contains
+
+    !> The two embedded estimators DOP853 uses, from section II.10.
+    !>
+    !> The section II.5 pair is 8(6), and its sixth order embedding shares the
+    !> last weight with the main method: bbar(12) = b(12). Hairer and Wanner
+    !> record that this makes the estimate blind to the twelfth stage -- the
+    !> only one evaluated at the end of the step -- so a step whose internal
+    !> stages have run away is accepted, and a discontinuity just left of a grid
+    !> point is missed. DOP853 therefore drops that embedding.
+    !>
+    !> In its place, a fifth order estimator with bbar(6), bbar(7) and bbar(12)
+    !> taken as free parameters at the values the book gives,
+    !>
+    !>     bbar(6) = b(6)/2 + 1, bbar(7) = b(7)/2 + 9/20, bbar(12) = b(12)/2
+    !>
+    !> with bbar(2..5) = 0 and the rest fixed by the order five conditions; and
+    !> a third order estimator carried by the three nodes c1 = 0, c9 and
+    !> c12 = 1 alone. The two together let the code damp an over-estimate.
+    !>
+    !> Both are pure linear solves against the derived tableau, so they stay in
+    !> the field: 9/20 is exact, and no decimal enters.
+    subroutine rk_dp8_error_weights(tableau, bbar, btilde, status)
+        type(rk_dp8_t), intent(in) :: tableau
+        type(quadratic_t), intent(out) :: bbar(S), btilde(S)
+        integer, intent(out) :: status
+
+        integer, parameter :: five_idx(5) = [1, 8, 9, 10, 11]
+        integer, parameter :: three_idx(3) = [1, 9, 12]
+        type(quadratic_t) :: matrix(5, 5), rhs(5), fixed(3), contribution
+        type(quadratic_t) :: m3(3, 3), r3(3)
+        type(quadratic_t), allocatable :: solution(:)
+        integer, parameter :: fixed_idx(3) = [6, 7, 12]
+        integer :: q, j, local, d
+        logical :: ok
+        character(len=32) :: text
+
+        d = tableau%c(1)%radicand
+        status = RK_DP8_CLOSURE
+        do j = 1, S
+            bbar(j) = quad_rational("0", d, ok)
+            btilde(j) = quad_rational("0", d, ok)
+            if (.not. ok) return
+        end do
+
+        fixed(1) = quad_add(quad_div(tableau%b(6), quad_rational("2", d, ok), ok), &
+                            quad_rational("1", d, ok), ok)
+        fixed(2) = quad_add(quad_div(tableau%b(7), quad_rational("2", d, ok), ok), &
+                            quad_rational("9/20", d, ok), ok)
+        fixed(3) = quad_div(tableau%b(12), quad_rational("2", d, ok), ok)
+        if (.not. ok) return
+        do j = 1, 3
+            bbar(fixed_idx(j)) = fixed(j)
+        end do
+
+        ! Order five for the remaining five weights.
+        do q = 1, 5
+            do j = 1, 5
+                matrix(q, j) = quad_pow(tableau%c(five_idx(j)), q - 1, ok)
+                if (.not. ok) return
+            end do
+            write (text, "(a,i0)") "1/", q
+            rhs(q) = quad_rational(trim(text), d, ok)
+            if (.not. ok) return
+            do j = 1, 3
+                contribution = quad_mul(fixed(j), &
+                                        quad_pow(tableau%c(fixed_idx(j)), q - 1, ok), ok)
+                if (.not. ok) return
+                rhs(q) = quad_sub(rhs(q), contribution, ok)
+                if (.not. ok) return
+            end do
+        end do
+        call quad_solve(matrix, rhs, solution, local)
+        if (local /= SOLVE_OK) return
+        do j = 1, 5
+            bbar(five_idx(j)) = solution(j)
+        end do
+
+        ! Order three on the three retained nodes.
+        do q = 1, 3
+            do j = 1, 3
+                m3(q, j) = quad_pow(tableau%c(three_idx(j)), q - 1, ok)
+                if (.not. ok) return
+            end do
+            write (text, "(a,i0)") "1/", q
+            r3(q) = quad_rational(trim(text), d, ok)
+            if (.not. ok) return
+        end do
+        call quad_solve(m3, r3, solution, local)
+        if (local /= SOLVE_OK) return
+        do j = 1, 3
+            btilde(three_idx(j)) = solution(j)
+        end do
+        status = RK_DP8_OK
+    end subroutine rk_dp8_error_weights
 
     subroutine rk_dormand_prince_8(c7, c8, c10, c11, tableau, status)
         type(quadratic_t), intent(in) :: c7, c8, c10, c11
