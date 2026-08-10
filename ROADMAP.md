@@ -75,6 +75,12 @@ installs the package sources, and CI builds a wheel in a clean virtualenv. The
 focused Python suite and full `fo test` pass; the existing CUDA emitter fixture
 remains the only known full-suite failure on this host.
 
+Issue #40 (public trig and power rewrites) is complete as of 2026-08-10:
+`trig_expand`, `trig_reduce`, `trig_to_exp`, `exp_to_trig`, and guarded
+`power_expand` are public operations returning rewritten expressions plus an
+`ok`/diagnostic result. Independent numeric and exact-arithmetic tests verify
+the rewrites, refusal paths, and assumption-sensitive power identities.
+
 Issue #56 (Fortran renderer/parser round-trip) is complete as of 2026-08-10:
 the fparse regression suite now checks an enumerated independent population
 covering signed and rational literals, real kind suffixes, precedence, powers,
