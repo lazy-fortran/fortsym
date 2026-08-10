@@ -770,11 +770,19 @@ M13 established the backend-neutral IR and the scalar device-leaf boundary.
 M14 keeps that boundary exactly as stated — launch geometry, residency, and
 harness stay with the consumer — and adds three things above it.
 
-**Target as a descriptor (#61).** Generated kernels currently carry
-`!$omp declare target` and `!$acc routine seq` unconditionally. The four
-targets consumers need are CPU Fortran, OpenMP offload, OpenACC, and CUDA;
-decoration follows the requested target. The IR gains no dialect branch. The
-descriptor's eventual home is `fortgen`, once the IR moves there.
+Issue #61 (target-driven kernel emission) is complete as of 2026-08-10. The
+shared target descriptor has stable serialisable identities for CPU Fortran,
+OpenMP target Fortran, OpenACC Fortran, and CUDA; explicit targets select only
+their own decoration while leaving the IR backend-neutral. CPU and CUDA tests
+assert that no Fortran directives are emitted, OpenMP and OpenACC tests assert
+exclusive decoration, and the compatibility path retains the historical
+dual-target output used by committed FortNum kernels.
+
+**Target as a descriptor (#61).** Generated kernels now carry only the
+decoration requested by their stable target identity. The four targets
+consumers need are CPU Fortran, OpenMP offload, OpenACC, and CUDA; the IR gains
+no dialect branch. The descriptor's eventual home is `fortgen`, once the IR
+moves there.
 
 **The measurement chain (#62, #65).** Four counts, three gaps, each
 attributable to exactly one layer:

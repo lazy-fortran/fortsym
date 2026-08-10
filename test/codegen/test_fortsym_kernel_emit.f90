@@ -20,6 +20,7 @@ program test_fortsym_kernel_emit
     integer :: nfail = 0
 
     call test_emitters_share_ir()
+    call test_target_driven_emission()
     call test_emit_tables()
 
     if (nfail == 0) then
@@ -179,6 +180,77 @@ contains
         end if
 
     end subroutine test_emitters_share_ir
+
+    subroutine test_target_driven_emission()
+        type(arena_t), target :: arena
+        type(expr_t) :: x, root, roots(1)
+        type(kernel_ir_t) :: ir
+        type(kernel_emit_spec_t) :: spec
+        type(str_t) :: source
+        character(:), allocatable :: default_source, cpu_source
+        character(:), allocatable :: openmp_source, openacc_source, both_source
+        logical :: good
+        character(:), allocatable :: message
+
+        call arena%init()
+        x = sym(arena, "x")
+        root = x*x + 1
+        roots = [root]
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("target test lowers its IR", good)
+        if (.not. good) return
+
+        spec%name = str("target_leaf")
+        spec%args = [str("x")]
+        spec%outputs = [str("r")]
+
+        default_source = chars(emit_fortran_kernel_ir(ir, spec, good, message))
+        call ok("default target remains a CPU leaf", good)
+        call ok("default target emits no directives", &
+            index(default_source, "!$omp") == 0 .and. &
+            index(default_source, "!$acc") == 0)
+
+        spec%target = TARGET_FORTRAN_CPU
+        cpu_source = chars(emit_fortran_kernel_ir(ir, spec, good, message))
+        call ok("explicit CPU target is accepted", good)
+        call ok("explicit CPU target emits no directives", &
+            index(cpu_source, "!$omp") == 0 .and. index(cpu_source, "!$acc") == 0)
+        call ok("default and explicit CPU output agree", &
+            default_source == cpu_source)
+
+        spec%target = TARGET_FORTRAN_OPENMP_TARGET
+        openmp_source = chars(emit_fortran_kernel_ir(ir, spec, good, message))
+        call ok("OpenMP target is accepted", good)
+        call ok("OpenMP target emits only OpenMP decoration", &
+            index(openmp_source, "!$omp declare target") > 0 .and. &
+            index(openmp_source, "!$acc") == 0)
+
+        spec%target = TARGET_FORTRAN_OPENACC
+        openacc_source = chars(emit_fortran_kernel_ir(ir, spec, good, message))
+        call ok("OpenACC target is accepted", good)
+        call ok("OpenACC target emits only OpenACC decoration", &
+            index(openacc_source, "!$acc routine seq") > 0 .and. &
+            index(openacc_source, "!$omp") == 0)
+
+        spec%target = TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC
+        both_source = chars(emit_fortran_kernel_ir(ir, spec, good, message))
+        call ok("combined target is accepted", good)
+        call ok("combined target emits both historical directives", &
+            index(both_source, "!$omp declare target") > 0 .and. &
+            index(both_source, "!$acc routine seq") > 0)
+
+        spec%target = TARGET_CUDA
+        source = emit_cuda_device_ir(ir, spec, good, message)
+        call ok("CUDA target is accepted by the CUDA emitter", good)
+        call ok("CUDA target emits no Fortran directives", &
+            index(chars(source), "!$omp") == 0 .and. &
+            index(chars(source), "!$acc") == 0)
+        call ok("target identities have stable serialised names", &
+            target_name(TARGET_FORTRAN_CPU) == "fortran_cpu" .and. &
+            target_name(TARGET_FORTRAN_OPENMP_TARGET) == "fortran_openmp_target" .and. &
+            target_name(TARGET_FORTRAN_OPENACC) == "fortran_openacc" .and. &
+            target_name(TARGET_CUDA) == "cuda")
+    end subroutine test_target_driven_emission
 
     subroutine test_emit_tables()
         type(arena_t), target :: arena

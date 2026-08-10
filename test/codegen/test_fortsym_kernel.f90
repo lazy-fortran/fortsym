@@ -765,7 +765,8 @@ contains
         type(arena_t), target :: a
         type(expr_t) :: roots(1)
         type(kernel_spec_t) :: spec
-        character(:), allocatable :: code
+        character(:), allocatable :: code, cpu_code, openmp_code, openacc_code
+        character(:), allocatable :: combined_code
         integer :: unit, ios, stat
 
         call a%init()
@@ -789,6 +790,32 @@ contains
             index(code, "!$omp target") == 0 .and. &
             index(code, "!$acc parallel") == 0 .and. &
             index(code, "!$acc kernels") == 0)
+
+        spec%target = TARGET_FORTRAN_CPU
+        cpu_code = chars(emit_kernel(roots, spec))
+        call ok("explicit CPU target suppresses legacy directives", &
+            index(cpu_code, "!$omp") == 0 .and. index(cpu_code, "!$acc") == 0)
+
+        spec%target = TARGET_FORTRAN_OPENMP_TARGET
+        openmp_code = chars(emit_kernel(roots, spec))
+        call ok("explicit OpenMP target selects only OpenMP", &
+            index(openmp_code, "!$omp declare target") > 0 .and. &
+            index(openmp_code, "!$acc") == 0)
+
+        spec%target = TARGET_FORTRAN_OPENACC
+        openacc_code = chars(emit_kernel(roots, spec))
+        call ok("explicit OpenACC target selects only OpenACC", &
+            index(openacc_code, "!$acc routine seq") > 0 .and. &
+            index(openacc_code, "!$omp") == 0)
+
+        spec%target = TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC
+        combined_code = chars(emit_kernel(roots, spec))
+        call ok("explicit combined target preserves legacy bytes", &
+            combined_code == code)
+
+        call ok("legacy dual-target output remains unchanged", &
+            index(code, "!$omp declare target") > 0 .and. &
+            index(code, "!$acc routine seq") > 0)
 
         open (newunit=unit, file="/tmp/fortsym_gen_device_leaf.f90", &
             status="replace", action="write", iostat=ios)
