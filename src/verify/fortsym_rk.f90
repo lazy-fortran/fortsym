@@ -29,6 +29,7 @@ module fortsym_rk
     public :: rk_order_residuals, rk_attains_order
     public :: rk_error_weights, rk_is_fsal
     public :: rk_weight_sum, rk_is_zero
+    public :: rk_order_residuals_real
 
     integer, parameter :: dp = real64
 
@@ -284,6 +285,71 @@ contains
             if (.not. rk_is_zero(residuals(k))) attains = .false.
         end do
     end function rk_attains_order
+
+    !> The order-condition residuals for a tableau given in floating point.
+    !>
+    !> Not every published method has exact rational coefficients. DOP853's
+    !> nodes involve a square root and its tableau is distributed as decimals,
+    !> so there is nothing exact to test and the residuals cannot vanish. What
+    !> they can do is sit at the level of the coefficients' own precision, and
+    !> a residual far above that is a transcription error rather than rounding.
+    !>
+    !> `a` is the full square coupling matrix with zeros above the diagonal.
+    !> Returns one residual per rooted tree up to `order`.
+    function rk_order_residuals_real(a, weights, order, ok) result(residuals)
+        real(dp), intent(in) :: a(:, :), weights(:)
+        integer, intent(in) :: order
+        logical, intent(out) :: ok
+        real(dp), allocatable :: residuals(:)
+
+        type(tree_table_t) :: trees
+        real(dp), allocatable :: phi(:)
+        real(dp) :: total
+        integer :: k, i, stages
+
+        allocate (residuals(0))
+        stages = size(weights)
+        ok = size(a, 1) == stages .and. size(a, 2) == stages
+        if (.not. ok) return
+
+        call build_rooted_trees(order, trees, ok)
+        if (.not. ok) return
+
+        allocate (phi(stages))
+        deallocate (residuals)
+        allocate (residuals(trees%n))
+        do k = 1, trees%n
+            do i = 1, stages
+                phi(i) = tree_phi_real(a, trees, k, i)
+            end do
+            total = 0.0_dp
+            do i = 1, stages
+                total = total + weights(i)*phi(i)
+            end do
+            residuals(k) = total - 1.0_dp/real(tree_gamma(trees, k), dp)
+        end do
+        ok = .true.
+    end function rk_order_residuals_real
+
+    recursive function tree_phi_real(a, trees, k, i) result(value)
+        real(dp), intent(in) :: a(:, :)
+        type(tree_table_t), intent(in) :: trees
+        integer, intent(in) :: k, i
+        real(dp) :: value
+        integer :: j, m, child
+        real(dp) :: factor
+
+        value = 1.0_dp
+        do m = 1, trees%nchild(k)
+            child = trees%child(m, k)
+            factor = 0.0_dp
+            do j = 1, size(a, 2)
+                if (a(i, j) == 0.0_dp) cycle
+                factor = factor + a(i, j)*tree_phi_real(a, trees, child, j)
+            end do
+            value = value*factor
+        end do
+    end function tree_phi_real
 
     !> Phi_i(t): 1 at a leaf, otherwise the product over the root's subtrees of
     !> sum_j a_ij Phi_j(subtree).
