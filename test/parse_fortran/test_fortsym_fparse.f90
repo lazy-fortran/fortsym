@@ -275,7 +275,7 @@ contains
         call parse_fortran_array(arena, FIXTURE, "implied", values, n, good, message)
         call ok("rejects implied-do constructors", .not. good)
         call parse_fortran_array(arena, FIXTURE, "typed", values, n, good, message)
-        call ok("rejects typed constructors", .not. good)
+        call ok("reads typed constructors", good .and. n == 2)
     end subroutine test_fortran_array_readback
 
     !> The real thing: check a hand-written derivative against the symbolic

@@ -14,9 +14,8 @@ module fortsym_fparse
     !
     ! Scope is still deliberately narrow: right-hand-side expressions and
     ! parameter array constructors. It does not parse statements, control flow,
-    ! implied-do constructors or typed constructors; a full Fortran parser would
-    ! be a far larger commitment than the job requires -- see the note on
-    ! fortfront in issue #9.
+    ! or implied-do constructors; a full Fortran parser would be a far larger
+    ! commitment than the job requires -- see the note on fortfront in issue #9.
     use fortsym_string, only: str_t, strbuf_t, str, chars
     use fortsym_arena, only: arena_t, NK_FUNC
     use fortsym_expr, only: expr_t
@@ -58,8 +57,10 @@ contains
     end function parse_fortran_expr
 
     !> Read a rank-one array constructor bound to `symbol` and return its
-    !> elements as independent arena expressions. Implied-do, typed and nested
-    !> constructors are refused rather than partially interpreted.
+    !> elements as independent arena expressions. Implied-do and nested
+    !> constructors are refused rather than partially interpreted. A typed
+    !> constructor is accepted after discarding its Fortran type specifier;
+    !> element expressions still carry their exact fortsym types.
     subroutine parse_fortran_array(a, file, symbol, elements, n, ok, message)
         type(arena_t), target, intent(inout) :: a
         character(*), intent(in) :: file, symbol
@@ -78,7 +79,8 @@ contains
         if (.not. ok) return
         call find_assignment(elements_lines, line_count, symbol, rhs, ok, message)
         if (.not. ok) return
-        constructor = parse_expr_in(a, rhs, dialect(DIA_FORTRAN), ok, message)
+        constructor = parse_expr_in(a, untype_array_constructor(rhs), &
+            dialect(DIA_FORTRAN), ok, message)
         if (.not. ok) return
         if (constructor%kind() /= NK_FUNC .or. &
             chars(constructor%name()) /= "List") then
@@ -103,6 +105,19 @@ contains
         end do
         ok = .true.
     end subroutine parse_fortran_array
+
+    function untype_array_constructor(rhs) result(text)
+        character(*), intent(in) :: rhs
+        character(:), allocatable :: text
+        integer :: separator
+
+        text = rhs
+        if (len_trim(rhs) == 0) return
+        if (rhs(1:1) /= "[") return
+        separator = index(rhs, "::")
+        if (separator <= 1) return
+        text = "["//lstrip(rhs(separator + 2:))
+    end function untype_array_constructor
 
     recursive function contains_array_constructor(e) result(found)
         type(expr_t), intent(in) :: e
