@@ -30,6 +30,24 @@ env:
   CCACHE_MAXSIZE: 500M
 
 jobs:
+  provenance:
+    name: compatibility provenance
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Check new compatibility sources
+        run: |
+          git diff --name-only --diff-filter=A \
+            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
+            > changed-files.txt
+          python3 scripts/check_provenance.py \
+            --changed-files changed-files.txt \
+            --provenance doc/provenance.md
+
   # Tier 1 only: the configuration every contributor and every consumer must be
   # able to build. No optional engine is installed here on purpose, so a change
   # that quietly starts depending on Maxima or SymPy fails this job.

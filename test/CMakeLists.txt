@@ -77,3 +77,11 @@ add_test(
 set_tests_properties(
     test_consumer_audit
     PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+add_test(
+    NAME test_provenance
+    COMMAND
+        ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/provenance/test_check_provenance.py)
+set_tests_properties(
+    test_provenance
+    PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
