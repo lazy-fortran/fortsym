@@ -21,6 +21,38 @@ exists to prevent:
 Nothing else. If this table grows, the licence review in `COMPATIBILITY.md` §6
 applies.
 
+## Third-party repository inventory
+
+This is the repository-level record for compatibility and algorithm work. The
+`doc/upstream-baselines.toml` records the full inspected-path and revision
+details for the pinned entries. “Learned” means a public behaviour, API, or
+published design was studied; “reused” means source was adapted. A repository
+with no reuse remains an oracle or reference, not an implementation source.
+
+| Repository | Licence | Revision or standing | Learned / reused |
+|---|---|---|---|
+| [symengine/symengine](https://github.com/symengine/symengine) | MIT | 0.14.0, `fac9314c78f2809570494017efc6603befeb4eda` | C API and expression capabilities learned; `cwrapper.cpp`’s `CRCPBasic` layout restated in `src/capi/fsym_shim.cpp`, as recorded above. |
+| [sympy/sympy](https://github.com/sympy/sympy) | BSD-3-Clause | 1.14.0, `fe935ceb303891d1f8bea4c03b19fd9ec9464b02` | Public compatibility behaviour, domains, and algorithm documentation learned; no source reused. |
+| [grzegorzmazur/yacas](https://github.com/grzegorzmazur/yacas) | LGPL-2.1-or-later | 1.9.1, `afade5b432c9d602daefe58abfd88bd985d73e51` | Linked backend and black-box behaviour learned; no source adapted. |
+| [flintlib/flint](https://github.com/flintlib/flint) | LGPL-3.0-or-later | 3.6.0, `8d5454b96761fafe4d5a9da76a369a602f500f49` | C API and arithmetic capabilities learned; fortsym has thin original wrappers only. |
+| [gmp/gmp](https://gmplib.org) | LGPL-3.0-or-later / GPL-2.0-or-later | 6.3.0 dependency | Linked integer dependency; no source reused. |
+| [mpfr/mpfr](https://gitlab.inria.fr/mpfr/mpfr) | LGPL-3.0-or-later | 4.2.2, `eaa57b856d814af32f97d5e5eb129fb986235323` | C API and rounding semantics learned; fortsym has thin original wrappers only. |
+| [codeberg.org/ginac/ginac](https://codeberg.org/ginac/ginac) | GPL-2.0-or-later | 1.8.10, `e41da5219650da501b0a4ccda9842e6964777c9a` | Documentation and architecture comparison only; no source or transcribed algorithm reused. |
+| [sympy/sympy_benchmarks](https://github.com/sympy/sympy_benchmarks) | NOASSERTION | `84973d029ecc6cc1df3e0369cb1e7c0492048ef8` | Repository metadata inspected only; no workload or source imported. |
+| [Mathics3/Mathics](https://github.com/Mathics3/mathics-core) | GPL-3.0-or-later | Behavioural oracle | Wolfram-language behaviour learned through subprocess use; no source or tests reused. |
+| [Mathics3/mathics-scanner](https://github.com/Mathics3/mathics-scanner) | GPL-3.0-or-later | Behavioural oracle support | Tokenisation behaviour learned through the Mathics oracle; no source reused. |
+| [WolframResearch/WolframClientForPython](https://github.com/WolframResearch/WolframClientForPython) | MIT | Public serialization reference | Serialization conventions for compatibility boundaries learned; no source reused. |
+| Maxima | GPL-2.0-or-later | Optional subprocess oracle | Algebraic behaviour learned from black-box comparisons; no source reused. |
+| Giac/Xcas | GPL-3.0-or-later | Optional subprocess oracle | Algebraic behaviour learned from black-box comparisons; no source reused. |
+| FriCAS | Modified BSD | Optional subprocess oracle | Algebraic behaviour learned from black-box comparisons; no source reused. |
+| PARI/GP | GPL-2.0-or-later | Optional subprocess oracle | Number-theory behaviour learned from black-box comparisons; no source reused. |
+| Singular | GPL-2.0 / GPL-3.0 | Optional subprocess oracle | Polynomial behaviour learned from black-box comparisons; no source reused. |
+
+The optional-engine licences and upstream links are also recorded in `LEGAL.md`
+§4. Wolfram products are explicitly excluded by `LEGAL.md` §5; the Wolfram
+client entry above is a public Python repository, not Mathematica or a Wolfram
+service.
+
 ## Methods
 
 Reimplemented from published descriptions. No source was taken from any

@@ -38,6 +38,14 @@ A milestone cannot merge if it introduces a silent fallback, a new hang, a
 loss of exactness, or an unexplained coverage regression. Oracle disagreement
 remains a diagnostic outcome. It is never converted into native agreement.
 
+## Issue status
+
+Issue-level completion is tracked here alongside the capability roadmap. Issue
+#20 (clean-room provenance machinery) is complete as of 2026-08-10: the
+repository inventory above, the pull-request review checkbox, the exact-path
+checker in `scripts/check_provenance.py`, its independent Python tests, and the
+pull-request CI gate are all present.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.
