@@ -64,16 +64,23 @@ def _load_library():
         discovered = ctypes.util.find_library("fortsym")
         if discovered:
             candidates.append(Path(discovered))
+        configured_error = None
+        last_error = None
         for candidate in candidates:
             try:
                 _library = ctypes.CDLL(str(candidate))
                 _configure(_library)
                 return _library
-            except (OSError, AttributeError):
+            except (OSError, AttributeError) as error:
+                last_error = error
+                if configured and candidate == Path(configured):
+                    configured_error = error
                 continue
+        error = configured_error if configured_error is not None else last_error
+        detail = f" ({error})" if error is not None else ""
         raise ImportError(
             "fortsym's native library was not found; set FORTSYM_LIBRARY "
-            "to libfortsym.so"
+            f"to libfortsym.so{detail}"
         )
 
 

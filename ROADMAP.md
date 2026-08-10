@@ -1000,6 +1000,13 @@ The report is the source of truth for measured counts. The roadmap records the
 commit, date, cache state, and remaining gap. It does not claim 100% parity
 until every overlapping binding agrees or has a documented oracle limitation.
 
+The 2026-08-11 CI audit also keeps native-loader failures actionable: the
+Python facade now preserves the loader error for an explicitly configured
+shared library instead of replacing it with a generic missing-library message.
+The local Nix Release wheel, Python CTest pair, and CUDA kernel-emission test
+pass; the remaining GitHub-runner discrepancy is being resolved before this
+maintenance item is considered closed.
+
 ## Simplification strategy
 
 Candidate ranking stays the mechanism: generate candidates, verify equivalence,
