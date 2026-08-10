@@ -25,6 +25,7 @@ program test_fortsym_kernel
 
     call test_cse_finds_sharing()
     call test_cse_skips_atoms()
+    call test_cse_policies()
     call test_operation_count_uses_shared_dag()
     call test_operation_cost_record()
     call test_projected_exact_operation_count()
@@ -140,6 +141,65 @@ contains
         end do
         call ok("atoms are not given temporaries", .not. named_an_atom)
     end subroutine test_cse_skips_atoms
+
+    subroutine test_cse_policies()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: full_code, thresholded_code, none_code
+        character(:), allocatable :: message
+        integer :: unit, ios, stat
+
+        call a%init()
+        roots(1) = parsed(a, "sin(x*y) + sin(x*y)*sin(x*y)")
+
+        spec = spec_for("cse_full", ["x", "y"], ["r"])
+        full_code = chars(emit_kernel(roots, spec))
+        call ok("full CSE remains the default", index(full_code, "real(dp) :: t1") > 0)
+
+        spec%name = str("cse_thresholded")
+        spec%cse_level = CSE_THRESHOLDED
+        spec%remat_threshold = 3
+        thresholded_code = chars(emit_kernel(roots, spec))
+        call ok("thresholded CSE can rematerialise a cheap shared node", &
+            index(thresholded_code, "real(dp) :: t") == 0)
+
+        spec%name = str("cse_none")
+        spec%cse_level = CSE_NONE
+        spec%remat_threshold = 0
+        none_code = chars(emit_kernel(roots, spec))
+        call ok("CSE-none emits no temporaries", index(none_code, "real(dp) :: t") == 0)
+
+        open (newunit=unit, file="/tmp/fortsym_cse_policies.f90", &
+            status="replace", action="write", iostat=ios)
+        call ok("CSE policy fixture opens", ios == 0)
+        if (ios /= 0) return
+        write (unit, "(a)") full_code
+        write (unit, "(a)") thresholded_code
+        write (unit, "(a)") none_code
+        write (unit, "(a)") "program drive_cse_policies"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(real64), parameter :: x = 0.37_real64, y = -0.81_real64"
+        write (unit, "(a)") "  real(real64) :: full, thresholded, none, expected"
+        write (unit, "(a)") "  expected = sin(x*y) + sin(x*y)*sin(x*y)"
+        write (unit, "(a)") "  call cse_full(x, y, full)"
+        write (unit, "(a)") "  call cse_thresholded(x, y, thresholded)"
+        write (unit, "(a)") "  call cse_none(x, y, none)"
+        write (unit, "(a)") "  if (max(abs(full-expected), abs(thresholded-expected), &"
+        write (unit, "(a)") "      abs(none-expected)) > 1.0e-14_real64) error stop 1"
+        write (unit, "(a)") "end program drive_cse_policies"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -o /tmp/fortsym_cse_policies /tmp/fortsym_cse_policies.f90 "// &
+            "> /tmp/fortsym_cse_policies.log 2>&1", wait=.true., exitstat=stat)
+        call ok("CSE policy variants compile", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_cse_policies", wait=.true., &
+                exitstat=stat)
+            call ok("CSE policy variants match independent oracle", stat == 0)
+        end if
+    end subroutine test_cse_policies
 
     subroutine test_codegen_is_construction_history_independent()
         type(arena_t), target :: a, b

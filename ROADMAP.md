@@ -786,6 +786,16 @@ numeric oracle; the same test disables each policy family and verifies the
 conservative spelling remains available. The `pure_procedure` default remains
 unchanged while `fortnum#73` is open.
 
+Issue #64 (CSE level and rematerialisation threshold) is complete as of
+2026-08-10. `kernel_spec_t` now carries target-specific `CSE_NONE`,
+`CSE_THRESHOLDED`, and `CSE_FULL` settings plus a recursive recomputation-cost
+threshold; full CSE with threshold zero remains the compatibility default.
+Three generated CPU variants compile and agree with an independent numeric
+oracle. On that fixture, `N_sym=4`; full CSE emits `N_emit=4`, while both
+thresholded rematerialisation and CSE-none emit `N_emit=8`. End-to-end CUDA
+timing remains a fortnum consumer measurement, not a claim made by this
+Fortran-only emitter.
+
 **Target as a descriptor (#61).** Generated kernels now carry only the
 decoration requested by their stable target identity. The four targets
 consumers need are CPU Fortran, OpenMP offload, OpenACC, and CUDA; the IR gains
