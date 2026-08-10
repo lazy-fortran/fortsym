@@ -14,12 +14,31 @@ module fortsym_kernel_emit
     use fortsym_quadratic, only: quadratic_t
     use fortsym_dialect, only: dialect, DIA_FORTRAN
     use fortsym_print, only: print_expr_in
+    use fortsym_kernel_target, only: TARGET_DEFAULT_VALUE => TARGET_DEFAULT, &
+        TARGET_FORTRAN_CPU_VALUE => TARGET_FORTRAN_CPU, &
+        TARGET_FORTRAN_OPENMP_TARGET_VALUE => TARGET_FORTRAN_OPENMP_TARGET, &
+        TARGET_FORTRAN_OPENACC_VALUE => TARGET_FORTRAN_OPENACC, &
+        TARGET_DUAL_VALUE => TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, &
+        TARGET_CUDA_VALUE => TARGET_CUDA, &
+        target_directives, target_is_valid, target_name
     implicit none
     private
 
     public :: kernel_emit_spec_t
     public :: emit_fortran_kernel_ir, emit_cuda_device_ir
     public :: emit_table
+    public :: TARGET_DEFAULT, TARGET_FORTRAN_CPU
+    public :: TARGET_FORTRAN_OPENMP_TARGET, TARGET_FORTRAN_OPENACC
+    public :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, TARGET_CUDA
+    public :: target_name
+
+    integer, parameter :: TARGET_DEFAULT = TARGET_DEFAULT_VALUE
+    integer, parameter :: TARGET_FORTRAN_CPU = TARGET_FORTRAN_CPU_VALUE
+    integer, parameter :: TARGET_FORTRAN_OPENMP_TARGET = &
+        TARGET_FORTRAN_OPENMP_TARGET_VALUE
+    integer, parameter :: TARGET_FORTRAN_OPENACC = TARGET_FORTRAN_OPENACC_VALUE
+    integer, parameter :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC = TARGET_DUAL_VALUE
+    integer, parameter :: TARGET_CUDA = TARGET_CUDA_VALUE
 
     interface emit_table
         module procedure emit_table_expr_1d
@@ -37,6 +56,10 @@ module fortsym_kernel_emit
         type(str_t), allocatable :: args(:)
         type(str_t), allocatable :: outputs(:)
         type(str_t) :: temp_prefix
+        !> Stable target identity. The default retains the historical
+        !> undecorated IR-emitter output; explicit targets select spelling and
+        !> Fortran device decoration without changing the IR.
+        integer :: target = TARGET_DEFAULT
         !! Emit the Fortran leaf as a `pure` procedure. Generated kernels only
         !! ever call intrinsics on their arguments, so purity is always sound;
         !! it is opt-in solely so existing committed kernels stay byte-identical
@@ -434,9 +457,12 @@ contains
         type(str_t) :: source
         type(strbuf_t) :: b
         character(:), allocatable :: prefix, rhs
-        logical :: ok
+        logical :: ok, emit_openmp, emit_openacc
         character(:), allocatable :: message
         integer :: k
+
+        call target_directives(spec%target, .false., .false., emit_openmp, &
+            emit_openacc)
 
         prefix = chars(spec%temp_prefix)
         if (len(prefix) == 0) prefix = "t"
@@ -452,6 +478,14 @@ contains
             call append_arguments(b, spec, .false.)
             call b%append(")")
             call b%newline()
+            if (emit_openmp) then
+                call b%append("    !$omp declare target")
+                call b%newline()
+            end if
+            if (emit_openacc) then
+                call b%append("    !$acc routine seq")
+                call b%newline()
+            end if
             call b%append("    use, intrinsic :: iso_fortran_env, only: real64")
             call b%newline()
             call b%append("    implicit none")
@@ -547,6 +581,19 @@ contains
         message = ""
         if (.not. valid_identifier(chars(spec%name))) then
             message = "kernel emitter: kernel name is invalid"
+            return
+        end if
+        if (.not. target_is_valid(spec%target)) then
+            message = "kernel emitter: target identity is invalid"
+            return
+        end if
+        if (backend == BACKEND_FORTRAN .and. spec%target == TARGET_CUDA) then
+            message = "kernel emitter: CUDA target requires CUDA emitter"
+            return
+        end if
+        if (backend == BACKEND_CUDA .and. spec%target /= TARGET_DEFAULT .and. &
+            spec%target /= TARGET_CUDA) then
+            message = "kernel emitter: non-CUDA target requires Fortran emitter"
             return
         end if
         if (.not. allocated(spec%args)) then

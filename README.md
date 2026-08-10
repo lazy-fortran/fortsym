@@ -88,12 +88,12 @@ Candidate simplifications from every engine are *verified equivalent first*,
 then ranked by operation count after CSE — so the winner is the cheapest form
 that is provably the same function.
 
-Generated pure numerical leaves may optionally carry OpenMP
-`declare target` and OpenACC `routine seq` annotations. These flags only make
-the same procedure body callable on a device; fortsym deliberately emits no
-parallel schedule, data movement, memory management, or runtime dispatch.
-OpenMP annotation requires a generated module wrapper so the public procedure
-can be named in the module specification.
+Generated numerical leaves select a stable target identity: `fortran_cpu`,
+`fortran_openmp_target`, `fortran_openacc`, or `cuda`. The target only chooses
+source spelling and leaf decoration; fortsym emits no parallel schedule, data
+movement, memory management, or runtime dispatch. The historical dual-target
+flags remain as a compatibility default so committed FortNum kernels remain
+byte-identical while new callers can request one target explicitly.
 
 **Cross-check engines.** When several engines answer, agreement raises
 confidence and **disagreement is reported as a finding**, not averaged away: it

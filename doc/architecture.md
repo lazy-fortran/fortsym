@@ -26,6 +26,16 @@ native backend operates on it directly.
 7. `src/verify` supplies independent real evaluation and three-valued checks.
 8. `src/codegen` selects shared subexpressions and emits Fortran kernels.
 
+Kernel targets are represented by stable integer identities with canonical
+names: `fortran_cpu`, `fortran_openmp_target`, `fortran_openacc`, and `cuda`.
+The target descriptor selects only source spelling and leaf decoration; it
+never branches the backend-neutral IR. CPU and CUDA leaves carry no Fortran
+directives, while the two offload targets select their corresponding directive.
+The combined OpenMP/OpenACC identity remains available for compatibility with
+committed FortNum kernels. The unset descriptor preserves the historical
+logical flags in `emit_kernel`, so regenerating existing dual-target artifacts
+does not create formatting-only diffs.
+
 Kernel emission can also return an optional machine-readable operation-cost
 record through `emit_kernel(..., cost_record=record)`. The record uses the
 `fortsym.operation_cost.v1` JSON schema: totals count distinct nodes in the

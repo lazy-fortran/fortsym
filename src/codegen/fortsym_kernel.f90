@@ -20,6 +20,13 @@ module fortsym_kernel
     use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
     use fortsym_print, only: print_expr_sub, fortran_roots_representable
     use fortsym_eval, only: free_symbols_of
+    use fortsym_kernel_target, only: TARGET_DEFAULT_VALUE => TARGET_DEFAULT, &
+        TARGET_FORTRAN_CPU_VALUE => TARGET_FORTRAN_CPU, &
+        TARGET_FORTRAN_OPENMP_TARGET_VALUE => TARGET_FORTRAN_OPENMP_TARGET, &
+        TARGET_FORTRAN_OPENACC_VALUE => TARGET_FORTRAN_OPENACC, &
+        TARGET_DUAL_VALUE => TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, &
+        TARGET_CUDA_VALUE => TARGET_CUDA, &
+        target_directives, target_is_valid, target_name
     implicit none
     private
 
@@ -28,6 +35,18 @@ module fortsym_kernel
     public :: cse_analyse, count_operations, operation_cost
     public :: emit_cost_record, emit_kernel, emit_statements
     public :: KERNEL_SUBROUTINE, KERNEL_SNIPPET
+    public :: TARGET_DEFAULT, TARGET_FORTRAN_CPU
+    public :: TARGET_FORTRAN_OPENMP_TARGET, TARGET_FORTRAN_OPENACC
+    public :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, TARGET_CUDA
+    public :: target_name
+
+    integer, parameter :: TARGET_DEFAULT = TARGET_DEFAULT_VALUE
+    integer, parameter :: TARGET_FORTRAN_CPU = TARGET_FORTRAN_CPU_VALUE
+    integer, parameter :: TARGET_FORTRAN_OPENMP_TARGET = &
+        TARGET_FORTRAN_OPENMP_TARGET_VALUE
+    integer, parameter :: TARGET_FORTRAN_OPENACC = TARGET_FORTRAN_OPENACC_VALUE
+    integer, parameter :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC = TARGET_DUAL_VALUE
+    integer, parameter :: TARGET_CUDA = TARGET_CUDA_VALUE
 
     integer, parameter :: dp = real64
 
@@ -76,6 +95,10 @@ module fortsym_kernel
         !> Optional Fortran module wrapper. A module gives consumers an
         !> explicit interface without maintaining a second handwritten one.
         type(str_t)              :: module_name
+        !> Stable target identity. TARGET_DEFAULT retains the legacy logical
+        !> flags for byte-identical committed consumers; an explicit target
+        !> overrides both legacy flags.
+        integer                  :: target = TARGET_DEFAULT
         !> Mark a generated leaf for compilation on an OpenMP target device.
         !> This only annotates the procedure; scheduling and data movement
         ! remain the consuming application's responsibility.
@@ -649,7 +672,7 @@ contains
 
         type(strbuf_t)     :: b, body
         type(cse_result_t) :: res
-        logical :: valid
+        logical :: valid, emit_openmp, emit_openacc
 
         valid = fortran_roots_representable(roots)
         if (valid) valid = kernel_symbols_are_declared(roots, spec%args)
@@ -659,9 +682,14 @@ contains
             s = str("")
             return
         end if
+        if (.not. target_is_valid(spec%target)) then
+            error stop "invalid kernel target"
+        end if
+        call target_directives(spec%target, spec%openmp_declare_target, &
+            spec%openacc_routine_seq, emit_openmp, emit_openacc)
         if (present(cost_record)) cost_record = emit_cost_record(roots)
 
-        if (spec%openmp_declare_target) then
+        if (emit_openmp) then
             if (len(chars(spec%module_name)) == 0) then
                 error stop "OpenMP device emission requires module_name"
             end if
@@ -721,14 +749,14 @@ contains
             call b%append("contains")
             call b%newline()
             call b%newline()
-            call append_subroutine(body, roots, spec, res)
+            call append_subroutine(body, roots, spec, res, emit_openmp, emit_openacc)
             call append_indented(b, chars(body%to_str()))
             call b%newline()
             call b%append("end module ")
             call b%append(chars(spec%module_name))
             call b%newline()
         else
-            call append_subroutine(b, roots, spec, res)
+            call append_subroutine(b, roots, spec, res, emit_openmp, emit_openacc)
         end if
 
         s = b%to_str()
@@ -808,11 +836,12 @@ contains
         end if
     end function lower_ascii
 
-    subroutine append_subroutine(b, roots, spec, res)
+    subroutine append_subroutine(b, roots, spec, res, emit_openmp, emit_openacc)
         type(strbuf_t), intent(inout) :: b
         type(expr_t), intent(in) :: roots(:)
         type(kernel_spec_t), intent(in) :: spec
         type(cse_result_t), intent(in) :: res
+        logical, intent(in) :: emit_openmp, emit_openacc
         type(strbuf_t) :: header
         character(:), allocatable :: scalar_type
         integer :: k
@@ -840,11 +869,11 @@ contains
         call header%append(")")
         call append_wrapped(b, chars(header%to_str()))
 
-        if (spec%openmp_declare_target) then
+        if (emit_openmp) then
             call b%append("    !$omp declare target")
             call b%newline()
         end if
-        if (spec%openacc_routine_seq) then
+        if (emit_openacc) then
             call b%append("    !$acc routine seq")
             call b%newline()
         end if
