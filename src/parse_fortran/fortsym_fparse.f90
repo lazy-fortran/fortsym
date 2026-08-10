@@ -12,19 +12,20 @@ module fortsym_fparse
     ! Here the real file is read. A check that passes has checked the code that
     ! actually runs.
     !
-    ! Scope is one restricted thing done properly: the right-hand side of an
-    ! assignment. Not statements, not control flow, not declarations. That is
-    ! all a kernel check needs, and a full Fortran parser would be a far larger
-    ! commitment than the job requires -- see the note on fortfront in issue #9.
+    ! Scope is still deliberately narrow: right-hand-side expressions and
+    ! parameter array constructors. It does not parse statements, control flow,
+    ! implied-do constructors or typed constructors; a full Fortran parser would
+    ! be a far larger commitment than the job requires -- see the note on
+    ! fortfront in issue #9.
     use fortsym_string, only: str_t, strbuf_t, str, chars
-    use fortsym_arena, only: arena_t
+    use fortsym_arena, only: arena_t, NK_FUNC
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect, DIA_FORTRAN
     use fortsym_parse, only: parse_expr_in
     implicit none
     private
 
-    public :: parse_fortran_expr, find_assignment, logical_lines
+    public :: parse_fortran_expr, parse_fortran_array, find_assignment, logical_lines
 
 contains
 
@@ -55,6 +56,73 @@ contains
         e = parse_expr_in(a, rhs, dialect(DIA_FORTRAN), ok, message)
         if (.not. ok) message = "in assignment to '"//symbol//"': "//message
     end function parse_fortran_expr
+
+    !> Read a rank-one array constructor bound to `symbol` and return its
+    !> elements as independent arena expressions. Implied-do, typed and nested
+    !> constructors are refused rather than partially interpreted.
+    subroutine parse_fortran_array(a, file, symbol, elements, n, ok, message)
+        type(arena_t), target, intent(inout) :: a
+        character(*), intent(in) :: file, symbol
+        type(expr_t), allocatable, intent(out) :: elements(:)
+        integer, intent(out) :: n
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(expr_t) :: constructor
+        type(str_t), allocatable :: elements_lines(:)
+        character(:), allocatable :: rhs
+        integer :: k, line_count
+
+        allocate (elements(0))
+        n = 0
+        call logical_lines(file, elements_lines, line_count, ok, message)
+        if (.not. ok) return
+        call find_assignment(elements_lines, line_count, symbol, rhs, ok, message)
+        if (.not. ok) return
+        constructor = parse_expr_in(a, rhs, dialect(DIA_FORTRAN), ok, message)
+        if (.not. ok) return
+        if (constructor%kind() /= NK_FUNC .or. &
+            chars(constructor%name()) /= "List") then
+            ok = .false.
+            message = "'"//symbol//"' is not a rank-one array constructor"
+            return
+        end if
+
+        n = constructor%nargs()
+        deallocate (elements)
+        allocate (elements(n))
+        do k = 1, n
+            if (contains_array_constructor(constructor%arg(k))) then
+                n = 0
+                deallocate (elements)
+                allocate (elements(0))
+                ok = .false.
+                message = "nested array constructors are unsupported"
+                return
+            end if
+            elements(k) = constructor%arg(k)
+        end do
+        ok = .true.
+    end subroutine parse_fortran_array
+
+    recursive function contains_array_constructor(e) result(found)
+        type(expr_t), intent(in) :: e
+        type(expr_t) :: child
+        logical :: found
+        integer :: k
+
+        found = .false.
+        if (e%kind() == NK_FUNC .and. chars(e%name()) == "List") then
+            found = .true.
+            return
+        end if
+        do k = 1, e%nargs()
+            child = e%arg(k)
+            if (contains_array_constructor(child)) then
+                found = .true.
+                return
+            end if
+        end do
+    end function contains_array_constructor
 
     !> Read a file into logical lines: comments removed and continuations
     !> joined, so each element is one complete statement's text.
@@ -125,7 +193,7 @@ contains
         ok = .true.
     end subroutine logical_lines
 
-    !> Right-hand side of the assignment to `symbol`.
+    !> Right-hand side of the assignment or declaration initializer for `symbol`.
     !>
     !> The last assignment wins. A kernel may assign a temporary more than once,
     !> and the value that reaches the output is the final one.
@@ -138,14 +206,26 @@ contains
         character(:), allocatable, intent(out) :: message
 
         character(:), allocatable :: text, lhs, candidate
+        logical :: found_declaration, pointer_declaration, saw_pointer
         integer :: k, eq
 
         ok = .false.
         rhs = ""
         message = ""
+        saw_pointer = .false.
 
         do k = 1, n
             text = chars(lines(k))
+            if (index(text, "::") > 0) then
+                call declaration_binding(text, symbol, candidate, &
+                    found_declaration, pointer_declaration)
+                saw_pointer = saw_pointer .or. pointer_declaration
+                if (found_declaration .and. len(candidate) > 0) then
+                    rhs = candidate
+                    ok = .true.
+                end if
+                cycle
+            end if
             eq = assignment_position(text)
             if (eq == 0) cycle
 
@@ -159,8 +239,95 @@ contains
             ok = .true.
         end do
 
-        if (.not. ok) message = "no assignment to '"//symbol//"' found"
+        if (.not. ok) then
+            if (saw_pointer) then
+                message = "pointer initialisation for '"//symbol//"' is unsupported"
+            else
+                message = "no assignment to '"//symbol//"' found"
+            end if
+        end if
     end subroutine find_assignment
+
+    subroutine declaration_binding(text, symbol, rhs, found, pointer)
+        character(*), intent(in) :: text, symbol
+        character(:), allocatable, intent(out) :: rhs
+        logical, intent(out) :: found, pointer
+        character(:), allocatable :: entities, entity
+        integer :: separator, start, k, paren_depth, bracket_depth
+        logical :: at_end, entity_found, entity_pointer
+
+        rhs = ""
+        found = .false.
+        pointer = .false.
+        separator = index(text, "::")
+        if (separator == 0) return
+        entities = lstrip(text(separator + 2:))
+        start = 1
+        paren_depth = 0
+        bracket_depth = 0
+        do k = 1, len(entities) + 1
+            at_end = k > len(entities)
+            if (.not. at_end) then
+                if (entities(k:k) == "(") paren_depth = paren_depth + 1
+                if (entities(k:k) == ")") paren_depth = paren_depth - 1
+                if (entities(k:k) == "[") bracket_depth = bracket_depth + 1
+                if (entities(k:k) == "]") bracket_depth = bracket_depth - 1
+            end if
+            if (at_end) then
+                if (k > start) then
+                    entity = squeeze(entities(start:k - 1))
+                    call inspect_entity(entity, symbol, rhs, entity_found, entity_pointer)
+                    pointer = pointer .or. entity_pointer
+                    if (entity_found) then
+                        found = .true.
+                        return
+                    end if
+                end if
+                exit
+            else if (entities(k:k) == "," .and. paren_depth == 0 .and. &
+                bracket_depth == 0) then
+                if (k > start) then
+                    entity = squeeze(entities(start:k - 1))
+                    call inspect_entity(entity, symbol, rhs, entity_found, entity_pointer)
+                    pointer = pointer .or. entity_pointer
+                    if (entity_found) then
+                        found = .true.
+                        return
+                    end if
+                end if
+                start = k + 1
+            end if
+        end do
+    end subroutine declaration_binding
+
+    subroutine inspect_entity(entity, symbol, rhs, found, pointer)
+        character(*), intent(in) :: entity, symbol
+        character(:), allocatable, intent(out) :: rhs
+        logical, intent(out) :: found, pointer
+        character(:), allocatable :: name
+        integer :: eq, open
+
+        rhs = ""
+        found = .false.
+        pointer = .false.
+        eq = assignment_position(entity)
+        if (eq == 0) then
+            if (index(entity, "=>") > 0) then
+                pointer = .true.
+                name = squeeze(entity(:index(entity, "=>") - 1))
+            else
+                name = squeeze(entity)
+            end if
+        else
+            name = squeeze(entity(:eq - 1))
+        end if
+        open = index(name, "(")
+        if (open > 0) name = squeeze(name(:open - 1))
+        if (.not. same_name(name, symbol)) return
+        if (eq == 0 .or. pointer) return
+        rhs = lstrip(entity(eq + 1:))
+        found = len(rhs) > 0
+    end subroutine inspect_entity
 
     !> Position of the `=` that makes this an assignment, or 0.
     !>

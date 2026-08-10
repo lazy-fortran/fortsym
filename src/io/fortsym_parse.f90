@@ -97,7 +97,11 @@ contains
         type(expr_t)                             :: e
         type(parser_t) :: p
 
-        p%src = text
+        if (d%id == DIA_FORTRAN) then
+            p%src = normalize_fortran_arrays(text)
+        else
+            p%src = text
+        end if
         p%pos = 1
         p%wolfram = d%wolfram_syntax
         p%failed = .false.
@@ -113,6 +117,30 @@ contains
         ok = .not. p%failed
         message = p%message
     end function parse_expr_in
+
+    ! Fortran's alternate array-constructor spelling is `(/ ... /)`. The
+    ! expression parser uses brackets for the same structural list node; this
+    ! lexical normalization keeps both spellings on one parser path.
+    function normalize_fortran_arrays(text) result(normalized)
+        character(*), intent(in) :: text
+        character(:), allocatable :: normalized
+        integer :: k
+
+        normalized = ""
+        k = 1
+        do while (k <= len(text))
+            if (k < len(text) .and. text(k:k + 1) == "(/") then
+                normalized = normalized//"["
+                k = k + 2
+            else if (k < len(text) .and. text(k:k + 1) == "/)") then
+                normalized = normalized//"]"
+                k = k + 2
+            else
+                normalized = normalized//text(k:k)
+                k = k + 1
+            end if
+        end do
+    end function normalize_fortran_arrays
 
     subroutine fail(p, why)
         type(parser_t), intent(inout) :: p
@@ -1423,6 +1451,22 @@ contains
             end if
             call advance(p, d)
             ! (expr)[[k]] and (f)[x] apply to the parenthesised group.
+            e = parse_postfix(p, a, d, e)
+            return
+
+        case (T_LBRACKET)
+            if (d%id /= DIA_FORTRAN) then
+                call fail(p, "array constructors are only supported in Fortran syntax")
+                return
+            end if
+            call advance(p, d)
+            call parse_arg_list(p, a, d, fargs, nargs, T_RBRACKET)
+            if (p%failed) return
+            if (nargs == 0) then
+                e = func_in(a, "List")
+            else
+                e = func("List", fargs(1:nargs))
+            end if
             e = parse_postfix(p, a, d, e)
             return
 

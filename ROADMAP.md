@@ -84,6 +84,15 @@ as rational nodes in the Fortran dialect, while ordinary real quotients remain
 real. The focused and full `fo test` runs pass apart from the pre-existing CUDA
 emitter fixture.
 
+Issue #57 (Fortran declaration and array readback) is complete as of
+2026-08-10: `find_assignment` now selects initialized entities from attributed
+declarations, including array specs and multi-entity declarations, while
+rejecting pointer initialization. Fortran `[]` and `(/.../)` constructors parse
+through the dialect parser, and `parse_fortran_array` returns their elements
+with explicit refusals for nested, implied-do, and typed constructors. The
+focused and full `fo test` runs pass apart from the pre-existing CUDA emitter
+fixture.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.

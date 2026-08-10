@@ -42,6 +42,7 @@ program test_fortsym_fparse
     call test_case_insensitive()
     call test_continuations()
     call test_fortran_round_trip()
+    call test_fortran_array_readback()
     call test_verifies_a_real_kernel()
     call test_catches_a_wrong_derivative()
 
@@ -81,6 +82,14 @@ contains
         write (unit, "(a)") "    real(dp), intent(out) :: psi3, dpsi3_dx"
         write (unit, "(a)") "    real(dp), intent(out) :: dpsi5_dxx, bad"
         write (unit, "(a)") "    real(dp) :: logx"
+        write (unit, "(a)") "    real(dp), parameter, public :: values(3) = [ &"
+        write (unit, "(a)") "        1.0_dp, -2.0_dp/3.0_dp, 3.0_dp ]"
+        write (unit, "(a)") "    real(dp), parameter :: old_style(2) = (/ 4.0_dp, 5.0_dp /)"
+        write (unit, "(a)") "    real(dp), parameter :: first = 1.0_dp, second = 2.0_dp"
+        write (unit, "(a)") "    real(dp), parameter :: nested(2) = [ [1.0_dp], 2.0_dp ]"
+        write (unit, "(a)") "    real(dp), parameter :: implied(2) = [(1.0_dp, k=1, 2)]"
+        write (unit, "(a)") "    real(dp), parameter :: typed(2) = [real(dp) :: 1.0_dp, 2.0_dp]"
+        write (unit, "(a)") "    real(dp), pointer :: ptr => values"
         write (unit, "(a)") ""
         write (unit, "(a)") "    logx = log(x)   ! shared subexpression"
         write (unit, "(a)") ""
@@ -229,6 +238,45 @@ contains
             end if
         end do
     end subroutine test_fortran_round_trip
+
+    subroutine test_fortran_array_readback()
+        type(expr_t), allocatable :: values(:), old_style(:), parsed
+        type(str_t), allocatable :: lines(:)
+        character(:), allocatable :: message, rhs
+        integer :: n, line_count
+        logical :: good
+
+        call parse_fortran_array(arena, FIXTURE, "values", values, n, good, message)
+        call ok("reads a parameter array declaration", good .and. n == 3)
+        if (good) then
+            call ok("array first element", values(1) == real_expr(arena, 1.0_dp))
+            call ok("array rational element stays exact", &
+                values(2) == rat(arena, -2_int64, 3_int64))
+            call ok("array last element", values(3) == real_expr(arena, 3.0_dp))
+        end if
+
+        call parse_fortran_array(arena, FIXTURE, "old_style", old_style, n, good, message)
+        call ok("reads alternate array constructor spelling", good .and. n == 2)
+
+        call logical_lines(FIXTURE, lines, line_count, good, message)
+        call find_assignment(lines, line_count, "second", rhs, good, message)
+        call ok("selects one entity from a multi-entity declaration", &
+            good .and. trim(rhs) == "2.0_dp")
+        parsed = parse_fortran_expr(arena, FIXTURE, "second", good, message)
+        call ok("parses the selected declaration initializer", &
+            good .and. parsed == real_expr(arena, 2.0_dp))
+
+        call find_assignment(lines, line_count, "ptr", rhs, good, message)
+        call ok("rejects pointer initialization", .not. good .and. &
+            index(message, "pointer") > 0)
+        call parse_fortran_array(arena, FIXTURE, "nested", values, n, good, message)
+        call ok("rejects nested array constructors", .not. good .and. &
+            index(message, "nested") > 0)
+        call parse_fortran_array(arena, FIXTURE, "implied", values, n, good, message)
+        call ok("rejects implied-do constructors", .not. good)
+        call parse_fortran_array(arena, FIXTURE, "typed", values, n, good, message)
+        call ok("rejects typed constructors", .not. good)
+    end subroutine test_fortran_array_readback
 
     !> The real thing: check a hand-written derivative against the symbolic
     !> derivative of the definition, reading both from source.
