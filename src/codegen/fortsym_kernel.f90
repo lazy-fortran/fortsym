@@ -11,14 +11,15 @@ module fortsym_kernel
     ! this ecosystem declare their temporaries with `implicit real(dp) (s-t)`,
     ! which silently types anything beginning with s or t and turns a misspelled
     ! variable into a fresh zero. Every temporary here is declared.
-    use, intrinsic :: iso_fortran_env, only: int64, real64
+    use, intrinsic :: iso_fortran_env, only: int64, real32, real64
     use fortsym_string, only: str_t, strbuf_t, str, chars, compare_str, &
         operator(==)
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_ADD, NK_MUL, NK_POW, &
         NK_FUNC
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
-    use fortsym_print, only: print_expr_sub, fortran_roots_representable
+    use fortsym_print, only: print_expr_sub, fortran_roots_representable, &
+        fortran_roots_representable_kind
     use fortsym_eval, only: collect_free_symbols
     use fortsym_kernel_target, only: TARGET_DEFAULT_VALUE => TARGET_DEFAULT, &
         TARGET_FORTRAN_CPU_VALUE => TARGET_FORTRAN_CPU, &
@@ -27,6 +28,8 @@ module fortsym_kernel
         TARGET_DUAL_VALUE => TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, &
         TARGET_CUDA_VALUE => TARGET_CUDA, &
         target_directives, target_is_valid, target_name
+    use fortsym_precision, only: PRECISION_REAL64, PRECISION_REAL32, &
+        PRECISION_MIXED, precision_is_valid, precision_name
     implicit none
     private
 
@@ -40,6 +43,8 @@ module fortsym_kernel
     public :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, TARGET_CUDA
     public :: target_name
     public :: CSE_NONE, CSE_THRESHOLDED, CSE_FULL
+    public :: PRECISION_REAL64, PRECISION_REAL32, PRECISION_MIXED
+    public :: precision_name
 
     integer, parameter :: TARGET_DEFAULT = TARGET_DEFAULT_VALUE
     integer, parameter :: TARGET_FORTRAN_CPU = TARGET_FORTRAN_CPU_VALUE
@@ -113,6 +118,8 @@ module fortsym_kernel
         !> In thresholded mode, recompute a repeated compound when its tree
         !> cost is below this value. Zero retains full-CSE behaviour.
         integer                  :: remat_threshold = 0
+        !> Scalar precision. MIXED uses real32 arithmetic and real64 outputs.
+        integer                  :: precision = PRECISION_REAL64
         !> Mark a generated leaf for compilation on an OpenMP target device.
         !> This only annotates the procedure; scheduling and data movement
         ! remain the consuming application's responsibility.
@@ -599,6 +606,14 @@ contains
         logical :: valid
 
         d = dialect(DIA_FORTRAN)
+        if (spec%precision == PRECISION_REAL32 .or. &
+                spec%precision == PRECISION_MIXED) then
+            d%real_suffix = str("_real32")
+            d%int_real_suffix = str(".0_real32")
+        else
+            d%real_suffix = str("_dp")
+            d%int_real_suffix = str(".0_dp")
+        end if
         if (present(prechecked)) then
             valid = prechecked
         else
@@ -730,6 +745,10 @@ contains
 
         valid = fortran_roots_representable(roots)
         if (valid) valid = kernel_symbols_are_declared(roots, spec%args)
+        if (valid .and. (spec%precision == PRECISION_REAL32 .or. &
+                spec%precision == PRECISION_MIXED)) then
+            valid = fortran_roots_representable_kind(roots, real32)
+        end if
         if (present(ok)) ok = valid
         if (present(cost_record)) cost_record = str("")
         if (.not. valid) then
@@ -738,6 +757,13 @@ contains
         end if
         if (.not. target_is_valid(spec%target)) then
             error stop "invalid kernel target"
+        end if
+        if (.not. precision_is_valid(spec%precision)) then
+            error stop "invalid kernel precision"
+        end if
+        if (spec%precision /= PRECISION_REAL64 .and. &
+                len(chars(spec%scalar_type)) > 0) then
+            error stop "precision choice cannot be combined with scalar_type"
         end if
         if (spec%cse_level < CSE_NONE .or. spec%cse_level > CSE_FULL) then
             error stop "invalid kernel CSE level"
@@ -904,11 +930,30 @@ contains
         type(cse_result_t), intent(in) :: res
         logical, intent(in) :: emit_openmp, emit_openacc
         type(strbuf_t) :: header
-        character(:), allocatable :: scalar_type
+        character(:), allocatable :: scalar_type, input_type, output_type
+        character(:), allocatable :: temporary_type
         integer :: k
 
         scalar_type = chars(spec%scalar_type)
-        if (len(scalar_type) == 0) scalar_type = "real(dp)"
+        if (len(scalar_type) == 0) then
+            if (spec%precision == PRECISION_REAL32 .or. &
+                    spec%precision == PRECISION_MIXED) then
+                input_type = "real(real32)"
+                temporary_type = "real(real32)"
+            else
+                input_type = "real(dp)"
+                temporary_type = "real(dp)"
+            end if
+            if (spec%precision == PRECISION_MIXED) then
+                output_type = "real(real64)"
+            else
+                output_type = input_type
+            end if
+        else
+            input_type = scalar_type
+            output_type = scalar_type
+            temporary_type = scalar_type
+        end if
 
         if (spec%nvfortran_inline) then
             call b%append("!NVF$ INLINE")
@@ -938,27 +983,35 @@ contains
             call b%append("    !$acc routine seq")
             call b%newline()
         end if
-        call b%append("    use, intrinsic :: iso_fortran_env, only: dp => real64")
+        if (spec%precision == PRECISION_REAL32) then
+            call b%append("    use, intrinsic :: iso_fortran_env, only: real32")
+        else if (spec%precision == PRECISION_MIXED) then
+            call b%append("    use, intrinsic :: iso_fortran_env, only: real32, real64")
+        else if (len(chars(spec%scalar_type)) == 0) then
+            call b%append("    use, intrinsic :: iso_fortran_env, only: dp => real64")
+        else
+            call b%append("    use, intrinsic :: iso_fortran_env, only: dp => real64")
+        end if
         call b%newline()
         call b%append("    implicit none")
         call b%newline()
 
         if (allocated(spec%arg_shapes)) then
-            call declare(b, scalar_type, "intent(in)", spec%args, spec%arg_shapes)
+            call declare(b, input_type, "intent(in)", spec%args, spec%arg_shapes)
         else
-            call declare(b, scalar_type, "intent(in)", spec%args)
+            call declare(b, input_type, "intent(in)", spec%args)
         end if
         if (allocated(spec%output_shapes)) then
             call declare( &
-                b, scalar_type, "intent(out)", spec%outputs, spec%output_shapes)
+                b, output_type, "intent(out)", spec%outputs, spec%output_shapes)
         else
-            call declare(b, scalar_type, "intent(out)", spec%outputs)
+            call declare(b, output_type, "intent(out)", spec%outputs)
         end if
 
         if (res%n > 0) then
             ! Temporaries are declared explicitly, never left to an implicit
             ! typing rule.
-            call declare(b, scalar_type, "", res%names(1:res%n))
+            call declare(b, temporary_type, "", res%names(1:res%n))
         end if
 
         call b%newline()

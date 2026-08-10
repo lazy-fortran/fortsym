@@ -326,6 +326,21 @@ contains
         call ok("default and explicit CPU output agree", &
             default_source == cpu_source)
 
+        spec%precision = PRECISION_REAL32
+        source = emit_fortran_kernel_ir(ir, spec, good, message)
+        call ok("IR real32 precision is accepted", good)
+        call ok("IR real32 emits explicit scalar kinds", &
+            index(chars(source), "real(real32), intent(in)") > 0 .and. &
+            index(chars(source), "real(real32), intent(out)") > 0 .and. &
+            index(chars(source), "_real32") > 0)
+
+        spec%precision = PRECISION_MIXED
+        source = emit_fortran_kernel_ir(ir, spec, good, message)
+        call ok("IR mixed precision is accepted", good)
+        call ok("IR mixed precision has a double output boundary", &
+            index(chars(source), "real(real32), intent(in)") > 0 .and. &
+            index(chars(source), "real(real64), intent(out)") > 0)
+
         spec%target = TARGET_FORTRAN_OPENMP_TARGET
         openmp_source = chars(emit_fortran_kernel_ir(ir, spec, good, message))
         call ok("OpenMP target is accepted", good)
@@ -348,11 +363,23 @@ contains
             index(both_source, "!$acc routine seq") > 0)
 
         spec%target = TARGET_CUDA
+        spec%precision = PRECISION_REAL64
         source = emit_cuda_device_ir(ir, spec, good, message)
         call ok("CUDA target is accepted by the CUDA emitter", good)
         call ok("CUDA target emits no Fortran directives", &
             index(chars(source), "!$omp") == 0 .and. &
             index(chars(source), "!$acc") == 0)
+        spec%precision = PRECISION_REAL32
+        source = emit_cuda_device_ir(ir, spec, good, message)
+        call ok("CUDA real32 precision is accepted", good)
+        call ok("CUDA real32 emits float arguments", &
+            index(chars(source), "const float x") > 0 .and. &
+            index(chars(source), "float* r") > 0)
+        spec%precision = PRECISION_MIXED
+        source = emit_cuda_device_ir(ir, spec, good, message)
+        call ok("CUDA mixed precision has a double output", good .and. &
+            index(chars(source), "const float x") > 0 .and. &
+            index(chars(source), "double* r") > 0)
         call ok("target identities have stable serialised names", &
             target_name(TARGET_FORTRAN_CPU) == "fortran_cpu" .and. &
             target_name(TARGET_FORTRAN_OPENMP_TARGET) == "fortran_openmp_target" .and. &

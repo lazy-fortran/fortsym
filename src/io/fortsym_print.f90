@@ -14,7 +14,7 @@ module fortsym_print
     ! ugly: they defeat the round-trip test that keeps printer and parser in
     ! agreement, and they make emitted kernels hard to review against the
     ! mathematics they came from.
-    use, intrinsic :: iso_fortran_env, only: int64, real64
+    use, intrinsic :: iso_fortran_env, only: int64, real32, real64
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     use fortsym_string, only: str_t, strbuf_t, str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
@@ -28,7 +28,7 @@ module fortsym_print
     private
 
     public :: print_expr, print_expr_in, print_expr_sub, fortran_representable
-    public :: fortran_roots_representable
+    public :: fortran_roots_representable, fortran_roots_representable_kind
 
     integer, parameter :: dp = real64
 
@@ -135,6 +135,26 @@ contains
         end do
     end function fortran_roots_representable
 
+    !> Whether every reachable real value survives conversion to the selected
+    !> generated kind. This is stricter than the historical binary64 gate and
+    !> prevents a real32 kernel from compiling a literal as infinity.
+    function fortran_roots_representable_kind(roots, real_kind) result(ok)
+        type(expr_t), intent(in) :: roots(:)
+        integer, intent(in) :: real_kind
+        logical :: ok
+        logical, allocatable :: visited(:)
+        integer :: k
+
+        ok = .true.
+        if (size(roots) == 0) return
+        allocate (visited(roots(1)%a%size()), source=.false.)
+        do k = 1, size(roots)
+            ok = fortran_node_representable_kind(roots(k)%a, roots(k)%id, &
+                visited, real_kind)
+            if (.not. ok) return
+        end do
+    end function fortran_roots_representable_kind
+
     recursive function fortran_node_representable(a, id, visited) result(ok)
         type(arena_t), intent(in) :: a
         integer,       intent(in) :: id
@@ -158,7 +178,7 @@ contains
             if (k /= 0) then
                 ok = .false.
             else
-                ok = ieee_is_finite(projected)
+                if (ok) ok = ieee_is_finite(projected)
             end if
             return
         end select
@@ -167,6 +187,71 @@ contains
             if (.not. ok) return
         end do
     end function fortran_node_representable
+
+    recursive function fortran_node_representable_kind(a, id, visited, &
+            real_kind) result(ok)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id, real_kind
+        logical, intent(inout) :: visited(:)
+        logical :: ok
+        real(dp) :: projected
+        integer :: k, ios
+        character(:), allocatable :: text
+
+        ok = .true.
+        if (visited(id)) return
+        visited(id) = .true.
+        select case (a%kind_of(id))
+        case (NK_BIG_INT, NK_BIG_RAT)
+            projected = exact_to_real(chars(a%exact_text_of(id)), ok)
+            if (ok) then
+                select case (real_kind)
+                case (real32)
+                    projected = real(projected, real32)
+                case (real64)
+                    continue
+                case default
+                    ok = .false.
+                end select
+                if (ok) ok = ieee_is_finite(projected)
+            end if
+            return
+        case (NK_BIG_REAL)
+            text = chars(a%real_text_of(id))
+            read (text, *, iostat=ios) projected
+            if (ios /= 0) then
+                ok = .false.
+            else
+                select case (real_kind)
+                case (real32)
+                    projected = real(projected, real32)
+                case (real64)
+                    continue
+                case default
+                    ok = .false.
+                end select
+                ok = ieee_is_finite(projected)
+            end if
+            return
+        case (NK_REAL)
+            projected = a%real_of(id)
+            select case (real_kind)
+            case (real32)
+                projected = real(projected, real32)
+            case (real64)
+                continue
+            case default
+                ok = .false.
+            end select
+            if (ok) ok = ieee_is_finite(projected)
+            return
+        end select
+        do k = 1, a%nargs_of(id)
+            ok = fortran_node_representable_kind(a, a%arg_of(id, k), visited, &
+                real_kind)
+            if (.not. ok) return
+        end do
+    end function fortran_node_representable_kind
 
     !> Index of `id` in the substitution table, or 0.
     pure function subst_slot(id, ids) result(k)
