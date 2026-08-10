@@ -91,6 +91,8 @@ int fortsym_substitute(fortsym_arena *arena, const fortsym_expr *expression,
 int fortsym_differentiate(fortsym_arena *arena, const fortsym_expr *expression,
                           const fortsym_expr *variable, fortsym_expr **out,
                           char *message, size_t capacity);
+int fortsym_expand(fortsym_arena *arena, const fortsym_expr *expression,
+                   fortsym_expr **out, char *message, size_t capacity);
 
 void fortsym_expr_free(fortsym_expr *expression);
 int fortsym_expr_kind(const fortsym_expr *expression, int *kind,

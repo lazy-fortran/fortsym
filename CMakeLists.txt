@@ -82,3 +82,8 @@ install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/fortsymConfig.cmake
     ${CMAKE_CURRENT_BINARY_DIR}/fortsymConfigVersion.cmake
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/fortsym)
+install(DIRECTORY python/fortsym/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/fortsym/python/fortsym
+    FILES_MATCHING PATTERN "*.py")
+install(FILES python/README.md
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/fortsym)
