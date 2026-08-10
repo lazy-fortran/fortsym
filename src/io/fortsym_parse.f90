@@ -52,6 +52,8 @@ module fortsym_parse
     !> Association delimiters: <| key -> value |>.
     integer, parameter :: T_LASSOC = 13
     integer, parameter :: T_RASSOC = 14
+    !> Wolfram pattern blanks: _, __ and ___
+    integer, parameter :: T_BLANK = 15
 
     !> Parser state. Kept in one object so the recursive descent needs no
     !> module-level variables and two parses can never interfere.
@@ -180,6 +182,11 @@ contains
 
         c = p%src(p%pos:p%pos)
 
+        if (d%wolfram_syntax .and. c == "_") then
+            call lex_blank(p, n)
+            return
+        end if
+
         if (is_digit(c)) then
             call lex_number(p)
             return
@@ -202,6 +209,9 @@ contains
         if (is_alpha(c) .or. c == "$" .or. is_extended(c)) then
             start = p%pos
             do while (p%pos <= n)
+                if (d%wolfram_syntax) then
+                    if (p%src(p%pos:p%pos) == "_") exit
+                end if
                 if (.not. is_name_char(p%src(p%pos:p%pos))) exit
                 p%pos = p%pos + 1
             end do
@@ -359,7 +369,38 @@ contains
             ! the name survives; splitting them scatters brackets into the
             ! token stream and derails the rest of the expression.
             call lex_named_character(p, n)
-        case ("+", "^")
+        case ("+")
+            p%tok = T_OP
+            p%text = c
+            p%pos = p%pos + 1
+        case ("^")
+            if (d%wolfram_syntax .and. p%pos < n) then
+                if (p%src(p%pos + 1:p%pos + 1) == "=") then
+                    p%tok = T_OP
+                    p%text = "^="
+                    p%pos = p%pos + 2
+                    return
+                end if
+                if (p%pos + 2 <= n) then
+                    if (p%src(p%pos + 1:p%pos + 2) == ":=") then
+                        p%tok = T_OP
+                        p%text = "^:="
+                        p%pos = p%pos + 3
+                        return
+                    end if
+                end if
+            end if
+            p%tok = T_OP
+            p%text = c
+            p%pos = p%pos + 1
+        case ("?")
+            if (.not. d%wolfram_syntax) then
+                p%tok = T_ERROR
+                p%text = c
+                p%pos = p%pos + 1
+                call fail(p, "unexpected character '"//c//"'")
+                return
+            end if
             p%tok = T_OP
             p%text = c
             p%pos = p%pos + 1
@@ -417,6 +458,28 @@ contains
         end if
         p%tok = T_SLOT
     end subroutine lex_slot
+
+    !> A Wolfram pattern blank: _, __ or ___.
+    subroutine lex_blank(p, n)
+        type(parser_t), intent(inout) :: p
+        integer,        intent(in)    :: n
+
+        p%tok = T_BLANK
+        p%text = "_"
+        p%pos = p%pos + 1
+        if (p%pos <= n) then
+            if (p%src(p%pos:p%pos) == "_") then
+                p%text = "__"
+                p%pos = p%pos + 1
+                if (p%pos <= n) then
+                    if (p%src(p%pos:p%pos) == "_") then
+                        p%text = "___"
+                        p%pos = p%pos + 1
+                    end if
+                end if
+            end if
+        end if
+    end subroutine lex_blank
 
     !> A Wolfram named character such as \[Alpha], lexed as one identifier.
     subroutine lex_named_character(p, n)
@@ -529,6 +592,17 @@ contains
             p%text = "&"
             p%pos = p%pos + 1
         case ("<", ">")
+            p%tok = T_OP
+            p%text = c
+            p%pos = p%pos + 1
+        case ("|")
+            if (.not. p%wolfram) then
+                p%tok = T_ERROR
+                p%text = c
+                p%pos = p%pos + 1
+                call fail(p, "unexpected character '"//c//"'")
+                return
+            end if
             p%tok = T_OP
             p%text = c
             p%pos = p%pos + 1
@@ -654,6 +728,7 @@ contains
 
         ! A Fortran kind suffix belongs to the literal, not to the expression.
         call skip_kind_suffix(p)
+        call skip_precision(p)
     end subroutine lex_number
 
     !> Consume a trailing _dp, _real64 or similar so generated Fortran reads
@@ -676,6 +751,34 @@ contains
         if (n /= 0) call fail(p, "malformed number '"//p%text//"'")
     end subroutine skip_kind_suffix
 
+    !> Consume Wolfram approximate-number precision annotations.
+    !> The bounded arena keeps the numeric value as parsed binary64 while
+    !> accepting the precision annotation instead of reporting a lexical error.
+    subroutine skip_precision(p)
+        type(parser_t), intent(inout) :: p
+        integer :: n, start, ios
+
+        n = len(p%src)
+        if (p%pos > n) return
+        if (iachar(p%src(p%pos:p%pos)) /= 96) return
+        p%pos = p%pos + 1
+        if (p%pos <= n) then
+            if (iachar(p%src(p%pos:p%pos)) == 96) p%pos = p%pos + 1
+        end if
+        start = p%pos
+        do while (p%pos <= n)
+            if (.not. is_digit(p%src(p%pos:p%pos))) exit
+            p%pos = p%pos + 1
+        end do
+        if (p%pos == start) then
+            call fail(p, "missing numeric precision")
+            return
+        end if
+        p%is_real = .true.
+        read (p%text, *, iostat=ios) p%rvalue
+        if (ios /= 0) call fail(p, "malformed number '"//p%text//"'")
+    end subroutine skip_precision
+
     ! ----------------------------------------------------------- parser --
 
     !> Binding power of a binary operator, or -1 if it is not one.
@@ -689,7 +792,7 @@ contains
         logical                    :: yes
         yes = p%tok == T_NUMBER .or. p%tok == T_NAME .or. &
             p%tok == T_LPAREN .or. p%tok == T_LBRACE .or. &
-            p%tok == T_LASSOC .or. p%tok == T_SLOT
+            p%tok == T_LASSOC .or. p%tok == T_SLOT .or. p%tok == T_BLANK
     end function starts_primary
 
     !> True when the current token could begin a whole operand, including a
@@ -719,12 +822,14 @@ contains
         integer                  :: bp
         select case (op)
         case (";"); bp = 1
-        case ("=", ":="); bp = 2
+        case ("=", ":=", "^=", "^:="); bp = 2
         case ("//"); bp = 3
         case ("&"); bp = 4
         case ("/.", "//."); bp = 5
         case ("->", ":>"); bp = 6
         case ("/;"); bp = 7
+        case ("|"); bp = 8
+        case ("?"); bp = 9
         case ("||"); bp = 8
         case ("&&"); bp = 9
         case ("==", "!=", "<", ">", "<=", ">="); bp = 10
@@ -752,7 +857,8 @@ contains
         ! Exponentiation and the application forms associate to the right:
         ! a**b**c is a**(b**c) and f /@ g /@ x is f /@ (g /@ x).
         yes = op == "**" .or. op == "^" .or. op == "@" .or. op == "/@" &
-            .or. op == "@@" .or. op == "@@@" .or. op == "->" .or. op == ":>"
+            .or. op == "@@" .or. op == "@@@" .or. op == "->" .or. op == ":>" &
+            .or. op == "^=" .or. op == "^:="
     end function is_right_assoc
 
     !> Precedence climbing. Parses a unary/primary term, then folds in binary
@@ -878,6 +984,8 @@ contains
             case ("||"); e = func("Or", [e, rhs])
             case ("->"); e = func("Rule", [e, rhs])
             case (":>"); e = func("RuleDelayed", [e, rhs])
+            case ("|"); e = func("Alternatives", [e, rhs])
+            case ("?"); e = func("PatternTest", [e, rhs])
             case ("/."); e = func("ReplaceAll", [e, rhs])
             case ("/;"); e = func("Condition", [e, rhs])
                 ! Dot is non-commutative matrix product, so it stays a structural
@@ -902,6 +1010,8 @@ contains
             case ("<>"); e = func("StringJoin", [e, rhs])
             case ("="); e = func("Set", [e, rhs])
             case (":="); e = func("SetDelayed", [e, rhs])
+            case ("^="); e = func("UpSet", [e, rhs])
+            case ("^:="); e = func("UpSetDelayed", [e, rhs])
             case default
                 call fail(p, "unknown operator '"//op//"'")
                 return
@@ -1214,12 +1324,23 @@ contains
                     e = sym(a, name)
                 end if
             end if
+            e = parse_postfix(p, a, d, e)
 
         case (T_SLOT)
             ! Slot[n] stays structural: it only means something inside the
             ! Function that binds it, and this subset has no applier for one.
             e = func("Slot", [num(a, p%ivalue)])
             if (p%text == "SlotSequence") e = func("SlotSequence", [num(a, p%ivalue)])
+            call advance(p, d)
+            e = parse_postfix(p, a, d, e)
+            return
+
+        case (T_BLANK)
+            select case (p%text)
+            case ("_"); e = func_in(a, "Blank")
+            case ("__"); e = func_in(a, "BlankSequence")
+            case ("___"); e = func_in(a, "BlankNullSequence")
+            end select
             call advance(p, d)
             e = parse_postfix(p, a, d, e)
             return
@@ -1309,6 +1430,15 @@ contains
 
         e = base
         do
+            if (p%tok == T_BLANK) then
+                select case (p%text)
+                case ("_"); e = func("Pattern", [e, func_in(a, "Blank")])
+                case ("__"); e = func("Pattern", [e, func_in(a, "BlankSequence")])
+                case ("___"); e = func("Pattern", [e, func_in(a, "BlankNullSequence")])
+                end select
+                call advance(p, d)
+                cycle
+            end if
             if (p%tok /= T_LBRACKET) return
             call advance(p, d)
             if (p%tok == T_LBRACKET) then

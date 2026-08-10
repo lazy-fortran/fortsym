@@ -10,7 +10,7 @@ program test_fortsym_wolfram
     ! implementation, and every construct here is one the consumer corpus
     ! actually contains. Behaviour is verified against Mathics, never against a
     ! Wolfram product -- see LEGAL.md section 5.1.
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t
     use fortsym_expr
@@ -32,6 +32,7 @@ program test_fortsym_wolfram
     call test_postfix_and_application()
     call test_associations()
     call test_named_character_suffixes()
+    call test_pattern_operators_and_precision()
 
     if (nfail == 0) then
         print *, "PASS test_fortsym_wolfram"
@@ -257,6 +258,36 @@ contains
         call same("named character with letter suffix", a, "\[Gamma]se", &
             sym(a, "\[Gamma]se"))
     end subroutine test_named_character_suffixes
+
+    subroutine test_pattern_operators_and_precision()
+        type(arena_t), target :: a
+        type(expr_t) :: x, test, pattern
+
+        call a%init()
+        x = sym(a, "x")
+        pattern = func("Pattern", [x, func_in(a, "Blank")])
+        test = func("PatternTest", [pattern, sym(a, "NumericQ")])
+        call same("pattern test", a, "x_?NumericQ", test)
+        call same("blank sequence", a, "__", func_in(a, "BlankSequence"))
+        call same("blank null sequence", a, "___", &
+            func_in(a, "BlankNullSequence"))
+        call same("alternatives", a, "x_|y_", func("Alternatives", [&
+            func("Pattern", [x, func_in(a, "Blank")]), &
+            func("Pattern", [sym(a, "y"), func_in(a, "Blank")])]))
+        call same("pattern test precedence", a, "x_?NumericQ|y_?StringQ", &
+            func("Alternatives", [func("PatternTest", [&
+                func("Pattern", [x, func_in(a, "Blank")]), &
+                sym(a, "NumericQ")]), func("PatternTest", [&
+                func("Pattern", [sym(a, "y"), func_in(a, "Blank")]), &
+                sym(a, "StringQ")])]))
+        call same("set delayed", a, "f[x_] := x", func("SetDelayed", [&
+            func("f", [pattern]), x]))
+        call same("up set", a, "x ^= 2", func("UpSet", [x, num(a, 2)]))
+        call same("up set delayed", a, "x ^:= 2", &
+            func("UpSetDelayed", [x, num(a, 2)]))
+        call same("context name", a, "Global`x", sym(a, "Global`x"))
+        call same("precision annotation", a, "1.25``20", real_expr(a, 1.25_real64))
+    end subroutine test_pattern_operators_and_precision
 
     subroutine test_associations()
         type(arena_t), target :: a
