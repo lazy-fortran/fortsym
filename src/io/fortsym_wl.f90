@@ -600,6 +600,16 @@ contains
                 depth = depth - 1
             case ("=")
                 if (depth /= 0) cycle
+                ! UpSet and UpSetDelayed are expression-level constructs. Do
+                ! not mistake their equals sign for a value binding with a
+                ! malformed left-hand name; let the Wolfram parser retain the
+                ! structural UpSet head instead.
+                if (i > 1) then
+                    if (text(i - 1:i - 1) == "^") return
+                    if (text(i - 1:i - 1) == ":" .and. i > 2) then
+                        if (text(i - 2:i - 2) == "^") return
+                    end if
+                end if
                 if (i > 1) then
                     if (index("=<>!+-*/", text(i - 1:i - 1)) > 0) cycle
                 end if
@@ -5095,6 +5105,8 @@ contains
         case ("Apply", "MapApply", "Function", "Slot", "SlotSequence", &
                 "Span", "Do", "SetDelayed", "CompoundExpression", "StringJoin", &
                 "ReplaceRepeated", "Condition", "DerivativeOperator", &
+                "Pattern", "Blank", "BlankSequence", "BlankNullSequence", &
+                "PatternTest", "Alternatives", "UpSet", "UpSetDelayed", &
                 "FileNameJoin", "Position", "Union")
             yes = .true.
             ! Curl is lowered only for explicit Cartesian list fields.

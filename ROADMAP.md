@@ -46,6 +46,11 @@ repository inventory above, the pull-request review checkbox, the exact-path
 checker in `scripts/check_provenance.py`, its independent Python tests, and the
 pull-request CI gate are all present.
 
+Issue #49 (Wolfram parser gaps) is complete as of 2026-08-10: pattern blanks,
+PatternTest, Alternatives, precision and context backticks, and UpSet forms
+now parse as named structural heads, with precedence coverage in
+`test_fortsym_wolfram`; unsupported evaluation remains an explicit refusal.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.

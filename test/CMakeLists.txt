@@ -30,6 +30,7 @@ fortsym_add_test(test_fortsym_linalg algebra/test_fortsym_linalg.f90)
 
 # --- surface syntax ---
 fortsym_add_test(test_fortsym_roundtrip io/test_fortsym_roundtrip.f90)
+fortsym_add_test(test_fortsym_wolfram io/test_fortsym_wolfram.f90)
 
 # --- engines ---
 fortsym_add_test(test_fortsym_native engine/test_fortsym_native.f90)
