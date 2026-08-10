@@ -100,6 +100,12 @@ constant folding, constant-division elimination, and FMA shaping. These are
 deterministic source choices rather than compiler fast-math flags; the `pure`
 procedure option remains opt-in for compatibility with downstream consumers.
 
+The legacy expression emitter exposes target-specific CSE choices on
+`kernel_spec_t`: `CSE_NONE`, `CSE_THRESHOLDED`, or `CSE_FULL`, plus a
+`remat_threshold` that trades repeated arithmetic for shorter temporary live
+ranges. The default is full CSE with threshold zero, preserving existing
+generated output until a consumer measures another choice.
+
 **Cross-check engines.** When several engines answer, agreement raises
 confidence and **disagreement is reported as a finding**, not averaged away: it
 means one of them is wrong. Per-engine timings fall out of normal operation, so

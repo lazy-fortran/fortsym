@@ -54,6 +54,13 @@ These transformations preserve the exact expression's real-valued semantics;
 they do not enable compiler reassociation. Purity remains an opt-in field until
 the downstream `fortnum#73` contract is settled.
 
+The expression emitter's `kernel_spec_t` separately controls CSE per target
+variant. `CSE_FULL` preserves the historical naming of repeated compounds;
+`CSE_NONE` rematerialises them; and `CSE_THRESHOLDED` rematerialises nodes
+whose recursively charged tree cost is below `remat_threshold`. The threshold
+is an explicit heuristic for register/live-range trade-offs, not a claim about
+machine registers or runtime performance.
+
 An engine capability is a promise that its corresponding type-bound operation
 is callable. A capability bit without an operation entry point is invalid and
 must not be used for dispatch.

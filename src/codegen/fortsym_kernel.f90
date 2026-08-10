@@ -39,6 +39,7 @@ module fortsym_kernel
     public :: TARGET_FORTRAN_OPENMP_TARGET, TARGET_FORTRAN_OPENACC
     public :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, TARGET_CUDA
     public :: target_name
+    public :: CSE_NONE, CSE_THRESHOLDED, CSE_FULL
 
     integer, parameter :: TARGET_DEFAULT = TARGET_DEFAULT_VALUE
     integer, parameter :: TARGET_FORTRAN_CPU = TARGET_FORTRAN_CPU_VALUE
@@ -47,6 +48,13 @@ module fortsym_kernel
     integer, parameter :: TARGET_FORTRAN_OPENACC = TARGET_FORTRAN_OPENACC_VALUE
     integer, parameter :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC = TARGET_DUAL_VALUE
     integer, parameter :: TARGET_CUDA = TARGET_CUDA_VALUE
+
+    !> CSE policy choices. FULL is the historical behaviour. THRESHOLDED
+    !> names only repeated compounds whose tree recomputation cost reaches
+    !> remat_threshold; NONE leaves every repeated compound inline.
+    integer, parameter :: CSE_NONE = 0
+    integer, parameter :: CSE_THRESHOLDED = 1
+    integer, parameter :: CSE_FULL = 2
 
     integer, parameter :: dp = real64
 
@@ -99,6 +107,12 @@ module fortsym_kernel
         !> flags for byte-identical committed consumers; an explicit target
         !> overrides both legacy flags.
         integer                  :: target = TARGET_DEFAULT
+        !> Per-target CSE choice. Callers normally construct one spec per
+        !> target, so CPU and offload variants can choose independently.
+        integer                  :: cse_level = CSE_FULL
+        !> In thresholded mode, recompute a repeated compound when its tree
+        !> cost is below this value. Zero retains full-CSE behaviour.
+        integer                  :: remat_threshold = 0
         !> Mark a generated leaf for compilation on an OpenMP target device.
         !> This only annotates the procedure; scheduling and data movement
         ! remain the consuming application's responsibility.
@@ -428,15 +442,21 @@ contains
     !> A node qualifies when it is referenced more than once *and* is worth
     !> naming. Atoms are excluded: a symbol or a small integer costs nothing to
     !> repeat and naming it would make the output longer and slower to read.
-    function cse_analyse(roots, prefix) result(res)
+    function cse_analyse(roots, prefix, cse_level, remat_threshold) result(res)
         type(expr_t), intent(in) :: roots(:)
         character(*), intent(in) :: prefix
+        integer, intent(in), optional :: cse_level, remat_threshold
         type(cse_result_t)       :: res
 
         integer, allocatable :: refs(:)
         logical, allocatable :: emitted(:)
         type(arena_t), pointer :: a
-        integer :: k, capacity
+        integer :: k, capacity, level, threshold
+
+        level = CSE_FULL
+        threshold = 0
+        if (present(cse_level)) level = cse_level
+        if (present(remat_threshold)) threshold = remat_threshold
 
         res%n = 0
         if (size(roots) == 0) then
@@ -457,7 +477,7 @@ contains
 
         ! Post-order, so a temporary's own dependencies are assigned first.
         do k = 1, size(roots)
-            call collect(a, roots(k)%id, refs, emitted, res, prefix)
+            call collect(a, roots(k)%id, refs, emitted, res, prefix, level, threshold)
         end do
     end function cse_analyse
 
@@ -477,23 +497,24 @@ contains
         end do
     end subroutine count_refs
 
-    recursive subroutine collect(a, id, refs, emitted, res, prefix)
+    recursive subroutine collect(a, id, refs, emitted, res, prefix, level, threshold)
         type(arena_t),      intent(in)    :: a
         integer,            intent(in)    :: id
         integer,            intent(in)    :: refs(:)
         logical,            intent(inout) :: emitted(:)
         type(cse_result_t), intent(inout) :: res
         character(*),       intent(in)    :: prefix
+        integer,            intent(in)    :: level, threshold
         integer :: k
 
         if (emitted(id)) return
         emitted(id) = .true.
 
         do k = 1, a%nargs_of(id)
-            call collect(a, a%arg_of(id, k), refs, emitted, res, prefix)
+            call collect(a, a%arg_of(id, k), refs, emitted, res, prefix, level, threshold)
         end do
 
-        if (refs(id) > 1 .and. worth_naming(a, id)) then
+        if (refs(id) > 1 .and. worth_naming(a, id, level, threshold)) then
             res%n = res%n + 1
             res%ids(res%n) = id
             res%names(res%n) = str(prefix//chars(str(res%n)))
@@ -506,15 +527,48 @@ contains
     !> Reciprocal powers are excluded too. The printer renders x**(-1) as a
     !> division rather than as a power, so a temporary holding one is never
     !> referenced and becomes a dead store -- computed, declared, and unused.
-    pure function worth_naming(a, id) result(yes)
+    pure function worth_naming(a, id, level, threshold) result(yes)
         type(arena_t), intent(in) :: a
         integer,       intent(in) :: id
+        integer,       intent(in) :: level, threshold
         logical                   :: yes
         integer :: k
+        yes = .false.
+        if (level == CSE_NONE) return
         k = a%kind_of(id)
         yes = k == NK_ADD .or. k == NK_MUL .or. k == NK_POW .or. k == NK_FUNC
         if (k == NK_POW) yes = .not. is_reciprocal_power(a, id)
+        if (.not. yes) return
+        if (level == CSE_THRESHOLDED .and. &
+            rematerialization_cost(a, id) < threshold) yes = .false.
     end function worth_naming
+
+    !> Count the work needed to recompute one occurrence of a node's tree.
+    !> Shared descendants are intentionally charged again: rematerialisation
+    !> is the choice to spend ALU work to shorten a live range.
+    pure recursive function rematerialization_cost(a, id) result(cost)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        integer :: cost, k, kind
+
+        cost = 0
+        kind = a%kind_of(id)
+        select case (kind)
+        case (NK_INT)
+            return
+        case (NK_RAT)
+            if (a%den_of(id) /= 1_int64) cost = 1
+        case (NK_ADD, NK_MUL)
+            cost = max(0, a%nargs_of(id) - 1)
+        case (NK_POW, NK_FUNC)
+            cost = 1
+        case default
+            return
+        end select
+        do k = 1, a%nargs_of(id)
+            cost = cost + rematerialization_cost(a, a%arg_of(id, k))
+        end do
+    end function rematerialization_cost
 
     !> A power whose exponent is a negative integer, which the printer emits as
     !> a division.
@@ -685,6 +739,12 @@ contains
         if (.not. target_is_valid(spec%target)) then
             error stop "invalid kernel target"
         end if
+        if (spec%cse_level < CSE_NONE .or. spec%cse_level > CSE_FULL) then
+            error stop "invalid kernel CSE level"
+        end if
+        if (spec%remat_threshold < 0) then
+            error stop "negative rematerialisation threshold"
+        end if
         call target_directives(spec%target, spec%openmp_declare_target, &
             spec%openacc_routine_seq, emit_openmp, emit_openacc)
         if (present(cost_record)) cost_record = emit_cost_record(roots)
@@ -719,9 +779,10 @@ contains
         end if
 
         if (len(chars(spec%temp_prefix)) > 0) then
-            res = cse_analyse(roots, chars(spec%temp_prefix))
+            res = cse_analyse(roots, chars(spec%temp_prefix), spec%cse_level, &
+                spec%remat_threshold)
         else
-            res = cse_analyse(roots, "t")
+            res = cse_analyse(roots, "t", spec%cse_level, spec%remat_threshold)
         end if
 
         call append_banner(b, spec)
