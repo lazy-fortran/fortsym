@@ -49,6 +49,8 @@ target_sources(fortsym PRIVATE
     # verification
     verify/fortsym_eval.f90
     verify/fortsym_check.f90
+    verify/fortsym_rk_trees.f90
+    verify/fortsym_rk.f90
 
     # differential geometry
     calculus/fortsym_diff.f90
