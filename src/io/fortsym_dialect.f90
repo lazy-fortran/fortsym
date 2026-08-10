@@ -16,6 +16,10 @@ module fortsym_dialect
     !
     ! fortsym's canonical function names are the lowercase Fortran intrinsic
     ! names: sin, cos, asin, atan2, exp, log, sqrt, abs, erf, gamma.
+    ! DIA_SYMPY is an expression spelling for the subprocess adapter. Python
+    ! callers use the C ABI package and do not receive a SymPy script session.
+    ! DIA_WOLFRAM has a separate bounded script surface because the consumers
+    ! provide an existing Wolfram derivation corpus.
     use fortsym_string, only: str_t, str
     implicit none
     private
