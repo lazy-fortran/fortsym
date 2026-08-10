@@ -223,6 +223,10 @@ contains
                 nfail = nfail + 1
             end if
         end do
+        if (index(message, "position") == 0) then
+            print *, "FAIL malformed diagnostic has no source position: ", message
+            nfail = nfail + 1
+        end if
 
         ! The construct that triggered the crash. It is well formed -- Dot is a
         ! real operator -- so it must parse; refusing Inverse is the evaluator's

@@ -148,9 +148,18 @@ contains
         ! Keep the first error: later ones are usually consequences of it.
         if (.not. p%failed) then
             p%failed = .true.
-            p%message = why
+            p%message = trim(why)//" at position "//itoa(max(1, p%pos))
         end if
     end subroutine fail
+
+    function itoa(n) result(text)
+        integer, intent(in) :: n
+        character(:), allocatable :: text
+        character(len=16) :: buffer
+
+        write (buffer, '(i0)') n
+        text = trim(buffer)
+    end function itoa
 
     ! ------------------------------------------------------------ lexer --
 

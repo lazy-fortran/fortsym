@@ -168,7 +168,10 @@ PASS(probe)  gamma recurrence   [no counterexample in 98 points]
 ## Native Wolfram corpus backend
 
 The repository also ships a native Fortran runner for the Wolfram-language
-subset used by the corpus. After `fo build`, run an original derivation with:
+subset used by the corpus. The parser grammar and its refusal boundary are
+published in
+[`doc/compatibility-wolfram.md`](doc/compatibility-wolfram.md).
+After `fo build`, run an original derivation with:
 
 ```bash
 build/fo/app/fortsym_wl_run path/to/script.wl
