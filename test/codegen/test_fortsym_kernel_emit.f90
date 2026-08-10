@@ -10,6 +10,7 @@ program test_fortsym_kernel_emit
         operator(+), operator(*), operator(/), operator(**)
     use fortsym_kernel_ir, only: kernel_ir_t, lower_kernel_ir
     use fortsym_kernel_emit
+    use fortsym_proc, only: proc_available
     implicit none
 
     integer, parameter :: dp = real64
@@ -124,9 +125,12 @@ contains
         cuda_source = emit_cuda_device_ir(ir, spec, good, message)
         call ok("CUDA emitter restores the valid specification", good)
 
-        call execute_command_line("command -v nvcc > /dev/null 2>&1", &
-            wait=.true., exitstat=stat)
-        if (stat /= 0) then
+        ! proc_available rather than a hand-rolled probe: `command -v` on a
+        ! missing program exits 1 under bash but 127 under dash, and libgfortran
+        ! reports 127 as an invalid command, which aborts the program unless
+        ! cmdstat is present to absorb it. That made this test pass on a
+        ! bash-as-/bin/sh distribution and abort on a Debian-derived one.
+        if (.not. proc_available("nvcc")) then
             print *, "CUDA compiler unavailable; CUDA compile/run oracle skipped"
             return
         end if
