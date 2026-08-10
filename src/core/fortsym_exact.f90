@@ -134,14 +134,30 @@ contains
         valid = .false.
         if (len(value) > MAX_EXACT_INPUT_BYTES) return
         if (index(value, achar(0)) /= 0) return
-        valid = len(value) > 0
+        ! Judged after trimming, so an all-blank string is rejected here rather
+        ! than reaching FLINT as an empty token.
+        valid = len(trimmed(value)) > 0
     end function valid_input
 
+    !> Surrounding blanks never reach FLINT.
+    !>
+    !> Fortran callers routinely build these strings in fixed-length arrays,
+    !> so "0" arrives as "0" followed by fifteen spaces. Whether FLINT's parser
+    !> tolerates that is a property of the build, not of the value, and when it
+    !> does not the wrapper returns an empty string that every later call then
+    !> rejects as "not an exact rational". Trimming here makes the answer depend
+    !> on the number rather than on how the caller declared its buffer.
     pure function c_string(value) result(c)
         character(*), intent(in) :: value
-        character(len=len(value) + 1, kind=c_char) :: c
-        c = value//c_null_char
+        character(len=len(trimmed(value)) + 1, kind=c_char) :: c
+        c = trimmed(value)//c_null_char
     end function c_string
+
+    pure function trimmed(value) result(text)
+        character(*), intent(in) :: value
+        character(:), allocatable :: text
+        text = trim(adjustl(value))
+    end function trimmed
 
     function fetch_exact(n, ok) result(value)
         integer(c_size_t), intent(in) :: n
