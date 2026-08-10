@@ -84,6 +84,14 @@ differentiation, native simplification, and native `real`, `positive`,
 solver, calculus, assumptions, and option surfaces refuse by name. The focused
 Python suite, C ABI assumption check, wheel build, and full `fo test` pass.
 
+Issue #24 (documented Wolfram textual subset) is complete as of 2026-08-11:
+`DIA_WOLFRAM` now has a published grammar/refusal table, stable printer/parser
+round-trip coverage, and one-based source-positioned diagnostics for malformed
+input. Representative forms agree with the independent Mathics oracle, while
+the native test covers exactness, precedence, implicit multiplication, lists,
+rules, patterns, associations, comments, and refusal paths. The GitHub issue is
+now closed; native and Nix-wrapped suites both pass 38/38.
+
 Issue #40 (public trig and power rewrites) is complete as of 2026-08-10:
 `trig_expand`, `trig_reduce`, `trig_to_exp`, `exp_to_trig`, and guarded
 `power_expand` are public operations returning rewritten expressions plus an
