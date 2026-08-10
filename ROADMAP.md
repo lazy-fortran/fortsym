@@ -110,6 +110,13 @@ one; the bounded Wolfram session remains tied to the existing `.wl` corpus.
 The Python package smoke tests verify that this route works without importing
 SymPy.
 
+Issue #59 (Wolfram coverage against existing material) is in progress as of
+2026-08-10. The first real flux-pumping derivation measured 30 evaluated and
+20 explicitly refused top-level bindings, for 60% reachable coverage. The
+binding names and refusal diagnostics are recorded in
+`doc/wolfram-coverage-39.md`; the next gap is function-valued rules and their
+downstream replacement semantics.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.
