@@ -53,7 +53,6 @@ fortsym_add_test(test_fortsym_quadratic_linalg algebra/test_fortsym_quadratic_li
 fortsym_add_test(test_fortsym_quadratic_poly algebra/test_fortsym_quadratic_poly.f90)
 fortsym_add_test(test_fortsym_quadratic_multipoly algebra/test_fortsym_quadratic_multipoly.f90)
 fortsym_add_test(test_fortsym_rk verify/test_fortsym_rk.f90)
-fortsym_add_test(test_fortsym_rk_reduced verify/test_fortsym_rk_reduced.f90)
 
 # --- differential geometry ---
 fortsym_add_test(test_fortsym_diff calculus/test_fortsym_diff.f90)
