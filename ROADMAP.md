@@ -748,6 +748,79 @@ backend. This keeps the same IR suitable for later HIP and SYCL emitters and
 lets FortML own its resident tiled wrapper while consuming a proven source
 generation contract.
 
+### M14 — Multi-target emission and measured optimality (#61, #62, #63, #64, #65, #66)
+
+Unlike M1–M13 this milestone is not ordered by corpus sites. It is ordered by
+consumer need: fortnum, fortad, and SIMPLE generate kernels from fortsym and
+have no way to say how good the result is. The corpus measures whether fortsym
+computes the right expression; nothing measures whether the emitted kernel is
+fast or accurate. Tracker: [lazy-fortran/fortgen#1](https://github.com/lazy-fortran/fortgen/issues/1).
+
+M13 established the backend-neutral IR and the scalar device-leaf boundary.
+M14 keeps that boundary exactly as stated — launch geometry, residency, and
+harness stay with the consumer — and adds three things above it.
+
+**Target as a descriptor (#61).** Generated kernels currently carry
+`!$omp declare target` and `!$acc routine seq` unconditionally. The four
+targets consumers need are CPU Fortran, OpenMP offload, OpenACC, and CUDA;
+decoration follows the requested target. The IR gains no dialect branch. The
+descriptor's eventual home is `fortgen`, once the IR moves there.
+
+**The measurement chain (#62, #65).** Four counts, three gaps, each
+attributable to exactly one layer:
+
+| Count | Source | Gap below it |
+|---|---|---|
+| `N_sym` | `count_operations`, emitted as data (#62) | the generator's doing |
+| `N_emit` | emitted source | the compiler's doing |
+| `N_machine` | disassembly, FMA- and spill-aware | the hardware's doing |
+| `T_meas` | runtime against an empirical roofline | |
+
+`N_sym` is the number no profiler can obtain: only the symbolic layer knows how
+much arithmetic the mathematics required. It is the count of **a particular
+algebraic form**, not a proven arithmetic-complexity lower bound, and it must
+be reported that way — distance from the best form known, never optimality.
+
+Accuracy is the other half (#65) and is not optional, because #63 changes
+floating-point association by design. The reference already exists here: MPFR
+and `NK_BIG_REAL` give a high-precision evaluation of the exact expression, so
+max and RMS ulp against it is an independent oracle in the sense this roadmap
+requires — the reference derives from the symbolic form, the measurement from
+the compiled kernel, and neither can be adjusted to satisfy the other.
+
+**Emission policy (#63, #64, #66).** A compiler cannot reassociate floating
+point without `-ffast-math`, because it transforms a float program and must
+preserve its semantics. fortsym holds the exact expression and merely chooses
+which float program to emit — fast-math-class rewrites, with justification, at
+`-O3` without fast-math. Made explicit and tested: small-power expansion,
+division elimination, exact-zero and exact-one folding, FMA shaping, purity,
+and association choice.
+
+CSE becomes a knob rather than a fixed pass (#64). It is not an unconditional
+win: eliminating a subexpression extends a live range and can cost occupancy
+(**Rawat et al.**, *Register Optimizations for Stencils on GPUs*), with
+rematerialisation as the counter-optimisation. Register sufficiency for DAGs is
+NP-complete (**Sethi 1975**), so this is a measured heuristic, per target.
+
+Precision joins it (#66): AVX-512 holds 16 `real32` lanes against 8 `real64`,
+and an FMA delivers 32 FLOPs against 16 — a 2× lever on CPU before any GPU is
+involved. Mixed-precision adaptive Runge–Kutta preserves accuracy across a wide
+tolerance range (**arXiv 2605.23727**), while naive uniform low precision
+produces instabilities. Gated on #65: choosing a precision without an accuracy
+instrument is guessing, and for long-time symplectic integration a plausible
+wrong answer would survive every existing test.
+
+Acceptance for this milestone follows the standard gate with one addition: a
+change meant to preserve behaviour must keep downstream generated output
+byte-identical, and a change that alters floating-point association must report
+both its `N_sym`/`N_emit` delta and its ulp delta. A speed number without an
+accuracy number is not a result.
+
+Deliberately excluded: harness generation, a schedule language, ML cost models,
+and equality saturation for speed — the last is already gated on M2 above, and
+DAG-cost extraction is NP-hard by reduction from minimal set cover. The variant
+space here is dozens of points, so exhaustive enumeration beats search.
+
 ## Roadmap maintenance
 
 The top-level roadmap is the release-level plan. `doc/roadmap.md` holds the
