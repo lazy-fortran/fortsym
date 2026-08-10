@@ -18,8 +18,8 @@ module fortsym_diff
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
     use fortsym_expr, only: expr_t, sym, num, func, is_valid, besselj, &
         legendrep, legendreq, &
-        operator(+), operator(-), operator(*), operator(/), operator(**), &
-        operator(==), sin, cos, tan, exp, log, sqrt, sinh, cosh, tanh
+                            operator(+), operator(-), operator(*), operator(/), operator(**), &
+            operator(==), sin, cos, tan, exp, log, sqrt, abs, sinh, cosh, tanh
     implicit none
     private
 
@@ -222,6 +222,7 @@ contains
         case ("atanh"); d = dx/(1 - x**2)
         case ("exp");   d = exp(x)*dx
         case ("log");   d = dx/x
+        case ("abs");   d = x/abs(x)*dx
         case ("sqrt");  d = dx/(2*sqrt(x))
         case ("erf");   d = 2*exp(-x**2)*dx/sqrt(pi_of(a))
         case ("erfc");  d = -2*exp(-x**2)*dx/sqrt(pi_of(a))

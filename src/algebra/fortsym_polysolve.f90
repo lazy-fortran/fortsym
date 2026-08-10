@@ -69,9 +69,11 @@ module fortsym_polysolve
     ! stack frame per level, and each frame carries several allocatable arrays,
     ! so a machine-generated expression nested thousands of levels deep would
     ! overflow the process stack. Every other limit in this file is a refusal;
-    ! so is this one. 512 levels is far more than a human-written equation and
-    ! far below the frame budget of a default stack.
-    integer, parameter :: MAX_EXPR_DEPTH = 512
+    ! so is this one. The previous 512-level cap rejected valid machine-built
+    ! equations after roughly 256 nesting iterations; 4096 accepts the tested
+    ! 1500-iteration envelope while refusing the old crash range near 12000
+    ! iterations (which reaches about 24000 expression levels).
+    integer, parameter :: MAX_EXPR_DEPTH = 4096
 
     !> An exact rational in lowest terms with a positive denominator.
     type :: rat_t

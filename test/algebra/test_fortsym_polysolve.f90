@@ -460,6 +460,23 @@ contains
                 index(why, "nests deeper") > 0)
         call ok("nesting refusal returns no roots", size(roots) == 0)
 
+        ! The old cap rejected this still-valid construction even though the
+        ! structural walk could solve it safely. Each iteration adds two DAG
+        ! levels and leaves the exact linear root at -1500.
+        e = x
+        do k = 1, 1500
+            e = (e + num(arena, 1))*(x**0)
+        end do
+        call solve_polynomial(arena, e, x, roots, good, why)
+        call ok("a deep but safe equation still solves", good)
+        if (good) then
+            call ok("the deep equation has one root", size(roots) == 1)
+            if (size(roots) == 1) then
+                call ok("the deep equation keeps its exact root", &
+                    roots(1)%kind() == NK_INT .and. roots(1)%int_value() == -1500_int64)
+            end if
+        end if
+
         ! Degree cap.
         e = x**17 + num(arena, 1)
         call solve_polynomial(arena, e, x, roots, good, why)
