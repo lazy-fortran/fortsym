@@ -136,7 +136,7 @@ contains
         if (index(value, achar(0)) /= 0) return
         ! Judged after trimming, so an all-blank string is rejected here rather
         ! than reaching FLINT as an empty token.
-        valid = len(trimmed(value)) > 0
+        valid = len_trim(adjustl(value)) > 0
     end function valid_input
 
     !> Surrounding blanks never reach FLINT.
@@ -149,15 +149,12 @@ contains
     !> on the number rather than on how the caller declared its buffer.
     pure function c_string(value) result(c)
         character(*), intent(in) :: value
-        character(len=len(trimmed(value)) + 1, kind=c_char) :: c
-        c = trimmed(value)//c_null_char
+        ! Intrinsics only: the length is a specification expression, so a
+        ! module function defined further down would need its interface before
+        ! it is available.
+        character(len=len_trim(adjustl(value)) + 1, kind=c_char) :: c
+        c = trim(adjustl(value))//c_null_char
     end function c_string
-
-    pure function trimmed(value) result(text)
-        character(*), intent(in) :: value
-        character(:), allocatable :: text
-        text = trim(adjustl(value))
-    end function trimmed
 
     function fetch_exact(n, ok) result(value)
         integer(c_size_t), intent(in) :: n
