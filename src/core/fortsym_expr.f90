@@ -360,7 +360,8 @@ contains
         type(expr_t), intent(in) :: x, y
         type(expr_t)             :: e
         integer :: pair(2)
-        pair = [x%id, y%id]
+        pair(1) = x%id
+        pair(2) = y%id
         e%a => x%a
         e%id = x%a%add(pair)
     end function add_ee
@@ -384,7 +385,8 @@ contains
         type(expr_t), intent(in) :: x
         type(expr_t)             :: e
         integer :: pair(2)
-        pair = [x%a%int(-1_int64), x%id]
+        pair(1) = x%a%int(-1_int64)
+        pair(2) = x%id
         e%a => x%a
         e%id = x%a%mul(pair)
     end function neg_e
@@ -393,7 +395,8 @@ contains
         type(expr_t), intent(in) :: x, y
         type(expr_t)             :: e
         integer :: pair(2)
-        pair = [x%id, y%id]
+        pair(1) = x%id
+        pair(2) = y%id
         e%a => x%a
         e%id = x%a%mul(pair)
     end function mul_ee
@@ -405,7 +408,8 @@ contains
         type(expr_t)             :: e
         integer :: inv, pair(2)
         inv = x%a%pow(y%id, x%a%int(-1_int64))
-        pair = [x%id, inv]
+        pair(1) = x%id
+        pair(2) = inv
         e%a => x%a
         e%id = x%a%mul(pair)
     end function div_ee
@@ -570,7 +574,7 @@ contains
         type(expr_t), intent(in) :: x
         type(expr_t)             :: e
         integer :: one(1)
-        one = [x%id]
+        one(1) = x%id
         e%a => x%a
         e%id = x%a%func(name, one)
     end function apply1
@@ -618,7 +622,8 @@ contains
         type(expr_t), intent(in) :: y, x
         type(expr_t)             :: e
         integer :: pair(2)
-        pair = [y%id, x%id]
+        pair(1) = y%id
+        pair(2) = x%id
         e%a => y%a
         e%id = y%a%func("atan2", pair)
     end function fn_atan2
@@ -705,7 +710,10 @@ contains
     function fn_besselj_ee(order, x) result(e)
         type(expr_t), intent(in) :: order, x
         type(expr_t)             :: e
-        e = func("besselj", [order, x])
+        type(expr_t) :: args(2)
+        args(1) = order
+        args(2) = x
+        e = func("besselj", args)
     end function fn_besselj_ee
 
     function fn_besselj_ie(order, x) result(e)
@@ -719,14 +727,22 @@ contains
     function fn_legendrep(degree, order, x) result(e)
         type(expr_t), intent(in) :: degree, order, x
         type(expr_t)             :: e
-        e = func("legendrep", [degree, order, x])
+        type(expr_t) :: args(3)
+        args(1) = degree
+        args(2) = order
+        args(3) = x
+        e = func("legendrep", args)
     end function fn_legendrep
 
     !> Hobson associated Legendre function Q_degree^order(x).
     function fn_legendreq(degree, order, x) result(e)
         type(expr_t), intent(in) :: degree, order, x
         type(expr_t)             :: e
-        e = func("legendreq", [degree, order, x])
+        type(expr_t) :: args(3)
+        args(1) = degree
+        args(2) = order
+        args(3) = x
+        e = func("legendreq", args)
     end function fn_legendreq
 
 end module fortsym_expr

@@ -11,7 +11,7 @@ program test_fortsym_check
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t
     use fortsym_parse, only: parse_expr
-    use fortsym_eval, only: binding_t, eval_expr, free_symbols_of
+    use fortsym_eval, only: binding_t, eval_expr, collect_free_symbols
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortsym_check
     implicit none
@@ -170,12 +170,15 @@ contains
     end subroutine test_undefined_points
 
     subroutine test_free_symbols()
+        type(expr_t) :: e
         type(str_t), allocatable :: names(:)
 
-        names = free_symbols_of(parsed("a*b + sin(a)"))
+        e = parsed("a*b + sin(a)")
+        call collect_free_symbols(e, names)
         call ok("finds both symbols", size(names) == 2)
 
-        names = free_symbols_of(parsed("pi + 1"))
+        e = parsed("pi + 1")
+        call collect_free_symbols(e, names)
         call ok("constants are not free symbols", size(names) == 0)
     end subroutine test_free_symbols
 

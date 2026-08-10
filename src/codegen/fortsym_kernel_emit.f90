@@ -102,7 +102,7 @@ contains
         character(:), allocatable, intent(out) :: message
         type(str_t) :: source
         type(strbuf_t) :: b
-        integer :: k
+        integer :: k, shape1(1)
 
         call validate_table_header(name, declared_kind, size(values), ok, message)
         if (.not. ok) then
@@ -118,7 +118,8 @@ contains
             end if
         end if
 
-        call append_table_header(b, name, declared_kind, [size(values)])
+        shape1(1) = size(values)
+        call append_table_header(b, name, declared_kind, shape1)
         do k = 1, size(values)
             if (present(comments)) then
                 call append_table_value(b, values(k), k == size(values), ok, &
@@ -147,7 +148,7 @@ contains
         character(:), allocatable, intent(out) :: message
         type(str_t) :: source
         type(strbuf_t) :: b
-        integer :: i, j, flat, total
+        integer :: i, j, flat, total, shape2(2)
 
         call validate_table_header(name, declared_kind, size(values), ok, message)
         if (.not. ok) then
@@ -164,8 +165,10 @@ contains
         end if
 
         total = size(values)
+        shape2(1) = size(values, 1)
+        shape2(2) = size(values, 2)
         call append_table_header(b, name, declared_kind, &
-            [size(values, 1), size(values, 2)])
+            shape2)
         flat = 0
         do j = 1, size(values, 2)
             do i = 1, size(values, 1)
@@ -196,7 +199,7 @@ contains
         character(:), allocatable, intent(out) :: message
         type(str_t) :: source
         type(strbuf_t) :: b
-        integer :: k
+        integer :: k, shape1(1)
 
         call validate_table_header(name, declared_kind, size(values), ok, message)
         if (.not. ok) then
@@ -212,7 +215,8 @@ contains
             end if
         end if
 
-        call append_table_header(b, name, declared_kind, [size(values)])
+        shape1(1) = size(values)
+        call append_table_header(b, name, declared_kind, shape1)
         do k = 1, size(values)
             if (present(comments)) then
                 call append_quadratic_value(b, values(k), k == size(values), ok, &
@@ -238,7 +242,7 @@ contains
         character(:), allocatable, intent(out) :: message
         type(str_t) :: source
         type(strbuf_t) :: b
-        integer :: i, j, flat, total
+        integer :: i, j, flat, total, shape2(2)
 
         call validate_table_header(name, declared_kind, size(values), ok, message)
         if (.not. ok) then
@@ -255,8 +259,10 @@ contains
         end if
 
         total = size(values)
+        shape2(1) = size(values, 1)
+        shape2(2) = size(values, 2)
         call append_table_header(b, name, declared_kind, &
-            [size(values, 1), size(values, 2)])
+            shape2)
         flat = 0
         do j = 1, size(values, 2)
             do i = 1, size(values, 1)
@@ -493,6 +499,7 @@ contains
         integer, allocatable :: mapping(:), children(:)
         integer :: i, k, node_count, operand_count
         integer :: base, exponent, exponent_value
+        integer :: empty_operands(0), pow_operands(2)
         real(dp) :: value
         logical :: folded
 
@@ -520,7 +527,7 @@ contains
             select case (input%nodes(i)%operation)
             case (IR_LITERAL, IR_SYMBOL, IR_CONSTANT)
                 call append_node(output, input%nodes(i)%operation, &
-                    [integer ::], input%nodes(i)%value, &
+                    empty_operands, input%nodes(i)%value, &
                     input%nodes(i)%name, node_count, operand_count)
                 mapping(i) = node_count
             case (IR_FUNCTION)
@@ -579,7 +586,9 @@ contains
                     folded = .true.
                 end if
                 if (.not. folded) then
-                    call append_node(output, IR_POW, [base, exponent], 0.0_dp, &
+                    pow_operands(1) = base
+                    pow_operands(2) = exponent
+                    call append_node(output, IR_POW, pow_operands, 0.0_dp, &
                         str(""), node_count, operand_count)
                     mapping(i) = node_count
                 end if
@@ -623,8 +632,9 @@ contains
         real(dp), intent(in) :: value
         integer, intent(inout) :: node_count, operand_count
         integer, intent(out) :: index
+        integer :: empty_operands(0)
 
-        call append_node(ir, IR_LITERAL, [integer ::], value, str(""), &
+        call append_node(ir, IR_LITERAL, empty_operands, value, str(""), &
             node_count, operand_count)
         index = node_count
     end subroutine append_literal

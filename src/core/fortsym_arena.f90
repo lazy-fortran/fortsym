@@ -843,7 +843,10 @@ contains
         class(arena_t), intent(inout) :: self
         integer,        intent(in)    :: base, expo
         integer                       :: idx
-        idx = intern(self, NK_POW, 0_int64, 1_int64, 0.0_dp, 0, [base, expo])
+        integer :: args(2)
+        args(1) = base
+        args(2) = expo
+        idx = intern(self, NK_POW, 0_int64, 1_int64, 0.0_dp, 0, args)
     end function arena_pow
 
     !> Function application. Arguments keep their order: f(x,y) is not f(y,x).

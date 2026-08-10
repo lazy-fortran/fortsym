@@ -702,6 +702,15 @@ module fortsym_capi
             integer(c_int) :: shared
         end function fsym_mpfr_is_shared
 
+        function fsym_mpfr_ulp_error(reference, observed, error) &
+                bind(c, name="fsym_mpfr_ulp_error") result(ok)
+            import :: c_char, c_double, c_int
+            character(kind=c_char), intent(in) :: reference(*)
+            real(c_double), value                :: observed
+            real(c_double), intent(out)          :: error
+            integer(c_int)                        :: ok
+        end function fsym_mpfr_ulp_error
+
         function fsym_algebraic_normalize(value) &
                 bind(c, name="fsym_algebraic_normalize") result(n)
             import :: c_char, c_size_t

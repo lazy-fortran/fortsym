@@ -251,7 +251,9 @@ contains
         type(chart_t), intent(in) :: c
         type(expr_t),  intent(in) :: f
         type(expr_t)              :: l
-        l = divergence(c, grad(c, f))
+        type(expr_t) :: gradient_value(DIM)
+        gradient_value = grad(c, f)
+        l = divergence(c, gradient_value)
     end function laplacian
 
     !> Method of manufactured solutions: the source term that makes a chosen

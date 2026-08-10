@@ -358,21 +358,25 @@ contains
             if (list(k)%kind() == NK_REAL) then
                 clean = .false.
             else if (list(k)%nargs() > 0) then
-                if (.not. no_reals(children(list(k)))) clean = .false.
+                block
+                    type(expr_t), allocatable :: kids(:)
+                    call collect_children(list(k), kids)
+                    if (.not. no_reals(kids)) clean = .false.
+                end block
             end if
         end do
     end function no_reals
 
-    function children(e) result(kids)
+    subroutine collect_children(e, kids)
         type(expr_t), intent(in) :: e
-        type(expr_t), allocatable :: kids(:)
+        type(expr_t), allocatable, intent(out) :: kids(:)
         integer :: k
 
         allocate (kids(e%nargs()))
         do k = 1, e%nargs()
             kids(k) = e%arg(k)
         end do
-    end function children
+    end subroutine collect_children
 
     ! ------------------------------------------------------------ refusals --
 
@@ -427,7 +431,11 @@ contains
         call solve_polynomial(arena, e, num(arena, 3), roots, good, why)
         call ok("a non-symbol solve variable is refused", .not. good)
 
-        e = x**2 - func("sqrt", [num(arena, 2)])
+        block
+            type(expr_t) :: sqrt_arg(1)
+            sqrt_arg(1) = num(arena, 2)
+            e = x**2 - func("sqrt", sqrt_arg)
+        end block
         call solve_polynomial(arena, e, x, roots, good, why)
         call ok("an irrational coefficient is refused", .not. good)
     end subroutine test_refusals

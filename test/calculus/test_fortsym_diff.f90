@@ -25,8 +25,9 @@ program test_fortsym_diff
     nfail = 0
     call arena%init()
     x = sym(arena, "x")
-    bindings%names = [str("x")]
-    bindings%values = [1.25_dp]
+    allocate (bindings%names(1), bindings%values(1))
+    bindings%names(1) = str("x")
+    bindings%values(1) = 1.25_dp
     bindings%n = 1
 
     ! An arbitrary exact scalar is constant by definition; this independently
@@ -73,10 +74,13 @@ contains
     subroutine test_multivariate_partials()
         type(expr_t) :: r, u, psi, dpsi_dr, dpsi_du
         type(expr_t) :: mixed_ru, mixed_ur
+        type(expr_t) :: psi_args(2)
 
         r = sym(arena, "r")
         u = sym(arena, "u")
-        psi = func("psi", [r, u])
+        psi_args(1) = r
+        psi_args(2) = u
+        psi = func("psi", psi_args)
 
         dpsi_dr = diff(psi, r)
         dpsi_du = diff(psi, u)
@@ -105,8 +109,10 @@ contains
         ! Independent Rodrigues oracle:
         ! P_1(x)=x and P_2(x)=(3x^2-1)/2, hence P_2'(x)=3x.
         p1 = legendrep(num(arena, 2) - 1, num(arena, 0), x)
-        old = [p1, p2]
-        replacement = [x, (3*x*x - 1)/2]
+        old(1) = p1
+        old(2) = p2
+        replacement(1) = x
+        replacement(2) = (3*x*x - 1)/2
         reduced = subs_many(derivative, old, replacement)
         symbolic_value = eval_expr(reduced, bindings, defined)
         call check("Legendre derivative is numerically defined", defined)
@@ -116,7 +122,8 @@ contains
         q1 = legendreq(num(arena, 1), num(arena, 0), x)
         q0 = legendreq(num(arena, 1) - 1, num(arena, 0), x)
         derivative = diff(q1, x)
-        old = [q0, q1]
+        old(1) = q0
+        old(2) = q1
         replacement(1) = log((x + 1)/(x - 1))/2
         replacement(2) = x*replacement(1) - 1
         reduced = subs_many(derivative, old, replacement)

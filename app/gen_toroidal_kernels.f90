@@ -35,9 +35,13 @@ program gen_toroidal_kernels
     spec = base_spec("hypergeom_2f1_term_kernel", &
         "fortnum_hypergeom_2f1_term_kernel")
     allocate (spec%args(6), spec%outputs(1))
-    spec%args = [str("a"), str("b"), str("c"), str("k"), str("z"), &
-        str("term")]
-    spec%outputs = [str("next_term")]
+    spec%args(1) = str("a")
+    spec%args(2) = str("b")
+    spec%args(3) = str("c")
+    spec%args(4) = str("k")
+    spec%args(5) = str("z")
+    spec%args(6) = str("term")
+    spec%outputs(1) = str("next_term")
     call write_kernel("fortnum_hypergeom_2f1_term_kernel.f90", root, spec)
 
     degree = sym(arena, "degree")
@@ -51,9 +55,12 @@ program gen_toroidal_kernels
     spec = base_spec("toroidal_order_kernel", &
         "fortnum_toroidal_order_kernel")
     allocate (spec%args(5), spec%outputs(1))
-    spec%args = [str("degree"), str("order"), str("x"), &
-        str("current"), str("next_order")]
-    spec%outputs = [str("following_order")]
+    spec%args(1) = str("degree")
+    spec%args(2) = str("order")
+    spec%args(3) = str("x")
+    spec%args(4) = str("current")
+    spec%args(5) = str("next_order")
+    spec%outputs(1) = str("following_order")
     call write_kernel("fortnum_toroidal_order_kernel.f90", root, spec)
 
 contains

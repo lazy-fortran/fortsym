@@ -67,7 +67,7 @@ module fortsym_integrate
     use fortsym_diff, only: diff
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE, VERDICT_FALSE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
-    use fortsym_eval, only: binding_t, eval_expr, free_symbols_of
+    use fortsym_eval, only: binding_t, eval_expr, collect_free_symbols
     implicit none
     private
 
@@ -700,7 +700,7 @@ contains
         ! Take the free symbols of both sides at once, so a symbol that occurs
         ! only in the candidate still gets a value.
         combined = derivative + integrand
-        names = free_symbols_of(combined)
+        call collect_free_symbols(combined, names)
 
         allocate (b%names(size(names)))
         allocate (b%values(size(names)))
@@ -870,7 +870,7 @@ contains
         value = 0.0_dp
         ok = .false.
 
-        names = free_symbols_of(e)
+        call collect_free_symbols(e, names)
         if (size(names) > 0) return
 
         allocate (empty%names(0))

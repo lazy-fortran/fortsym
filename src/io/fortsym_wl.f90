@@ -29,7 +29,7 @@ module fortsym_wl
     use fortsym_assume, only: assumption_context_t
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
-    use fortsym_eval, only: free_symbols_of
+    use fortsym_eval, only: collect_free_symbols
     use fortsym_engine, only: engine_result_t, wall_seconds, VERDICT_TRUE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_matrix, only: matrix_transpose, matrix_dot, matrix_det, &
@@ -5378,7 +5378,7 @@ contains
         integer :: attempt, k
         logical :: taken
 
-        names = free_symbols_of(e)
+        call collect_free_symbols(e, names)
         do attempt = 0, 999
             candidate = "fortsymCoordinate"//itoa(attempt)
             taken = .false.

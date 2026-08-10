@@ -7,6 +7,7 @@ program test_fortsym_subs
 
     type(arena_t), target :: arena
     type(expr_t) :: x, y, f, got, expected
+    type(expr_t) :: old(2), new(2), function_arguments(1)
     integer :: passed, failed
 
     passed = 0
@@ -20,11 +21,16 @@ program test_fortsym_subs
     expected = x*x
     call check(got == expected, "arbitrary shared subexpression")
 
-    got = subs_many(x + 2*y, [x, y], [y, x])
+    old(1) = x
+    old(2) = y
+    new(1) = y
+    new(2) = x
+    got = subs_many(x + 2*y, old, new)
     expected = y + 2*x
     call check(got == expected, "simultaneous substitution does not cascade")
 
-    f = func("Derivative_Bt", [x])
+    function_arguments(1) = x
+    f = func("Derivative_Bt", function_arguments)
     got = subs(f, f, y)
     expected = y
     call check(got == expected, "named derivative replacement")

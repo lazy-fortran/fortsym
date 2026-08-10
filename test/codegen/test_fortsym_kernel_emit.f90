@@ -58,14 +58,18 @@ contains
         y = sym(arena, "y")
         shared = x*y
         root = sin_expr(shared) + exp_expr(x)/(1 + y*y) + (x + 1)**2
-        roots = [root, shared]
+        roots(1) = root
+        roots(2) = shared
         call lower_kernel_ir(roots, ir, good, message)
         call ok("shared IR lowers for the emitter test", good)
         if (.not. good) return
 
         spec%name = str("fortsym_ir_leaf")
-        spec%args = [str("x"), str("y")]
-        spec%outputs = [str("r"), str("s")]
+        allocate (spec%args(2), spec%outputs(2))
+        spec%args(1) = str("x")
+        spec%args(2) = str("y")
+        spec%outputs(1) = str("r")
+        spec%outputs(2) = str("s")
         spec%generator = str("test_fortsym_kernel_emit")
         spec%regenerate_command = str("ctest -R test_fortsym_kernel_emit")
 
@@ -113,21 +117,27 @@ contains
         call ok("CUDA emitter maps powers to CUDA math", &
             index(chars(cuda_source), "pow(") > 0)
 
-        spec%args = [str("x"), str("bad-name")]
+        spec%args(1) = str("x")
+        spec%args(2) = str("bad-name")
         fortran_source = emit_fortran_kernel_ir(ir, spec, good, message)
         call ok("invalid identifiers are refused", .not. good)
 
-        spec%args = [str("x"), str("x")]
+        spec%args(1) = str("x")
+        spec%args(2) = str("x")
         fortran_source = emit_fortran_kernel_ir(ir, spec, good, message)
         call ok("duplicate arguments are refused", .not. good)
 
-        spec%args = [str("x"), str("y")]
-        spec%outputs = [str("r"), str("r")]
+        spec%args(1) = str("x")
+        spec%args(2) = str("y")
+        spec%outputs(1) = str("r")
+        spec%outputs(2) = str("r")
         cuda_source = emit_cuda_device_ir(ir, spec, good, message)
         call ok("duplicate outputs are refused", .not. good)
 
-        spec%outputs = [str("r"), str("s")]
-        spec%args = [str("x"), str("y")]
+        spec%outputs(1) = str("r")
+        spec%outputs(2) = str("s")
+        spec%args(1) = str("x")
+        spec%args(2) = str("y")
         cuda_source = emit_cuda_device_ir(ir, spec, good, message)
         call ok("CUDA emitter restores the valid specification", good)
 
@@ -157,6 +167,8 @@ contains
         write (unit, "(a)") "  double hx[1] = {0.37}, hy[1] = {-0.81};"
         write (unit, "(a)") "  double hr[1] = {0.0}, hs[1] = {0.0};"
         write (unit, "(a)") "  double *dx, *dy, *dr, *ds;"
+        write (unit, "(a)") "  int device_count = 0;"
+        write (unit, "(a)") "  if (cudaGetDeviceCount(&device_count) != cudaSuccess || device_count == 0) return 0;"
         write (unit, "(a)") "  if (cudaMalloc(&dx, sizeof(hx)) || cudaMalloc(&dy, sizeof(hy)) || "// &
             "cudaMalloc(&dr, sizeof(hr)) || cudaMalloc(&ds, sizeof(hs))) return 10;"
         write (unit, "(a)") "  cudaMemcpy(dx, hx, sizeof(hx), cudaMemcpyHostToDevice);"
@@ -171,11 +183,19 @@ contains
         write (unit, "(a)") "}"
         close (unit)
         call execute_command_line( &
-            "nvcc -O2 -std=c++17 -o /tmp/fortsym_ir_cuda /tmp/fortsym_ir_cuda.cu "// &
+            "nvcc_path=$(command -v nvcc) && "// &
+            "nvcc_dir=$(dirname ""$nvcc_path"") && "// &
+            "env -i PATH=""$nvcc_dir:/usr/bin:/bin"" HOME=/tmp "// &
+            """$nvcc_path"" -O2 -std=c++17 -o /tmp/fortsym_ir_cuda "// &
+            "/tmp/fortsym_ir_cuda.cu "// &
             "> /tmp/fortsym_ir_cuda.log 2>&1", wait=.true., exitstat=stat)
         call ok("generated CUDA compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_ir_cuda", wait=.true., &
+            call execute_command_line( &
+                "nvcc_path=$(command -v nvcc) && "// &
+                "nvcc_dir=$(dirname ""$nvcc_path"") && "// &
+                "env -i PATH=""$nvcc_dir:/usr/bin:/bin"" HOME=/tmp "// &
+                "/tmp/fortsym_ir_cuda", wait=.true., &
                 exitstat=stat)
             call ok("generated CUDA agrees with independent oracle", stat == 0)
         end if
@@ -200,14 +220,17 @@ contains
         one = num(arena, 1_int64)
         two = num(arena, 2_int64)
         root = x**two + x*y + z + y/two + zero*x + one*x + zero
-        roots = [root]
+        roots(1) = root
         call lower_kernel_ir(roots, ir, good, message)
         call ok("policy test lowers its IR", good)
         if (.not. good) return
 
         spec%name = str("policy_leaf")
-        spec%args = [str("x"), str("y"), str("z")]
-        spec%outputs = [str("r")]
+        allocate (spec%args(3), spec%outputs(1))
+        spec%args(1) = str("x")
+        spec%args(2) = str("y")
+        spec%args(3) = str("z")
+        spec%outputs(1) = str("r")
         spec%generator = str("test_fortsym_kernel_emit")
         spec%regenerate_command = str("ctest -R test_fortsym_kernel_emit")
 
@@ -279,14 +302,15 @@ contains
         call arena%init()
         x = sym(arena, "x")
         root = x*x + 1
-        roots = [root]
+        roots(1) = root
         call lower_kernel_ir(roots, ir, good, message)
         call ok("target test lowers its IR", good)
         if (.not. good) return
 
         spec%name = str("target_leaf")
-        spec%args = [str("x")]
-        spec%outputs = [str("r")]
+        allocate (spec%args(1), spec%outputs(1))
+        spec%args(1) = str("x")
+        spec%outputs(1) = str("r")
 
         default_source = chars(emit_fortran_kernel_ir(ir, spec, good, message))
         call ok("default target remains a CPU leaf", good)
@@ -348,8 +372,10 @@ contains
         logical :: good, quadratic_ok
 
         call arena%init()
-        values = [rat(arena, 1_int64, 3_int64), real_expr(arena, -1.25_dp), &
-            num(arena, 4_int64), rat(arena, -2_int64, 3_int64)]
+        values(1) = rat(arena, 1_int64, 3_int64)
+        values(2) = real_expr(arena, -1.25_dp)
+        values(3) = num(arena, 4_int64)
+        values(4) = rat(arena, -2_int64, 3_int64)
         comments = ["c0      ", "negative", "integer ", "rational"]
         source = emit_table("values", values, "real(dp)", comments, good, message)
         call ok("rank-one table emitter accepts exact values", good)
@@ -391,8 +417,10 @@ contains
             call ok("readback preserves last exact value", parsed(4) == values(4))
         end if
 
-        matrix = reshape([num(arena, 1_int64), num(arena, 2_int64), &
-            num(arena, 3_int64), num(arena, 4_int64)], shape(matrix))
+        matrix(1, 1) = num(arena, 1_int64)
+        matrix(2, 1) = num(arena, 2_int64)
+        matrix(1, 2) = num(arena, 3_int64)
+        matrix(2, 2) = num(arena, 4_int64)
         matrix_source = emit_table("matrix", matrix, "real(dp)", ok=good, &
             message=message)
         call ok("rank-two table emitter accepts a matrix", good)

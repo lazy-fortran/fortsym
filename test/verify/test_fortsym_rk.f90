@@ -15,7 +15,8 @@ program test_fortsym_rk
     use fortsym_string, only: str_t, str, chars
     use fortsym_rk, only: butcher_t, rk_from_rows, rk_is_consistent, &
         rk_attains_order, rk_error_weights, rk_is_fsal, rk_weight_sum, &
-        rk_order_residuals, rk_is_zero, rk_order_residuals_real
+        rk_order_residuals, rk_order_residuals_into, rk_error_weights_into, rk_is_zero, &
+        rk_order_residuals_real_into
     use fortsym_rk_trees, only: tree_table_t, build_rooted_trees, &
         tree_count_of_order, tree_gamma
     implicit none
@@ -98,21 +99,21 @@ contains
     subroutine cash_karp(tableau, built)
         type(butcher_t), intent(out) :: tableau
         logical, intent(out) :: built
+        character(len=16) :: a_rows(15), b(6), c(6), bhat(6)
 
-        call rk_from_rows(6, &
-            [character(len=16) :: &
+        a_rows = [character(len=16) :: &
              "1/5", &
              "3/40", "9/40", &
              "3/10", "-9/10", "6/5", &
              "-11/54", "5/2", "-70/27", "35/27", &
              "1631/55296", "175/512", "575/13824", "44275/110592", &
-             "253/4096"], &
-            [character(len=16) :: "37/378", "0", "250/621", "125/594", "0", &
-             "512/1771"], &
-            [character(len=16) :: "0", "1/5", "3/10", "3/5", "1", "7/8"], &
-            tableau, built, &
-            bhat=[character(len=16) :: "2825/27648", "0", "18575/48384", &
-                  "13525/55296", "277/14336", "1/4"])
+             "253/4096"]
+        b = [character(len=16) :: "37/378", "0", "250/621", "125/594", "0", &
+             "512/1771"]
+        c = [character(len=16) :: "0", "1/5", "3/10", "3/5", "1", "7/8"]
+        bhat = [character(len=16) :: "2825/27648", "0", "18575/48384", &
+                "13525/55296", "277/14336", "1/4"]
+        call rk_from_rows(6, a_rows, b, c, tableau, built, bhat)
     end subroutine cash_karp
 
     subroutine test_cash_karp()
@@ -138,7 +139,7 @@ contains
         call ok("Cash-Karp weights sum to one", &
                 ok_flag .and. chars(total) == "1")
 
-        err = rk_error_weights(tableau, ok_flag)
+        call rk_error_weights_into(tableau, err, ok_flag)
         call ok("Cash-Karp error weights derive", ok_flag)
         if (.not. ok_flag) return
         ! Published difference for stage 5, where b_5 is zero: -277/14336.
@@ -150,21 +151,21 @@ contains
         type(butcher_t) :: tableau
         logical :: built, ok_flag
         type(str_t), allocatable :: err(:)
+        character(len=16) :: a_rows(21), b(7), c(7), bhat(7)
 
-        call rk_from_rows(7, &
-            [character(len=16) :: &
+        a_rows = [character(len=16) :: &
              "1/5", &
              "3/40", "9/40", &
              "44/45", "-56/15", "32/9", &
              "19372/6561", "-25360/2187", "64448/6561", "-212/729", &
              "9017/3168", "-355/33", "46732/5247", "49/176", "-5103/18656", &
-             "35/384", "0", "500/1113", "125/192", "-2187/6784", "11/84"], &
-            [character(len=16) :: "35/384", "0", "500/1113", "125/192", &
-             "-2187/6784", "11/84", "0"], &
-            [character(len=16) :: "0", "1/5", "3/10", "4/5", "8/9", "1", "1"], &
-            tableau, built, &
-            bhat=[character(len=16) :: "5179/57600", "0", "7571/16695", &
-                  "393/640", "-92097/339200", "187/2100", "1/40"])
+             "35/384", "0", "500/1113", "125/192", "-2187/6784", "11/84"]
+        b = [character(len=16) :: "35/384", "0", "500/1113", "125/192", &
+             "-2187/6784", "11/84", "0"]
+        c = [character(len=16) :: "0", "1/5", "3/10", "4/5", "8/9", "1", "1"]
+        bhat = [character(len=16) :: "5179/57600", "0", "7571/16695", &
+                "393/640", "-92097/339200", "187/2100", "1/40"]
+        call rk_from_rows(7, a_rows, b, c, tableau, built, bhat)
         call ok("Dormand-Prince tableau parses", built)
         if (.not. built) return
 
@@ -178,7 +179,7 @@ contains
                 .not. rk_attains_order(tableau, tableau%bhat, 5))
         call ok("Dormand-Prince is FSAL", rk_is_fsal(tableau))
 
-        err = rk_error_weights(tableau, ok_flag)
+        call rk_error_weights_into(tableau, err, ok_flag)
         call ok("Dormand-Prince error weights derive", ok_flag)
         if (.not. ok_flag) return
         ! The published error weights, which fortnum previously carried as
@@ -201,19 +202,19 @@ contains
         type(str_t), allocatable :: residuals(:)
         integer :: k
         logical :: any_nonzero
+        character(len=16) :: a_rows(15), b(6), c(6)
 
-        call rk_from_rows(6, &
-            [character(len=16) :: &
+        a_rows = [character(len=16) :: &
              "1/5", &
              "3/40", "9/40", &
              "3/10", "-9/10", "6/5", &
              "-11/54", "5/2", "-70/27", "35/27", &
              "1631/55296", "175/512", "575/13824", "44275/110592", &
-             "253/4096"], &
-            [character(len=16) :: "37/379", "0", "250/621", "125/594", "0", &
-             "512/1771"], &
-            [character(len=16) :: "0", "1/5", "3/10", "3/5", "1", "7/8"], &
-            tableau, built)
+             "253/4096"]
+        b = [character(len=16) :: "37/379", "0", "250/621", "125/594", "0", &
+             "512/1771"]
+        c = [character(len=16) :: "0", "1/5", "3/10", "3/5", "1", "7/8"]
+        call rk_from_rows(6, a_rows, b, c, tableau, built)
         call ok("corrupted tableau still parses", built)
         if (.not. built) return
 
@@ -222,7 +223,7 @@ contains
         call ok("corrupted weights do not even attain order 1", &
                 .not. rk_attains_order(tableau, tableau%b, 1))
 
-        residuals = rk_order_residuals(tableau, tableau%b, 1, ok_flag)
+        call rk_order_residuals_into(tableau, tableau%b, 1, residuals, ok_flag)
         call ok("corrupted residuals compute", ok_flag)
         if (.not. ok_flag) return
         any_nonzero = .false.
@@ -237,15 +238,15 @@ contains
     subroutine test_classical_rk4()
         type(butcher_t) :: tableau
         logical :: built
+        character(len=16) :: a_rows(6), b(4), c(4)
 
-        call rk_from_rows(4, &
-            [character(len=16) :: &
+        a_rows = [character(len=16) :: &
              "1/2", &
              "0", "1/2", &
-             "0", "0", "1"], &
-            [character(len=16) :: "1/6", "1/3", "1/3", "1/6"], &
-            [character(len=16) :: "0", "1/2", "1/2", "1"], &
-            tableau, built)
+             "0", "0", "1"]
+        b = [character(len=16) :: "1/6", "1/3", "1/3", "1/6"]
+        c = [character(len=16) :: "0", "1/2", "1/2", "1"]
+        call rk_from_rows(4, a_rows, b, c, tableau, built)
         call ok("classical RK4 parses", built)
         if (.not. built) return
 
@@ -287,7 +288,7 @@ contains
         a(4, 3) = 1.0_dp
         b = [1.0_dp/6.0_dp, 1.0_dp/3.0_dp, 1.0_dp/3.0_dp, 1.0_dp/6.0_dp]
 
-        residuals = rk_order_residuals_real(a, b, 4, got)
+        call rk_order_residuals_real_into(a, b, 4, residuals, got)
         call ok("real residuals compute", got)
         if (.not. got) return
         call ok("real residuals cover every tree to order 4", &
@@ -297,7 +298,7 @@ contains
 
         ! One coefficient moved well beyond rounding.
         a(4, 3) = 1.0_dp + 1.0e-6_dp
-        residuals = rk_order_residuals_real(a, b, 4, got)
+        call rk_order_residuals_real_into(a, b, 4, residuals, got)
         call ok("a perturbed coefficient shows up in the residuals", &
                 got .and. maxval(abs(residuals)) > 1.0e-8_dp)
     end subroutine test_real_order_residuals

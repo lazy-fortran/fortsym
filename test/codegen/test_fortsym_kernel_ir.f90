@@ -51,7 +51,8 @@ contains
         y = sym(arena, "y")
         shared = x*y
         root = sin_expr(shared) + exp_expr(x)/(1 + y*y) + (x + 1)**2
-        roots = [root, shared]
+        roots(1) = root
+        roots(2) = shared
 
         call lower_kernel_ir(roots, ir, good, message)
         call ok("lowering succeeds", good)
@@ -113,7 +114,8 @@ contains
 
         call left%init()
         call right%init()
-        roots = [sym(left, "x"), sym(right, "x")]
+        roots(1) = sym(left, "x")
+        roots(2) = sym(right, "x")
         call lower_kernel_ir(roots, ir, good, message)
         call ok("mixed arenas are rejected", .not. good)
         call ok("mixed arena diagnostic is useful", &

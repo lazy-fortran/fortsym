@@ -67,6 +67,36 @@ contains
         end if
     end subroutine same
 
+    function make_func1(name, first) result(e)
+        character(*), intent(in) :: name
+        type(expr_t), intent(in) :: first
+        type(expr_t) :: e, arguments(1)
+
+        arguments(1) = first
+        e = func(name, arguments)
+    end function make_func1
+
+    function make_func2(name, first, second) result(e)
+        character(*), intent(in) :: name
+        type(expr_t), intent(in) :: first, second
+        type(expr_t) :: e, arguments(2)
+
+        arguments(1) = first
+        arguments(2) = second
+        e = func(name, arguments)
+    end function make_func2
+
+    function make_func3(name, first, second, third) result(e)
+        character(*), intent(in) :: name
+        type(expr_t), intent(in) :: first, second, third
+        type(expr_t) :: e, arguments(3)
+
+        arguments(1) = first
+        arguments(2) = second
+        arguments(3) = third
+        e = func(name, arguments)
+    end function make_func3
+
     subroutine test_bracket_application()
         type(arena_t), target :: a
         type(expr_t) :: x, y
@@ -81,11 +111,12 @@ contains
         call same("sum", a, "Sin[x]^2 + Cos[x]^2", sin(x)**2 + cos(x)**2)
         call same("product", a, "Exp[x*y]", exp(x*y))
         call same("sqrt", a, "Sqrt[x]", sqrt(x))
-        call same("multiarg", a, "BesselJ[0, x]", func("besselj", [num(a, 0), x]))
+        call same("multiarg", a, "BesselJ[0, x]", &
+            make_func2("besselj", num(a, 0), x))
         ! An unknown head stays an opaque application rather than becoming a
         ! parse error: most of the corpus calls functions fortsym has no
         ! wrapper for, and losing them at the door would lose the derivation.
-        call same("opaque", a, "Bt0[x]", func("Bt0", [x]))
+        call same("opaque", a, "Bt0[x]", make_func1("Bt0", x))
     end subroutine test_bracket_application
 
     subroutine test_constants_and_exactness()
@@ -133,7 +164,7 @@ contains
         ! it would turn ArcTan[y, x] into a one-argument atan and lose the
         ! quadrant, which is how a generated kernel gets a sign wrong.
         call same("arctan1", a, "ArcTan[x]", atan(x))
-        call same("arctan2", a, "ArcTan[y, x]", func("atan2", [y, x]))
+        call same("arctan2", a, "ArcTan[y, x]", make_func2("atan2", y, x))
     end subroutine test_arctan_arity
 
     subroutine test_lists_survive()
@@ -150,7 +181,7 @@ contains
         ! it back. Flattening it into its elements would lose which number is
         ! the point and which is the order.
         call same("list", a, "{x, 0, 5}", &
-            func("List", [x, num(a, 0), num(a, 5)]))
+            make_func3("List", x, num(a, 0), num(a, 5)))
 
         got = parse_expr_in(a, "Series[Exp[x], {x, 0, 3}]", &
             dialect(DIA_WOLFRAM), ok, message)
@@ -233,7 +264,7 @@ contains
 
         ! Part, curried application and prefix @ all appear in the corpus. Each
         ! was previously "unexpected token" and cost the whole statement.
-        call same("part", a, "x[[1]]", func("Part", [x, num(a, 1)]))
+        call same("part", a, "x[[1]]", make_func2("Part", x, num(a, 1)))
         call same("prefix at", a, "Sin @ x", sin(x))
         ! An empty list is legal and common: a script builds one before a loop
         ! fills it. Rejecting it lost every such statement.
@@ -265,26 +296,28 @@ contains
 
         call a%init()
         x = sym(a, "x")
-        pattern = func("Pattern", [x, func_in(a, "Blank")])
-        test = func("PatternTest", [pattern, sym(a, "NumericQ")])
+        pattern = make_func2("Pattern", x, func_in(a, "Blank"))
+        test = make_func2("PatternTest", pattern, sym(a, "NumericQ"))
         call same("pattern test", a, "x_?NumericQ", test)
         call same("blank sequence", a, "__", func_in(a, "BlankSequence"))
         call same("blank null sequence", a, "___", &
             func_in(a, "BlankNullSequence"))
-        call same("alternatives", a, "x_|y_", func("Alternatives", [&
-            func("Pattern", [x, func_in(a, "Blank")]), &
-            func("Pattern", [sym(a, "y"), func_in(a, "Blank")])]))
+        call same("alternatives", a, "x_|y_", make_func2("Alternatives", &
+            make_func2("Pattern", x, func_in(a, "Blank")), &
+            make_func2("Pattern", sym(a, "y"), func_in(a, "Blank"))))
         call same("pattern test precedence", a, "x_?NumericQ|y_?StringQ", &
-            func("Alternatives", [func("PatternTest", [&
-                func("Pattern", [x, func_in(a, "Blank")]), &
-                sym(a, "NumericQ")]), func("PatternTest", [&
-                func("Pattern", [sym(a, "y"), func_in(a, "Blank")]), &
-                sym(a, "StringQ")])]))
-        call same("set delayed", a, "f[x_] := x", func("SetDelayed", [&
-            func("f", [pattern]), x]))
-        call same("up set", a, "x ^= 2", func("UpSet", [x, num(a, 2)]))
+            make_func2("Alternatives", &
+                make_func2("PatternTest", &
+                    make_func2("Pattern", x, func_in(a, "Blank")), &
+                    sym(a, "NumericQ")), &
+                make_func2("PatternTest", &
+                    make_func2("Pattern", sym(a, "y"), func_in(a, "Blank")), &
+                    sym(a, "StringQ"))))
+        call same("set delayed", a, "f[x_] := x", &
+            make_func2("SetDelayed", make_func1("f", pattern), x))
+        call same("up set", a, "x ^= 2", make_func2("UpSet", x, num(a, 2)))
         call same("up set delayed", a, "x ^:= 2", &
-            func("UpSetDelayed", [x, num(a, 2)]))
+            make_func2("UpSetDelayed", x, num(a, 2)))
         call same("context name", a, "Global`x", sym(a, "Global`x"))
         call same("precision annotation", a, "1.25``20", real_expr(a, 1.25_real64))
     end subroutine test_pattern_operators_and_precision
@@ -298,8 +331,8 @@ contains
         y = sym(a, '"y"')
 
         call same("association", a, "<|""x"" -> 1, ""y"" -> 2|>", &
-            func("Association", [func("Rule", [x, num(a, 1)]), &
-                                  func("Rule", [y, num(a, 2)])]))
+            make_func2("Association", make_func2("Rule", x, num(a, 1)), &
+                make_func2("Rule", y, num(a, 2))))
         call same("empty association", a, "<||>", func_in(a, "Association"))
     end subroutine test_associations
 

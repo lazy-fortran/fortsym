@@ -49,12 +49,24 @@ jobs:
 
       - name: Build and install the wheel in a clean environment
         run: |
+          # shellcheck disable=SC2016
           python3 -m venv .venv
           .venv/bin/python -m pip install --quiet build
           .venv/bin/python -m build --wheel --outdir wheelhouse python
           .venv/bin/python -m pip install --quiet wheelhouse/*.whl
-          FORTSYM_LIBRARY="$GITHUB_WORKSPACE/build/lib/libfortsym.so" \
-            .venv/bin/python - <<'PY'
+          # shellcheck disable=SC2016
+          nix develop --command bash -c '
+            set -eu
+            library_path="$GITHUB_WORKSPACE/build/lib"
+            for flag in $NIX_LDFLAGS; do
+              case "$flag" in
+                -L*) library_path="$library_path:${flag#-L}" ;;
+              esac
+            done
+            export LD_LIBRARY_PATH="$library_path${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+            export FORTSYM_LIBRARY="$GITHUB_WORKSPACE/build/lib/libfortsym.so"
+            exec .venv/bin/python -
+          ' <<'PY'
           from fractions import Fraction
           import fortsym
 
@@ -124,7 +136,19 @@ jobs:
         run: nix develop --command cmake --build build -j
 
       - name: Test
-        run: nix develop --command ctest --test-dir build --output-on-failure
+        run: |
+          # shellcheck disable=SC2016
+          nix develop --command bash -c '
+            set -eu
+            library_path="$GITHUB_WORKSPACE/build/lib"
+            for flag in $NIX_LDFLAGS; do
+              case "$flag" in
+                -L*) library_path="$library_path:${flag#-L}" ;;
+              esac
+            done
+            export LD_LIBRARY_PATH="$library_path${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+            exec ctest --test-dir build --output-on-failure
+          '
 
   # With the optional engines present, so the council actually has several
   # voters and the cross-engine oracle is exercised. Not required: a Tier 2

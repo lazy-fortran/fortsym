@@ -28,8 +28,11 @@ module fortsym_rk
     public :: rk_row_sum_residuals, rk_is_consistent
     public :: rk_order_residuals, rk_attains_order
     public :: rk_error_weights, rk_is_fsal
+    public :: rk_error_weights_into
     public :: rk_weight_sum, rk_is_zero
     public :: rk_order_residuals_real
+    public :: rk_row_sum_residuals_into, rk_order_residuals_into
+    public :: rk_order_residuals_real_into
 
     integer, parameter :: dp = real64
 
@@ -146,6 +149,14 @@ contains
         logical, intent(out) :: ok
         type(str_t), allocatable :: residuals(:)
 
+        call rk_row_sum_residuals_into(tableau, residuals, ok)
+    end function rk_row_sum_residuals
+
+    subroutine rk_row_sum_residuals_into(tableau, residuals, ok)
+        type(butcher_t), intent(in) :: tableau
+        type(str_t), allocatable, intent(out) :: residuals(:)
+        logical, intent(out) :: ok
+
         integer :: i, j
         type(str_t) :: row
         logical :: each_ok
@@ -167,7 +178,7 @@ contains
                 return
             end if
         end do
-    end function rk_row_sum_residuals
+    end subroutine rk_row_sum_residuals_into
 
     function rk_is_consistent(tableau) result(consistent)
         type(butcher_t), intent(in) :: tableau
@@ -176,7 +187,7 @@ contains
         logical :: ok
         integer :: i
 
-        residuals = rk_row_sum_residuals(tableau, ok)
+        call rk_row_sum_residuals_into(tableau, residuals, ok)
         consistent = ok
         if (.not. ok) return
         do i = 1, size(residuals)
@@ -213,6 +224,16 @@ contains
         integer, intent(in) :: order
         logical, intent(out) :: ok
         type(str_t), allocatable :: residuals(:)
+
+        call rk_order_residuals_into(tableau, weights, order, residuals, ok)
+    end function rk_order_residuals
+
+    subroutine rk_order_residuals_into(tableau, weights, order, residuals, ok)
+        type(butcher_t), intent(in) :: tableau
+        type(str_t), intent(in) :: weights(:)
+        integer, intent(in) :: order
+        type(str_t), allocatable, intent(out) :: residuals(:)
+        logical, intent(out) :: ok
 
         type(tree_table_t) :: trees
         type(str_t), allocatable :: phi(:)
@@ -265,7 +286,7 @@ contains
             end if
         end do
         ok = .true.
-    end function rk_order_residuals
+    end subroutine rk_order_residuals_into
 
     !> True when every order-condition residual up to `order` vanishes exactly.
     function rk_attains_order(tableau, weights, order) result(attains)
@@ -278,7 +299,7 @@ contains
         logical :: ok
         integer :: k
 
-        residuals = rk_order_residuals(tableau, weights, order, ok)
+        call rk_order_residuals_into(tableau, weights, order, residuals, ok)
         attains = ok
         if (.not. ok) return
         do k = 1, size(residuals)
@@ -301,6 +322,15 @@ contains
         integer, intent(in) :: order
         logical, intent(out) :: ok
         real(dp), allocatable :: residuals(:)
+
+        call rk_order_residuals_real_into(a, weights, order, residuals, ok)
+    end function rk_order_residuals_real
+
+    subroutine rk_order_residuals_real_into(a, weights, order, residuals, ok)
+        real(dp), intent(in) :: a(:, :), weights(:)
+        integer, intent(in) :: order
+        real(dp), allocatable, intent(out) :: residuals(:)
+        logical, intent(out) :: ok
 
         type(tree_table_t) :: trees
         real(dp), allocatable :: phi(:)
@@ -329,7 +359,7 @@ contains
             residuals(k) = total - 1.0_dp/real(tree_gamma(trees, k), dp)
         end do
         ok = .true.
-    end function rk_order_residuals_real
+    end subroutine rk_order_residuals_real_into
 
     recursive function tree_phi_real(a, trees, k, i) result(value)
         real(dp), intent(in) :: a(:, :)
@@ -390,6 +420,14 @@ contains
         type(butcher_t), intent(in) :: tableau
         logical, intent(out) :: ok
         type(str_t), allocatable :: weights(:)
+
+        call rk_error_weights_into(tableau, weights, ok)
+    end function rk_error_weights
+
+    subroutine rk_error_weights_into(tableau, weights, ok)
+        type(butcher_t), intent(in) :: tableau
+        type(str_t), allocatable, intent(out) :: weights(:)
+        logical, intent(out) :: ok
         integer :: i
 
         allocate (weights(0))
@@ -403,7 +441,7 @@ contains
                                    chars(tableau%bhat(i)), ok)
             if (.not. ok) return
         end do
-    end function rk_error_weights
+    end subroutine rk_error_weights_into
 
     !> True when the last stage row equals the solution weights, so the final
     !> derivative of one step is the first of the next.

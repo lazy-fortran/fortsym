@@ -16,8 +16,11 @@ contains
     function subs(e, old, new) result(r)
         type(expr_t), intent(in) :: e, old, new
         type(expr_t) :: r
+        type(expr_t) :: old_list(1), new_list(1)
 
-        r = subs_many(e, [old], [new])
+        old_list(1) = old
+        new_list(1) = new
+        r = subs_many(e, old_list, new_list)
     end function subs
 
     function subs_many(e, old, new) result(r)

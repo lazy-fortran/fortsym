@@ -52,7 +52,7 @@ module fortsym_limits
         operator(==)
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
-    use fortsym_eval, only: free_symbols_of
+    use fortsym_eval, only: collect_free_symbols
     use fortsym_numeric, only: numeric_value
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE, VERDICT_FALSE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -220,7 +220,7 @@ contains
             return
         end if
 
-        names = free_symbols_of(e)
+        call collect_free_symbols(e, names)
         do k = 1, size(names)
             if (chars(names(k)) /= chars(var%name())) then
                 why = "expression contains the free symbol "// &

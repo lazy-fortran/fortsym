@@ -57,7 +57,8 @@ complex-domain boundary proves bounded structural cancellations before `Arg`
 and negative powers, and polynomial solving raises its recursion refusal cap
 with a deep valid-input regression test. The focused tests use numeric and
 exact-arithmetic oracles; the repository's existing CUDA emitter fixture
-remains the only known full-suite failure on this host.
+passes in the full suite, including its no-device path on hosts with a CUDA
+compiler but no usable GPU.
 
 Issue #21 (ownership-safe C ABI) is complete as of 2026-08-10: the installed
 `fortsym.h` contract provides opaque arena/expression handles, exact scalar and
@@ -72,8 +73,7 @@ package supports deterministic handles, exact arbitrary-size integers and
 rationals, scalar coercion, expansion, substitution, structural equality and
 hashing without importing SymPy. Source and wheel loading are documented, CMake
 installs the package sources, and CI builds a wheel in a clean virtualenv. The
-focused Python suite and full `fo test` pass; the existing CUDA emitter fixture
-remains the only known full-suite failure on this host.
+focused Python suite and full `fo test` pass.
 
 Issue #40 (public trig and power rewrites) is complete as of 2026-08-10:
 `trig_expand`, `trig_reduce`, `trig_to_exp`, `exp_to_trig`, and guarded
@@ -87,8 +87,7 @@ covering signed and rational literals, real kind suffixes, precedence, powers,
 intrinsics, and deep expression chains. It also closes the exactness gap found
 by that property: typed-real quotients emitted for exact rationals are recovered
 as rational nodes in the Fortran dialect, while ordinary real quotients remain
-real. The focused and full `fo test` runs pass apart from the pre-existing CUDA
-emitter fixture.
+real. The focused and full `fo test` runs pass.
 
 Issue #57 (Fortran declaration and array readback) is complete as of
 2026-08-10: `find_assignment` now selects initialized entities from attributed
@@ -97,7 +96,7 @@ rejecting pointer initialization. Fortran `[]` and `(/.../)` constructors parse
 through the dialect parser, and `parse_fortran_array` returns their elements
 with explicit refusals for nested and implied-do constructors. Typed
 constructors are accepted when reading generated tables; the focused and full
-`fo test` runs pass apart from the pre-existing CUDA emitter fixture.
+`fo test` runs pass, including the CUDA emitter's compiler/no-device guard.
 
 Issue #58 (typed constant-table emission) is complete as of 2026-08-10:
 `emit_table` now accepts rank-one and rank-two `expr_t` and `quadratic_t`
@@ -125,6 +124,22 @@ and per-root records while aggregating named function heads; and
 DAG accounting, FMA semantics, per-root attribution, named transcendental
 counts, and the optional kernel handoff; the record documents that it is
 symbolic metadata rather than a machine-disassembly claim.
+
+Issue #65 (accuracy instrument) is complete as of 2026-08-11:
+`measure_accuracy` evaluates each declared sample through the high-precision
+MPFR path, compares the caller-owned binary64 kernel result in local ULPs, and
+reports maximum and RMS error, the maximizing input, retained reference and
+observation values, and the relative derivative-based condition number when
+it is defined. The sample matrix, domain, sequence, precision bound, and
+kernel refusal count are retained in the report. Its test uses an independently
+constructed one-ULP perturbation rather than reusing the instrument's result.
+
+Build hygiene is also part of the current regression gate: the global
+`-Warray-temporaries` pass is clean across the library, applications, and
+tests, and the Nix CI jobs add their dependency library directories to the
+runtime search path before loading the native library. The CUDA emitter probe
+uses a minimal host toolchain environment and exits cleanly when no device is
+available, while still compiling the generated CUDA source when `nvcc` exists.
 
 Issue #59 (Wolfram coverage against existing material) is in progress as of
 2026-08-10. The first real flux-pumping derivation measured 30 evaluated and

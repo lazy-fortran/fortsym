@@ -548,6 +548,7 @@ contains
         type(exact_coefficient_t) :: coefficient, coefficient2, sum_coefficient
         logical, allocatable :: top_live(:)
         integer :: flat, i, j, count, base, base2, term, remaining
+        integer :: pair(2)
         logical :: exact, exact2, combined
 
         ! Preserve a composite term long enough to cancel its explicit
@@ -641,7 +642,9 @@ contains
                 if (coefficient_is_one(coefficients(i))) then
                     term = bases(i)
                 else
-                    term = a%mul([term, bases(i)])
+                    pair(1) = term
+                    pair(2) = bases(i)
+                    term = a%mul(pair)
                 end if
             end if
             j = j + 1
@@ -685,6 +688,7 @@ contains
         integer(int64)               :: common_n, common_d, n, d, gcd_n, gcd_d
         integer(int64)               :: lcm_d
         integer, allocatable         :: normalized(:)
+        integer                      :: pair(2)
         type(exact_coefficient_t)    :: coefficient, inverse, scaled
         logical                      :: exact, ok, changed
 
@@ -752,7 +756,9 @@ contains
                 if (coefficient_is_one(scaled)) then
                     term = base
                 else
-                    term = a%mul([term, base])
+                    pair(1) = term
+                    pair(2) = base
+                    term = a%mul(pair)
                 end if
             end if
             normalized(i) = term
@@ -763,7 +769,9 @@ contains
         ! product and can make downstream coefficient extraction refuse a
         ! polynomial that was previously recognized.
         inner = simplify_add(a, normalized)
-        out = a%mul([a%rat(common_n, common_d), inner])
+        pair(1) = a%rat(common_n, common_d)
+        pair(2) = inner
+        out = a%mul(pair)
     end function factor_common_add
 
     subroutine split_coefficient(a, id, base, coefficient, exact)
@@ -1039,6 +1047,7 @@ contains
         integer(int64) :: pi_multiple
         logical :: exact
         logical :: pi_multiple_ok
+        integer :: bessel_args(2), pair(2)
 
         out = a%func(name, args)
         if (size(args) == 0) return
@@ -1076,9 +1085,13 @@ contains
             if (den /= 1_int64) return
             if (order >= 0_int64) return
             if (order == MIN_I64) return
-            out = a%func("besselj", [a%int(-order), args(2)])
+            bessel_args(1) = a%int(-order)
+            bessel_args(2) = args(2)
+            out = a%func("besselj", bessel_args)
             if (mod(-order, 2_int64) == 1_int64) then
-                out = a%mul([a%int(-1_int64), out])
+                pair(1) = a%int(-1_int64)
+                pair(2) = out
+                out = a%mul(pair)
             end if
         end select
     end function simplify_function
@@ -1441,6 +1454,7 @@ contains
         integer                      :: out
         integer, allocatable :: terms(:)
         integer :: i, j, nleft, nright, k, lid, rid
+        integer :: pair(2)
 
         nleft = 1
         if (a%kind_of(left) == NK_ADD) nleft = a%nargs_of(left)
@@ -1448,7 +1462,9 @@ contains
         if (a%kind_of(right) == NK_ADD) nright = a%nargs_of(right)
 
         if (nleft == 1 .and. nright == 1) then
-            out = a%mul([left, right])
+            pair(1) = left
+            pair(2) = right
+            out = a%mul(pair)
             return
         end if
 
@@ -1461,7 +1477,9 @@ contains
                 rid = right
                 if (a%kind_of(right) == NK_ADD) rid = a%arg_of(right, j)
                 k = k + 1
-                terms(k) = a%mul([lid, rid])
+                pair(1) = lid
+                pair(2) = rid
+                terms(k) = a%mul(pair)
             end do
         end do
         out = a%add(terms)
