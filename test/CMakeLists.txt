@@ -82,6 +82,13 @@ add_test(NAME test_fortsym_header_cpp COMMAND test_fortsym_header_cpp)
 # --- privacy-safe consumer evidence tooling ---
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_test(
+    NAME test_fortsym_python
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/python/test_fortsym_python.py)
+set_tests_properties(
+    test_fortsym_python
+    PROPERTIES
+        ENVIRONMENT "PYTHONPATH=${PROJECT_SOURCE_DIR}/python;FORTSYM_LIBRARY=$<TARGET_FILE:fortsym>")
+add_test(
     NAME test_consumer_audit
     COMMAND
         ${Python3_EXECUTABLE}

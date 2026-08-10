@@ -1,4 +1,4 @@
-add_library(fortsym STATIC)
+add_library(fortsym SHARED)
 
 # Fortran and C++ module sources, grouped by layer and kept alphabetical within
 # each group, one per line, so parallel work rarely collides here.

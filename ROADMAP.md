@@ -66,6 +66,15 @@ deterministic reference-counted lifetime, and per-call status buffers. C and
 C++ clients are compiled and the C client exercises cross-arena refusal,
 exactness, buffer sizing, and releasing an arena before its expressions.
 
+Issue #22 (native Python package) is complete as of 2026-08-10: the shared C
+ABI now exposes native expansion, and the standard-library-only `ctypes`
+package supports deterministic handles, exact arbitrary-size integers and
+rationals, scalar coercion, expansion, substitution, structural equality and
+hashing without importing SymPy. Source and wheel loading are documented, CMake
+installs the package sources, and CI builds a wheel in a clean virtualenv. The
+focused Python suite and full `fo test` pass; the existing CUDA emitter fixture
+remains the only known full-suite failure on this host.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.
