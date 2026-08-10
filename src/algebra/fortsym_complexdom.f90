@@ -218,7 +218,7 @@ contains
         type(expr_t),               intent(out) :: re, im
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
-        type(expr_t)   :: base_re, base_im, nre, nim, den, expo
+        type(expr_t)   :: base, base_re, base_im, nre, nim, den, expo
         integer(int64) :: n, k
 
         ok = .false.
@@ -241,7 +241,13 @@ contains
             return
         end if
 
-        call complex_split(e%arg(1), facts, base_re, base_im, ok, why)
+        base = e%arg(1)
+        if (provably_zero(base)) then
+            why = "the base of this negative power is identically "// &
+                  "zero, so the expression has no value anywhere"
+            return
+        end if
+        call complex_split(base, facts, base_re, base_im, ok, why)
         if (.not. ok) return
 
         re = one(e)
@@ -499,6 +505,11 @@ contains
         character(:), allocatable,  intent(out) :: why
         type(expr_t) :: re, im
 
+        if (provably_zero(e)) then
+            ok = .false.
+            why = "Arg is undefined at zero"
+            return
+        end if
         call complex_split(e, facts, re, im, ok, why)
         if (.not. ok) return
         if (provably_zero(re)) then
@@ -542,6 +553,10 @@ contains
 
         yes = .false.
         if (.not. is_valid(e)) return
+        if (structurally_zero(e)) then
+            yes = .true.
+            return
+        end if
         if (e%kind() == NK_INT) then
             yes = e%int_value() == 0_int64
             return
@@ -551,6 +566,189 @@ contains
         if (.not. r%ok) return
         yes = r%verdict == VERDICT_TRUE
     end function provably_zero
+
+    !> Small, engine-independent zero proofs used at domain boundaries.
+    !>
+    !> The native simplifier is deliberately conservative and can return
+    !> UNKNOWN for a cancellation hidden inside an applied expression. Arg and
+    !> negative powers need a stronger local guarantee: a proved zero must be
+    !> rejected, while UNKNOWN must never be turned into a zero claim.
+    recursive function structurally_zero(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+        integer :: k, j, m
+        type(expr_t) :: exponent
+
+        yes = .false.
+        select case (e%kind())
+        case (NK_INT, NK_RAT)
+            yes = e%int_value() == 0_int64
+        case (NK_REAL)
+            yes = e%real_value() == 0.0
+        case (NK_MUL)
+            do k = 1, e%nargs()
+                if (structurally_zero(e%arg(k))) then
+                    yes = .true.
+                    return
+                end if
+            end do
+        case (NK_ADD)
+            if (e%nargs() == 0) then
+                yes = .true.
+                return
+            end if
+            yes = .true.
+            do k = 1, e%nargs()
+                if (.not. structurally_zero(e%arg(k))) then
+                    yes = .false.
+                    exit
+                end if
+            end do
+            if (yes) return
+            if (negative_sum_cancels(e)) then
+                yes = .true.
+                return
+            end if
+            do k = 1, e%nargs()
+                do j = k + 1, e%nargs()
+                    if (.not. opposite_terms(e%arg(k), e%arg(j))) cycle
+                    yes = .true.
+                    do m = 1, e%nargs()
+                        if (m == k .or. m == j) cycle
+                        if (.not. structurally_zero(e%arg(m))) yes = .false.
+                    end do
+                    if (yes) return
+                end do
+            end do
+        case (NK_POW)
+            exponent = e%arg(2)
+            if (exponent%kind() == NK_INT) then
+                if (exponent%int_value() > 0_int64) then
+                    yes = structurally_zero(e%arg(1))
+                end if
+            end if
+        end select
+    end function structurally_zero
+
+    function negative_sum_cancels(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+        logical, allocatable     :: used(:)
+        logical                  :: found
+        type(expr_t)             :: term, payload, inner, candidate
+        integer                  :: k, j, m
+
+        yes = .false.
+        if (e%kind() /= NK_ADD) return
+        allocate (used(e%nargs()))
+        do k = 1, e%nargs()
+            term = e%arg(k)
+            call negated_sum(term, payload, found)
+            if (.not. found) cycle
+            used = .false.
+            used(k) = .true.
+            yes = .true.
+            do j = 1, payload%nargs()
+                inner = payload%arg(j)
+                found = .false.
+                do m = 1, e%nargs()
+                    if (used(m)) cycle
+                    candidate = e%arg(m)
+                    if (candidate%id == inner%id) then
+                        used(m) = .true.
+                        found = .true.
+                        exit
+                    end if
+                end do
+                if (.not. found) then
+                    yes = .false.
+                    exit
+                end if
+            end do
+            if (.not. yes) cycle
+            do m = 1, e%nargs()
+                if (used(m)) cycle
+                if (.not. structurally_zero(e%arg(m))) then
+                    yes = .false.
+                    exit
+                end if
+            end do
+            if (yes) return
+        end do
+    end function negative_sum_cancels
+
+    subroutine negated_sum(e, payload, yes)
+        type(expr_t), intent(in)  :: e
+        type(expr_t), intent(out) :: payload
+        logical, intent(out)      :: yes
+        type(expr_t) :: factor, other
+        integer :: k
+
+        yes = .false.
+        if (e%kind() /= NK_MUL .or. e%nargs() /= 2) return
+        do k = 1, 2
+            factor = e%arg(k)
+            other = e%arg(3 - k)
+            if (is_minus_one(factor)) then
+                if (other%kind() == NK_ADD) then
+                    payload = other
+                    yes = .true.
+                    return
+                end if
+            end if
+        end do
+    end subroutine negated_sum
+
+    function opposite_terms(left, right) result(yes)
+        type(expr_t), intent(in) :: left, right
+        logical                  :: yes
+        type(expr_t)             :: left_factor, left_term
+        type(expr_t)             :: right_factor, right_term
+
+        yes = .false.
+        if (left%id == right%id) return
+        if (left%kind() == NK_MUL) then
+            if (left%nargs() == 2) then
+                left_factor = left%arg(1)
+                left_term = left%arg(2)
+                if (is_minus_one(left_factor)) then
+                    if (left_term%id == right%id) yes = .true.
+                end if
+                left_factor = left%arg(2)
+                left_term = left%arg(1)
+                if (is_minus_one(left_factor)) then
+                    if (left_term%id == right%id) yes = .true.
+                end if
+            end if
+        end if
+        if (right%kind() == NK_MUL) then
+            if (right%nargs() == 2) then
+                right_factor = right%arg(1)
+                right_term = right%arg(2)
+                if (is_minus_one(right_factor)) then
+                    if (right_term%id == left%id) yes = .true.
+                end if
+                right_factor = right%arg(2)
+                right_term = right%arg(1)
+                if (is_minus_one(right_factor)) then
+                    if (right_term%id == left%id) yes = .true.
+                end if
+            end if
+        end if
+    end function opposite_terms
+
+    function is_minus_one(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+
+        yes = .false.
+        select case (e%kind())
+        case (NK_INT)
+            yes = e%int_value() == -1_int64
+        case (NK_RAT)
+            yes = e%int_value() == -1_int64 .and. e%den_value() == 1_int64
+        end select
+    end function is_minus_one
 
     !> An upper bound on the number of terms the rectangular expansion of `e`
     !> would have, saturating at MAX_TERMS + 1 so a nested power cannot

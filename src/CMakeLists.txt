@@ -34,6 +34,9 @@ target_sources(fortsym PRIVATE
 
     # exact linear algebra
     algebra/fortsym_linalg.f90
+    algebra/fortsym_complexdom.f90
+    algebra/fortsym_integrate.f90
+    algebra/fortsym_polysolve.f90
 
     # multi-engine adjudication
     council/fortsym_council.f90

@@ -51,6 +51,14 @@ PatternTest, Alternatives, precision and context backticks, and UpSet forms
 now parse as named structural heads, with precedence coverage in
 `test_fortsym_wolfram`; unsupported evaluation remains an explicit refusal.
 
+Issue #50 (residual defects in the new modules) is complete as of 2026-08-10:
+`Integrate[1/x]` preserves logarithmic dynamic range with `log(abs(x))`, the
+complex-domain boundary proves bounded structural cancellations before `Arg`
+and negative powers, and polynomial solving raises its recursion refusal cap
+with a deep valid-input regression test. The focused tests use numeric and
+exact-arithmetic oracles; the repository's existing CUDA emitter fixture
+remains the only known full-suite failure on this host.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.

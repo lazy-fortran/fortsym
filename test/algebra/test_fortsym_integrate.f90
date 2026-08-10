@@ -49,6 +49,7 @@ program test_fortsym_integrate
     call test_atan_and_asin()
     call test_symbolic_constant_factor()
     call test_negative_log_arguments()
+    call test_log_dynamic_range()
     call test_exponent_near_minus_one()
     call test_refusals()
 
@@ -259,6 +260,25 @@ contains
         call check_against_quadrature("int tan(x) dx on [2,3]", tan(x), &
             2.0_dp, 3.0_dp)
     end subroutine test_negative_log_arguments
+
+    subroutine test_log_dynamic_range()
+        type(expr_t) :: f
+        real(dp) :: left, right
+        logical :: good, left_defined, right_defined
+        character(:), allocatable :: why
+
+        f = integrate(arena, 1/x, x, good, why)
+        call ok("int 1/x integrates across the dynamic range", good)
+        if (.not. good) return
+        left = value_at(f, 1.0e-200_dp, left_defined)
+        right = value_at(f, 1.0_dp, right_defined)
+        call ok("logarithmic antiderivative stays defined at 1e-200", &
+            left_defined .and. right_defined)
+        if (left_defined .and. right_defined) then
+            call ok("int 1/x preserves the wide-range logarithm", &
+                abs((right - left) - log(1.0e200_dp)) < 1.0e-10_dp)
+        end if
+    end subroutine test_log_dynamic_range
 
     !> An exponent one part in 10**17 away from -1 rounds to -1.0 in real64,
     !> but its antiderivative is a power, not a logarithm. The oracle here is

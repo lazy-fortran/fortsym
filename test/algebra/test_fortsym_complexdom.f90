@@ -398,6 +398,13 @@ contains
         call arg_of(rat(arena, 0_int64, 5_int64), facts, out, good, why)
         call ok("Arg(0/5) is refused", .not. good)
 
+        e = (x + y) - (x + y)
+        call arg_of(e, facts, out, good, why)
+        call ok("Arg of an undecided-looking cancellation is refused", .not. good)
+        e = e**num(arena, -1)
+        call complex_split(e, facts, re, im, good, why)
+        call ok("negative power of a hidden zero is refused", .not. good)
+
         ! The other direction: a base that is not zero must still go through,
         ! or the guard has been widened into a refusal of everything.
         call arg_of(z, facts, out, good, why)

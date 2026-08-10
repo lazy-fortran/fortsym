@@ -63,7 +63,7 @@ module fortsym_integrate
     use fortsym_expr, only: expr_t, num, rat, is_valid, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), operator(/=), &
-        sin, cos, tan, asin, atan, sinh, cosh, exp, log, sqrt
+        sin, cos, tan, asin, atan, sinh, cosh, exp, log, sqrt, abs
     use fortsym_diff, only: diff
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE, VERDICT_FALSE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -476,11 +476,12 @@ contains
         end if
 
         if (minus_one) then
-            ! log|base|, written as log(base**2)/2 so that the answer is real
-            ! and correct on both sides of the zero of the base. Emitting
-            ! log(base) would be undefined exactly where the integrand is
-            ! perfectly regular.
-            f = log(base*base)*rat(e%a, 1_int64, 2_int64)/slope
+            ! log|base| is numerically stable across the whole dynamic range:
+            ! squaring first underflows for tiny bases and overflows for large
+            ! ones even though log|base| itself is finite. The differentiator
+            ! carries d abs(u) = u/abs(u) * du, so the verifier still checks the
+            ! candidate on either side of the zero of a real linear base.
+            f = log(abs(base))/slope
         else
             f = base**(expo + 1)/(slope*(expo + 1))
         end if
