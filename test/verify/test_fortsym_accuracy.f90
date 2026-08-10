@@ -1,3 +1,26 @@
+module test_fortsym_accuracy_support
+    use, intrinsic :: iso_fortran_env, only: real64
+    implicit none
+    private
+
+    public :: one_ulp_kernel
+
+contains
+
+    subroutine one_ulp_kernel(input, output, kernel_ok, kernel_why)
+        integer, parameter :: dp = real64
+        real(dp), intent(in) :: input(:)
+        real(dp), intent(out) :: output
+        logical, intent(out) :: kernel_ok
+        character(:), allocatable, intent(out) :: kernel_why
+
+        output = input(1) + spacing(input(1))
+        kernel_ok = .true.
+        kernel_why = ""
+    end subroutine one_ulp_kernel
+
+end module test_fortsym_accuracy_support
+
 program test_fortsym_accuracy
     ! The expected result here is independent of fortsym: the test kernel adds
     ! exactly one binary64 spacing to x, so x and the one-ulp successor are
@@ -6,6 +29,7 @@ program test_fortsym_accuracy
     use fortsym_arena, only: arena_t
     use fortsym_accuracy, only: accuracy_spec_t, accuracy_report_t, &
         measure_accuracy
+    use test_fortsym_accuracy_support, only: one_ulp_kernel
     use fortsym_expr, only: expr_t, sym
     implicit none
 
@@ -53,17 +77,6 @@ program test_fortsym_accuracy
     print *, "test_fortsym_accuracy: all checks passed"
 
 contains
-
-    subroutine one_ulp_kernel(input, output, kernel_ok, kernel_why)
-        real(dp), intent(in) :: input(:)
-        real(dp), intent(out) :: output
-        logical, intent(out) :: kernel_ok
-        character(:), allocatable, intent(out) :: kernel_why
-
-        output = input(1) + spacing(input(1))
-        kernel_ok = .true.
-        kernel_why = ""
-    end subroutine one_ulp_kernel
 
     subroutine check(label, condition)
         character(*), intent(in) :: label

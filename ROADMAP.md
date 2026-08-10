@@ -134,6 +134,15 @@ it is defined. The sample matrix, domain, sequence, precision bound, and
 kernel refusal count are retained in the report. Its test uses an independently
 constructed one-ULP perturbation rather than reusing the instrument's result.
 
+Issue #66 (precision as an emission choice) is complete as of 2026-08-11:
+both kernel emitters expose explicit `PRECISION_REAL64`, `PRECISION_REAL32`,
+and `PRECISION_MIXED` modes. The single-precision path emits `real32`/`float`
+arguments, temporaries, literals, and math functions; the mixed path keeps
+arithmetic lowered while placing outputs at a declared `real64` boundary.
+Generated real32 source is compiled and run against an independently written
+Fortran oracle, and values that cannot remain finite in real32 are refused
+before emission. The default remains the historical real64 output.
+
 Build hygiene is also part of the current regression gate: the global
 `-Warray-temporaries` pass is clean across the library, applications, and
 tests, and the Nix CI jobs add their dependency library directories to the
@@ -853,13 +862,14 @@ win: eliminating a subexpression extends a live range and can cost occupancy
 rematerialisation as the counter-optimisation. Register sufficiency for DAGs is
 NP-complete (**Sethi 1975**), so this is a measured heuristic, per target.
 
-Precision joins it (#66): AVX-512 holds 16 `real32` lanes against 8 `real64`,
-and an FMA delivers 32 FLOPs against 16 — a 2× lever on CPU before any GPU is
-involved. Mixed-precision adaptive Runge–Kutta preserves accuracy across a wide
-tolerance range (**arXiv 2605.23727**), while naive uniform low precision
-produces instabilities. Gated on #65: choosing a precision without an accuracy
-instrument is guessing, and for long-time symplectic integration a plausible
-wrong answer would survive every existing test.
+Precision choice (#66) is now explicit: AVX-512 holds 16 `real32` lanes
+against 8 `real64`, and an FMA delivers 32 FLOPs against 16 — a 2× lever on
+CPU before any GPU is involved. Mixed-precision adaptive Runge–Kutta
+preserves accuracy across a wide tolerance range (**arXiv 2605.23727**), while
+naive uniform low precision produces instabilities. The selectable modes are
+gated by #65's accuracy instrument: choosing a precision without measuring it
+is guessing, and for long-time symplectic integration a plausible wrong answer
+would survive every existing test.
 
 Acceptance for this milestone follows the standard gate with one addition: a
 change meant to preserve behaviour must keep downstream generated output

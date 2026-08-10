@@ -8,7 +8,7 @@ program test_fortsym_kernel
     ! about correctness; this catches a lost sign, a wrong precedence or a
     ! mis-ordered CSE temporary. Golden strings are used only where formatting
     ! itself is the requirement.
-    use, intrinsic :: iso_fortran_env, only: real64
+    use, intrinsic :: iso_fortran_env, only: real32, real64
     use fortsym_string, only: str, str_t, chars
     use fortsym_arena, only: arena_t
     use fortsym_expr
@@ -42,6 +42,7 @@ program test_fortsym_kernel
     call test_projected_exact_operation_count()
     call test_unrepresentable_exact_is_refused()
     call test_temporaries_are_declared()
+    call test_precision_modes()
     call test_default_temporary_prefix()
     call test_explicit_regeneration_command()
     call test_generator_revision()
@@ -373,6 +374,88 @@ contains
         call ok("declares output", index(code, "intent(out) :: r") > 0)
         call ok("names its generator", index(code, "gen_test") > 0)
     end subroutine test_temporaries_are_declared
+
+    subroutine test_precision_modes()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+        integer :: unit, ios, stat
+
+        call a%init()
+        roots(1) = parsed(a, "x*y + sin(x) + 1.25")
+        spec = spec_for("precision_leaf", XY_ARGS, R_OUT)
+        spec%module_name = str("generated_precision")
+
+        spec%precision = PRECISION_REAL32
+        code = chars(emit_kernel(roots, spec))
+        call ok("real32 uses an explicit kind", &
+            index(code, "real(real32), intent(in) :: x, y") > 0 .and. &
+            index(code, "real(real32), intent(out) :: r") > 0 .and. &
+            index(code, "_real32") > 0)
+        call ok("real32 does not use the double kind", &
+            index(code, "real(dp)") == 0)
+
+        open (newunit=unit, file="/tmp/fortsym_gen_real32.f90", &
+            status="replace", action="write", iostat=ios)
+        call ok("real32 fixture opens", ios == 0)
+        if (ios /= 0) return
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_real32"
+        write (unit, "(a)") "  use generated_precision, only: precision_leaf"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: real32"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(real32) :: x, y, r"
+        write (unit, "(a)") "  x = 0.37_real32; y = -0.81_real32"
+        write (unit, "(a)") "  call precision_leaf(x, y, r)"
+        write (unit, "(a)") "  if (abs(r - (x*y + sin(x) + 1.25_real32)) > 2.0e-6_real32) error stop 1"
+        write (unit, "(a)") "end program drive_real32"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -J /tmp -o /tmp/fortsym_gen_real32 "// &
+            "/tmp/fortsym_gen_real32.f90 > /tmp/fortsym_gen_real32.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("real32 generated kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_gen_real32", wait=.true., &
+                exitstat=stat)
+            call ok("real32 generated kernel runs", stat == 0)
+        end if
+
+        spec%precision = PRECISION_MIXED
+        code = chars(emit_kernel(roots, spec))
+        call ok("mixed precision exposes both kinds", &
+            index(code, "real(real32), intent(in) :: x, y") > 0 .and. &
+            index(code, "real(real64), intent(out) :: r") > 0 .and. &
+            index(code, "_real32") > 0)
+
+        open (newunit=unit, file="/tmp/fortsym_gen_mixed.f90", &
+            status="replace", action="write", iostat=ios)
+        call ok("mixed fixture opens", ios == 0)
+        if (ios /= 0) return
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_mixed"
+        write (unit, "(a)") "  use generated_precision, only: precision_leaf"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: real32, real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(real32) :: x, y"
+        write (unit, "(a)") "  real(real64) :: r"
+        write (unit, "(a)") "  x = 0.37_real32; y = -0.81_real32"
+        write (unit, "(a)") "  call precision_leaf(x, y, r)"
+        write (unit, "(a)") "  if (abs(r - real(x*y + sin(x) + 1.25_real32, real64)) > 2.0e-6_real64) error stop 1"
+        write (unit, "(a)") "end program drive_mixed"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -J /tmp -o /tmp/fortsym_gen_mixed "// &
+            "/tmp/fortsym_gen_mixed.f90 > /tmp/fortsym_gen_mixed.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("mixed generated kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_gen_mixed", wait=.true., &
+                exitstat=stat)
+            call ok("mixed generated kernel runs", stat == 0)
+        end if
+    end subroutine test_precision_modes
 
     subroutine test_default_temporary_prefix()
         type(arena_t), target :: a
