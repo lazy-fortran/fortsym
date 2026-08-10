@@ -59,6 +59,13 @@ with a deep valid-input regression test. The focused tests use numeric and
 exact-arithmetic oracles; the repository's existing CUDA emitter fixture
 remains the only known full-suite failure on this host.
 
+Issue #21 (ownership-safe C ABI) is complete as of 2026-08-10: the installed
+`fortsym.h` contract provides opaque arena/expression handles, exact scalar and
+function construction, arithmetic, inspection, substitution, differentiation,
+deterministic reference-counted lifetime, and per-call status buffers. C and
+C++ clients are compiled and the C client exercises cross-arena refusal,
+exactness, buffer sizing, and releasing an arena before its expressions.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.

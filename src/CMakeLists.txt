@@ -7,6 +7,7 @@ target_sources(fortsym PRIVATE
     capi/fsym_shim.cpp
     capi/fsym_yacas.cpp
     capi/fortsym_capi.f90
+    capi/fortsym_public_capi.f90
 
     # utilities
     util/fortsym_string.f90
@@ -70,19 +71,21 @@ target_sources(fortsym PRIVATE
 )
 
 target_include_directories(fortsym
-    PUBLIC ${CMAKE_Fortran_MODULE_DIRECTORY}
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>
+        $<INSTALL_INTERFACE:include>
     PRIVATE ${PROJECT_SOURCE_DIR}/src/capi)
 
 target_link_libraries(fortsym PUBLIC
-    fortsym::symengine
-    fortsym::mpfr
-    fortsym::flint
+    $<BUILD_INTERFACE:fortsym::symengine>
+    $<BUILD_INTERFACE:fortsym::mpfr>
+    $<BUILD_INTERFACE:fortsym::flint>
     ${CMAKE_DL_LIBS})
 
 # Yacas is optional at configure time; when present its shim and backend join
 # the library and the scripts path is compiled in.
 if(TARGET fortsym::yacas)
-    target_link_libraries(fortsym PUBLIC fortsym::yacas)
+    target_link_libraries(fortsym PUBLIC $<BUILD_INTERFACE:fortsym::yacas>)
     set_property(SOURCE capi/fsym_yacas.cpp APPEND PROPERTY
         COMPILE_DEFINITIONS FORTSYM_HAVE_YACAS)
 endif()
