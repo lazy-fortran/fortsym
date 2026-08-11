@@ -19,7 +19,8 @@ module fortsym_arena
     ! Canonicalization is deliberately shallow. Sums and products are flattened
     ! and their operands put in a structural semantic order, so x+y and y+x
     ! intern to the same node and construction history cannot change printed or
-    ! generated output. No attempt is made to collect like terms or simplify.
+    ! generated output. No attempt is made to collect like terms or simplify;
+    ! universal power identities are the one construction-time exception.
     ! Algebra is the engines' job; this layer only has to be a faithful, shared,
     ! comparable structure.
     use, intrinsic :: iso_fortran_env, only: int64, real64
@@ -884,6 +885,35 @@ contains
         integer,        intent(in)    :: base, expo
         integer                       :: idx
         integer :: args(2)
+        character(:), allocatable :: exponent_name
+
+        if (self%nodes(expo)%kind == NK_INT .and. &
+            self%nodes(expo)%num == 0_int64) then
+            idx = self%int(1_int64)
+            return
+        end if
+        if (self%nodes(base)%kind == NK_INT .and. &
+            self%nodes(base)%num == 1_int64) then
+            if (self%nodes(expo)%kind == NK_CONST) then
+                exponent_name = chars(self%name_of(expo))
+                if (exponent_name == "oo" .or. exponent_name == "zoo" .or. &
+                    exponent_name == "nan") then
+                    idx = self%const("nan")
+                    return
+                end if
+            end if
+            idx = base
+            return
+        end if
+        if (self%nodes(base)%kind == NK_FUNC .and. &
+            self%nodes(base)%n_args == 1 .and. &
+            self%nodes(expo)%kind == NK_INT .and. &
+            self%nodes(expo)%num == 2_int64 .and. &
+            chars(self%name_of(base)) == "sqrt") then
+            idx = self%arg_of(base, 1)
+            return
+        end if
+
         args(1) = base
         args(2) = expo
         idx = intern(self, NK_POW, 0_int64, 1_int64, 0.0_dp, 0, args)

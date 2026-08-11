@@ -174,6 +174,12 @@ contains
         r = engine%simplify(sqrt(sqrt_argument)**2)
         call check("square of principal square root is exact", &
             r%value == sqrt_argument)
+        call check("zero exponent is one at construction", &
+            x**0 == num(arena, 1_int64))
+        call check("one to a symbolic exponent is one", &
+            num(arena, 1_int64)**x == num(arena, 1_int64))
+        call check("square of principal square root is canonical", &
+            sqrt(sqrt_argument)**2 == sqrt_argument)
     end subroutine test_like_terms_and_powers
 
     subroutine test_common_rational_factor()

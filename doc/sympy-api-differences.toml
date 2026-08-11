@@ -62,7 +62,7 @@ id = "evaluated-arithmetic"
 affected = ["Add", "Mul", "Pow"]
 parity = "partial"
 sympy = "Add, Mul, and Pow canonicalize supported expressions and expose evaluate=False unevaluated forms."
-fortsym = "The adapter constructs evaluated native arithmetic and refuses evaluate=False."
+fortsym = "The adapter constructs evaluated native arithmetic and refuses evaluate=False; the shared arena canonicalizes universal power identities (`x**0`, `1**x` outside sentinel exponents, and `sqrt(x)**2`) and maps `1**oo`, `1**zoo`, and `1**nan` to `nan` while retaining branch-sensitive powers."
 difference = "Unevaluated-expression semantics, canonical ordering, domain rules, and broad power evaluation are narrower."
 
 [[semantic]]

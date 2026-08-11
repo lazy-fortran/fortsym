@@ -87,9 +87,12 @@ undefined = nan_expr(default_arena())
 ```
 
 Native simplification propagates `nan` through addition, multiplication, the
-supported numeric unary heads, and powers. The defined power exception is
-`nan**0 = 1`; a NaN base or exponent in every other supported power produces
-`nan`. Unknown function heads remain structural and are not assigned guessed
+supported numeric unary heads, and powers. Universal construction identities
+are canonicalized in the shared arena: `x**0 = 1`, `1**x = 1` except for the
+`oo`/`zoo`/`nan` exponents, which produce `nan`, and `sqrt(x)**2 = x`. The
+defined sentinel power exception is `nan**0 = 1`; a NaN base or exponent in every
+other supported power produces `nan`. Unknown function heads remain structural
+and are not assigned guessed
 domain rules. Non-integer powers, symbolic-factor products, and
 operation-specific function/limit rules remain separate roadmap work. The
 current unary fragment covers `sqrt`, `abs`, `exp`, and `log` on known domain

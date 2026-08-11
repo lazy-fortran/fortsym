@@ -499,7 +499,8 @@ contains
 
         e = z**num(arena, 0)
         call re_part(e, facts, out, good, why)
-        call ok("zeroth power is refused", .not. good)
+        call ok("zeroth power is canonical one", good .and. &
+            out == num(arena, 1_int64))
 
         e = z**num(arena, 100)
         call re_part(e, facts, out, good, why)
@@ -660,7 +661,7 @@ contains
     !> conj(w**n) = conj(w)**n needs no expansion, so the exponent bounds that
     !> stop the splitter do not apply. The check is that the wider answers are
     !> right -- against conjg in the oracle -- and that the splitter's refusal
-    !> on the same input is still a refusal.
+    !> on the same positive power remains a refusal.
     subroutine test_conjugate_domain_is_wider()
         type(expr_t) :: e, c, out
         logical :: good, allgood
@@ -678,7 +679,7 @@ contains
             call ok("conj(z**0) agrees with conjg", allgood)
         end if
         call abs_of(e, facts, out, good, why)
-        call ok("Abs(z**0) is still refused by the splitter", .not. good)
+        call ok("Abs(z**0) is accepted after canonicalization", good)
 
         e = z**num(arena, 30)
         call conjugate(e, facts, c, good, why)

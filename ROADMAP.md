@@ -458,6 +458,11 @@ Every checklist item requires all of the following:
     nonzero `x`; unsupported domain cases remain unevaluated.
   - [x] Match the principal-square-root power convention by reducing
     `sqrt(x)**2` to `x` for symbolic `x`.
+  - [x] Canonicalize universal power-constructor identities in the shared
+    arena: exact exponent zero becomes `1`, exact base one becomes `1` except
+    for SymPy's `oo`/`zoo`/`nan` exponent exceptions, which become `nan`, and
+    principal `sqrt(x)**2` becomes `x`; branch-sensitive and undecidable power
+    cases remain unevaluated.
 - [ ] Match SymPy branch conventions while preserving fortsym's refusal of
   unsafe identities.
 - [ ] Implement the general simplification families: `powsimp`, `powdenest`,
@@ -615,6 +620,12 @@ Every checklist item requires all of the following:
     numeric and algebraic predicate queries, is at or below the SymPy 1.14.0
     median in the recorded run. The cold predicate calls remain documented
     ABI-crossing diagnostics.
+  - [x] Add the universal power-constructor case to the correctness matrix and
+    record its cold ABI-crossing cost separately: the 55th row is an explicit
+    diagnostic, while the original 54 workload rows remain enforced. The
+    constructor result matches SymPy 1.14.0; the one-node cold boundary was
+    1.53x SymPy in the recorded run and is therefore explicitly waived rather
+    than presented as native-core parity.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

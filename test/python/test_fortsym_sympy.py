@@ -86,6 +86,7 @@ class SympySubsetTest(unittest.TestCase):
     def test_principal_sqrt_power_is_exact(self):
         x = sp.Symbol("principal_sqrt_power")
         raw = sp.sqrt(x)**2
+        self.assertEqual(raw, x)
         self.assertEqual(sp.simplify(raw), x)
 
     def test_domain_sentinels_are_exposed(self):
