@@ -124,6 +124,8 @@ class SympyDifferentialTest(unittest.TestCase):
             x = api.Symbol("power_constructor_x")
             return {
                 "zero_exponent": x**0,
+                "one_exponent": x**1,
+                "one_exponent_sentinel": api.oo**1,
                 "one_base": api.Integer(1)**x,
                 "one_base_sentinel": api.Integer(1)**api.oo,
                 "principal_sqrt_square": api.sqrt(api.pi)**2,
@@ -133,7 +135,7 @@ class SympyDifferentialTest(unittest.TestCase):
         native_cases = cases(native)
         for label, expected in oracle_cases.items():
             with self.subTest(label=label):
-                if label == "one_base_sentinel":
+                if label in ("one_exponent_sentinel", "one_base_sentinel"):
                     self.assertEqual(str(native_cases[label]), str(expected))
                 else:
                     self.assert_equivalent(label, expected, native_cases[label])

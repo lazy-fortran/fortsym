@@ -88,7 +88,8 @@ undefined = nan_expr(default_arena())
 
 Native simplification propagates `nan` through addition, multiplication, the
 supported numeric unary heads, and powers. Universal construction identities
-are canonicalized in the shared arena: `x**0 = 1`, `1**x = 1` except for the
+are canonicalized in the shared arena: `x**0 = 1`, `x**1 = x`, and
+`1**x = 1` except for the
 `oo`/`zoo`/`nan` exponents, which produce `nan`, and `sqrt(x)**2 = x`. The
 defined sentinel power exception is `nan**0 = 1`; a NaN base or exponent in every
 other supported power produces `nan`. Unknown function heads remain structural

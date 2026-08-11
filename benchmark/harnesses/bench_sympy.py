@@ -29,7 +29,7 @@ _ASSUMPTION_OPERATIONS = (
     "assumption_query", "integer_assumption_query",
     "rational_assumption_query", "algebraic_assumption_query",
 )
-_CONSTRUCTION_OPERATIONS = ("power_constructor",)
+_CONSTRUCTION_OPERATIONS = ("power_constructor", "power_one_constructor")
 
 
 def predicate_value(expression: Any, operation: str) -> Any:
@@ -313,6 +313,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native_x**0,
             names,
         ),
+        "power_one_constructor": (
+            oracle_x**1,
+            native_x**1,
+            names,
+        ),
         "domain_function": (
             oracle.sqrt(-oracle.oo, evaluate=False),
             native.sqrt(-native_oo),
@@ -459,8 +464,9 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.exp(x * y)
     elif operation == "simplify":
         expression = engine.sqrt(x**2)
-    elif operation == "power_constructor":
-        expression = x**0
+    elif operation in _CONSTRUCTION_OPERATIONS:
+        exponent = 0 if operation == "power_constructor" else 1
+        expression = x**exponent
     elif operation == "domain_function":
         if engine is oracle:
             expression = engine.sqrt(-engine.oo, evaluate=False)
@@ -902,7 +908,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "domain_function", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
+        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):
         if operation in _PREDICATE_OPERATIONS:
