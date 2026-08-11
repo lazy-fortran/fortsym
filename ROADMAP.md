@@ -173,9 +173,12 @@ Every checklist item requires all of the following:
   constants, including `real_expr`, `real_text_expr`, `pi_expr`, `e_expr`, and
   `i_expr`, remain intentional. The generated API classification and naming
   audit were updated with the migration.
-- [ ] Make constructors, arithmetic operators, elementary functions,
+- [x] Make constructors, arithmetic operators, elementary functions,
   substitution, differentiation, simplification, expansion, equality, and
-  numerical evaluation available through one easy facade.
+  numerical evaluation available through one easy facade. `fortsym` now
+  forwards the core operations to their owning modules or the native engine,
+  using one optional `ok`/`why` refusal convention and preserving the
+  Fortran-native `expr_t` return shape.
 - [ ] Keep `x = "x"` and `symbols(...)` as the default-state entry points.
 - [ ] Make default-state reset, stale-handle behaviour, and global-state
   lifetime explicit and tested.
