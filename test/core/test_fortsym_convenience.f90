@@ -71,6 +71,22 @@ program test_fortsym_convenience
     factored = factor(mu**2 + 2*mu + 1, good, why)
     call check("facade exposes native factorisation", &
         good .and. factored == (mu + 1)**2, failures)
+    substituted = subs(explicit_mu + explicit_sigma, explicit_mu, explicit_sigma, &
+        good, why)
+    call check("explicit arena uses facade substitution", &
+        good .and. substituted == explicit_sigma + explicit_sigma, failures)
+    derivative = diff(explicit_mu*explicit_mu, explicit_mu, good, why)
+    call check("explicit arena uses facade differentiation", &
+        good .and. derivative == 2*explicit_mu, failures)
+    simplified = simplify(explicit_mu + 0, good, why)
+    call check("explicit arena uses facade simplification", &
+        good .and. simplified == explicit_mu, failures)
+    expanded = expand((explicit_mu + 1)*(explicit_mu + 2), good, why)
+    call check("explicit arena uses facade expansion", &
+        good .and. expanded == explicit_mu**2 + 3*explicit_mu + 2, failures)
+    factored = factor(explicit_mu**2 + 2*explicit_mu + 1, good, why)
+    call check("explicit arena uses facade factorisation", &
+        good .and. factored == (explicit_mu + 1)**2, failures)
     failed = subs(mu, mu, explicit_mu, good, why)
     call check("facade reports cross-arena substitution refusal", &
         .not. good .and. .not. is_valid(failed), failures)

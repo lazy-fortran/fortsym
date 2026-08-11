@@ -72,6 +72,9 @@ Expressions built with an explicit arena can use every operator and expression
 function exported by `fortsym`. Expressions combined by an operator must belong
 to the same arena. The default and explicit forms can be mixed when the
 explicit constructor receives `default_arena()`.
+The core operations use the expression's owning arena, so the same `subs`,
+`diff`, `simplify`, `expand`, and `factor` calls work without an explicit-arena
+variant or a second calling syntax.
 
 ## Core operations
 
