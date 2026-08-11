@@ -1848,6 +1848,13 @@ contains
             end if
         case ("log")
             if (is_one_id(a, args(1))) out = a%int(0_int64)
+        case ("sign")
+            call exact_sign_value(a, args(1), trig_constant, trig_constant_ok)
+            if (trig_constant_ok) out = trig_constant
+        case ("floor", "ceiling")
+            call exact_rounding_value(a, name, args(1), trig_constant, &
+                trig_constant_ok)
+            if (trig_constant_ok) out = trig_constant
         case ("sqrt", "abs")
             if (is_zero_id(a, args(1))) out = a%int(0_int64)
             if (is_one_id(a, args(1))) out = a%int(1_int64)
@@ -2157,6 +2164,57 @@ contains
         end if
         ok = .true.
     end subroutine exact_absolute_value
+
+    subroutine exact_sign_value(a, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer(int64) :: numerator, denominator
+        logical :: exact
+
+        out = id
+        ok = .false.
+        call exact_value(a, id, numerator, denominator, exact)
+        if (.not. exact) return
+        if (numerator < 0_int64) then
+            out = a%int(-1_int64)
+        else if (numerator > 0_int64) then
+            out = a%int(1_int64)
+        else
+            out = a%int(0_int64)
+        end if
+        ok = .true.
+    end subroutine exact_sign_value
+
+    subroutine exact_rounding_value(a, name, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        character(*), intent(in) :: name
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer(int64) :: numerator, denominator, rounded
+        logical :: exact
+
+        out = id
+        ok = .false.
+        call exact_value(a, id, numerator, denominator, exact)
+        if (.not. exact) return
+        rounded = numerator/denominator
+        if (name == "floor") then
+            if (numerator < 0_int64 .and. &
+                modulo(numerator, denominator) /= 0_int64) then
+                rounded = rounded - 1_int64
+            end if
+        else
+            if (numerator > 0_int64 .and. &
+                modulo(numerator, denominator) /= 0_int64) then
+                rounded = rounded + 1_int64
+            end if
+        end if
+        out = a%int(rounded)
+        ok = .true.
+    end subroutine exact_rounding_value
 
     subroutine integer_square_root(value, root, ok)
         integer(int64), intent(in) :: value
