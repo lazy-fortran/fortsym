@@ -14,14 +14,14 @@ module fortsym_assume
 
     public :: assumption_context_t, assumption_t
     public :: assume, zero, negative, nonpositive, positive, nonnegative, &
-        nonzero, real_valued
+        nonzero, real_valued, rational_valued
     public :: integer_valued, positive_integer, record_relation
     public :: assumption_has
     public :: init_assumption_context, record_assumption, clone_assumption_context
     public :: make_assumption_context, with_assumption
     public :: FACT_REAL, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, &
         FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, FACT_INTEGER, &
-        FACT_POSITIVE_INTEGER
+        FACT_POSITIVE_INTEGER, FACT_RATIONAL
 
     integer, parameter :: FACT_REAL = 1
     integer, parameter :: FACT_POSITIVE = 2
@@ -32,7 +32,8 @@ module fortsym_assume
     integer, parameter :: FACT_ZERO = 64
     integer, parameter :: FACT_NEGATIVE = 128
     integer, parameter :: FACT_NONPOSITIVE = 256
-    integer, parameter :: FACT_ALL = 511
+    integer, parameter :: FACT_RATIONAL = 512
+    integer, parameter :: FACT_ALL = 1023
     integer, parameter :: INITIAL_FACTS = 16
 
     type :: assumption_t
@@ -207,6 +208,9 @@ contains
                     call record_assumption(context, left, FACT_POSITIVE, ok, why)
                     if (.not. ok) return
                 end if
+            case ("Rationals")
+                call record_assumption(context, left, FACT_RATIONAL, ok, why)
+                if (.not. ok) return
             case ("Integers")
                 call record_assumption(context, left, FACT_INTEGER, ok, why)
                 if (.not. ok) return
@@ -417,6 +421,13 @@ contains
         assumption%facts = FACT_REAL
     end function real_valued
 
+    function rational_valued(expression) result(assumption)
+        type(expr_t), intent(in) :: expression
+        type(assumption_t)       :: assumption
+        assumption%expression = expression
+        assumption%facts = FACT_RATIONAL
+    end function rational_valued
+
     function integer_valued(expression) result(assumption)
         type(expr_t), intent(in) :: expression
         type(assumption_t)       :: assumption
@@ -447,11 +458,16 @@ contains
         if (iand(facts, FACT_NONZERO) /= 0) then
             all_facts = ior(all_facts, FACT_REAL)
         end if
+        if (iand(facts, FACT_RATIONAL) /= 0) then
+            all_facts = ior(all_facts, FACT_REAL)
+        end if
         if (iand(facts, FACT_INTEGER) /= 0) then
+            all_facts = ior(all_facts, FACT_RATIONAL)
             all_facts = ior(all_facts, FACT_REAL)
         end if
         if (iand(facts, FACT_POSITIVE_INTEGER) /= 0) then
             all_facts = ior(all_facts, FACT_INTEGER)
+            all_facts = ior(all_facts, FACT_RATIONAL)
             all_facts = ior(all_facts, FACT_POSITIVE)
         end if
         if (iand(all_facts, FACT_ZERO) /= 0) then

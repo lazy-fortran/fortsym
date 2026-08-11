@@ -10,7 +10,8 @@ from __future__ import annotations
 from fractions import Fraction
 
 from .. import (
-    Arena, Expr, FortSymError, _Assumption, _CONFLICT, _FACT_INTEGER, _default,
+    Arena, Expr, FortSymError, _Assumption, _CONFLICT, _FACT_INTEGER,
+    _FACT_RATIONAL, _default,
 )
 
 
@@ -53,6 +54,7 @@ class _KindMeta(type):
 
 _ASSUMPTION_FACTS = {
     "integer": _FACT_INTEGER,
+    "rational": _FACT_RATIONAL,
     "real": 1,
     "zero": 64,
     "negative": 128,
@@ -102,6 +104,7 @@ class _AssumptionPredicate:
 
 class _AssumptionQueries:
     integer = _AssumptionPredicate("integer", _FACT_INTEGER)
+    rational = _AssumptionPredicate("rational", _FACT_RATIONAL)
     real = _AssumptionPredicate("real", 1)
     zero = _AssumptionPredicate("zero", 64)
     negative = _AssumptionPredicate("negative", 128)
@@ -119,6 +122,8 @@ def ask(proposition):
         raise TypeError("ask expects a Q fact")
     if proposition.fact == _FACT_INTEGER:
         return proposition.expression.is_integer
+    if proposition.fact == _FACT_RATIONAL:
+        return proposition.expression.is_rational
     return proposition.expression._assumption_fact(proposition.fact)
 
 

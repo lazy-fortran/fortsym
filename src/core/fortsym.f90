@@ -17,7 +17,8 @@ module fortsym
     use fortsym_subs, only: subs_impl => subs
     use fortsym_assume, only: assumption_context_t, &
         make_assumption_context, with_assumption, zero, negative, nonpositive, &
-        positive, nonnegative, nonzero, real_valued, integer_valued, &
+        positive, nonnegative, nonzero, real_valued, rational_valued, &
+        integer_valued, &
         positive_integer
     use fortsym_numeric, only: numeric_value, numeric_text, &
         numeric_precision_text, numeric_complex_text, &
@@ -49,7 +50,7 @@ module fortsym
         is_valid, same_arena
     public :: assumption_context_t, make_assumption_context, with_assumption, &
         zero, negative, nonpositive, positive, nonnegative, nonzero, real_valued, &
-        integer_valued, positive_integer
+        rational_valued, integer_valued, positive_integer
     public :: str, chars
     public :: subs, diff, simplify, refine, expand, factor
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand

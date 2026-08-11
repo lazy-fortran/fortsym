@@ -97,6 +97,8 @@ are correctness boundaries rather than standalone timing rows. The same
 correctness and parity matrix includes `assumption_query` and
 `integer_assumption_query`, the latter comparing native `Q.integer` on an
 integer-assumed symbol with SymPy 1.14.0 in both cold and warm scopes.
+It also includes `rational_assumption_query`, which compares the corresponding
+`Q.rational` result for a rational-assumed symbol in both scopes.
 
 Run it from a built checkout with:
 

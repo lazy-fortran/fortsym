@@ -84,7 +84,7 @@ class SympyDifferentialTest(unittest.TestCase):
     def assumption_cases(api):
         cases = {}
         for assumption in (
-            "integer", "real", "nonnegative", "positive", "negative", "nonpositive", "zero"
+            "rational", "integer", "real", "nonnegative", "positive", "negative", "nonpositive", "zero"
         ):
             symbol = api.Symbol(
                 "condition_" + assumption, **{assumption: True}
@@ -152,6 +152,31 @@ class SympyDifferentialTest(unittest.TestCase):
         for assumption, expected in oracle_cases.items():
             with self.subTest(assumption=assumption):
                 self.assert_equivalent(assumption, expected, native_cases[assumption])
+
+    def test_exact_domain_predicates_match_oracle(self):
+        def cases(api):
+            return {
+                "integer": api.Integer(2),
+                "rational": api.Rational(2, 3),
+                "float": api.Float(2.0),
+                "unknown": api.Symbol("domain_predicate_unknown"),
+                "rational_symbol": api.Symbol(
+                    "domain_predicate_rational", rational=True
+                ),
+            }
+
+        oracle_cases = cases(oracle)
+        native_cases = cases(native)
+        for label, expected in oracle_cases.items():
+            actual = native_cases[label]
+            with self.subTest(label=label):
+                self.assertEqual(actual.is_rational, expected.is_rational)
+                self.assertEqual(actual.is_integer, expected.is_integer)
+                self.assertEqual(actual.is_real, expected.is_real)
+                self.assertEqual(
+                    native.ask(native.Q.rational(actual)),
+                    oracle.ask(oracle.Q.rational(expected)),
+                )
 
     def test_guarded_log_exp_matches_oracle(self):
         def cases(api):

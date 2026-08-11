@@ -26,6 +26,7 @@ _FACT_POSITIVE = 2
 _FACT_NONNEGATIVE = 4
 _FACT_NONZERO = 8
 _FACT_INTEGER = 16
+_FACT_RATIONAL = 512
 _FACT_ZERO = 64
 _FACT_NEGATIVE = 128
 _FACT_NONPOSITIVE = 256
@@ -646,7 +647,11 @@ class Expr:
 
     @property
     def is_real(self):
-        return self._assumption_fact(_FACT_REAL)
+        if self._assumption_fact(_FACT_REAL) is True:
+            return True
+        if self.kind in (1, 2, 3, 10, 11, 12):
+            return True
+        return None
 
     @property
     def is_integer(self):
@@ -658,6 +663,16 @@ class Expr:
         if kind in (2, 11):
             return False
         if self._assumption_fact(_FACT_INTEGER) is True:
+            return True
+        return None
+
+    @property
+    def is_rational(self):
+        if self._known_facts & _FACT_RATIONAL:
+            return True
+        if self.kind in (1, 2, 10, 11):
+            return True
+        if self._assumption_fact(_FACT_RATIONAL) is True:
             return True
         return None
 

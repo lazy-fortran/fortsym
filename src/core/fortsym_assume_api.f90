@@ -9,7 +9,7 @@ module fortsym_assume_api
         has_impl => assumption_has, &
         FACT_REAL, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, &
         FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, FACT_INTEGER, &
-        FACT_POSITIVE_INTEGER
+        FACT_POSITIVE_INTEGER, FACT_RATIONAL
     implicit none
     private
 
@@ -18,7 +18,7 @@ module fortsym_assume_api
     public :: assumption_has
     public :: FACT_REAL, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, &
         FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, FACT_INTEGER, &
-        FACT_POSITIVE_INTEGER
+        FACT_POSITIVE_INTEGER, FACT_RATIONAL
 
 contains
 
