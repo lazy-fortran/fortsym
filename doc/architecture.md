@@ -140,6 +140,15 @@ the precision-text form for a downstream fortnum algorithm. It refuses free
 symbols, non-finite points, branch-sensitive or unknown heads, and does not
 implement quadrature, root finding, interpolation, or rigorous Arb balls.
 
+`fortsym_accuracy` is the verification owner for caller-owned real64 kernels.
+`measure_accuracy` substitutes a declared sample matrix, obtains an MPFR
+reference for each closed expression, and compares the kernel result in local
+ULPs. Its report retains the maximum and RMS error, the maximizing sample,
+reference and observed values, the derivative-based condition number when
+defined, and refused-sample counts. The reported maximum is a bound over the
+declared sample set. The independent test kernel adds one `spacing(x)` so the
+expected one-ULP result does not come from the measurement implementation.
+
 Plotting is a separate adapter boundary. `fortsym_plot` samples closed real
 expressions and maps the bounded `Plot`, parametric, list, field, and `Show`
 fragments into fortplot data; it never implements a renderer. Undefined curve

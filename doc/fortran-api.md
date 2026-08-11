@@ -65,8 +65,8 @@ half = exact(default_arena(), "6/-8", ok=good)
 ```
 
 The exact integer and rational fragment preserves canonical values through
-construction and native arithmetic. Requested-precision real evaluation and
-exact complex or algebraic values remain separate roadmap items.
+construction and native arithmetic. Exact complex or algebraic values remain a
+separate roadmap item.
 
 `real_text_expr` retains a bounded finite decimal literal as `NK_BIG_REAL`.
 The arena validates its decimal syntax and preserves the original digits rather
@@ -81,8 +81,17 @@ type(numeric_real_text_t) :: numeric
 call numeric_precision_text(pi_expr(default_arena()), 40, numeric, good, why)
 ```
 
-`numeric%digits` records the requested decimal precision. An independently
-verified error bound remains a separate roadmap item.
+`numeric%digits` records the requested decimal precision.
+
+Accuracy measurement for a caller-owned real64 kernel lives in
+`fortsym_accuracy`, not in the numeric result type. `measure_accuracy` samples
+the declared input matrix, evaluates the substituted expression through the
+MPFR reference path, and reports maximum and RMS local-ULP error. The report
+also retains the input that reached the maximum, the reference and observed
+values, the derivative-based condition number when it can be evaluated, and
+the count of refused samples. This is an independently checked bound over the
+declared sample set. It is evidence for that set, not a proof over every real
+input.
 
 ## Explicit arenas
 
