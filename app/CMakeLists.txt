@@ -43,5 +43,5 @@ target_link_libraries(fortsym_latex_paper_pilot PRIVATE fortsym)
 # file in app/ as a program and links their objects together, so a C++ main
 # here collides with every Fortran app's main and breaks `fo install`.
 add_executable(bench_qqbar_direct
-    ${CMAKE_SOURCE_DIR}/benchmark/harnesses/bench_qqbar_direct.cpp)
+    ${CMAKE_CURRENT_SOURCE_DIR}/../benchmark/harnesses/bench_qqbar_direct.cpp)
 target_link_libraries(bench_qqbar_direct PRIVATE fortsym::flint)
