@@ -271,6 +271,9 @@ Every checklist item requires all of the following:
       - [x] Add shared rectangular quotient handling for `tan`, including an
         exact pole refusal, independent complex evaluation, and matched
         benchmark rows.
+      - [x] Complete structural conjugation for meromorphic tangent heads with
+        per-context memoization; matched warm native workloads are about 12x
+        faster than SymPy for `tan` and 11x faster for `tanh`.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.

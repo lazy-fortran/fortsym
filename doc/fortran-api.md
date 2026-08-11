@@ -95,7 +95,7 @@ The lower-level `fortsym_complexdom` module provides `re_part`, `im_part`, and
 `conjugate` with an explicit assumption context. Algebraic atoms are accepted
 there through FLINT's exact real and imaginary projections, and conjugation is
 exact. Structural conjugation commutes with the supported heads `exp`, `sin`,
-`cos`, `sinh`, `cosh`, and `tanh` wherever they are defined. Rectangular
+`cos`, `sinh`, `cosh`, `tan`, and `tanh` wherever they are defined. Rectangular
 splitting also covers the entire heads `exp`, `sin`, `cos`,
 `sinh`, and `cosh` through their addition identities. `tanh` is also split
 through its rectangular quotient, and `tan` through the corresponding
