@@ -8,7 +8,7 @@ program test_fortsym_native
     !   * the resource-limit case asserts preservation, never a partial result.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str, chars
-    use fortsym_arena, only: arena_t, NK_ADD
+    use fortsym_arena, only: arena_t, NK_ADD, NK_FUNC
     use fortsym_expr
     use fortsym_assume, only: assumption_context_t, assume, positive, &
         record_relation, clone_assumption_context, FACT_POSITIVE, FACT_REAL, &
@@ -750,6 +750,24 @@ contains
             1/sqrt(num(arena, 2_int64)))
         call check("sine eighth-turn constant is decided zero", &
             r%verdict == VERDICT_TRUE)
+        r = engine%simplify(sin(pi_expr(arena)/6))
+        call check("native simplify evaluates sine sixth-turn constant", &
+            r%value == rat(arena, 1_int64, 2_int64))
+        r = engine%simplify(cos(pi_expr(arena)/3))
+        call check("native simplify evaluates cosine sixth-turn constant", &
+            r%value == rat(arena, 1_int64, 2_int64))
+        r = engine%simplify(tan(pi_expr(arena)/4))
+        call check("native simplify evaluates tangent eighth-turn constant", &
+            r%value == num(arena, 1_int64))
+        r = engine%simplify(sin(pi_expr(arena)))
+        call check("native simplify evaluates sine half-turn constant", &
+            r%value == num(arena, 0_int64))
+        r = engine%simplify(sin(pi_expr(arena)/2))
+        call check("native simplify evaluates sine quarter-turn constant", &
+            r%value == num(arena, 1_int64))
+        r = engine%simplify(tan(pi_expr(arena)/2))
+        call check("native simplify preserves tangent pole", &
+            r%value%kind() == NK_FUNC)
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
             r%verdict == VERDICT_TRUE)

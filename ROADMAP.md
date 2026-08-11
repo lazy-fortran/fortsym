@@ -187,7 +187,10 @@ all six heads in their independent Jacobian/contraction consistency oracle.
 The independent native zero-test coverage also now checks exact sine and
 cosine values at sixth- and eighth-turn angles through the existing periodic
 exponential normal form, rather than leaving those roots tested only as raw
-`Exp` expressions.
+`Exp` expressions. The native simplifier now canonicalizes the same bounded
+`sin`, `cos`, and `tan` rational-angle fragment with direct exact roots,
+including the refusal boundary at tangent poles; it preserves the inverse-
+square-root spelling needed for equivalent eighth-turn forms to meet.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.
