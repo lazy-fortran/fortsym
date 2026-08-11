@@ -865,6 +865,20 @@ contains
         r = engine%simplify(exp(i_expr(arena)*pi_expr(arena)/5))
         call check("native simplify preserves unsupported Euler fraction", &
             r%value%kind() == NK_FUNC)
+        r = engine%simplify(log(num(arena, -1_int64)))
+        call check("native simplify evaluates log(-1)", &
+            r%value == i_expr(arena)*pi_expr(arena))
+        r = engine%simplify(log(i_expr(arena)))
+        call check("native simplify evaluates log(i)", &
+            r%value == i_expr(arena)*rat(arena, 1_int64, 2_int64)* &
+            pi_expr(arena))
+        r = engine%simplify(log(-i_expr(arena)))
+        call check("native simplify evaluates log(-i)", &
+            r%value == rat(arena, -1_int64, 2_int64)*i_expr(arena)* &
+            pi_expr(arena))
+        r = engine%simplify(log(e_expr(arena)))
+        call check("native simplify evaluates log(e)", &
+            r%value == num(arena, 1_int64))
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
             r%verdict == VERDICT_TRUE)
