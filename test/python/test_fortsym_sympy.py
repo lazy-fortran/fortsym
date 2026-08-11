@@ -141,6 +141,35 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(str(sp.simplify(sp.oo * x)), "domain_rule_x*oo")
         self.assertEqual(str(sp.simplify(sp.zoo * x)), "domain_rule_x*zoo")
 
+    def test_directed_domain_functions(self):
+        x = sp.Symbol("domain_function_x")
+        cases = [
+            (sp.sqrt(sp.oo), sp.oo),
+            (sp.sqrt(sp.zoo), sp.zoo),
+            (sp.Abs(-sp.oo), sp.oo),
+            (sp.Abs(sp.zoo), sp.oo),
+            (sp.exp(sp.oo), sp.oo),
+            (sp.exp(-sp.oo), sp.Integer(0)),
+            (sp.exp(sp.zoo), sp.nan),
+            (sp.log(sp.oo), sp.oo),
+            (sp.log(-sp.oo), sp.oo),
+            (sp.log(sp.zoo), sp.zoo),
+        ]
+        for expression, expected in cases:
+            with self.subTest(expression=str(expression)):
+                self.assertEqual(sp.simplify(expression), expected)
+        self.assertEqual(
+            sp.simplify(sp.sqrt(-sp.oo)), sp.simplify(sp.I * sp.oo)
+        )
+        self.assertEqual(
+            str(sp.simplify(sp.sqrt(sp.oo * x))),
+            "sqrt(domain_function_x*oo)",
+        )
+        self.assertEqual(
+            str(sp.simplify(sp.exp(sp.oo * x))),
+            "exp(domain_function_x*oo)",
+        )
+
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")
         cases = [

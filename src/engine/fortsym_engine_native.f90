@@ -2093,11 +2093,14 @@ contains
         integer :: periodic_constant
         integer :: positive_argument
         integer :: bessel_args(2), pair(2), one_arg(1)
+        logical :: domain_applied
 
         if (nan_propagates_function(name, a, args)) then
             out = nan_node(a)
             return
         end if
+        call simplify_domain_function(a, name, args, out, domain_applied)
+        if (domain_applied) return
 
         out = a%func(name, args)
         if (size(args) == 0) return
@@ -4524,6 +4527,56 @@ contains
             id = a%mul(pair)
         end if
     end function signed_oo_node
+
+    subroutine simplify_domain_function(a, name, args, out, applied)
+        type(arena_t), intent(inout) :: a
+        character(*),  intent(in)    :: name
+        integer,       intent(in)    :: args(:)
+        integer,       intent(out)   :: out
+        logical,       intent(out)   :: applied
+        integer :: domain, direction
+        logical :: known, contains_domain, has_zero
+        integer :: pair(2)
+
+        applied = .false.
+        if (size(args) /= 1) return
+        call classify_domain_id(a, args(1), domain, direction, known, &
+            contains_domain, has_zero)
+        if (.not. known .or. .not. contains_domain .or. has_zero) return
+
+        select case (name)
+        case ("sqrt")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = a%const("zoo")
+            else if (direction < 0) then
+                pair(1) = a%const("i")
+                pair(2) = a%const("oo")
+                out = a%mul(pair)
+            else
+                out = a%const("oo")
+            end if
+        case ("abs")
+            applied = .true.
+            out = a%const("oo")
+        case ("exp")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = nan_node(a)
+            else if (direction < 0) then
+                out = a%int(0_int64)
+            else
+                out = a%const("oo")
+            end if
+        case ("log")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = a%const("zoo")
+            else
+                out = a%const("oo")
+            end if
+        end select
+    end subroutine simplify_domain_function
 
     function is_one_id(a, id) result(yes)
         type(arena_t), intent(in) :: a

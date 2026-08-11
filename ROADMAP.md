@@ -303,8 +303,11 @@ Every checklist item requires all of the following:
     `oo` and `zoo`: known signs produce `oo`/`-oo`, zero times either sentinel
     produces `nan`, opposite directions and mixed `oo`/`zoo` additions produce
     `nan`, and symbolic products remain structural.
-  - [ ] Complete operation-specific `oo`/`zoo` semantics for non-integer powers,
-    functions, limits, assumptions, and numerical evaluation.
+  - [x] Add direct unary domain rules for `sqrt`, `Abs`, `exp`, and `log`.
+    Known sentinel inputs match SymPy 1.14.0, including `sqrt(-oo) = i*oo`;
+    symbolic factors remain unevaluated rather than receiving guessed rules.
+  - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
+    non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
 - [ ] Preserve exactness through every constructor, operator, and adapter.
 
