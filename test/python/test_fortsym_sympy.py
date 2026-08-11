@@ -57,6 +57,18 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(sp.simplify(sp.sqrt(z**2)), z)
         self.assertEqual(sp.simplify(sp.Abs(z)), z)
 
+        negative = sp.Symbol("signed_negative_simplify", negative=True)
+        nonpositive = sp.Symbol("signed_nonpositive_simplify", nonpositive=True)
+        zero = sp.Symbol("signed_zero_simplify", zero=True)
+        negative_value = sp.simplify(-negative)
+        nonpositive_value = sp.simplify(-nonpositive)
+        self.assertEqual(sp.simplify(sp.sqrt(negative**2)), negative_value)
+        self.assertEqual(sp.simplify(sp.Abs(negative)), negative_value)
+        self.assertEqual(sp.simplify(sp.sqrt(nonpositive**2)), nonpositive_value)
+        self.assertEqual(sp.simplify(sp.Abs(nonpositive)), nonpositive_value)
+        self.assertEqual(sp.simplify(sp.sqrt(zero**2)), sp.Integer(0))
+        self.assertEqual(sp.simplify(sp.Abs(zero)), sp.Integer(0))
+
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")
         cases = [

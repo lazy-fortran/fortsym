@@ -10,7 +10,7 @@ program test_fortsym_native
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_ADD, NK_FUNC
     use fortsym_expr
-    use fortsym_assume, only: assumption_context_t, assume, negative, &
+    use fortsym_assume, only: assumption_context_t, assume, zero, negative, &
         nonpositive, positive, nonnegative, nonzero, record_relation, &
         clone_assumption_context, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, &
         FACT_POSITIVE, FACT_REAL, FACT_NONZERO, FACT_INTEGER
@@ -656,7 +656,7 @@ contains
     subroutine test_assumptions()
         type(native_engine_t) :: assumed_engine
         type(engine_result_t) :: r
-        type(expr_t) :: u, z
+        type(expr_t) :: u, z, negative_x, nonpositive_x, zero_x
 
         r = engine%zero_test(sqrt(x**2) - x)
         call check("sqrt(x^2)-x is unknown without a domain", &
@@ -670,6 +670,32 @@ contains
             r%verdict == VERDICT_TRUE)
         r = assumed_engine%zero_test(abs(x) - x)
         call check("positive x permits abs(x)=x", r%verdict == VERDICT_TRUE)
+
+        negative_x = sym(arena, "negative_x")
+        call assume(assumptions, negative(negative_x))
+        nonpositive_x = sym(arena, "nonpositive_x")
+        call assume(assumptions, nonpositive(nonpositive_x))
+        zero_x = sym(arena, "zero_x")
+        call assume(assumptions, zero(zero_x))
+        assumed_engine = make_native_engine(arena, assumptions)
+        r = assumed_engine%simplify(sqrt(negative_x**2))
+        call check("negative x permits sqrt(x^2)=-x", &
+            r%value == -negative_x)
+        r = assumed_engine%simplify(abs(negative_x))
+        call check("negative x permits abs(x)=-x", &
+            r%value == -negative_x)
+        r = assumed_engine%simplify(sqrt(nonpositive_x**2))
+        call check("nonpositive x permits sqrt(x^2)=-x", &
+            r%value == -nonpositive_x)
+        r = assumed_engine%simplify(abs(nonpositive_x))
+        call check("nonpositive x permits abs(x)=-x", &
+            r%value == -nonpositive_x)
+        r = assumed_engine%simplify(sqrt(zero_x**2))
+        call check("zero x permits sqrt(x^2)=0", &
+            r%value == num(arena, 0_int64))
+        r = assumed_engine%simplify(abs(zero_x))
+        call check("zero x permits abs(x)=0", &
+            r%value == num(arena, 0_int64))
 
         z = sym(arena, "z")
         call assume(assumptions, nonzero(z))

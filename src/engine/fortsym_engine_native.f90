@@ -17,8 +17,8 @@ module fortsym_engine_native
     use fortsym_exact, only: exact_add, exact_mul, exact_pow
     use fortsym_algebraic, only: algebraic_i, algebraic_add, algebraic_sub, &
         algebraic_from_re_im, algebraic_mul, algebraic_pow, algebraic_signs
-    use fortsym_assume, only: assumption_context_t, FACT_REAL, &
-        FACT_POSITIVE, FACT_NONNEGATIVE
+    use fortsym_assume, only: assumption_context_t, FACT_REAL, FACT_ZERO, &
+        FACT_NEGATIVE, FACT_NONPOSITIVE, FACT_POSITIVE, FACT_NONNEGATIVE
     use fortsym_diff, only: diff_expr => diff
     use fortsym_subs, only: subs
     use fortsym_poly, only: poly_together, poly_cancel, poly_factor, &
@@ -1328,8 +1328,11 @@ contains
         type(expr_t) :: base_expression
         integer, allocatable :: children(:)
         integer :: k, exponent_id, base_id
-        logical :: square, definitely_positive, definitely_nonnegative, real_valued
+        logical :: square, definitely_zero, definitely_negative
+        logical :: definitely_nonpositive, definitely_positive
+        logical :: definitely_nonnegative, real_valued
         integer :: abs_argument(1)
+        integer :: negative_pair(2)
         logical :: refused
         character(:), allocatable :: reason
 
@@ -1378,22 +1381,47 @@ contains
                 base_expression%id = children(1)
                 base_expression%generation = a%generation_value()
                 if (chars(a%name_of(id)) == "abs") then
-                    if (context%has(base_expression, FACT_POSITIVE)) out = children(1)
+                    definitely_zero = context%has(base_expression, FACT_ZERO)
+                    definitely_negative = context%has(base_expression, FACT_NEGATIVE)
+                    definitely_nonpositive = context%has(base_expression, &
+                        FACT_NONPOSITIVE)
+                    definitely_positive = context%has(base_expression, FACT_POSITIVE)
+                    definitely_nonnegative = context%has(base_expression, &
+                        FACT_NONNEGATIVE)
+                    if (definitely_zero) then
+                        out = a%int(0_int64)
+                    else if (definitely_negative .or. definitely_nonpositive) then
+                        negative_pair(1) = a%int(-1_int64)
+                        negative_pair(2) = children(1)
+                        out = simplify_mul(a, negative_pair)
+                    else if (definitely_positive .or. definitely_nonnegative) then
+                        out = children(1)
+                    end if
                 end if
                 if (chars(a%name_of(id)) == "sqrt") then
                     if (a%kind_of(children(1)) == NK_POW) then
                         call is_square_power(a, children(1), base_id, square)
                         if (square) then
                             base_expression%id = base_id
+                            definitely_zero = context%has(base_expression, FACT_ZERO)
+                            definitely_negative = context%has(base_expression, &
+                                FACT_NEGATIVE)
+                            definitely_nonpositive = context%has(base_expression, &
+                                FACT_NONPOSITIVE)
                             definitely_positive = context%has(base_expression, &
                                 FACT_POSITIVE)
                             definitely_nonnegative = context%has(base_expression, &
                                 FACT_NONNEGATIVE)
                             real_valued = context%has(base_expression, FACT_REAL)
-                            if (definitely_positive .or. definitely_nonnegative) &
+                            if (definitely_zero) then
+                                out = a%int(0_int64)
+                            else if (definitely_positive .or. definitely_nonnegative) then
                                 out = base_id
-                            if (.not. (definitely_positive .or. &
-                                definitely_nonnegative) .and. real_valued) then
+                            else if (definitely_negative .or. definitely_nonpositive) then
+                                negative_pair(1) = a%int(-1_int64)
+                                negative_pair(2) = base_id
+                                out = simplify_mul(a, negative_pair)
+                            else if (real_valued) then
                                 abs_argument(1) = base_id
                                 out = a%func("abs", abs_argument)
                             end if

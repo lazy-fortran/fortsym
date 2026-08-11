@@ -126,7 +126,7 @@ id = "refinement"
 affected = ["refine"]
 parity = "partial"
 sympy = "SymPy refine applies assumptions to expressions and can use its broad predicate, relational, and compound inference system."
-fortsym = "The adapter accepts one or more supported Q facts or transactional And relations and routes them through a reversible native assumption scope and guarded simplifier."
+fortsym = "The adapter accepts one or more supported Q facts or transactional And relations and routes them through a reversible native assumption scope and guarded simplifier, including signed and zero facts for sqrt/Abs refinement."
 difference = "Only the native sign/zero facts plus bounded sign-implying relations and conjunctions are covered; the broader SymPy refine rules remain incomplete."
 
 [[semantic]]

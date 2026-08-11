@@ -271,9 +271,9 @@ Every checklist item requires all of the following:
   - [x] Expose native zero verdicts through the C ABI and map them to the
     SymPy adapter's `Expr.is_zero` and `Expr.is_nonzero` properties, preserving
     `True`, `False`, and `None` for proven zero, proven nonzero, and unknown.
-  - [x] Expose the existing local `real`, `positive`, `nonnegative`, and
-    `nonzero` facts through one C-ABI query and the matching SymPy predicate
-    properties, including positive-fact implication.
+  - [x] Expose the local real, sign, and zero facts through one C-ABI query
+    and matching SymPy predicate properties, including the native implication
+    closure.
 - [ ] Support local contexts, global convenience assumptions, scoped context
   managers in Python, and immutable explicit contexts in Fortran.
   - [x] Add nested native context push/pop with exception-safe Python
@@ -298,6 +298,9 @@ Every checklist item requires all of the following:
 - [ ] Complete safe elementary simplification: powers, logarithms, radicals,
   trigonometry, inverse functions, exponentials, absolute values, and special
   constants.
+  - [x] Use the canonical `negative`, `nonpositive`, and `zero` facts in the
+    existing guarded `sqrt` and `abs` rewrites. Negative and nonpositive real
+    values become `-x`; zero becomes `0`; unknown reality remains unevaluated.
 - [ ] Match SymPy branch conventions while preserving fortsym's refusal of
   unsafe identities.
 - [ ] Implement the general simplification families: `powsimp`, `powdenest`,

@@ -187,10 +187,10 @@ def correctness_cases() -> list[dict[str, Any]]:
             actual = native.ask(native_expression)
         elif operation == "refine":
             expected = oracle.refine(
-                oracle_expression, oracle.Q.positive(names["check_x_fixed"])
+                oracle_expression, oracle.Q.negative(names["check_x_fixed"])
             )
             actual = native.refine(
-                native_expression, native.Q.positive(native.Symbol("check_x_fixed"))
+                native_expression, native.Q.negative(native.Symbol("check_x_fixed"))
             )
         elif operation == "relation":
             expected = oracle.Gt(names["check_x_fixed"], 1)
@@ -207,6 +207,7 @@ def correctness_cases() -> list[dict[str, Any]]:
         else:
             expected = oracle.factor(oracle_expression)
             actual = native.factor(native_expression)
+        actual_text = str(actual)
         results.append({
             "operation": operation,
             "correct": (
@@ -219,7 +220,7 @@ def correctness_cases() -> list[dict[str, Any]]:
                 else equivalent(expected, actual, names)
             ),
             "expected": result_text(expected),
-            "actual": str(actual),
+            "actual": actual_text,
         })
     return results
 
@@ -256,10 +257,10 @@ def benchmark_workload(
                 oracle_x = oracle.Symbol("refine_x_warm")
                 native_x = native.Symbol("refine_x_warm")
                 oracle_call = lambda: oracle.refine(
-                    oracle_expression, oracle.Q.positive(oracle_x)
+                    oracle_expression, oracle.Q.negative(oracle_x)
                 )
                 native_call = lambda: native.refine(
-                    native_expression, native.Q.positive(native_x)
+                    native_expression, native.Q.negative(native_x)
                 )
             elif operation == "relation":
                 oracle_x = oracle.Symbol("relation_x_warm")
@@ -288,7 +289,7 @@ def benchmark_workload(
                 if operation == "assumption_query":
                     return engine.ask(expression)
                 if operation == "refine":
-                    return engine.refine(expression, engine.Q.positive(variable))
+                    return engine.refine(expression, engine.Q.negative(variable))
                 if operation == "relation":
                     return engine.Gt(variable, 1)
                 if operation == "compound":
