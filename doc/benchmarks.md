@@ -89,7 +89,8 @@ It also checks the unresolved NaN boundaries for Bessel and Legendre heads,
 including the representable `besseli(nan, -oo)` result; these are correctness
 cases rather than standalone timing rows for the same reason. The same report
 checks the high-degree `legendre(3, oo) = nan` boundary and the supported
-negative-integer identity cases.
+negative-integer identity cases. It also checks symbolic and integer
+`besseli(order, -oo)` phase boundaries.
 
 Run it from a built checkout with:
 

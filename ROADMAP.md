@@ -367,6 +367,9 @@ Every checklist item requires all of the following:
   - [x] Apply SymPy's negative-integer Legendre identity at infinity:
     `P(-n-1, x) = P(n, x)` for the supported integer boundary fragment,
     including the resulting high-degree `nan` cases.
+  - [x] Match the representable negative-real Bessel-I phase: symbolic order
+    returns `oo*(-1)**order`, integer order returns signed infinity, and
+    unsupported exact non-integer orders remain explicit refusals.
   - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
     non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.

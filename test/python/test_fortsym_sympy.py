@@ -194,8 +194,13 @@ class SympySubsetTest(unittest.TestCase):
         for expression, expected in cases:
             with self.subTest(expression=str(expression)):
                 self.assertEqual(sp.simplify(expression), expected)
-        self.assertIsInstance(
-            sp.simplify(sp.besseli(order, -sp.oo)), sp.Function
+        self.assertEqual(
+            str(sp.simplify(sp.besseli(order, -sp.oo))),
+            "oo*(-1)**bessel_order",
+        )
+        self.assertEqual(
+            sp.simplify(sp.besseli(sp.Integer(1), -sp.oo)),
+            sp.Integer(-1) * sp.oo,
         )
         self.assertIsInstance(
             sp.simplify(sp.besselj(order, sp.zoo)), sp.Function
