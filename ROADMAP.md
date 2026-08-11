@@ -122,6 +122,13 @@ the tracker is not closed. The same native candidate path now also feeds the
 existing exact multivariate polynomial cancellation/GCD layer, retaining only
 strictly smaller verified forms such as `(x^2 - y^2)/(x - y) -> x + y` and
 preserving the nonzero-denominator condition.
+The next bounded slice adds a native univariate polynomial-factor candidate
+for denominator-free expanded expressions, retaining it only when the
+verified factored form is strictly smaller. `expand()` re-expands that
+candidate before returning, while rational-function inputs remain available
+to `Apart` and the existing integration rules. The native tests cover both
+candidate selection and these operation-boundary contracts; the broader
+external-CAS-independent engine tracker remains open.
 
 Issue #44 (plotting through fortplot) is complete as of 2026-08-11 for the
 bounded adapter. `fortsym_plot` samples real curves, parametric curves, list
