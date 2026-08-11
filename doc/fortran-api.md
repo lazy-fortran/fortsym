@@ -1,8 +1,10 @@
 # Fortran API
 
 `use fortsym` provides the expression type, arena type, constructors, operators,
-and the expression functions under names such as `exp_expr`, `sqrt_expr`, and
-`erf_expr`. The suffix keeps these names distinct from Fortran intrinsics.
+and the expression functions under their ordinary Fortran names such as `exp`,
+`sqrt`, and `erf`. The facade follows the same vocabulary as `fortsym_expr`;
+the generic interfaces accept expression handles while the language's intrinsic
+names remain the natural spelling for native symbolic expressions.
 The lower-level `fortsym_expr` and `fortsym_arena` modules remain available.
 
 Symbol names follow one rule: name the symbol as you would name the Fortran
@@ -36,8 +38,8 @@ e = (mu + 1) / sigma
 ```
 
 The default arena is process-local mutable state for single-threaded programs.
-`fortsym_default_arena()` returns it when an explicit API needs the same arena.
-`fortsym_reset()` clears it and invalidates every expression made from it.
+`default_arena()` returns it when an explicit API needs the same arena.
+`reset()` clears it and invalidates every expression made from it.
 Expressions from before a reset must be discarded before the arena is reused.
 
 `symbols` assigns whitespace- or comma-separated names to scalar outputs:
@@ -65,4 +67,4 @@ x = sym(a, "x")
 Expressions built with an explicit arena can use every operator and expression
 function exported by `fortsym`. Expressions combined by an operator must belong
 to the same arena. The default and explicit forms can be mixed when the
-explicit constructor receives `fortsym_default_arena()`.
+explicit constructor receives `default_arena()`.

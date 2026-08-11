@@ -3285,9 +3285,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.sin_expr",
+        "id": "fortsym.sin",
         "module": "fortsym",
-        "name": "sin_expr",
+        "name": "sin",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3296,9 +3296,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.cos_expr",
+        "id": "fortsym.cos",
         "module": "fortsym",
-        "name": "cos_expr",
+        "name": "cos",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3307,9 +3307,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.tan_expr",
+        "id": "fortsym.tan",
         "module": "fortsym",
-        "name": "tan_expr",
+        "name": "tan",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3318,9 +3318,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.asin_expr",
+        "id": "fortsym.asin",
         "module": "fortsym",
-        "name": "asin_expr",
+        "name": "asin",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3329,9 +3329,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.acos_expr",
+        "id": "fortsym.acos",
         "module": "fortsym",
-        "name": "acos_expr",
+        "name": "acos",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3340,9 +3340,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.atan_expr",
+        "id": "fortsym.atan",
         "module": "fortsym",
-        "name": "atan_expr",
+        "name": "atan",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3351,9 +3351,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.atan2_expr",
+        "id": "fortsym.atan2",
         "module": "fortsym",
-        "name": "atan2_expr",
+        "name": "atan2",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3362,9 +3362,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.sinh_expr",
+        "id": "fortsym.sinh",
         "module": "fortsym",
-        "name": "sinh_expr",
+        "name": "sinh",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3373,9 +3373,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.cosh_expr",
+        "id": "fortsym.cosh",
         "module": "fortsym",
-        "name": "cosh_expr",
+        "name": "cosh",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3384,9 +3384,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.tanh_expr",
+        "id": "fortsym.tanh",
         "module": "fortsym",
-        "name": "tanh_expr",
+        "name": "tanh",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3395,9 +3395,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.asinh_expr",
+        "id": "fortsym.asinh",
         "module": "fortsym",
-        "name": "asinh_expr",
+        "name": "asinh",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3406,9 +3406,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.acosh_expr",
+        "id": "fortsym.acosh",
         "module": "fortsym",
-        "name": "acosh_expr",
+        "name": "acosh",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3417,9 +3417,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.atanh_expr",
+        "id": "fortsym.atanh",
         "module": "fortsym",
-        "name": "atanh_expr",
+        "name": "atanh",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3428,9 +3428,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.exp_expr",
+        "id": "fortsym.exp",
         "module": "fortsym",
-        "name": "exp_expr",
+        "name": "exp",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3439,9 +3439,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.log_expr",
+        "id": "fortsym.log",
         "module": "fortsym",
-        "name": "log_expr",
+        "name": "log",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3450,9 +3450,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.sqrt_expr",
+        "id": "fortsym.sqrt",
         "module": "fortsym",
-        "name": "sqrt_expr",
+        "name": "sqrt",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3461,9 +3461,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.abs_expr",
+        "id": "fortsym.abs",
         "module": "fortsym",
-        "name": "abs_expr",
+        "name": "abs",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3472,9 +3472,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.erf_expr",
+        "id": "fortsym.erf",
         "module": "fortsym",
-        "name": "erf_expr",
+        "name": "erf",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3483,9 +3483,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.erfc_expr",
+        "id": "fortsym.erfc",
         "module": "fortsym",
-        "name": "erfc_expr",
+        "name": "erfc",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3494,9 +3494,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.gamma_expr",
+        "id": "fortsym.gamma",
         "module": "fortsym",
-        "name": "gamma_expr",
+        "name": "gamma",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3505,9 +3505,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.besselj_expr",
+        "id": "fortsym.besselj",
         "module": "fortsym",
-        "name": "besselj_expr",
+        "name": "besselj",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3516,9 +3516,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.legendrep_expr",
+        "id": "fortsym.legendrep",
         "module": "fortsym",
-        "name": "legendrep_expr",
+        "name": "legendrep",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3527,9 +3527,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.legendreq_expr",
+        "id": "fortsym.legendreq",
         "module": "fortsym",
-        "name": "legendreq_expr",
+        "name": "legendreq",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3538,9 +3538,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.fortsym_default_arena",
+        "id": "fortsym.default_arena",
         "module": "fortsym",
-        "name": "fortsym_default_arena",
+        "name": "default_arena",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3549,9 +3549,9 @@
           "facade",
           "native"
         ],
-        "id": "fortsym.fortsym_reset",
+        "id": "fortsym.reset",
         "module": "fortsym",
-        "name": "fortsym_reset",
+        "name": "reset",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },

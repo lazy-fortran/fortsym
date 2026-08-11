@@ -165,8 +165,14 @@ Every checklist item requires all of the following:
   and cover every concept in the naming audit. Native names remain concise
   and consistent with their owning Fortran modules; the Python adapter keeps
   SymPy spellings as its deliberate compatibility boundary.
-- [ ] Remove `_expr` suffixes and other facade-only aliases where they do not
-  carry useful disambiguation.
+- [x] Remove `_expr` suffixes and other facade-only aliases where they do not
+  carry useful disambiguation. The native facade now re-exports the
+  `fortsym_expr` elementary-function vocabulary directly (`sin`, `exp`,
+  `sqrt`, and the rest) and uses `default_arena`/`reset` without a redundant
+  module prefix. Suffixes that distinguish expression constructors or typed
+  constants, including `real_expr`, `real_text_expr`, `pi_expr`, `e_expr`, and
+  `i_expr`, remain intentional. The generated API classification and naming
+  audit were updated with the migration.
 - [ ] Make constructors, arithmetic operators, elementary functions,
   substitution, differentiation, simplification, expansion, equality, and
   numerical evaluation available through one easy facade.

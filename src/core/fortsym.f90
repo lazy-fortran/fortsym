@@ -6,7 +6,9 @@ module fortsym
         NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
     use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, &
         real_text_expr, const, func, func_in, partial, pi_expr, e_expr, &
-        i_expr, &
+        i_expr, sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, &
+        tanh, asinh, acosh, atanh, exp, log, sqrt, abs, erf, erfc, &
+        gamma, besselj, legendrep, legendreq, &
         is_valid, same_arena, operator(+), operator(-), operator(*), &
         operator(/), operator(**), operator(==), operator(/=)
     use fortsym_numeric, only: numeric_value, numeric_text, &
@@ -18,14 +20,6 @@ module fortsym
         serialize_expression, deserialize_expression, assess_identity, &
         assess_equivalence, evidence_json, emit_backend_kernel
     use fortsym_ode, only: solve_ode
-    use fortsym_expr, only: sin_expr => sin, cos_expr => cos, tan_expr => tan, &
-        asin_expr => asin, acos_expr => acos, atan_expr => atan, &
-        atan2_expr => atan2, sinh_expr => sinh, cosh_expr => cosh, &
-        tanh_expr => tanh, asinh_expr => asinh, acosh_expr => acosh, &
-        atanh_expr => atanh, exp_expr => exp, log_expr => log, &
-        sqrt_expr => sqrt, abs_expr => abs, erf_expr => erf, &
-        erfc_expr => erfc, gamma_expr => gamma, besselj_expr => besselj, &
-        legendrep_expr => legendrep, legendreq_expr => legendreq
     implicit none
     private
 
@@ -44,11 +38,10 @@ module fortsym
     public :: solve_ode
     public :: operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), operator(/=)
-    public :: sin_expr, cos_expr, tan_expr, asin_expr, acos_expr, atan_expr, &
-        atan2_expr, sinh_expr, cosh_expr, tanh_expr, asinh_expr, acosh_expr, &
-        atanh_expr, exp_expr, log_expr, sqrt_expr, abs_expr, erf_expr, &
-        erfc_expr, gamma_expr, besselj_expr, legendrep_expr, legendreq_expr
-    public :: fortsym_default_arena, fortsym_reset, symbols
+    public :: sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, tanh, &
+        asinh, acosh, atanh, exp, log, sqrt, abs, erf, erfc, gamma, &
+        besselj, legendrep, legendreq
+    public :: default_arena, reset, symbols
     public :: assignment(=)
 
     type(arena_t), target, save :: default_store
@@ -63,18 +56,18 @@ contains
     !> Return the process-local arena used by character assignment and symbols.
     !> It is single-threaded state. Callers that need concurrency should create
     !> an arena_t and use the explicit constructors from the same module.
-    function fortsym_default_arena() result(a)
+    function default_arena() result(a)
         type(arena_t), pointer :: a
         call ensure_default()
         a => default_store
-    end function fortsym_default_arena
+    end function default_arena
 
     !> Clear the convenience arena. Handles made before this call become stale,
     !> including handles whose node index is reused after the next construction.
-    subroutine fortsym_reset()
+    subroutine reset()
         call default_store%clear()
         default_ready = .false.
-    end subroutine fortsym_reset
+    end subroutine reset
 
     !> Assigning text creates one symbol in the default arena. Text is never
     !> parsed as an expression.

@@ -16,8 +16,8 @@ program gen_acquisition_leaf
     ! The emitted leaf returns EI, PI, and the four first-order products that a
     ! candidate optimizer needs, all from the same expression graph.
     use, intrinsic :: iso_fortran_env, only: output_unit
-    use fortsym, only: arena_t, fortsym_default_arena, fortsym_reset, &
-        expr_t, num, pi_expr, exp_expr, sqrt_expr, erf_expr, &
+    use fortsym, only: arena_t, default_arena, reset, &
+        expr_t, num, pi_expr, exp, sqrt, erf, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         assignment(=)
     use fortsym_diff, only: diff
@@ -49,8 +49,8 @@ program gen_acquisition_leaf
         error stop 2
     end if
 
-    call fortsym_reset()
-    arena => fortsym_default_arena()
+    call reset()
+    arena => default_arena()
     mu = 'mu'
     sigma = 'sigma'
     best = 'best'
@@ -60,8 +60,8 @@ program gen_acquisition_leaf
     gap = tau - mu
     z = gap/sigma
     two = num(arena, 2)
-    normal_cdf = (1 + erf_expr(z/sqrt_expr(two)))/two
-    normal_pdf = exp_expr(-(z**2)/two)/sqrt_expr(two*pi_expr(arena))
+    normal_cdf = (1 + erf(z/sqrt(two)))/two
+    normal_pdf = exp(-(z**2)/two)/sqrt(two*pi_expr(arena))
     ei = gap*normal_cdf + sigma*normal_pdf
 
     root(1) = ei

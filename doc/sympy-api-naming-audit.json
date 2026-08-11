@@ -73,9 +73,9 @@
       ]
     },
     {
-      "action": "Choose a consistent native pair and keep Float as an adapter alias.",
+      "action": "Retain the disambiguating native pair and keep Float as an adapter alias.",
       "description": "Create a real expression.",
-      "finding": "The native facade exposes value and text constructors with an _expr suffix. The adapter has one SymPy-compatible Float constructor.",
+      "finding": "The native facade keeps _expr on value and text constructors because the suffix distinguishes expression handles from intrinsic scalar values. The adapter has one SymPy-compatible Float constructor.",
       "fortran_facade": [
         "real_expr",
         "real_text_expr"
@@ -111,33 +111,33 @@
       ]
     },
     {
-      "action": "Audit the suffix policy as one family. Do not rename one elementary function in isolation.",
+      "action": "Keep the elementary functions as one native family and do not reintroduce per-function aliases.",
       "description": "Create an elementary applied function.",
-      "finding": "The Fortran facade adds _expr to names that collide with intrinsics. The Python adapter uses SymPy spellings and currently covers a smaller head set.",
+      "finding": "The Fortran facade now uses the same intrinsic spellings as fortsym_expr. The Python adapter uses SymPy spellings and currently covers a smaller head set.",
       "fortran_facade": [
-        "sin_expr",
-        "cos_expr",
-        "tan_expr",
-        "asin_expr",
-        "acos_expr",
-        "atan_expr",
-        "atan2_expr",
-        "sinh_expr",
-        "cosh_expr",
-        "tanh_expr",
-        "asinh_expr",
-        "acosh_expr",
-        "atanh_expr",
-        "exp_expr",
-        "log_expr",
-        "sqrt_expr",
-        "abs_expr",
-        "erf_expr",
-        "erfc_expr",
-        "gamma_expr",
-        "besselj_expr",
-        "legendrep_expr",
-        "legendreq_expr"
+        "sin",
+        "cos",
+        "tan",
+        "asin",
+        "acos",
+        "atan",
+        "atan2",
+        "sinh",
+        "cosh",
+        "tanh",
+        "asinh",
+        "acosh",
+        "atanh",
+        "exp",
+        "log",
+        "sqrt",
+        "abs",
+        "erf",
+        "erfc",
+        "gamma",
+        "besselj",
+        "legendrep",
+        "legendreq"
       ],
       "id": "elementary-functions",
       "python_facade": [],
@@ -207,12 +207,12 @@
     {
       "action": "Keep one responsibility per owner and document default versus explicit state once.",
       "description": "Own expression storage and expression handles.",
-      "finding": "Fortran types and Python handle classes are distinct language bindings. The default-state functions have no direct SymPy root equivalent.",
+      "finding": "Fortran types and Python handle classes are distinct language bindings. The default-state functions have no direct SymPy root equivalent, and the native facade uses short names because its module already supplies the namespace.",
       "fortran_facade": [
         "arena_t",
         "expr_t",
-        "fortsym_default_arena",
-        "fortsym_reset"
+        "default_arena",
+        "reset"
       ],
       "id": "arena-and-expression",
       "python_facade": [
@@ -510,19 +510,19 @@
         "concepts": [
           "elementary-functions"
         ],
-        "name": "abs_expr"
+        "name": "abs"
       },
       {
         "concepts": [
           "elementary-functions"
         ],
-        "name": "acos_expr"
+        "name": "acos"
       },
       {
         "concepts": [
           "elementary-functions"
         ],
-        "name": "acosh_expr"
+        "name": "acosh"
       },
       {
         "concepts": [
@@ -534,13 +534,13 @@
         "concepts": [
           "elementary-functions"
         ],
-        "name": "asin_expr"
+        "name": "asin"
       },
       {
         "concepts": [
           "elementary-functions"
         ],
-        "name": "asinh_expr"
+        "name": "asinh"
       },
       {
         "concepts": [
@@ -564,19 +564,19 @@
         "concepts": [
           "elementary-functions"
         ],
-        "name": "atan2_expr"
+        "name": "atan"
       },
       {
         "concepts": [
           "elementary-functions"
         ],
-        "name": "atan_expr"
+        "name": "atan2"
       },
       {
         "concepts": [
           "elementary-functions"
         ],
-        "name": "atanh_expr"
+        "name": "atanh"
       },
       {
         "concepts": [
@@ -600,7 +600,7 @@
         "concepts": [
           "elementary-functions"
         ],
-        "name": "besselj_expr"
+        "name": "besselj"
       },
       {
         "concepts": [
@@ -612,13 +612,19 @@
         "concepts": [
           "elementary-functions"
         ],
-        "name": "cos_expr"
+        "name": "cos"
       },
       {
         "concepts": [
           "elementary-functions"
         ],
-        "name": "cosh_expr"
+        "name": "cosh"
+      },
+      {
+        "concepts": [
+          "arena-and-expression"
+        ],
+        "name": "default_arena"
       },
       {
         "concepts": [
@@ -642,13 +648,13 @@
         "concepts": [
           "elementary-functions"
         ],
-        "name": "erf_expr"
+        "name": "erf"
       },
       {
         "concepts": [
           "elementary-functions"
         ],
-        "name": "erfc_expr"
+        "name": "erfc"
       },
       {
         "concepts": [
@@ -666,25 +672,13 @@
         "concepts": [
           "elementary-functions"
         ],
-        "name": "exp_expr"
+        "name": "exp"
       },
       {
         "concepts": [
           "arena-and-expression"
         ],
         "name": "expr_t"
-      },
-      {
-        "concepts": [
-          "arena-and-expression"
-        ],
-        "name": "fortsym_default_arena"
-      },
-      {
-        "concepts": [
-          "arena-and-expression"
-        ],
-        "name": "fortsym_reset"
       },
       {
         "concepts": [
@@ -702,7 +696,7 @@
         "concepts": [
           "elementary-functions"
         ],
-        "name": "gamma_expr"
+        "name": "gamma"
       },
       {
         "concepts": [
@@ -720,19 +714,19 @@
         "concepts": [
           "elementary-functions"
         ],
-        "name": "legendrep_expr"
+        "name": "legendrep"
       },
       {
         "concepts": [
           "elementary-functions"
         ],
-        "name": "legendreq_expr"
+        "name": "legendreq"
       },
       {
         "concepts": [
           "elementary-functions"
         ],
-        "name": "log_expr"
+        "name": "log"
       },
       {
         "concepts": [
@@ -856,6 +850,12 @@
       },
       {
         "concepts": [
+          "arena-and-expression"
+        ],
+        "name": "reset"
+      },
+      {
+        "concepts": [
           "identity-and-validity"
         ],
         "name": "same_arena"
@@ -870,13 +870,13 @@
         "concepts": [
           "elementary-functions"
         ],
-        "name": "sin_expr"
+        "name": "sin"
       },
       {
         "concepts": [
           "elementary-functions"
         ],
-        "name": "sinh_expr"
+        "name": "sinh"
       },
       {
         "concepts": [
@@ -888,7 +888,7 @@
         "concepts": [
           "elementary-functions"
         ],
-        "name": "sqrt_expr"
+        "name": "sqrt"
       },
       {
         "concepts": [
@@ -906,13 +906,13 @@
         "concepts": [
           "elementary-functions"
         ],
-        "name": "tan_expr"
+        "name": "tan"
       },
       {
         "concepts": [
           "elementary-functions"
         ],
-        "name": "tanh_expr"
+        "name": "tanh"
       }
     ],
     "python_facade": [
@@ -977,7 +977,7 @@
   "policy": {
     "fortran_facade": "short native names are audited as the canonical candidates",
     "python_facade": "fortsym's native Python binding is audited separately from the SymPy spelling adapter",
-    "selection": "This report records findings. The next roadmap item selects canonical names and aliases.",
+    "selection": "This report records the selected native vocabulary and the deliberate Python compatibility boundary.",
     "sympy_adapter": "fortsym.sympy uses SymPy names where compatibility requires them"
   },
   "schema_version": 1,
@@ -988,7 +988,7 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 110,
+    "assigned_names": 104,
     "concept_groups": 20,
     "fortran_facade_exports": 85,
     "python_facade_exports": 12,
