@@ -99,6 +99,10 @@ as the structural complex product `i*oo`. Compact rational powers of `oo` and
 rewritten, while other branch-sensitive rational powers remain explicit.
 Direct domain rules also cover `sign`, `floor`, `ceiling`, `sinh`, `cosh`, and
 `tanh`; `sign(zoo)` stays unevaluated because its value is not determined.
+The inverse heads `asin`, `acos`, `atan`, `asinh`, `acosh`, and `atanh` also
+match the representable `oo`/`-oo` results from SymPy 1.14.0. The
+accumulation-bound results for `atan(zoo)` and `atanh(zoo)` remain applied
+heads until a compatible bounded-set representation exists.
 
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a

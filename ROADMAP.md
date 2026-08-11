@@ -155,7 +155,7 @@ Every checklist item requires all of the following:
   with [`scripts/audit_api_naming.py`](scripts/audit_api_naming.py) and
   [`doc/sympy-api-naming-audit.json`](doc/sympy-api-naming-audit.json).
   The audit covers all 124 `use fortsym` exports, all 12 native Python facade
-  exports, and all 61 `fortsym.sympy` adapter exports. It keeps the concise
+  exports, and all 67 `fortsym.sympy` adapter exports. It keeps the concise
   native vocabulary separate from the SymPy compatibility vocabulary and
   records the remaining canonical-name decisions for the next checklist item.
 - [x] Select canonical short names for constructors, functions, predicates,
@@ -314,6 +314,10 @@ Every checklist item requires all of the following:
     `cosh`, and `tanh`, and expose those canonical names through the Python
     facade. Known sentinel results match SymPy 1.14.0; `sign(zoo)` remains
     unevaluated.
+  - [x] Add representable inverse-head domain rules for `asin`, `acos`,
+    `atan`, `asinh`, `acosh`, and `atanh`. The exact `oo`/`-oo` results match
+    SymPy 1.14.0; the accumulation-bound results for `atan(zoo)` and
+    `atanh(zoo)` remain explicit applied-head refusals.
   - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
     non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.

@@ -68,7 +68,8 @@ subset with SymPy 1.14.0. It measures cold end-to-end construction plus
 operation and warm core operation separately for expansion, differentiation,
 simplification, signed refinement, real/nonzero-guarded `log`/`exp` composition,
 principal-square-root powers, direct domain-function simplification of
-`sqrt(-oo)`, and the principal `(-oo)**(3/2)` domain-power branch, relational
+`sqrt(-oo)`, inverse domain-head simplification, and the principal
+`(-oo)**(3/2)` domain-power branch, relational
 and compound-assumption construction, factorization, and supported assumption
 queries. Every workload passes through a SymPy
 correctness check before timing; domain expressions use structural equality
