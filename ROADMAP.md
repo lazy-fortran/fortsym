@@ -99,6 +99,12 @@ options and semantic forms by name. The compatibility document and focused
 frontend tests define the supported subset and its differences. Larger
 operation families remain independently tracked in #28–#43.
 
+Issue #27 remains open. On 2026-08-11, companion `fortsym-bench` commit
+`48f80e5` added machine-readable per-outcome and per-backend coverage reports,
+discovery/summary tests, and a GitHub Actions harness plus SymPy/Mathics smoke
+run; its repository test suite passes 472 tests. Corpus translation,
+fortsym-backend integration, and full release coverage remain outstanding.
+
 Issue #44 (plotting through fortplot) is complete as of 2026-08-11 for the
 bounded adapter. `fortsym_plot` samples real curves, parametric curves, list
 data, and fields, drops undefined curve samples without joining across a pole,
