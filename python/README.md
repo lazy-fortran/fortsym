@@ -12,6 +12,9 @@ The CMake install places the package sources under
 Expression handles own their native references and are released by `close()`
 or garbage collection. Exact integers and `fractions.Fraction` values are
 passed as decimal strings when they do not fit the compact C ABI scalars.
+The native `Expr.factor()` method and top-level `factor()` function expose
+bounded polynomial factorisation; factorizations that would discard a domain
+condition are refused by the C ABI.
 
 ## `fortsym.sympy` compatibility subset
 
