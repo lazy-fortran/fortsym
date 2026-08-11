@@ -54,8 +54,8 @@ id = "named-constants"
 affected = ["pi", "E", "I", "oo", "zoo", "nan"]
 parity = "partial"
 sympy = "SymPy constants have dedicated exact types, evaluation, assumptions, and directed-infinity semantics."
-fortsym = "The adapter creates native constant nodes named pi, e, i, oo, zoo, and nan; the native facade exposes oo_expr, zoo_expr, and nan_expr for the corresponding structural sentinels. Native simplification propagates nan through its declared arithmetic/function fragment, applies the finite-scalar and compact-rational directed-domain rules, handles direct sqrt/Abs/exp/log/sign/floor/ceiling/sinh/cosh/tanh/sin/cos/tan domain cases, and preserves unresolved NaN arguments in order-bearing Bessel and Legendre heads."
-difference = "The names and structural construction are compatible, but exact constant evaluation, assumptions, and the remaining operation-specific infinity semantics remain partial. Unknown factors and unsafe rational branches remain opaque; the declared nan, finite directed-domain, safe compact-rational power, and direct unary fragments match SymPy 1.14.0, including nan**0 = 1."
+fortsym = "The adapter creates native constant nodes named pi, e, i, oo, zoo, and nan; the native facade exposes oo_expr, zoo_expr, and nan_expr for the corresponding structural sentinels. Native simplification propagates nan through its declared arithmetic/function fragment, applies the finite-scalar and compact-rational directed-domain rules, handles normalized positive rational phases of -oo, direct sqrt/Abs/exp/log/sign/floor/ceiling/sinh/cosh/tanh/sin/cos/tan domain cases, and preserves unresolved NaN arguments in order-bearing Bessel and Legendre heads."
+difference = "The names and structural construction are compatible, but exact constant evaluation, assumptions, and the remaining operation-specific infinity semantics remain partial. Unknown factors and unsafe rational branches remain opaque; the declared nan, finite directed-domain, compact-rational power, normalized -oo phase, and direct unary fragments match SymPy 1.14.0, including nan**0 = 1."
 
 [[semantic]]
 id = "evaluated-arithmetic"

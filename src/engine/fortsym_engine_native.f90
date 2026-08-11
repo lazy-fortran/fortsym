@@ -4384,6 +4384,8 @@ contains
         integer,       intent(out)   :: out
         logical,       intent(out)   :: applied
         integer :: domain, direction
+        integer :: phase_id, phase_sign, pair(2)
+        integer(int64) :: phase_numerator
         logical :: known, contains_domain, has_zero
 
         applied = .false.
@@ -4415,6 +4417,29 @@ contains
                 out = imaginary_oo_node(a, 1)
             else
                 out = imaginary_oo_node(a, -1)
+            end if
+        else if (denominator > 1_int64) then
+            ! For a positive rational exponent, SymPy keeps the principal
+            ! phase explicit: (-oo)**(p/q) = oo*(-1)**(p/q). Reduce p modulo
+            ! 2q so the result has the same compact phase normal form as the
+            ! oracle, including the sign change after one full real power.
+            applied = .true.
+            phase_numerator = modulo(exponent, 2_int64*denominator)
+            phase_sign = 1
+            if (phase_numerator > denominator) then
+                phase_numerator = phase_numerator - denominator
+                phase_sign = -1
+            end if
+            if (phase_numerator == 0_int64) then
+                out = signed_oo_node(a, phase_sign)
+            else if (phase_numerator == denominator) then
+                out = signed_oo_node(a, -phase_sign)
+            else
+                phase_id = a%pow(a%int(-1_int64), &
+                    a%rat(phase_numerator, denominator))
+                pair(1) = signed_oo_node(a, phase_sign)
+                pair(2) = phase_id
+                out = a%mul(pair)
             end if
         else
             return

@@ -95,8 +95,9 @@ operation-specific function/limit rules remain separate roadmap work. The
 current unary fragment covers `sqrt`, `abs`, `exp`, and `log` on known domain
 sentinels; unknown factors remain unevaluated, and `sqrt(-oo)` is represented
 as the structural complex product `i*oo`. Compact rational powers of `oo` and
-`zoo` are also handled; only the principal odd-half-integer phase of `-oo` is
-rewritten, while other branch-sensitive rational powers remain explicit.
+`zoo` are also handled. Positive rational powers of `-oo` retain SymPy's
+normalized principal phase, such as `(-oo)**(2/3) = oo*(-1)**(2/3)` and
+`(-oo)**(4/3) = -oo*(-1)**(1/3)`; negative rational powers remain `0`.
 Direct domain rules also cover `sign`, `floor`, `ceiling`, `sinh`, `cosh`, and
 `tanh`; `sign(zoo)` stays unevaluated because its value is not determined.
 The periodic heads `sin`, `cos`, and `tan` map `zoo` to `nan`; their `+/-oo`

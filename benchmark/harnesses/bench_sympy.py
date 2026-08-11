@@ -511,6 +511,18 @@ def correctness_cases() -> list[dict[str, Any]]:
             oracle.besseli(1, -oracle.oo),
             native.besseli(1, -native.oo),
         ),
+        "negative_oo_one_third_phase": (
+            oracle.Pow(-oracle.oo, oracle.Rational(1, 3)),
+            native.simplify((-native.oo)**native.Rational(1, 3)),
+        ),
+        "negative_oo_four_thirds_phase": (
+            oracle.Pow(-oracle.oo, oracle.Rational(4, 3)),
+            native.simplify((-native.oo)**native.Rational(4, 3)),
+        ),
+        "negative_oo_negative_rational_power": (
+            oracle.Pow(-oracle.oo, oracle.Rational(-1, 3)),
+            native.simplify((-native.oo)**native.Rational(-1, 3)),
+        ),
     }
     names = {
         "benchmark_nan_order": oracle_order,

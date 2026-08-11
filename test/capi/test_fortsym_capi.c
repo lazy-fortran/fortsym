@@ -79,6 +79,9 @@ int main(void)
     fortsym_expr *sentinel_arg = NULL;
     fortsym_expr *sentinel_conjugate = NULL;
     fortsym_expr *negative_infinity = NULL;
+    fortsym_expr *two_thirds = NULL;
+    fortsym_expr *negative_phase_power = NULL;
+    fortsym_expr *negative_phase_result = NULL;
     fortsym_expr *periodic = NULL;
     fortsym_expr *periodic_simplified = NULL;
     fortsym_expr *special = NULL;
@@ -321,6 +324,17 @@ int main(void)
     status = fortsym_multiply(arena, minus_one, infinity, &negative_infinity,
                               message, sizeof message);
     assert(status == FORTSYM_OK);
+    status = fortsym_rational(arena, 2, 3, &two_thirds, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_power(arena, negative_infinity, two_thirds,
+                           &negative_phase_power, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, negative_phase_power,
+                              &negative_phase_result, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(negative_phase_result, "oo*(-1)**(2/3)");
     status = fortsym_complex_operation(arena, negative_infinity, "arg",
                                        &sentinel_arg, message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -384,6 +398,9 @@ int main(void)
     fortsym_expr_free(sentinel_im);
     fortsym_expr_free(sentinel_re);
     fortsym_expr_free(sentinel_nan_re);
+    fortsym_expr_free(negative_phase_result);
+    fortsym_expr_free(negative_phase_power);
+    fortsym_expr_free(two_thirds);
     fortsym_expr_free(periodic_simplified);
     fortsym_expr_free(periodic);
     fortsym_expr_free(special_simplified);
