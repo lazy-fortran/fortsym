@@ -304,6 +304,18 @@
       "sympy_reference": []
     },
     {
+      "action": "Reuse one result type across facade operations and zero queries instead of adding operation-specific status vocabularies.",
+      "description": "Return one common result for native expression operations.",
+      "finding": "The easy facade and native engine share engine_result_t for expression values, success, verdicts, timings, and diagnostics.",
+      "fortran_facade": [
+        "engine_result_t"
+      ],
+      "id": "operation-results",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    },
+    {
       "action": "Keep them in a numeric module with one naming family.",
       "description": "Evaluate or inspect numeric values.",
       "finding": "These are fortsym-specific inspection and callback concepts, not SymPy root aliases.",
@@ -693,6 +705,12 @@
       },
       {
         "concepts": [
+          "operation-results"
+        ],
+        "name": "engine_result_t"
+      },
+      {
+        "concepts": [
           "elementary-functions"
         ],
         "name": "erf"
@@ -1071,9 +1089,9 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 109,
-    "concept_groups": 21,
-    "fortran_facade_exports": 95,
+    "assigned_names": 110,
+    "concept_groups": 22,
+    "fortran_facade_exports": 96,
     "python_facade_exports": 12,
     "sympy_adapter_exports": 41,
     "unmapped_fortran_exports": 0

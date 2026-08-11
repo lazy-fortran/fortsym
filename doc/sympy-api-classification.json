@@ -3032,6 +3032,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym.engine_result_t",
+        "module": "fortsym",
+        "name": "engine_result_t",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym.zero_test",
         "module": "fortsym",
         "name": "zero_test",
@@ -6789,12 +6800,12 @@
     "classification_counts": {
       "delegated": 1683,
       "external": 10,
-      "facade": 128,
-      "native": 2253,
+      "facade": 129,
+      "native": 2254,
       "python-adapter": 1639,
       "refused": 26155
     },
-    "fortran_public_exports": 658,
+    "fortran_public_exports": 659,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

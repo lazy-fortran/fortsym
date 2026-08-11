@@ -11,8 +11,8 @@ program test_fortsym_convenience
     type(expr_t) :: explicit_mu, explicit_sigma, explicit_best, explicit_xi
     type(expr_t) :: explicit_expression, default_expression, mixed
     type(expr_t) :: sine, substituted, derivative, simplified, expanded, factored
-    type(expr_t) :: failed, stale
-    character(:), allocatable :: why
+    type(expr_t) :: stale
+    type(engine_result_t) :: result
     logical :: good
     integer :: failures
 
@@ -56,46 +56,60 @@ program test_fortsym_convenience
     sine = sin(mu)
     call check("facade uses the intrinsic spelling for expression functions", &
         chars(print_expr(sine)) == "sin(mu)", failures)
-    substituted = subs(mu + sigma, mu, sigma, good, why)
+    result = subs(mu + sigma, mu, sigma)
+    substituted = result%value
     call check("facade exposes structural substitution", &
-        good .and. substituted == sigma + sigma, failures)
-    derivative = diff(mu*mu, mu, good, why)
+        result%ok .and. substituted == sigma + sigma, failures)
+    result = diff(mu*mu, mu)
+    derivative = result%value
     call check("facade exposes evaluated differentiation", &
-        good .and. derivative == 2*mu, failures)
-    simplified = simplify(mu + 0, good, why)
+        result%ok .and. derivative == 2*mu, failures)
+    result = simplify(mu + 0)
+    simplified = result%value
     call check("facade exposes native simplification", &
-        good .and. simplified == mu, failures)
-    expanded = expand((mu + 1)*(mu + 2), good, why)
+        result%ok .and. simplified == mu, failures)
+    result = expand((mu + 1)*(mu + 2))
+    expanded = result%value
     call check("facade exposes native expansion", &
-        good .and. expanded == mu**2 + 3*mu + 2, failures)
-    factored = factor(mu**2 + 2*mu + 1, good, why)
+        result%ok .and. expanded == mu**2 + 3*mu + 2, failures)
+    result = factor(mu**2 + 2*mu + 1)
+    factored = result%value
     call check("facade exposes native factorisation", &
-        good .and. factored == (mu + 1)**2, failures)
-    substituted = subs(explicit_mu + explicit_sigma, explicit_mu, explicit_sigma, &
-        good, why)
+        result%ok .and. factored == (mu + 1)**2, failures)
+    result = subs(explicit_mu + explicit_sigma, explicit_mu, explicit_sigma)
+    substituted = result%value
     call check("explicit arena uses facade substitution", &
-        good .and. substituted == explicit_sigma + explicit_sigma, failures)
-    derivative = diff(explicit_mu*explicit_mu, explicit_mu, good, why)
+        result%ok .and. substituted == explicit_sigma + explicit_sigma, failures)
+    result = diff(explicit_mu*explicit_mu, explicit_mu)
+    derivative = result%value
     call check("explicit arena uses facade differentiation", &
-        good .and. derivative == 2*explicit_mu, failures)
-    simplified = simplify(explicit_mu + 0, good, why)
+        result%ok .and. derivative == 2*explicit_mu, failures)
+    result = simplify(explicit_mu + 0)
+    simplified = result%value
     call check("explicit arena uses facade simplification", &
-        good .and. simplified == explicit_mu, failures)
-    expanded = expand((explicit_mu + 1)*(explicit_mu + 2), good, why)
+        result%ok .and. simplified == explicit_mu, failures)
+    result = expand((explicit_mu + 1)*(explicit_mu + 2))
+    expanded = result%value
     call check("explicit arena uses facade expansion", &
-        good .and. expanded == explicit_mu**2 + 3*explicit_mu + 2, failures)
-    factored = factor(explicit_mu**2 + 2*explicit_mu + 1, good, why)
+        result%ok .and. expanded == explicit_mu**2 + 3*explicit_mu + 2, failures)
+    result = factor(explicit_mu**2 + 2*explicit_mu + 1)
+    factored = result%value
     call check("explicit arena uses facade factorisation", &
-        good .and. factored == (explicit_mu + 1)**2, failures)
+        result%ok .and. factored == (explicit_mu + 1)**2, failures)
+    result = zero_test(mu - mu)
     call check("facade zero query proves an identity", &
-        zero_test(mu - mu) == VERDICT_TRUE, failures)
+        result%ok .and. result%verdict == VERDICT_TRUE, failures)
+    result = zero_test(num(default_storage, 7))
     call check("facade zero query proves a nonzero literal", &
-        zero_test(num(default_storage, 7)) == VERDICT_FALSE, failures)
+        result%ok .and. result%verdict == VERDICT_FALSE, failures)
+    result = zero_test(sin(mu))
     call check("facade zero query preserves unknown", &
-        zero_test(sin(mu)) == VERDICT_UNKNOWN, failures)
-    failed = subs(mu, mu, explicit_mu, good, why)
+        result%ok .and. result%verdict == VERDICT_UNKNOWN, failures)
+    result = subs(mu, mu, explicit_mu)
     call check("facade reports cross-arena substitution refusal", &
-        .not. good .and. .not. is_valid(failed), failures)
+        .not. result%ok .and. .not. is_valid(result%value) .and. &
+        chars(result%message) == "subs: expressions belong to different arenas", &
+        failures)
 
     stale = mu
     call reset()

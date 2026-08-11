@@ -163,6 +163,13 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "Keep zero_test as the only user-facing zero query and reuse the engine verdict constants rather than adding check_* sisters.",
         ),
         concept(
+            "operation-results",
+            "Return one common result for native expression operations.",
+            ["engine_result_t"], [], [], [],
+            "The easy facade and native engine share engine_result_t for expression values, success, verdicts, timings, and diagnostics.",
+            "Reuse one result type across facade operations and zero queries instead of adding operation-specific status vocabularies.",
+        ),
+        concept(
             "numeric-inspection",
             "Evaluate or inspect numeric values.",
             ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_complex_text",

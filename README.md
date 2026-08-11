@@ -47,12 +47,14 @@ repository has an existing `.wl` derivation corpus to read.
 ```fortran
 use fortsym
 type(expr_t) :: x, y, e, d
+type(engine_result_t) :: derivative
 
 x = "x"
 y = "y"
 e = sin(x*y)**2 + cos(x*y)
 
-d = diff(e, x)
+derivative = diff(e, x)
+d = derivative%value
 ```
 
 The convenience layer, default-arena lifetime rules, and the explicit-arena
