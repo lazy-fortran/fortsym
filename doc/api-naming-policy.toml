@@ -81,6 +81,16 @@ sympy_adapter = []
 decision = "Keep safety predicates in the expression owner. Expose one zero_test query with the existing VERDICT_TRUE, VERDICT_FALSE, and VERDICT_UNKNOWN outcomes. Keep check_zero, check_identity, and probe_zero in the testing owner."
 
 [[family]]
+id = "results-and-status"
+audit_concepts = ["operation-results"]
+canonical_native = ["engine_result_t"]
+current_native = ["engine_result_t"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = []
+decision = "Reuse engine_result_t as the one native result type for facade operations and zero queries, keeping success, values, verdicts, timings, and diagnostics under one contract."
+
+[[family]]
 id = "operators-and-assignment"
 audit_concepts = ["operator-overloads"]
 canonical_native = ["operator(+)" , "operator(-)", "operator(*)", "operator(/)", "operator(**)", "operator(==)", "operator(/=)", "assignment(=)"]

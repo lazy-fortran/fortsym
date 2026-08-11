@@ -194,8 +194,10 @@ Every checklist item requires all of the following:
   behind a testing-oriented module. `fortsym` exports `zero_test` and the
   shared verdict vocabulary. `fortsym_check` owns `check_zero`,
   `check_identity`, and `probe_zero`.
-- [ ] Add consistent result/status types instead of operation-specific status
-  vocabularies.
+- [x] Add consistent result/status types instead of operation-specific status
+  vocabularies. The easy facade uses `engine_result_t` for all core expression
+  operations and the zero query. `%ok`, `%value`, `%verdict`, and `%message`
+  provide one native contract.
 - [ ] Test single-threaded facade use, explicit concurrent arenas, and
   cross-arena refusal.
 

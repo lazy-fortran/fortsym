@@ -81,28 +81,38 @@ variant or a second calling syntax.
 The easy facade uses the same short names as the owning modules:
 
 ```fortran
+type(engine_result_t) :: result
+
 f = (x + 1) * (x + 2)
-g = subs(f, x, y, ok, why)
-d = diff(f, x, ok, why)
-s = simplify(f, ok, why)
-e = expand(f, ok, why)
-p = factor(f, ok, why)
+result = subs(f, x, y)
+g = result%value
+result = diff(f, x)
+d = result%value
+result = simplify(f)
+s = result%value
+result = expand(f)
+e = result%value
+result = factor(f)
+p = result%value
 ```
 
 `diff` is the evaluated native derivative. The `fortsym_diff` module remains
 available for the deliberately unsimplified derivative DAG. `subs` is structural and
 simultaneous for its one replacement pair. `simplify`, `expand`, and `factor`
-use the native engine in the expression's arena. All five functions return an
-`expr_t`. On refusal they return an invalid handle, set `ok` false when it is
-present, and put a diagnostic in the allocatable `why` when it is present.
-Successful calls set `ok` true and clear `why`. Callers that omit the optional
-outputs can still detect failure with `is_valid`.
+use the native engine in the expression's arena. All five functions return the
+same `engine_result_t` as the native engine. `%ok` reports whether the operation
+succeeded, `%value` contains the resulting expression, and `%message` contains a
+diagnostic on refusal. Native conditional results may also populate
+`%conditional` and `%condition`. Use `%value` only after checking `%ok`.
 
 ## Zero query
 
 `zero_test(expression)` is the one symbolic zero query in the easy facade. It
-returns `VERDICT_TRUE` for a proved zero, `VERDICT_FALSE` for a proved nonzero
-expression, and `VERDICT_UNKNOWN` when the native engine declines to decide.
+returns an `engine_result_t`; `%ok` reports whether the query executed and
+`%verdict` is `VERDICT_TRUE` for a proved zero, `VERDICT_FALSE` for a proved
+nonzero expression, and `VERDICT_UNKNOWN` when the native engine declines to
+decide. `%value` contains the expression result produced by the engine when the
+query succeeds.
 `verdict_name` renders those outcomes as `ZERO`, `NONZERO`, and `UNKNOWN`.
 `fortsym_check` contains the assertion helpers and numeric probe. They are test
 utilities, not additional symbolic predicates.
