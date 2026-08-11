@@ -736,7 +736,10 @@ contains
         call check("rational logarithm power is decided zero", &
             r%verdict == VERDICT_TRUE)
         r = engine%zero_test(exp(rat(arena, 1_int64, 2_int64)*log(x)) - sqrt(x))
-        call check("sqrt spelling remains outside the power fragment", &
+        call check("sqrt spelling matches the rational power fragment", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(sqrt(x)**2 - x)
+        call check("sqrt square remains unknown without a domain", &
             r%verdict == VERDICT_UNKNOWN)
         r = engine%zero_test(sin(x)**2 + cos(x)**2 - 1)
         call check("trigonometric Pythagorean identity is decided zero", &

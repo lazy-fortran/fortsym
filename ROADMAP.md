@@ -155,8 +155,8 @@ case from the external exponential oracle without claiming general complex
 transcendental simplification. It also rewrites exact rational powers of
 logarithms inside exponentials, including `exp(log(x))`, `exp(2*log(x))`, exact
 rational powers, and additive logarithm factors; symbolic cofactors and
-alternate `sqrt` spellings remain outside the fragment. Native `zero_test` now
-also consumes the existing bounded
+alternate `sqrt` spellings now share the rational-power form, while symbolic
+cofactors remain outside the fragment. Native `zero_test` now also consumes the existing bounded
 trigonometric-to-exponential rewrite, deciding the Pythagorean identity while
 leaving unproved trigonometric forms unknown.
 The independent native oracle also covers sine and cosine angle addition and
