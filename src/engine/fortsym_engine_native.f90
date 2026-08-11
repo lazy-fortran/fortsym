@@ -1901,6 +1901,10 @@ contains
         case ("log10")
             call exact_log10_value(a, args(1), trig_constant, trig_constant_ok)
             if (trig_constant_ok) out = trig_constant
+        case ("min", "max", "Min", "Max")
+            call exact_extremum_value(a, name, args, trig_constant, &
+                trig_constant_ok)
+            if (trig_constant_ok) out = trig_constant
         case ("atan2")
             call exact_atan2_value(a, args, trig_constant, trig_constant_ok)
             if (trig_constant_ok) out = trig_constant
@@ -2390,6 +2394,50 @@ contains
         end do
         ok = .true.
     end subroutine power_of_ten_exponent
+
+    subroutine exact_extremum_value(a, name, args, out, ok)
+        type(arena_t), intent(inout) :: a
+        character(*), intent(in) :: name
+        integer, intent(in) :: args(:)
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer :: best, k
+        integer(int64) :: best_numerator, best_denominator
+        integer(int64) :: numerator, denominator, left, right
+        logical :: best_exact, exact, compare_ok, is_minimum
+
+        out = a%func(name, args)
+        ok = .false.
+        if (size(args) < 2) return
+        call exact_value(a, args(1), best_numerator, best_denominator, &
+            best_exact)
+        if (.not. best_exact) return
+        best = args(1)
+        is_minimum = name == "min" .or. name == "Min"
+        do k = 2, size(args)
+            call exact_value(a, args(k), numerator, denominator, exact)
+            if (.not. exact) return
+            call checked_mul(best_numerator, denominator, left, compare_ok)
+            if (.not. compare_ok) return
+            call checked_mul(numerator, best_denominator, right, compare_ok)
+            if (.not. compare_ok) return
+            if (is_minimum) then
+                if (right < left) then
+                    best = args(k)
+                    best_numerator = numerator
+                    best_denominator = denominator
+                end if
+            else
+                if (right > left) then
+                    best = args(k)
+                    best_numerator = numerator
+                    best_denominator = denominator
+                end if
+            end if
+        end do
+        out = best
+        ok = .true.
+    end subroutine exact_extremum_value
 
     subroutine exact_loggamma_value(a, id, out, ok)
         type(arena_t), intent(inout) :: a
