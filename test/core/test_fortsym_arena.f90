@@ -8,7 +8,8 @@ program test_fortsym_arena
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
-        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
+        NK_BIG_REAL
     use fortsym_expr
     implicit none
 
@@ -19,6 +20,7 @@ program test_fortsym_arena
     call test_interning()
     call test_rational_normalisation()
     call test_arbitrary_precision_exact()
+    call test_precision_real_text()
     call test_large_exact_pool()
     call test_commutative_canonicalisation()
     call test_large_semantic_sort()
@@ -193,6 +195,27 @@ contains
         call ok("exact input initializes a default arena", &
             good .and. is_valid(power64) .and. default_arena%size() == 1)
     end subroutine test_arbitrary_precision_exact
+
+    subroutine test_precision_real_text()
+        type(arena_t), target :: a
+        type(expr_t) :: high, invalid
+        logical :: good
+
+        call a%init()
+        high = real_text_expr(a, "1.2345678901234567890123456789e-120", good)
+        call ok("precision real text is accepted", good)
+        call ok("precision real text keeps its node kind", &
+            high%kind() == NK_BIG_REAL)
+        call ok("precision real text is not rounded to real64", &
+            chars(high%real_text()) == "1.2345678901234567890123456789e-120")
+
+        invalid = real_text_expr(a, "not-a-real", good)
+        call ok("malformed precision real text is refused", .not. good)
+        call ok("malformed precision real text is invalid", .not. is_valid(invalid))
+        invalid = real_text_expr(a, "nan", good)
+        call ok("non-finite precision real text is refused", .not. good)
+        call ok("non-finite precision real text is invalid", .not. is_valid(invalid))
+    end subroutine test_precision_real_text
 
     !> Reinsert 2,049 distinct large values after crossing every text-table
     !> growth boundary. The independent oracle is stable hash-consing: reverse

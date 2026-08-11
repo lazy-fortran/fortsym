@@ -68,6 +68,10 @@ The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Requested-precision real evaluation and
 exact complex or algebraic values remain separate roadmap items.
 
+`real_text_expr` retains a bounded finite decimal literal as `NK_BIG_REAL`.
+The arena validates its decimal syntax and preserves the original digits rather
+than converting the value through `real64`.
+
 ## Explicit arenas
 
 An explicit arena remains the first-class API for independent problems and
