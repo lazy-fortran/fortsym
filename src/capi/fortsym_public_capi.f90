@@ -18,7 +18,8 @@ module fortsym_public_capi
         clone_assumption_context, record_assumption, &
         record_relation, &
         assumption_has, &
-        FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO
+        FACT_REAL, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, FACT_POSITIVE, &
+        FACT_NONNEGATIVE, FACT_NONZERO
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE
@@ -32,6 +33,7 @@ module fortsym_public_capi
     integer(c_int), parameter, public :: FORTSYM_PARSE_ERROR = 4_c_int
     integer(c_int), parameter, public :: FORTSYM_UNSUPPORTED = 5_c_int
     integer(c_int), parameter, public :: FORTSYM_RESOURCE_LIMIT = 6_c_int
+    integer(c_int), parameter, public :: FORTSYM_CONFLICT = 7_c_int
 
     type :: assumption_frame_t
         type(assumption_context_t), pointer :: context => null()
@@ -70,7 +72,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 6_c_int
+        v = 7_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -217,6 +219,8 @@ contains
         type(arena_owner_t), pointer :: a, ep_arena
         type(expr_owner_t), pointer :: ep
         type(expr_t) :: expression
+        character(:), allocatable :: why
+        logical :: fact_ok
 
         call get_arena(raw, a, status, message, capacity)
         if (status /= FORTSYM_OK) return
@@ -227,12 +231,19 @@ contains
             call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
             return
         end if
-        if (fact /= FACT_REAL .and. fact /= FACT_POSITIVE .and. &
-            fact /= FACT_NONNEGATIVE .and. fact /= FACT_NONZERO) then
+        if (fact /= FACT_REAL .and. fact /= FACT_ZERO .and. &
+            fact /= FACT_NEGATIVE .and. fact /= FACT_NONPOSITIVE .and. &
+            fact /= FACT_POSITIVE .and. fact /= FACT_NONNEGATIVE .and. &
+            fact /= FACT_NONZERO) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if
-        call record_assumption(a%assumptions, expression, int(fact))
+        call record_assumption(a%assumptions, expression, int(fact), &
+            fact_ok, why)
+        if (.not. fact_ok) then
+            call fail_reason(status, message, capacity, FORTSYM_CONFLICT, why)
+            return
+        end if
         call put_error(message, capacity, FORTSYM_OK)
         status = FORTSYM_OK
     end function c_fortsym_assume
@@ -261,7 +272,11 @@ contains
         end if
         call record_relation(a%assumptions, relation, ok, why)
         if (.not. ok) then
-            call fail(status, message, capacity, FORTSYM_UNSUPPORTED)
+            if (index(why, "contradictory assumptions:") == 1) then
+                call fail_reason(status, message, capacity, FORTSYM_CONFLICT, why)
+            else
+                call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            end if
             return
         end if
         call put_error(message, capacity, FORTSYM_OK)
@@ -343,8 +358,10 @@ contains
             call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
             return
         end if
-        if (fact /= FACT_REAL .and. fact /= FACT_POSITIVE .and. &
-            fact /= FACT_NONNEGATIVE .and. fact /= FACT_NONZERO) then
+        if (fact /= FACT_REAL .and. fact /= FACT_ZERO .and. &
+            fact /= FACT_NEGATIVE .and. fact /= FACT_NONPOSITIVE .and. &
+            fact /= FACT_POSITIVE .and. fact /= FACT_NONNEGATIVE .and. &
+            fact /= FACT_NONZERO) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if
@@ -1114,6 +1131,17 @@ contains
         call put_error(message, capacity, code)
     end subroutine fail
 
+    subroutine fail_reason(status, message, capacity, code, reason)
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int), value :: code
+        character(*), intent(in) :: reason
+
+        status = code
+        call put_reason(message, capacity, reason)
+    end subroutine fail_reason
+
     function from_c_string(source) result(value)
         character(kind=c_char), intent(in) :: source(*)
         character(:), allocatable :: value
@@ -1134,7 +1162,6 @@ contains
         integer(c_size_t), value :: capacity
         integer(c_int), value :: code
         character(len=64) :: error_text
-        integer(c_size_t) :: n, k
 
         if (capacity == 0_c_size_t) return
         select case (code)
@@ -1145,17 +1172,28 @@ contains
         case (FORTSYM_PARSE_ERROR); error_text = "parse error"
         case (FORTSYM_UNSUPPORTED); error_text = "unsupported operation"
         case (FORTSYM_RESOURCE_LIMIT); error_text = "resource limit"
+        case (FORTSYM_CONFLICT); error_text = "contradictory assumptions"
         case default; error_text = "fortsym operation failed"
         end select
-        n = min(int(len_trim(error_text), c_size_t), capacity - 1_c_size_t)
+        call put_reason(buffer, capacity, error_text)
+    end subroutine put_error
+
+    subroutine put_reason(buffer, capacity, reason)
+        character(kind=c_char), intent(out) :: buffer(*)
+        integer(c_size_t), value :: capacity
+        character(*), intent(in) :: reason
+        integer(c_size_t) :: n, k
+
+        if (capacity == 0_c_size_t) return
+        n = min(int(len_trim(reason), c_size_t), capacity - 1_c_size_t)
         do k = 1, n
-            buffer(k) = error_text(int(k):int(k))
+            buffer(k) = reason(int(k):int(k))
         end do
         buffer(n + 1) = c_null_char
         do k = n + 2, capacity
             buffer(k) = c_null_char
         end do
-    end subroutine put_error
+    end subroutine put_reason
 
     subroutine put_text(source, buffer, capacity, required, status, message, &
             message_capacity)

@@ -7,16 +7,18 @@ module fortsym_assume_api
         init_impl => init_assumption_context, record_impl => record_assumption, &
         relation_impl => record_relation, &
         has_impl => assumption_has, &
-        FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, &
-        FACT_INTEGER, FACT_POSITIVE_INTEGER
+        FACT_REAL, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, &
+        FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, FACT_INTEGER, &
+        FACT_POSITIVE_INTEGER
     implicit none
     private
 
     public :: assumption_context_t, init_assumption_context, &
         record_assumption, record_relation, clone_assumption_context
     public :: assumption_has
-    public :: FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, &
-        FACT_INTEGER, FACT_POSITIVE_INTEGER
+    public :: FACT_REAL, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, &
+        FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, FACT_INTEGER, &
+        FACT_POSITIVE_INTEGER
 
 contains
 
@@ -27,12 +29,14 @@ contains
         call init_impl(context, home)
     end subroutine init_assumption_context
 
-    subroutine record_assumption(context, expression, facts)
+    subroutine record_assumption(context, expression, facts, ok, why)
         type(assumption_context_t), intent(inout) :: context
         type(expr_t),                intent(in)    :: expression
         integer,                     intent(in)    :: facts
+        logical,                     intent(out), optional :: ok
+        character(:), allocatable,   intent(out), optional :: why
 
-        call record_impl(context, expression, facts)
+        call record_impl(context, expression, facts, ok, why)
     end subroutine record_assumption
 
     subroutine record_relation(context, relation, ok, why)

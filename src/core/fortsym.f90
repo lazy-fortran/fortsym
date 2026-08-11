@@ -16,8 +16,8 @@ module fortsym
         greater_equal
     use fortsym_subs, only: subs_impl => subs
     use fortsym_assume, only: assumption_context_t, &
-        make_assumption_context, with_assumption, positive, nonnegative, &
-        nonzero, real_valued
+        make_assumption_context, with_assumption, zero, negative, nonpositive, &
+        positive, nonnegative, nonzero, real_valued
     use fortsym_numeric, only: numeric_value, numeric_text, &
         numeric_precision_text, numeric_complex_text, &
         numeric_real_text_t, numeric_complex_text_t, numeric_callable_t
@@ -42,7 +42,7 @@ module fortsym
         func, func_in, partial, equal, unequal, less, less_equal, greater, &
         greater_equal, pi_expr, e_expr, i_expr, is_valid, same_arena
     public :: assumption_context_t, make_assumption_context, with_assumption, &
-        positive, nonnegative, nonzero, real_valued
+        zero, negative, nonpositive, positive, nonnegative, nonzero, real_valued
     public :: str, chars
     public :: subs, diff, simplify, refine, expand, factor
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE

@@ -58,7 +58,7 @@ int main(void)
     fortsym_expr *sine = NULL;
     const fortsym_expr *root_argument[1];
 
-    assert(fortsym_abi_version() == 6);
+    assert(fortsym_abi_version() == 7);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
@@ -127,6 +127,10 @@ int main(void)
     status = fortsym_assumption_has(arena, x, FORTSYM_FACT_REAL, &known,
                                     message, sizeof message);
     assert(status == FORTSYM_OK && known == 1);
+    status = fortsym_assume(arena, x, FORTSYM_FACT_NEGATIVE, message,
+                            sizeof message);
+    assert(status == FORTSYM_CONFLICT);
+    assert(strstr(message, "contradictory assumptions") != NULL);
     status = fortsym_assumption_has(arena, y, FORTSYM_FACT_POSITIVE, &known,
                                     message, sizeof message);
     assert(status == FORTSYM_OK && known == 0);

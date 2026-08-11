@@ -9,11 +9,15 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-from .. import Arena, Expr, FortSymError, _Assumption, _default
+from .. import Arena, Expr, FortSymError, _Assumption, _CONFLICT, _default
 
 
 class UnsupportedOperationError(NotImplementedError):
     """The requested SymPy operation is outside fortsym's declared subset."""
+
+
+class InconsistentAssumptions(ValueError):
+    """The supplied assumptions cannot hold simultaneously."""
 
 
 def _coerce(value):
@@ -47,6 +51,9 @@ class _KindMeta(type):
 
 _ASSUMPTION_FACTS = {
     "real": 1,
+    "zero": 64,
+    "negative": 128,
+    "nonpositive": 256,
     "positive": 2,
     "nonnegative": 4,
     "nonzero": 8,
@@ -54,6 +61,7 @@ _ASSUMPTION_FACTS = {
 
 
 def _apply_assumptions(expression, assumptions):
+    pending = []
     for name, value in assumptions.items():
         if name == "commutative" and value is True:
             continue
@@ -61,10 +69,19 @@ def _apply_assumptions(expression, assumptions):
             raise UnsupportedOperationError(
                 f"symbol assumption {name}={value!r}"
             )
-    for name, value in assumptions.items():
-        if name == "commutative":
-            continue
-        _default().assume(expression, _ASSUMPTION_FACTS[name])
+        pending.append(_Assumption(
+            expression, _ASSUMPTION_FACTS[name], name
+        ))
+    if pending:
+        try:
+            with _default().assuming(*pending):
+                pass
+        except FortSymError as error:
+            if error.status == _CONFLICT:
+                raise InconsistentAssumptions(str(error)) from error
+            raise
+        for fact in pending:
+            _default().assume(fact.expression, fact.fact)
     return expression
 
 
@@ -81,6 +98,9 @@ class _AssumptionPredicate:
 
 class _AssumptionQueries:
     real = _AssumptionPredicate("real", 1)
+    zero = _AssumptionPredicate("zero", 64)
+    negative = _AssumptionPredicate("negative", 128)
+    nonpositive = _AssumptionPredicate("nonpositive", 256)
     positive = _AssumptionPredicate("positive", 2)
     nonnegative = _AssumptionPredicate("nonnegative", 4)
     nonzero = _AssumptionPredicate("nonzero", 8)
@@ -105,6 +125,8 @@ class _AdapterAssumptionScope:
         except FortSymError as error:
             if error.status == 5:
                 raise UnsupportedOperationError(str(error)) from error
+            if error.status == _CONFLICT:
+                raise InconsistentAssumptions(str(error)) from error
             raise
 
     def __exit__(self, *arguments):
@@ -113,6 +135,23 @@ class _AdapterAssumptionScope:
 
 def assuming(*facts):
     return _AdapterAssumptionScope(facts)
+
+
+def And(*arguments):
+    if not arguments:
+        raise UnsupportedOperationError("empty And")
+    values = [sympify(argument) for argument in arguments]
+    if len(values) == 1:
+        return values[0]
+    temporary = [
+        value for argument, value in zip(arguments, values)
+        if not isinstance(argument, Expr)
+    ]
+    try:
+        return _default().function("And", values)
+    finally:
+        for value in temporary:
+            value.close()
 
 
 def _relational(name, left, right):
@@ -381,10 +420,11 @@ oo = _default().constant("oo")
 
 __all__ = [
     "Arena", "Expr", "FortSymError", "UnsupportedOperationError",
+    "InconsistentAssumptions",
     "Symbol", "symbols", "sympify", "Integer", "Rational", "Float",
     "Add", "Mul", "Pow", "Function", "Derivative", "Subs", "sin", "cos",
     "tan", "exp", "log", "sqrt", "Abs", "diff", "subs", "expand",
-    "simplify", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le",
+    "simplify", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
     "integrate", "limit", "series", "solve", "Matrix", "pi", "E", "I",
     "oo",

@@ -2,7 +2,8 @@ module fortsym_assume
     ! Explicit domain facts used by guarded algebraic rewrites.
     !
     ! Facts belong to one arena and compare interned expression identities.
-    ! Positive implies nonnegative, nonzero, and real. Nonnegative implies real.
+    ! Sign facts are closed under their sound implications. Contradictory
+    ! combinations are rejected before they reach a context.
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_INT, NK_RAT
@@ -11,13 +12,15 @@ module fortsym_assume
     private
 
     public :: assumption_context_t, assumption_t
-    public :: assume, positive, nonnegative, nonzero, real_valued
+    public :: assume, zero, negative, nonpositive, positive, nonnegative, &
+        nonzero, real_valued
     public :: integer_valued, positive_integer, record_relation
     public :: assumption_has
     public :: init_assumption_context, record_assumption, clone_assumption_context
     public :: make_assumption_context, with_assumption
-    public :: FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, &
-        FACT_INTEGER, FACT_POSITIVE_INTEGER
+    public :: FACT_REAL, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, &
+        FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, FACT_INTEGER, &
+        FACT_POSITIVE_INTEGER
 
     integer, parameter :: FACT_REAL = 1
     integer, parameter :: FACT_POSITIVE = 2
@@ -25,6 +28,10 @@ module fortsym_assume
     integer, parameter :: FACT_NONZERO = 8
     integer, parameter :: FACT_INTEGER = 16
     integer, parameter :: FACT_POSITIVE_INTEGER = 32
+    integer, parameter :: FACT_ZERO = 64
+    integer, parameter :: FACT_NEGATIVE = 128
+    integer, parameter :: FACT_NONPOSITIVE = 256
+    integer, parameter :: FACT_ALL = 511
     integer, parameter :: INITIAL_FACTS = 16
 
     type :: assumption_t
@@ -76,13 +83,17 @@ contains
         type(assumption_t), intent(in) :: assumption
         logical, intent(out), optional :: ok
         type(assumption_context_t) :: child
-        logical :: valid
+        character(:), allocatable :: why
+        logical :: valid, assumption_ok
 
         call clone_assumption_context(child, parent)
         valid = associated(parent%home)
         if (valid) valid = is_valid(assumption%expression)
         if (valid) valid = associated(assumption%expression%a, parent%home)
-        if (valid) call assume(child, assumption)
+        if (valid) then
+            call assume(child, assumption, assumption_ok, why)
+            valid = assumption_ok
+        end if
         if (present(ok)) ok = valid
     end function with_fact_assumption
 
@@ -105,21 +116,35 @@ contains
         if (present(ok)) ok = valid
     end function with_relation_assumption
 
-    subroutine record_assumption(context, expression, facts)
+    subroutine record_assumption(context, expression, facts, ok, why)
         type(assumption_context_t), intent(inout) :: context
         type(expr_t),                intent(in)    :: expression
         integer,                     intent(in)    :: facts
+        logical,                     intent(out), optional :: ok
+        character(:), allocatable,   intent(out), optional :: why
         type(assumption_t) :: fact
 
         fact%expression = expression
         fact%facts = facts
-        call assume(context, fact)
+        call assume(context, fact, ok, why)
     end subroutine record_assumption
 
     !> Record the bounded relation/domain fragment used by Assuming and
-    !> Refine. Unsupported relations are refused by the caller; they are not
-    !> treated as absent facts.
-    recursive subroutine record_relation(context, relation, ok, why)
+    !> Refine. The candidate context makes compound ingestion transactional:
+    !> a refused or contradictory child never leaves a partial fact behind.
+    subroutine record_relation(context, relation, ok, why)
+        type(assumption_context_t), intent(inout) :: context
+        type(expr_t),                intent(in)    :: relation
+        logical,                     intent(out)   :: ok
+        character(:), allocatable,   intent(out)   :: why
+        type(assumption_context_t) :: candidate
+
+        call context_clone(candidate, context)
+        call record_relation_impl(candidate, relation, ok, why)
+        if (ok) call context_clone(context, candidate)
+    end subroutine record_relation
+
+    recursive subroutine record_relation_impl(context, relation, ok, why)
         type(assumption_context_t), intent(inout) :: context
         type(expr_t),                intent(in)    :: relation
         logical,                     intent(out)   :: ok
@@ -153,7 +178,7 @@ contains
             end if
             ok = .true.
             do k = 1, relation%nargs()
-                call record_relation(context, relation%arg(k), ok, why)
+                call record_relation_impl(context, relation%arg(k), ok, why)
                 if (.not. ok) return
             end do
             return
@@ -173,14 +198,18 @@ contains
             domain = chars(right%name())
             select case (domain)
             case ("Reals", "PositiveReals")
-                call record_assumption(context, left, FACT_REAL)
+                call record_assumption(context, left, FACT_REAL, ok, why)
+                if (.not. ok) return
                 if (domain == "PositiveReals") then
-                    call record_assumption(context, left, FACT_POSITIVE)
+                    call record_assumption(context, left, FACT_POSITIVE, ok, why)
+                    if (.not. ok) return
                 end if
             case ("Integers")
-                call record_assumption(context, left, FACT_INTEGER)
+                call record_assumption(context, left, FACT_INTEGER, ok, why)
+                if (.not. ok) return
             case ("PositiveIntegers")
-                call record_assumption(context, left, FACT_POSITIVE_INTEGER)
+                call record_assumption(context, left, FACT_POSITIVE_INTEGER, ok, why)
+                if (.not. ok) return
             case default
                 why = "unsupported Element domain "//domain
                 return
@@ -207,7 +236,7 @@ contains
         end if
 
         why = "relation needs an exact constant bound in this fragment"
-    end subroutine record_relation
+    end subroutine record_relation_impl
 
     subroutine context_init(self, home)
         class(assumption_context_t), intent(inout) :: self
@@ -241,33 +270,59 @@ contains
         self%n = parent%n
     end subroutine context_clone
 
-    subroutine assume(context, assumption)
+    subroutine assume(context, assumption, ok, why)
         type(assumption_context_t), intent(inout) :: context
         type(assumption_t),         intent(in)    :: assumption
+        logical,                     intent(out), optional :: ok
+        character(:), allocatable,   intent(out), optional :: why
         integer, allocatable :: larger(:)
-        integer :: k
+        integer :: k, candidate_facts
+        character(:), allocatable :: local_why
+        logical :: accepted
 
-        if (.not. associated(context%home)) return
-        if (.not. associated(assumption%expression%a, context%home)) return
+        accepted = .false.
+        local_why = ""
+        if (.not. associated(context%home)) then
+            local_why = "assumption context is not initialised"
+        else if (.not. is_valid(assumption%expression)) then
+            local_why = "assumption expression is invalid"
+        else if (.not. associated(assumption%expression%a, context%home)) then
+            local_why = "assumption belongs to a different arena"
+        else if (iand(assumption%facts, not(FACT_ALL)) /= 0) then
+            local_why = "unsupported assumption fact mask"
+        else
+            do k = 1, context%n
+                if (context%ids(k) /= assumption%expression%id) cycle
+                candidate_facts = implied(ior(context%facts(k), &
+                    assumption%facts))
+                if (.not. valid_facts(candidate_facts, local_why)) exit
+                context%facts(k) = candidate_facts
+                accepted = .true.
+                exit
+            end do
 
-        do k = 1, context%n
-            if (context%ids(k) /= assumption%expression%id) cycle
-            context%facts(k) = ior(context%facts(k), implied(assumption%facts))
-            return
-        end do
+            if (.not. accepted .and. len(local_why) == 0) then
+                candidate_facts = implied(assumption%facts)
+                if (valid_facts(candidate_facts, local_why)) then
+                    if (context%n >= size(context%ids)) then
+                        allocate (larger(2*size(context%ids)), source=0)
+                        larger(1:context%n) = context%ids(1:context%n)
+                        call move_alloc(larger, context%ids)
+                        allocate (larger(2*size(context%facts)), source=0)
+                        larger(1:context%n) = context%facts(1:context%n)
+                        call move_alloc(larger, context%facts)
+                    end if
 
-        if (context%n >= size(context%ids)) then
-            allocate (larger(2*size(context%ids)), source=0)
-            larger(1:context%n) = context%ids(1:context%n)
-            call move_alloc(larger, context%ids)
-            allocate (larger(2*size(context%facts)), source=0)
-            larger(1:context%n) = context%facts(1:context%n)
-            call move_alloc(larger, context%facts)
+                    context%n = context%n + 1
+                    context%ids(context%n) = assumption%expression%id
+                    context%facts(context%n) = candidate_facts
+                    accepted = .true.
+                end if
+            end if
         end if
 
-        context%n = context%n + 1
-        context%ids(context%n) = assumption%expression%id
-        context%facts(context%n) = implied(assumption%facts)
+        if (present(ok)) ok = accepted
+        if (present(why)) why = local_why
     end subroutine assume
 
     function context_has(self, expression, fact) result(yes)
@@ -302,6 +357,27 @@ contains
         assumption%expression = expression
         assumption%facts = FACT_POSITIVE
     end function positive
+
+    function zero(expression) result(assumption)
+        type(expr_t), intent(in) :: expression
+        type(assumption_t)       :: assumption
+        assumption%expression = expression
+        assumption%facts = FACT_ZERO
+    end function zero
+
+    function negative(expression) result(assumption)
+        type(expr_t), intent(in) :: expression
+        type(assumption_t)       :: assumption
+        assumption%expression = expression
+        assumption%facts = FACT_NEGATIVE
+    end function negative
+
+    function nonpositive(expression) result(assumption)
+        type(expr_t), intent(in) :: expression
+        type(assumption_t)       :: assumption
+        assumption%expression = expression
+        assumption%facts = FACT_NONPOSITIVE
+    end function nonpositive
 
     function nonnegative(expression) result(assumption)
         type(expr_t), intent(in) :: expression
@@ -361,7 +437,48 @@ contains
             all_facts = ior(all_facts, FACT_INTEGER)
             all_facts = ior(all_facts, FACT_POSITIVE)
         end if
+        if (iand(all_facts, FACT_ZERO) /= 0) then
+            all_facts = ior(all_facts, FACT_NONNEGATIVE)
+            all_facts = ior(all_facts, FACT_NONPOSITIVE)
+            all_facts = ior(all_facts, FACT_REAL)
+        end if
+        if (iand(all_facts, FACT_NEGATIVE) /= 0) then
+            all_facts = ior(all_facts, FACT_NONPOSITIVE)
+            all_facts = ior(all_facts, FACT_NONZERO)
+            all_facts = ior(all_facts, FACT_REAL)
+        end if
+        if (iand(all_facts, FACT_NONPOSITIVE) /= 0) then
+            all_facts = ior(all_facts, FACT_REAL)
+        end if
+        if (iand(all_facts, FACT_NONNEGATIVE) /= 0 .and. &
+            iand(all_facts, FACT_NONPOSITIVE) /= 0) then
+            all_facts = ior(all_facts, FACT_ZERO)
+        end if
     end function implied
+
+    logical function valid_facts(facts, why)
+        integer, intent(in) :: facts
+        character(:), allocatable, intent(out) :: why
+
+        valid_facts = .false.
+        why = ""
+        if (iand(facts, FACT_POSITIVE) /= 0 .and. &
+            iand(facts, FACT_NONPOSITIVE) /= 0) then
+            why = "contradictory assumptions: positive and nonpositive"
+            return
+        end if
+        if (iand(facts, FACT_NEGATIVE) /= 0 .and. &
+            iand(facts, FACT_NONNEGATIVE) /= 0) then
+            why = "contradictory assumptions: negative and nonnegative"
+            return
+        end if
+        if (iand(facts, FACT_ZERO) /= 0 .and. &
+            iand(facts, FACT_NONZERO) /= 0) then
+            why = "contradictory assumptions: zero and nonzero"
+            return
+        end if
+        valid_facts = .true.
+    end function valid_facts
 
     subroutine record_comparison(context, expression, name, n, d, exact_left, &
             ok, why)
@@ -372,7 +489,7 @@ contains
         logical,                     intent(in)    :: exact_left
         logical,                     intent(out)   :: ok
         character(:), allocatable,   intent(out)   :: why
-        logical :: lower, strict
+        logical :: lower, upper, strict
 
         ok = .false.
         why = ""
@@ -380,13 +497,19 @@ contains
             why = "assumption bound has a zero denominator"
             return
         end if
+        if (name == "Equal") then
+            if (n > 0_int64) then
+                call record_assumption(context, expression, FACT_POSITIVE, ok, why)
+            else if (n < 0_int64) then
+                call record_assumption(context, expression, FACT_NEGATIVE, ok, why)
+            else
+                call record_assumption(context, expression, FACT_ZERO, ok, why)
+            end if
+            return
+        end if
         if (name == "Unequal") then
-            if (n == 0_int64 .and. .not. exact_left) then
-                call record_assumption(context, expression, FACT_NONZERO)
-                ok = .true.
-            else if (exact_left .and. n == 0_int64) then
-                call record_assumption(context, expression, FACT_NONZERO)
-                ok = .true.
+            if (n == 0_int64) then
+                call record_assumption(context, expression, FACT_NONZERO, ok, why)
             else
                 why = "Unequal is supported only against exact zero"
             end if
@@ -394,47 +517,60 @@ contains
         end if
 
         lower = .false.
+        upper = .false.
         strict = .false.
-        if (.not. exact_left) then
-            select case (name)
-            case ("Greater")
-                lower = .true.; strict = .true.
-            case ("GreaterEqual")
+        select case (name)
+        case ("Greater")
+            if (exact_left) then
+                upper = .true.
+            else
                 lower = .true.
-            case ("Less", "LessEqual")
-                ! Upper bounds are retained as a named, sound refusal until
-                ! a consumer asks for a negative/nonpositive fact.
-                why = "upper-bound inference is not needed by this fragment"
-                return
-            case default
-                why = "unsupported assumption relation "//name
-                return
-            end select
-        else
-            select case (name)
-            case ("Less")
-                lower = .true.; strict = .true.
-            case ("LessEqual")
+            end if
+            strict = .true.
+        case ("GreaterEqual")
+            if (exact_left) then
+                upper = .true.
+            else
                 lower = .true.
-            case ("Greater", "GreaterEqual")
-                why = "upper-bound inference is not needed by this fragment"
-                return
-            case default
-                why = "unsupported assumption relation "//name
-                return
-            end select
-        end if
+            end if
+        case ("Less")
+            if (exact_left) then
+                lower = .true.
+            else
+                upper = .true.
+            end if
+            strict = .true.
+        case ("LessEqual")
+            if (exact_left) then
+                lower = .true.
+            else
+                upper = .true.
+            end if
+        case default
+            why = "unsupported assumption relation "//name
+            return
+        end select
 
         if (lower) then
             if (n > 0_int64 .or. (n == 0_int64 .and. strict)) then
-                call record_assumption(context, expression, FACT_POSITIVE)
+                call record_assumption(context, expression, FACT_POSITIVE, ok, why)
             else if (n == 0_int64) then
-                call record_assumption(context, expression, FACT_NONNEGATIVE)
+                call record_assumption(context, expression, FACT_NONNEGATIVE, ok, why)
             else
                 why = "lower bound does not imply a supported sign fact"
                 return
             end if
-            ok = .true.
+            return
+        end if
+        if (upper) then
+            if (n < 0_int64 .or. (n == 0_int64 .and. strict)) then
+                call record_assumption(context, expression, FACT_NEGATIVE, ok, why)
+            else if (n == 0_int64) then
+                call record_assumption(context, expression, FACT_NONPOSITIVE, ok, why)
+            else
+                why = "upper bound does not imply a supported sign fact"
+                return
+            end if
         end if
     end subroutine record_comparison
 
