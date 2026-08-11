@@ -695,7 +695,17 @@ contains
         call check("Euler periodic constant nonidentity is nonzero", &
             r%verdict == VERDICT_FALSE)
         r = engine%zero_test(exp(i_expr(arena)*pi_expr(arena)/2) - i_expr(arena))
-        call check("fractional periodic constants remain unknown", &
+        call check("Euler quarter-turn constant is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(-i_expr(arena)*pi_expr(arena)/2) + i_expr(arena))
+        call check("negative Euler quarter-turn constant is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(3*i_expr(arena)*pi_expr(arena)/2) + i_expr(arena))
+        call check("third-quarter Euler constant is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(i_expr(arena)*pi_expr(arena)/4) - &
+            (1 + i_expr(arena))/sqrt(num(arena, 2)))
+        call check("other fractional periodic constants remain unknown", &
             r%verdict == VERDICT_UNKNOWN)
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
@@ -732,6 +742,9 @@ contains
             (1 - tanh(x)*tanh(y)))
         call check("wrong hyperbolic tangent addition sign is rejected", &
             r%verdict == VERDICT_FALSE)
+        r = engine%zero_test(tanh(x) - sinh(x)/cosh(x))
+        call check("hyperbolic tangent quotient is decided zero", &
+            r%verdict == VERDICT_TRUE)
         r = engine%zero_test(tan(x + y) - (tan(x) + tan(y))/ &
             (1 - tan(x)*tan(y)))
         call check("tangent addition identity is decided zero", &
@@ -743,6 +756,22 @@ contains
         r = engine%zero_test(sin(x) + cos(x))
         call check("unproved trigonometric nonidentity remains unknown", &
             r%verdict == VERDICT_UNKNOWN)
+        r = engine%zero_test(sin(2*x) - 2*sin(x)*cos(x))
+        call check("sine double-angle identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(cos(2*x) - 1 + 2*sin(x)**2)
+        call check("cosine double-angle identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(sin(3*x) - 3*sin(x) + 4*sin(x)**3)
+        call check("sine triple-angle identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(sin(x)*cos(y) - &
+            (sin(x + y) + sin(x - y))/2)
+        call check("sine-cosine product-to-sum is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(sin(x) - 2*sin(x/2)*cos(x/2))
+        call check("sine half-angle identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
     end subroutine test_verdicts
 
     subroutine test_overflow_preservation()

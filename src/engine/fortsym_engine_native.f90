@@ -887,7 +887,7 @@ contains
         logical                                :: exact
         character(:), allocatable              :: name
         integer :: one(1)
-        integer(int64) :: pi_multiple
+        integer(int64) :: pi_multiple, pi_denominator
         logical :: pi_multiple_ok
 
         if (done(id)) then
@@ -940,14 +940,26 @@ contains
                         saw_exponential, decidable, formal_exponential)
                     if (.not. formal_exp_argument(a, child)) &
                         formal_exponential = .false.
-                    call integer_i_pi_multiple(a, child, pi_multiple, &
-                        pi_multiple_ok)
-                    if (pi_multiple_ok) then
+                    call rational_i_pi_multiple(a, child, pi_multiple, &
+                        pi_denominator, pi_multiple_ok)
+                    if (pi_multiple_ok .and. pi_denominator == 1_int64) then
                         if (modulo(pi_multiple, 2_int64) == 0_int64) then
                             out = a%int(1_int64)
                         else
                             out = a%int(-1_int64)
                         end if
+                    else if (pi_multiple_ok .and. &
+                            pi_denominator == 2_int64) then
+                        select case (modulo(pi_multiple, 4_int64))
+                        case (0)
+                            out = a%int(1_int64)
+                        case (1)
+                            out = a%const("i")
+                        case (2)
+                            out = a%int(-1_int64)
+                        case default
+                            out = mul_pair(a, a%int(-1_int64), a%const("i"))
+                        end select
                     else
                         out = normalise_exp_argument(a, child)
                     end if
@@ -2096,24 +2108,26 @@ contains
         ok = saw_pi
     end subroutine integer_pi_multiple
 
-    !> Recognise i*n*pi without approximating pi. Only an integer coefficient
-    !> is accepted, so fractional multiples such as i*pi/2 remain unknown.
-    subroutine integer_i_pi_multiple(a, id, multiple, ok)
+    !> Recognise i*q*pi without approximating pi. Integer and half-integer
+    !> multiples are reduced exactly; other fractional multiples remain
+    !> exponential nodes for the conservative zero-test fragment.
+    subroutine rational_i_pi_multiple(a, id, numerator, denominator, ok)
         type(arena_t), intent(in) :: a
         integer,       intent(in) :: id
-        integer(int64), intent(out) :: multiple
+        integer(int64), intent(out) :: numerator, denominator
         logical,        intent(out) :: ok
         integer :: k, factor
-        integer(int64) :: numerator, denominator, product
+        integer(int64) :: factor_numerator, factor_denominator
+        integer(int64) :: product_numerator, product_denominator
         logical :: exact, saw_i, saw_pi, product_ok
 
-        multiple = 0_int64
+        numerator = 1_int64
+        denominator = 1_int64
         ok = .false.
         saw_i = .false.
         saw_pi = .false.
 
         if (a%kind_of(id) /= NK_MUL) return
-        multiple = 1_int64
         do k = 1, a%nargs_of(id)
             factor = a%arg_of(id, k)
             if (a%kind_of(factor) == NK_CONST) then
@@ -2127,14 +2141,18 @@ contains
                     cycle
                 end if
             end if
-            call exact_value(a, factor, numerator, denominator, exact)
-            if (.not. exact .or. denominator /= 1_int64) return
-            call checked_mul(multiple, numerator, product, product_ok)
+            call exact_value(a, factor, factor_numerator, factor_denominator, &
+                exact)
+            if (.not. exact) return
+            call fraction_mul(numerator, denominator, factor_numerator, &
+                factor_denominator, product_numerator, product_denominator, &
+                product_ok)
             if (.not. product_ok) return
-            multiple = product
+            numerator = product_numerator
+            denominator = product_denominator
         end do
         ok = saw_i .and. saw_pi
-    end subroutine integer_i_pi_multiple
+    end subroutine rational_i_pi_multiple
 
     recursive function expand_id(a, id, memo, done, limit) result(out)
         type(arena_t), intent(inout) :: a
