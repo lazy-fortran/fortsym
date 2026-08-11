@@ -1000,12 +1000,14 @@ The report is the source of truth for measured counts. The roadmap records the
 commit, date, cache state, and remaining gap. It does not claim 100% parity
 until every overlapping binding agrees or has a documented oracle limitation.
 
-The 2026-08-11 CI audit also keeps native-loader failures actionable: the
-Python facade now preserves the loader error for an explicitly configured
-shared library instead of replacing it with a generic missing-library message.
-The local Nix Release wheel, Python CTest pair, and CUDA kernel-emission test
-pass; the remaining GitHub-runner discrepancy is being resolved before this
-maintenance item is considered closed.
+The 2026-08-11 CI audit identified the native-loader failure as a toolchain
+boundary: the library was built against Nix glibc while host Python used the
+runner's older glibc. The default Nix shell now supplies Python, so CMake finds
+the matching interpreter, and the wheel smoke test runs its installed pure
+Python package under that interpreter as well. The Python facade preserves the
+loader error for an explicitly configured library; local Nix Release, Python
+CTest, and CUDA kernel-emission checks pass, and the pushed CI run is the final
+cross-environment verification for this maintenance item.
 
 ## Simplification strategy
 

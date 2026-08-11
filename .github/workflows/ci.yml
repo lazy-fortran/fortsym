@@ -65,7 +65,9 @@ jobs:
             done
             export LD_LIBRARY_PATH="$library_path${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
             export FORTSYM_LIBRARY="$GITHUB_WORKSPACE/build/lib/libfortsym.so"
-            exec .venv/bin/python -
+            site_packages="$("$GITHUB_WORKSPACE/.venv/bin/python" -c "import sysconfig; print(sysconfig.get_path(\"purelib\"))")"
+            export PYTHONPATH="$site_packages"
+            exec python3 -
           ' <<'PY'
           from fractions import Fraction
           import fortsym
