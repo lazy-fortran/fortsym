@@ -59,8 +59,9 @@ program test_fortsym_complexdom
     call test_modulus_and_argument()
     call test_expand_matches()
     call test_literals_and_unit()
-    call test_hyperbolic_functions()
+    call test_supported_function_splits()
     call test_hyperbolic_pole_refused()
+    call test_tangent_pole_refused()
     call test_unknown_reality_refused()
     call test_branch_cases_refused()
     call test_unknown_heads_refused()
@@ -318,13 +319,14 @@ contains
         call ok("Arg at zero is refused", .not. good)
     end subroutine test_literals_and_unit
 
-    subroutine test_hyperbolic_functions()
-        call check_hyperbolic("sinh")
-        call check_hyperbolic("cosh")
-        call check_hyperbolic("tanh")
-    end subroutine test_hyperbolic_functions
+    subroutine test_supported_function_splits()
+        call check_supported_function("sinh")
+        call check_supported_function("cosh")
+        call check_supported_function("tan")
+        call check_supported_function("tanh")
+    end subroutine test_supported_function_splits
 
-    subroutine check_hyperbolic(name)
+    subroutine check_supported_function(name)
         character(*), intent(in) :: name
         type(expr_t) :: e, re, im
         complex(dp) :: original, reconstructed
@@ -348,7 +350,7 @@ contains
             if (aimag(at(im, p)) /= 0.0_dp) allgood = .false.
         end do
         call ok(trim(name)//" matches the independent complex oracle", allgood)
-    end subroutine check_hyperbolic
+    end subroutine check_supported_function
 
     subroutine test_hyperbolic_pole_refused()
         type(expr_t) :: e, re, im
@@ -363,6 +365,20 @@ contains
                 index(why, "denominator") > 0)
         end if
     end subroutine test_hyperbolic_pole_refused
+
+    subroutine test_tangent_pole_refused()
+        type(expr_t) :: e, re, im
+        logical :: good
+        character(:), allocatable :: why
+
+        e = func_one("tan", pi_expr(arena)/num(arena, 2))
+        call complex_split(e, facts, re, im, good, why)
+        call ok("tan at an exact pole is refused", .not. good)
+        if (.not. good) then
+            call ok("tan pole refusal names the denominator", &
+                index(why, "denominator") > 0)
+        end if
+    end subroutine test_tangent_pole_refused
 
     !> The point of the module: a symbol of unknown reality is refused, not
     !> assumed real.
@@ -430,11 +446,6 @@ contains
         type(expr_t) :: e, out
         logical :: good
         character(:), allocatable :: why
-
-        e = func_one("tan", z)
-        call re_part(e, facts, out, good, why)
-        call ok("tan has no split rule", .not. good)
-        call ok("refusal names the head", index(why, "tan") > 0)
 
         e = func_two("besselj", num(arena, 0), z)
         call conjugate(e, facts, out, good, why)
