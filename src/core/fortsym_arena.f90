@@ -608,8 +608,7 @@ contains
         integer                       :: idx
         integer :: none(0), name_id
 
-        ok = len(value) > 0 .and. len(value) <= MAX_BIG_REAL_TEXT
-        if (ok) ok = index(value, achar(0)) == 0
+        ok = valid_real_text(value)
         if (.not. ok) then
             idx = 0
             return
@@ -912,6 +911,68 @@ contains
             s = str("")
         end if
     end function arena_real_text_of
+
+    pure function valid_real_text(value) result(valid)
+        character(*), intent(in) :: value
+        logical                  :: valid
+        integer :: n, p, digits_before, digits_after, exponent_digits
+        character :: c
+
+        valid = .false.
+        if (len(value) == 0 .or. len(value) > MAX_BIG_REAL_TEXT) return
+        if (index(value, achar(0)) /= 0) return
+        n = len_trim(value)
+        if (n /= len(value)) return
+
+        p = 1
+        if (value(p:p) == "+" .or. value(p:p) == "-") then
+            p = p + 1
+            if (p > n) return
+        end if
+
+        digits_before = 0
+        do while (p <= n)
+            c = value(p:p)
+            if (c < "0" .or. c > "9") exit
+            digits_before = digits_before + 1
+            p = p + 1
+        end do
+
+        digits_after = 0
+        if (p <= n) then
+            if (value(p:p) == ".") then
+                p = p + 1
+                do while (p <= n)
+                    c = value(p:p)
+                    if (c < "0" .or. c > "9") exit
+                    digits_after = digits_after + 1
+                    p = p + 1
+                end do
+            end if
+        end if
+        if (digits_before + digits_after == 0) return
+
+        exponent_digits = 0
+        if (p <= n) then
+            if (value(p:p) == "e" .or. value(p:p) == "E") then
+                p = p + 1
+                if (p > n) return
+                if (value(p:p) == "+" .or. value(p:p) == "-") then
+                    p = p + 1
+                    if (p > n) return
+                end if
+                do while (p <= n)
+                    c = value(p:p)
+                    if (c < "0" .or. c > "9") exit
+                    exponent_digits = exponent_digits + 1
+                    p = p + 1
+                end do
+                if (exponent_digits == 0) return
+            end if
+        end if
+
+        valid = p > n
+    end function valid_real_text
 
     pure function arena_name_of(self, idx) result(s)
         class(arena_t), intent(in) :: self

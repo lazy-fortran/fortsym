@@ -214,8 +214,12 @@ Every checklist item requires all of the following:
     arithmetic in the current scalar fragment. `num`, `rat`, and `exact` share
     canonical arena nodes, with SymPy differential coverage for large values
     and rational normalization.
-  - [ ] Add precision-aware real values and exact complex/algebraic values to
-    arena expressions and native operations.
+  - [x] Retain bounded finite decimal literals as precision-bearing `NK_BIG_REAL`
+    nodes without conversion through `real64`, and reject malformed or
+    non-finite text at the arena boundary.
+  - [ ] Add explicit precision and accuracy metadata to real operations.
+  - [ ] Integrate exact complex and algebraic values into arena expressions and
+    native operations.
 - [ ] Integrate algebraic values into arena expressions, printers, conversion,
   simplification, and code generation.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
