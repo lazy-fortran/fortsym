@@ -38,7 +38,8 @@ module fortsym_arena
     integer, parameter :: dp = real64
 
     !> Node kinds. NK_CONST covers named mathematical constants and domain
-    !> sentinels (pi, e, i, oo) that must not decay into a floating literal.
+    !> sentinels (pi, e, i, oo, zoo, nan) that must not decay into a floating
+    !> literal.
     integer, parameter :: NK_INT = 1
     integer, parameter :: NK_RAT = 2
     integer, parameter :: NK_REAL = 3

@@ -88,9 +88,13 @@ class SympySubsetTest(unittest.TestCase):
         raw = sp.sqrt(x)**2
         self.assertEqual(sp.simplify(raw), x)
 
-    def test_infinity_sentinel_is_exposed(self):
+    def test_domain_sentinels_are_exposed(self):
         self.assertEqual(str(sp.oo), "oo")
         self.assertEqual(sp.oo.name, "oo")
+        self.assertEqual(str(sp.zoo), "zoo")
+        self.assertEqual(sp.zoo.name, "zoo")
+        self.assertEqual(str(sp.nan), "nan")
+        self.assertEqual(sp.nan.name, "nan")
 
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")

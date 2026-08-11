@@ -292,7 +292,8 @@ contains
         ok = name == "besseli" .or. name == "besselk"
     end function fortran_function_uses_special
 
-    !> Spelling of a named constant. fortsym's canonical names are pi, e and i.
+    !> Spelling of a named constant. fortsym's canonical names are pi, e, i,
+    !> oo, zoo, and nan.
     !>
     !> Maxima prefixes its built-in constants with %, and a bare `e` there is an
     !> ordinary symbol, so dropping the prefix would silently turn Euler's
@@ -322,6 +323,9 @@ contains
             case ("pi"); s = str("Pi")
             case ("e");  s = str("E")
             case ("i");  s = str("I")
+            case ("oo"); s = str("Infinity")
+            case ("zoo"); s = str("ComplexInfinity")
+            case ("nan"); s = str("Indeterminate")
             case default; s = str(canonical)
             end select
         case (DIA_SYMENGINE, DIA_SYMPY)
@@ -360,6 +364,9 @@ contains
             case ("Pi"); s = str("pi")
             case ("E");  s = str("e")
             case ("I");  s = str("i")
+            case ("Infinity"); s = str("oo")
+            case ("ComplexInfinity"); s = str("zoo")
+            case ("Indeterminate"); s = str("nan")
             case default; s = str(spelling)
             end select
         case (DIA_SYMENGINE, DIA_SYMPY)

@@ -51,10 +51,10 @@ difference = "Precision metadata and arbitrary-precision real evaluation are not
 
 [[semantic]]
 id = "named-constants"
-affected = ["pi", "E", "I", "oo"]
+affected = ["pi", "E", "I", "oo", "zoo", "nan"]
 parity = "partial"
 sympy = "SymPy constants have dedicated exact types, evaluation, assumptions, and directed-infinity semantics."
-fortsym = "The adapter creates native constant nodes named pi, e, i, and oo; the native facade exposes oo_expr for the positive-infinity sentinel."
+fortsym = "The adapter creates native constant nodes named pi, e, i, oo, zoo, and nan; the native facade exposes oo_expr, zoo_expr, and nan_expr for the corresponding structural sentinels."
 difference = "The names and structural construction are compatible, but exact constant evaluation, assumptions, and infinity arithmetic are not full SymPy semantics."
 
 [[semantic]]

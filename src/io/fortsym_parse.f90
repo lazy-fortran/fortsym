@@ -1557,13 +1557,15 @@ contains
                 ! imaginary unit. Testing the canonical spelling alone would
                 ! turn that ordinary symbol into I before evaluation.
                 if (d%id == DIA_WOLFRAM) then
-                    if (name == "Pi" .or. name == "E" .or. name == "I") then
+                    if (name == "Pi" .or. name == "E" .or. name == "I" .or. &
+                            name == "Infinity" .or. name == "ComplexInfinity" .or. &
+                            name == "Indeterminate") then
                         e = const(a, canon)
                     else
                         e = sym(a, name)
                     end if
                 else if (canon == "pi" .or. canon == "e" .or. canon == "i" .or. &
-                        canon == "oo") then
+                        canon == "oo" .or. canon == "zoo" .or. canon == "nan") then
                     e = const(a, canon)
                 else
                     e = sym(a, name)

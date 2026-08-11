@@ -7,7 +7,7 @@ module fortsym
     use fortsym_string, only: str, chars
     use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, &
         real_text_expr, algebraic_expr, const, func, func_in, partial, pi_expr, e_expr, &
-        i_expr, oo_expr, sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, &
+        i_expr, oo_expr, zoo_expr, nan_expr, sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, &
         tanh, asinh, acosh, atanh, exp, log, sqrt, abs, erf, erfc, &
         gamma, besselj, legendrep, legendreq, &
         is_valid, same_arena, operator(+), operator(-), operator(*), &
@@ -40,7 +40,8 @@ module fortsym
     public :: expr_t, sym, num, rat, exact, real_expr, real_text_expr, &
         algebraic_expr, const, &
         func, func_in, partial, equal, unequal, less, less_equal, greater, &
-        greater_equal, pi_expr, e_expr, i_expr, oo_expr, is_valid, same_arena
+        greater_equal, pi_expr, e_expr, i_expr, oo_expr, zoo_expr, nan_expr, &
+        is_valid, same_arena
     public :: assumption_context_t, make_assumption_context, with_assumption, &
         zero, negative, nonpositive, positive, nonnegative, nonzero, real_valued
     public :: str, chars

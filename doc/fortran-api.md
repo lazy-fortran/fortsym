@@ -73,6 +73,16 @@ refuses it.
 infinity = oo_expr(default_arena())
 ```
 
+`zoo_expr` and `nan_expr` construct complex-infinity and undefined/NaN
+sentinels. They are structural domain values, not floating-point payloads;
+finite real emission refuses all three until operation-specific domain rules
+are implemented.
+
+```fortran
+complex_infinity = zoo_expr(default_arena())
+undefined = nan_expr(default_arena())
+```
+
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a
 separate domain from ordinary `num`, `rat`, and `exact` leaves. Construct a

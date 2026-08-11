@@ -141,9 +141,9 @@ contains
         end if
     end subroutine complex_split
 
-    !> pi and e are real, i is the imaginary unit. Any other named constant is
-    !> refused: a constant fortsym does not know the value of is not known to be
-    !> real either, and guessing is the failure this module is built to avoid.
+    !> pi and e are real, i is the imaginary unit. Domain sentinels and any
+    !> other named constant are refused: guessing their complex value is the
+    !> failure this module is built to avoid.
     subroutine split_const(e, re, im, ok, why)
         type(expr_t),              intent(in)  :: e
         type(expr_t),              intent(out) :: re, im
@@ -163,6 +163,8 @@ contains
             re = e
             im = zero(e)
             ok = .true.
+        case ("oo", "zoo", "nan")
+            why = "domain sentinel "//name//" has no finite complex parts"
         case default
             why = "constant "//name//" is not known to be real"
         end select

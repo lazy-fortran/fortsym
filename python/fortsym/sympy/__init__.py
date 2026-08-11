@@ -416,6 +416,8 @@ pi = _default().constant("pi")
 E = _default().constant("e")
 I = _default().constant("i")
 oo = _default().constant("oo")
+zoo = _default().constant("zoo")
+nan = _default().constant("nan")
 
 
 __all__ = [
@@ -427,5 +429,5 @@ __all__ = [
     "simplify", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
     "integrate", "limit", "series", "solve", "Matrix", "pi", "E", "I",
-    "oo",
+    "oo", "zoo", "nan",
 ]
