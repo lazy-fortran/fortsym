@@ -964,6 +964,16 @@ contains
                     one(1) = child
                     out = a%func(name, one)
                 end if
+            else if (name == "sqrt") then
+                if (a%nargs_of(id) /= 1) then
+                    decidable = .false.
+                    out = id
+                else
+                    child = normalise_exp_id(a, a%arg_of(id, 1), memo, done, &
+                        saw_exponential, decidable, formal_exponential)
+                    out = simplify_power(a, child, &
+                        a%rat(1_int64, 2_int64))
+                end if
             else
                 ! This normal form is deliberately narrower than the general
                 ! native simplifier. Returning UNKNOWN for an unrecognised
