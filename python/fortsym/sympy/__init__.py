@@ -344,7 +344,14 @@ def FunctionClass(name):
 
 
 def _named_function(name):
-    return lambda *args: Function(name, *args)
+    def applied(*args):
+        expression = Function(name, *args)
+        try:
+            return expression.simplify()
+        finally:
+            expression.close()
+
+    return applied
 
 
 sin = _named_function("sin")
@@ -356,6 +363,9 @@ atan = _named_function("atan")
 sinh = _named_function("sinh")
 cosh = _named_function("cosh")
 tanh = _named_function("tanh")
+csch = _named_function("csch")
+sech = _named_function("sech")
+coth = _named_function("coth")
 asinh = _named_function("asinh")
 acosh = _named_function("acosh")
 atanh = _named_function("atanh")
@@ -437,9 +447,9 @@ __all__ = [
     "InconsistentAssumptions",
     "Symbol", "symbols", "sympify", "Integer", "Rational", "Float",
     "Add", "Mul", "Pow", "Function", "Derivative", "Subs", "sin", "cos",
-    "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "asinh",
-    "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign", "floor",
-    "ceiling", "diff", "subs", "expand",
+    "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "csch",
+    "sech", "coth", "asinh", "acosh", "atanh", "exp", "log", "sqrt",
+    "Abs", "sign", "floor", "ceiling", "diff", "subs", "expand",
     "simplify", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
     "integrate", "limit", "series", "solve", "Matrix", "pi", "E", "I",

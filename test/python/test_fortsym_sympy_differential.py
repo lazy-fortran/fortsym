@@ -365,6 +365,25 @@ class SympyDifferentialTest(unittest.TestCase):
                 actual = getattr(native, function.__name__)(native.zoo)
                 self.assertIsInstance(native.simplify(actual), native.Function)
 
+    def test_reciprocal_hyperbolic_domain_heads_match_oracle(self):
+        cases = [
+            (oracle.csch(oracle.oo), native.csch(native.oo)),
+            (oracle.csch(-oracle.oo), native.csch(-native.oo)),
+            (oracle.csch(oracle.zoo), native.csch(native.zoo)),
+            (oracle.sech(oracle.oo), native.sech(native.oo)),
+            (oracle.sech(-oracle.oo), native.sech(-native.oo)),
+            (oracle.sech(oracle.zoo), native.sech(native.zoo)),
+            (oracle.coth(oracle.oo), native.coth(native.oo)),
+            (oracle.coth(-oracle.oo), native.coth(-native.oo)),
+            (oracle.coth(oracle.zoo), native.coth(native.zoo)),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                actual_parsed = oracle.sympify(
+                    str(native.simplify(actual)), locals=self.locals
+                )
+                self.assertEqual(actual_parsed, expected)
+
     def test_expand_cache_matches_oracle_and_invalidates_on_assumptions(self):
         oracle_x = oracle.Symbol("differential_expand_cache_x")
         native_x = native.Symbol("differential_expand_cache_x")

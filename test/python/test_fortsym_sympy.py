@@ -238,6 +238,22 @@ class SympySubsetTest(unittest.TestCase):
         self.assertIsInstance(sp.simplify(sp.atan(sp.zoo)), sp.Function)
         self.assertIsInstance(sp.simplify(sp.atanh(sp.zoo)), sp.Function)
 
+    def test_reciprocal_hyperbolic_domain_heads(self):
+        cases = [
+            (sp.csch(sp.oo), sp.Integer(0)),
+            (sp.csch(-sp.oo), sp.Integer(0)),
+            (sp.csch(sp.zoo), sp.nan),
+            (sp.sech(sp.oo), sp.Integer(0)),
+            (sp.sech(-sp.oo), sp.Integer(0)),
+            (sp.sech(sp.zoo), sp.nan),
+            (sp.coth(sp.oo), sp.Integer(1)),
+            (sp.coth(-sp.oo), sp.Integer(-1)),
+            (sp.coth(sp.zoo), sp.nan),
+        ]
+        for expression, expected in cases:
+            with self.subTest(expression=str(expression)):
+                self.assertEqual(sp.simplify(expression), expected)
+
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")
         cases = [
