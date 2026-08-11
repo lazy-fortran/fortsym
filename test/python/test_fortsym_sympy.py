@@ -16,6 +16,7 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(sp.Derivative(x**2, x, evaluate=False).doit(), 2*x)
         self.assertEqual(sp.Subs(x + 1, (x, 2)).doit(), 3)
         self.assertEqual(sp.expand((x + 1) ** 2), x**2 + 2*x + 1)
+        self.assertEqual(sp.factor(x**2 + 2*x + 1), (x + 1)**2)
         self.assertEqual(sp.simplify(sp.diff(sp.exp(x*y), x)), y*sp.exp(x*y))
         self.assertEqual(sp.subs((x + 1) ** 2, {x: 2}), 9)
 
@@ -23,8 +24,11 @@ class SympySubsetTest(unittest.TestCase):
         self.assertFalse(bool(sp.Integer(0)))
         with self.assertRaises(TypeError):
             bool(sp.Symbol("z"))
+        self.assertEqual(sp.factor(sp.Symbol("z") + 1), sp.Symbol("z") + 1)
         with self.assertRaises(sp.UnsupportedOperationError):
-            sp.factor(sp.Symbol("z") + 1)
+            sp.factor((sp.Symbol("z")**2 - 1)/(sp.Symbol("z") - 1))
+        with self.assertRaises(sp.UnsupportedOperationError):
+            sp.factor(sp.Symbol("z") + 1, modulus=2)
         with self.assertRaises(sp.UnsupportedOperationError):
             sp.symbols("z", integer=True)
         with self.assertRaises(sp.UnsupportedOperationError):

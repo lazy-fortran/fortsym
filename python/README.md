@@ -31,8 +31,8 @@ does not import SymPy. Unsupported names raise
 | `diff`, `Derivative` | native differentiation, including repeated variables; `evaluate=False` retains a typed wrapper with `.doit()` |
 | `subs`, `expand` | native substitution and expansion |
 | `Subs` | typed wrapper with `.doit()` for explicit `(old, new)` pairs |
-| `simplify` | native bounded simplification |
-| `factor`, `together`, `cancel`, `apart`, `collect`, `integrate`, `limit`, `series`, `solve`, `Matrix` | explicit refusal until their semantics are covered |
+| `simplify`, `factor` | native bounded simplification and polynomial factorisation; domain-conditional factorisations are refused |
+| `together`, `cancel`, `apart`, `collect`, `integrate`, `limit`, `series`, `solve`, `Matrix` | explicit refusal until their semantics are covered |
 
 The compatibility layer guarantees native structural equality only for
 operations listed as construction or transformation above. Assumptions outside
