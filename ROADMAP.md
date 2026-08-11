@@ -954,6 +954,16 @@ The independent fixture oracle checks exact output and compiles a minimal
 The API and provenance decision are documented in `doc/latex-api.md` and
 `doc/provenance.md`. The real-manuscript pilot remains #68.
 
+Issue #68 is complete as of 2026-08-11. The pilot uses the current
+`paper_magnetic_comment.lyx` export and the real `paper_magnetic.py` Eq. (40)
+derivation, emits the equation macros in `doc/latex-pilot/eqs.tex`, and builds
+the inserted equation with `pdflatex` (using `article` because
+`IEEEtran.cls` is unavailable locally). Six of seven symbolic leaves needed
+explicit registration, no typesetting failure occurred, and one macro per
+named side was sufficient for the current expression-only API. The pilot
+records the factor-order, relation, and derivative-node findings in
+`doc/latex-pilot.md`; emitter changes are tracked separately.
+
 The conventions are validated against a real manuscript before they harden
 (#68), because fixtures are written by whoever wrote the emitter and agree with
 it by construction. Reaching the derivations that are stored as notebooks rather
