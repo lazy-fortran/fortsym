@@ -129,6 +129,13 @@ unknown reality, branch-cut cases, zero arguments, and expansion blow-up
 refused by name. An independent complex evaluator checks reconstruction,
 realness of parts, conjugation, modulus/argument, and the refusal boundary.
 
+Issue #36 (polynomial solving) is complete as of 2026-08-11 for the bounded
+exact univariate fragment: rational-root extraction, exact quadratic roots,
+repeated roots, complex conjugate pairs, and quartics whose roots are all
+rational are verified by root-count and polynomial-reconstruction tests.
+Non-rational irreducible cubics/quartics, systems, and non-polynomial inputs
+remain named refusals rather than approximate solutions.
+
 Issue #31 (native integration) is complete as of 2026-08-11 for the bounded
 exact fragment: native integration now sends exact rational inputs through
 partial fractions before applying its verified elementary rules. Distinct and
@@ -847,6 +854,10 @@ and are refused rather than partially integrated.
 - Oracle: differentiate the answer and decide zero.
 
 ### M8 — Solving (#36) · 76 sites
+
+Issue #36 is complete for the bounded exact univariate fragment above. General
+radicals, `RootOf`, elimination, and Gröbner operations remain outside this
+decision procedure and are refused explicitly.
 
 Univariate roots by radicals to degree four, `RootOf` representation above,
 elimination for systems, Gröbner only where a traced case needs it
