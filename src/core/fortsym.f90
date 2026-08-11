@@ -12,6 +12,11 @@ module fortsym
     use fortsym_numeric, only: numeric_value, numeric_text, &
         numeric_precision_text, numeric_complex_text, &
         numeric_complex_text_t, numeric_callable_t
+    use fortsym_backend, only: BACKEND_PROTOCOL_VERSION, EXPRESSION_SCHEMA, &
+        BACKEND_PROVED, BACKEND_DISPROVED, BACKEND_UNKNOWN, &
+        backend_evidence_t, backend_result_t, backend_status_name, &
+        serialize_expression, deserialize_expression, assess_identity, &
+        assess_equivalence, evidence_json, emit_backend_kernel
     use fortsym_expr, only: sin_expr => sin, cos_expr => cos, tan_expr => tan, &
         asin_expr => asin, acos_expr => acos, atan_expr => atan, &
         atan2_expr => atan2, sinh_expr => sinh, cosh_expr => cosh, &
@@ -30,6 +35,11 @@ module fortsym
         func, func_in, partial, pi_expr, e_expr, i_expr, is_valid, same_arena
     public :: numeric_value, numeric_text, numeric_precision_text, &
         numeric_complex_text, numeric_complex_text_t, numeric_callable_t
+    public :: BACKEND_PROTOCOL_VERSION, EXPRESSION_SCHEMA, BACKEND_PROVED, &
+        BACKEND_DISPROVED, BACKEND_UNKNOWN, backend_evidence_t, &
+        backend_result_t, backend_status_name, serialize_expression, &
+        deserialize_expression, assess_identity, assess_equivalence, &
+        evidence_json, emit_backend_kernel
     public :: operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), operator(/=)
     public :: sin_expr, cos_expr, tan_expr, asin_expr, acos_expr, atan_expr, &
