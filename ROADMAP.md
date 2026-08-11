@@ -125,9 +125,11 @@ Every checklist item requires all of the following:
   `delegated`, and `native` together; explicit or out-of-subset names are
   `refused`, while native facades and external engines retain their own
   `facade` and `external` layers.
-- [ ] Classify each item as `native`, `facade`, `python-adapter`, `external`,
-  `delegated`, or `refused`.
-- [ ] Record semantic differences separately from implementation differences.
+- [x] Record semantic differences separately from implementation differences
+  in [`doc/sympy-api-differences.toml`](doc/sympy-api-differences.toml), with
+  [`scripts/check_sympy_api_differences.py`](scripts/check_sympy_api_differences.py)
+  requiring every currently supported SymPy root name to appear in the
+  semantic ledger.
 - [ ] Add a versioned API-diff report so new or removed SymPy names cannot pass
   unnoticed.
 - [ ] Add a common differential harness for exact results, symbolic results,

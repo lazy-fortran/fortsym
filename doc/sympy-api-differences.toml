@@ -1,0 +1,163 @@
+schema_version = 1
+package = "sympy"
+version = "1.14.0"
+source_classification = "doc/sympy-api-classification.json"
+
+[policy]
+semantic = "A semantic difference changes a result, accepted input, condition, exception, evaluation rule, or observable object behaviour."
+implementation = "An implementation difference changes representation, ownership, language boundary, backend, resource policy, or execution strategy without being a promised semantic match."
+oracle = "SymPy 1.14.0 is the mandatory behavioural and performance reference; independent algebraic, numerical, compiler, and residual checks remain required."
+supported_surface = "The affected names below are exactly the root names currently classified as python-adapter."
+
+[[semantic]]
+id = "symbol-assumptions-and-symbol-lists"
+affected = ["Symbol", "symbols"]
+parity = "partial"
+sympy = "Symbol accepts SymPy's broad assumption system; symbols also supports range syntax, sequence shapes, and rich options."
+fortsym = "Only real, positive, nonnegative, and nonzero facts are accepted. symbols splits comma or whitespace separated names and returns one expression or a tuple."
+difference = "Assumption inference and symbols() input and output forms are intentionally narrower."
+
+[[semantic]]
+id = "exact-number-construction"
+affected = ["Integer", "Rational"]
+parity = "partial"
+sympy = "Integer and Rational preserve SymPy exact-number construction and canonicalization rules across supported Python inputs."
+fortsym = "Values are converted through Python int and then the native exact representation; large values cross the C ABI as exact text."
+difference = "Input coercion and edge-case canonicalization must be compared explicitly; the adapter does not claim every SymPy constructor input."
+
+[[semantic]]
+id = "real-precision"
+affected = ["Float"]
+parity = "partial"
+sympy = "Float carries arbitrary precision and precision-aware decimal semantics."
+fortsym = "Float converts to a native double through the C ABI and therefore has fixed machine precision."
+difference = "Precision metadata and arbitrary-precision real evaluation are not yet equivalent."
+
+[[semantic]]
+id = "named-constants"
+affected = ["pi", "E", "I", "oo"]
+parity = "partial"
+sympy = "SymPy constants have dedicated exact types, evaluation, assumptions, and directed-infinity semantics."
+fortsym = "The adapter creates native constant nodes named pi, e, i, and oo."
+difference = "The names and structural construction are compatible, but exact constant evaluation, assumptions, and infinity arithmetic are not full SymPy semantics."
+
+[[semantic]]
+id = "evaluated-arithmetic"
+affected = ["Add", "Mul", "Pow"]
+parity = "partial"
+sympy = "Add, Mul, and Pow canonicalize supported expressions and expose evaluate=False unevaluated forms."
+fortsym = "The adapter constructs evaluated native arithmetic and refuses evaluate=False."
+difference = "Unevaluated-expression semantics, canonical ordering, domain rules, and broad power evaluation are narrower."
+
+[[semantic]]
+id = "applied-functions"
+affected = ["Function", "sin", "cos", "tan", "exp", "log", "sqrt", "Abs"]
+parity = "partial"
+sympy = "SymPy function classes apply function-specific evaluation, assumptions, rewrites, and special-function rules."
+fortsym = "The adapter creates native applied-function nodes for the declared heads; function assumptions and broad rewrites are refused or absent."
+difference = "Applied heads are structurally compatible for the supported fragment, not a claim of SymPy's complete evaluation and rewrite behaviour."
+
+[[semantic]]
+id = "expression-object-model"
+affected = ["Expr"]
+parity = "partial"
+sympy = "SymPy Expr exposes a large immutable object protocol, arbitrary expression properties, traversal, assumptions, and rich conversions."
+fortsym = "Expr exposes the native handle operations needed by the declared subset, with arena checks, close(), and a limited method set."
+difference = "The adapter is a deliberately small compatibility object, not a drop-in implementation of every Expr method or property."
+
+[[semantic]]
+id = "differentiation"
+affected = ["diff", "Derivative"]
+parity = "partial"
+sympy = "SymPy supports broad derivative rules, inferred variables in convenience cases, unevaluated Derivative objects, and many options."
+fortsym = "Declared variables are differentiated natively; repeated variables are supported and Derivative(evaluate=False) is a typed wrapper with doit()."
+difference = "Variable inference, options, special-function rules, and the complete unevaluated object protocol are narrower."
+
+[[semantic]]
+id = "substitution"
+affected = ["Expr", "Subs"]
+parity = "partial"
+sympy = "SymPy supports ordered and simultaneous substitutions, mappings, sequences, and substitution options."
+fortsym = "The adapter supports one old/new pair or a mapping, and Subs supports explicit old/new pairs followed by doit()."
+difference = "Simultaneous and ordered substitution edge cases, matching rules, and option handling are not yet equivalent."
+
+[[semantic]]
+id = "sympification"
+affected = ["sympify"]
+parity = "partial"
+sympy = "sympify accepts SymPy objects, Python values, strings containing expressions, and conversion protocols."
+fortsym = "sympify accepts native expressions, scalar values, fractions, and identifier strings only."
+difference = "Source-expression parsing and the broad SymPy conversion protocol are explicitly outside the adapter subset."
+
+[[semantic]]
+id = "expansion"
+affected = ["expand"]
+parity = "partial"
+sympy = "SymPy expand has multiple algebraic, power, logarithmic, multinomial, and function options."
+fortsym = "Native expansion is bounded and supports the implemented polynomial fragment; the adapter exposes no equivalent option vocabulary."
+difference = "Supported algebraic forms, option semantics, and resource-bounded refusal differ."
+
+[[semantic]]
+id = "simplification"
+affected = ["simplify"]
+parity = "partial"
+sympy = "SymPy simplify is a broad heuristic transformation that may select different normal forms."
+fortsym = "Native simplify applies guarded, resource-bounded rewrites and returns the original or an unevaluated form when it cannot prove a transformation."
+difference = "Normal-form choice, rewrite coverage, assumptions, and resource-limit outcomes are not identical."
+
+[[semantic]]
+id = "factorisation"
+affected = ["factor"]
+parity = "partial"
+sympy = "SymPy factor handles broader polynomial domains and returns domain-aware factorizations."
+fortsym = "Native factorisation is bounded; the C ABI and adapter refuse factorizations that would discard a domain condition."
+difference = "Domain coverage, factor selection, conditions, and failure/refusal behaviour differ."
+
+[[implementation]]
+id = "expression-representation"
+affected = ["all-supported"]
+sympy = "Python objects form the SymPy expression graph."
+fortsym = "A hash-consed native Fortran DAG is addressed through arena-local opaque handles."
+difference = "Representation and identity are implementation differences; structural results remain the semantic comparison target."
+
+[[implementation]]
+id = "state-and-lifetime"
+affected = ["all-supported"]
+sympy = "SymPy does not require callers to manage a Fortran-style arena lifetime."
+fortsym = "The Python facade retains an Arena per expression; the Fortran facade also offers process-local default state and explicit arenas, with stale handles after reset or close."
+difference = "Ownership, lifetime, and concurrency boundaries differ even where expression results match."
+
+[[implementation]]
+id = "language-and-abi-boundary"
+affected = ["all-supported"]
+sympy = "SymPy runs in Python and calls Python-level implementations."
+fortsym = "fortsym.sympy is a spelling adapter over a standard-library ctypes binding and the stable C ABI; the core semantics execute in Fortran."
+difference = "Call overhead, error transport, memory ownership, and language-level introspection differ."
+
+[[implementation]]
+id = "numeric-backend"
+affected = ["Integer", "Rational", "Float", "pi", "E", "I", "oo"]
+sympy = "SymPy uses Python integers and its own exact and arbitrary-precision number classes."
+fortsym = "The native path uses compact machine scalars where possible and exact textual/native representations for larger values; real ABI values use double precision."
+difference = "Backend selection and precision strategy are implementation boundaries, with Float's precision limitation separately recorded as semantic."
+
+[[implementation]]
+id = "resource-bounds"
+affected = ["Add", "Mul", "Pow", "expand", "simplify", "factor", "diff"]
+sympy = "SymPy operations expose their own recursion, cache, and algorithmic limits."
+fortsym = "Native operations use explicit node, term, degree, and time/resource guards and report refusal or UNKNOWN rather than guessing."
+difference = "Resource policy and failure timing differ; a benchmark must compare successful supported workloads and refusal boundaries separately."
+
+[[implementation]]
+id = "engine-boundaries"
+affected = ["simplify", "factor", "diff", "expand"]
+sympy = "SymPy owns the reference implementation for the comparison."
+fortsym = "The repository also contains separately classified native, SymEngine, Yacas, and out-of-process engine layers; the Python compatibility subset defaults to the native C ABI path."
+difference = "Backend selection and delegation are implementation choices and must not silently change the declared adapter semantics."
+
+[[implementation]]
+id = "printing-and-introspection"
+affected = ["all-supported"]
+sympy = "SymPy provides rich printers, repr/eval protocols, class identity, and introspection."
+fortsym = "The native facade exposes deterministic text, exact text, names, kinds, arity, and arguments for its smaller object model."
+difference = "Textual output and available introspection are implementation differences unless a compatibility test explicitly promises a spelling."
