@@ -26,7 +26,8 @@ module fortsym
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
-        complex_arg_of => arg_of, complex_abs_of => abs_of
+        complex_arg_of => arg_of, complex_abs_of => abs_of, &
+        complex_expand_expr => complex_expand
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     use fortsym_backend, only: BACKEND_PROTOCOL_VERSION, EXPRESSION_SCHEMA, &
         BACKEND_PROVED, BACKEND_DISPROVED, BACKEND_UNKNOWN, &
@@ -49,7 +50,7 @@ module fortsym
         zero, negative, nonpositive, positive, nonnegative, nonzero, real_valued
     public :: str, chars
     public :: subs, diff, simplify, refine, expand, factor
-    public :: re_part, im_part, conjugate, arg_of, abs_of
+    public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE, verdict_name
@@ -269,7 +270,7 @@ contains
     end function zero_test
 
     !> Apply one supported complex-domain operation through the shared
-    !> complexdom owner, normalizing only principal argument results.
+    !> complexdom owner, normalizing branch-aware results.
     function complex_operation(expression, assumptions, operation) result(result)
         type(expr_t), intent(in) :: expression
         type(assumption_context_t), optional, target, intent(in) :: assumptions
@@ -310,6 +311,8 @@ contains
             call complex_arg_of(expression, facts, value, ok, why)
         case (5)
             call complex_abs_of(expression, facts, value, ok, why)
+        case (6)
+            call complex_expand_expr(expression, facts, value, ok, why)
         case default
             call report_failure(result, "complex operation: invalid operation")
             return
@@ -321,7 +324,7 @@ contains
 
         ! The branch-aware results need the native simplifier for canonical
         ! principal-argument and modulus forms.
-        if (operation == 4 .or. operation == 5) then
+        if (operation == 4 .or. operation == 5 .or. operation == 6) then
             engine = make_native_engine(expression%a, facts)
             result = engine%simplify(value)
         else
@@ -376,6 +379,15 @@ contains
 
         result = complex_operation(expression, assumptions, 5)
     end function abs_of
+
+    !> Return the rectangular complex expansion under the supported rules.
+    function complex_expand(expression, assumptions) result(result)
+        type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
+        type(engine_result_t) :: result
+
+        result = complex_operation(expression, assumptions, 6)
+    end function complex_expand
 
     !> Assigning text creates one symbol in the default arena. Text is never
     !> parsed as an expression.

@@ -1,6 +1,6 @@
 {
   "adapter_profile": {
-    "declared_count": 83,
+    "declared_count": 84,
     "explicit_refusals": [
       "Matrix",
       "apart",
@@ -62,6 +62,7 @@
       "erfc",
       "exp",
       "expand",
+      "expand_complex",
       "factor",
       "factorial",
       "floor",
@@ -3462,6 +3463,17 @@
         "id": "fortsym.abs_of",
         "module": "fortsym",
         "name": "abs_of",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.complex_expand",
+        "module": "fortsym",
+        "name": "complex_expand",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -7580,14 +7592,14 @@
   "source_inventory": "doc/sympy-api-inventory.json",
   "summary": {
     "classification_counts": {
-      "delegated": 2472,
+      "delegated": 2481,
       "external": 10,
-      "facade": 169,
-      "native": 3113,
-      "python-adapter": 2428,
-      "refused": 25366
+      "facade": 170,
+      "native": 3123,
+      "python-adapter": 2437,
+      "refused": 25357
     },
-    "fortran_public_exports": 729,
+    "fortran_public_exports": 730,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
@@ -87837,14 +87849,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.expand_complex",
         "kind": "function",
         "module": "sympy",
         "name": "expand_complex",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -113140,14 +113154,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.core.expand_complex",
         "kind": "function",
         "module": "sympy.core",
         "name": "expand_complex",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -119313,14 +119329,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.core.function.expand_complex",
         "kind": "function",
         "module": "sympy.core.function",
         "name": "expand_complex",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -122270,14 +122288,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.core.power.expand_complex",
         "kind": "function",
         "module": "sympy.core.power",
         "name": "expand_complex",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -132071,14 +132091,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.elementary.exponential.expand_complex",
         "kind": "function",
         "module": "sympy.functions.elementary.exponential",
         "name": "expand_complex",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -148063,14 +148085,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.laplace.expand_complex",
         "kind": "function",
         "module": "sympy.integrals.laplace",
         "name": "expand_complex",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -246122,14 +246146,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.sets.handlers.intersection.expand_complex",
         "kind": "function",
         "module": "sympy.sets.handlers.intersection",
         "name": "expand_complex",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -265084,14 +265110,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.solveset.expand_complex",
         "kind": "function",
         "module": "sympy.solvers.solveset",
         "name": "expand_complex",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -303344,13 +303372,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.expand_complex",
         "kind": "function",
         "name": "expand_complex",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [

@@ -117,6 +117,15 @@ program test_fortsym_convenience
         result%ok .and. result%value == sqrt(num(default_storage, 5_int64)), failures)
     result = abs_of(mu)
     call check("native complex modulus refuses unknown reality", .not. result%ok, failures)
+    result = complex_expand(i_expr(default_storage))
+    call check("facade exposes rectangular complex expansion", &
+        result%ok .and. result%value == i_expr(default_storage), failures)
+    result = complex_expand(exp(i_expr(default_storage)))
+    call check("complex expansion preserves the principal exponential form", &
+        result%ok .and. result%value == cos(num(default_storage, 1_int64)) + &
+        i_expr(default_storage)*sin(num(default_storage, 1_int64)), failures)
+    result = complex_expand(mu)
+    call check("native complex expansion refuses unknown reality", .not. result%ok, failures)
     result = re_part(mu)
     call check("facade refuses unknown complex reality", .not. result%ok, failures)
     result = subs(explicit_mu + explicit_sigma, explicit_mu, explicit_sigma)

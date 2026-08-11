@@ -154,8 +154,8 @@ Every checklist item requires all of the following:
 - [x] Audit every public export for duplicate concepts and inconsistent names
   with [`scripts/audit_api_naming.py`](scripts/audit_api_naming.py) and
   [`doc/sympy-api-naming-audit.json`](doc/sympy-api-naming-audit.json).
-  The audit covers all 129 `use fortsym` exports, all 12 native Python facade
-  exports, and all 83 `fortsym.sympy` adapter exports. It keeps the concise
+  The audit covers all 130 `use fortsym` exports, all 12 native Python facade
+  exports, and all 84 `fortsym.sympy` adapter exports. It keeps the concise
   native vocabulary separate from the SymPy compatibility vocabulary and
   records the remaining canonical-name decisions for the next checklist item.
 - [x] Select canonical short names for constructors, functions, predicates,
@@ -287,6 +287,11 @@ Every checklist item requires all of the following:
         refusals; `Abs` retains SymPy's unevaluated fallback for unknown
         reality, and repeated Python calls reuse immutable results until the
         assumption epoch changes.
+      - [x] Expose the existing rectangular expansion owner through the main
+        Fortran facade, C ABI v10, and SymPy adapter as
+        `complex_expand`/`expand_complex`. The adapter accepts SymPy's
+        `deep=True`/`False` option for the supported recursive fragment;
+        unknown reality and unsupported branches remain named refusals.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
   - [x] Add the canonical native `oo_expr` positive-infinity sentinel. Native

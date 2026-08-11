@@ -209,7 +209,8 @@
         "im_part",
         "abs_of",
         "conjugate",
-        "arg_of"
+        "arg_of",
+        "complex_expand"
       ],
       "id": "complex-domain-functions",
       "python_facade": [],
@@ -217,6 +218,7 @@
         "re",
         "im",
         "Abs",
+        "expand_complex",
         "conjugate",
         "arg"
       ],
@@ -224,6 +226,7 @@
         "re",
         "im",
         "Abs",
+        "expand_complex",
         "conjugate",
         "arg"
       ]
@@ -872,6 +875,12 @@
         "concepts": [
           "complex-domain-functions"
         ],
+        "name": "complex_expand"
+      },
+      {
+        "concepts": [
+          "complex-domain-functions"
+        ],
         "name": "conjugate"
       },
       {
@@ -1453,6 +1462,7 @@
       "erfc",
       "exp",
       "expand",
+      "expand_complex",
       "factor",
       "factorial",
       "floor",
@@ -1500,11 +1510,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 166,
+    "assigned_names": 168,
     "concept_groups": 27,
-    "fortran_facade_exports": 129,
+    "fortran_facade_exports": 130,
     "python_facade_exports": 12,
-    "sympy_adapter_exports": 83,
+    "sympy_adapter_exports": 84,
     "unmapped_fortran_exports": 0
   },
   "sympy_version": "1.14.0",

@@ -153,10 +153,10 @@ rows validate that the operation succeeded. Compare the split rows with SymPy
 prebuilt expressions, clearing `sympy.core.cache` before each cold call and
 retaining it for the warm call.
 
-The SymPy differential harness also includes `domain_complex` and `domain_abs`
-workloads for the public complex-domain adapters. They compare real-assumption
-expressions with imaginary components in both cold end-to-end and warm
-cached-core scopes, and the parity gate rejects an unwaived native slowdown.
+The SymPy differential harness also includes `domain_complex`, `domain_abs`,
+and `domain_expand_complex` workloads for the public complex-domain adapters.
+They compare exact and real-assumption expressions in both cold end-to-end and
+warm cached-core scopes, and the parity gate rejects an unwaived native slowdown.
 
 Pinned result CSV files and their TOML environment records live under
 `benchmark/results`. A record with uncontrolled affinity or governor is

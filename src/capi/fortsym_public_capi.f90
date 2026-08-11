@@ -25,7 +25,8 @@ module fortsym_public_capi
         VERDICT_FALSE
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
-        complex_arg_of => arg_of, complex_abs_of => abs_of
+        complex_arg_of => arg_of, complex_abs_of => abs_of, &
+        complex_expand_expr => complex_expand
     implicit none
     private
 
@@ -77,7 +78,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 9_c_int
+        v = 10_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -836,6 +837,8 @@ contains
             call complex_arg_of(expression, a%assumptions, value, ok, why)
         case ("abs")
             call complex_abs_of(expression, a%assumptions, value, ok, why)
+        case ("expand_complex")
+            call complex_expand_expr(expression, a%assumptions, value, ok, why)
         case default
             call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, &
                 "unsupported complex operation "//name)
@@ -846,7 +849,7 @@ contains
             return
         end if
 
-        if (name == "arg" .or. name == "abs") then
+        if (name == "arg" .or. name == "abs" .or. name == "expand_complex") then
             call prepare_native_engine(a)
             result = a%engine%simplify(value)
             if (.not. result%ok) then

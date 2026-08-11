@@ -64,10 +64,11 @@ int main(void)
     fortsym_expr *minus_one = NULL;
     fortsym_expr *argument = NULL;
     fortsym_expr *modulus = NULL;
+    fortsym_expr *complex_expanded = NULL;
     fortsym_expr *unknown_head = NULL;
     const fortsym_expr *root_argument[1];
 
-    assert(fortsym_abi_version() == 9);
+    assert(fortsym_abi_version() == 10);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
@@ -206,6 +207,11 @@ int main(void)
                                        message, sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(modulus, "1");
+    status = fortsym_complex_operation(arena, imaginary, "expand_complex",
+                                       &complex_expanded, message,
+                                       sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(complex_expanded, "i");
     status = fortsym_complex_operation(arena, imaginary, "conjugate",
                                        &conjugated, message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -265,6 +271,7 @@ int main(void)
     fortsym_expr_free(sine);
     fortsym_expr_free(argument);
     fortsym_expr_free(modulus);
+    fortsym_expr_free(complex_expanded);
     fortsym_expr_free(minus_one);
     fortsym_expr_free(conjugate_sum);
     fortsym_expr_free(conjugated);

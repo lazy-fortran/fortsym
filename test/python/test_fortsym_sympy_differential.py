@@ -194,6 +194,8 @@ class SympyDifferentialTest(unittest.TestCase):
             (oracle.Abs(oracle.I), native.Abs(native.I)),
             (oracle.Abs(oracle.Integer(2) + oracle.I),
              native.Abs(native.Integer(2) + native.I)),
+            (oracle.expand_complex(oracle.exp(oracle.I)),
+             native.expand_complex(native.exp(native.I))),
         ]
         for expected, actual in cases:
             with self.subTest(expected=str(expected)):
