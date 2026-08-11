@@ -18,6 +18,7 @@ module fortsym_engine_native
     use fortsym_diff, only: diff_expr => diff
     use fortsym_subs, only: subs
     use fortsym_poly, only: poly_cancel, poly_factor
+    use fortsym_trigrewrite, only: trig_to_exp
     use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
         resource_exceeded, resource_visit, resource_failure, wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, CAP_ZERO_TEST, &
@@ -268,8 +269,11 @@ contains
         type(expr_t),           intent(in)    :: e
         type(engine_result_t)                 :: r
         type(engine_result_t) :: simplified
-        type(expr_t) :: normalised
+        type(engine_result_t) :: expanded
+        type(expr_t) :: normalised, exp_input, trig_normalised
         logical :: saw_exponential, decidable, formal_exponential
+        logical :: trig_ok
+        character(:), allocatable :: trig_reason
 
         simplified = self%simplify(e)
         r = simplified
@@ -281,7 +285,16 @@ contains
         ! exponential spelling.  Zero testing has a different contract, so
         ! use a conservative formal exponential fragment here and then run
         ! the ordinary simplifier over the resulting product.
-        normalised = native_exp_normal_form(simplified%value, &
+        exp_input = simplified%value
+        call trig_to_exp(exp_input, trig_normalised, trig_ok, trig_reason)
+        if (trig_ok) then
+            if (trig_normalised%id /= exp_input%id) then
+                exp_input = trig_normalised
+                expanded = self%expand(exp_input)
+                if (expanded%ok) exp_input = expanded%value
+            end if
+        end if
+        normalised = native_exp_normal_form(exp_input, &
             saw_exponential, decidable, formal_exponential)
         if (saw_exponential) then
             r = self%simplify(normalised)
@@ -444,7 +457,7 @@ contains
         integer(int64) :: factorial
         real(dp) :: started
         logical :: factorial_ok
-        integer :: k, normalized_base
+        integer :: k
         logical :: refused
         character(:), allocatable :: reason
 
@@ -1626,7 +1639,7 @@ contains
         integer                      :: out
         integer, allocatable :: factors(:)
         integer(int64) :: exponent, den, nested, combined
-        integer :: k, normalized_base
+        integer :: k, normalized_base, pair(2)
         logical :: exact, power_ok, nested_ok
 
         call exact_value(a, exponent_id, exponent, den, exact)
@@ -1673,6 +1686,24 @@ contains
                 out = a%pow(base, exponent_id)
             end if
             return
+        end if
+
+        if (a%kind_of(base) == NK_CONST) then
+            if (chars(a%name_of(base)) == "i") then
+                select case (modulo(exponent, 4_int64))
+                case (0_int64)
+                    out = a%int(1_int64)
+                case (1_int64)
+                    out = base
+                case (2_int64)
+                    out = a%int(-1_int64)
+                case default
+                    pair(1) = a%int(-1_int64)
+                    pair(2) = base
+                    out = simplify_mul(a, pair)
+                end select
+                return
+            end if
         end if
 
         if (is_exact_scalar_kind(a%kind_of(base))) then

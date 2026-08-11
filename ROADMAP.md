@@ -153,7 +153,12 @@ case from the external exponential oracle without claiming general complex
 transcendental simplification. It also rewrites exact integer powers of
 logarithms inside exponentials, including `exp(log(x))`, `exp(2*log(x))`, and
 additive logarithm factors; fractional logarithm cofactors remain outside the
-fragment.
+fragment. Native `zero_test` now also consumes the existing bounded
+trigonometric-to-exponential rewrite, deciding the Pythagorean identity while
+leaving unproved trigonometric forms unknown.
+The bounded limit polynomial helper also updates coefficient lists in place,
+removing its array-temporary warnings without changing its refusal or numeric
+limit behavior.
 
 Issue #44 (plotting through fortplot) is complete as of 2026-08-11 for the
 bounded adapter. `fortsym_plot` samples real curves, parametric curves, list

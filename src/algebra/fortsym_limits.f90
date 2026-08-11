@@ -169,7 +169,7 @@ contains
             r%value = simplified(eng, e, ok)
             if (.not. ok) then
                 why = "the expression does not involve the variable but "// &
-                      "could not be simplified"
+                    "could not be simplified"
                 return
             end if
             ok = .true.
@@ -224,7 +224,7 @@ contains
         do k = 1, size(names)
             if (chars(names(k)) /= chars(var%name())) then
                 why = "expression contains the free symbol "// &
-                      chars(names(k))//" besides the limit variable"
+                    chars(names(k))//" besides the limit variable"
                 return
             end if
         end do
@@ -302,7 +302,7 @@ contains
             r%value = simplified(eng, at_point, ok)
             if (.not. ok) then
                 why = "the expression is continuous at the point but the "// &
-                      "substituted value could not be simplified"
+                    "substituted value could not be simplified"
                 return
             end if
             ok = .true.
@@ -312,7 +312,7 @@ contains
         call split_quotient(e, numer, denom)
         if (denom == num(a, 1)) then
             why = "not continuous at the point ("//inner// &
-                  ") and not a quotient, so no rule applies"
+                ") and not a quotient, so no rule applies"
             return
         end if
 
@@ -345,7 +345,7 @@ contains
             end if
             if (vd /= VERDICT_TRUE) then
                 why = "cannot decide whether the denominator vanishes at "// &
-                      "the point"
+                    "the point"
                 return
             end if
 
@@ -356,12 +356,12 @@ contains
                 ! two-sided limit to report -- and reporting one side as the
                 ! answer is exactly the mistake this module refuses to make.
                 why = "denominator vanishes and numerator does not: this is "// &
-                      "a pole, and the one-sided limits need not agree"
+                    "a pole, and the one-sided limits need not agree"
                 return
             end if
             if (vn /= VERDICT_TRUE) then
                 why = "cannot decide whether the numerator vanishes at the "// &
-                      "point"
+                    "point"
                 return
             end if
 
@@ -375,7 +375,7 @@ contains
         end do
 
         why = "L'Hopital's rule reached its iteration cap without resolving "// &
-              "the indeterminate form"
+            "the indeterminate form"
     end function limit_at_finite
 
     ! ------------------------------------------------------ infinite point --
@@ -406,7 +406,7 @@ contains
         end if
 
         why = "no rule applies at -infinity: "//inner// &
-              "; the growth ordering is only implemented at +infinity"
+            "; the growth ordering is only implemented at +infinity"
     end function limit_at_infinity
 
     !> A ratio of polynomials settles at infinity by leading degree alone. The
@@ -499,8 +499,8 @@ contains
         ! underflowed all the way to zero and so carries no sign at all.
         if (rv == 0.0_dp) then
             why = "the ratio of leading coefficients is nonzero but "// &
-                  "underflows to zero in double precision, so its sign "// &
-                  "cannot be read"
+                "underflows to zero in double precision, so its sign "// &
+                "cannot be read"
             return
         end if
         gap = dn - dd
@@ -597,14 +597,14 @@ contains
         if (verdict /= VERDICT_FALSE) then
             if (abs(kv) < UNDECIDED_MARGIN) then
                 why = "cannot decide whether the constant factor vanishes, "// &
-                      "and it is too close to zero to read a sign from"
+                    "and it is too close to zero to read a sign from"
                 return
             end if
         end if
 
         if (kv == 0.0_dp) then
             why = "the constant factor is nonzero but underflows to zero in "// &
-                  "double precision, so its sign cannot be read"
+                "double precision, so its sign cannot be read"
             return
         end if
 
@@ -639,7 +639,9 @@ contains
         order = 0
         ok = .false.
         why = ""
-        parts = [c, p, m]
+        parts(1) = c
+        parts(2) = p
+        parts(3) = m
 
         do k = 1, 3
             if (parts(k) /= 0.0_dp .and. abs(parts(k)) < MARGIN) then
@@ -734,7 +736,7 @@ contains
             end if
             if (expo%kind() /= NK_INT .and. kv <= MARGIN) then
                 why = "a non-integer power of a base that is not provably "// &
-                      "positive"
+                    "positive"
                 return
             end if
             c = c + q*cb
@@ -776,7 +778,7 @@ contains
                 ok = .true.
             case default
                 why = "function "//chars(e%name())// &
-                      " is outside the growth ordering"
+                    " is outside the growth ordering"
             end select
 
         case default
@@ -831,7 +833,7 @@ contains
                 ok = .true.
             else
                 why = "symbol "//chars(e%name())//" is free besides the "// &
-                      "limit variable"
+                    "limit variable"
             end if
 
         case (NK_ADD, NK_MUL)
@@ -869,7 +871,7 @@ contains
                 ! out to be, so the base must be provably positive.
                 if (v <= MARGIN) then
                     why = "a power whose exponent depends on the variable "// &
-                          "needs a base that is provably positive"
+                        "needs a base that is provably positive"
                     return
                 end if
                 ok = .true.
@@ -877,7 +879,7 @@ contains
                 if (expo%int_value() < 0_int64) then
                     if (abs(v) <= MARGIN) then
                         why = "a negative power of something that vanishes "// &
-                              "at the point"
+                            "at the point"
                         return
                     end if
                 end if
@@ -887,7 +889,7 @@ contains
                 ! real and continuous on both sides.
                 if (v <= MARGIN) then
                     why = "a non-integer power of a base that is not "// &
-                          "provably positive"
+                        "provably positive"
                     return
                 end if
                 ok = .true.
@@ -905,9 +907,9 @@ contains
             arg = e%arg(1)
             select case (name)
 
-            ! Entire on the real line: no domain condition to check.
+                ! Entire on the real line: no domain condition to check.
             case ("sin", "cos", "atan", "sinh", "cosh", "tanh", "asinh", &
-                  "exp", "erf", "erfc", "abs")
+                    "exp", "erf", "erfc", "abs")
                 ok = .true.
 
             case ("tan")
@@ -945,7 +947,7 @@ contains
                 ! answered with a two-sided claim.
                 if (v <= MARGIN) then
                     why = "sqrt at or below zero is a domain boundary, not "// &
-                          "an interior point"
+                        "an interior point"
                     return
                 end if
                 ok = .true.
@@ -1129,7 +1131,7 @@ contains
             do k = 2, e%nargs()
                 call poly_of(e%arg(k), var, right, ok)
                 if (.not. ok) return
-                acc = poly_add(acc, right)
+                call poly_add_inplace(acc, right)
             end do
             call move_alloc(acc, coeffs)
             ok = size(coeffs) - 1 <= MAX_DEGREE
@@ -1144,7 +1146,7 @@ contains
                     ok = .false.
                     return
                 end if
-                acc = poly_mul(acc, right)
+                call poly_mul_inplace(acc, right)
             end do
             call move_alloc(acc, coeffs)
             ok = .true.
@@ -1163,7 +1165,7 @@ contains
             allocate (acc(1))
             acc(1) = num(a, 1)
             do k = 1, int(n)
-                acc = poly_mul(acc, left)
+                call poly_mul_inplace(acc, left)
             end do
             call move_alloc(acc, coeffs)
             ok = .true.
@@ -1173,8 +1175,9 @@ contains
         end select
     end subroutine poly_of
 
-    function poly_add(x, y) result(s)
-        type(expr_t), intent(in)  :: x(:), y(:)
+    subroutine poly_add_inplace(x, y)
+        type(expr_t), allocatable, intent(inout) :: x(:)
+        type(expr_t),              intent(in)    :: y(:)
         type(expr_t), allocatable :: s(:)
         integer :: n, k
 
@@ -1189,10 +1192,12 @@ contains
                 s(k) = y(k)
             end if
         end do
-    end function poly_add
+        call move_alloc(s, x)
+    end subroutine poly_add_inplace
 
-    function poly_mul(x, y) result(s)
-        type(expr_t), intent(in)  :: x(:), y(:)
+    subroutine poly_mul_inplace(x, y)
+        type(expr_t), allocatable, intent(inout) :: x(:)
+        type(expr_t),              intent(in)    :: y(:)
         type(expr_t), allocatable :: s(:)
         type(arena_t), pointer :: a
         integer :: n, i, j
@@ -1208,7 +1213,8 @@ contains
                 s(i + j - 1) = s(i + j - 1) + x(i)*y(j)
             end do
         end do
-    end function poly_mul
+        call move_alloc(s, x)
+    end subroutine poly_mul_inplace
 
     !> Degree of a coefficient list after discarding leading coefficients that
     !> the engine proves zero. A coefficient it cannot decide stops the search:
