@@ -17,7 +17,7 @@ module fortsym_engine_native
         FACT_POSITIVE, FACT_NONNEGATIVE
     use fortsym_diff, only: diff_expr => diff
     use fortsym_subs, only: subs
-    use fortsym_poly, only: poly_cancel
+    use fortsym_poly, only: poly_cancel, poly_factor
     use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
         resource_exceeded, resource_visit, resource_failure, wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, CAP_ZERO_TEST, &
@@ -153,18 +153,42 @@ contains
         ! until it accepts the caller's resource budget, and only retain a
         ! strictly smaller result.
         if (.not. present(limit)) then
-            simplified_expr = e
-            simplified_expr%id = simplified_id
-            call poly_cancel(e%a, simplified_expr, cancelled, cancel_ok, &
-                cancel_reason)
-            if (cancel_ok) then
-                deallocate (memo, done)
-                allocate (memo(e%a%size()), source=0)
-                allocate (done(e%a%size()), source=.false.)
-                cancelled%id = simplify_id(e%a, cancelled%id, memo, done, &
-                    active_limit)
-                if (cancelled%node_count() < simplified_expr%node_count()) then
-                    simplified_id = cancelled%id
+            if (e%kind() == NK_ADD .or. e%kind() == NK_MUL .or. &
+                e%kind() == NK_POW) then
+                simplified_expr = e
+                simplified_expr%id = simplified_id
+                call poly_cancel(e%a, simplified_expr, cancelled, cancel_ok, &
+                    cancel_reason)
+                if (cancel_ok) then
+                    deallocate (memo, done)
+                    allocate (memo(e%a%size()), source=0)
+                    allocate (done(e%a%size()), source=.false.)
+                    cancelled%id = simplify_id(e%a, cancelled%id, memo, done, &
+                        active_limit)
+                    if (cancelled%node_count() < &
+                        simplified_expr%node_count()) then
+                        simplified_id = cancelled%id
+                    end if
+                end if
+                ! Factoring is currently a polynomial candidate only.  Do not
+                ! fold rational functions back into products: callers such as
+                ! integration deliberately expose those products to Apart.
+                if (.not. has_symbolic_denominator(e%a, simplified_id)) then
+                    simplified_expr = e
+                    simplified_expr%id = simplified_id
+                    call poly_factor(e%a, simplified_expr, cancelled, &
+                        cancel_ok, cancel_reason)
+                    if (cancel_ok) then
+                        deallocate (memo, done)
+                        allocate (memo(e%a%size()), source=0)
+                        allocate (done(e%a%size()), source=.false.)
+                        cancelled%id = simplify_id(e%a, cancelled%id, memo, &
+                            done, active_limit)
+                        if (cancelled%node_count() < &
+                            simplified_expr%node_count()) then
+                            simplified_id = cancelled%id
+                        end if
+                    end if
                 end if
             end if
         end if
@@ -263,7 +287,7 @@ contains
         type(engine_result_t)                 :: r
         integer, allocatable :: memo(:)
         logical, allocatable :: done(:)
-        type(expr_t) :: expanded
+        type(expr_t) :: expanded, reexpanded
         real(dp) :: started
         logical :: refused
         character(:), allocatable :: reason
@@ -305,6 +329,34 @@ contains
             return
         end if
         r = self%simplify(expanded, limit)
+        if (r%ok) then
+            ! Simplification may select a compact factored candidate.  Expand
+            ! that result once more so this operation keeps its public
+            ! expanded-form contract.
+            deallocate (memo, done)
+            allocate (memo(e%a%size()), source=0)
+            allocate (done(e%a%size()), source=.false.)
+            reexpanded = r%value
+            reexpanded%id = expand_id(e%a, r%value%id, memo, done, &
+                active_limit)
+            if (active_limit%exceeded_kind /= 0) then
+                r%ok = .false.
+                r%message = str(resource_failure("expand", active_limit))
+            else
+                deallocate (memo, done)
+                allocate (memo(e%a%size()), source=0)
+                allocate (done(e%a%size()), source=.false.)
+                reexpanded%id = simplify_id(e%a, reexpanded%id, memo, done, &
+                    active_limit)
+                if (active_limit%exceeded_kind /= 0) then
+                    r%ok = .false.
+                    r%message = str(resource_failure("expand", active_limit))
+                    r%value = e
+                else
+                    r%value = reexpanded
+                end if
+            end if
+        end if
         if (r%ok) then
             if (.not. associated(self%assumptions)) then
                 self%expand_cache(e%id) = r%value%id

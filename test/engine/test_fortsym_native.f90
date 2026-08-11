@@ -181,6 +181,11 @@ contains
         call check("native multivariate cancellation succeeds", r%ok)
         call check("native multivariate cancellation preserves the quotient", &
             r%value == x + y)
+
+        r = engine%simplify(x**2 + 2*x + 1)
+        call check("native polynomial factor candidate succeeds", r%ok)
+        call check("native polynomial factor candidate is selected", &
+            r%value == (x + 1)**2)
     end subroutine test_polynomial_cancellation
 
     subroutine test_expansion()
