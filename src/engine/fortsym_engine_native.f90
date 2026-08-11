@@ -1851,6 +1851,11 @@ contains
         case ("sqrt", "abs")
             if (is_zero_id(a, args(1))) out = a%int(0_int64)
             if (is_one_id(a, args(1))) out = a%int(1_int64)
+            if (name == "sqrt") then
+                call exact_square_root(a, args(1), trig_constant, &
+                    trig_constant_ok)
+                if (trig_constant_ok) out = trig_constant
+            end if
         case ("erf", "erfc")
             if (is_zero_id(a, args(1))) then
                 if (name == "erf") then
@@ -2101,6 +2106,54 @@ contains
         end select
         ok = .true.
     end subroutine exact_trig_value
+
+    subroutine exact_square_root(a, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer(int64) :: numerator, denominator, root_numerator, root_denominator
+        logical :: exact, numerator_ok, denominator_ok
+
+        out = id
+        ok = .false.
+        call exact_value(a, id, numerator, denominator, exact)
+        if (.not. exact .or. numerator < 0_int64) return
+        call integer_square_root(numerator, root_numerator, numerator_ok)
+        call integer_square_root(denominator, root_denominator, denominator_ok)
+        if (.not. numerator_ok .or. .not. denominator_ok) return
+        if (root_denominator == 1_int64) then
+            out = a%int(root_numerator)
+        else
+            out = a%rat(root_numerator, root_denominator)
+        end if
+        ok = .true.
+    end subroutine exact_square_root
+
+    subroutine integer_square_root(value, root, ok)
+        integer(int64), intent(in) :: value
+        integer(int64), intent(out) :: root
+        logical, intent(out) :: ok
+        real(dp) :: approximate
+
+        root = 0_int64
+        ok = .false.
+        if (value < 0_int64) return
+        if (value == 0_int64) then
+            ok = .true.
+            return
+        end if
+        approximate = sqrt(real(value, dp))
+        root = int(approximate, int64)
+        if (root < 1_int64) root = 1_int64
+        do while (root > value/root)
+            root = root - 1_int64
+        end do
+        do while (root < value/root)
+            root = root + 1_int64
+        end do
+        ok = root*root == value
+    end subroutine integer_square_root
 
     subroutine exact_sine_cosine(a, numerator, denominator, sine, cosine, ok)
         type(arena_t), intent(inout) :: a
