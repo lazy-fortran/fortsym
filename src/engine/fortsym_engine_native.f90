@@ -2559,8 +2559,15 @@ contains
             if (.not. is_one_id(a, id)) return
             out = a%int(0_int64)
         case ("atanh")
-            if (.not. is_zero_id(a, id)) return
-            out = a%int(0_int64)
+            if (is_zero_id(a, id)) then
+                out = a%int(0_int64)
+            else if (is_one_id(a, id)) then
+                out = a%const("oo")
+            else if (is_minus_one_id(a, id)) then
+                out = mul_pair(a, a%int(-1_int64), a%const("oo"))
+            else
+                return
+            end if
         case default
             return
         end select

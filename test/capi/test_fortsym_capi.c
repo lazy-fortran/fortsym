@@ -94,6 +94,8 @@ int main(void)
     fortsym_expr *negative_two = NULL;
     fortsym_expr *negative_log = NULL;
     fortsym_expr *negative_log_simplified = NULL;
+    fortsym_expr *pole = NULL;
+    fortsym_expr *pole_simplified = NULL;
     fortsym_expr *special = NULL;
     fortsym_expr *special_simplified = NULL;
     fortsym_expr *legendre = NULL;
@@ -401,6 +403,30 @@ int main(void)
     assert(status == FORTSYM_OK && verdict == FORTSYM_ZERO_TRUE);
     status = fortsym_int(arena, -1, &minus_one, message, sizeof message);
     assert(status == FORTSYM_OK);
+    root_argument[0] = one;
+    status = fortsym_function(arena, "atanh", root_argument, 1, &pole,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, pole, &pole_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(pole_simplified, "oo");
+    fortsym_expr_free(pole_simplified);
+    fortsym_expr_free(pole);
+    pole_simplified = NULL;
+    pole = NULL;
+    root_argument[0] = minus_one;
+    status = fortsym_function(arena, "atanh", root_argument, 1, &pole,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, pole, &pole_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(pole_simplified, "-oo");
+    fortsym_expr_free(pole_simplified);
+    fortsym_expr_free(pole);
+    pole_simplified = NULL;
+    pole = NULL;
     status = fortsym_multiply(arena, minus_one, infinity, &negative_infinity,
                               message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -492,6 +518,8 @@ int main(void)
     fortsym_expr_free(negative_log_simplified);
     fortsym_expr_free(negative_log);
     fortsym_expr_free(negative_two);
+    fortsym_expr_free(pole_simplified);
+    fortsym_expr_free(pole);
     fortsym_expr_free(legendre_simplified);
     fortsym_expr_free(legendre);
     fortsym_expr_free(undefined);
