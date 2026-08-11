@@ -21,6 +21,8 @@ program test_fortsym_native
         new_resource_limit, VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, &
         CAP_FACTOR, has_cap
     use fortsym_engine_native, only: native_engine_t, make_native_engine
+    use fortsym_relation, only: greater
+    use fortsym_predicates, only: is_number
     implicit none
 
     integer, parameter :: dp = real64
@@ -49,6 +51,7 @@ program test_fortsym_native
     call test_linear_solve()
     call test_assumptions()
     call test_assumption_relations()
+    call test_number_predicate()
     call test_domain_conditions()
     call test_nan_domain_rules()
     call test_directed_domain_rules()
@@ -854,6 +857,36 @@ contains
         call check("rational domain is recorded", ok .and. &
             child%has(x, FACT_RATIONAL) .and. child%has(x, FACT_REAL))
     end subroutine test_assumption_relations
+
+    subroutine test_number_predicate()
+        type(expr_t) :: integer_value, rational_value, symbol
+        type(expr_t) :: numeric_sum, numeric_sine, symbolic_sum, relation
+        type(expr_t) :: algebraic_value, infinity, undefined
+        logical :: algebraic_ok
+
+        integer_value = num(arena, 2_int64)
+        rational_value = rat(arena, 2_int64, 3_int64)
+        symbol = sym(arena, "number_predicate_symbol")
+        numeric_sum = integer_value + rational_value
+        numeric_sine = sin(integer_value)
+        symbolic_sum = symbol + integer_value
+        relation = greater(integer_value, rational_value)
+        algebraic_value = algebraic_expr(arena, "qqbar1:1:1,0,1", algebraic_ok)
+        infinity = oo_expr(arena)
+        undefined = nan_expr(arena)
+
+        call check("integer is a number", is_number(integer_value))
+        call check("rational is a number", is_number(rational_value))
+        call check("numeric sum is a number", is_number(numeric_sum))
+        call check("numeric function is a number", is_number(numeric_sine))
+        call check("named infinity is a number", is_number(infinity))
+        call check("named NaN is a number", is_number(undefined))
+        call check("algebraic atom is a number", algebraic_ok .and. &
+            is_number(algebraic_value))
+        call check("symbol is not a number", .not. is_number(symbol))
+        call check("symbolic sum is not a number", .not. is_number(symbolic_sum))
+        call check("relation is not a number", .not. is_number(relation))
+    end subroutine test_number_predicate
 
     subroutine test_domain_conditions()
         type(engine_result_t) :: r

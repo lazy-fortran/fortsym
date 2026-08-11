@@ -14,6 +14,7 @@ module fortsym
         operator(/), operator(**), operator(==), operator(/=)
     use fortsym_relation, only: equal, unequal, less, less_equal, greater, &
         greater_equal
+    use fortsym_predicates, only: is_number
     use fortsym_subs, only: subs_impl => subs
     use fortsym_assume, only: assumption_context_t, &
         make_assumption_context, with_assumption, zero, negative, nonpositive, &
@@ -48,6 +49,7 @@ module fortsym
         func, func_in, partial, equal, unequal, less, less_equal, greater, &
         greater_equal, pi_expr, e_expr, i_expr, oo_expr, zoo_expr, nan_expr, &
         is_valid, same_arena
+    public :: is_number
     public :: assumption_context_t, make_assumption_context, with_assumption, &
         zero, negative, nonpositive, positive, nonnegative, nonzero, real_valued, &
         rational_valued, integer_valued, positive_integer

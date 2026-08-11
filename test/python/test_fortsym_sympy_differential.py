@@ -178,6 +178,33 @@ class SympyDifferentialTest(unittest.TestCase):
                     oracle.ask(oracle.Q.rational(expected)),
                 )
 
+    def test_number_predicate_matches_oracle(self):
+        def cases(api):
+            x = api.Symbol("number_predicate_unknown")
+            return {
+                "integer": api.Integer(2),
+                "rational": api.Rational(2, 3),
+                "float": api.Float(2.0),
+                "pi": api.pi,
+                "infinity": api.oo,
+                "nan": api.nan,
+                "numeric_function": api.sin(1),
+                "numeric_sum": api.pi + api.sqrt(2),
+                "integer_symbol": api.Symbol(
+                    "number_predicate_integer", integer=True
+                ),
+                "unknown_symbol": x,
+                "symbolic_sum": x + 1,
+                "relation": api.Eq(x, 1),
+            }
+
+        oracle_cases = cases(oracle)
+        native_cases = cases(native)
+        for label, expected in oracle_cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(native_cases[label].is_number,
+                                 expected.is_number)
+
     def test_guarded_log_exp_matches_oracle(self):
         def cases(api):
             real = api.Symbol("differential_log_real", real=True)

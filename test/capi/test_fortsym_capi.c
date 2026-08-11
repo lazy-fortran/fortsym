@@ -27,6 +27,7 @@ int main(void)
     size_t required = 0;
     int64_t integer_value = 0;
     int kind = 0;
+    int number = 0;
     int equal = 0;
     int verdict = FORTSYM_ZERO_UNKNOWN;
     int known = 0;
@@ -93,7 +94,7 @@ int main(void)
     const fortsym_expr *special_arguments[2];
     const fortsym_expr *legendre_arguments[3];
 
-    assert(fortsym_abi_version() == 10);
+    assert(fortsym_abi_version() == 11);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
@@ -109,9 +110,13 @@ int main(void)
     status = fortsym_multiply(arena, sum, y, &product, message, sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(product, "y*(x + 1)");
+    status = fortsym_expr_is_number(product, &number, message, sizeof message);
+    assert(status == FORTSYM_OK && number == 0);
 
     status = fortsym_expr_kind(one, &kind, message, sizeof message);
     assert(status == FORTSYM_OK && kind == FORTSYM_INT);
+    status = fortsym_expr_is_number(one, &number, message, sizeof message);
+    assert(status == FORTSYM_OK && number == 1);
     status = fortsym_expr_int_value(one, &integer_value, message, sizeof message);
     assert(status == FORTSYM_OK && integer_value == 1);
     status = fortsym_expr_exact_text(one, buffer, sizeof buffer, &required,

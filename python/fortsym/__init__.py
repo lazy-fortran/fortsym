@@ -207,6 +207,10 @@ def _configure(lib):
         "fortsym_expr_kind", ctypes.c_int,
         [_CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
     )
+    lib.expr_is_number = declare(
+        "fortsym_expr_is_number", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
+    )
     lib.expr_arity = declare(
         "fortsym_expr_arity", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
@@ -472,6 +476,7 @@ class Expr:
         self._expanded_epoch = -1
         self._diff_results = {}
         self._complex_results = {}
+        self._number_value = None
 
     def _require(self):
         if self._handle is None:
@@ -482,6 +487,7 @@ class Expr:
         self._expanded_result = None
         self._diff_results.clear()
         self._complex_results.clear()
+        self._number_value = None
         if self._handle is not None:
             self._lib.expr_free(self._handle)
             self._handle = None
@@ -723,6 +729,20 @@ class Expr:
         if self._assumption_fact(_FACT_POSITIVE) is True:
             return False
         return None
+
+    @property
+    def is_number(self):
+        if self._number_value is not None:
+            return self._number_value
+        number = ctypes.c_int()
+        message = _message()
+        status = self._lib.expr_is_number(
+            self._require(), ctypes.byref(number), message, len(message)
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "expr_is_number")
+        self._number_value = bool(number.value)
+        return self._number_value
 
     @property
     def kind(self):

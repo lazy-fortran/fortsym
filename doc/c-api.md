@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 10). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 11). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, and differentiation. The native library retains an
 arena while any expression handle refers to it; callers may therefore release
@@ -12,6 +12,13 @@ new expression handle. It returns `FORTSYM_ZERO_TRUE` for a proved zero,
 `FORTSYM_ZERO_UNKNOWN` when the native decision procedure declines to decide.
 An unknown verdict is still a successful C-ABI call; malformed handles and
 unsupported execution return the ordinary status codes.
+
+`fortsym_expr_is_number` reports SymPy-compatible numeric-expression status:
+numeric atoms, named constants, domain sentinels, and compound expressions
+whose children are all numeric return one; symbolic expressions and Boolean
+relations return zero. The query is owned by `fortsym_predicates:is_number` in
+the native predicate module and does not duplicate classification in the ABI
+or Python adapter.
 
 `fortsym_assumption_has` reports whether the arena proves one of the supported
 facts (`real`, `zero`, `negative`, `nonpositive`, `positive`, `nonnegative`, or
