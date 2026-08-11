@@ -306,6 +306,10 @@ Every checklist item requires all of the following:
   - [x] Add direct unary domain rules for `sqrt`, `Abs`, `exp`, and `log`.
     Known sentinel inputs match SymPy 1.14.0, including `sqrt(-oo) = i*oo`;
     symbolic factors remain unevaluated rather than receiving guessed rules.
+  - [x] Add the safe compact-rational power fragment: positive and negative
+    rational powers of `oo`/`zoo` follow SymPy, and `(-oo)` powers with an odd
+    half-integer exponent produce the principal `+/-i*oo` phase. Other
+    branch-sensitive rational powers remain explicit powers.
   - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
     non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.

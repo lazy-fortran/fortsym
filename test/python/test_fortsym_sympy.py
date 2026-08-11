@@ -170,6 +170,25 @@ class SympySubsetTest(unittest.TestCase):
             "exp(domain_function_x*oo)",
         )
 
+    def test_noninteger_domain_powers(self):
+        cases = [
+            (sp.oo**sp.Rational(1, 2), sp.oo),
+            (sp.oo**sp.Rational(2, 3), sp.oo),
+            (sp.oo**sp.Rational(-1, 2), sp.Integer(0)),
+            (sp.zoo**sp.Rational(1, 2), sp.zoo),
+            (sp.zoo**sp.Rational(4, 3), sp.zoo),
+            (sp.zoo**sp.Rational(-1, 2), sp.Integer(0)),
+            ((-sp.oo)**sp.Rational(1, 2), sp.simplify(sp.I * sp.oo)),
+            ((-sp.oo)**sp.Rational(3, 2), sp.simplify(-sp.I * sp.oo)),
+            ((-sp.oo)**sp.Rational(5, 2), sp.simplify(sp.I * sp.oo)),
+        ]
+        for expression, expected in cases:
+            with self.subTest(expression=str(expression)):
+                self.assertEqual(sp.simplify(expression), expected)
+        refused = sp.simplify((-sp.oo)**sp.Rational(2, 3))
+        self.assertIsInstance(refused, sp.Pow)
+        self.assertNotEqual(refused, sp.oo)
+
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")
         cases = [

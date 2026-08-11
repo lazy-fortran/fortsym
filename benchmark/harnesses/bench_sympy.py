@@ -113,6 +113,7 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
     native_x = native.Symbol(name_x)
     native_y = native.Symbol(name_y)
     native_oo = native._default().constant("oo")
+    native_three_halves = native.Rational(3, 2)
     sqrt_power_name = f"{label}_sqrt_power_{suffix}"
     oracle_sqrt_power = oracle.Symbol(sqrt_power_name)
     native_sqrt_power = native.Symbol(sqrt_power_name)
@@ -163,6 +164,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
         "domain_function": (
             oracle.sqrt(-oracle.oo, evaluate=False),
             native.sqrt(-native_oo),
+            names,
+        ),
+        "domain_power": (
+            oracle.Pow(-oracle.oo, oracle.Rational(3, 2), evaluate=False),
+            (-native_oo)**native_three_halves,
             names,
         ),
         "relation": (
@@ -216,6 +222,14 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
             expression = engine.sqrt(-engine.oo, evaluate=False)
         else:
             expression = engine.sqrt(-engine._default().constant("oo"))
+    elif operation == "domain_power":
+        if engine is oracle:
+            expression = engine.Pow(
+                -engine.oo, engine.Rational(3, 2), evaluate=False
+            )
+        else:
+            infinity = engine._default().constant("oo")
+            expression = (-infinity)**engine.Rational(3, 2)
     elif operation == "factor":
         expression = x**2 + 2 * x + 1
     elif operation == "assumption_query":
@@ -261,7 +275,8 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation == "simplify":
             expected = oracle.simplify(oracle_expression)
             actual = native.simplify(native_expression)
-        elif operation in ("composition", "sqrt_power", "domain_function"):
+        elif operation in (
+                "composition", "sqrt_power", "domain_function", "domain_power"):
             expected = oracle.simplify(oracle_expression)
             actual = native.simplify(native_expression)
         elif operation == "assumption_query":
@@ -300,7 +315,7 @@ def correctness_cases() -> list[dict[str, Any]]:
                 else compound_equivalent(expected, actual)
                 if operation == "compound"
                 else structurally_equivalent(expected, actual, names)
-                if operation == "domain_function"
+                if operation in ("domain_function", "domain_power")
                 else equivalent(expected, actual, names)
             ),
             "expected": result_text(expected),
@@ -346,7 +361,8 @@ def benchmark_workload(
                 native_call = lambda: native.refine(
                     native_expression, native.Q.negative(native_x)
                 )
-            elif operation in ("composition", "sqrt_power", "domain_function"):
+            elif operation in (
+                    "composition", "sqrt_power", "domain_function", "domain_power"):
                 oracle_call = lambda: oracle.simplify(oracle_expression)
                 native_call = lambda: native.simplify(native_expression)
             elif operation == "relation":
@@ -377,7 +393,8 @@ def benchmark_workload(
                     return engine.ask(expression)
                 if operation == "refine":
                     return engine.refine(expression, engine.Q.negative(variable))
-                if operation in ("composition", "sqrt_power", "domain_function"):
+                if operation in (
+                        "composition", "sqrt_power", "domain_function", "domain_power"):
                     return engine.simplify(expression)
                 if operation == "relation":
                     return engine.Gt(variable, 1)
@@ -437,7 +454,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "domain_function", "relation", "compound", "factor",
+        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "domain_function", "domain_power", "relation", "compound", "factor",
         "assumption_query"
     ):
         for scope in ("cold_end_to_end", "warm_core"):

@@ -1974,11 +1974,6 @@ contains
             end if
             return
         end if
-        if (den /= 1_int64) then
-            out = a%pow(base, exponent_id)
-            return
-        end if
-
         if (exponent == 0_int64) then
             if (is_zero_id(a, base)) then
                 out = a%pow(base, exponent_id)
@@ -1991,8 +1986,12 @@ contains
             out = nan_node(a)
             return
         end if
-        call simplify_domain_power(a, base, exponent, out, power_ok)
+        call simplify_domain_power(a, base, exponent, den, out, power_ok)
         if (power_ok) return
+        if (den /= 1_int64) then
+            out = a%pow(base, exponent_id)
+            return
+        end if
         if (exponent == 1_int64) then
             out = base
             return
@@ -4378,10 +4377,11 @@ contains
         end if
     end subroutine simplify_domain_mul
 
-    subroutine simplify_domain_power(a, base, exponent, out, applied)
+    subroutine simplify_domain_power(a, base, exponent, denominator, out, &
+            applied)
         type(arena_t), intent(inout) :: a
         integer,       intent(in)    :: base
-        integer(int64), intent(in)   :: exponent
+        integer(int64), intent(in)   :: exponent, denominator
         integer,       intent(out)   :: out
         logical,       intent(out)   :: applied
         integer :: domain, direction
@@ -4393,15 +4393,32 @@ contains
         if (.not. known .or. .not. contains_domain .or. has_zero) return
         if (domain /= DOMAIN_OO .and. domain /= DOMAIN_ZOO) return
 
-        applied = .true.
         if (exponent < 0_int64) then
+            applied = .true.
             out = a%int(0_int64)
         else if (domain == DOMAIN_ZOO) then
+            applied = .true.
             out = a%const("zoo")
-        else if (direction < 0 .and. modulo(exponent, 2_int64) == 1_int64) then
-            out = signed_oo_node(a, -1)
-        else
+        else if (direction >= 0) then
+            applied = .true.
             out = a%const("oo")
+        else if (denominator == 1_int64) then
+            applied = .true.
+            if (modulo(exponent, 2_int64) == 1_int64) then
+                out = signed_oo_node(a, -1)
+            else
+                out = a%const("oo")
+            end if
+        else if (denominator == 2_int64 .and. &
+                modulo(exponent, 2_int64) == 1_int64) then
+            applied = .true.
+            if (modulo(exponent, 4_int64) == 1_int64) then
+                out = imaginary_oo_node(a, 1)
+            else
+                out = imaginary_oo_node(a, -1)
+            end if
+        else
+            return
         end if
     end subroutine simplify_domain_power
 
@@ -4528,6 +4545,16 @@ contains
         end if
     end function signed_oo_node
 
+    function imaginary_oo_node(a, direction) result(id)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: direction
+        integer :: id, pair(2)
+
+        pair(1) = a%const("i")
+        pair(2) = signed_oo_node(a, direction)
+        id = a%mul(pair)
+    end function imaginary_oo_node
+
     subroutine simplify_domain_function(a, name, args, out, applied)
         type(arena_t), intent(inout) :: a
         character(*),  intent(in)    :: name
@@ -4536,7 +4563,6 @@ contains
         logical,       intent(out)   :: applied
         integer :: domain, direction
         logical :: known, contains_domain, has_zero
-        integer :: pair(2)
 
         applied = .false.
         if (size(args) /= 1) return
@@ -4550,9 +4576,7 @@ contains
             if (domain == DOMAIN_ZOO) then
                 out = a%const("zoo")
             else if (direction < 0) then
-                pair(1) = a%const("i")
-                pair(2) = a%const("oo")
-                out = a%mul(pair)
+                out = imaginary_oo_node(a, 1)
             else
                 out = a%const("oo")
             end if
