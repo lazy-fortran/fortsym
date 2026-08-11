@@ -849,6 +849,22 @@ contains
         r = engine%simplify(unary_function("sech", num(arena, 0_int64)))
         call check("native simplify evaluates sech(0)", &
             r%value == num(arena, 1_int64))
+        r = engine%simplify(exp(i_expr(arena)*pi_expr(arena)))
+        call check("native simplify evaluates Euler half-turn", &
+            r%value == num(arena, -1_int64))
+        r = engine%simplify(exp(i_expr(arena)*pi_expr(arena)/2))
+        call check("native simplify evaluates Euler quarter-turn", &
+            r%value == i_expr(arena))
+        r = engine%simplify(exp(i_expr(arena)*pi_expr(arena)/4))
+        call check("native simplify evaluates Euler eighth-turn", &
+            r%value == (1 + i_expr(arena))/sqrt(num(arena, 2_int64)))
+        r = engine%simplify(exp(i_expr(arena)*pi_expr(arena)/6))
+        call check("native simplify evaluates Euler twelfth-turn", &
+            r%value == i_expr(arena)*rat(arena, 1_int64, 2_int64) + &
+            sqrt(num(arena, 3_int64))*rat(arena, 1_int64, 2_int64))
+        r = engine%simplify(exp(i_expr(arena)*pi_expr(arena)/5))
+        call check("native simplify preserves unsupported Euler fraction", &
+            r%value%kind() == NK_FUNC)
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
             r%verdict == VERDICT_TRUE)
