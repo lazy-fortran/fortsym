@@ -212,6 +212,8 @@ including integer and rational exponents, while symbolic and complex
 arguments retain their existing forms.
 It also evaluates the principal exact constants `log(-1)`, `log(±i)`, and
 `log(e)` while leaving symbolic logarithms opaque.
+Exact real powers of `e` are inverted back to their rational exponents by
+`log`; complex exponents remain outside this branch-safe fragment.
 The native simplifier now also evaluates the exact principal inverse-function
 constants `asin(±1)`, `acos(0, ±1)`, and `atan(±1)`, plus `acosh(1)` and
 `atanh(0)`; symbolic and out-of-fragment inverse functions remain untouched.

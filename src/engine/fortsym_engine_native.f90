@@ -2306,6 +2306,21 @@ contains
                 return
             end if
         end if
+        if (a%kind_of(id) == NK_POW) then
+            if (a%nargs_of(id) == 2) then
+                if (a%kind_of(a%arg_of(id, 1)) == NK_CONST) then
+                    if (chars(a%name_of(a%arg_of(id, 1))) == "e") then
+                        call exact_value(a, a%arg_of(id, 2), numerator, &
+                            denominator, exact)
+                        if (exact) then
+                            out = a%arg_of(id, 2)
+                            ok = .true.
+                            return
+                        end if
+                    end if
+                end if
+            end if
+        end if
         call exact_value(a, id, numerator, denominator, exact)
         if (exact .and. numerator == -1_int64 .and. denominator == 1_int64) then
             out = mul_pair(a, a%const("i"), a%const("pi"))
