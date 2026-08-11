@@ -87,6 +87,10 @@ int main(void)
     fortsym_expr *negative_phase_result = NULL;
     fortsym_expr *periodic = NULL;
     fortsym_expr *periodic_simplified = NULL;
+    fortsym_expr *log_zero = NULL;
+    fortsym_expr *log_zero_simplified = NULL;
+    fortsym_expr *exp_log_zero = NULL;
+    fortsym_expr *exp_log_zero_simplified = NULL;
     fortsym_expr *special = NULL;
     fortsym_expr *special_simplified = NULL;
     fortsym_expr *legendre = NULL;
@@ -338,6 +342,22 @@ int main(void)
                               sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(periodic_simplified, "nan");
+    root_argument[0] = zero;
+    status = fortsym_function(arena, "log", root_argument, 1, &log_zero,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, log_zero, &log_zero_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(log_zero_simplified, "zoo");
+    root_argument[0] = log_zero;
+    status = fortsym_function(arena, "exp", root_argument, 1, &exp_log_zero,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, exp_log_zero, &exp_log_zero_simplified,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(exp_log_zero_simplified, "nan");
     special_arguments[0] = undefined;
     special_arguments[1] = x;
     status = fortsym_function(arena, "besselj", special_arguments, 2,
@@ -452,6 +472,10 @@ int main(void)
     fortsym_expr_free(periodic);
     fortsym_expr_free(special_simplified);
     fortsym_expr_free(special);
+    fortsym_expr_free(exp_log_zero_simplified);
+    fortsym_expr_free(exp_log_zero);
+    fortsym_expr_free(log_zero_simplified);
+    fortsym_expr_free(log_zero);
     fortsym_expr_free(legendre_simplified);
     fortsym_expr_free(legendre);
     fortsym_expr_free(undefined);

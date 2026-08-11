@@ -2579,6 +2579,11 @@ contains
 
         out = id
         ok = .false.
+        if (is_zero_id(a, id)) then
+            out = a%const("zoo")
+            ok = .true.
+            return
+        end if
         if (is_one_id(a, id)) then
             out = a%int(0_int64)
             ok = .true.

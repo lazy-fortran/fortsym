@@ -739,6 +739,12 @@ contains
         r = assumed_engine%simplify(exp(log(log_nonzero)))
         call check("nonzero x permits exp(log(x))=x", &
             r%value == log_nonzero)
+        r = engine%simplify(log(num(arena, 0_int64)))
+        call check("log(0) is the complex-infinity sentinel", &
+            r%value == zoo_expr(arena))
+        r = engine%simplify(exp(log(num(arena, 0_int64))))
+        call check("exp(log(0)) propagates undefined", &
+            r%value == nan_expr(arena))
         unknown_log = sym(arena, "unknown_log")
         r = engine%simplify(log(exp(unknown_log)))
         call check("unknown log/exp composition remains guarded", &

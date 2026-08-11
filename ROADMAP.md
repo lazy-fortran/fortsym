@@ -456,6 +456,10 @@ Every checklist item requires all of the following:
     values become `-x`; zero becomes `0`; unknown reality remains unevaluated.
   - [x] Add domain-guarded `log(exp(x))` for real `x` and `exp(log(x))` for
     nonzero `x`; unsupported domain cases remain unevaluated.
+  - [x] Match SymPy's exact logarithm singularity boundary: native
+    simplification maps `log(0)` to `zoo`, and the existing sentinel
+    propagation maps `exp(log(0))` to `nan`; real numeric and complex-domain
+    pole evaluators continue to refuse undefined finite values.
   - [x] Match the principal-square-root power convention by reducing
     `sqrt(x)**2` to `x` for symbolic `x`.
   - [x] Canonicalize universal power-constructor identities in the shared
@@ -627,12 +631,17 @@ Every checklist item requires all of the following:
     record its cold ABI-crossing cost separately: the 55th row is an explicit
     diagnostic, while the original 54 workload rows remain enforced. The
     constructor result matches SymPy 1.14.0; the one-node cold boundary was
-    1.45x SymPy in the recorded run and is therefore explicitly waived rather
+    1.53x SymPy in the recorded run and is therefore explicitly waived rather
     than presented as native-core parity.
   - [x] Extend that construction diagnostic to the exponent-one constructor;
     the additional row is correctness-checked against SymPy 1.14.0 and kept
-    explicitly waived for the same Python-ABI cost boundary; it measured 1.49x
+    explicitly waived for the same Python-ABI cost boundary; it measured 1.51x
     SymPy in the recorded run.
+  - [x] Add the exact `log(0)` singularity to the correctness and performance
+    matrix. Its cold and warm one-node simplification rows are explicit ABI
+    diagnostics, measured at 5.07x and 3.43x SymPy respectively in the
+    recorded run; the 54 core rows remain enforced with zero unwaived
+    violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

@@ -68,7 +68,7 @@ subset with SymPy 1.14.0. It measures cold end-to-end construction plus
 operation and warm core operation separately for expansion, differentiation,
 simplification, signed refinement, real/nonzero-guarded `log`/`exp` composition,
 principal-square-root powers, direct domain-function simplification of
-`sqrt(-oo)`, gamma-family domain-head simplification, inverse domain-head
+`sqrt(-oo)` and exact `log(0)`, gamma-family domain-head simplification, inverse domain-head
 simplification, and reciprocal-hyperbolic domain-head simplification embedded
 in a symbolic fourth-degree expression, directed-infinity `atan2` domain-head
 simplification, and Bessel infinity-domain simplification,
@@ -111,10 +111,15 @@ predicate work; the correctness matrix still covers the cold construction.
 The `power_constructor:cold_end_to_end` row is likewise a diagnostic: it
 includes fresh symbol and result-handle construction and must be passed as an
 explicit waiver when parity is enforced. In the latest 2026-08-12 run the
-`power_constructor` ratio was 1.45x; the matching
-`power_one_constructor:cold_end_to_end` row was 1.49x and is
+`power_constructor` ratio was 1.53x; the matching
+`power_one_constructor:cold_end_to_end` row was 1.51x and is
 covered by the same explicit waiver. Thus the recorded matrix has 56 rows, 54
-enforced rows, and zero unwaived violations.
+enforced rows, and zero unwaived violations for those construction diagnostics.
+The `domain_log_zero` cold and warm rows are also one-node ABI diagnostics:
+they measured 5.07x and 3.43x SymPy respectively in the recorded run, and are
+explicitly waived for the same construction-versus-simplification boundary.
+The expanded matrix therefore has 58 rows, 54 enforced rows, and zero
+unwaived violations.
 
 Run it from a built checkout with:
 
@@ -217,8 +222,8 @@ zero parity violations; the warm predicate and algebraic-assumption rows were
 all at or below the SymPy 1.14.0 median in the recorded run on 2026-08-12.
 The warm `number_predicate` and `algebraic_predicate` ratios were 0.32× and
 0.75×; `algebraic_assumption_query` was 0.02× warm and 0.12× cold. The
-separately waived cold power-constructor diagnostics were 1.45× for `x**0`
-and 1.49× for `x**1`.
+separately waived cold power-constructor diagnostics were 1.53× for `x**0`
+and 1.51× for `x**1`; `domain_log_zero` was 5.07× cold and 3.43× warm.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
 text validation, FLINT reconstruction, the exact operation, canonical
