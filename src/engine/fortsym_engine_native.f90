@@ -993,10 +993,63 @@ contains
         integer, intent(in)           :: argument
         integer                       :: out
         integer                       :: one(1)
+        logical :: log_power_ok
 
+        call exp_log_power(a, argument, out, log_power_ok)
+        if (log_power_ok) return
         one(1) = argument
         out = simplify_function(a, "exp", one)
     end function make_exp
+
+    !> Rewrite exp(n*log(x)) to x**n for an exact integer n. The operation is
+    !> used only by the exponential zero-test normal form; fractional and
+    !> symbolic cofactors stay untouched and therefore remain UNKNOWN there.
+    subroutine exp_log_power(a, argument, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)     :: argument
+        integer,       intent(out)   :: out
+        logical,       intent(out)   :: ok
+        integer :: k, factor, log_id
+        integer(int64) :: coefficient, numerator, denominator, product
+        logical :: exact, product_ok
+
+        out = argument
+        ok = .false.
+        log_id = 0
+        coefficient = 1_int64
+
+        if (a%kind_of(argument) == NK_FUNC) then
+            if (a%nargs_of(argument) == 1) then
+                if (chars(a%name_of(argument)) == "log") then
+                    out = a%arg_of(argument, 1)
+                    ok = .true.
+                end if
+            end if
+            return
+        end if
+        if (a%kind_of(argument) /= NK_MUL) return
+
+        do k = 1, a%nargs_of(argument)
+            factor = a%arg_of(argument, k)
+            if (a%kind_of(factor) == NK_FUNC) then
+                if (a%nargs_of(factor) == 1) then
+                    if (chars(a%name_of(factor)) == "log") then
+                        if (log_id /= 0) return
+                        log_id = factor
+                        cycle
+                    end if
+                end if
+            end if
+            call exact_value(a, factor, numerator, denominator, exact)
+            if (.not. exact .or. denominator /= 1_int64) return
+            call checked_mul(coefficient, numerator, product, product_ok)
+            if (.not. product_ok) return
+            coefficient = product
+        end do
+        if (log_id == 0) return
+        out = simplify_power(a, a%arg_of(log_id, 1), a%int(coefficient))
+        ok = .true.
+    end subroutine exp_log_power
 
     function add_pair(a, left, right) result(out)
         type(arena_t), intent(inout) :: a
