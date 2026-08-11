@@ -111,8 +111,12 @@ Every checklist item requires all of the following:
 
 - [x] Freeze the SymPy 1.14.0 compatibility profile in
   [`doc/upstream-baselines.toml`](doc/upstream-baselines.toml#L36-L44).
-- [ ] Generate an inventory of public SymPy modules, functions, classes,
-  methods, signatures, options, exceptions, and documented return types.
+- [x] Generate a deterministic inventory of public SymPy modules, functions,
+  classes, declared public methods, signatures, options, exceptions, return
+  annotations, documentation sections, and import failures with
+  [`scripts/inventory_sympy_api.py`](scripts/inventory_sympy_api.py), recorded
+  for SymPy 1.14.0 in [`doc/sympy-api-inventory.json`](doc/sympy-api-inventory.json).
+  Inherited methods are resolved through the recorded class hierarchy.
 - [ ] Classify each item as `native`, `facade`, `python-adapter`, `external`,
   `delegated`, or `refused`.
 - [ ] Record semantic differences separately from implementation differences.
