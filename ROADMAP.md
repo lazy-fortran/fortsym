@@ -216,6 +216,8 @@ Exact real powers of `e` are inverted back to their rational exponents by
 `log`; complex exponents remain outside this branch-safe fragment.
 Native `atan2` now evaluates exact axis and diagonal rational points to their
 principal multiples of `pi`; the origin and non-exact points remain opaque.
+The native special-function fragment now also evaluates `loggamma` at positive
+integer and half-integer arguments, retaining poles and unsupported inputs.
 The native simplifier now also evaluates the exact principal inverse-function
 constants `asin(±1)`, `acos(0, ±1)`, and `atan(±1)`, plus `acosh(1)` and
 `atanh(0)`; symbolic and out-of-fragment inverse functions remain untouched.
