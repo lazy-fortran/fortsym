@@ -87,6 +87,12 @@ program test_fortsym_convenience
     factored = factor(explicit_mu**2 + 2*explicit_mu + 1, good, why)
     call check("explicit arena uses facade factorisation", &
         good .and. factored == (explicit_mu + 1)**2, failures)
+    call check("facade zero query proves an identity", &
+        zero_test(mu - mu) == VERDICT_TRUE, failures)
+    call check("facade zero query proves a nonzero literal", &
+        zero_test(num(default_storage, 7)) == VERDICT_FALSE, failures)
+    call check("facade zero query preserves unknown", &
+        zero_test(sin(mu)) == VERDICT_UNKNOWN, failures)
     failed = subs(mu, mu, explicit_mu, good, why)
     call check("facade reports cross-arena substitution refusal", &
         .not. good .and. .not. is_valid(failed), failures)
