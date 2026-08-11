@@ -22,6 +22,7 @@ module fortsym_print
         NK_BIG_REAL
     use fortsym_expr, only: expr_t
     use fortsym_exact, only: exact_to_real
+    use fortsym_names, only: valid_fortran_symbol
     use fortsym_dialect, only: dialect_t, dialect, fn_spelling, const_spelling, &
         DIA_NATIVE, DIA_FORTRAN, DIA_WOLFRAM
     implicit none
@@ -168,6 +169,9 @@ contains
         if (visited(id)) return
         visited(id) = .true.
         select case (a%kind_of(id))
+        case (NK_SYM)
+            ok = valid_fortran_symbol(chars(a%name_of(id)))
+            return
         case (NK_BIG_INT, NK_BIG_RAT)
             projected = exact_to_real(chars(a%exact_text_of(id)), ok)
             if (ok) ok = ieee_is_finite(projected)
@@ -202,6 +206,9 @@ contains
         if (visited(id)) return
         visited(id) = .true.
         select case (a%kind_of(id))
+        case (NK_SYM)
+            ok = valid_fortran_symbol(chars(a%name_of(id)))
+            return
         case (NK_BIG_INT, NK_BIG_RAT)
             projected = exact_to_real(chars(a%exact_text_of(id)), ok)
             if (ok) then
@@ -1159,9 +1166,9 @@ contains
 
         select case (chars(a%name_of(id)))
         case ("sin", "cos", "tan", "asin", "acos", "atan", "atan2", &
-              "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
-              "exp", "log", "log10", "sqrt", "abs", &
-              "erf", "erfc", "gamma", "max", "min")
+                "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
+                "exp", "log", "log10", "sqrt", "abs", &
+                "erf", "erfc", "gamma", "max", "min")
             is_real = .true.
         case ("besselj")
             ! bessel_jn takes an integer order followed by a real value.

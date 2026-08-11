@@ -23,6 +23,7 @@ program test_fortsym_kernel_emit
     call test_emission_policies()
     call test_target_driven_emission()
     call test_emit_tables()
+    call test_fortran_symbol_name_boundary()
 
     if (nfail == 0) then
         print *, "test_fortsym_kernel_emit: all checks passed"
@@ -507,5 +508,47 @@ contains
             end if
         end if
     end subroutine test_emit_tables
+
+    subroutine test_fortran_symbol_name_boundary()
+        type(arena_t), target :: arena
+        type(expr_t) :: roots(1)
+        type(kernel_ir_t) :: ir
+        type(kernel_emit_spec_t) :: spec
+        type(str_t) :: source
+        logical :: good
+        character(:), allocatable :: message
+
+        call arena%init()
+        roots(1) = sym(arena, "\[Alpha]")
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("invalid IR symbol lowers before Fortran validation", good)
+        spec%name = str("invalid_ir_name")
+        allocate (spec%args(1), spec%outputs(1))
+        spec%args(1) = str("x")
+        spec%outputs(1) = str("r")
+        source = emit_fortran_kernel_ir(ir, spec, good, message)
+        call ok("IR emitter refuses invalid Wolfram character names", .not. good)
+        call ok("IR emitter names the invalid symbol", index(message, "\[Alpha]") > 0)
+        call ok("IR emitter returns no invalid source", len(chars(source)) == 0)
+        source = emit_cuda_device_ir(ir, spec, good, message)
+        call ok("CUDA emitter refuses invalid Wolfram character names", .not. good)
+        call ok("CUDA emitter names the invalid symbol", index(message, "\[Alpha]") > 0)
+
+        call arena%clear()
+        call arena%init()
+        roots(1) = sym(arena, "Gamma") + sym(arena, "gamma")
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("case-collision IR lowers", good)
+        deallocate (spec%args, spec%outputs)
+        spec%name = str("ir_case_collision")
+        allocate (spec%args(2), spec%outputs(1))
+        spec%args(1) = str("Gamma")
+        spec%args(2) = str("gamma")
+        spec%outputs(1) = str("r")
+        source = emit_fortran_kernel_ir(ir, spec, good, message)
+        call ok("case-collision IR is accepted", good)
+        call ok("case-collision IR emits mapping", &
+            index(chars(source), "Gamma -> gamma__1") > 0)
+    end subroutine test_fortran_symbol_name_boundary
 
 end program test_fortsym_kernel_emit

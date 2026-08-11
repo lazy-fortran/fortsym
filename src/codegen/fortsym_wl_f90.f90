@@ -14,6 +14,7 @@ module fortsym_wl_f90
     use fortsym_eval, only: collect_free_symbols
     use fortsym_subs, only: subs_many
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
+    use fortsym_names, only: valid_fortran_name
     use fortsym_print, only: print_expr_in, fortran_representable
     implicit none
     private
@@ -304,7 +305,7 @@ contains
     !> longer stream, recursive first assignment, or non-scalar target remains
     !> on the ordinary refusal path.
     subroutine translate_bounded_scalar_reassignment(a, statements, nstatements, &
-        code, handled, ok, message)
+            code, handled, ok, message)
         type(arena_t), target, intent(inout) :: a
         type(str_t), intent(in) :: statements(:)
         integer, intent(in) :: nstatements
@@ -1866,39 +1867,15 @@ contains
         end do
     end function supported_fortran_expression
 
-    !> Fortran identifiers are deliberately checked byte-wise: extended
-    !> Wolfram names are not portable source identifiers for this emitter.
-    pure function valid_fortran_name(name) result(ok)
-        character(*), intent(in) :: name
-        logical                   :: ok
-        integer :: k
-        character :: c
-
-        ok = len(name) > 0 .and. len(name) <= 63
-        if (.not. ok) return
-        c = name(1:1)
-        if (.not. is_letter(c)) then
-            ok = .false.
-            return
-        end if
-        do k = 2, len(name)
-            c = name(k:k)
-            if (.not. (is_letter(c) .or. is_digit(c) .or. c == "_")) then
-                ok = .false.
-                return
-            end if
-        end do
-    end function valid_fortran_name
-
     pure function is_letter(c) result(ok)
         character, intent(in) :: c
-        logical                :: ok
+        logical :: ok
         ok = (c >= "a" .and. c <= "z") .or. (c >= "A" .and. c <= "Z")
     end function is_letter
 
     pure function is_digit(c) result(ok)
         character, intent(in) :: c
-        logical                :: ok
+        logical :: ok
         ok = c >= "0" .and. c <= "9"
     end function is_digit
 

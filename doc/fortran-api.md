@@ -13,6 +13,13 @@ name. A name such as `\varphi_2` is the arena identity and is emitted verbatim
 by every dialect. Use the notation override map when the desired notation
 cannot be a Fortran identifier.
 
+Fortran emission validates symbol names at the source boundary. Invalid names
+such as `\[Alpha]` or `Global`x` are refused with a diagnostic rather than
+written into generated source. Symbolic names remain case-sensitive; when a
+kernel contains both `Gamma` and `gamma` (or `B` and `b`), only the colliding
+Fortran spellings are deterministically renamed and the generated source
+records the mapping in a comment.
+
 ## Default arena
 
 Assigning character data to an `expr_t` creates one symbol. The right-hand side

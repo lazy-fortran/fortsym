@@ -24,6 +24,8 @@ module fortsym_kernel_emit
         target_directives, target_is_valid, target_name
     use fortsym_precision, only: PRECISION_REAL64, PRECISION_REAL32, &
         PRECISION_MIXED, precision_is_valid, precision_name
+    use fortsym_names, only: valid_fortran_name, same_fortran_name, &
+        map_fortran_names
     implicit none
     private
 
@@ -319,7 +321,7 @@ contains
 
         ok = .false.
         message = ""
-        if (.not. valid_identifier(name)) then
+        if (.not. valid_fortran_name(name)) then
             message = "table emitter: table name is invalid"
             return
         end if
@@ -457,19 +459,29 @@ contains
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: message
         type(str_t) :: source
-        type(kernel_ir_t) :: prepared
+        type(kernel_ir_t) :: mapped_ir, prepared
+        type(kernel_emit_spec_t) :: mapped_spec
+        type(str_t), allocatable :: original_names(:), emitted_names(:)
+        logical, allocatable :: changed_names(:)
 
-        call validate(ir, spec, BACKEND_FORTRAN, ok, message)
+        call prepare_fortran_ir(ir, spec, mapped_ir, mapped_spec, original_names, &
+            emitted_names, changed_names, ok, message)
         if (.not. ok) then
             source = str("")
             return
         end if
-        call apply_emission_policy(ir, spec%policy, prepared, ok, message)
+        call validate(mapped_ir, mapped_spec, BACKEND_FORTRAN, ok, message)
         if (.not. ok) then
             source = str("")
             return
         end if
-        source = emit_source(prepared, spec, BACKEND_FORTRAN)
+        call apply_emission_policy(mapped_ir, mapped_spec%policy, prepared, ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        source = emit_source(prepared, mapped_spec, BACKEND_FORTRAN, original_names, &
+            emitted_names, changed_names)
     end function emit_fortran_kernel_ir
 
     function emit_cuda_device_ir(ir, spec, ok, message) result(source)
@@ -492,6 +504,76 @@ contains
         end if
         source = emit_source(prepared, spec, BACKEND_CUDA)
     end function emit_cuda_device_ir
+
+    subroutine prepare_fortran_ir(ir, spec, mapped_ir, mapped_spec, original_names, &
+            emitted_names, changed_names, ok, message)
+        type(kernel_ir_t), intent(in) :: ir
+        type(kernel_emit_spec_t), intent(in) :: spec
+        type(kernel_ir_t), intent(out) :: mapped_ir
+        type(kernel_emit_spec_t), intent(out) :: mapped_spec
+        type(str_t), allocatable, intent(out) :: original_names(:), emitted_names(:)
+        logical, allocatable, intent(out) :: changed_names(:)
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+
+        integer :: k, j, n_args, n_outputs
+        logical :: map_ok, found
+        character(:), allocatable :: symbol_name
+
+        ok = .false.
+        message = ""
+        mapped_ir = ir
+        mapped_spec = spec
+        if (.not. allocated(spec%args)) then
+            message = "kernel emitter: argument names are not allocated"
+            return
+        end if
+        if (.not. allocated(spec%outputs)) then
+            message = "kernel emitter: output names are not allocated"
+            return
+        end if
+        n_args = size(spec%args)
+        n_outputs = size(spec%outputs)
+        allocate (original_names(n_args + n_outputs))
+        allocate (emitted_names(n_args + n_outputs))
+        original_names(1:n_args) = spec%args
+        if (n_outputs > 0) original_names(n_args + 1:) = spec%outputs
+        do k = 1, size(original_names)
+            original_names(k) = str(trim(chars(original_names(k))))
+        end do
+        call map_fortran_names(original_names, emitted_names, changed_names, &
+            map_ok, message)
+        if (.not. map_ok) return
+        mapped_spec%args = emitted_names(1:n_args)
+        if (n_outputs > 0) mapped_spec%outputs = emitted_names(n_args + 1:)
+
+        do k = 1, ir%n_nodes
+            if (ir%nodes(k)%operation /= IR_SYMBOL) cycle
+            symbol_name = chars(ir%nodes(k)%name)
+            found = .false.
+            do j = 1, n_args
+                if (symbol_name /= trim(chars(spec%args(j)))) cycle
+                mapped_ir%nodes(k)%name = emitted_names(j)
+                found = .true.
+                exit
+            end do
+            if (.not. found) then
+                do j = 1, n_args
+                    if (.not. same_fortran_name(symbol_name, &
+                        trim(chars(spec%args(j))))) cycle
+                    mapped_ir%nodes(k)%name = emitted_names(j)
+                    found = .true.
+                    exit
+                end do
+            end if
+            if (.not. found .and. .not. valid_fortran_name(symbol_name)) then
+                message = "kernel emitter: symbol name is not a valid Fortran identifier: "// &
+                    symbol_name
+                return
+            end if
+        end do
+        ok = .true.
+    end subroutine prepare_fortran_ir
 
     !> Apply source-level policies to a validated, topological IR. The rewrite
     !> keeps one output node for every input node (or aliases it to a child),
@@ -761,10 +843,13 @@ contains
         call move_alloc(operands, ir%operands)
     end subroutine trim_ir_storage
 
-    function emit_source(ir, spec, backend) result(source)
+    function emit_source(ir, spec, backend, original_names, emitted_names, &
+            changed_names) result(source)
         type(kernel_ir_t), intent(in) :: ir
         type(kernel_emit_spec_t), intent(in) :: spec
         integer, intent(in) :: backend
+        type(str_t), intent(in), optional :: original_names(:), emitted_names(:)
+        logical, intent(in), optional :: changed_names(:)
         type(str_t) :: source
         type(strbuf_t) :: b
         character(:), allocatable :: prefix, rhs
@@ -786,6 +871,7 @@ contains
             call b%append("! Generated by fortsym. Do not edit.")
             call b%newline()
             call append_provenance(b, spec, "!")
+            call append_name_mapping(b, original_names, emitted_names, changed_names, "!")
             if (spec%pure_procedure) call b%append("pure ")
             call b%append("subroutine ")
             call b%append(chars(spec%name))
@@ -813,7 +899,7 @@ contains
             call b%newline()
             if (size(spec%args) > 0) then
                 if (spec%precision == PRECISION_REAL32 .or. &
-                        spec%precision == PRECISION_MIXED) then
+                    spec%precision == PRECISION_MIXED) then
                     call append_declaration(b, "real(real32), intent(in)", spec%args)
                 else
                     call append_declaration(b, "real(real64), intent(in)", spec%args)
@@ -865,7 +951,7 @@ contains
                 call b%append(rhs)
             else
                 if (spec%precision == PRECISION_REAL32 .or. &
-                        spec%precision == PRECISION_MIXED) then
+                    spec%precision == PRECISION_MIXED) then
                     call b%append("    const float ")
                 else
                     call b%append("    const double ")
@@ -907,6 +993,25 @@ contains
         source = b%to_str()
     end function emit_source
 
+    subroutine append_name_mapping(b, original_names, emitted_names, changed_names, comment)
+        type(strbuf_t), intent(inout) :: b
+        type(str_t), intent(in), optional :: original_names(:), emitted_names(:)
+        logical, intent(in), optional :: changed_names(:)
+        character(*), intent(in) :: comment
+        integer :: k
+
+        if (.not. present(original_names) .or. .not. present(emitted_names) .or. &
+            .not. present(changed_names)) return
+        do k = 1, size(original_names)
+            if (.not. changed_names(k)) cycle
+            call b%append(comment//" Fortran symbol name mapping: ")
+            call b%append(chars(original_names(k)))
+            call b%append(" -> ")
+            call b%append(chars(emitted_names(k)))
+            call b%newline()
+        end do
+    end subroutine append_name_mapping
+
     subroutine validate(ir, spec, backend, ok, message)
         type(kernel_ir_t), intent(in) :: ir
         type(kernel_emit_spec_t), intent(in) :: spec
@@ -923,7 +1028,7 @@ contains
             message = "kernel emitter: precision choice is invalid"
             return
         end if
-        if (.not. valid_identifier(chars(spec%name))) then
+        if (.not. valid_fortran_name(chars(spec%name))) then
             message = "kernel emitter: kernel name is invalid"
             return
         end if
@@ -962,7 +1067,7 @@ contains
             return
         end if
         do k = 1, size(spec%args)
-            if (.not. valid_identifier(chars(spec%args(k)))) then
+            if (.not. valid_fortran_name(chars(spec%args(k)))) then
                 message = "kernel emitter: argument name is invalid"
                 return
             end if
@@ -972,7 +1077,7 @@ contains
             end if
         end do
         do k = 1, size(spec%outputs)
-            if (.not. valid_identifier(chars(spec%outputs(k)))) then
+            if (.not. valid_fortran_name(chars(spec%outputs(k)))) then
                 message = "kernel emitter: output name is invalid"
                 return
             end if
@@ -987,7 +1092,7 @@ contains
         end do
         prefix = chars(spec%temp_prefix)
         if (len(prefix) == 0) prefix = "t"
-        if (.not. valid_identifier(prefix)) then
+        if (.not. valid_fortran_name(prefix)) then
             message = "kernel emitter: temporary prefix is invalid"
             return
         end if
@@ -1045,6 +1150,11 @@ contains
                 return
             end select
             if (ir%nodes(k)%operation == IR_SYMBOL) then
+                if (.not. valid_fortran_name(chars(ir%nodes(k)%name))) then
+                    message = "kernel emitter: symbol name is not a valid Fortran/CUDA identifier: "// &
+                        chars(ir%nodes(k)%name)
+                    return
+                end if
                 if (.not. is_argument(chars(ir%nodes(k)%name), spec%args)) then
                     message = "kernel emitter: symbol is not an input argument: "// &
                         chars(ir%nodes(k)%name)
@@ -1058,8 +1168,8 @@ contains
                 end if
             end if
             if ((spec%precision == PRECISION_REAL32 .or. &
-                    spec%precision == PRECISION_MIXED) .and. &
-                    ir%nodes(k)%operation == IR_LITERAL) then
+                spec%precision == PRECISION_MIXED) .and. &
+                ir%nodes(k)%operation == IR_LITERAL) then
                 single_value = real(ir%nodes(k)%value, real32)
                 if (.not. ieee_is_finite(single_value)) then
                     message = "kernel emitter: literal is not finite in real32"
@@ -1084,25 +1194,6 @@ contains
         end do
         ok = .true.
     end subroutine validate
-
-    logical function valid_identifier(name)
-        character(*), intent(in) :: name
-        integer :: k, code
-
-        valid_identifier = .false.
-        if (len(name) == 0) return
-        code = iachar(name(1:1))
-        if (.not. ((code >= iachar("A") .and. code <= iachar("Z")) .or. &
-            (code >= iachar("a") .and. code <= iachar("z")))) return
-        do k = 2, len(name)
-            code = iachar(name(k:k))
-            if (.not. ((code >= iachar("A") .and. code <= iachar("Z")) .or. &
-                (code >= iachar("a") .and. code <= iachar("z")) .or. &
-                (code >= iachar("0") .and. code <= iachar("9")) .or. &
-                code == iachar("_"))) return
-        end do
-        valid_identifier = .true.
-    end function valid_identifier
 
     logical function duplicate_name(names, index)
         type(str_t), intent(in) :: names(:)
@@ -1476,7 +1567,7 @@ contains
 
         if (cuda) then
             if (spec%precision == PRECISION_REAL32 .or. &
-                    spec%precision == PRECISION_MIXED) then
+                spec%precision == PRECISION_MIXED) then
                 input_type = "const float "
             else
                 input_type = "const double "
@@ -1490,7 +1581,7 @@ contains
             end if
         else
             if (spec%precision == PRECISION_REAL32 .or. &
-                    spec%precision == PRECISION_MIXED) then
+                spec%precision == PRECISION_MIXED) then
                 input_type = "real(real32) "
             else
                 input_type = "real(real64) "
