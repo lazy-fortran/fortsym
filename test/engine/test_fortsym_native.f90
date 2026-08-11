@@ -865,6 +865,15 @@ contains
         r = engine%simplify(exp(i_expr(arena)*pi_expr(arena)/5))
         call check("native simplify preserves unsupported Euler fraction", &
             r%value%kind() == NK_FUNC)
+        r = engine%simplify(exp(num(arena, 1_int64)))
+        call check("native simplify rewrites exp(1) to e", &
+            r%value == e_expr(arena))
+        r = engine%simplify(exp(rat(arena, 1_int64, 2_int64)))
+        call check("native simplify rewrites exact fractional exp", &
+            r%value == e_expr(arena)**rat(arena, 1_int64, 2_int64))
+        r = engine%simplify(exp(num(arena, -2_int64)))
+        call check("native simplify rewrites negative exact exp", &
+            r%value == e_expr(arena)**num(arena, -2_int64))
         r = engine%simplify(log(num(arena, -1_int64)))
         call check("native simplify evaluates log(-1)", &
             r%value == i_expr(arena)*pi_expr(arena))

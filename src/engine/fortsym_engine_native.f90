@@ -1881,12 +1881,18 @@ contains
                     trig_constant_ok)
                 if (trig_constant_ok) out = trig_constant
             else if (name == "exp") then
-                call rational_i_pi_multiple(a, args(1), periodic_numerator, &
-                    periodic_denominator, periodic_ok)
-                if (periodic_ok) then
-                    periodic_constant = exact_periodic_constant(a, &
+                call exact_value(a, args(1), order, den, exact)
+                if (exact) then
+                    out = simplify_power(a, a%const("e"), args(1))
+                else
+                    call rational_i_pi_multiple(a, args(1), &
                         periodic_numerator, periodic_denominator, periodic_ok)
-                    if (periodic_ok) out = periodic_constant
+                    if (periodic_ok) then
+                        periodic_constant = exact_periodic_constant(a, &
+                            periodic_numerator, periodic_denominator, &
+                            periodic_ok)
+                        if (periodic_ok) out = periodic_constant
+                    end if
                 end if
             end if
         case ("log")

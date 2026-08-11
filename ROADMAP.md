@@ -207,6 +207,9 @@ Absolute value is also now idempotently canonicalized for nested `abs` heads.
 The native simplifier now exposes the same exact Euler root fragment for
 supported integer and selected rational turns, while unsupported fractions
 remain unevaluated.
+Exact real exponential arguments are also canonicalized to powers of `e`,
+including integer and rational exponents, while symbolic and complex
+arguments retain their existing forms.
 It also evaluates the principal exact constants `log(-1)`, `log(±i)`, and
 `log(e)` while leaving symbolic logarithms opaque.
 The native simplifier now also evaluates the exact principal inverse-function
