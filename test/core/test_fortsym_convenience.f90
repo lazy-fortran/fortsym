@@ -126,6 +126,9 @@ program test_fortsym_convenience
     result = simplify(sqrt(explicit_mu**2), assumptions=positive_context)
     call check("derived positive context is isolated and effective", &
         result%ok .and. result%value == explicit_mu, failures)
+    result = refine(sqrt(explicit_mu**2), positive_context)
+    call check("facade refine uses an explicit context", &
+        result%ok .and. result%value == explicit_mu, failures)
     nonnegative_context = with_assumption(base_context, &
         nonnegative(explicit_sigma), context_ok)
     call check("second derived context accepts same-arena fact", context_ok, failures)

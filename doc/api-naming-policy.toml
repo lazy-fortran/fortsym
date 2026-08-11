@@ -63,12 +63,12 @@ decision = "Keep arena_t and expr_t as type names. Use default_arena and reset i
 [[family]]
 id = "transformations"
 audit_concepts = ["substitution", "transformation-functions"]
-canonical_native = ["subs", "expand", "simplify", "factor"]
-current_native = ["subs", "expand", "simplify", "factor"]
+canonical_native = ["subs", "expand", "simplify", "refine", "factor"]
+current_native = ["subs", "expand", "simplify", "refine", "factor"]
 transition_aliases = []
 python_facade = ["subs", "factor"]
-sympy_adapter = ["subs", "Subs", "expand", "simplify", "factor"]
-decision = "Expose the native operations under the same short names from one facade owner. Keep Subs as an adapter-only typed wrapper and keep options/refusals in the Python boundary."
+sympy_adapter = ["subs", "Subs", "expand", "simplify", "refine", "factor"]
+decision = "Expose the native operations under the same short names from one facade owner. Keep refine as the named assumption-aware entry point while the native simplifier owns guarded rewrites. Keep Subs as an adapter-only typed wrapper and keep options/refusals in the Python boundary."
 
 [[family]]
 id = "predicates"

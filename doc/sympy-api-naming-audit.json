@@ -275,10 +275,11 @@
     {
       "action": "Keep one native engine owner and expose the concise transformation names from the easy facade.",
       "description": "Transform an expression algebraically.",
-      "finding": "The Python adapter exposes the native transformation subset. The Fortran convenience facade now forwards all three operations to the native engine with one optional status convention.",
+      "finding": "The Python adapter exposes the native transformation subset. The Fortran convenience facade forwards the transformations to the native engine with one optional status convention, and refine names the assumption-aware entry point while the simplifier owns guarded rewrites.",
       "fortran_facade": [
         "expand",
         "simplify",
+        "refine",
         "factor"
       ],
       "id": "transformation-functions",
@@ -288,11 +289,13 @@
       "sympy_adapter": [
         "expand",
         "simplify",
+        "refine",
         "factor"
       ],
       "sympy_reference": [
         "expand",
         "simplify",
+        "refine",
         "factor"
       ]
     },
@@ -1010,6 +1013,12 @@
       },
       {
         "concepts": [
+          "transformation-functions"
+        ],
+        "name": "refine"
+      },
+      {
+        "concepts": [
           "arena-and-expression"
         ],
         "name": "reset"
@@ -1158,6 +1167,7 @@
       "log",
       "oo",
       "pi",
+      "refine",
       "series",
       "simplify",
       "sin",
@@ -1185,11 +1195,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 117,
+    "assigned_names": 118,
     "concept_groups": 23,
-    "fortran_facade_exports": 111,
+    "fortran_facade_exports": 112,
     "python_facade_exports": 12,
-    "sympy_adapter_exports": 44,
+    "sympy_adapter_exports": 45,
     "unmapped_fortran_exports": 11
   },
   "sympy_version": "1.14.0",

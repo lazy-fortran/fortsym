@@ -283,6 +283,13 @@ Every checklist item requires all of the following:
     make native transformations accept them without process-global state.
 - [ ] Implement `refine`, relational facts, compound inference, and conflict
   diagnostics.
+  - [x] Add native and Python `refine` for the supported Q-fact fragment by
+    routing one or more supported facts through the native guarded simplifier;
+    keep scopes reversible and refuse unsupported assumption forms.
+  - [ ] Add SymPy-compatible relational constructors and bounded lower-bound
+    ingestion with explicit domain and arena validation.
+  - [ ] Add compound inference and conflict diagnostics without guessing from
+    contradictory or unsupported facts.
 - [ ] Complete safe elementary simplification: powers, logarithms, radicals,
   trigonometry, inverse functions, exponentials, absolute values, and special
   constants.

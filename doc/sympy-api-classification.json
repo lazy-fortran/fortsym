@@ -1,6 +1,6 @@
 {
   "adapter_profile": {
-    "declared_count": 44,
+    "declared_count": 45,
     "explicit_refusals": [
       "Matrix",
       "apart",
@@ -41,6 +41,7 @@
       "log",
       "oo",
       "pi",
+      "refine",
       "simplify",
       "sin",
       "sqrt",
@@ -3170,6 +3171,17 @@
         "id": "fortsym.simplify",
         "module": "fortsym",
         "name": "simplify",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.refine",
+        "module": "fortsym",
+        "name": "refine",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -7110,14 +7122,14 @@
   "source_inventory": "doc/sympy-api-inventory.json",
   "summary": {
     "classification_counts": {
-      "delegated": 1737,
+      "delegated": 1743,
       "external": 10,
-      "facade": 148,
-      "native": 2337,
-      "python-adapter": 1693,
-      "refused": 26101
+      "facade": 149,
+      "native": 2344,
+      "python-adapter": 1699,
+      "refused": 26095
     },
-    "fortran_public_exports": 688,
+    "fortran_public_exports": 689,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
@@ -90932,14 +90944,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.refine",
         "kind": "function",
         "module": "sympy",
         "name": "refine",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -93760,14 +93774,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.assumptions.refine",
         "kind": "function",
         "module": "sympy.assumptions",
         "name": "refine",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -98715,14 +98731,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.assumptions.refine.refine",
         "kind": "function",
         "module": "sympy.assumptions.refine",
         "name": "refine",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -158699,14 +158717,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.common.refine",
         "kind": "function",
         "module": "sympy.matrices.common",
         "name": "refine",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -165657,14 +165677,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.refine",
         "kind": "function",
         "module": "sympy.matrices.matrixbase",
         "name": "refine",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -304770,13 +304792,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.refine",
         "kind": "function",
         "name": "refine",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [

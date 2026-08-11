@@ -41,7 +41,7 @@ module fortsym
     public :: assumption_context_t, make_assumption_context, with_assumption, &
         positive, nonnegative, nonzero, real_valued
     public :: str, chars
-    public :: subs, diff, simplify, expand, factor
+    public :: subs, diff, simplify, refine, expand, factor
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE, verdict_name
@@ -168,6 +168,21 @@ contains
         end if
         result = engine%simplify(expression)
     end function simplify
+
+    !> Refine an expression under an explicit assumption context. The native
+    !> simplifier owns the guarded rewrite rules; refine is the named facade
+    !> entry point for callers who are supplying domain facts.
+    function refine(expression, assumptions) result(result)
+        type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
+        type(engine_result_t) :: result
+
+        if (present(assumptions)) then
+            result = simplify(expression, assumptions)
+        else
+            result = simplify(expression)
+        end if
+    end function refine
 
     !> Expand an expression with the native engine in its owning arena.
     function expand(expression, assumptions) result(result)

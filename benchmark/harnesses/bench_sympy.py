@@ -82,6 +82,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.sqrt(native_x**2),
             names,
         ),
+        "refine": (
+            oracle.sqrt(oracle_x**2),
+            native.sqrt(native_x**2),
+            names,
+        ),
         "factor": (
             oracle_x**2 + 2 * oracle_x + 1,
             native_x**2 + 2 * native_x + 1,
@@ -109,6 +114,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = x**2 + 2 * x + 1
     elif operation == "assumption_query":
         expression = engine.Q.positive(x)
+    elif operation == "refine":
+        expression = engine.sqrt(x**2)
     else:
         raise ValueError(f"unknown benchmark operation: {operation}")
     return expression, x
@@ -133,6 +140,13 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation == "assumption_query":
             expected = oracle.ask(oracle_expression)
             actual = native.ask(native_expression)
+        elif operation == "refine":
+            expected = oracle.refine(
+                oracle_expression, oracle.Q.positive(names["check_x_fixed"])
+            )
+            actual = native.refine(
+                native_expression, native.Q.positive(native.Symbol("check_x_fixed"))
+            )
         else:
             expected = oracle.factor(oracle_expression)
             actual = native.factor(native_expression)
@@ -177,6 +191,15 @@ def benchmark_workload(
             elif operation == "assumption_query":
                 oracle_call = lambda: oracle.ask(oracle_expression)
                 native_call = lambda: native.ask(native_expression)
+            elif operation == "refine":
+                oracle_x = oracle.Symbol("refine_x_warm")
+                native_x = native.Symbol("refine_x_warm")
+                oracle_call = lambda: oracle.refine(
+                    oracle_expression, oracle.Q.positive(oracle_x)
+                )
+                native_call = lambda: native.refine(
+                    native_expression, native.Q.positive(native_x)
+                )
     else:
         def make_call(engine: Any) -> Callable[[], Any]:
             counter = {"value": 0}
@@ -189,6 +212,8 @@ def benchmark_workload(
                     return engine.diff(expression, variable)
                 if operation == "assumption_query":
                     return engine.ask(expression)
+                if operation == "refine":
+                    return engine.refine(expression, engine.Q.positive(variable))
                 return getattr(engine, operation)(expression)
 
             return call
@@ -242,7 +267,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "factor", "assumption_query"
+        "expand", "differentiate", "simplify", "refine", "factor", "assumption_query"
     ):
         for scope in ("cold_end_to_end", "warm_core"):
             workloads.append(benchmark_workload(

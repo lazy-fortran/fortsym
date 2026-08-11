@@ -140,8 +140,8 @@ function exported by `fortsym`. Expressions combined by an operator must belong
 to the same arena. The default and explicit forms can be mixed when the
 explicit constructor receives `default_arena()`.
 The core operations use the expression's owning arena, so the same `subs`,
-`diff`, `simplify`, `expand`, and `factor` calls work without an explicit-arena
-variant or a second calling syntax.
+`diff`, `simplify`, `refine`, `expand`, and `factor` calls work without an
+explicit-arena variant or a second calling syntax.
 
 ## Explicit assumption contexts
 
@@ -161,9 +161,11 @@ result = simplify(sqrt(x**2), assumptions=positive_x)
 ```
 
 The supported constructors are `real_valued`, `positive`, `nonnegative`, and
-`nonzero`. `simplify`, `expand`, `factor`, `diff`, and `zero_test` accept the
-optional `assumptions=` context. A context from another arena is refused with
-a diagnostic. The default facade remains unchanged and does not consult an
+`nonzero`. `simplify`, `refine`, `expand`, `factor`, `diff`, and `zero_test`
+accept the optional `assumptions=` context. `refine` is the named entry point
+for applying these supported facts; it shares guarded rewrite ownership with
+the native simplifier. A context from another arena is refused with a
+diagnostic. The default facade remains unchanged and does not consult an
 implicit process-global context.
 
 ## Core operations
@@ -180,6 +182,8 @@ result = diff(f, x)
 d = result%value
 result = simplify(f)
 s = result%value
+result = refine(sqrt(x**2), assumptions=positive_x)
+r = result%value
 result = expand(f)
 e = result%value
 result = factor(f)
@@ -188,8 +192,9 @@ p = result%value
 
 `diff` is the evaluated native derivative. The `fortsym_diff` module remains
 available for the deliberately unsimplified derivative DAG. `subs` is structural and
-simultaneous for its one replacement pair. `simplify`, `expand`, and `factor`
-use the native engine in the expression's arena. All five functions return the
+simultaneous for its one replacement pair. `simplify`, `refine`, `expand`, and
+`factor` use the native engine in the expression's arena. All six functions
+return the
 same `engine_result_t` as the native engine. `%ok` reports whether the operation
 succeeded, `%value` contains the resulting expression, and `%message` contains a
 diagnostic on refusal. Native conditional results may also populate

@@ -292,8 +292,10 @@ and integer-domain facts on symbols and expressions. Exact lower relations,
 conjunctions, and `Element` membership derive only implications that are
 provably valid; cloned contexts provide scoped refinement without mutating the
 parent. The public Fortran facade derives value-style contexts with
-`with_assumption` and passes them explicitly to native operations; unsupported
-upper-bound inference is refused rather than guessed.
+`with_assumption` and passes them explicitly to native operations. `refine` is
+the named assumption-aware facade operation, while guarded rewrite ownership
+remains in the native simplifier; unsupported upper-bound inference is refused
+rather than guessed.
 
 External engines remain optional. A native operation must not silently invoke
 an external engine. Benchmarks record native operation time, conversion time,

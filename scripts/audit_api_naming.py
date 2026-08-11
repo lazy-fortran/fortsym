@@ -152,8 +152,8 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         concept(
             "transformation-functions",
             "Transform an expression algebraically.",
-            ["expand", "simplify", "factor"], ["factor"], ["expand", "simplify", "factor"], ["expand", "simplify", "factor"],
-            "The Python adapter exposes the native transformation subset. The Fortran convenience facade now forwards all three operations to the native engine with one optional status convention.",
+            ["expand", "simplify", "refine", "factor"], ["factor"], ["expand", "simplify", "refine", "factor"], ["expand", "simplify", "refine", "factor"],
+            "The Python adapter exposes the native transformation subset. The Fortran convenience facade forwards the transformations to the native engine with one optional status convention, and refine names the assumption-aware entry point while the simplifier owns guarded rewrites.",
             "Keep one native engine owner and expose the concise transformation names from the easy facade.",
         ),
         concept(
