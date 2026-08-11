@@ -472,6 +472,10 @@ Every checklist item requires all of the following:
     branch-sensitive power rules.
 - [ ] Match SymPy branch conventions while preserving fortsym's refusal of
   unsafe identities.
+  - [x] Canonicalize exact negative real logarithms on the principal branch:
+    `log(-2)` and `log(-2/3)` become `log(2) + i*pi` and
+    `log(2/3) + i*pi`; non-exact and unsupported branch cases remain
+    unevaluated.
 - [ ] Implement the general simplification families: `powsimp`, `powdenest`,
   `trigsimp`, `radsimp`, `ratsimp`, `sqrtdenest`, `fu`, `combsimp`,
   `hyperexpand`, `logcombine`, `posify`, and `refine`.

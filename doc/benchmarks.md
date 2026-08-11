@@ -68,7 +68,8 @@ subset with SymPy 1.14.0. It measures cold end-to-end construction plus
 operation and warm core operation separately for expansion, differentiation,
 simplification, signed refinement, real/nonzero-guarded `log`/`exp` composition,
 principal-square-root powers, direct domain-function simplification of
-`sqrt(-oo)` and exact `log(0)`, gamma-family domain-head simplification, inverse domain-head
+`sqrt(-oo)`, exact `log(0)`, and exact negative-real `log`, gamma-family domain-head
+simplification, inverse domain-head
 simplification, and reciprocal-hyperbolic domain-head simplification embedded
 in a symbolic fourth-degree expression, directed-infinity `atan2` domain-head
 simplification, and Bessel infinity-domain simplification,
@@ -118,8 +119,10 @@ enforced rows, and zero unwaived violations for those construction diagnostics.
 The `domain_log_zero` cold and warm rows are also one-node ABI diagnostics:
 they measured 5.07x and 3.43x SymPy respectively in the recorded run, and are
 explicitly waived for the same construction-versus-simplification boundary.
-The expanded matrix therefore has 58 rows, 54 enforced rows, and zero
-unwaived violations.
+The `domain_log_negative` cold and warm rows are enforced because the native
+principal-branch rewrite is substantially faster than SymPy: the recorded
+ratios were 0.005x and 0.029x. The expanded matrix therefore has 60 rows, 56
+enforced rows, and zero unwaived violations.
 
 Run it from a built checkout with:
 
@@ -223,7 +226,8 @@ all at or below the SymPy 1.14.0 median in the recorded run on 2026-08-12.
 The warm `number_predicate` and `algebraic_predicate` ratios were 0.32× and
 0.75×; `algebraic_assumption_query` was 0.02× warm and 0.12× cold. The
 separately waived cold power-constructor diagnostics were 1.53× for `x**0`
-and 1.51× for `x**1`; `domain_log_zero` was 5.07× cold and 3.43× warm.
+and 1.51× for `x**1`; `domain_log_zero` was 5.07× cold and 3.43× warm;
+`domain_log_negative` was 0.005× cold and 0.029× warm.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
 text validation, FLINT reconstruction, the exact operation, canonical
