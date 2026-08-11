@@ -1362,6 +1362,12 @@ contains
         call check("acosh(-oo) is oo", r%value == infinity)
         r = engine%simplify(acosh(complex_infinity))
         call check("acosh(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(acosh(num(arena, 0_int64)))
+        call check("acosh(0) is i pi over two", &
+            r%value == i_expr(arena)*half_pi)
+        r = engine%simplify(acosh(num(arena, -1_int64)))
+        call check("acosh(-1) is i pi", &
+            r%value == i_expr(arena)*pi_expr(arena))
         r = engine%simplify(atanh(infinity))
         call check("atanh(oo) is negative i pi over two", &
             r%value == negative_imaginary_half_pi)
