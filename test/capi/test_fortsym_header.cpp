@@ -5,4 +5,4 @@
 static_assert(std::is_pointer<fortsym_arena *>::value, "arena is opaque");
 static_assert(std::is_pointer<fortsym_expr *>::value, "expression is opaque");
 
-int main() { return fortsym_abi_version() == 7 ? 0 : 1; }
+int main() { return fortsym_abi_version() == 8 ? 0 : 1; }

@@ -30,6 +30,7 @@ does not import SymPy. Unsupported names raise
 | `Q.real`, `Q.zero`, `Q.positive`, `Q.nonnegative`, `Q.nonzero`, `Q.negative`, `Q.nonpositive`, `ask`, `assuming`, `And` | nested, reversible assumption queries and transactional compound scopes backed by the native arena context; bounded relational facts are accepted in scopes |
 | `Add`, `Mul`, `Pow`, `Function` | native operator construction; `isinstance` checks use native node kinds |
 | `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`, `csch`, `sech`, `coth`, `erf`, `erfc`, `gamma`, `loggamma`, `factorial`, `besselj`, `besseli`, `legendre`, `asinh`, `acosh`, `atanh`, `exp`, `log`, `sqrt`, `Abs`, `sign`, `floor`, `ceiling` | native applied-function nodes; direct sentinel rules for the declared heads match SymPy where the result is representable, while accumulation-bound and pole-sensitive cases remain explicit refusals |
+| `re`, `im`, `conjugate`, `arg` | native complex-domain projections and principal argument; supported exact and assumption-resolved cases are evaluated, while unknown reality, unresolved branches, and decidable zero arguments for `arg` raise `UnsupportedOperationError` |
 | `diff`, `Derivative` | native differentiation, including repeated variables; `evaluate=False` retains a typed wrapper with `.doit()` |
 | `subs`, `expand` | native substitution and expansion |
 | `Subs` | typed wrapper with `.doit()` for explicit `(old, new)` pairs |
@@ -48,6 +49,12 @@ or direction.
 `legendrep(degree, 0, argument)` owner. Its infinity rules cover nonnegative
 integer degrees and order zero; symbolic, noninteger, and negative-degree cases
 remain applied heads.
+
+The complex-domain functions `re`, `im`, `conjugate`, and `arg` use the same
+native complex-domain owner rather than constructing duplicate applied heads.
+Their immutable results are cached per assumption epoch; adding or removing
+assumptions invalidates the cache. `arg` returns the principal branch when its
+supported rectangular split is decidable.
 
 The compatibility layer guarantees native structural equality only for
 operations listed as construction or transformation above. Unsupported

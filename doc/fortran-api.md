@@ -166,6 +166,13 @@ denominator or logarithm argument is refused, while a nontrivial denominator
 remains in the result to preserve pointwise poles. The same branch and reality
 refusals apply to other unsupported expressions.
 
+The main `fortsym` facade exposes the same owner as `re_part`, `im_part`,
+`conjugate`, and `arg_of`, each returning the common `engine_result_t`. The
+facade creates a local assumption context when none is supplied, while an
+explicit context must belong to the expression's arena. The C ABI and
+`fortsym.sympy` adapter provide the corresponding `re`/`im`/`conjugate`/`arg`
+boundary and preserve the complex-domain refusal diagnostics.
+
 `real_text_expr` retains a bounded finite decimal literal as `NK_BIG_REAL`.
 The arena validates its decimal syntax and preserves the original digits rather
 than converting the value through `real64`.

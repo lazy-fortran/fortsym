@@ -203,6 +203,31 @@
       ]
     },
     {
+      "action": "Keep complex-domain algebra in one owner. Do not add native re/im aliases or duplicate projection logic in the adapters; translate only the SymPy spellings at the boundary.",
+      "description": "Project supported expressions into real, imaginary, conjugate, or principal-argument form.",
+      "finding": "The native facade keeps explicit snake_case names that describe the operation and its expression-valued result. The Python adapter uses SymPy's short compatibility names and routes all four operations to fortsym_complexdom.",
+      "fortran_facade": [
+        "re_part",
+        "im_part",
+        "conjugate",
+        "arg_of"
+      ],
+      "id": "complex-domain-functions",
+      "python_facade": [],
+      "sympy_adapter": [
+        "re",
+        "im",
+        "conjugate",
+        "arg"
+      ],
+      "sympy_reference": [
+        "re",
+        "im",
+        "conjugate",
+        "arg"
+      ]
+    },
+    {
       "action": "Keep one native constructor family and the SymPy spelling at the adapter boundary; retain suffixes where they distinguish expression sentinels from other native names.",
       "description": "Create standard named constants.",
       "finding": "Native names describe expression constructors, including the explicit sentinel suffixes. Python compatibility names follow SymPy's capitalization and infinity spelling.",
@@ -748,6 +773,12 @@
       },
       {
         "concepts": [
+          "complex-domain-functions"
+        ],
+        "name": "arg_of"
+      },
+      {
+        "concepts": [
           "elementary-functions"
         ],
         "name": "asin"
@@ -829,6 +860,12 @@
           "string-conversion"
         ],
         "name": "chars"
+      },
+      {
+        "concepts": [
+          "complex-domain-functions"
+        ],
+        "name": "conjugate"
       },
       {
         "concepts": [
@@ -979,6 +1016,12 @@
           "constants"
         ],
         "name": "i_expr"
+      },
+      {
+        "concepts": [
+          "complex-domain-functions"
+        ],
+        "name": "im_part"
       },
       {
         "concepts": [
@@ -1186,6 +1229,12 @@
       },
       {
         "concepts": [
+          "complex-domain-functions"
+        ],
+        "name": "re_part"
+      },
+      {
+        "concepts": [
           "real-construction"
         ],
         "name": "real_expr"
@@ -1374,6 +1423,7 @@
       "acos",
       "acosh",
       "apart",
+      "arg",
       "asin",
       "asinh",
       "ask",
@@ -1386,6 +1436,7 @@
       "cancel",
       "ceiling",
       "collect",
+      "conjugate",
       "cos",
       "cosh",
       "coth",
@@ -1399,6 +1450,7 @@
       "factorial",
       "floor",
       "gamma",
+      "im",
       "integrate",
       "legendre",
       "limit",
@@ -1407,6 +1459,7 @@
       "nan",
       "oo",
       "pi",
+      "re",
       "refine",
       "sech",
       "series",
@@ -1440,11 +1493,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 158,
-    "concept_groups": 26,
-    "fortran_facade_exports": 124,
+    "assigned_names": 165,
+    "concept_groups": 27,
+    "fortran_facade_exports": 128,
     "python_facade_exports": 12,
-    "sympy_adapter_exports": 79,
+    "sympy_adapter_exports": 83,
     "unmapped_fortran_exports": 0
   },
   "sympy_version": "1.14.0",

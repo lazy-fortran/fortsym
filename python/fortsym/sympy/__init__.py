@@ -354,6 +354,20 @@ def _named_function(name):
     return applied
 
 
+def _complex_operation(name, expression):
+    temporary = not isinstance(expression, Expr)
+    value = expression if not temporary else sympify(expression)
+    try:
+        return value._complex_operation(name)
+    except FortSymError as error:
+        if error.status == 5:
+            raise UnsupportedOperationError(str(error)) from error
+        raise
+    finally:
+        if temporary:
+            value.close()
+
+
 sin = _named_function("sin")
 cos = _named_function("cos")
 tan = _named_function("tan")
@@ -375,6 +389,22 @@ factorial = _named_function("factorial")
 besselj = _named_function("besselj")
 besseli = _named_function("besseli")
 _legendrep = _named_function("legendrep")
+
+
+def re(expression):
+    return _complex_operation("re", expression)
+
+
+def im(expression):
+    return _complex_operation("im", expression)
+
+
+def conjugate(expression):
+    return _complex_operation("conjugate", expression)
+
+
+def arg(expression):
+    return _complex_operation("arg", expression)
 
 
 def legendre(degree, argument):
@@ -466,7 +496,7 @@ __all__ = [
     "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial",
     "besselj", "besseli", "legendre",
     "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign",
-    "floor", "ceiling", "diff", "subs", "expand",
+    "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
     "simplify", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
     "integrate", "limit", "series", "solve", "Matrix", "pi", "E", "I",

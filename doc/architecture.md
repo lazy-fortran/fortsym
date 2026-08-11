@@ -125,6 +125,10 @@ exact algebraic conjugation delegates to the same bridge. The complex test
 oracle evaluates the original expression independently rather than
 reconstructing the expected parts from the splitter.
 
+The `fortsym` facade, C ABI, and `fortsym.sympy` adapter all call this owner;
+they add only result/error transport and SymPy spelling translation, so there
+is no second projection or conjugation implementation at a public boundary.
+
 The native limit layer proves continuity substitutions, bounded L'Hopital
 steps, polynomial degree ratios at infinity, and a restricted single-monomial
 growth ordering. It checks a full two-sided finite neighborhood before

@@ -173,6 +173,12 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
     )
+    lib.complex_operation = declare(
+        "fortsym_complex_operation",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.c_char_p, ctypes.POINTER(_CVOID), _CHAR_PTR,
+         _SIZE],
+    )
     lib.assume = declare(
         "fortsym_assume",
         ctypes.c_int,
@@ -461,6 +467,7 @@ class Expr:
         self._pretty = False
         self._expanded_result = None
         self._expanded_epoch = -1
+        self._complex_results = {}
 
     def _require(self):
         if self._handle is None:
@@ -469,6 +476,7 @@ class Expr:
 
     def close(self):
         self._expanded_result = None
+        self._complex_results.clear()
         if self._handle is not None:
             self._lib.expr_free(self._handle)
             self._handle = None
@@ -568,6 +576,18 @@ class Expr:
     def factor(self):
         return self._arena._result(self._lib.factor, self._arena._require(),
                                    self._require())
+
+    def _complex_operation(self, operation):
+        cached = self._complex_results.get(operation)
+        if (cached is not None and cached[0] == self._arena._assumption_epoch
+                and cached[1]._handle is not None):
+            return cached[1]
+        result = self._arena._result(
+            self._lib.complex_operation, self._arena._require(),
+            self._require(), operation.encode()
+        )
+        self._complex_results[operation] = (self._arena._assumption_epoch, result)
+        return result
 
     def _zero_verdict(self):
         verdict = ctypes.c_int()

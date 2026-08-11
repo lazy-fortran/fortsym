@@ -56,9 +56,17 @@ int main(void)
     fortsym_expr *zero_expression = NULL;
     fortsym_expr *seven = NULL;
     fortsym_expr *sine = NULL;
+    fortsym_expr *imaginary = NULL;
+    fortsym_expr *real_part = NULL;
+    fortsym_expr *imaginary_part = NULL;
+    fortsym_expr *conjugated = NULL;
+    fortsym_expr *conjugate_sum = NULL;
+    fortsym_expr *minus_one = NULL;
+    fortsym_expr *argument = NULL;
+    fortsym_expr *unknown_head = NULL;
     const fortsym_expr *root_argument[1];
 
-    assert(fortsym_abi_version() == 7);
+    assert(fortsym_abi_version() == 8);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
@@ -183,6 +191,40 @@ int main(void)
     status = fortsym_zero_test(arena, sine, &verdict, message, sizeof message);
     assert(status == FORTSYM_OK && verdict == FORTSYM_ZERO_UNKNOWN);
 
+    status = fortsym_constant(arena, "i", &imaginary, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_complex_operation(arena, imaginary, "re", &real_part,
+                                       message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(real_part, "0");
+    status = fortsym_complex_operation(arena, imaginary, "im", &imaginary_part,
+                                       message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(imaginary_part, "1");
+    status = fortsym_complex_operation(arena, imaginary, "conjugate",
+                                       &conjugated, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_add(arena, conjugated, imaginary, &conjugate_sum, message,
+                         sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_zero_test(arena, conjugate_sum, &verdict, message,
+                               sizeof message);
+    assert(status == FORTSYM_OK && verdict == FORTSYM_ZERO_TRUE);
+    status = fortsym_int(arena, -1, &minus_one, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_complex_operation(arena, minus_one, "arg", &argument,
+                                       message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(argument, "pi");
+    root_argument[0] = x;
+    status = fortsym_function(arena, "unknown_complex", root_argument, 1,
+                              &unknown_head, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    foreign = NULL;
+    status = fortsym_complex_operation(arena, unknown_head, "re", &foreign,
+                                       message, sizeof message);
+    assert(status == FORTSYM_UNSUPPORTED && foreign == NULL);
+
     status = fortsym_differentiate(arena, x, x, &derivative, message,
                                    sizeof message);
     assert(status == FORTSYM_OK);
@@ -216,6 +258,14 @@ int main(void)
     fortsym_expr_free(assumed);
     fortsym_expr_free(relation);
     fortsym_expr_free(sine);
+    fortsym_expr_free(argument);
+    fortsym_expr_free(minus_one);
+    fortsym_expr_free(conjugate_sum);
+    fortsym_expr_free(conjugated);
+    fortsym_expr_free(imaginary_part);
+    fortsym_expr_free(real_part);
+    fortsym_expr_free(imaginary);
+    fortsym_expr_free(unknown_head);
     fortsym_expr_free(seven);
     fortsym_expr_free(zero_expression);
     fortsym_expr_free(root);
