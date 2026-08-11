@@ -143,7 +143,9 @@ factorisation and this refusal.
 The standard-library-only Python facade now exposes the safe polynomial path
 as `Expr.factor()` and `fortsym.factor()`, while the separate
 `fortsym.sympy` compatibility layer keeps `factor` as an explicit refusal
-until its broader compatibility semantics are specified.
+outside the bounded polynomial subset; that subset is now covered by a
+native factor implementation and tests for options and domain-condition
+refusal.
 
 Issue #44 (plotting through fortplot) is complete as of 2026-08-11 for the
 bounded adapter. `fortsym_plot` samples real curves, parametric curves, list

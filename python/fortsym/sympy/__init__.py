@@ -257,8 +257,15 @@ def _unsupported(name):
 
     return operation
 
+def factor(expression, **options):
+    if options:
+        raise UnsupportedOperationError("factor options")
+    try:
+        return sympify(expression).factor()
+    except FortSymError as error:
+        raise UnsupportedOperationError(str(error)) from error
 
-factor = _unsupported("factor")
+
 together = _unsupported("together")
 cancel = _unsupported("cancel")
 apart = _unsupported("apart")
