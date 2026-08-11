@@ -158,8 +158,13 @@ Every checklist item requires all of the following:
   exports, and all 41 `fortsym.sympy` adapter exports. It keeps the concise
   native vocabulary separate from the SymPy compatibility vocabulary and
   records the remaining canonical-name decisions for the next checklist item.
-- [ ] Select canonical short names for constructors, functions, predicates,
-  results, statuses, and contexts.
+- [x] Select canonical short names for constructors, functions, predicates,
+  results, statuses, and contexts. The decisions are recorded in
+  [`doc/api-naming-policy.toml`](doc/api-naming-policy.toml), validated by
+  [`scripts/check_api_naming_policy.py`](scripts/check_api_naming_policy.py),
+  and cover every concept in the naming audit. Native names remain concise
+  and consistent with their owning Fortran modules; the Python adapter keeps
+  SymPy spellings as its deliberate compatibility boundary.
 - [ ] Remove `_expr` suffixes and other facade-only aliases where they do not
   carry useful disambiguation.
 - [ ] Make constructors, arithmetic operators, elementary functions,

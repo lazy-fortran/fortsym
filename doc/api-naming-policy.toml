@@ -1,0 +1,131 @@
+schema_version = 1
+package = "fortsym"
+sympy_version = "1.14.0"
+source_audit = "doc/sympy-api-naming-audit.json"
+
+[policy]
+native = "The Fortran facade and its owning native modules use concise, old-school names when the meaning is clear."
+python = "fortsym.sympy keeps SymPy-compatible names and signatures, even when the native Fortran name is shorter."
+facade = "The convenience facade mirrors the selected native owner. A facade-only alias requires a documented language or compatibility reason."
+transition = "The repository is pre-alpha. Current facade names may remain as explicitly marked transition aliases while consumers move to canonical names."
+single_responsibility = "Each family has one owning module and one canonical native vocabulary."
+
+[[family]]
+id = "constructors"
+audit_concepts = ["symbol-construction", "symbol-sequences", "integer-construction", "rational-construction", "real-construction", "function-construction", "exact-and-constant-construction"]
+canonical_native = ["sym", "symbols", "num", "rat", "real_expr", "real_text_expr", "exact", "const", "func", "func_in"]
+current_native = ["sym", "symbols", "num", "rat", "real_expr", "real_text_expr", "exact", "const", "func", "func_in"]
+transition_aliases = []
+python_facade = ["Symbol", "symbols", "Integer", "Rational", "Float", "Function"]
+sympy_adapter = ["Symbol", "symbols", "Integer", "Rational", "Float", "Function"]
+decision = "Keep the short native constructors. Keep func_in distinct because it owns an arena when there are no arguments. Keep real_expr and real_text_expr distinct because their input domains differ."
+
+[[family]]
+id = "elementary-functions"
+audit_concepts = ["elementary-functions"]
+canonical_native = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", "besselj", "legendrep", "legendreq"]
+current_native = ["sin_expr", "cos_expr", "tan_expr", "asin_expr", "acos_expr", "atan_expr", "atan2_expr", "sinh_expr", "cosh_expr", "tanh_expr", "asinh_expr", "acosh_expr", "atanh_expr", "exp_expr", "log_expr", "sqrt_expr", "abs_expr", "erf_expr", "erfc_expr", "gamma_expr", "besselj_expr", "legendrep_expr", "legendreq_expr"]
+transition_aliases = ["sin_expr", "cos_expr", "tan_expr", "asin_expr", "acos_expr", "atan_expr", "atan2_expr", "sinh_expr", "cosh_expr", "tanh_expr", "asinh_expr", "acosh_expr", "atanh_expr", "exp_expr", "log_expr", "sqrt_expr", "abs_expr", "erf_expr", "erfc_expr", "gamma_expr", "besselj_expr", "legendrep_expr", "legendreq_expr"]
+python_facade = []
+sympy_adapter = ["sin", "cos", "tan", "exp", "log", "sqrt", "Abs"]
+decision = "Make the intrinsic spellings canonical in the native facade so it mirrors fortsym_expr. Keep the _expr spellings only as transition aliases during the pre-alpha migration. The adapter maps abs to SymPy Abs."
+
+[[family]]
+id = "constants"
+audit_concepts = ["constants"]
+canonical_native = ["pi_expr", "e_expr", "i_expr", "oo_expr"]
+current_native = ["pi_expr", "e_expr", "i_expr"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = ["pi", "E", "I", "oo"]
+decision = "Keep typed expression suffixes for constants because pi, e, i, and oo are common scalar names or Fortran identifiers. Add oo_expr when infinity enters the native facade. The adapter retains SymPy capitalization."
+
+[[family]]
+id = "calculus"
+audit_concepts = ["differentiation"]
+canonical_native = ["partial", "diff"]
+current_native = ["partial"]
+transition_aliases = []
+python_facade = ["diff"]
+sympy_adapter = ["diff", "Derivative"]
+decision = "partial constructs an unevaluated first-order node. diff owns the evaluated operation. Derivative remains the Python adapter's unevaluated compatibility wrapper."
+
+[[family]]
+id = "contexts-and-handles"
+audit_concepts = ["arena-and-expression"]
+canonical_native = ["arena_t", "expr_t", "default_arena", "reset"]
+current_native = ["arena_t", "expr_t", "fortsym_default_arena", "fortsym_reset"]
+transition_aliases = ["fortsym_default_arena", "fortsym_reset"]
+python_facade = ["Arena", "Expr"]
+sympy_adapter = ["Arena", "Expr"]
+decision = "Keep arena_t and expr_t as type names. Remove the redundant fortsym_ prefix from convenience procedures because use fortsym already supplies the namespace. Keep explicit arenas and the easy default state with one syntax."
+
+[[family]]
+id = "transformations"
+audit_concepts = ["substitution", "transformation-functions"]
+canonical_native = ["subs", "expand", "simplify", "factor"]
+current_native = []
+transition_aliases = []
+python_facade = ["subs", "factor"]
+sympy_adapter = ["subs", "Subs", "expand", "simplify", "factor"]
+decision = "Expose the native operations under the same short names from one facade owner. Keep Subs as an adapter-only typed wrapper and keep options/refusals in the Python boundary."
+
+[[family]]
+id = "predicates"
+audit_concepts = ["identity-and-validity"]
+canonical_native = ["is_valid", "same_arena"]
+current_native = ["is_valid", "same_arena"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = []
+decision = "Keep safety predicates in the expression owner. Do not add SymPy-style aliases without a defined three-valued semantic contract."
+
+[[family]]
+id = "operators-and-assignment"
+audit_concepts = ["operator-overloads"]
+canonical_native = ["operator(+)" , "operator(-)", "operator(*)", "operator(/)", "operator(**)", "operator(==)", "operator(/=)", "assignment(=)"]
+current_native = ["operator(+)" , "operator(-)", "operator(*)", "operator(/)", "operator(**)", "operator(==)", "operator(/=)", "assignment(=)"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = ["Add", "Mul", "Pow"]
+decision = "Keep Fortran operators as the native arithmetic vocabulary. Character assignment remains the simple x = 'x' symbol entry point and never parses an expression."
+
+[[family]]
+id = "node-kinds"
+audit_concepts = ["node-kinds"]
+canonical_native = ["node_kind_name", "NK_INT", "NK_RAT", "NK_REAL", "NK_SYM", "NK_CONST", "NK_ADD", "NK_MUL", "NK_POW", "NK_FUNC", "NK_BIG_INT", "NK_BIG_RAT", "NK_BIG_REAL"]
+current_native = ["node_kind_name", "NK_INT", "NK_RAT", "NK_REAL", "NK_SYM", "NK_CONST", "NK_ADD", "NK_MUL", "NK_POW", "NK_FUNC", "NK_BIG_INT", "NK_BIG_RAT", "NK_BIG_REAL"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = []
+decision = "Keep representation tags in the low-level owner. They are not part of the SymPy compatibility vocabulary."
+
+[[family]]
+id = "numeric-inspection"
+audit_concepts = ["numeric-inspection"]
+canonical_native = ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_complex_text", "numeric_complex_text_t", "numeric_callable_t"]
+current_native = ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_complex_text", "numeric_complex_text_t", "numeric_callable_t"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = []
+decision = "Keep one numeric_ family owned by the numeric verification module. Do not invent SymPy aliases for callback and text-boundary details."
+
+[[family]]
+id = "backend-evidence"
+audit_concepts = ["backend-evidence", "backend-protocol"]
+canonical_native = ["BACKEND_PROTOCOL_VERSION", "EXPRESSION_SCHEMA", "BACKEND_PROVED", "BACKEND_DISPROVED", "BACKEND_UNKNOWN", "backend_evidence_t", "backend_result_t", "backend_status_name", "serialize_expression", "deserialize_expression", "assess_identity", "assess_equivalence", "evidence_json", "emit_backend_kernel"]
+current_native = ["BACKEND_PROTOCOL_VERSION", "EXPRESSION_SCHEMA", "BACKEND_PROVED", "BACKEND_DISPROVED", "BACKEND_UNKNOWN", "backend_evidence_t", "backend_result_t", "backend_status_name", "serialize_expression", "deserialize_expression", "assess_identity", "assess_equivalence", "evidence_json", "emit_backend_kernel"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = []
+decision = "Keep backend protocol and evidence names together under their owning module. The symbolic facade may call this service but does not duplicate its vocabulary."
+
+[[family]]
+id = "ode-solving"
+audit_concepts = ["ode-solving"]
+canonical_native = ["solve_ode"]
+current_native = ["solve_ode"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = []
+decision = "Keep solve_ode in the calculus owner until its SymPy parity contract is defined."
