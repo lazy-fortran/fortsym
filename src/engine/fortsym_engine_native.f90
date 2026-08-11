@@ -1839,7 +1839,7 @@ contains
         case ("sin", "tan", "sinh", "tanh", "csc", "cot", "csch", &
                 "coth", "asin", "atan", "asinh", "atanh")
             odd_head = .true.
-        case ("cos", "cosh", "sec", "sech")
+        case ("cos", "cosh", "sec", "sech", "abs")
             even_head = .true.
         end select
         if (negated_argument .and. (odd_head .or. even_head)) then
