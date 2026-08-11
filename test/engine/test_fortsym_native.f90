@@ -55,6 +55,7 @@ program test_fortsym_native
     call test_directed_domain_functions()
     call test_directed_domain_heads()
     call test_directed_atan2_heads()
+    call test_directed_bessel_heads()
     call test_directed_inverse_heads()
     call test_reciprocal_hyperbolic_heads()
     call test_error_function_domain_heads()
@@ -1080,6 +1081,41 @@ contains
         call check("atan2(zoo,oo) remains an applied head", &
             r%value%kind() == NK_FUNC)
     end subroutine test_directed_atan2_heads
+
+    subroutine test_directed_bessel_heads()
+        type(engine_result_t) :: r
+        type(expr_t) :: order, infinity, negative_infinity, complex_infinity
+        type(expr_t) :: args(2)
+
+        order = sym(arena, "bessel_order")
+        infinity = oo_expr(arena)
+        negative_infinity = -infinity
+        complex_infinity = zoo_expr(arena)
+        args(1) = order
+        args(2) = infinity
+
+        r = engine%simplify(func("besselj", args))
+        call check("besselj(order,oo) is zero", &
+            r%value == num(arena, 0_int64))
+        args(2) = negative_infinity
+        r = engine%simplify(func("besselj", args))
+        call check("besselj(order,-oo) is zero", &
+            r%value == num(arena, 0_int64))
+        args(2) = infinity
+        r = engine%simplify(func("besseli", args))
+        call check("besseli(order,oo) is oo", r%value == infinity)
+        args(2) = negative_infinity
+        r = engine%simplify(func("besseli", args))
+        call check("besseli(order,-oo) remains an applied head", &
+            r%value%kind() == NK_FUNC)
+        args(2) = complex_infinity
+        r = engine%simplify(func("besselj", args))
+        call check("besselj(order,zoo) remains an applied head", &
+            r%value%kind() == NK_FUNC)
+        r = engine%simplify(func("besseli", args))
+        call check("besseli(order,zoo) remains an applied head", &
+            r%value%kind() == NK_FUNC)
+    end subroutine test_directed_bessel_heads
 
     subroutine test_directed_inverse_heads()
         type(engine_result_t) :: r

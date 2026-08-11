@@ -4590,23 +4590,37 @@ contains
 
         applied = .false.
         if (size(args) == 2) then
-            if (name /= "atan2") return
-            call classify_domain_id(a, args(1), y_domain, y_direction, &
-                y_known, y_contains_domain, y_has_zero)
-            call classify_domain_id(a, args(2), x_domain, x_direction, &
-                x_known, x_contains_domain, x_has_zero)
-            if (.not. y_known .or. .not. x_known .or. &
-                .not. y_contains_domain .or. .not. x_contains_domain) return
-            if (y_domain /= DOMAIN_OO .or. x_domain /= DOMAIN_OO .or. &
-                y_has_zero .or. x_has_zero) return
-            applied = .true.
-            if (x_direction > 0) then
-                out = a%int(0_int64)
-            else if (y_direction > 0) then
-                out = a%const("pi")
-            else
-                out = mul_pair(a, a%int(-1_int64), a%const("pi"))
-            end if
+            select case (name)
+            case ("atan2")
+                call classify_domain_id(a, args(1), y_domain, y_direction, &
+                    y_known, y_contains_domain, y_has_zero)
+                call classify_domain_id(a, args(2), x_domain, x_direction, &
+                    x_known, x_contains_domain, x_has_zero)
+                if (.not. y_known .or. .not. x_known .or. &
+                    .not. y_contains_domain .or. .not. x_contains_domain) return
+                if (y_domain /= DOMAIN_OO .or. x_domain /= DOMAIN_OO .or. &
+                    y_has_zero .or. x_has_zero) return
+                applied = .true.
+                if (x_direction > 0) then
+                    out = a%int(0_int64)
+                else if (y_direction > 0) then
+                    out = a%const("pi")
+                else
+                    out = mul_pair(a, a%int(-1_int64), a%const("pi"))
+                end if
+            case ("besselj", "besseli")
+                call classify_domain_id(a, args(2), domain, direction, &
+                    known, contains_domain, has_zero)
+                if (.not. known .or. .not. contains_domain .or. has_zero) return
+                if (domain /= DOMAIN_OO) return
+                if (name == "besselj") then
+                    applied = .true.
+                    out = a%int(0_int64)
+                else if (direction > 0) then
+                    applied = .true.
+                    out = a%const("oo")
+                end if
+            end select
             return
         end if
         if (size(args) /= 1) return

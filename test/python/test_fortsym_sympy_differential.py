@@ -427,6 +427,32 @@ class SympyDifferentialTest(unittest.TestCase):
         actual = native.atan2(native.zoo, native.oo)
         self.assertIsInstance(native.simplify(actual), native.Function)
 
+    def test_bessel_domain_heads_match_oracle(self):
+        oracle_order = oracle.Symbol("bessel_order")
+        native_order = native.Symbol("bessel_order")
+        cases = [
+            (oracle.besselj(oracle_order, oracle.oo),
+             native.besselj(native_order, native.oo)),
+            (oracle.besselj(oracle_order, -oracle.oo),
+             native.besselj(native_order, -native.oo)),
+            (oracle.besseli(oracle_order, oracle.oo),
+             native.besseli(native_order, native.oo)),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                actual_parsed = oracle.sympify(
+                    str(native.simplify(actual)), locals=self.locals
+                )
+                self.assertEqual(actual_parsed, expected)
+
+        for actual in (
+            native.besseli(native_order, -native.oo),
+            native.besselj(native_order, native.zoo),
+            native.besseli(native_order, native.zoo),
+        ):
+            with self.subTest(actual=str(actual)):
+                self.assertIsInstance(native.simplify(actual), native.Function)
+
     def test_gamma_domain_heads_match_oracle(self):
         cases = [
             (oracle.gamma(oracle.oo), native.gamma(native.oo)),
