@@ -201,8 +201,10 @@ printing, differentiation as
 constants, and real probing when representable accept both representations.
 Algebraic values are stored as `NK_ALGEBRAIC` atoms containing canonical
 `qqbar1` text. The native engine promotes pure algebraic `+`, `*`, and integer
-powers through the FLINT bridge, and its zero query uses the independent
-component-sign result. The native and backend text parsers treat `qqbar1`
+powers through the FLINT bridge. Native simplification also collects
+algebraic coefficients in mixed sums and products, and its zero query uses the
+independent component-sign result. The native and backend text parsers treat
+`qqbar1`
 payloads as opaque lossless atoms and delegate validation to the FLINT bridge.
 Real64 expression evaluation still refuses algebraic atoms. Fortran kernel
 emission accepts exact real algebraic atoms after a checked projection. The

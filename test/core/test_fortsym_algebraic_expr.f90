@@ -1,9 +1,11 @@
 program test_fortsym_algebraic_expr
     ! The bridge supplies the independent algebraic oracle. The native engine
-    ! must preserve its canonical qqbar1 value while combining arena nodes.
+    ! must preserve exact meaning while combining algebraic coefficients in the
+    ! arena.
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_algebraic, only: algebraic_i, algebraic_from_re_im, &
-        algebraic_conjugate, algebraic_add, algebraic_sqrt, algebraic_mul
+        algebraic_conjugate, algebraic_add, algebraic_sqrt, algebraic_mul, &
+        algebraic_signs
     use fortsym_arena, only: arena_t, NK_ALGEBRAIC
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE, VERDICT_FALSE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -11,7 +13,7 @@ program test_fortsym_algebraic_expr
         make_symengine_engine
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, algebraic_expr, operator(+), operator(*), &
-        operator(==), is_valid, sym, num, rat, i_expr
+        operator(**), operator(==), is_valid, sym, num, rat, i_expr
     use fortsym_print, only: print_expr
     use fortsym_string, only: chars, str, str_t
     implicit none
@@ -24,8 +26,10 @@ program test_fortsym_algebraic_expr
     type(engine_result_t) :: result, zero_result
     type(str_t) :: i_text, minus_i_text, expected_text, root_text
     type(str_t) :: gaussian_text
-    type(str_t) :: minus_two_text
+    type(str_t) :: minus_two_text, two_text, sqrt_two_text
+    type(str_t) :: two_sqrt_two_text, half_text, mixed_text
     logical :: good
+    integer :: real_sign, imag_sign
     integer :: nfail
 
     nfail = 0
@@ -48,10 +52,12 @@ program test_fortsym_algebraic_expr
     root = i_atom + minus_i
     result = engine%simplify(root)
     expected_text = algebraic_add(chars(i_text), chars(minus_i_text), good)
-    expected = algebraic_expr(arena, chars(expected_text), good)
+    call algebraic_signs(chars(expected_text), real_sign, imag_sign, good)
     call check("native algebraic addition succeeds", result%ok)
-    call check("native algebraic addition matches bridge", &
-        result%ok .and. result%value == expected)
+    call check("native algebraic addition canonicalizes to zero", &
+        result%ok .and. result%value == num(arena, 0_int64))
+    call check("bridge confirms algebraic addition is zero", &
+        good .and. real_sign == 0 .and. imag_sign == 0)
     zero_result = engine%zero_test(root)
     call check("native algebraic zero test is proved", &
         zero_result%verdict == VERDICT_TRUE)
@@ -71,6 +77,33 @@ program test_fortsym_algebraic_expr
     derivative = diff(root, x)
     call check("algebraic atoms differentiate as constants", &
         derivative == num(arena, 0))
+
+    two_text = algebraic_from_re_im("2", "0", good)
+    sqrt_two_text = algebraic_sqrt(chars(two_text), good)
+    root = algebraic_expr(arena, chars(sqrt_two_text), good)
+    result = engine%simplify(root*x + root*x)
+    two_sqrt_two_text = algebraic_mul(chars(two_text), chars(sqrt_two_text), &
+        good)
+    expected = algebraic_expr(arena, chars(two_sqrt_two_text), good)*x
+    call check("native collects repeated algebraic coefficients", &
+        result%ok .and. result%value == expected)
+
+    half_text = algebraic_from_re_im("1/2", "0", good)
+    result = engine%simplify(root*x + rat(arena, 1_int64, 2_int64)*x)
+    mixed_text = algebraic_add(chars(sqrt_two_text), chars(half_text), good)
+    expected = algebraic_expr(arena, chars(mixed_text), good)*x
+    call check("native combines algebraic and rational coefficients", &
+        result%ok .and. result%value == expected)
+
+    result = engine%simplify(root*root*x)
+    expected = algebraic_expr(arena, chars(two_text), good)*x
+    call check("native multiplies algebraic coefficients", &
+        result%ok .and. result%value == expected)
+
+    result = engine%simplify((root**num(arena, 2_int64))*x)
+    expected = algebraic_expr(arena, chars(two_text), good)*x
+    call check("native powers algebraic coefficients", &
+        result%ok .and. result%value == expected)
 
     gaussian_text = algebraic_from_re_im("1/2", "3/4", good)
     call check("Gaussian-rational algebraic oracle is available", good)

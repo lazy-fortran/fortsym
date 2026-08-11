@@ -112,7 +112,7 @@ semantics = "Exact Gaussian rational and algebraic values with explicit principa
 priority = "P0"
 independent_oracle = "Minimal-polynomial substitution and isolating numerical enclosures at precision exceeding the construction precision."
 status = "partial"
-implemented_fragment = "Bounded exact Gaussian rational and algebraic construction, canonical minimal-polynomial/root-index serialization, arena atoms, lossless dialect IO, native arithmetic, conjugation, principal square root, exact component signs, exact Gaussian-rational SymEngine conversion, and checked real binary64 Fortran kernel projection."
+implemented_fragment = "Bounded exact Gaussian rational and algebraic construction, canonical minimal-polynomial/root-index serialization, arena atoms, lossless dialect IO, native arithmetic with mixed algebraic coefficient collection, conjugation, principal square root, exact component signs, exact Gaussian-rational SymEngine conversion, and checked real binary64 Fortran kernel projection."
 remaining_fragment = "Full expression-engine promotion, higher-degree algebraic conversion, complex code generation, and returned conditions for unsupported branches."
 source_classes = ["local_proj", "gitlab"]
 

@@ -15,8 +15,8 @@ module fortsym_engine_native
         operator(*), &
         operator(/), operator(**), operator(==)
     use fortsym_exact, only: exact_add, exact_mul, exact_pow
-    use fortsym_algebraic, only: algebraic_i, algebraic_add, algebraic_mul, &
-        algebraic_pow, algebraic_signs
+    use fortsym_algebraic, only: algebraic_i, algebraic_add, algebraic_sub, &
+        algebraic_from_re_im, algebraic_mul, algebraic_pow, algebraic_signs
     use fortsym_assume, only: assumption_context_t, FACT_REAL, &
         FACT_POSITIVE, FACT_NONNEGATIVE
     use fortsym_diff, only: diff_expr => diff
@@ -42,9 +42,13 @@ module fortsym_engine_native
 
     type :: exact_coefficient_t
         logical :: compact = .true.
+        logical :: algebraic = .false.
+        logical :: zero = .false.
+        logical :: one = .false.
         integer(int64) :: numerator = 0_int64
         integer(int64) :: denominator = 1_int64
         integer :: id = 0
+        type(str_t) :: algebraic_text
     end type exact_coefficient_t
 
     type, extends(engine_t) :: native_engine_t
@@ -976,7 +980,7 @@ contains
         logical, intent(out) :: ok
         type(str_t) :: value
 
-        value = algebraic_add(text, "0", ok)
+        value = algebraic_from_re_im(text, "0", ok)
     end function algebraic_from_real_text
 
     subroutine algebraic_zero_status(e, verdict)
@@ -3638,7 +3642,8 @@ contains
         integer, intent(in) :: kind
         logical             :: exact
         exact = kind == NK_INT .or. kind == NK_RAT .or. &
-            kind == NK_BIG_INT .or. kind == NK_BIG_RAT
+            kind == NK_BIG_INT .or. kind == NK_BIG_RAT .or. &
+            kind == NK_ALGEBRAIC
     end function is_exact_scalar_kind
 
     pure function coefficient_one() result(coefficient)
@@ -3649,17 +3654,25 @@ contains
     pure function coefficient_is_zero(coefficient) result(zero)
         type(exact_coefficient_t), intent(in) :: coefficient
         logical                              :: zero
-        ! Canonical arbitrary-precision zero is always a compact node.
-        zero = coefficient%compact .and. &
-            coefficient%numerator == 0_int64
+        if (coefficient%algebraic) then
+            zero = coefficient%zero
+        else
+            ! Canonical arbitrary-precision zero is always a compact node.
+            zero = coefficient%compact .and. &
+                coefficient%numerator == 0_int64
+        end if
     end function coefficient_is_zero
 
     pure function coefficient_is_one(coefficient) result(one)
         type(exact_coefficient_t), intent(in) :: coefficient
         logical                              :: one
-        ! Canonical arbitrary-precision one is always a compact node.
-        one = coefficient%compact .and. &
-            coefficient%numerator == coefficient%denominator
+        if (coefficient%algebraic) then
+            one = coefficient%one
+        else
+            ! Canonical arbitrary-precision one is always a compact node.
+            one = coefficient%compact .and. &
+                coefficient%numerator == coefficient%denominator
+        end if
     end function coefficient_is_one
 
     subroutine coefficient_from_node(a, id, coefficient, ok)
@@ -3667,6 +3680,36 @@ contains
         integer, intent(in)                   :: id
         type(exact_coefficient_t), intent(out) :: coefficient
         logical, intent(out)                  :: ok
+        type(str_t) :: difference
+        type(str_t) :: one_text
+        integer :: real_sign, imaginary_sign
+        logical :: signs_ok
+
+        coefficient = coefficient_one()
+        if (a%kind_of(id) == NK_ALGEBRAIC) then
+            coefficient%compact = .false.
+            coefficient%algebraic = .true.
+            coefficient%id = id
+            coefficient%algebraic_text = a%algebraic_text_of(id)
+            call algebraic_signs(chars(coefficient%algebraic_text), &
+                real_sign, imaginary_sign, signs_ok)
+            if (.not. signs_ok) then
+                ok = .false.
+                return
+            end if
+            coefficient%zero = real_sign == 0 .and. imaginary_sign == 0
+            one_text = algebraic_from_real_text("1", signs_ok)
+            if (signs_ok) difference = algebraic_sub( &
+                chars(coefficient%algebraic_text), chars(one_text), signs_ok)
+            if (signs_ok) then
+                call algebraic_signs(chars(difference), real_sign, &
+                    imaginary_sign, signs_ok)
+                coefficient%one = signs_ok .and. real_sign == 0 .and. &
+                    imaginary_sign == 0
+            end if
+            ok = signs_ok
+            return
+        end if
 
         call exact_value(a, id, coefficient%numerator, &
             coefficient%denominator, coefficient%compact)
@@ -3681,7 +3724,9 @@ contains
         type(exact_coefficient_t), intent(in) :: coefficient
         integer                               :: id
 
-        if (coefficient%compact) then
+        if (coefficient%algebraic) then
+            id = coefficient%id
+        else if (coefficient%compact) then
             id = a%rat(coefficient%numerator, coefficient%denominator)
         else
             id = coefficient%id
@@ -3693,6 +3738,8 @@ contains
         type(exact_coefficient_t), intent(in) :: left, right
         type(exact_coefficient_t), intent(out) :: result
         logical, intent(out)                  :: ok
+        type(str_t) :: value, other
+        logical :: inserted
         integer :: id
 
         if (coefficient_is_zero(left)) then
@@ -3703,6 +3750,19 @@ contains
         if (coefficient_is_zero(right)) then
             result = left
             ok = .true.
+            return
+        end if
+        if (left%algebraic .or. right%algebraic) then
+            call algebraic_coefficient_text(a, left, value, ok)
+            if (.not. ok) return
+            call algebraic_coefficient_text(a, right, other, ok)
+            if (.not. ok) return
+            value = algebraic_add(chars(value), chars(other), ok)
+            if (.not. ok) return
+            id = a%algebraic(chars(value), inserted)
+            ok = inserted
+            if (.not. ok) return
+            call coefficient_from_node(a, id, result, ok)
             return
         end if
         if (left%compact .and. right%compact) then
@@ -3723,6 +3783,8 @@ contains
         type(exact_coefficient_t), intent(in) :: left, right
         type(exact_coefficient_t), intent(out) :: result
         logical, intent(out)                  :: ok
+        type(str_t) :: value, other
+        logical :: inserted
         integer :: id
 
         if (coefficient_is_zero(left) .or. coefficient_is_one(left)) then
@@ -3743,6 +3805,19 @@ contains
             ok = .true.
             return
         end if
+        if (left%algebraic .or. right%algebraic) then
+            call algebraic_coefficient_text(a, left, value, ok)
+            if (.not. ok) return
+            call algebraic_coefficient_text(a, right, other, ok)
+            if (.not. ok) return
+            value = algebraic_mul(chars(value), chars(other), ok)
+            if (.not. ok) return
+            id = a%algebraic(chars(value), inserted)
+            ok = inserted
+            if (.not. ok) return
+            call coefficient_from_node(a, id, result, ok)
+            return
+        end if
         if (left%compact .and. right%compact) then
             call fraction_mul(left%numerator, left%denominator, &
                 right%numerator, right%denominator, result%numerator, &
@@ -3755,6 +3830,22 @@ contains
         if (.not. ok) return
         call coefficient_from_node(a, id, result, ok)
     end subroutine coefficient_mul
+
+    subroutine algebraic_coefficient_text(a, coefficient, value, ok)
+        type(arena_t), intent(inout) :: a
+        type(exact_coefficient_t), intent(in) :: coefficient
+        type(str_t), intent(out) :: value
+        logical, intent(out) :: ok
+        integer :: id
+
+        if (coefficient%algebraic) then
+            value = coefficient%algebraic_text
+            ok = .true.
+            return
+        end if
+        id = coefficient_node(a, coefficient)
+        value = algebraic_from_real_text(chars(a%exact_text_of(id)), ok)
+    end subroutine algebraic_coefficient_text
 
     function exact_add_node(a, left, right, ok) result(id)
         type(arena_t), intent(inout) :: a
@@ -3833,6 +3924,14 @@ contains
                 id = a%rat(n, d)
                 return
             end if
+        end if
+
+        if (a%kind_of(base) == NK_ALGEBRAIC) then
+            value = algebraic_pow(chars(a%algebraic_text_of(base)), exponent, ok)
+            if (.not. ok) return
+            id = a%algebraic(chars(value), inserted)
+            ok = inserted
+            return
         end if
 
         id = 0

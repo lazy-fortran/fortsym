@@ -250,6 +250,10 @@ Every checklist item requires all of the following:
       for Fortran printing and kernel IR/code generation through a checked FLINT
       Arb enclosure. Non-real, subnormal, overflow, and ambiguous-rounding
       values retain explicit refusal semantics.
+    - [x] Extend native simplification to collect algebraic coefficients in
+      mixed sums and products, combine them with exact rational coefficients,
+      reduce integer powers through the FLINT bridge, and canonicalize proved
+      algebraic zero results.
     - [ ] Extend algebraic values through full native simplification, then
       complete the remaining complex-domain operations, higher-degree
       conversion, and complex code generation.

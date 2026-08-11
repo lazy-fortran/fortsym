@@ -52,9 +52,11 @@ FLINT is LGPL-3.0-or-later and remains a shared linked dependency. The
 original fortsym wrappers; no upstream implementation code is copied.
 
 `NK_ALGEBRAIC` now stores the bounded `qqbar1` value as an arena atom. Native
-scalar arithmetic and the complex-domain `Re`, `Im`, and conjugation boundary
-use it. The native and backend text dialects print and parse the canonical
-payload losslessly; the parser keeps the payload opaque and lets the
+scalar arithmetic, mixed-expression coefficient collection, and the
+complex-domain `Re`, `Im`, and conjugation boundary use it. Integer powers are
+reduced through the same bridge. The native and backend text dialects print and
+parse the canonical payload losslessly; the parser keeps the payload opaque and
+lets the
 FLINT-backed arena constructor validate it. The SymEngine boundary converts
 atoms whose exact real and imaginary components are rational to an exact
 rational `re + im*I` expression. Higher-degree or otherwise non-rational atoms
