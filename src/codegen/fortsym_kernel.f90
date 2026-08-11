@@ -628,6 +628,7 @@ contains
         do k = 1, res%n
             tmp%a => roots(1)%a
             tmp%id = res%ids(k)
+            tmp%generation = roots(1)%generation
             ! Each temporary may refer to earlier temporaries but not to itself,
             ! so the substitution table is truncated to what precedes it.
             call append_assignment(b, chars(res%names(k)), &

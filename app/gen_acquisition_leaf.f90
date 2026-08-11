@@ -16,19 +16,19 @@ program gen_acquisition_leaf
     ! The emitted leaf returns EI, PI, and the four first-order products that a
     ! candidate optimizer needs, all from the same expression graph.
     use, intrinsic :: iso_fortran_env, only: output_unit
-    use fortsym_arena, only: arena_t
+    use fortsym, only: arena_t, fortsym_default_arena, fortsym_reset, &
+        expr_t, num, pi_expr, exp_expr, sqrt_expr, erf_expr, &
+        operator(+), operator(-), operator(*), operator(/), operator(**), &
+        assignment(=)
     use fortsym_diff, only: diff
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_native, only: make_native_engine, native_engine_t
-    use fortsym_expr, only: expr_t, sym, num, pi_expr, exp_expr => exp, &
-        sqrt_expr => sqrt, erf_expr => erf, operator(+), operator(-), &
-        operator(*), operator(/), operator(**)
     use fortsym_kernel_emit, only: kernel_emit_spec_t, emit_fortran_kernel_ir
     use fortsym_kernel_ir, only: kernel_ir_t, lower_kernel_ir
     use fortsym_string, only: chars, str, str_t
     implicit none
 
-    type(arena_t), target :: arena
+    type(arena_t), pointer :: arena
     type(expr_t) :: mu, sigma, best, xi
     type(expr_t) :: tau, gap, z, two, normal_cdf, normal_pdf, ei, root(6)
     type(native_engine_t) :: engine
@@ -49,11 +49,12 @@ program gen_acquisition_leaf
         error stop 2
     end if
 
-    call arena%init()
-    mu = sym(arena, 'mu')
-    sigma = sym(arena, 'sigma')
-    best = sym(arena, 'best')
-    xi = sym(arena, 'xi')
+    call fortsym_reset()
+    arena => fortsym_default_arena()
+    mu = 'mu'
+    sigma = 'sigma'
+    best = 'best'
+    xi = 'xi'
 
     tau = best - xi
     gap = tau - mu

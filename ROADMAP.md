@@ -162,6 +162,18 @@ Fortran oracle, and values that cannot remain finite in real32 are refused
 before emission. The default remains the historical real64 output.
 The GitHub issue is now closed; native and Nix-wrapped suites both pass 38/38.
 
+Issue #70 (the short Fortran form) is complete as of 2026-08-11: `use fortsym`
+re-exports the explicit arena and expression surface with intrinsic-safe names,
+character assignment creates symbols, `symbols` fills scalar names without an
+array temporary, and `fortsym_reset` invalidates stale handles through arena
+generation tracking. The default arena is documented as single-threaded and
+`fortsym_default_arena()` bridges convenience and explicit APIs. An existing
+acquisition generator uses the short form, while the independent convenience
+test compares canonical structures across arenas, checks mixed construction,
+and verifies reset invalidation. The Nix build and all 39 CTest cases pass, the
+rewritten consumer compiles, and `fo build` exits successfully after its stale
+mixed-toolchain build directory was reconfigured.
+
 Build hygiene is also part of the current regression gate: the global
 `-Warray-temporaries` pass is clean across the library, applications, and
 tests, and the Nix CI jobs add their dependency library directories to the
