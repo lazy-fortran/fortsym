@@ -8,7 +8,7 @@ program test_fortsym_native
     !   * the resource-limit case asserts preservation, never a partial result.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str, chars
-    use fortsym_arena, only: arena_t, NK_ADD, NK_FUNC
+    use fortsym_arena, only: arena_t, NK_ADD, NK_FUNC, NK_POW
     use fortsym_expr
     use fortsym_assume, only: assumption_context_t, assume, zero, negative, &
         nonpositive, positive, nonnegative, nonzero, real_valued, &
@@ -53,6 +53,7 @@ program test_fortsym_native
     call test_nan_domain_rules()
     call test_directed_domain_rules()
     call test_directed_domain_functions()
+    call test_noninteger_domain_powers()
     call test_verdicts()
     call test_overflow_preservation()
 
@@ -1003,6 +1004,49 @@ contains
         call check("exp of symbolic infinity remains unevaluated", &
             r%value == exp(infinity*x))
     end subroutine test_directed_domain_functions
+
+    subroutine test_noninteger_domain_powers()
+        type(engine_result_t) :: r
+        type(expr_t) :: infinity, complex_infinity, undefined, negative_infinity
+
+        infinity = oo_expr(arena)
+        complex_infinity = zoo_expr(arena)
+        undefined = nan_expr(arena)
+        negative_infinity = -infinity
+
+        r = engine%simplify(infinity**rat(arena, 1_int64, 2_int64))
+        call check("oo to a positive rational power is oo", &
+            r%value == infinity)
+        r = engine%simplify(infinity**rat(arena, 2_int64, 3_int64))
+        call check("oo to a non-half rational power is oo", &
+            r%value == infinity)
+        r = engine%simplify(infinity**rat(arena, -1_int64, 2_int64))
+        call check("oo to a negative rational power is zero", &
+            r%value == num(arena, 0_int64))
+        r = engine%simplify(complex_infinity**rat(arena, 1_int64, 2_int64))
+        call check("zoo to a positive rational power is zoo", &
+            r%value == complex_infinity)
+        r = engine%simplify(complex_infinity**rat(arena, 4_int64, 3_int64))
+        call check("zoo to a non-half rational power is zoo", &
+            r%value == complex_infinity)
+        r = engine%simplify(complex_infinity**rat(arena, -1_int64, 2_int64))
+        call check("zoo to a negative rational power is zero", &
+            r%value == num(arena, 0_int64))
+        r = engine%simplify(negative_infinity**rat(arena, 1_int64, 2_int64))
+        call check("negative oo square root is i*oo", &
+            r%value == i_expr(arena)*infinity)
+        r = engine%simplify(negative_infinity**rat(arena, 3_int64, 2_int64))
+        call check("negative oo three-halves power is negative i*oo", &
+            r%value == -(i_expr(arena)*infinity))
+        r = engine%simplify(negative_infinity**rat(arena, 5_int64, 2_int64))
+        call check("negative oo five-halves power is i*oo", &
+            r%value == i_expr(arena)*infinity)
+        r = engine%simplify(negative_infinity**rat(arena, 2_int64, 3_int64))
+        call check("unsupported negative oo rational branch remains a power", &
+            r%value%kind() == NK_POW)
+        r = engine%simplify(undefined**rat(arena, 1_int64, 2_int64))
+        call check("nan to a noninteger power is nan", r%value == undefined)
+    end subroutine test_noninteger_domain_powers
 
     subroutine test_verdicts()
         type(engine_result_t) :: r

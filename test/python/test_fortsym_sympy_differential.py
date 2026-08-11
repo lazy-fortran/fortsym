@@ -273,6 +273,42 @@ class SympyDifferentialTest(unittest.TestCase):
             oracle.sympify(expected_text, locals=self.locals),
         )
 
+    def test_noninteger_domain_powers_match_oracle(self):
+        cases = [
+            (oracle.oo**oracle.Rational(1, 2),
+             native.oo**native.Rational(1, 2)),
+            (oracle.oo**oracle.Rational(2, 3),
+             native.oo**native.Rational(2, 3)),
+            (oracle.oo**oracle.Rational(-1, 2),
+             native.oo**native.Rational(-1, 2)),
+            (oracle.zoo**oracle.Rational(1, 2),
+             native.zoo**native.Rational(1, 2)),
+            (oracle.zoo**oracle.Rational(4, 3),
+             native.zoo**native.Rational(4, 3)),
+            (oracle.zoo**oracle.Rational(-1, 2),
+             native.zoo**native.Rational(-1, 2)),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                self.assertEqual(str(native.simplify(actual)), str(expected))
+        for expected, actual in [
+            (oracle.I * oracle.oo,
+             native.simplify((-native.oo)**native.Rational(1, 2))),
+            (-oracle.I * oracle.oo,
+             native.simplify((-native.oo)**native.Rational(3, 2))),
+        ]:
+            expected_text = str(expected)
+            actual_text = str(actual)
+            self.assertEqual(
+                oracle.sympify(actual_text, locals=self.locals),
+                oracle.sympify(expected_text, locals=self.locals),
+            )
+        refused = native.simplify(
+            (-native.oo)**native.Rational(2, 3)
+        )
+        self.assertIsInstance(refused, native.Pow)
+        self.assertNotEqual(str(refused), "oo")
+
     def test_expand_cache_matches_oracle_and_invalidates_on_assumptions(self):
         oracle_x = oracle.Symbol("differential_expand_cache_x")
         native_x = native.Symbol("differential_expand_cache_x")
