@@ -24,7 +24,7 @@ does not import SymPy. Unsupported names raise
 
 | Surface | Supported semantics |
 |---|---|
-| `Symbol`, `symbols`, `Integer`, `Rational`, `Float`, `pi`, `E`, `I`, `oo`, `zoo`, `nan` | exact native construction and structural equality; `Float(-0.0)` retains its IEEE sign, `nan` follows the declared propagation rules, and `oo`/`zoo` remain unevaluated until their operation rules are implemented |
+| `Symbol`, `symbols`, `Integer`, `Rational`, `Float`, `pi`, `E`, `I`, `oo`, `zoo`, `nan` | exact native construction and structural equality; `Float(-0.0)` retains its IEEE sign, `nan` follows the declared propagation rules, and finite-scalar/integer-power `oo`/`zoo` rules match SymPy while symbolic factors remain unevaluated |
 | `Expr.is_zero`, `Expr.is_nonzero`, `Expr.is_real`, `Expr.is_positive`, `Expr.is_nonnegative`, `Expr.is_negative`, `Expr.is_nonpositive` | SymPy-compatible three-valued predicates backed by native zero and sign-fact queries (`True`, `False`, or `None`) |
 | `real=True`, `zero=True`, `positive=True`, `nonnegative=True`, `nonzero=True`, `negative=True`, `nonpositive=True` | native arena facts; sign facts close to real/nonzero/zero implications and contradictory combinations raise `InconsistentAssumptions` |
 | `Q.real`, `Q.zero`, `Q.positive`, `Q.nonnegative`, `Q.nonzero`, `Q.negative`, `Q.nonpositive`, `ask`, `assuming`, `And` | nested, reversible assumption queries and transactional compound scopes backed by the native arena context; bounded relational facts are accepted in scopes |

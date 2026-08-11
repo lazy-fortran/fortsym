@@ -51,6 +51,7 @@ program test_fortsym_native
     call test_assumption_relations()
     call test_domain_conditions()
     call test_nan_domain_rules()
+    call test_directed_domain_rules()
     call test_verdicts()
     call test_overflow_preservation()
 
@@ -896,6 +897,70 @@ contains
         call check("an unknown base to nan is nan", &
             r%ok .and. r%value == undefined)
     end subroutine test_nan_domain_rules
+
+    subroutine test_directed_domain_rules()
+        type(engine_result_t) :: r
+        type(expr_t) :: infinity, complex_infinity, undefined, negative_infinity
+
+        infinity = oo_expr(arena)
+        complex_infinity = zoo_expr(arena)
+        undefined = nan_expr(arena)
+        negative_infinity = -infinity
+
+        r = engine%simplify(infinity + num(arena, 3_int64))
+        call check("oo plus a finite scalar is oo", r%value == infinity)
+        r = engine%simplify(infinity + negative_infinity)
+        call check("oo plus negative oo is nan", r%value == undefined)
+        r = engine%simplify(infinity*num(arena, 0_int64))
+        call check("oo times zero is nan", r%value == undefined)
+        r = engine%simplify(infinity*num(arena, 2_int64))
+        call check("oo times a positive scalar is oo", r%value == infinity)
+        r = engine%simplify(infinity*num(arena, -2_int64))
+        call check("oo times a negative scalar is negative oo", &
+            r%value == negative_infinity)
+        r = engine%simplify(infinity**num(arena, 0_int64))
+        call check("oo to the zeroth power is one", &
+            r%value == num(arena, 1_int64))
+        r = engine%simplify(infinity**num(arena, 2_int64))
+        call check("oo to a positive power is oo", r%value == infinity)
+        r = engine%simplify(infinity**num(arena, -2_int64))
+        call check("oo to a negative power is zero", &
+            r%value == num(arena, 0_int64))
+        r = engine%simplify(negative_infinity**num(arena, 2_int64))
+        call check("negative oo to an even power is oo", r%value == infinity)
+        r = engine%simplify(negative_infinity**num(arena, 3_int64))
+        call check("negative oo to an odd power is negative oo", &
+            r%value == negative_infinity)
+
+        r = engine%simplify(complex_infinity + num(arena, 1_int64))
+        call check("zoo plus a finite scalar is zoo", &
+            r%value == complex_infinity)
+        r = engine%simplify(complex_infinity + complex_infinity)
+        call check("zoo plus zoo is nan", r%value == undefined)
+        r = engine%simplify(complex_infinity + infinity)
+        call check("zoo plus oo is nan", r%value == undefined)
+        r = engine%simplify(complex_infinity*num(arena, 0_int64))
+        call check("zoo times zero is nan", r%value == undefined)
+        r = engine%simplify(complex_infinity*num(arena, 2_int64))
+        call check("zoo times a nonzero scalar is zoo", &
+            r%value == complex_infinity)
+        r = engine%simplify(complex_infinity*infinity)
+        call check("zoo times oo is zoo", r%value == complex_infinity)
+        r = engine%simplify(complex_infinity**num(arena, 0_int64))
+        call check("zoo to the zeroth power is one", &
+            r%value == num(arena, 1_int64))
+        r = engine%simplify(complex_infinity**num(arena, 2_int64))
+        call check("zoo to a positive power is zoo", &
+            r%value == complex_infinity)
+        r = engine%simplify(complex_infinity**num(arena, -2_int64))
+        call check("zoo to a negative power is zero", &
+            r%value == num(arena, 0_int64))
+        r = engine%simplify(infinity*x)
+        call check("oo times a symbol remains unevaluated", r%value == infinity*x)
+        r = engine%simplify(complex_infinity*x)
+        call check("zoo times a symbol remains unevaluated", &
+            r%value == complex_infinity*x)
+    end subroutine test_directed_domain_rules
 
     subroutine test_verdicts()
         type(engine_result_t) :: r

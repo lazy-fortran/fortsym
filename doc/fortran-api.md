@@ -65,9 +65,11 @@ half = exact(default_arena(), "6/-8", ok=good)
 ```
 
 `oo_expr` constructs the positive-infinity sentinel. It remains a structural
-domain value, not a finite real literal: arithmetic and numerical evaluation
-must apply their own infinity rules, and finite real Fortran kernel emission
-refuses it.
+domain value, not a finite real literal. Native simplification currently
+matches the finite scalar and integer-power rules for `oo` and `zoo`: known
+signs determine directed products, `0*oo` and `0*zoo` become `nan`, and
+symbolic products such as `oo*x` remain unevaluated. Finite real Fortran
+kernel emission still refuses these domain values.
 
 ```fortran
 infinity = oo_expr(default_arena())
@@ -75,8 +77,9 @@ infinity = oo_expr(default_arena())
 
 `zoo_expr` and `nan_expr` construct complex-infinity and undefined/NaN
 sentinels. They are structural domain values, not floating-point payloads;
-finite real emission refuses all three until operation-specific domain rules
-are implemented.
+the supported native domain rules include the finite scalar and integer-power
+cases above, plus the declared `nan` propagation rules. Finite real emission
+refuses all three.
 
 ```fortran
 complex_infinity = zoo_expr(default_arena())
@@ -87,8 +90,8 @@ Native simplification propagates `nan` through addition, multiplication, the
 supported numeric unary heads, and powers. The defined power exception is
 `nan**0 = 1`; a NaN base or exponent in every other supported power produces
 `nan`. Unknown function heads remain structural and are not assigned guessed
-domain rules. Directed arithmetic for `oo` and `zoo` is a separate roadmap
-step.
+domain rules. Non-integer powers, symbolic-factor products, and
+operation-specific function/limit rules remain separate roadmap work.
 
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a

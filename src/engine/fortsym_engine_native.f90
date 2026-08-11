@@ -40,6 +40,9 @@ module fortsym_engine_native
     integer(int64), parameter :: MAX_EXPAND_POWER = 32_int64
     integer(int64), parameter :: MAX_EXPAND_TERMS = 100000_int64
     integer(int64), parameter :: MAX_NATIVE_LEGENDRE_DEGREE = 16_int64
+    integer, parameter :: DOMAIN_NONE = 0
+    integer, parameter :: DOMAIN_OO = 1
+    integer, parameter :: DOMAIN_ZOO = 2
 
     type :: exact_coefficient_t
         logical :: compact = .true.
@@ -1546,6 +1549,8 @@ contains
             out = nan_node(a)
             return
         end if
+        call simplify_domain_add(a, operands, out, exact)
+        if (exact) return
 
         ! Preserve a composite term long enough to cancel its explicit
         ! negative. Flattening u + (-u) first would splice u's children into
@@ -1841,6 +1846,8 @@ contains
             out = nan_node(a)
             return
         end if
+        call simplify_domain_mul(a, operands, out, product_ok)
+        if (product_ok) return
 
         flat = a%mul(operands)
         if (a%kind_of(flat) /= NK_MUL) then
@@ -1984,6 +1991,8 @@ contains
             out = nan_node(a)
             return
         end if
+        call simplify_domain_power(a, base, exponent, out, power_ok)
+        if (power_ok) return
         if (exponent == 1_int64) then
             out = base
             return
@@ -4263,6 +4272,258 @@ contains
             yes = .true.
         end select
     end function nan_propagates_function
+
+    subroutine simplify_domain_add(a, operands, out, applied)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: operands(:)
+        integer,       intent(out)   :: out
+        logical,       intent(out)   :: applied
+        integer :: i, domain, direction
+        integer :: positive_oo, negative_oo, zoo_count
+        logical :: known, contains_domain, has_zero
+
+        applied = .false.
+        positive_oo = 0
+        negative_oo = 0
+        zoo_count = 0
+        do i = 1, size(operands)
+            call classify_domain_id(a, operands(i), domain, direction, known, &
+                contains_domain, has_zero)
+            if (.not. known) return
+            if (.not. contains_domain) cycle
+            if (domain == DOMAIN_ZOO) then
+                zoo_count = zoo_count + 1
+            else if (domain == DOMAIN_OO) then
+                if (direction < 0) then
+                    negative_oo = negative_oo + 1
+                else
+                    positive_oo = positive_oo + 1
+                end if
+            else
+                return
+            end if
+        end do
+
+        if (positive_oo + negative_oo + zoo_count == 0) return
+        applied = .true.
+        if (zoo_count > 0) then
+            if (zoo_count > 1 .or. positive_oo + negative_oo > 0) then
+                out = nan_node(a)
+            else
+                out = a%const("zoo")
+            end if
+        else if (positive_oo > 0 .and. negative_oo > 0) then
+            out = nan_node(a)
+        else if (positive_oo > 0) then
+            out = a%const("oo")
+        else
+            out = signed_oo_node(a, -1)
+        end if
+    end subroutine simplify_domain_add
+
+    subroutine simplify_domain_mul(a, operands, out, applied)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: operands(:)
+        integer,       intent(out)   :: out
+        logical,       intent(out)   :: applied
+        integer :: i, domain, direction, infinity_direction
+        logical :: known, contains_domain, has_zero
+        logical :: have_domain, have_oo, have_zoo, all_known, any_zero
+
+        applied = .false.
+        have_domain = .false.
+        have_oo = .false.
+        have_zoo = .false.
+        all_known = .true.
+        any_zero = .false.
+        infinity_direction = 1
+        do i = 1, size(operands)
+            call classify_domain_id(a, operands(i), domain, direction, known, &
+                contains_domain, has_zero)
+            all_known = all_known .and. known
+            any_zero = any_zero .or. has_zero
+            if (.not. contains_domain) then
+                if (known .and. .not. has_zero) then
+                    infinity_direction = infinity_direction * direction
+                end if
+                cycle
+            end if
+            have_domain = .true.
+            if (domain == DOMAIN_ZOO) then
+                have_zoo = .true.
+            else if (domain == DOMAIN_OO) then
+                have_oo = .true.
+                infinity_direction = infinity_direction * direction
+            end if
+        end do
+
+        if (.not. have_domain) return
+        if (any_zero) then
+            applied = .true.
+            out = nan_node(a)
+            return
+        end if
+        if (.not. all_known) return
+
+        applied = .true.
+        if (have_zoo) then
+            out = a%const("zoo")
+        else if (have_oo) then
+            out = signed_oo_node(a, infinity_direction)
+        else
+            applied = .false.
+        end if
+    end subroutine simplify_domain_mul
+
+    subroutine simplify_domain_power(a, base, exponent, out, applied)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: base
+        integer(int64), intent(in)   :: exponent
+        integer,       intent(out)   :: out
+        logical,       intent(out)   :: applied
+        integer :: domain, direction
+        logical :: known, contains_domain, has_zero
+
+        applied = .false.
+        call classify_domain_id(a, base, domain, direction, known, &
+            contains_domain, has_zero)
+        if (.not. known .or. .not. contains_domain .or. has_zero) return
+        if (domain /= DOMAIN_OO .and. domain /= DOMAIN_ZOO) return
+
+        applied = .true.
+        if (exponent < 0_int64) then
+            out = a%int(0_int64)
+        else if (domain == DOMAIN_ZOO) then
+            out = a%const("zoo")
+        else if (direction < 0 .and. modulo(exponent, 2_int64) == 1_int64) then
+            out = signed_oo_node(a, -1)
+        else
+            out = a%const("oo")
+        end if
+    end subroutine simplify_domain_power
+
+    recursive subroutine classify_domain_id(a, id, domain, direction, known, &
+            contains_domain, has_zero)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        integer,       intent(out) :: domain, direction
+        logical,       intent(out) :: known, contains_domain, has_zero
+        integer :: factor_domain, factor_direction, k
+        logical :: factor_known, factor_contains, factor_zero
+        integer :: scalar_sign
+        logical :: scalar_known
+
+        domain = DOMAIN_NONE
+        direction = 1
+        known = .true.
+        contains_domain = .false.
+        has_zero = .false.
+        select case (a%kind_of(id))
+        case (NK_CONST)
+            select case (chars(a%name_of(id)))
+            case ("oo")
+                domain = DOMAIN_OO
+                contains_domain = .true.
+            case ("zoo")
+                domain = DOMAIN_ZOO
+                contains_domain = .true.
+                direction = 0
+            case default
+                known = .false.
+            end select
+        case (NK_MUL)
+            do k = 1, a%nargs_of(id)
+                call classify_domain_id(a, a%arg_of(id, k), factor_domain, &
+                    factor_direction, factor_known, factor_contains, factor_zero)
+                known = known .and. factor_known
+                has_zero = has_zero .or. factor_zero
+                if (.not. factor_contains) then
+                    if (factor_known .and. .not. factor_zero) then
+                        direction = direction * factor_direction
+                    end if
+                    cycle
+                end if
+                contains_domain = .true.
+                if (factor_domain == DOMAIN_ZOO) then
+                    domain = DOMAIN_ZOO
+                    direction = 0
+                else if (factor_domain == DOMAIN_OO .and. domain /= DOMAIN_ZOO) then
+                    domain = DOMAIN_OO
+                    direction = direction * factor_direction
+                end if
+            end do
+            if (.not. contains_domain) then
+                known = .false.
+                return
+            end if
+        case default
+            call finite_scalar_sign(a, id, scalar_sign, scalar_known)
+            if (scalar_known) then
+                direction = scalar_sign
+                has_zero = scalar_sign == 0
+            else
+                known = .false.
+            end if
+        end select
+    end subroutine classify_domain_id
+
+    subroutine finite_scalar_sign(a, id, sign, known)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        integer,       intent(out) :: sign
+        logical,       intent(out) :: known
+        integer :: real_sign, imaginary_sign
+        logical :: signs_ok
+        integer(int64) :: numerator
+        character(:), allocatable :: text
+
+        sign = 0
+        known = .true.
+        select case (a%kind_of(id))
+        case (NK_INT, NK_RAT)
+            numerator = a%num_of(id)
+            if (numerator > 0_int64) then
+                sign = 1
+            else if (numerator < 0_int64) then
+                sign = -1
+            end if
+        case (NK_BIG_INT, NK_BIG_RAT)
+            text = chars(a%exact_text_of(id))
+            if (text(1:1) == "-") sign = -1
+            if (text(1:1) /= "-") sign = 1
+        case (NK_REAL)
+            if (a%real_of(id) > 0.0_dp) then
+                sign = 1
+            else if (a%real_of(id) < 0.0_dp) then
+                sign = -1
+            end if
+        case (NK_ALGEBRAIC)
+            call algebraic_signs(chars(a%algebraic_text_of(id)), real_sign, &
+                imaginary_sign, signs_ok)
+            if (signs_ok .and. imaginary_sign == 0) then
+                sign = real_sign
+            else
+                known = .false.
+            end if
+        case default
+            known = .false.
+        end select
+    end subroutine finite_scalar_sign
+
+    function signed_oo_node(a, direction) result(id)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: direction
+        integer :: id
+        integer :: pair(2)
+
+        if (direction >= 0) then
+            id = a%const("oo")
+        else
+            pair(1) = a%int(-1_int64)
+            pair(2) = a%const("oo")
+            id = a%mul(pair)
+        end if
+    end function signed_oo_node
 
     function is_one_id(a, id) result(yes)
         type(arena_t), intent(in) :: a

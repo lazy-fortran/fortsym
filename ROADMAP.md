@@ -299,8 +299,12 @@ Every checklist item requires all of the following:
     numeric unary heads, and `Pow` edge cases: `nan**0` is `1`, while a NaN
     base or exponent in every other supported power is `nan`. Unknown heads
     remain opaque instead of receiving guessed domain semantics.
-  - [ ] Add operation-specific arithmetic and directed-domain rules for `oo`
-    and `zoo`.
+  - [x] Add the finite-scalar and integer-power directed-domain fragment for
+    `oo` and `zoo`: known signs produce `oo`/`-oo`, zero times either sentinel
+    produces `nan`, opposite directions and mixed `oo`/`zoo` additions produce
+    `nan`, and symbolic products remain structural.
+  - [ ] Complete operation-specific `oo`/`zoo` semantics for non-integer powers,
+    functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
 - [ ] Preserve exactness through every constructor, operator, and adapter.
 
