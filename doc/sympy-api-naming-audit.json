@@ -1,0 +1,1000 @@
+{
+  "concepts": [
+    {
+      "action": "Keep the short native candidate and the SymPy spelling at the adapter boundary; decide whether any Fortran alias is needed.",
+      "description": "Create one named symbolic expression.",
+      "finding": "The native Fortran facade uses the concise internal name sym. The Python surfaces use SymPy's Symbol spelling.",
+      "fortran_facade": [
+        "sym"
+      ],
+      "id": "symbol-construction",
+      "python_facade": [
+        "Symbol"
+      ],
+      "sympy_adapter": [
+        "Symbol"
+      ],
+      "sympy_reference": [
+        "Symbol"
+      ]
+    },
+    {
+      "action": "Document one canonical native behavior and keep SymPy shape adaptation in the Python layer.",
+      "description": "Create several named symbols.",
+      "finding": "The same spelling crosses the Fortran and Python convenience surfaces, but the accepted syntax and return shape differ.",
+      "fortran_facade": [
+        "symbols"
+      ],
+      "id": "symbol-sequences",
+      "python_facade": [
+        "symbols"
+      ],
+      "sympy_adapter": [
+        "symbols"
+      ],
+      "sympy_reference": [
+        "symbols"
+      ]
+    },
+    {
+      "action": "Retain both by layer and test the mapping.",
+      "description": "Create an exact integer.",
+      "finding": "num is concise and native. Integer is the compatibility spelling.",
+      "fortran_facade": [
+        "num"
+      ],
+      "id": "integer-construction",
+      "python_facade": [
+        "Integer"
+      ],
+      "sympy_adapter": [
+        "Integer"
+      ],
+      "sympy_reference": [
+        "Integer"
+      ]
+    },
+    {
+      "action": "Retain both by layer and test the mapping.",
+      "description": "Create an exact rational.",
+      "finding": "rat is concise and native. Rational is the compatibility spelling.",
+      "fortran_facade": [
+        "rat"
+      ],
+      "id": "rational-construction",
+      "python_facade": [
+        "Rational"
+      ],
+      "sympy_adapter": [
+        "Rational"
+      ],
+      "sympy_reference": [
+        "Rational"
+      ]
+    },
+    {
+      "action": "Choose a consistent native pair and keep Float as an adapter alias.",
+      "description": "Create a real expression.",
+      "finding": "The native facade exposes value and text constructors with an _expr suffix. The adapter has one SymPy-compatible Float constructor.",
+      "fortran_facade": [
+        "real_expr",
+        "real_text_expr"
+      ],
+      "id": "real-construction",
+      "python_facade": [
+        "Float"
+      ],
+      "sympy_adapter": [
+        "Float"
+      ],
+      "sympy_reference": [
+        "Float"
+      ]
+    },
+    {
+      "action": "Document the ownership distinction and avoid a second public concept unless the argument distinction is observable.",
+      "description": "Create an applied or named function.",
+      "finding": "func and func_in are internal/native entry points with different argument ownership. Function is the compatibility spelling.",
+      "fortran_facade": [
+        "func",
+        "func_in"
+      ],
+      "id": "function-construction",
+      "python_facade": [
+        "Function"
+      ],
+      "sympy_adapter": [
+        "Function"
+      ],
+      "sympy_reference": [
+        "Function"
+      ]
+    },
+    {
+      "action": "Audit the suffix policy as one family. Do not rename one elementary function in isolation.",
+      "description": "Create an elementary applied function.",
+      "finding": "The Fortran facade adds _expr to names that collide with intrinsics. The Python adapter uses SymPy spellings and currently covers a smaller head set.",
+      "fortran_facade": [
+        "sin_expr",
+        "cos_expr",
+        "tan_expr",
+        "asin_expr",
+        "acos_expr",
+        "atan_expr",
+        "atan2_expr",
+        "sinh_expr",
+        "cosh_expr",
+        "tanh_expr",
+        "asinh_expr",
+        "acosh_expr",
+        "atanh_expr",
+        "exp_expr",
+        "log_expr",
+        "sqrt_expr",
+        "abs_expr",
+        "erf_expr",
+        "erfc_expr",
+        "gamma_expr",
+        "besselj_expr",
+        "legendrep_expr",
+        "legendreq_expr"
+      ],
+      "id": "elementary-functions",
+      "python_facade": [],
+      "sympy_adapter": [
+        "sin",
+        "cos",
+        "tan",
+        "exp",
+        "log",
+        "sqrt",
+        "Abs"
+      ],
+      "sympy_reference": [
+        "sin",
+        "cos",
+        "tan",
+        "exp",
+        "log",
+        "sqrt",
+        "Abs"
+      ]
+    },
+    {
+      "action": "Keep the adapter spelling and decide whether the native names should remain descriptive or shorten as a consistent family.",
+      "description": "Create standard named constants.",
+      "finding": "Native names describe expression constructors. Python compatibility names follow SymPy's capitalization and infinity spelling.",
+      "fortran_facade": [
+        "pi_expr",
+        "e_expr",
+        "i_expr"
+      ],
+      "id": "constants",
+      "python_facade": [],
+      "sympy_adapter": [
+        "pi",
+        "E",
+        "I",
+        "oo"
+      ],
+      "sympy_reference": [
+        "pi",
+        "E",
+        "I",
+        "oo"
+      ]
+    },
+    {
+      "action": "Separate operation from unevaluated result type and use one owner for each.",
+      "description": "Differentiate an expression.",
+      "finding": "partial is the native low-level operation. diff is the Python convenience spelling, while Derivative also represents unevaluated work.",
+      "fortran_facade": [
+        "partial"
+      ],
+      "id": "differentiation",
+      "python_facade": [
+        "diff"
+      ],
+      "sympy_adapter": [
+        "diff",
+        "Derivative"
+      ],
+      "sympy_reference": [
+        "diff",
+        "Derivative"
+      ]
+    },
+    {
+      "action": "Keep one responsibility per owner and document default versus explicit state once.",
+      "description": "Own expression storage and expression handles.",
+      "finding": "Fortran types and Python handle classes are distinct language bindings. The default-state functions have no direct SymPy root equivalent.",
+      "fortran_facade": [
+        "arena_t",
+        "expr_t",
+        "fortsym_default_arena",
+        "fortsym_reset"
+      ],
+      "id": "arena-and-expression",
+      "python_facade": [
+        "Arena",
+        "Expr"
+      ],
+      "sympy_adapter": [
+        "Arena",
+        "Expr"
+      ],
+      "sympy_reference": [
+        "Expr"
+      ]
+    },
+    {
+      "action": "Resolve the native facade owner before adding aliases.",
+      "description": "Replace expressions.",
+      "finding": "The native Fortran facade does not currently export substitution from fortsym, while the Python layers expose an operation and a typed wrapper.",
+      "fortran_facade": [],
+      "id": "substitution",
+      "python_facade": [
+        "subs"
+      ],
+      "sympy_adapter": [
+        "subs",
+        "Subs"
+      ],
+      "sympy_reference": [
+        "Expr",
+        "Subs"
+      ]
+    },
+    {
+      "action": "Choose a canonical native transformation module and expose it consistently.",
+      "description": "Transform an expression algebraically.",
+      "finding": "The Python adapter exposes the current native transformation subset. The Fortran convenience facade exposes lower-level constructors but not these names as a single family.",
+      "fortran_facade": [],
+      "id": "transformation-functions",
+      "python_facade": [
+        "factor"
+      ],
+      "sympy_adapter": [
+        "expand",
+        "simplify",
+        "factor"
+      ],
+      "sympy_reference": [
+        "expand",
+        "simplify",
+        "factor"
+      ]
+    },
+    {
+      "action": "Keep them out of the SymPy adapter unless a defined SymPy behavior exists.",
+      "description": "Inspect handle validity and arena ownership.",
+      "finding": "These are native safety predicates with no Python compatibility spelling.",
+      "fortran_facade": [
+        "is_valid",
+        "same_arena"
+      ],
+      "id": "identity-and-validity",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": [
+        "Expr"
+      ]
+    },
+    {
+      "action": "Keep them in a numeric module with one naming family.",
+      "description": "Evaluate or inspect numeric values.",
+      "finding": "These are fortsym-specific inspection and callback concepts, not SymPy root aliases.",
+      "fortran_facade": [
+        "numeric_value",
+        "numeric_text",
+        "numeric_precision_text",
+        "numeric_complex_text",
+        "numeric_complex_text_t",
+        "numeric_callable_t"
+      ],
+      "id": "numeric-inspection",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    },
+    {
+      "action": "Keep them behind their owning verification/backend modules.",
+      "description": "Record backend proof and equivalence evidence.",
+      "finding": "These are fortsym verification and code-generation concepts with no SymPy facade equivalent.",
+      "fortran_facade": [
+        "backend_evidence_t",
+        "backend_result_t",
+        "backend_status_name",
+        "serialize_expression",
+        "deserialize_expression",
+        "assess_identity",
+        "assess_equivalence",
+        "evidence_json",
+        "emit_backend_kernel"
+      ],
+      "id": "backend-evidence",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    },
+    {
+      "action": "Keep node-kind vocabulary private or in the representation owner unless consumers need it.",
+      "description": "Inspect and identify native DAG node kinds.",
+      "finding": "These are representation-level native tags with no SymPy facade equivalent.",
+      "fortran_facade": [
+        "node_kind_name",
+        "NK_INT",
+        "NK_RAT",
+        "NK_REAL",
+        "NK_SYM",
+        "NK_CONST",
+        "NK_ADD",
+        "NK_MUL",
+        "NK_POW",
+        "NK_FUNC",
+        "NK_BIG_INT",
+        "NK_BIG_RAT",
+        "NK_BIG_REAL"
+      ],
+      "id": "node-kinds",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    },
+    {
+      "action": "Decide whether the generic constructors remain public or become lower-level implementation entry points.",
+      "description": "Construct exact text or named constants in the native arena.",
+      "finding": "exact and const are concise native constructors. They overlap with the more specialized numeric and constant families above.",
+      "fortran_facade": [
+        "exact",
+        "const"
+      ],
+      "id": "exact-and-constant-construction",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    },
+    {
+      "action": "Keep one operator family and document assignment as symbol construction only.",
+      "description": "Use Fortran operators and character assignment for the default facade.",
+      "finding": "Operators and assignment are language syntax, not named SymPy functions. They belong to the native facade consistency audit.",
+      "fortran_facade": [
+        "operator(+)",
+        "operator(-)",
+        "operator(*)",
+        "operator(/)",
+        "operator(**)",
+        "operator(==)",
+        "operator(/=)",
+        "assignment(=)"
+      ],
+      "id": "operator-overloads",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    },
+    {
+      "action": "Keep protocol constants in the backend owner and do not mirror them into the symbolic facade.",
+      "description": "Represent backend protocol versions, statuses, and serialized evidence.",
+      "finding": "These names describe fortsym's verification protocol and have no SymPy root equivalent.",
+      "fortran_facade": [
+        "BACKEND_PROTOCOL_VERSION",
+        "EXPRESSION_SCHEMA",
+        "BACKEND_PROVED",
+        "BACKEND_DISPROVED",
+        "BACKEND_UNKNOWN"
+      ],
+      "id": "backend-protocol",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    },
+    {
+      "action": "Keep it in the calculus owner until its SymPy parity contract is defined.",
+      "description": "Solve the native ODE fragment.",
+      "finding": "solve_ode is a native specialized operation with no current Python or SymPy adapter entry.",
+      "fortran_facade": [
+        "solve_ode"
+      ],
+      "id": "ode-solving",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    }
+  ],
+  "exports": {
+    "fortran_facade": [
+      {
+        "concepts": [
+          "backend-protocol"
+        ],
+        "name": "BACKEND_DISPROVED"
+      },
+      {
+        "concepts": [
+          "backend-protocol"
+        ],
+        "name": "BACKEND_PROTOCOL_VERSION"
+      },
+      {
+        "concepts": [
+          "backend-protocol"
+        ],
+        "name": "BACKEND_PROVED"
+      },
+      {
+        "concepts": [
+          "backend-protocol"
+        ],
+        "name": "BACKEND_UNKNOWN"
+      },
+      {
+        "concepts": [
+          "backend-protocol"
+        ],
+        "name": "EXPRESSION_SCHEMA"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "NK_ADD"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "NK_BIG_INT"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "NK_BIG_RAT"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "NK_BIG_REAL"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "NK_CONST"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "NK_FUNC"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "NK_INT"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "NK_MUL"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "NK_POW"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "NK_RAT"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "NK_REAL"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "NK_SYM"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "abs_expr"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "acos_expr"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "acosh_expr"
+      },
+      {
+        "concepts": [
+          "arena-and-expression"
+        ],
+        "name": "arena_t"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "asin_expr"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "asinh_expr"
+      },
+      {
+        "concepts": [
+          "backend-evidence"
+        ],
+        "name": "assess_equivalence"
+      },
+      {
+        "concepts": [
+          "backend-evidence"
+        ],
+        "name": "assess_identity"
+      },
+      {
+        "concepts": [
+          "operator-overloads"
+        ],
+        "name": "assignment(=)"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "atan2_expr"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "atan_expr"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "atanh_expr"
+      },
+      {
+        "concepts": [
+          "backend-evidence"
+        ],
+        "name": "backend_evidence_t"
+      },
+      {
+        "concepts": [
+          "backend-evidence"
+        ],
+        "name": "backend_result_t"
+      },
+      {
+        "concepts": [
+          "backend-evidence"
+        ],
+        "name": "backend_status_name"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "besselj_expr"
+      },
+      {
+        "concepts": [
+          "exact-and-constant-construction"
+        ],
+        "name": "const"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "cos_expr"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "cosh_expr"
+      },
+      {
+        "concepts": [
+          "backend-evidence"
+        ],
+        "name": "deserialize_expression"
+      },
+      {
+        "concepts": [
+          "constants"
+        ],
+        "name": "e_expr"
+      },
+      {
+        "concepts": [
+          "backend-evidence"
+        ],
+        "name": "emit_backend_kernel"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "erf_expr"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "erfc_expr"
+      },
+      {
+        "concepts": [
+          "backend-evidence"
+        ],
+        "name": "evidence_json"
+      },
+      {
+        "concepts": [
+          "exact-and-constant-construction"
+        ],
+        "name": "exact"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "exp_expr"
+      },
+      {
+        "concepts": [
+          "arena-and-expression"
+        ],
+        "name": "expr_t"
+      },
+      {
+        "concepts": [
+          "arena-and-expression"
+        ],
+        "name": "fortsym_default_arena"
+      },
+      {
+        "concepts": [
+          "arena-and-expression"
+        ],
+        "name": "fortsym_reset"
+      },
+      {
+        "concepts": [
+          "function-construction"
+        ],
+        "name": "func"
+      },
+      {
+        "concepts": [
+          "function-construction"
+        ],
+        "name": "func_in"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "gamma_expr"
+      },
+      {
+        "concepts": [
+          "constants"
+        ],
+        "name": "i_expr"
+      },
+      {
+        "concepts": [
+          "identity-and-validity"
+        ],
+        "name": "is_valid"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "legendrep_expr"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "legendreq_expr"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "log_expr"
+      },
+      {
+        "concepts": [
+          "node-kinds"
+        ],
+        "name": "node_kind_name"
+      },
+      {
+        "concepts": [
+          "integer-construction"
+        ],
+        "name": "num"
+      },
+      {
+        "concepts": [
+          "numeric-inspection"
+        ],
+        "name": "numeric_callable_t"
+      },
+      {
+        "concepts": [
+          "numeric-inspection"
+        ],
+        "name": "numeric_complex_text"
+      },
+      {
+        "concepts": [
+          "numeric-inspection"
+        ],
+        "name": "numeric_complex_text_t"
+      },
+      {
+        "concepts": [
+          "numeric-inspection"
+        ],
+        "name": "numeric_precision_text"
+      },
+      {
+        "concepts": [
+          "numeric-inspection"
+        ],
+        "name": "numeric_text"
+      },
+      {
+        "concepts": [
+          "numeric-inspection"
+        ],
+        "name": "numeric_value"
+      },
+      {
+        "concepts": [
+          "operator-overloads"
+        ],
+        "name": "operator(*)"
+      },
+      {
+        "concepts": [
+          "operator-overloads"
+        ],
+        "name": "operator(**)"
+      },
+      {
+        "concepts": [
+          "operator-overloads"
+        ],
+        "name": "operator(+)"
+      },
+      {
+        "concepts": [
+          "operator-overloads"
+        ],
+        "name": "operator(-)"
+      },
+      {
+        "concepts": [
+          "operator-overloads"
+        ],
+        "name": "operator(/)"
+      },
+      {
+        "concepts": [
+          "operator-overloads"
+        ],
+        "name": "operator(/=)"
+      },
+      {
+        "concepts": [
+          "operator-overloads"
+        ],
+        "name": "operator(==)"
+      },
+      {
+        "concepts": [
+          "differentiation"
+        ],
+        "name": "partial"
+      },
+      {
+        "concepts": [
+          "constants"
+        ],
+        "name": "pi_expr"
+      },
+      {
+        "concepts": [
+          "rational-construction"
+        ],
+        "name": "rat"
+      },
+      {
+        "concepts": [
+          "real-construction"
+        ],
+        "name": "real_expr"
+      },
+      {
+        "concepts": [
+          "real-construction"
+        ],
+        "name": "real_text_expr"
+      },
+      {
+        "concepts": [
+          "identity-and-validity"
+        ],
+        "name": "same_arena"
+      },
+      {
+        "concepts": [
+          "backend-evidence"
+        ],
+        "name": "serialize_expression"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "sin_expr"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "sinh_expr"
+      },
+      {
+        "concepts": [
+          "ode-solving"
+        ],
+        "name": "solve_ode"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "sqrt_expr"
+      },
+      {
+        "concepts": [
+          "symbol-construction"
+        ],
+        "name": "sym"
+      },
+      {
+        "concepts": [
+          "symbol-sequences"
+        ],
+        "name": "symbols"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "tan_expr"
+      },
+      {
+        "concepts": [
+          "elementary-functions"
+        ],
+        "name": "tanh_expr"
+      }
+    ],
+    "python_facade": [
+      "Arena",
+      "Expr",
+      "Float",
+      "FortSymError",
+      "Function",
+      "Integer",
+      "Rational",
+      "Symbol",
+      "diff",
+      "factor",
+      "subs",
+      "symbols"
+    ],
+    "sympy_adapter": [
+      "Abs",
+      "Add",
+      "Arena",
+      "Derivative",
+      "E",
+      "Expr",
+      "Float",
+      "FortSymError",
+      "Function",
+      "I",
+      "Integer",
+      "Matrix",
+      "Mul",
+      "Pow",
+      "Rational",
+      "Subs",
+      "Symbol",
+      "UnsupportedOperationError",
+      "apart",
+      "cancel",
+      "collect",
+      "cos",
+      "diff",
+      "exp",
+      "expand",
+      "factor",
+      "integrate",
+      "limit",
+      "log",
+      "oo",
+      "pi",
+      "series",
+      "simplify",
+      "sin",
+      "solve",
+      "sqrt",
+      "subs",
+      "symbols",
+      "sympify",
+      "tan",
+      "together"
+    ]
+  },
+  "package": "fortsym",
+  "policy": {
+    "fortran_facade": "short native names are audited as the canonical candidates",
+    "python_facade": "fortsym's native Python binding is audited separately from the SymPy spelling adapter",
+    "selection": "This report records findings. The next roadmap item selects canonical names and aliases.",
+    "sympy_adapter": "fortsym.sympy uses SymPy names where compatibility requires them"
+  },
+  "schema_version": 1,
+  "sources": {
+    "classification": "doc/sympy-api-classification.json",
+    "fortran_facade": "src/core/fortsym.f90",
+    "python_facade": "python/fortsym/__init__.py",
+    "sympy_adapter": "python/fortsym/sympy/__init__.py"
+  },
+  "summary": {
+    "assigned_names": 110,
+    "concept_groups": 20,
+    "fortran_facade_exports": 85,
+    "python_facade_exports": 12,
+    "sympy_adapter_exports": 41,
+    "unmapped_fortran_exports": 0
+  },
+  "sympy_version": "1.14.0",
+  "unmapped_fortran_exports": []
+}
