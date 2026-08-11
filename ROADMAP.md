@@ -206,6 +206,9 @@ The same parity path handles `abs(-u)` without changing its branch semantics.
 The native simplifier now also evaluates the exact principal inverse-function
 constants `asin(±1)`, `acos(0, ±1)`, and `atan(±1)`, plus `acosh(1)` and
 `atanh(0)`; symbolic and out-of-fragment inverse functions remain untouched.
+Exact circular reciprocals now reuse that root fragment for `csc`, `sec`, and
+`cot` at non-pole rational angles, while `csc(0)` and other pole cases remain
+opaque; `sech(0)` is reduced to one.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.

@@ -1887,6 +1887,12 @@ contains
             call exact_rounding_value(a, name, args(1), trig_constant, &
                 trig_constant_ok)
             if (trig_constant_ok) out = trig_constant
+        case ("csc", "sec", "cot")
+            call exact_reciprocal_trig_value(a, name, args(1), trig_constant, &
+                trig_constant_ok)
+            if (trig_constant_ok) out = trig_constant
+        case ("sech")
+            if (is_zero_id(a, args(1))) out = a%int(1_int64)
         case ("sqrt", "abs")
             if (is_zero_id(a, args(1))) out = a%int(0_int64)
             if (is_one_id(a, args(1))) out = a%int(1_int64)
@@ -2149,6 +2155,42 @@ contains
         end select
         ok = .true.
     end subroutine exact_trig_value
+
+    subroutine exact_reciprocal_trig_value(a, name, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        character(*), intent(in) :: name
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer :: sine, cosine
+        logical :: sine_ok, cosine_ok
+
+        out = id
+        ok = .false.
+        call exact_trig_value(a, "sin", id, sine, sine_ok)
+        call exact_trig_value(a, "cos", id, cosine, cosine_ok)
+        if (.not. sine_ok .or. .not. cosine_ok) return
+
+        select case (name)
+        case ("csc")
+            if (is_zero_id(a, sine)) return
+            out = simplify_power(a, sine, a%int(-1_int64))
+        case ("sec")
+            if (is_zero_id(a, cosine)) return
+            out = simplify_power(a, cosine, a%int(-1_int64))
+        case ("cot")
+            if (is_zero_id(a, sine)) return
+            if (sine == cosine) then
+                out = a%int(1_int64)
+            else
+                out = mul_pair(a, cosine, &
+                    simplify_power(a, sine, a%int(-1_int64)))
+            end if
+        case default
+            return
+        end select
+        ok = .true.
+    end subroutine exact_reciprocal_trig_value
 
     subroutine exact_inverse_value(a, name, id, out, ok)
         type(arena_t), intent(inout) :: a
