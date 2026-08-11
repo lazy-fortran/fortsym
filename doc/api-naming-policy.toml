@@ -43,12 +43,12 @@ decision = "Keep typed expression suffixes for constants because pi, e, i, oo, z
 [[family]]
 id = "complex-domain-functions"
 audit_concepts = ["complex-domain-functions"]
-canonical_native = ["re_part", "im_part", "abs_of", "conjugate", "arg_of"]
-current_native = ["re_part", "im_part", "abs_of", "conjugate", "arg_of"]
+canonical_native = ["re_part", "im_part", "abs_of", "conjugate", "arg_of", "complex_expand"]
+current_native = ["re_part", "im_part", "abs_of", "conjugate", "arg_of", "complex_expand"]
 transition_aliases = []
 python_facade = []
-sympy_adapter = ["re", "im", "Abs", "conjugate", "arg"]
-decision = "Keep the explicit snake_case projection names in the native facade and lower-level complex-domain owner. Map SymPy's re, im, Abs, conjugate, and arg only in the compatibility adapter; all use one shared operation boundary, with Abs retaining an unevaluated fallback for unknown reality."
+sympy_adapter = ["re", "im", "Abs", "expand_complex", "conjugate", "arg"]
+decision = "Keep the explicit snake_case projection names in the native facade and lower-level complex-domain owner. Map SymPy's re, im, Abs, expand_complex, conjugate, and arg only in the compatibility adapter; all use one shared operation boundary, with Abs retaining an unevaluated fallback for unknown reality."
 
 [[family]]
 id = "calculus"

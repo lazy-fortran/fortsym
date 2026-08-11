@@ -115,9 +115,9 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         concept(
             "complex-domain-functions",
             "Project supported expressions into real, imaginary, modulus, conjugate, or principal-argument form.",
-            ["re_part", "im_part", "abs_of", "conjugate", "arg_of"], [],
-            ["re", "im", "Abs", "conjugate", "arg"],
-            ["re", "im", "Abs", "conjugate", "arg"],
+            ["re_part", "im_part", "abs_of", "conjugate", "arg_of", "complex_expand"], [],
+            ["re", "im", "Abs", "expand_complex", "conjugate", "arg"],
+            ["re", "im", "Abs", "expand_complex", "conjugate", "arg"],
             "The native facade keeps explicit snake_case names that describe the operation and its expression-valued result. The Python adapter uses SymPy's compatibility names and routes the supported complex-domain work to fortsym_complexdom, falling back to an unevaluated Abs head when reality is unknown.",
             "Keep complex-domain algebra in one owner. Do not add native re/im aliases or duplicate projection logic in the adapters; translate only the SymPy spellings at the boundary.",
         ),

@@ -141,7 +141,8 @@ int fortsym_factor(fortsym_arena *arena, const fortsym_expr *expression,
                    fortsym_expr **out, char *message, size_t capacity);
 int fortsym_zero_test(fortsym_arena *arena, const fortsym_expr *expression,
                       int *verdict, char *message, size_t capacity);
-/* operation is one of "re", "im", "conjugate", "arg", or "abs". */
+/* operation is one of "re", "im", "conjugate", "arg", "abs", or
+ * "expand_complex". */
 int fortsym_complex_operation(fortsym_arena *arena,
                               const fortsym_expr *expression,
                               const char *operation, fortsym_expr **out,

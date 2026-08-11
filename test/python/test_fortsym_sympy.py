@@ -228,6 +228,11 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(sp.Abs(sp.Integer(2) + sp.I), sp.sqrt(sp.Integer(5)))
         self.assertEqual(str(sp.Abs(sp.Symbol("abs_unknown"))),
                          "abs(abs_unknown)")
+        self.assertEqual(sp.expand_complex(sp.I), sp.I)
+        self.assertEqual(sp.expand_complex(sp.exp(sp.I), deep=False),
+                         sp.cos(1) + sp.I*sp.sin(1))
+        with self.assertRaises(sp.UnsupportedOperationError):
+            sp.expand_complex(sp.Symbol("expand_complex_unknown"))
         with self.assertRaises(sp.UnsupportedOperationError):
             sp.re(sp.Symbol("complex_unknown"))
         with self.assertRaises(sp.UnsupportedOperationError):

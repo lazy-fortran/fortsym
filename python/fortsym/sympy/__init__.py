@@ -427,6 +427,12 @@ def Abs(expression):
         return _native_abs(expression)
 
 
+def expand_complex(expression, deep=True):
+    if not isinstance(deep, bool):
+        raise TypeError("expand_complex deep must be a boolean")
+    return _complex_operation("expand_complex", expression)
+
+
 sign = _named_function("sign")
 floor = _named_function("floor")
 ceiling = _named_function("ceiling")
@@ -503,7 +509,7 @@ __all__ = [
     "Add", "Mul", "Pow", "Function", "Derivative", "Subs", "sin", "cos",
     "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "csch",
     "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial",
-    "besselj", "besseli", "legendre",
+    "besselj", "besseli", "legendre", "expand_complex",
     "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign",
     "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
     "simplify", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
