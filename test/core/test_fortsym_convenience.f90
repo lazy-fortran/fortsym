@@ -8,6 +8,7 @@ program test_fortsym_convenience
     type(arena_t), target :: explicit_arena, concurrent_arena
     type(arena_t), pointer :: default_storage
     type(assumption_context_t) :: base_context, positive_context, nonnegative_context
+    type(assumption_context_t) :: integer_context
     type(assumption_context_t) :: relation_context
     type(assumption_context_t) :: foreign_context
     type(expr_t) :: x, mu, sigma, best, xi, literal
@@ -192,6 +193,13 @@ program test_fortsym_convenience
     result = simplify(sqrt(explicit_sigma**2), assumptions=nonnegative_context)
     call check("derived nonnegative context is independent", &
         result%ok .and. result%value == explicit_sigma, failures)
+    integer_context = with_assumption(base_context, &
+        integer_valued(explicit_mu), context_ok)
+    call check("value-style context accepts integer fact", context_ok, failures)
+    integer_context = with_assumption(integer_context, &
+        positive_integer(explicit_sigma), context_ok)
+    call check("value-style context accepts positive integer shorthand", &
+        context_ok, failures)
     result = re_part(explicit_mu, assumptions=positive_context)
     call check("real-part facade accepts explicit assumptions", &
         result%ok .and. result%value == explicit_mu, failures)

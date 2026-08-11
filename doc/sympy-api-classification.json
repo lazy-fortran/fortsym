@@ -3328,6 +3328,28 @@
           "facade",
           "native"
         ],
+        "id": "fortsym.integer_valued",
+        "module": "fortsym",
+        "name": "integer_valued",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.positive_integer",
+        "module": "fortsym",
+        "name": "positive_integer",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym.str",
         "module": "fortsym",
         "name": "str",
@@ -7594,12 +7616,12 @@
     "classification_counts": {
       "delegated": 2481,
       "external": 10,
-      "facade": 170,
-      "native": 3123,
+      "facade": 172,
+      "native": 3125,
       "python-adapter": 2437,
       "refused": 25357
     },
-    "fortran_public_exports": 730,
+    "fortran_public_exports": 732,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

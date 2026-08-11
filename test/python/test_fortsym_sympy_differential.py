@@ -84,7 +84,7 @@ class SympyDifferentialTest(unittest.TestCase):
     def assumption_cases(api):
         cases = {}
         for assumption in (
-            "real", "nonnegative", "positive", "negative", "nonpositive", "zero"
+            "integer", "real", "nonnegative", "positive", "negative", "nonpositive", "zero"
         ):
             symbol = api.Symbol(
                 "condition_" + assumption, **{assumption: True}

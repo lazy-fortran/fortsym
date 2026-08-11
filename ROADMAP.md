@@ -393,6 +393,13 @@ Every checklist item requires all of the following:
   - [x] Expose the local real, sign, and zero facts through one C-ABI query
     and matching SymPy predicate properties, including the native implication
     closure.
+  - [x] Expose the existing native integer fact consistently through the
+    Fortran facade and the SymPy adapter: `integer_valued` and
+    `positive_integer` remain concise native helpers, while Python supports
+    `integer=True`, `Q.integer`, `ask(Q.integer(x))`, and `Expr.is_integer`.
+    Exact integer and rational node kinds match SymPy's `True`/`False` results;
+    unknown symbols and floats remain `None`. Differential tests and matched
+    cold/warm benchmark rows use SymPy 1.14.0 as the oracle.
 - [ ] Support local contexts, global convenience assumptions, scoped context
   managers in Python, and immutable explicit contexts in Fortran.
   - [x] Add nested native context push/pop with exception-safe Python

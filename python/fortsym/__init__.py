@@ -25,6 +25,7 @@ _FACT_REAL = 1
 _FACT_POSITIVE = 2
 _FACT_NONNEGATIVE = 4
 _FACT_NONZERO = 8
+_FACT_INTEGER = 16
 _FACT_ZERO = 64
 _FACT_NEGATIVE = 128
 _FACT_NONPOSITIVE = 256
@@ -464,6 +465,7 @@ class Expr:
         self._arena = arena
         self._lib = arena._lib
         self._handle = handle
+        self._known_facts = 0
         self._pretty = False
         self._expanded_result = None
         self._expanded_epoch = -1
@@ -645,6 +647,19 @@ class Expr:
     @property
     def is_real(self):
         return self._assumption_fact(_FACT_REAL)
+
+    @property
+    def is_integer(self):
+        if self._known_facts & _FACT_INTEGER:
+            return True
+        kind = self.kind
+        if kind in (1, 10):
+            return True
+        if kind in (2, 11):
+            return False
+        if self._assumption_fact(_FACT_INTEGER) is True:
+            return True
+        return None
 
     @property
     def is_positive(self):

@@ -266,8 +266,10 @@ the corresponding sign, `unequal(expression, 0)` records nonzero, and `And`
 relations are ingested transactionally. Bounds that do not imply a supported
 sign and foreign-arena relations are refused.
 
-The supported constructors are `real_valued`, `zero`, `negative`,
-`nonpositive`, `positive`, `nonnegative`, and `nonzero`. Sign facts close over
+The supported constructors are `real_valued`, `integer_valued`,
+`positive_integer`, `zero`, `negative`, `nonpositive`, `positive`,
+`nonnegative`, and `nonzero`. Integer facts imply real; the combined
+`positive_integer` shorthand implies integer and positive. Sign facts close over
 their sound implications; nonnegative plus nonpositive infers zero, while
 contradictory facts are refused with an explanatory `ok`/diagnostic result.
 The native guarded simplifier uses these facts for `sqrt(x**2)` and `abs(x)`:

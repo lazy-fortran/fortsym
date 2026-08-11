@@ -320,7 +320,9 @@
         "positive",
         "nonnegative",
         "nonzero",
-        "real_valued"
+        "real_valued",
+        "integer_valued",
+        "positive_integer"
       ],
       "id": "assumption-queries",
       "python_facade": [
@@ -1041,6 +1043,12 @@
       },
       {
         "concepts": [
+          "assumption-queries"
+        ],
+        "name": "integer_valued"
+      },
+      {
+        "concepts": [
           "identity-and-validity"
         ],
         "name": "is_valid"
@@ -1236,6 +1244,12 @@
           "assumption-queries"
         ],
         "name": "positive"
+      },
+      {
+        "concepts": [
+          "assumption-queries"
+        ],
+        "name": "positive_integer"
       },
       {
         "concepts": [
@@ -1510,9 +1524,9 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 168,
+    "assigned_names": 170,
     "concept_groups": 27,
-    "fortran_facade_exports": 130,
+    "fortran_facade_exports": 132,
     "python_facade_exports": 12,
     "sympy_adapter_exports": 84,
     "unmapped_fortran_exports": 0
