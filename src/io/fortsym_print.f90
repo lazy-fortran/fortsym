@@ -28,7 +28,8 @@ module fortsym_print
     implicit none
     private
 
-    public :: print_expr, print_expr_in, print_expr_sub, fortran_representable
+    public :: print_expr, print_expr_in, print_expr_sub, print_expr_latex
+    public :: fortran_representable
     public :: fortran_roots_representable, fortran_roots_representable_kind
 
     integer, parameter :: dp = real64
@@ -109,6 +110,39 @@ contains
         call emit(b, e%a, e%id, d, PREC_ADD, ids, names)
         s = b%to_str()
     end function print_expr_sub
+
+    !> Render the expression as bare LaTeX math. This is deliberately a sibling
+    !> walk rather than a spelling flag: fractions, scripts, roots and atomicity
+    !> have two-dimensional syntax that the flat dialect printer cannot express.
+    function print_expr_latex(e, symbol_names, symbol_values, ok, message) &
+            result(s)
+        type(expr_t), intent(in) :: e
+        type(str_t), intent(in) :: symbol_names(:), symbol_values(:)
+        logical, intent(out), optional :: ok
+        character(:), allocatable, intent(out), optional :: message
+        type(str_t) :: s
+        type(strbuf_t) :: b
+        logical :: valid
+
+        valid = size(symbol_names) == size(symbol_values)
+        if (present(message)) message = ""
+        if (.not. valid) then
+            if (present(ok)) ok = .false.
+            if (present(message)) message = "symbol override arrays differ in size"
+            s = str("")
+            return
+        end if
+        if (.not. associated(e%a) .or. e%id <= 0) then
+            if (present(ok)) ok = .false.
+            if (present(message)) message = "cannot render an invalid expression"
+            s = str("")
+            return
+        end if
+
+        call emit_latex(b, e%a, e%id, PREC_ADD, symbol_names, symbol_values)
+        s = b%to_str()
+        if (present(ok)) ok = .true.
+    end function print_expr_latex
 
     !> Whether every arbitrary exact node reachable from e has a finite normal
     !> nearest-even binary64 projection for a real(dp) Fortran kernel.
@@ -1179,5 +1213,716 @@ contains
             is_real = .false.
         end select
     end function fortran_real_intrinsic_argument
+
+    ! -------------------------------------------------------------- LaTeX --
+
+    recursive subroutine emit_latex(b, a, id, context, symbol_names, &
+            symbol_values, magnitude)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id, context
+        type(str_t), intent(in) :: symbol_names(:), symbol_values(:)
+        logical, intent(in), optional :: magnitude
+        logical :: positive_only
+
+        positive_only = .false.
+        if (present(magnitude)) positive_only = magnitude
+        select case (a%kind_of(id))
+        case (NK_INT)
+            call emit_latex_integer(b, a, id, context, positive_only)
+        case (NK_RAT)
+            call emit_latex_rational(b, a, id, positive_only)
+        case (NK_BIG_INT, NK_BIG_RAT)
+            call emit_latex_exact(b, a, id, positive_only)
+        case (NK_BIG_REAL)
+            call emit_latex_big_real(b, a, id, positive_only)
+        case (NK_REAL)
+            call emit_latex_real(b, a, id, context, positive_only)
+        case (NK_SYM)
+            call emit_latex_symbol(b, chars(a%name_of(id)), context, symbol_names, &
+                symbol_values)
+        case (NK_CONST)
+            call emit_latex_constant(b, a, id)
+        case (NK_ADD)
+            call emit_latex_sum(b, a, id, context, symbol_names, symbol_values)
+        case (NK_MUL)
+            call emit_latex_product(b, a, id, context, symbol_names, &
+                symbol_values, positive_only)
+        case (NK_POW)
+            call emit_latex_power(b, a, id, context, symbol_names, symbol_values)
+        case (NK_FUNC)
+            call emit_latex_function(b, a, id, symbol_names, symbol_values)
+        case default
+            call b%append("\mathrm{?}")
+        end select
+    end subroutine emit_latex
+
+    subroutine emit_latex_integer(b, a, id, context, magnitude)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id, context
+        logical, intent(in) :: magnitude
+        character(:), allocatable :: text
+        logical :: wrap
+
+        text = chars(str(a%num_of(id)))
+        if (magnitude .and. len(text) > 0 .and. text(1:1) == "-") then
+            text = text(2:)
+        end if
+        wrap = .not. magnitude .and. a%num_of(id) < 0_int64 .and. &
+            context >= PREC_POW
+        if (wrap) call b%append("\left(")
+        call b%append(text)
+        if (wrap) call b%append("\right)")
+    end subroutine emit_latex_integer
+
+    subroutine emit_latex_rational(b, a, id, magnitude)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical, intent(in) :: magnitude
+        character(:), allocatable :: numerator
+        logical :: negative
+
+        negative = a%num_of(id) < 0_int64 .and. .not. magnitude
+        numerator = chars(str(a%num_of(id)))
+        if (negative) numerator = numerator(2:)
+        if (negative) call b%append("-")
+        call b%append("\frac{")
+        call b%append(numerator)
+        call b%append("}{")
+        call b%append(chars(str(a%den_of(id))))
+        call b%append("}")
+    end subroutine emit_latex_rational
+
+    subroutine emit_latex_exact(b, a, id, magnitude)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical, intent(in) :: magnitude
+        character(:), allocatable :: text, numerator, denominator
+        integer :: slash, first
+        logical :: negative
+
+        text = chars(a%exact_text_of(id))
+        negative = len(text) > 0 .and. text(1:1) == "-" .and. .not. magnitude
+        first = 1
+        if (len(text) > 0 .and. text(1:1) == "-") first = 2
+        if (negative) call b%append("-")
+        slash = index(text, "/")
+        if (slash == 0) then
+            call b%append(text(first:))
+        else
+            numerator = text(first:slash - 1)
+            denominator = text(slash + 1:)
+            call b%append("\frac{"//numerator//"}{"//denominator//"}")
+        end if
+    end subroutine emit_latex_exact
+
+    subroutine emit_latex_big_real(b, a, id, magnitude)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical, intent(in) :: magnitude
+        character(:), allocatable :: text
+
+        text = chars(a%real_text_of(id))
+        if (magnitude .and. len(text) > 0 .and. text(1:1) == "-") then
+            text = text(2:)
+        end if
+        call b%append(latex_number(text))
+    end subroutine emit_latex_big_real
+
+    subroutine emit_latex_real(b, a, id, context, magnitude)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id, context
+        logical, intent(in) :: magnitude
+        character(:), allocatable :: text
+        logical :: wrap
+
+        text = chars(str(a%real_of(id)))
+        if (magnitude .and. len(text) > 0 .and. text(1:1) == "-") then
+            text = text(2:)
+        end if
+        wrap = .not. magnitude .and. a%real_of(id) < 0.0_dp .and. &
+            context >= PREC_POW
+        if (wrap) call b%append("\left(")
+        call b%append(latex_number(text))
+        if (wrap) call b%append("\right)")
+    end subroutine emit_latex_real
+
+    function latex_number(text) result(rendered)
+        character(*), intent(in) :: text
+        character(:), allocatable :: rendered, mantissa, exponent
+        integer :: position
+
+        position = scan(text, "EeDd")
+        if (position == 0) then
+            rendered = text
+            return
+        end if
+        mantissa = text(1:position - 1)
+        exponent = text(position + 1:)
+        rendered = mantissa//"\times 10^{"//exponent//"}"
+    end function latex_number
+
+    subroutine emit_latex_constant(b, a, id)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        character(:), allocatable :: name
+
+        name = chars(a%name_of(id))
+        select case (name)
+        case ("pi"); call b%append("\pi")
+        case ("e");  call b%append("\mathrm{e}")
+        case ("i");  call b%append("\mathrm{i}")
+        case default; call b%append(latex_default_symbol(name))
+        end select
+    end subroutine emit_latex_constant
+
+    recursive subroutine emit_latex_sum(b, a, id, context, symbol_names, &
+            symbol_values)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id, context
+        type(str_t), intent(in) :: symbol_names(:), symbol_values(:)
+        integer :: k, child
+        logical :: wrap
+
+        wrap = context > PREC_ADD
+        if (wrap) call b%append("\left(")
+        do k = 1, a%nargs_of(id)
+            child = a%arg_of(id, k)
+            if (k == 1) then
+                call emit_latex(b, a, child, PREC_ADD, symbol_names, symbol_values)
+            else if (latex_negative_term(a, child)) then
+                call b%append(" - ")
+                call emit_latex(b, a, child, PREC_ADD, symbol_names, &
+                    symbol_values, magnitude=.true.)
+            else
+                call b%append(" + ")
+                call emit_latex(b, a, child, PREC_ADD, symbol_names, symbol_values)
+            end if
+        end do
+        if (wrap) call b%append("\right)")
+    end subroutine emit_latex_sum
+
+    recursive subroutine emit_latex_product(b, a, id, context, symbol_names, &
+            symbol_values, magnitude)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id, context
+        type(str_t), intent(in) :: symbol_names(:), symbol_values(:)
+        logical, intent(in) :: magnitude
+        integer :: k, base, expo, denominator_count, numerator_count
+        logical :: negative, first, wrap
+
+        denominator_count = 0
+        numerator_count = 0
+        do k = 1, a%nargs_of(id)
+            if (latex_reciprocal(a, a%arg_of(id, k), base, expo)) then
+                denominator_count = denominator_count + 1
+            else
+                numerator_count = numerator_count + 1
+            end if
+        end do
+
+        negative = latex_product_negative(a, id)
+        if (magnitude) negative = .not. negative
+        wrap = context > PREC_MUL
+        if (wrap) call b%append("\left(")
+        if (negative) call b%append("-")
+
+        if (denominator_count > 0) then
+            call b%append("\frac{")
+            first = .true.
+            do k = 1, a%nargs_of(id)
+                if (latex_reciprocal(a, a%arg_of(id, k), base, expo)) cycle
+                if (latex_minus_one(a, a%arg_of(id, k)) .and. &
+                    a%nargs_of(id) > 1) cycle
+                if (.not. first) call b%append("\,")
+                call emit_latex(b, a, a%arg_of(id, k), PREC_MUL, symbol_names, &
+                    symbol_values, magnitude=.true.)
+                first = .false.
+            end do
+            if (first) call b%append("1")
+            call b%append("}{")
+            first = .true.
+            do k = 1, a%nargs_of(id)
+                if (.not. latex_reciprocal(a, a%arg_of(id, k), base, expo)) cycle
+                if (.not. first) call b%append("\,")
+                call emit_latex(b, a, base, PREC_POW, symbol_names, symbol_values)
+                if (expo < -1) then
+                    call b%append("^{"//int_text(-expo)//"}")
+                end if
+                first = .false.
+            end do
+            call b%append("}")
+        else
+            first = .true.
+            do k = 1, a%nargs_of(id)
+                if (latex_minus_one(a, a%arg_of(id, k)) .and. &
+                    a%nargs_of(id) > 1) then
+                    cycle
+                else if (latex_numeric_negative(a, a%arg_of(id, k))) then
+                    if (.not. first) call b%append("\,")
+                    call emit_latex(b, a, a%arg_of(id, k), PREC_MUL, &
+                        symbol_names, symbol_values, magnitude=.true.)
+                else
+                    if (.not. first) call b%append("\,")
+                    call emit_latex(b, a, a%arg_of(id, k), PREC_MUL, &
+                        symbol_names, symbol_values)
+                end if
+                first = .false.
+            end do
+            if (first) call b%append("1")
+        end if
+        if (wrap) call b%append("\right)")
+    end subroutine emit_latex_product
+
+    recursive subroutine emit_latex_power(b, a, id, context, symbol_names, &
+            symbol_values)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id, context
+        type(str_t), intent(in) :: symbol_names(:), symbol_values(:)
+        integer :: exponent_id
+        logical :: wrap
+
+        exponent_id = a%arg_of(id, 2)
+        if (a%kind_of(exponent_id) == NK_RAT .and. a%num_of(exponent_id) == 1 &
+            .and. a%den_of(exponent_id) == 2) then
+            call b%append("\sqrt{")
+            call emit_latex(b, a, a%arg_of(id, 1), PREC_ADD, symbol_names, &
+                symbol_values)
+            call b%append("}")
+            return
+        end if
+        if (a%kind_of(exponent_id) == NK_INT .and. a%num_of(exponent_id) < 0) then
+            call b%append("\frac{1}{")
+            call emit_latex(b, a, a%arg_of(id, 1), PREC_ADD, symbol_names, &
+                symbol_values)
+            if (a%num_of(exponent_id) < -1) then
+                call b%append("^{"//int_text(int(-a%num_of(exponent_id)))//"}")
+            end if
+            call b%append("}")
+            return
+        end if
+
+        wrap = context > PREC_POW
+        if (wrap) call b%append("\left(")
+        call emit_latex(b, a, a%arg_of(id, 1), PREC_POW + 1, symbol_names, &
+            symbol_values)
+        call b%append("^{")
+        call emit_latex(b, a, exponent_id, PREC_ADD, symbol_names, symbol_values)
+        call b%append("}")
+        if (wrap) call b%append("\right)")
+    end subroutine emit_latex_power
+
+    recursive subroutine emit_latex_function(b, a, id, symbol_names, symbol_values)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        type(str_t), intent(in) :: symbol_names(:), symbol_values(:)
+        character(:), allocatable :: name
+        integer :: k
+
+        name = chars(a%name_of(id))
+        if (name == "sqrt" .and. a%nargs_of(id) == 1) then
+            call b%append("\sqrt{")
+            call emit_latex(b, a, a%arg_of(id, 1), PREC_ADD, symbol_names, &
+                symbol_values)
+            call b%append("}")
+            return
+        end if
+        if (name == "exp" .and. a%nargs_of(id) == 1) then
+            call b%append("\mathrm{e}^{")
+            call emit_latex(b, a, a%arg_of(id, 1), PREC_ADD, symbol_names, &
+                symbol_values)
+            call b%append("}")
+            return
+        end if
+        if (name == "abs" .and. a%nargs_of(id) == 1) then
+            call b%append("\left|")
+            call emit_latex(b, a, a%arg_of(id, 1), PREC_ADD, symbol_names, &
+                symbol_values)
+            call b%append("\right|")
+            return
+        end if
+        if (name == "log" .and. a%nargs_of(id) == 1) then
+            call b%append("\ln{\left(")
+            call emit_latex(b, a, a%arg_of(id, 1), PREC_ADD, symbol_names, &
+                symbol_values)
+            call b%append("\right)}")
+            return
+        end if
+        if (name == "besselj" .and. a%nargs_of(id) == 2) then
+            call b%append("J_{")
+            call emit_latex(b, a, a%arg_of(id, 1), PREC_ADD, symbol_names, &
+                symbol_values)
+            call b%append("}{\left(")
+            call emit_latex(b, a, a%arg_of(id, 2), PREC_ADD, symbol_names, &
+                symbol_values)
+            call b%append("\right)}")
+            return
+        end if
+        call b%append("\")
+        call b%append(latex_function_name(name))
+        call b%append("{\left(")
+        do k = 1, a%nargs_of(id)
+            if (k > 1) call b%append(", ")
+            call emit_latex(b, a, a%arg_of(id, k), PREC_ADD, symbol_names, &
+                symbol_values)
+        end do
+        call b%append("\right)}")
+    end subroutine emit_latex_function
+
+    function latex_function_name(name) result(rendered)
+        character(*), intent(in) :: name
+        character(:), allocatable :: rendered
+
+        select case (name)
+        case ("sin"); rendered = "sin"
+        case ("cos"); rendered = "cos"
+        case ("tan"); rendered = "tan"
+        case ("asin"); rendered = "arcsin"
+        case ("acos"); rendered = "arccos"
+        case ("atan"); rendered = "arctan"
+        case ("sinh"); rendered = "sinh"
+        case ("cosh"); rendered = "cosh"
+        case ("tanh"); rendered = "tanh"
+        case ("erf"); rendered = "operatorname{erf}"
+        case ("erfc"); rendered = "operatorname{erfc}"
+        case ("gamma"); rendered = "Gamma"
+        case default; rendered = "operatorname{"//latex_escape(name)//"}"
+        end select
+    end function latex_function_name
+
+    subroutine emit_latex_symbol(b, name, context, symbol_names, symbol_values)
+        type(strbuf_t), intent(inout) :: b
+        character(*), intent(in) :: name
+        integer, intent(in) :: context
+        type(str_t), intent(in) :: symbol_names(:), symbol_values(:)
+        character(:), allocatable :: rendered
+        integer :: k
+
+        do k = 1, size(symbol_names)
+            if (chars(symbol_names(k)) /= name) cycle
+            rendered = chars(symbol_values(k))
+            if (context > PREC_POW .and. (index(rendered, "^") > 0 .or. &
+                index(rendered, "_") > 0)) then
+                call b%append("\left("//rendered//"\right)")
+            else
+                call b%append(rendered)
+            end if
+            return
+        end do
+        rendered = latex_default_symbol(name)
+        if (context > PREC_POW .and. (index(rendered, "^") > 0 .or. &
+            index(rendered, "_") > 0)) then
+            call b%append("\left("//rendered//"\right)")
+        else
+            call b%append(rendered)
+        end if
+    end subroutine emit_latex_symbol
+
+    function latex_default_symbol(original) result(rendered)
+        character(*), intent(in) :: original
+        character(:), allocatable :: rendered
+        character(:), allocatable :: name, base, subscript, superscript, modifier
+        integer :: position, close_position
+
+        name = original
+        if (len(name) >= 7 .and. name(1:7) == "Global`") name = name(8:)
+        rendered = latex_named_character(name)
+        if (len(rendered) > 0) return
+
+        close_position = len(name)
+        position = index(name, "(")
+        if (position > 1 .and. close_position > position .and. &
+            name(close_position:close_position) == ")") then
+            rendered = latex_base(name(:position - 1), "")//"_{"// &
+                latex_escape(name(position + 1:close_position - 1))//"}"
+            return
+        end if
+
+        superscript = ""
+        position = index(name, "__")
+        if (position > 1) then
+            superscript = name(position + 2:)
+            name = name(:position - 1)
+        else
+            position = index(name, "^")
+            if (position > 1) then
+                superscript = name(position + 1:)
+                name = name(:position - 1)
+            end if
+        end if
+
+        modifier = ""
+        do while (latex_modifier_suffix(name, modifier, base))
+            name = base
+        end do
+
+        subscript = ""
+        position = index(name, "_")
+        if (position > 1) then
+            subscript = name(position + 1:)
+            name = name(:position - 1)
+        else
+            position = latex_trailing_digit_start(name)
+            if (position > 1) then
+                subscript = name(position:)
+                name = name(:position - 1)
+            end if
+        end if
+
+        rendered = latex_base(name, subscript)
+        if (len(superscript) > 0) rendered = rendered//"^{"// &
+            latex_escape(superscript)//"}"
+        if (len(modifier) > 0) rendered = latex_modifier(modifier, rendered)
+    end function latex_default_symbol
+
+    function latex_base(name, subscript) result(rendered)
+        character(*), intent(in) :: name, subscript
+        character(:), allocatable :: rendered, greek
+
+        greek = latex_greek(name)
+        if (len(greek) > 0) then
+            rendered = greek
+        else if (len(name) == 1 .and. is_latex_letter(name(1:1))) then
+            rendered = name
+        else
+            rendered = "\mathrm{"//latex_escape(name)//"}"
+        end if
+        if (len(subscript) > 0) rendered = rendered//"_{"// &
+            latex_escape(subscript)//"}"
+    end function latex_base
+
+    function latex_modifier_suffix(name, modifier, remainder) result(found)
+        character(*), intent(in) :: name
+        character(:), allocatable, intent(inout) :: modifier
+        character(:), allocatable, intent(out) :: remainder
+        logical :: found
+        character(8), parameter :: modifiers(10) = [character(8) :: &
+            "bar", "hat", "vec", "dot", "ddot", "tilde", "prime", &
+            "norm", "abs", "bold"]
+        integer :: k, position
+
+        found = .false.
+        remainder = name
+        do k = 1, size(modifiers)
+            position = len(name) - len_trim(modifiers(k))
+            if (position < 1) cycle
+            if (name(position:position) /= "_") cycle
+            if (name(position + 1:) /= trim(modifiers(k))) cycle
+            found = .true.
+            modifier = trim(modifiers(k))
+            remainder = name(:position - 1)
+            return
+        end do
+    end function latex_modifier_suffix
+
+    function latex_modifier(name, body) result(rendered)
+        character(*), intent(in) :: name, body
+        character(:), allocatable :: rendered, command
+
+        select case (name)
+        case ("bar"); command = "bar"
+        case ("hat"); command = "hat"
+        case ("vec"); command = "vec"
+        case ("dot"); command = "dot"
+        case ("ddot"); command = "ddot"
+        case ("tilde"); command = "tilde"
+        case ("prime"); command = "prime"
+        case ("norm"); command = "lVert"; rendered = "\lVert "//body//" \rVert"; return
+        case ("abs"); command = "left|"; rendered = "\left|"//body//"\right|"; return
+        case ("bold"); command = "mathbf"
+        case default; rendered = body; return
+        end select
+        rendered = "\"//command//"{"//body//"}"
+    end function latex_modifier
+
+    function latex_named_character(name) result(rendered)
+        character(*), intent(in) :: name
+        character(:), allocatable :: rendered
+        character(:), allocatable :: inner
+        integer :: n
+
+        rendered = ""
+        if (len(name) < 4) return
+        if (name(1:2) /= "\[") return
+        n = len(name)
+        if (name(n:n) /= "]") return
+        inner = name(3:n - 1)
+        rendered = latex_greek(inner)
+    end function latex_named_character
+
+    function latex_greek(name) result(rendered)
+        character(*), intent(in) :: name
+        character(:), allocatable :: rendered
+
+        select case (name)
+        case ("Alpha", "alpha"); rendered = "\alpha"
+        case ("Beta", "beta"); rendered = "\beta"
+        case ("Gamma"); rendered = "\Gamma"
+        case ("gamma"); rendered = "\gamma"
+        case ("Delta"); rendered = "\Delta"
+        case ("delta"); rendered = "\delta"
+        case ("Epsilon", "epsilon"); rendered = "\epsilon"
+        case ("Zeta", "zeta"); rendered = "\zeta"
+        case ("Eta", "eta"); rendered = "\eta"
+        case ("Theta"); rendered = "\Theta"
+        case ("theta"); rendered = "\theta"
+        case ("Iota", "iota"); rendered = "\iota"
+        case ("Kappa", "kappa"); rendered = "\kappa"
+        case ("Lambda"); rendered = "\Lambda"
+        case ("lambda"); rendered = "\lambda"
+        case ("Mu"); rendered = "\mu"
+        case ("mu"); rendered = "\mu"
+        case ("Nu", "nu"); rendered = "\nu"
+        case ("Xi"); rendered = "\Xi"
+        case ("xi"); rendered = "\xi"
+        case ("Omicron", "omicron"); rendered = "\omicron"
+        case ("Pi"); rendered = "\Pi"
+        case ("pi"); rendered = "\pi"
+        case ("Rho", "rho"); rendered = "\rho"
+        case ("Sigma"); rendered = "\Sigma"
+        case ("sigma"); rendered = "\sigma"
+        case ("Tau", "tau"); rendered = "\tau"
+        case ("Upsilon"); rendered = "\Upsilon"
+        case ("upsilon"); rendered = "\upsilon"
+        case ("Phi"); rendered = "\Phi"
+        case ("phi"); rendered = "\phi"
+        case ("Chi", "chi"); rendered = "\chi"
+        case ("Psi"); rendered = "\Psi"
+        case ("psi"); rendered = "\psi"
+        case ("Omega"); rendered = "\Omega"
+        case ("omega"); rendered = "\omega"
+        case default; rendered = ""
+        end select
+    end function latex_greek
+
+    pure function is_latex_letter(c) result(yes)
+        character, intent(in) :: c
+        logical :: yes
+        yes = (c >= "A" .and. c <= "Z") .or. (c >= "a" .and. c <= "z")
+    end function is_latex_letter
+
+    pure function is_latex_digit(c) result(yes)
+        character, intent(in) :: c
+        logical :: yes
+        yes = c >= "0" .and. c <= "9"
+    end function is_latex_digit
+
+    function latex_trailing_digit_start(name) result(position)
+        character(*), intent(in) :: name
+        integer :: position
+
+        position = len(name) + 1
+        do while (position > 1)
+            if (.not. is_latex_digit(name(position - 1:position - 1))) exit
+            position = position - 1
+        end do
+        if (position == len(name) + 1) position = 0
+    end function latex_trailing_digit_start
+
+    function latex_escape(text) result(rendered)
+        character(*), intent(in) :: text
+        character(:), allocatable :: rendered
+        type(strbuf_t) :: b
+        integer :: k
+
+        do k = 1, len(text)
+            select case (text(k:k))
+            case ("&"); call b%append("\&")
+            case ("%"); call b%append("\%")
+            case ("$"); call b%append("\$")
+            case ("#"); call b%append("\#")
+            case ("_"); call b%append("\_")
+            case ("{"); call b%append("\{")
+            case ("}"); call b%append("\}")
+            case ("\"); call b%append("\backslash{}");
+            case default; call b%append(text(k:k))
+            end select
+        end do
+        rendered = chars(b%to_str())
+    end function latex_escape
+
+    function latex_numeric_negative(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical :: yes
+        character(:), allocatable :: text
+
+        yes = .false.
+        select case (a%kind_of(id))
+        case (NK_INT, NK_RAT)
+            yes = a%num_of(id) < 0_int64
+        case (NK_BIG_INT, NK_BIG_RAT)
+            text = chars(a%exact_text_of(id))
+            yes = len(text) > 0 .and. text(1:1) == "-"
+        case (NK_REAL)
+            yes = a%real_of(id) < 0.0_dp
+        case (NK_BIG_REAL)
+            text = chars(a%real_text_of(id))
+            yes = len(text) > 0 .and. text(1:1) == "-"
+        end select
+    end function latex_numeric_negative
+
+    function latex_product_negative(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical :: yes
+        integer :: k
+
+        yes = .false.
+        do k = 1, a%nargs_of(id)
+            if (latex_numeric_negative(a, a%arg_of(id, k))) yes = .not. yes
+        end do
+    end function latex_product_negative
+
+    function latex_minus_one(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical :: yes
+
+        yes = a%kind_of(id) == NK_INT .and. a%num_of(id) == -1_int64
+    end function latex_minus_one
+
+    function latex_negative_term(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        integer :: k
+        logical :: yes
+
+        yes = latex_numeric_negative(a, id)
+        if (a%kind_of(id) /= NK_MUL) return
+        yes = .false.
+        do k = 1, a%nargs_of(id)
+            if (latex_numeric_negative(a, a%arg_of(id, k))) yes = .not. yes
+        end do
+    end function latex_negative_term
+
+    function latex_reciprocal(a, id, base, exponent) result(yes)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: base, exponent
+        logical :: yes
+        integer :: exponent_id
+
+        yes = .false.
+        base = 0
+        exponent = 0
+        if (a%kind_of(id) /= NK_POW) return
+        exponent_id = a%arg_of(id, 2)
+        if (a%kind_of(exponent_id) /= NK_INT) return
+        if (a%num_of(exponent_id) >= 0_int64) return
+        base = a%arg_of(id, 1)
+        exponent = int(a%num_of(exponent_id))
+        yes = .true.
+    end function latex_reciprocal
 
 end module fortsym_print

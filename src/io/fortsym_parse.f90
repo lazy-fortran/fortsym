@@ -24,7 +24,7 @@ module fortsym_parse
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_exact, only: exact_sub, exact_div
     use fortsym_dialect, only: dialect_t, dialect, fn_canonical, DIA_WOLFRAM, &
-        DIA_FORTRAN, const_canonical, DIA_NATIVE
+        DIA_FORTRAN, DIA_LATEX, const_canonical, DIA_NATIVE
     implicit none
     private
 
@@ -97,6 +97,11 @@ contains
         type(expr_t)                             :: e
         type(parser_t) :: p
 
+        if (d%id == DIA_LATEX) then
+            ok = .false.
+            message = "LaTeX is write-only and has no parser"
+            return
+        end if
         if (d%id == DIA_FORTRAN) then
             p%src = normalize_fortran_arrays(text)
         else

@@ -26,6 +26,7 @@ target_sources(fortsym PRIVATE
     io/fortsym_dialect.f90
     io/fortsym_parse.f90
     io/fortsym_print.f90
+    io/fortsym_latex.f90
 
     # engines
     engine/fortsym_engine.f90

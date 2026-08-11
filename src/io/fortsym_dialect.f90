@@ -26,7 +26,7 @@ module fortsym_dialect
 
     public :: dialect_t, dialect
     public :: DIA_NATIVE, DIA_SYMENGINE, DIA_YACAS, DIA_SYMPY, DIA_MAXIMA, &
-        DIA_FORTRAN, DIA_WOLFRAM
+        DIA_FORTRAN, DIA_WOLFRAM, DIA_LATEX
     public :: fn_spelling, fn_canonical
     public :: const_spelling, const_canonical
 
@@ -40,6 +40,7 @@ module fortsym_dialect
     !> reads the derivation scripts its consumers already own. Verified against
     !> Mathics, never against a Wolfram product. See LEGAL.md section 5.1.
     integer, parameter :: DIA_WOLFRAM = 7
+    integer, parameter :: DIA_LATEX = 8 !< write-only LaTeX output
 
     type :: dialect_t
         integer     :: id = DIA_NATIVE
@@ -120,6 +121,9 @@ contains
             d%rational_as_ratio = .false.
             ! Fortran has no pi; it has to be spelled out to full precision.
             d%numeric_constants = .true.
+        case (DIA_LATEX)
+            d%name = str("latex")
+            d%power = str("^")
         case default
             d%name = str("fortsym")
         end select

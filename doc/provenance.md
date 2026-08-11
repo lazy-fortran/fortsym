@@ -32,7 +32,7 @@ with no reuse remains an oracle or reference, not an implementation source.
 | Repository | Licence | Revision or standing | Learned / reused |
 |---|---|---|---|
 | [symengine/symengine](https://github.com/symengine/symengine) | MIT | 0.14.0, `fac9314c78f2809570494017efc6603befeb4eda` | C API and expression capabilities learned; `cwrapper.cpp`’s `CRCPBasic` layout restated in `src/capi/fsym_shim.cpp`, as recorded above. |
-| [sympy/sympy](https://github.com/sympy/sympy) | BSD-3-Clause | 1.14.0, `fe935ceb303891d1f8bea4c03b19fd9ec9464b02` | Public compatibility behaviour, domains, and algorithm documentation learned; no source reused. |
+| [sympy/sympy](https://github.com/sympy/sympy) | BSD-3-Clause | 1.14.0, `fe935ceb303891d1f8bea4c03b19fd9ec9464b02` | Public compatibility behaviour, domains, algorithm documentation, and LaTeX printer conventions learned; no source reused. |
 | [grzegorzmazur/yacas](https://github.com/grzegorzmazur/yacas) | LGPL-2.1-or-later | 1.9.1, `afade5b432c9d602daefe58abfd88bd985d73e51` | Linked backend and black-box behaviour learned; no source adapted. |
 | [flintlib/flint](https://github.com/flintlib/flint) | LGPL-3.0-or-later | 3.6.0, `8d5454b96761fafe4d5a9da76a369a602f500f49` | C API and arithmetic capabilities learned; fortsym has thin original wrappers only. |
 | [gmp/gmp](https://gmplib.org) | LGPL-3.0-or-later / GPL-2.0-or-later | 6.3.0 dependency | Linked integer dependency; no source reused. |
