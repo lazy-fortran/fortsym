@@ -59,6 +59,7 @@ program test_fortsym_complexdom
     call test_modulus_and_argument()
     call test_expand_matches()
     call test_literals_and_unit()
+    call test_hyperbolic_functions()
     call test_unknown_reality_refused()
     call test_branch_cases_refused()
     call test_unknown_heads_refused()
@@ -311,6 +312,37 @@ contains
         call arg_of(num(arena, 0), facts, e, good, why)
         call ok("Arg at zero is refused", .not. good)
     end subroutine test_literals_and_unit
+
+    subroutine test_hyperbolic_functions()
+        call check_hyperbolic("sinh")
+        call check_hyperbolic("cosh")
+    end subroutine test_hyperbolic_functions
+
+    subroutine check_hyperbolic(name)
+        character(*), intent(in) :: name
+        type(expr_t) :: e, re, im
+        complex(dp) :: original, reconstructed
+        logical :: good, allgood
+        character(:), allocatable :: why
+        integer :: p
+
+        e = func_one(name, z)
+        call complex_split(e, facts, re, im, good, why)
+        call ok(trim(name)//" complex split succeeds", good)
+        if (.not. good) return
+
+        allgood = .true.
+        do p = 1, NPOINT
+            original = at(e, p)
+            reconstructed = at(re, p) + &
+                cmplx(0.0_dp, 1.0_dp, dp)*at(im, p)
+            if (abs(reconstructed - original) > TOL*(1.0_dp + abs(original))) &
+                allgood = .false.
+            if (aimag(at(re, p)) /= 0.0_dp) allgood = .false.
+            if (aimag(at(im, p)) /= 0.0_dp) allgood = .false.
+        end do
+        call ok(trim(name)//" matches the independent complex oracle", allgood)
+    end subroutine check_hyperbolic
 
     !> The point of the module: a symbol of unknown reality is refused, not
     !> assumed real.

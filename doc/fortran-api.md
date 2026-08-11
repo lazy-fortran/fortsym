@@ -94,8 +94,9 @@ Fortran source literal.
 The lower-level `fortsym_complexdom` module provides `re_part`, `im_part`, and
 `conjugate` with an explicit assumption context. Algebraic atoms are accepted
 there through FLINT's exact real and imaginary projections, and conjugation is
-exact. The same branch and reality refusals apply to other unsupported
-expressions.
+exact. Rectangular splitting also covers the entire heads `exp`, `sin`, `cos`,
+`sinh`, and `cosh` through their addition identities. The same branch and
+reality refusals apply to other unsupported expressions.
 
 `real_text_expr` retains a bounded finite decimal literal as `NK_BIG_REAL`.
 The arena validates its decimal syntax and preserves the original digits rather
