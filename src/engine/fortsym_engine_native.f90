@@ -327,10 +327,11 @@ contains
         saw_exponential = saw_exponential .or. saw_exponential_again
         decidable = decidable .and. decidable_again
         formal_exponential = formal_exponential .and. formal_exponential_again
-        if (saw_exponential) then
-            r = self%simplify(normalised)
-            if (.not. r%ok) return
-        end if
+        ! Polynomial folding can expose an ordinary exact zero even when the
+        ! input contained no exponential. Re-run the native simplifier for
+        ! every normalized result before selecting the verdict.
+        r = self%simplify(normalised)
+        if (.not. r%ok) return
 
         select case (r%value%kind())
         case (NK_INT, NK_RAT)
