@@ -161,13 +161,16 @@
       ]
     },
     {
-      "action": "Keep the adapter spelling and decide whether the native names should remain descriptive or shorten as a consistent family.",
+      "action": "Keep one native constructor family and the SymPy spelling at the adapter boundary; retain suffixes where they distinguish expression sentinels from other native names.",
       "description": "Create standard named constants.",
-      "finding": "Native names describe expression constructors. Python compatibility names follow SymPy's capitalization and infinity spelling.",
+      "finding": "Native names describe expression constructors, including the explicit sentinel suffixes. Python compatibility names follow SymPy's capitalization and infinity spelling.",
       "fortran_facade": [
         "pi_expr",
         "e_expr",
-        "i_expr"
+        "i_expr",
+        "oo_expr",
+        "zoo_expr",
+        "nan_expr"
       ],
       "id": "constants",
       "python_facade": [],
@@ -175,13 +178,17 @@
         "pi",
         "E",
         "I",
-        "oo"
+        "oo",
+        "zoo",
+        "nan"
       ],
       "sympy_reference": [
         "pi",
         "E",
         "I",
-        "oo"
+        "oo",
+        "zoo",
+        "nan"
       ]
     },
     {
@@ -981,6 +988,12 @@
       },
       {
         "concepts": [
+          "constants"
+        ],
+        "name": "nan_expr"
+      },
+      {
+        "concepts": [
           "assumption-queries"
         ],
         "name": "negative"
@@ -1056,6 +1069,12 @@
           "numeric-inspection"
         ],
         "name": "numeric_value"
+      },
+      {
+        "concepts": [
+          "constants"
+        ],
+        "name": "oo_expr"
       },
       {
         "concepts": [
@@ -1260,6 +1279,12 @@
           "three-valued-query"
         ],
         "name": "zero_test"
+      },
+      {
+        "concepts": [
+          "constants"
+        ],
+        "name": "zoo_expr"
       }
     ],
     "python_facade": [
@@ -1308,28 +1333,36 @@
       "ask",
       "assuming",
       "cancel",
+      "ceiling",
       "collect",
       "cos",
+      "cosh",
       "diff",
       "exp",
       "expand",
       "factor",
+      "floor",
       "integrate",
       "limit",
       "log",
+      "nan",
       "oo",
       "pi",
       "refine",
       "series",
+      "sign",
       "simplify",
       "sin",
+      "sinh",
       "solve",
       "sqrt",
       "subs",
       "symbols",
       "sympify",
       "tan",
-      "together"
+      "tanh",
+      "together",
+      "zoo"
     ]
   },
   "package": "fortsym",
@@ -1347,11 +1380,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 146,
+    "assigned_names": 151,
     "concept_groups": 26,
-    "fortran_facade_exports": 121,
+    "fortran_facade_exports": 124,
     "python_facade_exports": 12,
-    "sympy_adapter_exports": 53,
+    "sympy_adapter_exports": 61,
     "unmapped_fortran_exports": 0
   },
   "sympy_version": "1.14.0",

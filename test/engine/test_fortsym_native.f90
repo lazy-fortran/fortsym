@@ -53,6 +53,7 @@ program test_fortsym_native
     call test_nan_domain_rules()
     call test_directed_domain_rules()
     call test_directed_domain_functions()
+    call test_directed_domain_heads()
     call test_noninteger_domain_powers()
     call test_verdicts()
     call test_overflow_preservation()
@@ -1004,6 +1005,54 @@ contains
         call check("exp of symbolic infinity remains unevaluated", &
             r%value == exp(infinity*x))
     end subroutine test_directed_domain_functions
+
+    subroutine test_directed_domain_heads()
+        type(engine_result_t) :: r
+        type(expr_t) :: infinity, complex_infinity, negative_infinity
+
+        infinity = oo_expr(arena)
+        complex_infinity = zoo_expr(arena)
+        negative_infinity = -infinity
+
+        r = engine%simplify(unary_function("sign", infinity))
+        call check("sign(oo) is one", r%value == num(arena, 1_int64))
+        r = engine%simplify(unary_function("sign", negative_infinity))
+        call check("sign(-oo) is negative one", &
+            r%value == num(arena, -1_int64))
+        r = engine%simplify(unary_function("sign", complex_infinity))
+        call check("sign(zoo) remains unevaluated", r%value%kind() == NK_FUNC)
+        r = engine%simplify(unary_function("floor", infinity))
+        call check("floor(oo) is oo", r%value == infinity)
+        r = engine%simplify(unary_function("floor", negative_infinity))
+        call check("floor(-oo) is negative oo", &
+            r%value == negative_infinity)
+        r = engine%simplify(unary_function("floor", complex_infinity))
+        call check("floor(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(unary_function("ceiling", infinity))
+        call check("ceiling(oo) is oo", r%value == infinity)
+        r = engine%simplify(unary_function("ceiling", negative_infinity))
+        call check("ceiling(-oo) is negative oo", &
+            r%value == negative_infinity)
+        r = engine%simplify(unary_function("ceiling", complex_infinity))
+        call check("ceiling(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(sinh(infinity))
+        call check("sinh(oo) is oo", r%value == infinity)
+        r = engine%simplify(sinh(negative_infinity))
+        call check("sinh(-oo) is negative oo", r%value == negative_infinity)
+        r = engine%simplify(sinh(complex_infinity))
+        call check("sinh(zoo) is nan", r%value == nan_expr(arena))
+        r = engine%simplify(cosh(negative_infinity))
+        call check("cosh(-oo) is oo", r%value == infinity)
+        r = engine%simplify(cosh(complex_infinity))
+        call check("cosh(zoo) is nan", r%value == nan_expr(arena))
+        r = engine%simplify(tanh(infinity))
+        call check("tanh(oo) is one", r%value == num(arena, 1_int64))
+        r = engine%simplify(tanh(negative_infinity))
+        call check("tanh(-oo) is negative one", &
+            r%value == num(arena, -1_int64))
+        r = engine%simplify(tanh(complex_infinity))
+        call check("tanh(zoo) is nan", r%value == nan_expr(arena))
+    end subroutine test_directed_domain_heads
 
     subroutine test_noninteger_domain_powers()
         type(engine_result_t) :: r

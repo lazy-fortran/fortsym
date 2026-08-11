@@ -97,6 +97,8 @@ sentinels; unknown factors remain unevaluated, and `sqrt(-oo)` is represented
 as the structural complex product `i*oo`. Compact rational powers of `oo` and
 `zoo` are also handled; only the principal odd-half-integer phase of `-oo` is
 rewritten, while other branch-sensitive rational powers remain explicit.
+Direct domain rules also cover `sign`, `floor`, `ceiling`, `sinh`, `cosh`, and
+`tanh`; `sign(zoo)` stays unevaluated because its value is not determined.
 
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a

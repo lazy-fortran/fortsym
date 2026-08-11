@@ -309,6 +309,30 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertIsInstance(refused, native.Pow)
         self.assertNotEqual(str(refused), "oo")
 
+    def test_direct_domain_heads_match_oracle(self):
+        cases = [
+            (oracle.sign(oracle.oo), native.sign(native.oo)),
+            (oracle.sign(-oracle.oo), native.sign(-native.oo)),
+            (oracle.sign(oracle.zoo), native.sign(native.zoo)),
+            (oracle.floor(oracle.oo), native.floor(native.oo)),
+            (oracle.floor(-oracle.oo), native.floor(-native.oo)),
+            (oracle.floor(oracle.zoo), native.floor(native.zoo)),
+            (oracle.ceiling(oracle.oo), native.ceiling(native.oo)),
+            (oracle.ceiling(-oracle.oo), native.ceiling(-native.oo)),
+            (oracle.ceiling(oracle.zoo), native.ceiling(native.zoo)),
+            (oracle.sinh(oracle.oo), native.sinh(native.oo)),
+            (oracle.sinh(-oracle.oo), native.sinh(-native.oo)),
+            (oracle.sinh(oracle.zoo), native.sinh(native.zoo)),
+            (oracle.cosh(-oracle.oo), native.cosh(-native.oo)),
+            (oracle.cosh(oracle.zoo), native.cosh(native.zoo)),
+            (oracle.tanh(oracle.oo), native.tanh(native.oo)),
+            (oracle.tanh(-oracle.oo), native.tanh(-native.oo)),
+            (oracle.tanh(oracle.zoo), native.tanh(native.zoo)),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                self.assertEqual(str(native.simplify(actual)), str(expected))
+
     def test_expand_cache_matches_oracle_and_invalidates_on_assumptions(self):
         oracle_x = oracle.Symbol("differential_expand_cache_x")
         native_x = native.Symbol("differential_expand_cache_x")
