@@ -892,6 +892,11 @@ contains
             idx = self%int(1_int64)
             return
         end if
+        if (self%nodes(expo)%kind == NK_INT .and. &
+            self%nodes(expo)%num == 1_int64) then
+            idx = base
+            return
+        end if
         if (self%nodes(base)%kind == NK_INT .and. &
             self%nodes(base)%num == 1_int64) then
             if (self%nodes(expo)%kind == NK_CONST) then

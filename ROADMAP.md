@@ -463,6 +463,9 @@ Every checklist item requires all of the following:
     for SymPy's `oo`/`zoo`/`nan` exponent exceptions, which become `nan`, and
     principal `sqrt(x)**2` becomes `x`; branch-sensitive and undecidable power
     cases remain unevaluated.
+  - [x] Canonicalize the universal exact exponent-one identity at construction:
+    `x**1` returns `x`, including domain sentinels, without broadening the
+    branch-sensitive power rules.
 - [ ] Match SymPy branch conventions while preserving fortsym's refusal of
   unsafe identities.
 - [ ] Implement the general simplification families: `powsimp`, `powdenest`,
@@ -624,8 +627,12 @@ Every checklist item requires all of the following:
     record its cold ABI-crossing cost separately: the 55th row is an explicit
     diagnostic, while the original 54 workload rows remain enforced. The
     constructor result matches SymPy 1.14.0; the one-node cold boundary was
-    1.53x SymPy in the recorded run and is therefore explicitly waived rather
+    1.45x SymPy in the recorded run and is therefore explicitly waived rather
     than presented as native-core parity.
+  - [x] Extend that construction diagnostic to the exponent-one constructor;
+    the additional row is correctness-checked against SymPy 1.14.0 and kept
+    explicitly waived for the same Python-ABI cost boundary; it measured 1.49x
+    SymPy in the recorded run.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

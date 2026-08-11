@@ -176,6 +176,8 @@ contains
             r%value == sqrt_argument)
         call check("zero exponent is one at construction", &
             x**0 == num(arena, 1_int64))
+        call check("one exponent returns the base at construction", &
+            x**1 == x)
         call check("one to a symbolic exponent is one", &
             num(arena, 1_int64)**x == num(arena, 1_int64))
         call check("square of principal square root is canonical", &

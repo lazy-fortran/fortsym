@@ -140,6 +140,12 @@ int main(void)
     expect_text(power_identity, "1");
     fortsym_expr_free(power_identity);
     power_identity = NULL;
+    status = fortsym_power(arena, x, one, &power_identity, message,
+                           sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(power_identity, "x");
+    fortsym_expr_free(power_identity);
+    power_identity = NULL;
     status = fortsym_power(arena, one, x, &power_identity, message,
                            sizeof message);
     assert(status == FORTSYM_OK);
