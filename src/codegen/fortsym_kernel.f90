@@ -18,8 +18,8 @@ module fortsym_kernel
         NK_FUNC, NK_SYM
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
-    use fortsym_print, only: print_expr_sub, fortran_roots_representable, &
-        fortran_roots_representable_kind
+    use fortsym_print, only: kernel_binding_t, print_expr_sub, &
+        fortran_roots_representable, fortran_roots_representable_kind
     use fortsym_names, only: valid_fortran_name, same_fortran_name, &
         map_fortran_names
     use fortsym_kernel_target, only: TARGET_DEFAULT_VALUE => TARGET_DEFAULT, &
@@ -34,7 +34,7 @@ module fortsym_kernel
     implicit none
     private
 
-    public :: kernel_spec_t, cse_result_t, operation_count_t
+    public :: kernel_spec_t, kernel_binding_t, cse_result_t, operation_count_t
     public :: operation_cost_record_t
     public :: cse_analyse, count_operations, operation_cost
     public :: emit_cost_record, emit_kernel, emit_statements
@@ -92,6 +92,9 @@ module fortsym_kernel
         !> Optional assignment targets, one per expression, such as
         !> "jacobian(1,1)" and "jacobian(1,2)".
         type(str_t), allocatable :: output_references(:)
+        !> Consumer-owned replacements for opaque applied functions and their
+        !> canonical symbolic partial derivatives. Unbound heads are refused.
+        type(kernel_binding_t), allocatable :: bindings(:)
         !> Prefix for generated temporaries.
         type(str_t)              :: temp_prefix
         !> Fortran type used for inputs, outputs, and temporaries. Empty
@@ -618,7 +621,7 @@ contains
         if (present(prechecked)) then
             valid = prechecked
         else
-            valid = fortran_roots_representable(roots, spec%args)
+            valid = fortran_roots_representable(roots, spec%args, spec%bindings)
         end if
         if (present(ok)) ok = valid
         if (.not. valid) then
@@ -635,7 +638,8 @@ contains
             call append_assignment(b, chars(res%names(k)), &
                 chars(print_expr_sub(tmp, d, &
                 res%ids(1:k - 1), &
-                res%names(1:k - 1), prechecked=.true.)))
+                res%names(1:k - 1), prechecked=.true., &
+                bindings=spec%bindings)))
         end do
 
         do k = 1, size(roots)
@@ -643,12 +647,12 @@ contains
                 call append_assignment(b, chars(spec%output_references(k)), &
                     chars(print_expr_sub(roots(k), d, &
                     res%ids(1:res%n), res%names(1:res%n), &
-                    prechecked=.true.)))
+                    prechecked=.true., bindings=spec%bindings)))
             else
                 call append_assignment(b, chars(spec%outputs(k)), &
                     chars(print_expr_sub(roots(k), d, &
                     res%ids(1:res%n), res%names(1:res%n), &
-                    prechecked=.true.)))
+                    prechecked=.true., bindings=spec%bindings)))
             end if
         end do
 
@@ -759,7 +763,7 @@ contains
         if (valid .and. (spec%precision == PRECISION_REAL32 .or. &
             spec%precision == PRECISION_MIXED)) then
             valid = fortran_roots_representable_kind(mapped_roots, real32, &
-                mapped_spec%args)
+                mapped_spec%args, mapped_spec%bindings)
         end if
         if (present(ok)) ok = valid
         if (present(cost_record)) cost_record = str("")
@@ -949,7 +953,8 @@ contains
                 if (.not. ok) return
             end do
         end if
-        if (.not. fortran_roots_representable(mapped_roots, mapped_spec%args)) then
+        if (.not. fortran_roots_representable(mapped_roots, mapped_spec%args, &
+            mapped_spec%bindings)) then
             ok = .false.
             message = "kernel emitter: expression contains a value not representable in Fortran"
             return
@@ -967,7 +972,7 @@ contains
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: message
 
-        integer :: k, j, node_name
+        integer :: k, j, node_name, first_arg
         character(:), allocatable :: raw_name, emitted_name
         logical :: found
 
@@ -978,7 +983,9 @@ contains
             return
         end if
         visited(id) = .true.
-        do k = 1, mapped_arena%nargs_of(id)
+        first_arg = 1
+        if (is_derivative_function(mapped_arena, id)) first_arg = 2
+        do k = first_arg, mapped_arena%nargs_of(id)
             call map_fortran_kernel_node(mapped_arena, original_arena, &
                 mapped_arena%arg_of(id, k), args, mapped_args, visited, ok, message)
             if (.not. ok) return
@@ -1022,6 +1029,21 @@ contains
         end if
         ok = .true.
     end subroutine map_fortran_kernel_node
+
+    logical function is_derivative_function(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        character(:), allocatable :: name
+        integer :: order, ios
+
+        yes = .false.
+        if (a%kind_of(id) /= NK_FUNC) return
+        name = chars(a%name_of(id))
+        if (len(name) <= 10) return
+        if (name(:10) /= "Derivative") return
+        read (name(11:), *, iostat=ios) order
+        yes = ios == 0 .and. order > 0
+    end function is_derivative_function
 
     function symbol_matches_argument_exact(symbol_name, argument_name) result(matches)
         character(*), intent(in) :: symbol_name, argument_name

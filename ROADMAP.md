@@ -229,6 +229,14 @@ them before printing. A compiler/run fixture checks exact special-function
 values independently; the current FortNum release has no elliptic entry point,
 so elliptic heads remain explicit refusals until that runtime contract exists.
 
+Issue #41 is complete as of 2026-08-11. `kernel_spec_t%bindings` now maps an
+opaque applied head and its canonical derivative multi-index to a consumer
+Fortran expression. Replacements support procedure calls through the `%args%`
+marker as well as array elements and derived-type components; unbound heads
+remain hard refusals. The kernel test compiles the generated snippet and checks
+the procedure value, first derivative, and symmetric mixed Hessian slot against
+an independent evaluator and finite differences.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.
@@ -826,8 +834,9 @@ fragment.
 
 Binding opaque applied functions and their `Derivative` nodes to
 consumer-supplied procedures, and mapping special-function heads to a Fortran
-runtime. #41 is what unblocks SIMPLE's canonical-field Hessians; #42 is what
-lets KiLCA's orphaned generated kernels be regenerated. A standalone full-
+runtime. Both issue slices are now complete: #41 unblocks SIMPLE's
+canonical-field Hessians, and #42 lets KiLCA's orphaned generated kernels be
+regenerated. A standalone full-
 corpus `.wl`-to-`.f90` translator does not exist yet: the native runner
 interprets `.wl` at runtime, and current codegen consumes an existing `expr_t`
 graph. This remains a separate completion gate for the Fortran parity target.
