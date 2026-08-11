@@ -46,6 +46,20 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(sp.simplify(sp.sqrt(z**2)), z)
         self.assertEqual(sp.simplify(sp.Abs(z)), z)
 
+    def test_three_valued_zero_predicates(self):
+        x = sp.Symbol("predicate_x")
+        cases = [
+            (True, False, sp.Integer(0)),
+            (False, True, sp.Integer(7)),
+            (True, False, x - x),
+            (None, None, sp.sin(x)),
+            (None, None, x),
+        ]
+        for expected_zero, expected_nonzero, expression in cases:
+            with self.subTest(expression=str(expression)):
+                self.assertEqual(expression.is_zero, expected_zero)
+                self.assertEqual(expression.is_nonzero, expected_nonzero)
+
 
 if __name__ == "__main__":
     unittest.main()

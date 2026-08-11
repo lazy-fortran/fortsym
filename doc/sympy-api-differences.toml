@@ -18,6 +18,14 @@ fortsym = "Only real, positive, nonnegative, and nonzero facts are accepted. sym
 difference = "Assumption inference and symbols() input and output forms are intentionally narrower."
 
 [[semantic]]
+id = "three-valued-predicates"
+affected = ["Expr", "is_zero", "is_nonzero"]
+parity = "partial"
+sympy = "SymPy exposes assumption-aware three-valued is_zero and is_nonzero properties on expressions."
+fortsym = "The adapter uses the native zero_test verdict plus a scalar-result guard to return True, False, or None for is_zero and is_nonzero."
+difference = "Only the native zero decision fragment is covered; the broader SymPy assumption vocabulary and inference rules remain incomplete."
+
+[[semantic]]
 id = "exact-number-construction"
 affected = ["Integer", "Rational"]
 parity = "partial"

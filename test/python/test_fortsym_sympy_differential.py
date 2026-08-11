@@ -86,6 +86,21 @@ class SympyDifferentialTest(unittest.TestCase):
                 actual = native.simplify(native.sqrt(native_x**2))
                 self.assert_equivalent(assumption, expected, actual)
 
+    def test_three_valued_zero_predicates(self):
+        oracle_x = oracle.Symbol("predicate_x")
+        native_x = native.Symbol("predicate_x")
+        cases = [
+            (oracle.Integer(0), native.Integer(0)),
+            (oracle.Integer(7), native.Integer(7)),
+            (oracle_x - oracle_x, native_x - native_x),
+            (oracle.sin(oracle_x), native.sin(native_x)),
+            (oracle_x, native_x),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expression=str(expected)):
+                self.assertEqual(actual.is_zero, expected.is_zero)
+                self.assertEqual(actual.is_nonzero, expected.is_nonzero)
+
     def test_exceptions_and_unevaluated_objects(self):
         oracle_x = oracle.Symbol("x")
         native_x = native.Symbol("x")

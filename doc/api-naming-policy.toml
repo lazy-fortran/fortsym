@@ -77,8 +77,8 @@ canonical_native = ["is_valid", "same_arena", "zero_test", "VERDICT_UNKNOWN", "V
 current_native = ["is_valid", "same_arena", "zero_test", "VERDICT_UNKNOWN", "VERDICT_TRUE", "VERDICT_FALSE", "verdict_name"]
 transition_aliases = []
 python_facade = []
-sympy_adapter = []
-decision = "Keep safety predicates in the expression owner. Expose one zero_test query with the existing VERDICT_TRUE, VERDICT_FALSE, and VERDICT_UNKNOWN outcomes. Keep check_zero, check_identity, and probe_zero in the testing owner."
+sympy_adapter = ["Expr.is_zero", "Expr.is_nonzero"]
+decision = "Keep safety predicates in the expression owner. Expose one native zero_test query with the existing VERDICT_TRUE, VERDICT_FALSE, and VERDICT_UNKNOWN outcomes; the SymPy adapter maps it to Expr.is_zero and Expr.is_nonzero. Keep check_zero, check_identity, and probe_zero in the testing owner."
 
 [[family]]
 id = "results-and-status"

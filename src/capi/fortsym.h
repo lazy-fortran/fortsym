@@ -51,6 +51,12 @@ enum fortsym_assumption_fact {
     FORTSYM_FACT_NONZERO = 8
 };
 
+enum fortsym_verdict {
+    FORTSYM_ZERO_UNKNOWN = 0,
+    FORTSYM_ZERO_TRUE = 1,
+    FORTSYM_ZERO_FALSE = 2
+};
+
 int fortsym_abi_version(void);
 
 int fortsym_arena_new(fortsym_arena **out, char *message, size_t capacity);
@@ -106,6 +112,8 @@ int fortsym_simplify(fortsym_arena *arena, const fortsym_expr *expression,
                      fortsym_expr **out, char *message, size_t capacity);
 int fortsym_factor(fortsym_arena *arena, const fortsym_expr *expression,
                    fortsym_expr **out, char *message, size_t capacity);
+int fortsym_zero_test(fortsym_arena *arena, const fortsym_expr *expression,
+                      int *verdict, char *message, size_t capacity);
 
 void fortsym_expr_free(fortsym_expr *expression);
 int fortsym_expr_kind(const fortsym_expr *expression, int *kind,
