@@ -694,6 +694,18 @@ contains
         r = engine%zero_test(exp(i_expr(arena)*pi_expr(arena)/2) - i_expr(arena))
         call check("fractional periodic constants remain unknown", &
             r%verdict == VERDICT_UNKNOWN)
+        r = engine%zero_test(exp(log(x)) - x)
+        call check("exponential logarithm identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(2*log(x)) - x**2)
+        call check("integer logarithm power identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(log(x) + y) - x*exp(y))
+        call check("logarithm factor in an exponential is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(rat(arena, 1_int64, 2_int64)*log(x)) - sqrt(x))
+        call check("fractional logarithm powers remain unknown", &
+            r%verdict == VERDICT_UNKNOWN)
     end subroutine test_verdicts
 
     subroutine test_overflow_preservation()
