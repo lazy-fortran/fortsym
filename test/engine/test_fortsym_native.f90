@@ -35,6 +35,7 @@ program test_fortsym_native
     call test_exact_arithmetic()
     call test_like_terms_and_powers()
     call test_common_rational_factor()
+    call test_polynomial_cancellation()
     call test_expansion()
     call test_expansion_limits()
     call test_resource_limits()
@@ -162,6 +163,25 @@ contains
         call check("common rational factor has canonical quotient", &
             r%value == expected)
     end subroutine test_common_rational_factor
+
+    subroutine test_polynomial_cancellation()
+        type(engine_result_t) :: r
+        type(expr_t) :: y
+
+        y = sym(arena, "y")
+        r = engine%simplify((x**2 - 1)/(x - 1))
+        call check("native polynomial cancellation succeeds", r%ok)
+        call check("native polynomial cancellation preserves the quotient", &
+            r%value == x + 1)
+        call check("native polynomial cancellation reports its domain", &
+            r%conditional .and. chars(r%condition) == &
+            "cancelled denominator bases must be nonzero")
+
+        r = engine%simplify((x**2 - y**2)/(x - y))
+        call check("native multivariate cancellation succeeds", r%ok)
+        call check("native multivariate cancellation preserves the quotient", &
+            r%value == x + y)
+    end subroutine test_polynomial_cancellation
 
     subroutine test_expansion()
         type(engine_result_t) :: r
