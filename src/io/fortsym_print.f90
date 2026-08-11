@@ -32,8 +32,21 @@ module fortsym_print
     public :: print_expr, print_expr_in, print_expr_sub, print_expr_latex
     public :: fortran_representable
     public :: fortran_roots_representable, fortran_roots_representable_kind
+    public :: kernel_binding_t
 
     integer, parameter :: dp = real64
+
+    !> Replacement for an applied function in generated Fortran.  An empty
+    !> derivative_indices list binds the ordinary applied function; a nonempty
+    !> list binds the canonical DerivativeN node produced by partial_derivative.
+    !> The optional `%args%` marker in replacement is expanded to the original
+    !> call arguments, which permits both component expressions and procedure
+    !> calls to share one binding table.
+    type :: kernel_binding_t
+        type(str_t)              :: head
+        integer, allocatable     :: derivative_indices(:)
+        type(str_t)              :: replacement
+    end type kernel_binding_t
 
     ! Binding powers. A child is parenthesised when its own precedence is lower
     ! than the context it appears in.
@@ -85,13 +98,14 @@ contains
     !> name instead of being expanded again. Keeping it here rather than in a
     !> second printer means generated kernels inherit every parenthesisation and
     !> literal-formatting rule automatically.
-    function print_expr_sub(e, d, ids, names, ok, prechecked) result(s)
+    function print_expr_sub(e, d, ids, names, ok, prechecked, bindings) result(s)
         type(expr_t),    intent(in) :: e
         type(dialect_t), intent(in) :: d
         integer,         intent(in) :: ids(:)
         type(str_t),     intent(in) :: names(:)
         logical, intent(out), optional :: ok
         logical, intent(in), optional :: prechecked
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         type(str_t)                 :: s
         type(strbuf_t) :: b
         logical :: valid
@@ -108,7 +122,7 @@ contains
             s = str("")
             return
         end if
-        call emit(b, e%a, e%id, d, PREC_ADD, ids, names)
+        call emit(b, e%a, e%id, d, PREC_ADD, ids, names, bindings)
         s = b%to_str()
     end function print_expr_sub
 
@@ -147,18 +161,24 @@ contains
 
     !> Whether every arbitrary exact node reachable from e has a finite normal
     !> nearest-even binary64 projection for a real(dp) Fortran kernel.
-    function fortran_representable(e) result(ok)
+    function fortran_representable(e, bindings) result(ok)
         type(expr_t), intent(in) :: e
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         logical                  :: ok
         logical, allocatable :: visited(:)
 
         allocate (visited(e%a%size()), source=.false.)
-        ok = fortran_node_representable(e%a, e%id, visited)
+        if (present(bindings)) then
+            ok = fortran_node_representable(e%a, e%id, visited, bindings=bindings)
+        else
+            ok = fortran_node_representable(e%a, e%id, visited)
+        end if
     end function fortran_representable
 
-    function fortran_roots_representable(roots, array_names) result(ok)
+    function fortran_roots_representable(roots, array_names, bindings) result(ok)
         type(expr_t), intent(in) :: roots(:)
         type(str_t), intent(in), optional :: array_names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         logical                  :: ok
         logical, allocatable :: visited(:)
         integer :: k
@@ -167,9 +187,15 @@ contains
         if (size(roots) == 0) return
         allocate (visited(roots(1)%a%size()), source=.false.)
         do k = 1, size(roots)
-            if (present(array_names)) then
+            if (present(array_names) .and. present(bindings)) then
+                ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited, &
+                    array_names, bindings)
+            else if (present(array_names)) then
                 ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited, &
                     array_names)
+            else if (present(bindings)) then
+                ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited, &
+                    bindings=bindings)
             else
                 ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited)
             end if
@@ -180,10 +206,11 @@ contains
     !> Whether every reachable real value survives conversion to the selected
     !> generated kind. This is stricter than the historical binary64 gate and
     !> prevents a real32 kernel from compiling a literal as infinity.
-    function fortran_roots_representable_kind(roots, real_kind, array_names) result(ok)
+    function fortran_roots_representable_kind(roots, real_kind, array_names, bindings) result(ok)
         type(expr_t), intent(in) :: roots(:)
         integer, intent(in) :: real_kind
         type(str_t), intent(in), optional :: array_names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         logical :: ok
         logical, allocatable :: visited(:)
         integer :: k
@@ -192,9 +219,15 @@ contains
         if (size(roots) == 0) return
         allocate (visited(roots(1)%a%size()), source=.false.)
         do k = 1, size(roots)
-            if (present(array_names)) then
+            if (present(array_names) .and. present(bindings)) then
+                ok = fortran_node_representable_kind(roots(k)%a, roots(k)%id, &
+                    visited, real_kind, array_names, bindings)
+            else if (present(array_names)) then
                 ok = fortran_node_representable_kind(roots(k)%a, roots(k)%id, &
                     visited, real_kind, array_names)
+            else if (present(bindings)) then
+                ok = fortran_node_representable_kind(roots(k)%a, roots(k)%id, &
+                    visited, real_kind, bindings=bindings)
             else
                 ok = fortran_node_representable_kind(roots(k)%a, roots(k)%id, &
                     visited, real_kind)
@@ -203,11 +236,12 @@ contains
         end do
     end function fortran_roots_representable_kind
 
-    recursive function fortran_node_representable(a, id, visited, array_names) result(ok)
+    recursive function fortran_node_representable(a, id, visited, array_names, bindings) result(ok)
         type(arena_t), intent(in) :: a
         integer,       intent(in) :: id
         logical,       intent(inout) :: visited(:)
         type(str_t), intent(in), optional :: array_names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         logical                  :: ok
         real(dp) :: projected
         integer :: k
@@ -234,17 +268,27 @@ contains
             end if
             return
         case (NK_FUNC)
-            if (present(array_names)) then
+            if (present(array_names) .and. present(bindings)) then
+                ok = fortran_function_node_representable(a, id, array_names, bindings)
+            else if (present(array_names)) then
                 ok = fortran_function_node_representable(a, id, array_names)
+            else if (present(bindings)) then
+                ok = fortran_function_node_representable(a, id, bindings=bindings)
             else
                 ok = fortran_function_node_representable(a, id)
             end if
             if (.not. ok) return
         end select
         do k = 1, a%nargs_of(id)
-            if (present(array_names)) then
+            if (present(array_names) .and. present(bindings)) then
+                ok = fortran_node_representable(a, a%arg_of(id, k), visited, &
+                    array_names, bindings)
+            else if (present(array_names)) then
                 ok = fortran_node_representable(a, a%arg_of(id, k), visited, &
                     array_names)
+            else if (present(bindings)) then
+                ok = fortran_node_representable(a, a%arg_of(id, k), visited, &
+                    bindings=bindings)
             else
                 ok = fortran_node_representable(a, a%arg_of(id, k), visited)
             end if
@@ -253,11 +297,12 @@ contains
     end function fortran_node_representable
 
     recursive function fortran_node_representable_kind(a, id, visited, &
-            real_kind, array_names) result(ok)
+            real_kind, array_names, bindings) result(ok)
         type(arena_t), intent(in) :: a
         integer, intent(in) :: id, real_kind
         logical, intent(inout) :: visited(:)
         type(str_t), intent(in), optional :: array_names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         logical :: ok
         real(dp) :: projected
         integer :: k, ios
@@ -314,17 +359,27 @@ contains
             if (ok) ok = ieee_is_finite(projected)
             return
         case (NK_FUNC)
-            if (present(array_names)) then
+            if (present(array_names) .and. present(bindings)) then
+                ok = fortran_function_node_representable(a, id, array_names, bindings)
+            else if (present(array_names)) then
                 ok = fortran_function_node_representable(a, id, array_names)
+            else if (present(bindings)) then
+                ok = fortran_function_node_representable(a, id, bindings=bindings)
             else
                 ok = fortran_function_node_representable(a, id)
             end if
             if (.not. ok) return
         end select
         do k = 1, a%nargs_of(id)
-            if (present(array_names)) then
+            if (present(array_names) .and. present(bindings)) then
+                ok = fortran_node_representable_kind(a, a%arg_of(id, k), visited, &
+                    real_kind, array_names, bindings)
+            else if (present(array_names)) then
                 ok = fortran_node_representable_kind(a, a%arg_of(id, k), visited, &
                     real_kind, array_names)
+            else if (present(bindings)) then
+                ok = fortran_node_representable_kind(a, a%arg_of(id, k), visited, &
+                    real_kind, bindings=bindings)
             else
                 ok = fortran_node_representable_kind(a, a%arg_of(id, k), visited, &
                     real_kind)
@@ -333,14 +388,23 @@ contains
         end do
     end function fortran_node_representable_kind
 
-    logical function fortran_function_node_representable(a, id, array_names) result(ok)
+    logical function fortran_function_node_representable(a, id, array_names, bindings) result(ok)
         type(arena_t), intent(in) :: a
         integer, intent(in) :: id
         type(str_t), intent(in), optional :: array_names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         character(:), allocatable :: name
         integer :: order, k
 
         name = chars(a%name_of(id))
+        if (present(bindings)) then
+            do k = 1, size(bindings)
+                if (binding_matches(a, id, bindings(k))) then
+                    ok = .true.
+                    return
+                end if
+            end do
+        end if
         ok = fortran_function_supported(name) .and. &
             fortran_function_arity_ok(name, a%nargs_of(id))
         if (.not. ok .and. present(array_names) .and. a%nargs_of(id) == 1) then
@@ -360,6 +424,59 @@ contains
         end if
     end function fortran_function_node_representable
 
+    logical function binding_matches(a, id, binding) result(matches)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        type(kernel_binding_t), intent(in) :: binding
+        character(:), allocatable :: name, head
+        integer :: order, k, index_id
+
+        matches = .false.
+        name = chars(a%name_of(id))
+        head = chars(binding%head)
+        if (derivative_order(name, order)) then
+            if (.not. allocated(binding%derivative_indices)) return
+            if (size(binding%derivative_indices) /= order) return
+            if (a%nargs_of(id) < order + 1) return
+            if (a%kind_of(a%arg_of(id, 1)) /= NK_SYM) return
+            if (.not. same_fortran_name(chars(a%name_of(a%arg_of(id, 1))), head)) return
+            do k = 1, order
+                index_id = a%arg_of(id, k + 1)
+                if (a%kind_of(index_id) == NK_INT) then
+                    if (a%num_of(index_id) /= binding%derivative_indices(k)) return
+                else if (a%kind_of(index_id) == NK_RAT) then
+                    if (a%den_of(index_id) /= 1 .or. &
+                        a%num_of(index_id) /= binding%derivative_indices(k)) return
+                else
+                    return
+                end if
+            end do
+            matches = .true.
+        else
+            if (allocated(binding%derivative_indices)) then
+                if (size(binding%derivative_indices) /= 0) return
+            end if
+            matches = same_fortran_name(name, head)
+        end if
+    end function binding_matches
+
+    logical function derivative_order(name, order) result(is_derivative)
+        character(*), intent(in) :: name
+        integer, intent(out) :: order
+        integer :: ios
+
+        is_derivative = .false.
+        order = 0
+        if (len(name) <= 10) return
+        if (name(:10) /= "Derivative") return
+        read (name(11:), *, iostat=ios) order
+        if (ios /= 0 .or. order < 1) then
+            order = 0
+            return
+        end if
+        is_derivative = .true.
+    end function derivative_order
+
     !> Index of `id` in the substitution table, or 0.
     pure function subst_slot(id, ids) result(k)
         integer, intent(in) :: id, ids(:)
@@ -376,7 +493,7 @@ contains
 
     !> Append the rendering of node `id`, parenthesising if its precedence is
     !> below `context`.
-    recursive subroutine emit(b, a, id, d, context, ids, names)
+    recursive subroutine emit(b, a, id, d, context, ids, names, bindings)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: id
@@ -384,6 +501,7 @@ contains
         integer,         intent(in)    :: context
         integer,         intent(in)    :: ids(:)
         type(str_t),     intent(in)    :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         integer :: slot
 
         ! A node standing in for a temporary is emitted as its name, and its
@@ -410,13 +528,13 @@ contains
         case (NK_CONST)
             call emit_constant(b, a, id, d)
         case (NK_ADD)
-            call emit_sum(b, a, id, d, context, ids, names)
+            call emit_sum(b, a, id, d, context, ids, names, bindings)
         case (NK_MUL)
-            call emit_product(b, a, id, d, context, ids, names)
+            call emit_product(b, a, id, d, context, ids, names, bindings)
         case (NK_POW)
-            call emit_power(b, a, id, d, context, ids, names)
+            call emit_power(b, a, id, d, context, ids, names, bindings)
         case (NK_FUNC)
-            call emit_function(b, a, id, d, ids, names)
+            call emit_function(b, a, id, d, ids, names, bindings)
         case default
             call b%append("<?>")
         end select
@@ -714,7 +832,7 @@ contains
     !> A sum. Terms carrying a negative coefficient are printed with a minus
     !> sign and their coefficient negated, so the output reads a - b rather than
     !> a + (-1)*b.
-    recursive subroutine emit_sum(b, a, id, d, context, ids, names)
+    recursive subroutine emit_sum(b, a, id, d, context, ids, names, bindings)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: id
@@ -722,6 +840,7 @@ contains
         integer,         intent(in)    :: context
         integer,         intent(in)    :: ids(:)
         type(str_t),     intent(in)    :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         integer :: k, child
         logical :: wrap
 
@@ -731,13 +850,13 @@ contains
         do k = 1, a%nargs_of(id)
             child = a%arg_of(id, k)
             if (k == 1) then
-                call emit(b, a, child, d, PREC_ADD, ids, names)
+                call emit(b, a, child, d, PREC_ADD, ids, names, bindings)
             else if (is_negative_term(a, child)) then
                 call b%append(" - ")
-                call emit_negated(b, a, child, d, PREC_ADD, ids, names)
+                call emit_negated(b, a, child, d, PREC_ADD, ids, names, bindings)
             else
                 call b%append(" + ")
-                call emit(b, a, child, d, PREC_ADD, ids, names)
+                call emit(b, a, child, d, PREC_ADD, ids, names, bindings)
             end if
         end do
 
@@ -776,7 +895,7 @@ contains
     end function is_negative_term
 
     !> Print a term with its sign removed; the caller has already emitted "-".
-    recursive subroutine emit_negated(b, a, id, d, context, ids, names)
+    recursive subroutine emit_negated(b, a, id, d, context, ids, names, bindings)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: id
@@ -784,6 +903,7 @@ contains
         integer,         intent(in)    :: context
         integer,         intent(in)    :: ids(:)
         type(str_t),     intent(in)    :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         type(arena_t), pointer :: ap
         integer :: k, n, negated
         integer, allocatable :: factors(:)
@@ -813,10 +933,11 @@ contains
             do k = 1, n
                 factors(k) = a%arg_of(id, k)
             end do
-            call emit_product_factors(b, a, factors, d, context, ids, names, negate=.true.)
+            call emit_product_factors(b, a, factors, d, context, ids, names, &
+                negate=.true., bindings=bindings)
             deallocate (factors)
         case default
-            call emit(b, a, id, d, context, ids, names)
+            call emit(b, a, id, d, context, ids, names, bindings)
         end select
     end subroutine emit_negated
 
@@ -855,7 +976,7 @@ contains
     !> A product, split into numerator and denominator. Factors that are powers
     !> with a negative integer exponent move to the denominator with the sign of
     !> the exponent flipped, so x*y**(-1) prints as x/y.
-    recursive subroutine emit_product(b, a, id, d, context, ids, names)
+    recursive subroutine emit_product(b, a, id, d, context, ids, names, bindings)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: id
@@ -863,6 +984,7 @@ contains
         integer,         intent(in)    :: context
         integer,         intent(in)    :: ids(:)
         type(str_t),     intent(in)    :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         integer, allocatable :: factors(:)
         integer :: k, n
 
@@ -871,7 +993,8 @@ contains
         do k = 1, n
             factors(k) = a%arg_of(id, k)
         end do
-        call emit_product_factors(b, a, factors, d, context, ids, names, negate=.false.)
+        call emit_product_factors(b, a, factors, d, context, ids, names, &
+            negate=.false., bindings=bindings)
         deallocate (factors)
     end subroutine emit_product
 
@@ -891,7 +1014,7 @@ contains
     end function product_is_negative
 
     recursive subroutine emit_product_factors(b, a, factors, d, context, ids, &
-            names, negate)
+            names, negate, bindings)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: factors(:)
@@ -900,6 +1023,7 @@ contains
         integer,         intent(in)    :: ids(:)
         type(str_t),     intent(in)    :: names(:)
         logical,         intent(in)    :: negate
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         integer :: k, nnum, nden, base, expo
         logical :: wrap, first, negative, structural_sign, preserve_signs
         integer, allocatable :: numer(:), denom(:)
@@ -947,7 +1071,7 @@ contains
             do k = 1, nnum
                 if (preserve_signs) then
                     if (.not. first) call b%append("*")
-                    call emit(b, a, numer(k), d, PREC_MUL, ids, names)
+                    call emit(b, a, numer(k), d, PREC_MUL, ids, names, bindings)
                     first = .false.
                     cycle
                 end if
@@ -958,12 +1082,12 @@ contains
                         cycle
                     end if
                     if (.not. first) call b%append("*")
-                    call emit_negated(b, a, numer(k), d, PREC_MUL, ids, names)
+                    call emit_negated(b, a, numer(k), d, PREC_MUL, ids, names, bindings)
                     first = .false.
                     cycle
                 end if
                 if (.not. first) call b%append("*")
-                call emit(b, a, numer(k), d, PREC_MUL, ids, names)
+                call emit(b, a, numer(k), d, PREC_MUL, ids, names, bindings)
                 first = .false.
             end do
             if (first) then
@@ -980,10 +1104,10 @@ contains
                 if (expo == -1) then
                     ! Plain reciprocal: print the base at power precedence so a
                     ! compound base keeps its parentheses.
-                    call emit(b, a, base, d, PREC_POW, ids, names)
+                    call emit(b, a, base, d, PREC_POW, ids, names, bindings)
                 else
                     ! A higher reciprocal power: print base**|expo|.
-                    call emit(b, a, base, d, PREC_POW, ids, names)
+                    call emit(b, a, base, d, PREC_POW, ids, names, bindings)
                     call b%append(chars(d%power))
                     call b%append(chars(str(-expo)))
                 end if
@@ -1180,7 +1304,7 @@ contains
 
     !> Power. Exponentiation is right-associative, so the base is printed at a
     !> higher precedence than the exponent: a**b**c must not become (a**b)**c.
-    recursive subroutine emit_power(b, a, id, d, context, ids, names)
+    recursive subroutine emit_power(b, a, id, d, context, ids, names, bindings)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: id
@@ -1188,24 +1312,35 @@ contains
         integer,         intent(in)    :: context
         integer,         intent(in)    :: ids(:)
         type(str_t),     intent(in)    :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         logical :: wrap
 
         wrap = context > PREC_POW
         if (wrap) call b%append("(")
-        call emit(b, a, a%arg_of(id, 1), d, PREC_POW + 1, ids, names)
+        call emit(b, a, a%arg_of(id, 1), d, PREC_POW + 1, ids, names, bindings)
         call b%append(chars(d%power))
-        call emit(b, a, a%arg_of(id, 2), d, PREC_POW, ids, names)
+        call emit(b, a, a%arg_of(id, 2), d, PREC_POW, ids, names, bindings)
         if (wrap) call b%append(")")
     end subroutine emit_power
 
-    recursive subroutine emit_function(b, a, id, d, ids, names)
+    recursive subroutine emit_function(b, a, id, d, ids, names, bindings)
         type(strbuf_t),  intent(inout) :: b
         type(arena_t),   intent(in)    :: a
         integer,         intent(in)    :: id
         type(dialect_t), intent(in)    :: d
         integer,         intent(in)    :: ids(:)
         type(str_t),     intent(in)    :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         integer :: k
+
+        if (d%id == DIA_FORTRAN .and. present(bindings)) then
+            do k = 1, size(bindings)
+                if (binding_matches(a, id, bindings(k))) then
+                    call emit_binding(b, a, id, d, ids, names, bindings(k), bindings)
+                    return
+                end if
+            end do
+        end if
 
         ! List[] is an internal spelling for the empty list. Wolfram's
         ! InputForm writes that value as {}, and preserving the surface form is
@@ -1239,7 +1374,7 @@ contains
                 call b%append(chars(str(a%num_of(a%arg_of(id, k)))))
                 call b%append(chars(d%int_real_suffix))
             else
-                call emit(b, a, a%arg_of(id, k), d, PREC_ADD, ids, names)
+                call emit(b, a, a%arg_of(id, k), d, PREC_ADD, ids, names, bindings)
             end if
         end do
         if (d%bracket_application) then
@@ -1248,6 +1383,36 @@ contains
             call b%append(")")
         end if
     end subroutine emit_function
+
+    recursive subroutine emit_binding(b, a, id, d, ids, names, binding, bindings)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        type(dialect_t), intent(in) :: d
+        integer, intent(in) :: ids(:)
+        type(str_t), intent(in) :: names(:)
+        type(kernel_binding_t), intent(in) :: binding
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
+        character(:), allocatable :: template
+        integer :: marker, marker_end, first_arg, order, k
+
+        template = chars(binding%replacement)
+        marker = index(template, "%args%")
+        if (marker == 0) then
+            call b%append(template)
+            return
+        end if
+
+        if (marker > 1) call b%append(template(:marker - 1))
+        first_arg = 1
+        if (derivative_order(chars(a%name_of(id)), order)) first_arg = order + 2
+        do k = first_arg, a%nargs_of(id)
+            if (k > first_arg) call b%append(", ")
+            call emit(b, a, a%arg_of(id, k), d, PREC_ADD, ids, names, bindings)
+        end do
+        marker_end = marker + len("%args%")
+        if (marker_end <= len(template)) call b%append(template(marker_end:))
+    end subroutine emit_binding
 
     !> True when this Fortran intrinsic takes a real actual argument in this
     !> position, so an integer literal there has to be written as a real.

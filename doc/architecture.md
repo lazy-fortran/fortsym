@@ -156,7 +156,13 @@ Applied functions may have any arity. Native differentiation represents an
 unknown partial derivative as
 `DerivativeN(head, i1, ..., iN, arg1, ..., argM)`. Sorted derivative indices
 give mixed partials one structural form under the usual smooth-function
-convention.
+convention. The Fortran kernel boundary makes the consumer contract explicit:
+`kernel_spec_t%bindings` maps the applied head and derivative index tuple to a
+consumer expression. An empty tuple binds the ordinary application; a
+nonempty tuple binds a `DerivativeN` node. The replacement may be a component
+or array expression, or a procedure-call template containing `%args%`. An
+unbound applied head is refused before source emission, so generated Fortran
+never silently invents an external procedure or variable.
 
 ## Backend contract
 

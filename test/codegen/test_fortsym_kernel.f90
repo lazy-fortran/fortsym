@@ -13,6 +13,7 @@ program test_fortsym_kernel
     use fortsym_arena, only: arena_t
     use fortsym_expr
     use fortsym_parse, only: parse_expr
+    use fortsym_diff, only: partial_derivative
     use fortsym_products, only: jvp, vjp
     use fortsym_kernel
     use fortsym_engine, only: engine_result_t
@@ -67,6 +68,7 @@ program test_fortsym_kernel
     call test_long_interface_wrapping()
     call test_snippet_mode()
     call test_generated_kernel_compiles_and_agrees()
+    call test_applied_function_bindings()
 
     if (nfail == 0) then
         print *, "test_fortsym_kernel: all checks passed"
@@ -1122,10 +1124,12 @@ contains
         character(:), allocatable :: code, repeat_code, message
         logical :: accepted
         integer :: unit, ios, stat
+        character(len=1) :: one_arg(1)
 
         call a%init()
         roots(1) = sym(a, "\[Alpha]")
-        spec = spec_for("invalid_name", [character(len=1) :: "x"], R_OUT)
+        one_arg(1) = "x"
+        spec = spec_for("invalid_name", one_arg, R_OUT)
         code = chars(emit_kernel(roots, spec, accepted, message=message))
         call ok("invalid Wolfram character name is refused", .not. accepted)
         call ok("invalid Wolfram character name has a diagnostic", &
@@ -1493,5 +1497,137 @@ contains
 
         call ok("generated kernel agrees numerically", agreed)
     end subroutine test_generated_kernel_compiles_and_agrees
+
+    !> Opaque applied functions are only valid when a consumer supplies their
+    !> representation.  This fixture checks the three supported shapes: a
+    !> procedure call, an array element, and a packed symmetric Hessian entry.
+    !> The executable also compares the emitted first and mixed derivatives
+    !> with finite differences of an independent evaluator.
+    subroutine test_applied_function_bindings()
+        type(arena_t), target :: a
+        type(expr_t) :: r, theta, phi, call_args(3), aph
+        type(expr_t) :: roots(4), d1, d12, d21
+        type(kernel_spec_t) :: spec
+        type(kernel_binding_t) :: bindings(3)
+        type(str_t) :: source
+        integer :: unit, ios, stat
+        logical :: good
+
+        call a%init()
+        r = sym(a, "r")
+        theta = sym(a, "th")
+        phi = sym(a, "ph")
+        call_args(1) = r
+        call_args(2) = theta
+        call_args(3) = phi
+        aph = func("Aph", call_args)
+        d1 = partial_derivative(aph, 1)
+        d12 = partial_derivative(d1, 2)
+        d21 = partial_derivative(partial_derivative(aph, 2), 1)
+        roots(1) = aph
+        roots(2) = d1
+        roots(3) = d12
+        roots(4) = d21
+
+        bindings(1)%head = str("Aph")
+        bindings(1)%replacement = str("consumer_Aph(%args%)")
+        allocate (bindings(2)%derivative_indices(1))
+        bindings(2)%head = str("Aph")
+        bindings(2)%derivative_indices = [1]
+        bindings(2)%replacement = str("f%dAph(1)")
+        allocate (bindings(3)%derivative_indices(2))
+        bindings(3)%head = str("Aph")
+        bindings(3)%derivative_indices = [1, 2]
+        bindings(3)%replacement = str("f%d2Aph(2)")
+
+        spec%name = str("bound_applied_function")
+        spec%mode = KERNEL_SNIPPET
+        spec%cse_level = CSE_NONE
+        allocate (spec%args(3), spec%outputs(4), spec%bindings(3))
+        spec%args(1) = str("r")
+        spec%args(2) = str("th")
+        spec%args(3) = str("ph")
+        spec%outputs(1) = str("out1")
+        spec%outputs(2) = str("out2")
+        spec%outputs(3) = str("out12")
+        spec%outputs(4) = str("out21")
+        spec%bindings = bindings
+        source = emit_kernel(roots, spec, good)
+        call ok("applied function expressions are representable", good)
+        call ok("applied function bindings emit", len(chars(source)) > 0)
+        call ok("applied function binding expands call arguments", &
+            index(chars(source), "consumer_Aph(r, th, ph)") > 0)
+        call ok("first derivative binding emits array element", &
+            index(chars(source), "f%dAph(1)") > 0)
+        call ok("mixed derivative bindings use one symmetric slot", &
+            index(chars(source), "f%d2Aph(2)") > 0 .and. &
+            count_substring(chars(source), "f%d2Aph(2)") == 2)
+
+        deallocate (spec%bindings)
+        source = emit_kernel(roots, spec, good)
+        call ok("unbound applied function is refused", .not. good .and. len(chars(source)) == 0)
+        allocate (spec%bindings(3))
+        spec%bindings = bindings
+        source = emit_kernel(roots, spec, good)
+        call ok("applied bindings remain usable after refusal", good)
+
+        open (newunit=unit, file="/tmp/fortsym_applied_bindings.f90", &
+            status="replace", action="write", iostat=ios)
+        call ok("applied binding fixture opens", ios == 0)
+        if (ios /= 0) return
+        write (unit, "(a)") "program drive_applied_bindings"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  type :: field_t"
+        write (unit, "(a)") "    real(dp) :: dAph(3), d2Aph(6)"
+        write (unit, "(a)") "  end type field_t"
+        write (unit, "(a)") "  type(field_t) :: f"
+        write (unit, "(a)") "  real(dp) :: r, th, ph, h, out1, out2, out12, out21"
+        write (unit, "(a)") "  real(dp) :: fd1, fd12"
+        write (unit, "(a)") "  r = 0.7_dp; th = 0.4_dp; ph = -0.2_dp"
+        write (unit, "(a)") "  f%dAph = [2.0_dp*r + th, r + 2.0_dp*th, cos(ph)]"
+        write (unit, "(a)") "  f%d2Aph = [2.0_dp, 1.0_dp, 0.0_dp, 2.0_dp, 0.0_dp, -sin(ph)]"
+        write (unit, "(a)") chars(source)
+        write (unit, "(a)") "  h = 1.0e-4_dp"
+        write (unit, "(a)") "  fd1 = (consumer_Aph(r+h,th,ph)-consumer_Aph(r-h,th,ph))/(2.0_dp*h)"
+        write (unit, "(a)") "  fd12 = (consumer_Aph(r+h,th+h,ph)-consumer_Aph(r+h,th-h,ph) &"
+        write (unit, "(a)") "      - consumer_Aph(r-h,th+h,ph)+consumer_Aph(r-h,th-h,ph))/(4.0_dp*h*h)"
+        write (unit, "(a)") "  if (abs(out1-consumer_Aph(r,th,ph)) > 1.0e-13_dp) error stop 1"
+        write (unit, "(a)") "  if (abs(out2-fd1) > 1.0e-8_dp) error stop 1"
+        write (unit, "(a)") "  if (abs(out12-fd12) > 1.0e-7_dp) error stop 1"
+        write (unit, "(a)") "  if (abs(out12-out21) > 1.0e-13_dp) error stop 1"
+        write (unit, "(a)") "contains"
+        write (unit, "(a)") "  real(dp) function consumer_Aph(x, y, z)"
+        write (unit, "(a)") "    real(dp), intent(in) :: x, y, z"
+        write (unit, "(a)") "    consumer_Aph = x*x + x*y + y*y + sin(z)"
+        write (unit, "(a)") "  end function consumer_Aph"
+        write (unit, "(a)") "end program drive_applied_bindings"
+        close (unit)
+
+        call execute_command_line( &
+            "gfortran -o /tmp/fortsym_applied_bindings "// &
+            "/tmp/fortsym_applied_bindings.f90 > /tmp/fortsym_applied_bindings.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("bound applied-function snippet compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_applied_bindings", &
+                wait=.true., exitstat=stat)
+            call ok("bound applied-function snippet matches finite differences", stat == 0)
+        end if
+    end subroutine test_applied_function_bindings
+
+    integer function count_substring(text, needle) result(count)
+        character(*), intent(in) :: text, needle
+        integer :: start, mark
+
+        count = 0
+        start = 1
+        do while (start <= len(text))
+            mark = index(text(start:), needle)
+            if (mark == 0) return
+            count = count + 1
+            start = start + mark + len(needle) - 1
+        end do
+    end function count_substring
 
 end program test_fortsym_kernel
