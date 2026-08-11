@@ -184,6 +184,10 @@ The same six reciprocal heads now have direct chain-rule derivatives in both
 the ordinary differentiator and contracted forward mode; finite-difference
 checks cover each circular and hyperbolic rule, and the product tests include
 all six heads in their independent Jacobian/contraction consistency oracle.
+The independent native zero-test coverage also now checks exact sine and
+cosine values at sixth- and eighth-turn angles through the existing periodic
+exponential normal form, rather than leaving those roots tested only as raw
+`Exp` expressions.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.
