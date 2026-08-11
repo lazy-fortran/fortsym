@@ -1562,7 +1562,8 @@ contains
                     else
                         e = sym(a, name)
                     end if
-                else if (canon == "pi" .or. canon == "e" .or. canon == "i") then
+                else if (canon == "pi" .or. canon == "e" .or. canon == "i" .or. &
+                        canon == "oo") then
                     e = const(a, canon)
                 else
                     e = sym(a, name)

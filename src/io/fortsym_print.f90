@@ -255,6 +255,13 @@ contains
         case (NK_SYM)
             ok = valid_fortran_symbol(chars(a%name_of(id)))
             return
+        case (NK_CONST)
+            ! Only finite real constants have a scalar real64 Fortran meaning.
+            ! In particular, `i` is complex and `oo` is a domain sentinel, not
+            ! a representable real literal.
+            ok = chars(a%name_of(id)) == "pi" .or. &
+                chars(a%name_of(id)) == "e"
+            return
         case (NK_BIG_INT, NK_BIG_RAT)
             projected = exact_to_real(chars(a%exact_text_of(id)), ok)
             if (ok) ok = ieee_is_finite(projected)

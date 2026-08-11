@@ -64,6 +64,15 @@ huge = exact(default_arena(), "9223372036854775808", ok=good)
 half = exact(default_arena(), "6/-8", ok=good)
 ```
 
+`oo_expr` constructs the positive-infinity sentinel. It remains a structural
+domain value, not a finite real literal: arithmetic and numerical evaluation
+must apply their own infinity rules, and finite real Fortran kernel emission
+refuses it.
+
+```fortran
+infinity = oo_expr(default_arena())
+```
+
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a
 separate domain from ordinary `num`, `rat`, and `exact` leaves. Construct a
