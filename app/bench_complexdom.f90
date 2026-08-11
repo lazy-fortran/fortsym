@@ -1,11 +1,11 @@
 program bench_complexdom
-    ! Reproducible cold and warm timing for the assumption-context complex
-    ! split cache. Cold rows clear the context cache before every call; warm
-    ! rows reuse the same prebuilt expression and cached pair of node ids.
+    ! Reproducible cold and warm timing for complex-domain operations. Cold
+    ! split rows clear the context cache before every call; warm split rows
+    ! reuse the same prebuilt expression and cached pair of node ids.
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_arena, only: arena_t
     use fortsym_assume, only: assumption_context_t, assume, real_valued
-    use fortsym_complexdom, only: complex_split
+    use fortsym_complexdom, only: complex_split, conjugate
     use fortsym_engine, only: wall_seconds
     use fortsym_expr, only: expr_t, sym, i_expr, sinh, cosh, tanh, operator(+), &
         operator(*)
@@ -19,6 +19,8 @@ program bench_complexdom
     call benchmark_scope("warm", "sinh_cosh_split")
     call benchmark_scope("cold", "tanh_split")
     call benchmark_scope("warm", "tanh_split")
+    call benchmark_scope("cold", "conjugate_tanh")
+    call benchmark_scope("warm", "conjugate_tanh")
 
 contains
 
@@ -45,14 +47,13 @@ contains
         tanh_input = tanh(z)
 
         if (scope == "warm") then
+            call run_workload(workload, 0, facts, sinh_input, cosh_input, &
+                tanh_input, re, im, ok, why)
+            correct = ok
             if (workload == "sinh_cosh_split") then
-                call complex_split(sinh_input, facts, re, im, ok, why)
-                correct = ok
-                call complex_split(cosh_input, facts, re, im, ok, why)
+                call run_workload(workload, 1, facts, sinh_input, cosh_input, &
+                    tanh_input, re, im, ok, why)
                 correct = correct .and. ok
-            else
-                call complex_split(tanh_input, facts, re, im, ok, why)
-                correct = ok
             end if
         else
             correct = .true.
@@ -61,13 +62,8 @@ contains
         started = wall_seconds()
         do i = 1, ITERATIONS
             if (scope == "cold") call facts%complex_cache%clear()
-            if (workload == "sinh_cosh_split" .and. mod(i, 2) == 0) then
-                call complex_split(sinh_input, facts, re, im, ok, why)
-            else if (workload == "sinh_cosh_split") then
-                call complex_split(cosh_input, facts, re, im, ok, why)
-            else
-                call complex_split(tanh_input, facts, re, im, ok, why)
-            end if
+            call run_workload(workload, i, facts, sinh_input, cosh_input, &
+                tanh_input, re, im, ok, why)
             correct = correct .and. ok
         end do
         elapsed = wall_seconds() - started
@@ -75,5 +71,33 @@ contains
             "complexdom_v1", "native", trim(scope), trim(workload), &
             ITERATIONS, elapsed, correct
     end subroutine benchmark_scope
+
+    subroutine run_workload(workload, iteration, facts, sinh_input, cosh_input, &
+            tanh_input, first, second, ok, why)
+        character(*), intent(in) :: workload
+        integer,      intent(in) :: iteration
+        type(assumption_context_t), target, intent(in) :: facts
+        type(expr_t), intent(in) :: sinh_input, cosh_input, tanh_input
+        type(expr_t), intent(out) :: first, second
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+
+        select case (workload)
+        case ("sinh_cosh_split")
+            if (mod(iteration, 2) == 0) then
+                call complex_split(sinh_input, facts, first, second, ok, why)
+            else
+                call complex_split(cosh_input, facts, first, second, ok, why)
+            end if
+        case ("tanh_split")
+            call complex_split(tanh_input, facts, first, second, ok, why)
+        case ("conjugate_tanh")
+            call conjugate(tanh_input, facts, first, ok, why)
+            second = first
+        case default
+            ok = .false.
+            why = "unknown benchmark workload "//workload
+        end select
+    end subroutine run_workload
 
 end program bench_complexdom

@@ -94,7 +94,9 @@ Fortran source literal.
 The lower-level `fortsym_complexdom` module provides `re_part`, `im_part`, and
 `conjugate` with an explicit assumption context. Algebraic atoms are accepted
 there through FLINT's exact real and imaginary projections, and conjugation is
-exact. Rectangular splitting also covers the entire heads `exp`, `sin`, `cos`,
+exact. Structural conjugation commutes with the supported heads `exp`, `sin`,
+`cos`, `sinh`, `cosh`, and `tanh` wherever they are defined. Rectangular
+splitting also covers the entire heads `exp`, `sin`, `cos`,
 `sinh`, and `cosh` through their addition identities. `tanh` is also split
 through its rectangular quotient; an identically zero denominator is refused,
 while a nontrivial denominator remains in the result to preserve pointwise

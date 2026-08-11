@@ -101,15 +101,18 @@ open. The benchmark command intentionally returns a nonzero status when
 declared differences or oracle disagreements are present.
 
 The committed `bench_complexdom` target, based on the 2026-08-11 working tree,
-times 10,000 alternating `sinh` and `cosh` rectangular splits plus 10,000
-`tanh` rectangular splits on prebuilt expressions. Native Fortran took 74.633
-ms cold and 0.449 ms warm for the former workload; matched SymPy 1.14.0 took
-6.787331 s cold and 11.351 ms warm. Native was therefore about 91x faster cold
-and 25x faster warm in that workload. For `tanh`, native took 101.993 ms cold
-and 0.442 ms warm, while SymPy took 13.583026 s cold and 11.304 ms warm;
-native was about 133x faster cold and 26x faster warm. These rows are
-diagnostic rather than a release baseline; broader complex-domain workloads
-and a pinned machine record remain open.
+times 10,000 alternating `sinh` and `cosh` rectangular splits, 10,000 `tanh`
+rectangular splits, and 10,000 structural conjugations of `tanh` on prebuilt
+expressions. Native Fortran took 72.074 ms cold and 0.547 ms warm for the
+former workload; matched SymPy 1.14.0 took 6.787331 s cold and 11.351 ms warm.
+Native was therefore about 94x faster cold and 21x faster warm in that
+workload. For `tanh` splitting, native took 100.894 ms cold and 0.585 ms warm,
+while SymPy took 13.583026 s cold and 11.304 ms warm; native was about 135x
+faster cold and 19x faster warm. For structural `conjugate(tanh(...))`, native
+took 13.887 ms cold and 13.677 ms warm, while SymPy took 11.833995 s cold and
+41.271 ms warm; native was about 852x faster cold and 3x faster warm. These
+rows are diagnostic rather than a release baseline; broader complex-domain
+workloads and a pinned machine record remain open.
 
 `fo exec bench_native` writes CSV rows for warm, batched end-to-end native and
 SymEngine simplify, differentiation, and expansion calls. Each row includes a
@@ -124,10 +127,13 @@ the two scopes.
 `fo exec bench_complexdom` writes the `complexdom_v1` native rows used for the
 complex-domain cache comparison. Its cold scope clears the assumption-context
 pair cache before each alternating `sinh`/`cosh` split or each `tanh` split; its
-warm scope primes the same cache and then reuses the prebuilt expressions. All
-rows validate that the split succeeded. Compare them with SymPy 1.14.0
-`expand_complex` on the same prebuilt expressions, clearing `sympy.core.cache`
-before each cold call and retaining it for the warm call.
+warm scope primes the same cache and then reuses the prebuilt expressions. The
+`conjugate_tanh` workload has no pair-cache dependency, so its cold and warm
+rows are repeated-operation timings rather than cache-speedup claims. All rows
+validate that the operation succeeded. Compare the split rows with SymPy 1.14.0
+`expand_complex` and the conjugation rows with `conjugate` on the same
+prebuilt expressions, clearing `sympy.core.cache` before each cold call and
+retaining it for the warm call.
 
 Pinned result CSV files and their TOML environment records live under
 `benchmark/results`. A record with uncontrolled affinity or governor is
