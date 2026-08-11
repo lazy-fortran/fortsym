@@ -23,6 +23,9 @@ module fortsym_public_capi
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE
+    use fortsym_complexdom, only: complex_re_part => re_part, &
+        complex_im_part => im_part, complex_conjugate => conjugate, &
+        complex_arg_of => arg_of
     implicit none
     private
 
@@ -63,6 +66,7 @@ module fortsym_public_capi
     public :: fortsym_power, fortsym_add_many, fortsym_function, fortsym_relation
     public :: fortsym_substitute, fortsym_differentiate, fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor
+    public :: fortsym_complex_operation
     public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
     public :: fortsym_expr_equal, fortsym_expr_node_count, fortsym_expr_text
@@ -73,7 +77,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 7_c_int
+        v = 8_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -789,6 +793,70 @@ contains
         end select
         status = FORTSYM_OK
     end function fortsym_zero_test
+
+    function fortsym_complex_operation(raw, expression_raw, operation, out, &
+            message, capacity) bind(c, name="fortsym_complex_operation") &
+            result(status)
+        type(c_ptr), value :: raw, expression_raw, out
+        character(kind=c_char), intent(in) :: operation(*)
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a, ep_arena
+        type(expr_owner_t), pointer :: ep
+        type(expr_t) :: expression, value
+        type(engine_result_t) :: result
+        character(:), allocatable :: name, why
+        logical :: ok
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        ep_arena => ep%arena
+        if (.not. associated(ep_arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+
+        name = from_c_string(operation)
+        if (.not. associated(a%assumptions)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_HANDLE)
+            return
+        end if
+        select case (name)
+        case ("re")
+            call complex_re_part(expression, a%assumptions, value, ok, why)
+        case ("im")
+            call complex_im_part(expression, a%assumptions, value, ok, why)
+        case ("conjugate")
+            call complex_conjugate(expression, a%assumptions, value, ok, why)
+        case ("arg")
+            call complex_arg_of(expression, a%assumptions, value, ok, why)
+        case default
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, &
+                "unsupported complex operation "//name)
+            return
+        end select
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+
+        if (name == "arg") then
+            call prepare_native_engine(a)
+            result = a%engine%simplify(value)
+            if (.not. result%ok) then
+                call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, &
+                    "complex operation result could not be simplified")
+                return
+            end if
+            call make_handle(a, result%value, out, status, message, capacity)
+        else
+            call make_handle(a, value, out, status, message, capacity)
+        end if
+    end function fortsym_complex_operation
 
     subroutine fortsym_expr_free(raw) bind(c, name="fortsym_expr_free")
         type(c_ptr), value :: raw

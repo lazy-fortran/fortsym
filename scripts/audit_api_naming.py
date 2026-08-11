@@ -113,6 +113,15 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "Keep the elementary functions as one native family and do not reintroduce per-function aliases.",
         ),
         concept(
+            "complex-domain-functions",
+            "Project supported expressions into real, imaginary, conjugate, or principal-argument form.",
+            ["re_part", "im_part", "conjugate", "arg_of"], [],
+            ["re", "im", "conjugate", "arg"],
+            ["re", "im", "conjugate", "arg"],
+            "The native facade keeps explicit snake_case names that describe the operation and its expression-valued result. The Python adapter uses SymPy's short compatibility names and routes all four operations to fortsym_complexdom.",
+            "Keep complex-domain algebra in one owner. Do not add native re/im aliases or duplicate projection logic in the adapters; translate only the SymPy spellings at the boundary.",
+        ),
+        concept(
             "constants",
             "Create standard named constants.",
             ["pi_expr", "e_expr", "i_expr", "oo_expr", "zoo_expr", "nan_expr"], [],

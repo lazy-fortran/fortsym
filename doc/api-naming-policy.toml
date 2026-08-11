@@ -41,6 +41,16 @@ sympy_adapter = ["pi", "E", "I", "oo", "zoo", "nan"]
 decision = "Keep typed expression suffixes for constants because pi, e, i, oo, zoo, and nan are common scalar names or Fortran identifiers. The adapter retains SymPy's lowercase constant names."
 
 [[family]]
+id = "complex-domain-functions"
+audit_concepts = ["complex-domain-functions"]
+canonical_native = ["re_part", "im_part", "conjugate", "arg_of"]
+current_native = ["re_part", "im_part", "conjugate", "arg_of"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = ["re", "im", "conjugate", "arg"]
+decision = "Keep the explicit snake_case projection names in the native facade and lower-level complex-domain owner. Map SymPy's re, im, conjugate, and arg only in the compatibility adapter; all four use one shared operation boundary and explicit refusal semantics."
+
+[[family]]
 id = "calculus"
 audit_concepts = ["differentiation"]
 canonical_native = ["partial", "diff"]

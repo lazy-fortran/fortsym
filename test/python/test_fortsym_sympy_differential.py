@@ -183,6 +183,33 @@ class SympyDifferentialTest(unittest.TestCase):
             native.simplify(native_raw),
         )
 
+    def test_complex_domain_operations_match_oracle(self):
+        cases = [
+            (oracle.re(oracle.I), native.re(native.I)),
+            (oracle.im(oracle.I), native.im(native.I)),
+            (oracle.conjugate(oracle.Integer(2)),
+             native.conjugate(native.Integer(2))),
+            (oracle.arg(oracle.Integer(-1)),
+             native.arg(native.Integer(-1))),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                self.assert_equivalent("complex domain", expected, actual)
+
+        expected_identity = oracle.simplify(oracle.conjugate(oracle.I) + oracle.I)
+        actual_identity = native.simplify(native.conjugate(native.I) + native.I)
+        self.assertEqual(expected_identity, oracle.Integer(0))
+        self.assertTrue(actual_identity.is_zero)
+
+        for function, expression in (
+            (native.re, native.Symbol("differential_complex_re")),
+            (native.im, native.Symbol("differential_complex_im")),
+            (native.conjugate, native.Symbol("differential_complex_conjugate")),
+        ):
+            with self.subTest(function=function.__name__):
+                with self.assertRaises(native.UnsupportedOperationError):
+                    function(expression)
+
     def test_domain_sentinels_match_oracle_spelling(self):
         for name in ("oo", "zoo", "nan"):
             with self.subTest(name=name):

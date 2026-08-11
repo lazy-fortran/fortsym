@@ -219,6 +219,20 @@ class SympySubsetTest(unittest.TestCase):
             sp.simplify(sp.legendre(sp.Rational(1, 2), sp.oo)), sp.Function
         )
 
+    def test_complex_domain_operations(self):
+        self.assertEqual(sp.re(sp.I), sp.Integer(0))
+        self.assertEqual(sp.im(sp.I), sp.Integer(1))
+        self.assertEqual(sp.conjugate(sp.Integer(2)), sp.Integer(2))
+        self.assertEqual(sp.arg(sp.Integer(-1)), sp.pi)
+        with self.assertRaises(sp.UnsupportedOperationError):
+            sp.re(sp.Symbol("complex_unknown"))
+        with self.assertRaises(sp.UnsupportedOperationError):
+            sp.im(sp.Symbol("complex_unknown_im"))
+        with self.assertRaises(sp.UnsupportedOperationError):
+            sp.conjugate(sp.Symbol("complex_unknown_conjugate"))
+        with self.assertRaises(sp.UnsupportedOperationError):
+            sp.arg(sp.Integer(0))
+
     def test_noninteger_domain_powers(self):
         cases = [
             (sp.oo**sp.Rational(1, 2), sp.oo),

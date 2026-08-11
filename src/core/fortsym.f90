@@ -24,6 +24,9 @@ module fortsym
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE, verdict_name
     use fortsym_engine_native, only: native_engine_t, make_native_engine
+    use fortsym_complexdom, only: complex_re_part => re_part, &
+        complex_im_part => im_part, complex_conjugate => conjugate, &
+        complex_arg_of => arg_of
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     use fortsym_backend, only: BACKEND_PROTOCOL_VERSION, EXPRESSION_SCHEMA, &
         BACKEND_PROVED, BACKEND_DISPROVED, BACKEND_UNKNOWN, &
@@ -46,6 +49,7 @@ module fortsym
         zero, negative, nonpositive, positive, nonnegative, nonzero, real_valued
     public :: str, chars
     public :: subs, diff, simplify, refine, expand, factor
+    public :: re_part, im_part, conjugate, arg_of
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE, verdict_name
@@ -263,6 +267,102 @@ contains
         end if
         result = engine%zero_test(expression)
     end function zero_test
+
+    !> Apply one supported complex-domain operation through the shared
+    !> complexdom owner, normalizing only principal argument results.
+    function complex_operation(expression, assumptions, operation) result(result)
+        type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
+        integer, intent(in) :: operation
+        type(engine_result_t) :: result
+        type(assumption_context_t), target :: local_facts
+        type(assumption_context_t), pointer :: facts
+        type(native_engine_t) :: engine
+        type(expr_t) :: value
+        logical :: ok
+        character(:), allocatable :: why
+
+        if (.not. is_valid(expression)) then
+            call report_failure(result, "complex operation: invalid expression")
+            return
+        end if
+        if (.not. context_matches(expression, assumptions)) then
+            call report_failure(result, &
+                "complex operation: assumptions belong to a different arena")
+            return
+        end if
+
+        if (present(assumptions)) then
+            facts => assumptions
+        else
+            local_facts = make_assumption_context(expression%a)
+            facts => local_facts
+        end if
+
+        select case (operation)
+        case (1)
+            call complex_re_part(expression, facts, value, ok, why)
+        case (2)
+            call complex_im_part(expression, facts, value, ok, why)
+        case (3)
+            call complex_conjugate(expression, facts, value, ok, why)
+        case (4)
+            call complex_arg_of(expression, facts, value, ok, why)
+        case default
+            call report_failure(result, "complex operation: invalid operation")
+            return
+        end select
+        if (.not. ok) then
+            call report_failure(result, "complex operation refused: "//why)
+            return
+        end if
+
+        if (operation == 4) then
+            engine = make_native_engine(expression%a, facts)
+            result = engine%simplify(value)
+        else
+            result%ok = .true.
+            result%value = value
+            result%verdict = VERDICT_UNKNOWN
+            result%message = str("")
+        end if
+    end function complex_operation
+
+    !> Return the real part under the supported complex-domain rules.
+    function re_part(expression, assumptions) result(result)
+        type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
+        type(engine_result_t) :: result
+
+        result = complex_operation(expression, assumptions, 1)
+    end function re_part
+
+    !> Return the imaginary part under the supported complex-domain rules.
+    function im_part(expression, assumptions) result(result)
+        type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
+        type(engine_result_t) :: result
+
+        result = complex_operation(expression, assumptions, 2)
+    end function im_part
+
+    !> Return the structural complex conjugate under the supported rules.
+    function conjugate(expression, assumptions) result(result)
+        type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
+        type(engine_result_t) :: result
+
+        result = complex_operation(expression, assumptions, 3)
+    end function conjugate
+
+    !> Return the principal argument under the supported branch rules.
+    function arg_of(expression, assumptions) result(result)
+        type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
+        type(engine_result_t) :: result
+
+        result = complex_operation(expression, assumptions, 4)
+    end function arg_of
 
     !> Assigning text creates one symbol in the default arena. Text is never
     !> parsed as an expression.

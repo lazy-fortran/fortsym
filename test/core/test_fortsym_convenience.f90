@@ -18,7 +18,7 @@ program test_fortsym_convenience
     type(expr_t) :: sine, substituted, derivative, simplified, expanded, factored
     type(expr_t) :: huge_integer, exact_fraction, relation
     type(expr_t) :: stale
-    type(engine_result_t) :: result
+    type(engine_result_t) :: result, zero_result
     logical :: good, exact_good, context_ok
     integer :: failures
 
@@ -94,6 +94,23 @@ program test_fortsym_convenience
     factored = result%value
     call check("facade exposes native factorisation", &
         result%ok .and. factored == (mu + 1)**2, failures)
+    result = re_part(i_expr(default_storage))
+    call check("facade exposes the real-part operation", &
+        result%ok .and. result%value == num(default_storage, 0_int64), failures)
+    result = im_part(i_expr(default_storage))
+    call check("facade exposes the imaginary-part operation", &
+        result%ok .and. result%value == num(default_storage, 1_int64), failures)
+    result = conjugate(i_expr(default_storage))
+    zero_result = zero_test(result%value + i_expr(default_storage))
+    call check("facade conjugation has the independent inverse identity", &
+        result%ok .and. zero_result%ok .and. &
+        zero_result%verdict == VERDICT_TRUE, &
+        failures)
+    result = arg_of(num(default_storage, -1_int64))
+    call check("facade exposes the principal argument", &
+        result%ok .and. result%value == pi_expr(default_storage), failures)
+    result = re_part(mu)
+    call check("facade refuses unknown complex reality", .not. result%ok, failures)
     result = subs(explicit_mu + explicit_sigma, explicit_mu, explicit_sigma)
     substituted = result%value
     call check("explicit arena uses facade substitution", &
@@ -149,6 +166,15 @@ program test_fortsym_convenience
     result = simplify(sqrt(explicit_sigma**2), assumptions=nonnegative_context)
     call check("derived nonnegative context is independent", &
         result%ok .and. result%value == explicit_sigma, failures)
+    result = re_part(explicit_mu, assumptions=positive_context)
+    call check("real-part facade accepts explicit assumptions", &
+        result%ok .and. result%value == explicit_mu, failures)
+    result = im_part(explicit_mu, assumptions=positive_context)
+    call check("imaginary-part facade uses explicit reality", &
+        result%ok .and. result%value == num(explicit_arena, 0_int64), failures)
+    result = conjugate(explicit_mu, assumptions=positive_context)
+    call check("conjugation facade uses explicit reality", &
+        result%ok .and. result%value == explicit_mu, failures)
     result = zero_test(sqrt(explicit_mu**2) - explicit_mu, &
         assumptions=positive_context)
     call check("zero query accepts an explicit context", &
