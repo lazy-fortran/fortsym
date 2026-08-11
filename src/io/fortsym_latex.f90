@@ -25,6 +25,7 @@ module fortsym_latex
     contains
         procedure, public :: name => latex_name
         procedure, public :: eq => latex_equation
+        procedure, public :: relation => latex_relation
         procedure, public :: source => latex_source
         procedure, public :: write => latex_write
         procedure, public :: clear => latex_clear
@@ -102,6 +103,60 @@ contains
             optional_string(assumption))
         if (present(ok)) ok = .true.
     end subroutine latex_equation
+
+    subroutine latex_relation(self, label, left, right, assumption, ok, message)
+        class(latex_t), intent(inout) :: self
+        character(*), intent(in) :: label
+        type(expr_t), intent(in) :: left, right
+        character(*), intent(in), optional :: assumption
+        logical, intent(out), optional :: ok
+        character(:), allocatable, intent(out), optional :: message
+        type(str_t) :: left_body, right_body
+        type(str_t) :: body
+        logical :: rendered
+        character(:), allocatable :: detail, macro
+        integer :: k
+
+        if (present(ok)) ok = .false.
+        if (present(message)) message = ""
+        if (len(label) == 0) then
+            if (present(message)) message = "equation label is empty"
+            return
+        end if
+
+        macro = latex_macro_name(label)
+        do k = 1, self%n_equations
+            if (chars(self%equations(k)%label) == label) then
+                if (present(message)) message = &
+                    "equation label already registered: "//label
+                return
+            end if
+            if (chars(self%equations(k)%macro) == macro) then
+                if (present(message)) message = "equation labels collide: "//label// &
+                    " and "//chars(self%equations(k)%label)
+                return
+            end if
+        end do
+
+        call ensure_name_storage(self)
+        left_body = print_expr_latex(left, self%symbol_names, self%symbol_values, &
+            rendered, detail)
+        if (.not. rendered) then
+            if (present(message)) message = detail
+            return
+        end if
+        right_body = print_expr_latex(right, self%symbol_names, self%symbol_values, &
+            rendered, detail)
+        if (.not. rendered) then
+            if (present(message)) message = detail
+            return
+        end if
+
+        body = str(chars(left_body)//" = "//chars(right_body))
+        call append_equation(self, str(label), str(macro), body, &
+            optional_string(assumption))
+        if (present(ok)) ok = .true.
+    end subroutine latex_relation
 
     subroutine latex_source(self, derivation)
         class(latex_t), intent(inout) :: self

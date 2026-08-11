@@ -2,13 +2,15 @@ program test_fortsym_latex
     use fortsym_arena, only: arena_t
     use fortsym_dialect, only: DIA_LATEX, dialect
     use fortsym_expr
+    use fortsym_diff, only: diff
     use fortsym_latex, only: latex_t
     use fortsym_parse, only: parse_expr_in
-    use fortsym_string, only: chars
     implicit none
 
     type(arena_t), target :: arena
     type(expr_t) :: x, y, q0, weight, bcon, zeta, indexed, parsed
+    type(expr_t) :: derivative, simple_partial, curl
+    type(expr_t) :: curl_args(1)
     type(latex_t) :: tex, collision
     character(:), allocatable :: message
     logical :: ok
@@ -23,6 +25,10 @@ program test_fortsym_latex
     bcon = sym(arena, "Bcon_r")
     zeta = sym(arena, "zeta")
     indexed = sym(arena, "v(1,1)")
+    curl_args(1) = x
+    curl = func("curl_t", curl_args)
+    derivative = partial(curl, num(arena, 2))
+    simple_partial = partial(x, num(arena, 2))
 
     call tex%source("latex fixture")
     call tex%name("Bcon_r", "\mathcal{B}^{r}", ok, message)
@@ -53,6 +59,12 @@ program test_fortsym_latex
     call check("Greek symbol", ok, failures)
     call tex%eq("indexed", indexed, ok=ok, message=message)
     call check("indexed symbol", ok, failures)
+    call tex%eq("partial", derivative, ok=ok, message=message)
+    call check("partial derivative", ok, failures)
+    call tex%relation("relation", x, y, ok=ok, message=message)
+    call check("relation", ok, failures)
+    call check("partial derivative propagates", &
+        diff(simple_partial, x) == partial(num(arena, 1), num(arena, 2)), failures)
     call tex%eq("conditioned", x, "r > 0", ok, message)
     call check("assumption registration", ok, failures)
 
@@ -95,6 +107,11 @@ program test_fortsym_latex
             "Greek output", failures)
         call check_line(unit, "\newcommand{\eqindexed}{v_{1,1}}", &
             "indexed output", failures)
+        call check_line(unit, "\newcommand{\eqpartial}{\partial_{2}\left("// &
+            "\operatorname{curl}_{\mathrm{t}}\boldsymbol{x}\right)}", &
+            "partial output", failures)
+        call check_line(unit, "\newcommand{\eqrelation}{x = y}", &
+            "relation output", failures)
         call check_line(unit, "\newcommand{\eqconditioned}{x}", &
             "conditioned output", failures)
         call check_line(unit, "\newcommand{\assumptioneqconditioned}{r > 0}", &

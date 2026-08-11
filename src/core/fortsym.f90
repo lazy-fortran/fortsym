@@ -5,7 +5,8 @@ module fortsym
         NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, NK_POW, &
         NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
     use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, &
-        real_text_expr, const, func, func_in, pi_expr, e_expr, i_expr, &
+        real_text_expr, const, func, func_in, partial, pi_expr, e_expr, &
+        i_expr, &
         is_valid, same_arena, operator(+), operator(-), operator(*), &
         operator(/), operator(**), operator(==), operator(/=)
     use fortsym_expr, only: sin_expr => sin, cos_expr => cos, tan_expr => tan, &
@@ -23,7 +24,7 @@ module fortsym
     public :: NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, &
         NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
     public :: expr_t, sym, num, rat, exact, real_expr, real_text_expr, const, &
-        func, func_in, pi_expr, e_expr, i_expr, is_valid, same_arena
+        func, func_in, partial, pi_expr, e_expr, i_expr, is_valid, same_arena
     public :: operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), operator(/=)
     public :: sin_expr, cos_expr, tan_expr, asin_expr, acos_expr, atan_expr, &

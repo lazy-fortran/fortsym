@@ -983,9 +983,19 @@ derivation, emits the equation macros in `doc/latex-pilot/eqs.tex`, and builds
 the inserted equation with `pdflatex` (using `article` because
 `IEEEtran.cls` is unavailable locally). Six of seven symbolic leaves needed
 explicit registration, no typesetting failure occurred, and one macro per
-named side was sufficient for the current expression-only API. The pilot
-records the factor-order, relation, and derivative-node findings in
-`doc/latex-pilot.md`; emitter changes are tracked separately.
+named result is sufficient for the current API. The pilot records the
+factor-order, relation, and derivative-node findings in `doc/latex-pilot.md`;
+the relation and derivative implementation is tracked in #73.
+
+Issue #73 is complete as of 2026-08-11. LaTeX now has a typed `relation`
+writer for one macro containing both sides, a first-class `partial` node that
+the differentiation pass preserves, and evidence-based `curl_t`/partial
+printer rules. The independent LaTeX oracle checks exact relation and
+derivative output, differentiation propagation, byte reproducibility, and
+`pdflatex` typesetting; the real manuscript pilot regenerates and typesets
+the committed equation. Canonical factor order is retained and documented as
+the reproducibility policy rather than changed by a speculative printer
+setting. The GitHub issue is now closed after the roadmap and artifact push.
 
 The conventions are validated against a real manuscript before they harden
 (#68), because fixtures are written by whoever wrote the emitter and agree with

@@ -1530,6 +1530,23 @@ contains
         integer :: k
 
         name = chars(a%name_of(id))
+        if (name == "partial" .and. a%nargs_of(id) == 2) then
+            call b%append("\partial_{")
+            call emit_latex(b, a, a%arg_of(id, 2), PREC_ADD, symbol_names, &
+                symbol_values)
+            call b%append("}\left(")
+            call emit_latex(b, a, a%arg_of(id, 1), PREC_ADD, symbol_names, &
+                symbol_values)
+            call b%append("\right)")
+            return
+        end if
+        if (name == "curl_t" .and. a%nargs_of(id) == 1) then
+            call b%append("\operatorname{curl}_{\mathrm{t}}\boldsymbol{")
+            call emit_latex(b, a, a%arg_of(id, 1), PREC_ADD, symbol_names, &
+                symbol_values)
+            call b%append("}")
+            return
+        end if
         if (name == "sqrt" .and. a%nargs_of(id) == 1) then
             call b%append("\sqrt{")
             call emit_latex(b, a, a%arg_of(id, 1), PREC_ADD, symbol_names, &

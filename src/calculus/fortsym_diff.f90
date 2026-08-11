@@ -16,8 +16,8 @@ module fortsym_diff
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
-    use fortsym_expr, only: expr_t, sym, num, func, is_valid, besselj, &
-        legendrep, legendreq, &
+    use fortsym_expr, only: expr_t, sym, num, func, partial, is_valid, &
+        besselj, legendrep, legendreq, &
                             operator(+), operator(-), operator(*), operator(/), operator(**), &
             operator(==), sin, cos, tan, exp, log, sqrt, abs, sinh, cosh, tanh
     implicit none
@@ -163,6 +163,14 @@ contains
                     d = d + term
                 end if
             end do
+            return
+        end if
+
+        ! A displayed partial derivative is an operator node, so differentiating
+        ! its operand preserves that operator instead of manufacturing an
+        ! opaque applied-function name.
+        if (name == "partial" .and. e%nargs() == 2) then
+            d = partial(diff(e%arg(1), v), e%arg(2))
             return
         end if
 
