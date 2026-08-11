@@ -236,6 +236,9 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
     oracle_y = oracle.Symbol(name_y)
     native_x = native.Symbol(name_x)
     native_y = native.Symbol(name_y)
+    integer_name = f"{label}_integer_{suffix}"
+    oracle_integer = oracle.Symbol(integer_name, integer=True)
+    native_integer = native.Symbol(integer_name, integer=True)
     native_oo = native._default().constant("oo")
     native_three_halves = native.Rational(3, 2)
     native_two_thirds = native.Rational(2, 3)
@@ -247,6 +250,7 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
         name_x: oracle_x,
         name_y: oracle_y,
         sqrt_power_name: oracle_sqrt_power,
+        integer_name: oracle_integer,
         "abs": oracle.Abs,
         "i": oracle.I,
     }
@@ -371,6 +375,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.Q.positive(native_x),
             names,
         ),
+        "integer_assumption_query": (
+            oracle.Q.integer(oracle_integer),
+            native.Q.integer(native_integer),
+            names,
+        ),
     }
     if has_composition:
         expressions["composition"] = (
@@ -387,6 +396,8 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
 def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any]:
     if operation == "composition":
         x = engine.Symbol(f"{operation}_x_{suffix}", real=True)
+    elif operation == "integer_assumption_query":
+        x = engine.Symbol(f"{operation}_x_{suffix}", integer=True)
     else:
         x = engine.Symbol(f"{operation}_x_{suffix}")
     if operation == "expand":
@@ -442,6 +453,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = x**2 + 2 * x + 1
     elif operation == "assumption_query":
         expression = engine.Q.positive(x)
+    elif operation == "integer_assumption_query":
+        expression = engine.Q.integer(x)
     elif operation == "refine":
         expression = engine.sqrt(x**2)
     elif operation == "composition":
@@ -608,7 +621,7 @@ def correctness_cases() -> list[dict[str, Any]]:
                 "domain_power", "domain_phase"):
             expected = oracle.simplify(oracle_expression)
             actual = native.simplify(native_expression)
-        elif operation == "assumption_query":
+        elif operation in ("assumption_query", "integer_assumption_query"):
             expected = oracle.ask(oracle_expression)
             actual = native.ask(native_expression)
         elif operation == "refine":
@@ -638,7 +651,7 @@ def correctness_cases() -> list[dict[str, Any]]:
             "operation": operation,
             "correct": (
                 expected == actual
-                if operation == "assumption_query"
+                if operation in ("assumption_query", "integer_assumption_query")
                 else str(expected) == str(actual)
                 if operation == "relation"
                 else compound_equivalent(expected, actual)
@@ -683,7 +696,7 @@ def benchmark_workload(
             elif operation == "factor":
                 oracle_call = lambda: oracle.factor(oracle_expression)
                 native_call = lambda: native.factor(native_expression)
-            elif operation == "assumption_query":
+            elif operation in ("assumption_query", "integer_assumption_query"):
                 oracle_call = lambda: oracle.ask(oracle_expression)
                 native_call = lambda: native.ask(native_expression)
             elif operation == "refine":
@@ -736,7 +749,7 @@ def benchmark_workload(
                 expression, variable = build_expression(engine, operation, suffix)
                 if operation == "differentiate":
                     return engine.diff(expression, variable)
-                if operation == "assumption_query":
+                if operation in ("assumption_query", "integer_assumption_query"):
                     return engine.ask(expression)
                 if operation == "refine":
                     return engine.refine(expression, engine.Q.negative(variable))
@@ -812,7 +825,7 @@ def main() -> None:
     workloads = []
     for operation in (
         "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "domain_function", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
-        "assumption_query"
+        "assumption_query", "integer_assumption_query"
     ):
         for scope in ("cold_end_to_end", "warm_core"):
             workloads.append(benchmark_workload(

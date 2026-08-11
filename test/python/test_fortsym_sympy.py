@@ -32,7 +32,7 @@ class SympySubsetTest(unittest.TestCase):
         with self.assertRaises(sp.UnsupportedOperationError):
             sp.factor(sp.Symbol("z") + 1, modulus=2)
         with self.assertRaises(sp.UnsupportedOperationError):
-            sp.symbols("z", integer=True)
+            sp.symbols("z", prime=True)
         with self.assertRaises(sp.UnsupportedOperationError):
             sp.symbols("z", positive=False)
         result = subprocess.run(
@@ -422,11 +422,20 @@ class SympySubsetTest(unittest.TestCase):
                 self.assertEqual(expression.is_nonzero, expected_nonzero)
 
     def test_supported_assumption_predicates(self):
+        integer = sp.Symbol("predicate_integer", integer=True)
         real = sp.Symbol("predicate_real", real=True)
         positive = sp.Symbol("predicate_positive", positive=True)
         nonnegative = sp.Symbol("predicate_nonnegative", nonnegative=True)
         nonzero = sp.Symbol("predicate_nonzero", nonzero=True)
 
+        self.assertEqual((integer.is_integer, integer.is_real,
+                          sp.ask(sp.Q.integer(integer))),
+                         (True, True, True))
+        self.assertEqual((sp.Integer(2).is_integer,
+                          sp.Rational(2, 3).is_integer,
+                          sp.Float(2.0).is_integer,
+                          sp.Symbol("predicate_unknown").is_integer),
+                         (True, False, None, None))
         self.assertEqual((real.is_real, real.is_positive,
                           real.is_nonnegative, real.is_nonzero),
                          (True, None, None, None))

@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-from .. import Arena, Expr, FortSymError, _Assumption, _CONFLICT, _default
+from .. import (
+    Arena, Expr, FortSymError, _Assumption, _CONFLICT, _FACT_INTEGER, _default,
+)
 
 
 class UnsupportedOperationError(NotImplementedError):
@@ -50,6 +52,7 @@ class _KindMeta(type):
 
 
 _ASSUMPTION_FACTS = {
+    "integer": _FACT_INTEGER,
     "real": 1,
     "zero": 64,
     "negative": 128,
@@ -82,6 +85,7 @@ def _apply_assumptions(expression, assumptions):
             raise
         for fact in pending:
             _default().assume(fact.expression, fact.fact)
+            fact.expression._known_facts |= fact.fact
     return expression
 
 
@@ -97,6 +101,7 @@ class _AssumptionPredicate:
 
 
 class _AssumptionQueries:
+    integer = _AssumptionPredicate("integer", _FACT_INTEGER)
     real = _AssumptionPredicate("real", 1)
     zero = _AssumptionPredicate("zero", 64)
     negative = _AssumptionPredicate("negative", 128)
@@ -112,6 +117,8 @@ Q = _AssumptionQueries()
 def ask(proposition):
     if not isinstance(proposition, _Assumption):
         raise TypeError("ask expects a Q fact")
+    if proposition.fact == _FACT_INTEGER:
+        return proposition.expression.is_integer
     return proposition.expression._assumption_fact(proposition.fact)
 
 

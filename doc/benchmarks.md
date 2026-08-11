@@ -93,7 +93,10 @@ negative-integer identity cases. It also checks symbolic and integer
 `besseli(order, -oo)` phase boundaries, and the zero result for negative
 rational exponents. The normalized positive rational phase also has the
 matched `domain_phase` cold and warm timing rows; the remaining sentinel cases
-are correctness boundaries rather than standalone timing rows.
+are correctness boundaries rather than standalone timing rows. The same
+correctness and parity matrix includes `assumption_query` and
+`integer_assumption_query`, the latter comparing native `Q.integer` on an
+integer-assumed symbol with SymPy 1.14.0 in both cold and warm scopes.
 
 Run it from a built checkout with:
 
