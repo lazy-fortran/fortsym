@@ -528,6 +528,10 @@ class SympyDifferentialTest(unittest.TestCase):
              native.log(native.Rational(-2, 3))),
             (oracle.acosh(0), native.acosh(0)),
             (oracle.acosh(-1), native.acosh(-1)),
+            (oracle.sqrt(-1), native.sqrt(-1)),
+            (oracle.sqrt(-4), native.sqrt(-4)),
+            (oracle.sqrt(oracle.Rational(-4, 9)),
+             native.sqrt(native.Rational(-4, 9))),
         ):
             with self.subTest(expected=str(expected)):
                 self.assert_equivalent(
