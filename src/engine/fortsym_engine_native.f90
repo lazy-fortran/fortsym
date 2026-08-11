@@ -1047,22 +1047,25 @@ contains
         out = simplify_function(a, "exp", one)
     end function make_exp
 
-    !> Rewrite exp(n*log(x)) to x**n for an exact integer n. The operation is
-    !> used only by the exponential zero-test normal form; fractional and
-    !> symbolic cofactors stay untouched and therefore remain UNKNOWN there.
+    !> Rewrite exp(c*log(x)) to x**c for an exact rational c. The operation is
+    !> used only by the exponential zero-test normal form; symbolic cofactors
+    !> stay untouched and therefore remain UNKNOWN there.
     subroutine exp_log_power(a, argument, out, ok)
         type(arena_t), intent(inout) :: a
         integer,       intent(in)     :: argument
         integer,       intent(out)   :: out
         logical,       intent(out)   :: ok
         integer :: k, factor, log_id
-        integer(int64) :: coefficient, numerator, denominator, product
+        integer(int64) :: coefficient_numerator, coefficient_denominator
+        integer(int64) :: numerator, denominator
+        integer(int64) :: product_numerator, product_denominator
         logical :: exact, product_ok
 
         out = argument
         ok = .false.
         log_id = 0
-        coefficient = 1_int64
+        coefficient_numerator = 1_int64
+        coefficient_denominator = 1_int64
 
         if (a%kind_of(argument) == NK_FUNC) then
             if (a%nargs_of(argument) == 1) then
@@ -1087,13 +1090,22 @@ contains
                 end if
             end if
             call exact_value(a, factor, numerator, denominator, exact)
-            if (.not. exact .or. denominator /= 1_int64) return
-            call checked_mul(coefficient, numerator, product, product_ok)
+            if (.not. exact) return
+            call fraction_mul(coefficient_numerator, coefficient_denominator, &
+                numerator, denominator, product_numerator, product_denominator, &
+                product_ok)
             if (.not. product_ok) return
-            coefficient = product
+            coefficient_numerator = product_numerator
+            coefficient_denominator = product_denominator
         end do
         if (log_id == 0) return
-        out = simplify_power(a, a%arg_of(log_id, 1), a%int(coefficient))
+        if (coefficient_denominator == 1_int64) then
+            out = simplify_power(a, a%arg_of(log_id, 1), &
+                a%int(coefficient_numerator))
+        else
+            out = simplify_power(a, a%arg_of(log_id, 1), &
+                a%rat(coefficient_numerator, coefficient_denominator))
+        end if
         ok = .true.
     end subroutine exp_log_power
 

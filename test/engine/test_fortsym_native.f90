@@ -731,8 +731,12 @@ contains
         r = engine%zero_test(exp(log(x) + y) - x*exp(y))
         call check("logarithm factor in an exponential is decided zero", &
             r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(rat(arena, 1_int64, 2_int64)*log(x)) - &
+            x**rat(arena, 1_int64, 2_int64))
+        call check("rational logarithm power is decided zero", &
+            r%verdict == VERDICT_TRUE)
         r = engine%zero_test(exp(rat(arena, 1_int64, 2_int64)*log(x)) - sqrt(x))
-        call check("fractional logarithm powers remain unknown", &
+        call check("sqrt spelling remains outside the power fragment", &
             r%verdict == VERDICT_UNKNOWN)
         r = engine%zero_test(sin(x)**2 + cos(x)**2 - 1)
         call check("trigonometric Pythagorean identity is decided zero", &
