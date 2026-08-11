@@ -99,6 +99,16 @@ options and semantic forms by name. The compatibility document and focused
 frontend tests define the supported subset and its differences. Larger
 operation families remain independently tracked in #28–#43.
 
+Issue #44 (plotting through fortplot) is complete as of 2026-08-11 for the
+bounded adapter. `fortsym_plot` samples real curves, parametric curves, list
+data, and fields, drops undefined curve samples without joining across a pole,
+refuses partially undefined fields, maps the supported options, and delegates
+rendering and panels to the pinned fortplot revision. The independent plot
+family test covers logarithmic sampling, parametric curves, joined list data,
+field refusal, `Show`, and explicit refusal of unsupported `Graphics` forms.
+The remaining Wolfram plotting surface is still a named refusal or an upstream
+fortplot capability question; fortsym does not grow a second renderer.
+
 Issue #28 (polynomial and rational algebra) is complete as of 2026-08-11:
 the exact sparse multivariate layer is now registered in the library and test
 builds. It provides together, cancel, apart, coefficient/collect/exponent,
@@ -937,7 +947,7 @@ cannot masquerade as an exact proof.
   **Gauss–Kronrod** with the Petras/Molin rigorous-error treatment for the cases
   that need certification.
 
-### M11 — Plotting through fortplot (#44) · 2794 sites
+### M11 — Plotting through fortplot (#44) · 2794 sites · complete for the bounded adapter
 
 `Plot`, `Plot3D`, `ContourPlot`, `ParametricPlot`, `ListPlot`, `StreamPlot`,
 `DensityPlot`, `VectorPlot`, `LogPlot`, `Show`, `GraphicsGrid`, `PlotLegends`.
@@ -945,11 +955,15 @@ cannot masquerade as an exact proof.
 Plotting was a deferred area. The corpus makes it the **single largest
 construct family**, mostly from the teaching material, so it is scheduled.
 
-fortsym does not gain a plotting implementation. It gains a **dependency on
-fortplot**, which already provides plot, contour, contourf, pcolormesh, surface,
-3-D, scatter, streamplot, quiver, errorbar, subplots and legends. fortsym's job
-is sampling an expression into arrays and mapping options; anything missing is
-fixed **in fortplot**, upstream, not worked around here.
+fortsym does not gain a plotting implementation. It now has a pinned
+**dependency on fortplot**, which owns rendering, and its CMake target includes
+the existing plotting/Wolfram adapter and independent plot-family test. The
+adapter samples ordinary and parametric curves, list data, and fields into
+bounded arrays, maps labels/ranges/log and joined options, and uses fortplot for
+PNG output and `Show` panels. Undefined curve samples are split rather than
+connected through a pole; partially undefined fields and unsupported graphics
+forms are explicit refusals. Anything missing is fixed **in fortplot**,
+upstream, not worked around here.
 
 ### M12 — Sums, piecewise, trig rewrites, ODEs (#38, #39, #40, #43)
 

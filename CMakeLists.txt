@@ -47,6 +47,18 @@ include(cmake/deps/mpfr.cmake)
 include(cmake/deps/flint.cmake)
 include(cmake/deps/yacas.cmake)
 
+# Plotting is an adapter boundary: fortsym samples expressions and maps
+# options, while fortplot owns rendering. Keep the upstream revision pinned and
+# avoid pulling fortarray into the symbolic library.
+include(FetchContent)
+set(FORTPLOT_BUILD_FORTARRAY_ADAPTER OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(fortplot
+    GIT_REPOSITORY https://github.com/lazy-fortran/fortplot.git
+    GIT_TAG 18e6b4442a6f9e083b8965ccf1a8847a6e32b3d9
+    GIT_SHALLOW FALSE
+)
+FetchContent_MakeAvailable(fortplot)
+
 add_subdirectory(src)
 add_subdirectory(app)
 add_subdirectory(example)

@@ -27,6 +27,10 @@ target_sources(fortsym PRIVATE
     io/fortsym_parse.f90
     io/fortsym_print.f90
     io/fortsym_latex.f90
+    io/fortsym_plot.f90
+    io/fortsym_wl_num.f90
+    io/fortsym_wl_solve.f90
+    io/fortsym_wl.f90
 
     # engines
     engine/fortsym_engine.f90
@@ -39,11 +43,14 @@ target_sources(fortsym PRIVATE
     # exact linear algebra
     algebra/fortsym_linalg.f90
     algebra/fortsym_complexdom.f90
+    algebra/fortsym_defint.f90
     algebra/fortsym_integrate.f90
     algebra/fortsym_limits.f90
     algebra/fortsym_matrix.f90
     algebra/fortsym_poly.f90
     algebra/fortsym_polysolve.f90
+    algebra/fortsym_sums.f90
+    algebra/fortsym_trigrewrite.f90
 
     # multi-engine adjudication
     council/fortsym_council.f90
@@ -91,6 +98,7 @@ target_link_libraries(fortsym PUBLIC
     $<BUILD_INTERFACE:fortsym::symengine>
     $<BUILD_INTERFACE:fortsym::mpfr>
     $<BUILD_INTERFACE:fortsym::flint>
+    $<BUILD_INTERFACE:fortplot::fortplot>
     ${CMAKE_DL_LIBS})
 
 # Yacas is optional at configure time; when present its shim and backend join

@@ -123,6 +123,14 @@ the precision-text form for a downstream fortnum algorithm. It refuses free
 symbols, non-finite points, branch-sensitive or unknown heads, and does not
 implement quadrature, root finding, interpolation, or rigorous Arb balls.
 
+Plotting is a separate adapter boundary. `fortsym_plot` samples closed real
+expressions and maps the bounded `Plot`, parametric, list, field, and `Show`
+fragments into fortplot data; it never implements a renderer. Undefined curve
+samples are split instead of joined across a pole, partially undefined fields
+are refused, and unsupported graphics forms remain named refusals. Both the
+fpm and CMake paths pin the fortplot revision, while fortplot owns raster
+output, legends, and panel layout.
+
 Fortran kernel emission uses the dialect's declared function map rather than
 passing symbolic heads through as identifiers. Standard intrinsics cover
 `erf`, `erfc`, `gamma`, `log_gamma`, `bessel_jn`, and `bessel_yn`; the default

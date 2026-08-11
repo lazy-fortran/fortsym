@@ -1965,6 +1965,7 @@ contains
         type(str_t),        intent(out)   :: message
         type(expr_t)                      :: r, branches, branch
         type(expr_t)                      :: condition, branch_value, default_value
+        type(expr_t)                      :: pair_args(2)
         type(expr_t), allocatable         :: pairs(:), output(:)
         logical                           :: arg_ok, decided, truth, have_unknown
         type(str_t)                       :: arg_message
@@ -2019,7 +2020,9 @@ contains
                         return
                     end if
                     npairs = npairs + 1
-                    pairs(npairs) = func("List", [branch_value, condition])
+                    pair_args(1) = branch_value
+                    pair_args(2) = condition
+                    pairs(npairs) = func("List", pair_args)
                 end if
                 cycle
             end if
@@ -2031,7 +2034,9 @@ contains
                 return
             end if
             npairs = npairs + 1
-            pairs(npairs) = func("List", [branch_value, condition])
+            pair_args(1) = branch_value
+            pair_args(2) = condition
+            pairs(npairs) = func("List", pair_args)
         end do
 
         if (.not. have_unknown) then
@@ -2065,6 +2070,7 @@ contains
         logical,            intent(out)   :: ok
         type(str_t),        intent(out)   :: message
         type(expr_t)                      :: r, condition
+        type(expr_t)                      :: args(1)
         logical                           :: arg_ok, decided, truth
         type(str_t)                       :: arg_message
 
@@ -2082,7 +2088,8 @@ contains
         end if
         call condition_value(condition, decided, truth)
         if (.not. decided) then
-            r = func("Boole", [condition])
+            args(1) = condition
+            r = func("Boole", args)
             return
         end if
         if (truth) then
@@ -2235,6 +2242,7 @@ contains
         logical,            intent(out)  :: ok
         type(str_t),        intent(out)  :: message
         type(expr_t)                      :: r, item, mapped
+        type(expr_t)                      :: single_argument(1)
         type(expr_t), allocatable         :: values(:)
         logical                           :: item_ok
         type(str_t)                       :: item_message
@@ -2266,7 +2274,8 @@ contains
                 return
             end if
             if (level == 1) then
-                call apply_mapper(s, mapper, [item], mapped, item_ok, item_message)
+                single_argument(1) = item
+                call apply_mapper(s, mapper, single_argument, mapped, item_ok, item_message)
                 if (.not. item_ok) then
                     call refuse(ok, message, chars(item_message))
                     return
@@ -2298,6 +2307,7 @@ contains
         type(str_t),         intent(out)  :: message
 
         type(expr_t) :: body, params, slot, parameter
+        type(expr_t) :: slot_args(1)
         integer :: k, nparams
 
         ok = .false.
@@ -2325,7 +2335,8 @@ contains
         if (mapper%nargs() == 1) then
             body = mapper%arg(1)
             do k = 1, size(arguments)
-                slot = func("Slot", [num(s%a, int(k, int64))])
+                slot_args(1) = num(s%a, int(k, int64))
+                slot = func("Slot", slot_args)
                 body = subs(body, slot, arguments(k))
             end do
         else
@@ -2369,6 +2380,7 @@ contains
         logical,            intent(out)   :: ok
         type(str_t),        intent(out)   :: message
         type(expr_t)                      :: r, mapper, data, item, mapped
+        type(expr_t)                      :: apply_args(2)
         type(expr_t), allocatable         :: values(:)
         integer :: k
         logical :: item_ok
@@ -2396,7 +2408,9 @@ contains
             end if
             allocate (values(data%nargs()))
             do k = 1, data%nargs()
-                mapped = lower_apply(s, func("Apply", [mapper, data%arg(k)]), &
+                apply_args(1) = mapper
+                apply_args(2) = data%arg(k)
+                mapped = lower_apply(s, func("Apply", apply_args), &
                     .false., item_ok, item_message)
                 if (.not. item_ok) then
                     call refuse(ok, message, chars(item_message))
@@ -4169,6 +4183,7 @@ contains
         logical,            intent(out)   :: ok
         type(str_t),        intent(out)   :: message
         type(expr_t)                      :: r, field, coords, system
+        type(expr_t)                      :: components(3)
         integer                           :: n
         logical                           :: cylindrical
 
@@ -4223,22 +4238,22 @@ contains
                 diff(field%arg(1), coords%arg(2))
         case (3)
             if (cylindrical) then
-                r = func("List", [ &
-                    (diff(field%arg(3), coords%arg(2)) - &
+                components(1) = (diff(field%arg(3), coords%arg(2)) - &
                     diff(coords%arg(1)*field%arg(2), coords%arg(3)))/ &
-                    coords%arg(1), &
-                    diff(field%arg(1), coords%arg(3)) - &
-                    diff(field%arg(3), coords%arg(1)), &
-                    (diff(coords%arg(1)*field%arg(2), coords%arg(1)) - &
-                    diff(field%arg(1), coords%arg(2)))/coords%arg(1)])
+                    coords%arg(1)
+                components(2) = diff(field%arg(1), coords%arg(3)) - &
+                    diff(field%arg(3), coords%arg(1))
+                components(3) = (diff(coords%arg(1)*field%arg(2), coords%arg(1)) - &
+                    diff(field%arg(1), coords%arg(2)))/coords%arg(1)
+                r = func("List", components)
             else
-                r = func("List", [ &
-                    diff(field%arg(3), coords%arg(2)) - &
-                    diff(field%arg(2), coords%arg(3)), &
-                    diff(field%arg(1), coords%arg(3)) - &
-                    diff(field%arg(3), coords%arg(1)), &
-                    diff(field%arg(2), coords%arg(1)) - &
-                    diff(field%arg(1), coords%arg(2))])
+                components(1) = diff(field%arg(3), coords%arg(2)) - &
+                    diff(field%arg(2), coords%arg(3))
+                components(2) = diff(field%arg(1), coords%arg(3)) - &
+                    diff(field%arg(3), coords%arg(1))
+                components(3) = diff(field%arg(2), coords%arg(1)) - &
+                    diff(field%arg(1), coords%arg(2))
+                r = func("List", components)
             end if
         case default
             call refuse(ok, message, &
@@ -6201,7 +6216,7 @@ contains
         logical,                   intent(out)   :: ok
         character(:), allocatable, intent(out)   :: why
         type(expr_t)                             :: r
-        type(expr_t), allocatable                :: positions(:)
+        type(expr_t), allocatable                :: positions(:), selected(:)
         integer                                  :: n
         integer                                  :: path(MAX_POSITION_DEPTH)
 
@@ -6230,7 +6245,9 @@ contains
         if (n == 0) then
             r = func_in(a, "List")
         else
-            r = func("List", positions(:n))
+            allocate (selected(n))
+            selected = positions(:n)
+            r = func("List", selected)
         end if
     end function wl_position
 
@@ -6311,7 +6328,7 @@ contains
         logical,                   intent(out)   :: ok
         character(:), allocatable, intent(out)   :: why
         type(expr_t)                             :: r
-        type(expr_t), allocatable                :: values(:), scratch(:)
+        type(expr_t), allocatable                :: values(:), scratch(:), selected(:)
         type(expr_t)                             :: list_item, item
         integer                                  :: total, unique, k, j, m
         logical                                  :: seen
@@ -6365,7 +6382,9 @@ contains
 
         allocate (scratch(unique))
         call sort_union(values(:unique), scratch)
-        r = func("List", values(:unique))
+        allocate (selected(unique))
+        selected = values(:unique)
+        r = func("List", selected)
         ok = .true.
     end function wl_union
 
