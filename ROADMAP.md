@@ -116,7 +116,7 @@ gained a conservative exponential-normal-form zero fragment: products of
 `Exp` terms combine exponents, `Exp[a + b]` factors, and integer powers of
 `Exp` are reduced before the ordinary native simplifier runs. Exact symbolic
 identities and nonidentities are tested independently; unsupported heads and
-fractional periodic constants remain `UNKNOWN`. The bounded native engine is now stronger,
+unsupported fractional periodic constants remain `UNKNOWN`. The bounded native engine is now stronger,
 but SymEngine still supplies the broader exponential decision procedure, so
 the tracker is not closed. The same native candidate path now also feeds the
 existing exact multivariate polynomial cancellation/GCD layer, retaining only
@@ -147,7 +147,8 @@ outside the bounded polynomial subset; that subset is now covered by a
 native factor implementation and tests for options and domain-condition
 refusal.
 The native exponential zero fragment now also decides exact Euler constants
-`exp(i*n*pi)` for integer `n`, while fractional multiples and unsupported
+`exp(i*n*pi)` for integer `n` and the exact half-integer turns
+`exp(±i*pi/2)`/`exp(3*i*pi/2)`, while other fractional multiples and unsupported
 periodic forms remain `UNKNOWN`. This removes another bounded periodic-constant
 case from the external exponential oracle without claiming general complex
 transcendental simplification. It also rewrites exact integer powers of
