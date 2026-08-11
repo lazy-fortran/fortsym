@@ -491,6 +491,18 @@ def correctness_cases() -> list[dict[str, Any]]:
             oracle.legendre(3, oracle.oo),
             native.legendre(3, native.oo),
         ),
+        "legendre_negative_one": (
+            oracle.legendre(-1, oracle.oo),
+            native.legendre(-1, native.oo),
+        ),
+        "legendre_negative_two": (
+            oracle.legendre(-2, -oracle.oo),
+            native.legendre(-2, -native.oo),
+        ),
+        "legendre_negative_four": (
+            oracle.legendre(-4, oracle.zoo),
+            native.legendre(-4, native.zoo),
+        ),
     }
     names = {
         "benchmark_nan_order": oracle_order,

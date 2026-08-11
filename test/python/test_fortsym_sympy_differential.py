@@ -268,6 +268,13 @@ class SympyDifferentialTest(unittest.TestCase):
              native.legendre(3, -native.oo)),
             (oracle.legendre(3, oracle.zoo),
              native.legendre(3, native.zoo)),
+            (oracle.legendre(-1, oracle.oo), native.legendre(-1, native.oo)),
+            (oracle.legendre(-2, -oracle.oo),
+             native.legendre(-2, -native.oo)),
+            (oracle.legendre(-3, oracle.oo),
+             native.legendre(-3, native.oo)),
+            (oracle.legendre(-4, oracle.zoo),
+             native.legendre(-4, native.zoo)),
         ]
         for expected, actual in cases:
             with self.subTest(expected=str(expected)):

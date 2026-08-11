@@ -88,7 +88,8 @@ and would not be a meaningful SymPy performance comparison.
 It also checks the unresolved NaN boundaries for Bessel and Legendre heads,
 including the representable `besseli(nan, -oo)` result; these are correctness
 cases rather than standalone timing rows for the same reason. The same report
-checks the high-degree `legendre(3, oo) = nan` boundary.
+checks the high-degree `legendre(3, oo) = nan` boundary and the supported
+negative-integer identity cases.
 
 Run it from a built checkout with:
 

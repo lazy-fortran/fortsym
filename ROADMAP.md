@@ -353,8 +353,8 @@ Every checklist item requires all of the following:
     +/-oo)=0` and `besseli(order,oo)=oo`; negative-real `besseli` and
     complex-infinity cases remain explicit applied-head refusals.
   - [x] Map SymPy's `legendre(degree, argument)` to the native `legendrep`
-    owner and add nonnegative integer degree/order-zero infinity rules;
-    symbolic, noninteger, and negative-degree cases remain refusals.
+    owner and add integer degree/order-zero infinity rules; symbolic,
+    noninteger, and unsupported degree/order cases remain refusals.
   - [x] Add representable complex-infinity rules for `sin`, `cos`, and `tan`:
     each becomes `nan` like SymPy, while their `+/-oo` accumulation-bound
     results remain explicit applied-head refusals.
@@ -364,6 +364,9 @@ Every checklist item requires all of the following:
   - [x] Match SymPy's high-degree Legendre infinity boundary: integer degrees
     three and higher become `nan` at `+/-oo` and `zoo`; lower representable
     degrees retain their existing parity/domain rules.
+  - [x] Apply SymPy's negative-integer Legendre identity at infinity:
+    `P(-n-1, x) = P(n, x)` for the supported integer boundary fragment,
+    including the resulting high-degree `nan` cases.
   - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
     non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
