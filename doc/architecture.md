@@ -95,6 +95,12 @@ growth ordering. It checks a full two-sided finite neighborhood before
 returning a value; one-sided behavior, poles, oscillation, and undecidable
 growth are explicit `UNKNOWN`/refusal outcomes.
 
+Polynomial solving extracts exact rational roots and closes quadratic factors
+with exact square-root expressions. It verifies the returned root count and
+reconstructs the polynomial through an independent test path; irreducible
+higher-degree factors and systems are named refusals, never floating-point
+guesses.
+
 Fortran kernel emission uses the dialect's declared function map rather than
 passing symbolic heads through as identifiers. Standard intrinsics cover
 `erf`, `erfc`, `gamma`, `log_gamma`, `bessel_jn`, and `bessel_yn`; the default
