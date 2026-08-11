@@ -17,6 +17,7 @@ module fortsym_engine_native
         FACT_POSITIVE, FACT_NONNEGATIVE
     use fortsym_diff, only: diff_expr => diff
     use fortsym_subs, only: subs
+    use fortsym_poly, only: poly_cancel
     use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
         resource_exceeded, resource_visit, resource_failure, wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, CAP_ZERO_TEST, &
@@ -81,7 +82,10 @@ contains
         integer :: cached_id, simplified_id
         real(dp) :: started
         logical :: refused
+        logical :: cancel_ok
         character(:), allocatable :: reason
+        character(:), allocatable :: cancel_reason
+        type(expr_t) :: simplified_expr, cancelled
         type(resource_limit_t) :: active_limit
 
         started = wall_seconds()
@@ -142,6 +146,26 @@ contains
                 r%message = str(resource_failure("simplify", active_limit))
                 r%seconds = wall_seconds() - started
                 return
+            end if
+        end if
+        ! Polynomial cancellation is a native candidate, not a replacement
+        ! for the bounded recursive simplifier.  Keep it out of limited calls
+        ! until it accepts the caller's resource budget, and only retain a
+        ! strictly smaller result.
+        if (.not. present(limit)) then
+            simplified_expr = e
+            simplified_expr%id = simplified_id
+            call poly_cancel(e%a, simplified_expr, cancelled, cancel_ok, &
+                cancel_reason)
+            if (cancel_ok) then
+                deallocate (memo, done)
+                allocate (memo(e%a%size()), source=0)
+                allocate (done(e%a%size()), source=.false.)
+                cancelled%id = simplify_id(e%a, cancelled%id, memo, done, &
+                    active_limit)
+                if (cancelled%node_count() < simplified_expr%node_count()) then
+                    simplified_id = cancelled%id
+                end if
             end if
         end if
         r%value%id = simplified_id

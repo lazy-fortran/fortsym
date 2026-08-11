@@ -118,7 +118,10 @@ gained a conservative exponential-normal-form zero fragment: products of
 identities and nonidentities are tested independently; unsupported heads and
 periodic constants remain `UNKNOWN`. The bounded native engine is now stronger,
 but SymEngine still supplies the broader exponential decision procedure, so
-the tracker is not closed.
+the tracker is not closed. The same native candidate path now also feeds the
+existing exact multivariate polynomial cancellation/GCD layer, retaining only
+strictly smaller verified forms such as `(x^2 - y^2)/(x - y) -> x + y` and
+preserving the nonzero-denominator condition.
 
 Issue #44 (plotting through fortplot) is complete as of 2026-08-11 for the
 bounded adapter. `fortsym_plot` samples real curves, parametric curves, list
