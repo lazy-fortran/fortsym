@@ -888,6 +888,15 @@ contains
         r = engine%simplify(log(e_expr(arena)))
         call check("native simplify evaluates log(e)", &
             r%value == num(arena, 1_int64))
+        r = engine%simplify(log(e_expr(arena)**rat(arena, 3_int64, 2_int64)))
+        call check("native simplify inverts exact e power", &
+            r%value == rat(arena, 3_int64, 2_int64))
+        r = engine%simplify(log(exp(rat(arena, 1_int64, 2_int64))))
+        call check("native simplify inverts exact exponential", &
+            r%value == rat(arena, 1_int64, 2_int64))
+        r = engine%simplify(log(e_expr(arena)**i_expr(arena)))
+        call check("native simplify preserves complex e power log", &
+            r%value%kind() == NK_FUNC)
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
             r%verdict == VERDICT_TRUE)
