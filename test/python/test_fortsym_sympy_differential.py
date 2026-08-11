@@ -182,6 +182,28 @@ class SympyDifferentialTest(unittest.TestCase):
             native.simplify(native_raw),
         )
 
+    def test_expand_cache_matches_oracle_and_invalidates_on_assumptions(self):
+        oracle_x = oracle.Symbol("differential_expand_cache_x")
+        native_x = native.Symbol("differential_expand_cache_x")
+        oracle_expression = (oracle.sqrt(oracle_x**2) + 1)**2
+        native_expression = (native.sqrt(native_x**2) + 1)**2
+
+        oracle_first = oracle.expand(oracle_expression)
+        oracle_second = oracle.expand(oracle_expression)
+        native_first = native.expand(native_expression)
+        native_second = native.expand(native_expression)
+        self.assertEqual(
+            oracle_second is oracle_first, native_second is native_first
+        )
+        self.assert_equivalent("unknown expansion", oracle_first, native_first)
+
+        oracle_real = oracle.Symbol("differential_expand_cache_x", real=True)
+        native.Symbol("differential_expand_cache_x", real=True)
+        expected_real = oracle.expand((oracle.sqrt(oracle_real**2) + 1)**2)
+        actual_real = native.expand(native_expression)
+        self.assert_equivalent("assumption-invalidated expansion", expected_real,
+                                actual_real)
+
     def test_three_valued_zero_predicates(self):
         oracle_cases = self.predicate_cases(oracle)
         native_cases = self.predicate_cases(native)

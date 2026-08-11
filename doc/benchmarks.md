@@ -105,7 +105,8 @@ from changing the other engine's cold conversion and interning cost. The two
 suites use the same input formulae, shifts, warmup counts, batches, validation
 points, and correctness oracles. The Python C-ABI arena retains its native
 engine and memoization caches across warm calls, while scoped assumptions are
-synchronized before each operation.
+synchronized before each operation. The Python facade also reuses an expanded
+result for the same expression until the arena's assumption epoch changes.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
 text validation, FLINT reconstruction, the exact operation, canonical
