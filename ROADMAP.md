@@ -134,8 +134,11 @@ Every checklist item requires all of the following:
   unnoticed, using [`scripts/diff_sympy_api.py`](scripts/diff_sympy_api.py),
   the frozen [`doc/sympy-api-baseline-1.14.0.json`](doc/sympy-api-baseline-1.14.0.json),
   and the clean [`doc/sympy-api-diff-1.14.0.json`](doc/sympy-api-diff-1.14.0.json).
-- [ ] Add a common differential harness for exact results, symbolic results,
-  conditions, exceptions, and unevaluated objects.
+- [x] Add a common differential harness for exact results, symbolic results,
+  conditions, exceptions, and unevaluated objects in
+  [`test/python/test_fortsym_sympy_differential.py`](test/python/test_fortsym_sympy_differential.py),
+  registered as `test_fortsym_sympy_differential` in
+  [`test/CMakeLists.txt`](test/CMakeLists.txt).
 - [ ] Add a common benchmark harness with cold-start, warm-cache, end-to-end,
   and core-operation measurements.
 - [ ] Make the benchmark report fail when a supported native workload is slower
