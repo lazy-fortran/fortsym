@@ -16,7 +16,8 @@ program test_fortsym_native
     use fortsym_eval, only: binding_t, eval_expr
     use fortsym_print, only: print_expr
     use fortsym_engine, only: engine_result_t, resource_limit_t, &
-        new_resource_limit, VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE
+        new_resource_limit, VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, &
+        CAP_FACTOR, has_cap
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     implicit none
 
@@ -186,6 +187,22 @@ contains
         call check("native polynomial factor candidate succeeds", r%ok)
         call check("native polynomial factor candidate is selected", &
             r%value == (x + 1)**2)
+
+        call check("native engine advertises factor capability", &
+            has_cap(engine, CAP_FACTOR))
+        r = engine%factor(x**2 + 2*x + 1)
+        call check("native factor operation succeeds", r%ok)
+        call check("native factor operation returns the exact factorisation", &
+            r%value == (x + 1)**2)
+
+        r = engine%factor((x**2 - 1)/(x - 1))
+        call check("native factor operation on a quotient succeeds", r%ok)
+        if (r%ok) then
+            call check("native factor reports cancelled-domain condition", &
+                r%conditional)
+            if (r%conditional) call check("native factor condition is named", &
+                chars(r%condition) == "cancelled denominator bases must be nonzero")
+        end if
     end subroutine test_polynomial_cancellation
 
     subroutine test_expansion()

@@ -129,6 +129,12 @@ candidate before returning, while rational-function inputs remain available
 to `Apart` and the existing integration rules. The native tests cover both
 candidate selection and these operation-boundary contracts; the broader
 external-CAS-independent engine tracker remains open.
+The common `engine_t` contract now also exposes `factor`; native advertises
+`CAP_FACTOR` and returns bounded, canonical factorisations with the same
+nonzero-denominator condition used by simplification, while Yacas binds its
+existing `Factor` operation to the shared method. This removes another
+operation-specific dependency from callers without claiming that the full
+multivariate factor engine is complete.
 
 Issue #44 (plotting through fortplot) is complete as of 2026-08-11 for the
 bounded adapter. `fortsym_plot` samples real curves, parametric curves, list

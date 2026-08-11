@@ -88,6 +88,7 @@ module fortsym_engine
     contains
         procedure :: zero_test => engine_zero_test_default
         procedure :: simplify => engine_simplify_default
+        procedure :: factor => engine_factor_default
         procedure :: diff => engine_diff_default
         procedure :: expand => engine_expand_default
         procedure :: series => engine_series_default
@@ -151,6 +152,16 @@ contains
         r%value = e
         r%message = str(chars(self%name)//": simplify not supported")
     end function engine_simplify_default
+
+    function engine_factor_default(self, e, limit) result(r)
+        class(engine_t), intent(inout) :: self
+        type(expr_t),           intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
+        type(engine_result_t)          :: r
+        r%ok = .false.
+        r%value = e
+        r%message = str(chars(self%name)//": factor not supported")
+    end function engine_factor_default
 
     function engine_diff_default(self, e, v) result(r)
         class(engine_t), intent(inout) :: self

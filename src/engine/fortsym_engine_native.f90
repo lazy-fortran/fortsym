@@ -21,7 +21,7 @@ module fortsym_engine_native
     use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
         resource_exceeded, resource_visit, resource_failure, wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, CAP_ZERO_TEST, &
-        CAP_SIMPLIFY, CAP_DIFF, CAP_EXPAND, CAP_SOLVE, CAP_SERIES
+        CAP_SIMPLIFY, CAP_FACTOR, CAP_DIFF, CAP_EXPAND, CAP_SOLVE, CAP_SERIES
     implicit none
     private
 
@@ -48,6 +48,7 @@ module fortsym_engine_native
     contains
         procedure :: zero_test => native_zero_test
         procedure :: simplify => native_simplify
+        procedure :: factor => native_factor
         procedure :: diff => native_diff
         procedure :: expand => native_expand
         procedure :: series => native_series
@@ -66,8 +67,8 @@ contains
         eng%name = str("native")
         eng%available = .true.
         eng%in_process = .true.
-        eng%caps = CAP_ZERO_TEST + CAP_SIMPLIFY + CAP_DIFF + CAP_EXPAND + &
-            CAP_SERIES + CAP_SOLVE
+        eng%caps = CAP_ZERO_TEST + CAP_SIMPLIFY + CAP_FACTOR + CAP_DIFF + &
+            CAP_EXPAND + CAP_SERIES + CAP_SOLVE
         eng%home => home
         if (present(assumptions)) eng%assumptions => assumptions
     end function make_native_engine
@@ -204,6 +205,52 @@ contains
         end if
         r%seconds = wall_seconds() - started
     end function native_simplify
+
+    function native_factor(self, e, limit) result(r)
+        class(native_engine_t), intent(inout) :: self
+        type(expr_t),           intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
+        type(engine_result_t)                 :: r
+        type(expr_t)                          :: factored
+        real(dp)                              :: started
+        logical                               :: refused, factor_ok
+        character(:), allocatable             :: reason, factor_reason
+        type(resource_limit_t)                :: active_limit
+
+        started = wall_seconds()
+        r%value = e
+        call resource_exceeded(e, limit, "factor", refused, reason)
+        if (refused) then
+            r%message = str(reason)
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        if (.not. associated(e%a, self%home)) then
+            r%message = str("native: expression belongs to a different arena")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        call poly_factor(e%a, e, factored, factor_ok, factor_reason)
+        if (.not. factor_ok) then
+            r%message = str(factor_reason)
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        if (present(limit)) active_limit = limit
+        active_limit%visited_nodes = 0_int64
+        active_limit%exceeded_kind = 0
+        factored%id = simplify_root_id(e%a, factored%id, active_limit)
+        if (active_limit%exceeded_kind /= 0) then
+            r%message = str(resource_failure("factor", active_limit))
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        r%value = factored
+        r%ok = .true.
+        call set_simplify_condition(e, factored%id, r)
+        r%seconds = wall_seconds() - started
+    end function native_factor
 
     subroutine set_simplify_condition(original, simplified_id, result)
         type(expr_t),        intent(in)    :: original
