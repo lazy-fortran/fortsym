@@ -144,8 +144,10 @@ Every checklist item requires all of the following:
   [`benchmark/harnesses/bench_sympy.py`](benchmark/harnesses/bench_sympy.py),
   with the measurement contract documented in
   [`doc/benchmarks.md`](doc/benchmarks.md).
-- [ ] Make the benchmark report fail when a supported native workload is slower
-  than the SymPy baseline without an explicit waiver.
+- [x] Make the benchmark report fail when a supported native workload is slower
+  than the SymPy baseline without an explicit waiver. Use
+  `--enforce-parity` for the gate and `--waive operation:scope` for a recorded,
+  named exception.
 
 ## Phase 1 — make the Fortran facade coherent
 

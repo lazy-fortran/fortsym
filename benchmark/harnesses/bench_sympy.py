@@ -199,6 +199,18 @@ def main() -> None:
     parser.add_argument("--warmup", type=int, default=3)
     parser.add_argument("--repetitions", type=int, default=7)
     parser.add_argument("--batch", type=int, default=20)
+    parser.add_argument(
+        "--enforce-parity",
+        action="store_true",
+        help="fail when a supported native workload is slower than SymPy",
+    )
+    parser.add_argument(
+        "--waive",
+        action="append",
+        default=[],
+        metavar="OPERATION:SCOPE",
+        help="explicitly waive one parity row when enforcement is enabled",
+    )
     args = parser.parse_args()
     if min(args.warmup, args.repetitions, args.batch) < 1:
         raise SystemExit("warmup, repetitions, and batch must be positive")
@@ -215,6 +227,21 @@ def main() -> None:
             workloads.append(benchmark_workload(
                 operation, scope, args.warmup, args.repetitions, args.batch,
             ))
+    workload_ids = {f"{item['operation']}:{item['scope']}" for item in workloads}
+    unknown_waivers = set(args.waive) - workload_ids
+    if unknown_waivers:
+        raise SystemExit(
+            "unknown parity waiver(s): " + ", ".join(sorted(unknown_waivers))
+        )
+    violations = []
+    for item in workloads:
+        identifier = f"{item['operation']}:{item['scope']}"
+        item["parity"] = {
+            "within_baseline": item["native_over_sympy"] <= 1.0,
+            "waived": identifier in args.waive,
+        }
+        if not item["parity"]["within_baseline"] and not item["parity"]["waived"]:
+            violations.append(identifier)
     report = {
         "schema_version": 1,
         "package": "fortsym.sympy",
@@ -231,6 +258,11 @@ def main() -> None:
         },
         "correctness_oracle": "SymPy 1.14.0 parse/equality plus fixed exact text checks",
         "correctness": correctness,
+        "parity": {
+            "enforced": args.enforce_parity,
+            "waivers": sorted(args.waive),
+            "violations": violations,
+        },
         "workloads": workloads,
     }
     text = json.dumps(report, indent=2, sort_keys=True) + "\n"
@@ -239,6 +271,10 @@ def main() -> None:
     else:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(text, encoding="utf-8")
+    if args.enforce_parity and violations:
+        raise SystemExit(
+            "native parity failed for: " + ", ".join(violations)
+        )
 
 
 if __name__ == "__main__":

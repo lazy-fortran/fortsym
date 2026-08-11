@@ -77,9 +77,11 @@ FORTSYM_LIBRARY=build/lib/libfortsym.so PYTHONPATH=python \
   --output benchmark/results/sympy-1.14.0.json
 ```
 
-The harness reports ratios and does not yet fail when native work is slower.
-That policy belongs to the Phase 0 performance gate after stable workloads and
-machine metadata have been reviewed.
+The harness reports ratios by default. `--enforce-parity` makes it fail when a
+native median exceeds the SymPy median. An explicit `--waive operation:scope`
+is required for a known exception, and the waiver is recorded in the JSON
+report. The current default command is diagnostic. CI or a release benchmark
+uses `--enforce-parity` after selecting a pinned machine baseline.
 
 `fo exec bench_native` writes CSV rows for warm, batched end-to-end native and
 SymEngine simplify, differentiation, and expansion calls. Each row includes a
