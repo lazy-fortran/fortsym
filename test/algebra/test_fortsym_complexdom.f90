@@ -545,8 +545,6 @@ contains
         if (good) then
             expected_text = algebraic_im(chars(real_text), good)
             expected = algebraic_expr(arena, chars(expected_text), good)
-            print *, "real im", chars(im%algebraic_text()), &
-                chars(expected%algebraic_text())
             call ok("real algebraic Im matches bridge", im == expected)
         end if
         call conjugate(real_root, facts, conjugated, good, why)
@@ -572,8 +570,6 @@ contains
         if (good) then
             expected_text = algebraic_re(chars(imaginary_text), good)
             expected = algebraic_expr(arena, chars(expected_text), good)
-            print *, "imaginary re", chars(re%algebraic_text()), &
-                chars(expected%algebraic_text())
             call ok("pure-imaginary algebraic Re matches bridge", re == expected)
         end if
 
@@ -585,8 +581,6 @@ contains
         if (good) then
             expected_text = algebraic_re(chars(mixed_text), good)
             expected = algebraic_expr(arena, chars(expected_text), good)
-            print *, "mixed re", chars(re%algebraic_text()), &
-                chars(expected%algebraic_text())
             call ok("mixed algebraic Re matches bridge", re == expected)
         end if
         call im_part(mixed_root, facts, im, good, why)
@@ -594,8 +588,6 @@ contains
         if (good) then
             expected_text = algebraic_im(chars(mixed_text), good)
             expected = algebraic_expr(arena, chars(expected_text), good)
-            print *, "mixed im", chars(im%algebraic_text()), &
-                chars(expected%algebraic_text())
             call ok("mixed algebraic Im matches bridge", im == expected)
         end if
         call conjugate(mixed_root, facts, conjugated, good, why)
