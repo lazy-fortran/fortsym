@@ -42,6 +42,12 @@ int main(void)
     fortsym_expr *foreign = NULL;
     fortsym_expr *two = NULL;
     fortsym_expr *square = NULL;
+    fortsym_expr *powered = NULL;
+    fortsym_expr *expanded_input = NULL;
+    fortsym_expr *factored = NULL;
+    fortsym_expr *quotient_num = NULL;
+    fortsym_expr *quotient_den = NULL;
+    fortsym_expr *quotient = NULL;
     fortsym_expr *root = NULL;
     fortsym_expr *assumed = NULL;
     const fortsym_expr *root_argument[1];
@@ -73,6 +79,27 @@ int main(void)
     assert(status == FORTSYM_OK);
     status = fortsym_power(arena, x, two, &square, message, sizeof message);
     assert(status == FORTSYM_OK);
+    status = fortsym_power(arena, sum, two, &powered, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_expand(arena, powered, &expanded_input, message,
+                            sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_factor(arena, expanded_input, &factored, message,
+                            sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(factored, "(x + 1)**2");
+    status = fortsym_subtract(arena, square, one, &quotient_num, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_subtract(arena, x, one, &quotient_den, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_divide(arena, quotient_num, quotient_den, &quotient,
+                            message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_factor(arena, quotient, &foreign, message,
+                            sizeof message);
+    assert(status == FORTSYM_UNSUPPORTED && foreign == NULL);
     root_argument[0] = square;
     status = fortsym_function(arena, "sqrt", root_argument, 1, &root,
                               message, sizeof message);
@@ -117,6 +144,12 @@ int main(void)
     fortsym_expr_free(assumed);
     fortsym_expr_free(root);
     fortsym_expr_free(square);
+    fortsym_expr_free(factored);
+    fortsym_expr_free(expanded_input);
+    fortsym_expr_free(powered);
+    fortsym_expr_free(quotient);
+    fortsym_expr_free(quotient_den);
+    fortsym_expr_free(quotient_num);
     fortsym_expr_free(two);
     fortsym_expr_free(substituted);
     fortsym_expr_free(sum);

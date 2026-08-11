@@ -135,6 +135,11 @@ nonzero-denominator condition used by simplification, while Yacas binds its
 existing `Factor` operation to the shared method. This removes another
 operation-specific dependency from callers without claiming that the full
 multivariate factor engine is complete.
+The native C ABI now exposes the same operation for denominator-free
+polynomials. It refuses results that carry a cancelled-denominator condition,
+because the current handle ABI has no condition field and must not silently
+erase that domain information; the C test covers both the successful
+factorisation and this refusal.
 
 Issue #44 (plotting through fortplot) is complete as of 2026-08-11 for the
 bounded adapter. `fortsym_plot` samples real curves, parametric curves, list

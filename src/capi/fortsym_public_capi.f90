@@ -47,7 +47,7 @@ module fortsym_public_capi
     public :: fortsym_add, fortsym_subtract, fortsym_multiply, fortsym_divide
     public :: fortsym_power, fortsym_add_many, fortsym_function
     public :: fortsym_substitute, fortsym_differentiate, fortsym_expr_free
-    public :: fortsym_expand, fortsym_simplify
+    public :: fortsym_expand, fortsym_simplify, fortsym_factor
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
     public :: fortsym_expr_equal, fortsym_expr_node_count, fortsym_expr_text
     public :: fortsym_expr_name, fortsym_expr_exact_text
@@ -215,7 +215,7 @@ contains
             return
         end if
         if (fact /= FACT_REAL .and. fact /= FACT_POSITIVE .and. &
-                fact /= FACT_NONNEGATIVE .and. fact /= FACT_NONZERO) then
+            fact /= FACT_NONNEGATIVE .and. fact /= FACT_NONZERO) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if
@@ -531,6 +531,37 @@ contains
         end if
         call make_handle(a, result%value, out, status, message, capacity)
     end function fortsym_simplify
+
+    function fortsym_factor(raw, expression_raw, out, message, capacity) &
+            bind(c, name="fortsym_factor") result(status)
+        type(c_ptr), value :: raw, expression_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a, ep_arena
+        type(expr_owner_t), pointer :: ep
+        type(expr_t) :: expression
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: result
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        ep_arena => ep%arena
+        if (.not. associated(ep_arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        engine = make_native_engine(a%value, a%assumptions)
+        result = engine%factor(expression)
+        if (.not. result%ok .or. result%conditional) then
+            call fail(status, message, capacity, FORTSYM_UNSUPPORTED)
+            return
+        end if
+        call make_handle(a, result%value, out, status, message, capacity)
+    end function fortsym_factor
 
     subroutine fortsym_expr_free(raw) bind(c, name="fortsym_expr_free")
         type(c_ptr), value :: raw
