@@ -122,6 +122,14 @@ fortsym = "Native simplify applies guarded, resource-bounded rewrites and return
 difference = "Normal-form choice, rewrite coverage, assumptions, and resource-limit outcomes are not identical."
 
 [[semantic]]
+id = "refinement"
+affected = ["refine"]
+parity = "partial"
+sympy = "SymPy refine applies assumptions to expressions and can use its broad predicate, relational, and compound inference system."
+fortsym = "The adapter accepts one or more supported Q facts and routes them through a reversible native assumption scope and guarded simplifier."
+difference = "Only the native real, positive, nonnegative, and nonzero fact fragment is covered; relational constructors, compound inference, conflict diagnostics, and the broader SymPy refine rules remain incomplete."
+
+[[semantic]]
 id = "factorisation"
 affected = ["factor"]
 parity = "partial"

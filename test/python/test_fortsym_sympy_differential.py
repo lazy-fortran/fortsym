@@ -61,6 +61,7 @@ class SympyDifferentialTest(unittest.TestCase):
             "substitution": api.expand((x + 1)**2).subs(x, 2),
             "expansion": api.expand((x + 1)**2),
             "simplification": api.simplify(api.sqrt(x**2)),
+            "refinement": api.refine(api.sqrt(x**2), api.Q.positive(x)),
             "factorisation": api.factor(x**2 + 2*x + 1),
         }
 

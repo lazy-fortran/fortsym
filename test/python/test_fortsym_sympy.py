@@ -112,6 +112,12 @@ class SympySubsetTest(unittest.TestCase):
                 raise RuntimeError("scope body")
         self.assertIsNone(sp.ask(fact))
 
+    def test_refine_uses_native_scoped_assumptions(self):
+        x = sp.Symbol("refine_x")
+        self.assertEqual(sp.refine(sp.sqrt(x**2), sp.Q.positive(x)), x)
+        self.assertEqual(sp.refine(sp.sqrt(x**2), sp.Q.real(x)), sp.Abs(x))
+        self.assertIsNone(sp.ask(sp.Q.positive(x)))
+
 
 if __name__ == "__main__":
     unittest.main()

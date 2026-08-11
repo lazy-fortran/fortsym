@@ -99,6 +99,20 @@ def assuming(*facts):
     return _default().assuming(*facts)
 
 
+def refine(expression, assumptions=None):
+    expression = sympify(expression)
+    if assumptions is None:
+        return expression.simplify()
+    if isinstance(assumptions, _Assumption):
+        facts = (assumptions,)
+    elif isinstance(assumptions, (tuple, list)):
+        facts = tuple(assumptions)
+    else:
+        raise UnsupportedOperationError("refine assumptions")
+    with _default().assuming(*facts):
+        return expression.simplify()
+
+
 class Symbol(Expr, metaclass=_KindMeta):
     _kinds = frozenset({4})
 
@@ -319,7 +333,7 @@ __all__ = [
     "Symbol", "symbols", "sympify", "Integer", "Rational", "Float",
     "Add", "Mul", "Pow", "Function", "Derivative", "Subs", "sin", "cos",
     "tan", "exp", "log", "sqrt", "Abs", "diff", "subs", "expand",
-    "simplify", "factor", "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
+    "simplify", "factor", "refine", "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
     "integrate", "limit", "series", "solve", "Matrix", "pi", "E", "I",
     "oo",
 ]
