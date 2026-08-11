@@ -23,7 +23,7 @@ program test_fortsym_complexdom
     use fortsym_algebraic, only: algebraic_i, algebraic_from_re_im, &
         algebraic_sqrt, algebraic_mul, algebraic_conjugate, algebraic_re, &
         algebraic_im
-    use fortsym_expr, only: expr_t, sym, num, rat, algebraic_expr, i_expr, func, &
+    use fortsym_expr, only: expr_t, sym, num, rat, algebraic_expr, i_expr, pi_expr, func, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==)
     use fortsym_assume, only: assumption_context_t, assume, real_valued
@@ -60,6 +60,7 @@ program test_fortsym_complexdom
     call test_expand_matches()
     call test_literals_and_unit()
     call test_hyperbolic_functions()
+    call test_hyperbolic_pole_refused()
     call test_unknown_reality_refused()
     call test_branch_cases_refused()
     call test_unknown_heads_refused()
@@ -317,6 +318,7 @@ contains
     subroutine test_hyperbolic_functions()
         call check_hyperbolic("sinh")
         call check_hyperbolic("cosh")
+        call check_hyperbolic("tanh")
     end subroutine test_hyperbolic_functions
 
     subroutine check_hyperbolic(name)
@@ -344,6 +346,20 @@ contains
         end do
         call ok(trim(name)//" matches the independent complex oracle", allgood)
     end subroutine check_hyperbolic
+
+    subroutine test_hyperbolic_pole_refused()
+        type(expr_t) :: e, re, im
+        logical :: good
+        character(:), allocatable :: why
+
+        e = func_one("tanh", i_expr(arena)*pi_expr(arena)/num(arena, 2))
+        call complex_split(e, facts, re, im, good, why)
+        call ok("tanh at an exact pole is refused", .not. good)
+        if (.not. good) then
+            call ok("tanh pole refusal names the denominator", &
+                index(why, "denominator") > 0)
+        end if
+    end subroutine test_hyperbolic_pole_refused
 
     !> The point of the module: a symbol of unknown reality is refused, not
     !> assumed real.
@@ -799,6 +815,7 @@ contains
         case ("tan"); v = sin(a)/cos(a)
         case ("sinh"); v = sinh(a)
         case ("cosh"); v = cosh(a)
+        case ("tanh"); v = sinh(a)/cosh(a)
         case ("sqrt"); v = sqrt(a)
         case ("log")
             if (a == (0.0_dp, 0.0_dp)) then
