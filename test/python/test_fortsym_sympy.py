@@ -60,6 +60,25 @@ class SympySubsetTest(unittest.TestCase):
                 self.assertEqual(expression.is_zero, expected_zero)
                 self.assertEqual(expression.is_nonzero, expected_nonzero)
 
+    def test_supported_assumption_predicates(self):
+        real = sp.Symbol("predicate_real", real=True)
+        positive = sp.Symbol("predicate_positive", positive=True)
+        nonnegative = sp.Symbol("predicate_nonnegative", nonnegative=True)
+        nonzero = sp.Symbol("predicate_nonzero", nonzero=True)
+
+        self.assertEqual((real.is_real, real.is_positive,
+                          real.is_nonnegative, real.is_nonzero),
+                         (True, None, None, None))
+        self.assertEqual((positive.is_real, positive.is_positive,
+                          positive.is_nonnegative, positive.is_nonzero),
+                         (True, True, True, True))
+        self.assertEqual((nonnegative.is_real, nonnegative.is_positive,
+                          nonnegative.is_nonnegative, nonnegative.is_nonzero),
+                         (True, None, True, None))
+        self.assertEqual((nonzero.is_real, nonzero.is_positive,
+                          nonzero.is_nonnegative, nonzero.is_nonzero),
+                         (True, None, None, True))
+
 
 if __name__ == "__main__":
     unittest.main()

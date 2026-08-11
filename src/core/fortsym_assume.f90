@@ -13,6 +13,7 @@ module fortsym_assume
     public :: assumption_context_t, assumption_t
     public :: assume, positive, nonnegative, nonzero, real_valued
     public :: integer_valued, positive_integer, record_relation
+    public :: assumption_has
     public :: init_assumption_context, record_assumption, clone_assumption_context
     public :: FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, &
         FACT_INTEGER, FACT_POSITIVE_INTEGER
@@ -239,6 +240,15 @@ contains
         end do
     end function context_has
 
+    subroutine assumption_has(context, expression, fact, known)
+        type(assumption_context_t), intent(in) :: context
+        type(expr_t),                intent(in) :: expression
+        integer,                     intent(in) :: fact
+        logical,                     intent(out) :: known
+
+        known = context_has(context, expression, fact)
+    end subroutine assumption_has
+
     function positive(expression) result(assumption)
         type(expr_t), intent(in) :: expression
         type(assumption_t)       :: assumption
@@ -292,6 +302,9 @@ contains
             all_facts = ior(all_facts, FACT_REAL)
         end if
         if (iand(facts, FACT_NONNEGATIVE) /= 0) then
+            all_facts = ior(all_facts, FACT_REAL)
+        end if
+        if (iand(facts, FACT_NONZERO) /= 0) then
             all_facts = ior(all_facts, FACT_REAL)
         end if
         if (iand(facts, FACT_INTEGER) /= 0) then

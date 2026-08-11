@@ -29,6 +29,7 @@ int main(void)
     int kind = 0;
     int equal = 0;
     int verdict = FORTSYM_ZERO_UNKNOWN;
+    int known = 0;
     int status;
     fortsym_arena *arena = NULL;
     fortsym_arena *other_arena = NULL;
@@ -56,7 +57,7 @@ int main(void)
     fortsym_expr *sine = NULL;
     const fortsym_expr *root_argument[1];
 
-    assert(fortsym_abi_version() == 2);
+    assert(fortsym_abi_version() == 3);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
@@ -111,6 +112,18 @@ int main(void)
     status = fortsym_assume(arena, x, FORTSYM_FACT_POSITIVE, message,
                             sizeof message);
     assert(status == FORTSYM_OK);
+    status = fortsym_assumption_has(arena, x, FORTSYM_FACT_POSITIVE, &known,
+                                    message, sizeof message);
+    assert(status == FORTSYM_OK && known == 1);
+    status = fortsym_assumption_has(arena, x, FORTSYM_FACT_REAL, &known,
+                                    message, sizeof message);
+    assert(status == FORTSYM_OK && known == 1);
+    status = fortsym_assumption_has(arena, y, FORTSYM_FACT_POSITIVE, &known,
+                                    message, sizeof message);
+    assert(status == FORTSYM_OK && known == 0);
+    status = fortsym_assumption_has(arena, x, 16, &known, message,
+                                    sizeof message);
+    assert(status == FORTSYM_INVALID_ARGUMENT);
     status = fortsym_simplify(arena, root, &assumed, message, sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(assumed, "x");

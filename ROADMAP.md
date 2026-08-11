@@ -271,6 +271,9 @@ Every checklist item requires all of the following:
   - [x] Expose native zero verdicts through the C ABI and map them to the
     SymPy adapter's `Expr.is_zero` and `Expr.is_nonzero` properties, preserving
     `True`, `False`, and `None` for proven zero, proven nonzero, and unknown.
+  - [x] Expose the existing local `real`, `positive`, `nonnegative`, and
+    `nonzero` facts through one C-ABI query and the matching SymPy predicate
+    properties, including positive-fact implication.
 - [ ] Support local contexts, global convenience assumptions, scoped context
   managers in Python, and immutable explicit contexts in Fortran.
 - [ ] Implement `refine`, relational facts, compound inference, and conflict

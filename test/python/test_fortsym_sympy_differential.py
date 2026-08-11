@@ -101,6 +101,23 @@ class SympyDifferentialTest(unittest.TestCase):
                 self.assertEqual(actual.is_zero, expected.is_zero)
                 self.assertEqual(actual.is_nonzero, expected.is_nonzero)
 
+    def test_supported_assumption_predicates(self):
+        assumptions = ("real", "positive", "nonnegative", "nonzero")
+        for assumption in assumptions:
+            with self.subTest(assumption=assumption):
+                oracle_symbol = oracle.Symbol(
+                    "predicate_" + assumption, **{assumption: True}
+                )
+                native_symbol = native.Symbol(
+                    "predicate_" + assumption, **{assumption: True}
+                )
+                for name in ("is_real", "is_positive", "is_nonnegative",
+                             "is_nonzero"):
+                    self.assertEqual(
+                        getattr(native_symbol, name),
+                        getattr(oracle_symbol, name),
+                    )
+
     def test_exceptions_and_unevaluated_objects(self):
         oracle_x = oracle.Symbol("x")
         native_x = native.Symbol("x")

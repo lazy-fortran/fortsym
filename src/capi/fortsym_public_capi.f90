@@ -16,6 +16,7 @@ module fortsym_public_capi
     use fortsym_diff, only: diff
     use fortsym_assume_api, only: assumption_context_t, init_assumption_context, &
         record_assumption, &
+        assumption_has, &
         FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -44,7 +45,8 @@ module fortsym_public_capi
 
     public :: fortsym_abi_version, fortsym_arena_new, fortsym_arena_free
     public :: fortsym_int, fortsym_rational, fortsym_real, fortsym_exact
-    public :: fortsym_symbol, c_fortsym_assume, fortsym_constant
+    public :: fortsym_symbol, c_fortsym_assume, fortsym_assumption_has, &
+        fortsym_constant
     public :: fortsym_add, fortsym_subtract, fortsym_multiply, fortsym_divide
     public :: fortsym_power, fortsym_add_many, fortsym_function
     public :: fortsym_substitute, fortsym_differentiate, fortsym_expr_free
@@ -59,7 +61,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 2_c_int
+        v = 3_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -225,6 +227,41 @@ contains
         call put_error(message, capacity, FORTSYM_OK)
         status = FORTSYM_OK
     end function c_fortsym_assume
+
+    function fortsym_assumption_has(raw, expression_raw, fact, known, &
+            message, capacity) bind(c, name="fortsym_assumption_has") &
+            result(status)
+        type(c_ptr), value :: raw, expression_raw
+        integer(c_int), value :: fact
+        integer(c_int), intent(out) :: known
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a, ep_arena
+        type(expr_owner_t), pointer :: ep
+        type(expr_t) :: expression
+        logical :: fact_known
+
+        known = 0_c_int
+        call put_error(message, capacity, FORTSYM_OK)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        ep_arena => ep%arena
+        if (.not. associated(ep_arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (fact /= FACT_REAL .and. fact /= FACT_POSITIVE .and. &
+            fact /= FACT_NONNEGATIVE .and. fact /= FACT_NONZERO) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call assumption_has(a%assumptions, expression, int(fact), fact_known)
+        if (fact_known) known = 1_c_int
+        status = FORTSYM_OK
+    end function fortsym_assumption_has
 
     function fortsym_constant(raw, name, out, message, capacity) &
             bind(c, name="fortsym_constant") result(status)
