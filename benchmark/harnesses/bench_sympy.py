@@ -487,6 +487,10 @@ def correctness_cases() -> list[dict[str, Any]]:
             oracle.besseli(oracle.nan, -oracle.oo),
             native.besseli(native.nan, -native.oo),
         ),
+        "legendre_high_degree_infinity": (
+            oracle.legendre(3, oracle.oo),
+            native.legendre(3, native.oo),
+        ),
     }
     names = {
         "benchmark_nan_order": oracle_order,

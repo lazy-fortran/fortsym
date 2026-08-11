@@ -218,6 +218,9 @@ class SympySubsetTest(unittest.TestCase):
             (sp.legendre(2, -sp.oo), sp.oo),
             (sp.legendre(0, sp.zoo), sp.Integer(1)),
             (sp.legendre(2, sp.zoo), sp.zoo),
+            (sp.legendre(3, sp.oo), sp.nan),
+            (sp.legendre(3, -sp.oo), sp.nan),
+            (sp.legendre(3, sp.zoo), sp.nan),
         ]
         for expression, expected in cases:
             with self.subTest(expression=str(expression)):

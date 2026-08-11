@@ -127,8 +127,9 @@ order-bearing Bessel and Legendre heads: unresolved NaN arguments remain
 applied, while `besseli(nan, -oo)` follows SymPy's representable `nan` result.
 Native `legendrep(degree, order, argument)` keeps its Fortran spelling; the
 adapter's `legendre(degree, argument)` maps to order zero. Nonnegative integer
-degrees at `+/-oo` and `zoo` use the representable parity/domain rules, while
-other degrees and orders remain applied heads.
+degrees through two at `+/-oo` and `zoo` use the representable parity/domain
+rules; degree three and higher become `nan`, while other degrees and orders
+remain applied heads.
 
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a

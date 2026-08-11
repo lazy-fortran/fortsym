@@ -361,6 +361,9 @@ Every checklist item requires all of the following:
   - [x] Match NaN boundaries for order-bearing Bessel and Legendre heads:
     unresolved NaN arguments remain applied, while `besseli(nan, -oo)` becomes
     `nan` through the existing directed-domain rule.
+  - [x] Match SymPy's high-degree Legendre infinity boundary: integer degrees
+    three and higher become `nan` at `+/-oo` and `zoo`; lower representable
+    degrees retain their existing parity/domain rules.
   - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
     non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
