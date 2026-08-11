@@ -28,6 +28,7 @@ int main(void)
     int64_t integer_value = 0;
     int kind = 0;
     int equal = 0;
+    int verdict = FORTSYM_ZERO_UNKNOWN;
     int status;
     fortsym_arena *arena = NULL;
     fortsym_arena *other_arena = NULL;
@@ -50,9 +51,12 @@ int main(void)
     fortsym_expr *quotient = NULL;
     fortsym_expr *root = NULL;
     fortsym_expr *assumed = NULL;
+    fortsym_expr *zero_expression = NULL;
+    fortsym_expr *seven = NULL;
+    fortsym_expr *sine = NULL;
     const fortsym_expr *root_argument[1];
 
-    assert(fortsym_abi_version() == 1);
+    assert(fortsym_abi_version() == 2);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
@@ -111,6 +115,23 @@ int main(void)
     assert(status == FORTSYM_OK);
     expect_text(assumed, "x");
 
+    status = fortsym_subtract(arena, x, x, &zero_expression, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_zero_test(arena, zero_expression, &verdict, message,
+                               sizeof message);
+    assert(status == FORTSYM_OK && verdict == FORTSYM_ZERO_TRUE);
+    status = fortsym_int(arena, 7, &seven, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_zero_test(arena, seven, &verdict, message, sizeof message);
+    assert(status == FORTSYM_OK && verdict == FORTSYM_ZERO_FALSE);
+    root_argument[0] = x;
+    status = fortsym_function(arena, "sin", root_argument, 1, &sine,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_zero_test(arena, sine, &verdict, message, sizeof message);
+    assert(status == FORTSYM_OK && verdict == FORTSYM_ZERO_UNKNOWN);
+
     status = fortsym_differentiate(arena, x, x, &derivative, message,
                                    sizeof message);
     assert(status == FORTSYM_OK);
@@ -142,6 +163,9 @@ int main(void)
 
     fortsym_expr_free(foreign);
     fortsym_expr_free(assumed);
+    fortsym_expr_free(sine);
+    fortsym_expr_free(seven);
+    fortsym_expr_free(zero_expression);
     fortsym_expr_free(root);
     fortsym_expr_free(square);
     fortsym_expr_free(factored);

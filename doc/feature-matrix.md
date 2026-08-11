@@ -24,7 +24,7 @@ it.
 | JVP, VJP, gradient, and HVP | yes | verification | verification | consumer conformance corpus |
 | Simplification | partial | partial | partial | guarded rewrites and polynomial normal form |
 | Expansion | bounded multinomial | yes | Yacas concrete method | sparse polynomial expansion without the 100,000-term fast-path bound |
-| Zero decision | partial | partial | weak simplify test | polynomial certificates and assumptions |
+| Zero decision | partial, with C/Python three-valued `is_zero` and `is_nonzero` | partial | weak simplify test | broader predicate inference and polynomial certificates |
 | Polynomial GCD and rational cancellation | no | partial, univariate | partial | multivariate domains |
 | Factor, apart, and together | no | no public operation | Yacas factor only | typed engine operations |
 | Assumptions and conditions | sign facts | no public context | no public context | compound inference and returned conditions |

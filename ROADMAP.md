@@ -268,6 +268,9 @@ Every checklist item requires all of the following:
 
 - [ ] Implement the SymPy-compatible predicate vocabulary and three-valued
   query semantics.
+  - [x] Expose native zero verdicts through the C ABI and map them to the
+    SymPy adapter's `Expr.is_zero` and `Expr.is_nonzero` properties, preserving
+    `True`, `False`, and `None` for proven zero, proven nonzero, and unknown.
 - [ ] Support local contexts, global convenience assumptions, scoped context
   managers in Python, and immutable explicit contexts in Fortran.
 - [ ] Implement `refine`, relational facts, compound inference, and conflict

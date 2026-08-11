@@ -147,6 +147,11 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.zero_test = declare(
+        "fortsym_zero_test",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
+    )
     lib.assume = declare(
         "fortsym_assume",
         ctypes.c_int,
@@ -447,6 +452,40 @@ class Expr:
     def factor(self):
         return self._arena._result(self._lib.factor, self._arena._require(),
                                    self._require())
+
+    def _zero_verdict(self):
+        verdict = ctypes.c_int()
+        message = _message()
+        status = self._lib.zero_test(
+            self._arena._require(), self._require(), ctypes.byref(verdict),
+            message, len(message)
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "zero_test")
+        return verdict.value
+
+    @property
+    def is_zero(self):
+        verdict = self._zero_verdict()
+        if verdict == 1:
+            return True
+        if verdict != 2:
+            return None
+        try:
+            simplified = self.simplify()
+        except FortSymError:
+            return None
+        try:
+            if simplified.kind in (1, 2, 3, 10, 11, 12, 13):
+                return False
+            return None
+        finally:
+            simplified.close()
+
+    @property
+    def is_nonzero(self):
+        zero = self.is_zero
+        return None if zero is None else not zero
 
     @property
     def kind(self):

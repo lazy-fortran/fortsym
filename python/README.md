@@ -25,6 +25,7 @@ does not import SymPy. Unsupported names raise
 | Surface | Supported semantics |
 |---|---|
 | `Symbol`, `symbols`, `Integer`, `Rational`, `Float`, `pi`, `E`, `I` | exact native construction and structural equality |
+| `Expr.is_zero`, `Expr.is_nonzero` | SymPy-compatible three-valued predicates backed by the native zero query and scalar-result guard (`True`, `False`, or `None`) |
 | `real=True`, `positive=True`, `nonnegative=True`, `nonzero=True` | native arena facts; positive/nonnegative/real facts affect guarded simplification |
 | `Add`, `Mul`, `Pow`, `Function` | native operator construction; `isinstance` checks use native node kinds |
 | `sin`, `cos`, `tan`, `exp`, `log`, `sqrt`, `Abs` | native applied-function nodes |

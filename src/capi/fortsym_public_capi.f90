@@ -18,7 +18,8 @@ module fortsym_public_capi
         record_assumption, &
         FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO
     use fortsym_engine_native, only: native_engine_t, make_native_engine
-    use fortsym_engine, only: engine_result_t
+    use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
+        VERDICT_FALSE
     implicit none
     private
 
@@ -48,6 +49,7 @@ module fortsym_public_capi
     public :: fortsym_power, fortsym_add_many, fortsym_function
     public :: fortsym_substitute, fortsym_differentiate, fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor
+    public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
     public :: fortsym_expr_equal, fortsym_expr_node_count, fortsym_expr_text
     public :: fortsym_expr_name, fortsym_expr_exact_text
@@ -57,7 +59,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 1_c_int
+        v = 2_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -562,6 +564,47 @@ contains
         end if
         call make_handle(a, result%value, out, status, message, capacity)
     end function fortsym_factor
+
+    function fortsym_zero_test(raw, expression_raw, verdict, message, capacity) &
+            bind(c, name="fortsym_zero_test") result(status)
+        type(c_ptr), value :: raw, expression_raw
+        integer(c_int), intent(out) :: verdict
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a, ep_arena
+        type(expr_owner_t), pointer :: ep
+        type(expr_t) :: expression
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: result
+
+        verdict = int(VERDICT_UNKNOWN, c_int)
+        call put_error(message, capacity, FORTSYM_OK)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        ep_arena => ep%arena
+        if (.not. associated(ep_arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        engine = make_native_engine(a%value, a%assumptions)
+        result = engine%zero_test(expression)
+        if (.not. result%ok) then
+            call fail(status, message, capacity, FORTSYM_UNSUPPORTED)
+            return
+        end if
+        select case (result%verdict)
+        case (VERDICT_TRUE)
+            verdict = int(VERDICT_TRUE, c_int)
+        case (VERDICT_FALSE)
+            verdict = int(VERDICT_FALSE, c_int)
+        case default
+            verdict = int(VERDICT_UNKNOWN, c_int)
+        end select
+        status = FORTSYM_OK
+    end function fortsym_zero_test
 
     subroutine fortsym_expr_free(raw) bind(c, name="fortsym_expr_free")
         type(c_ptr), value :: raw
