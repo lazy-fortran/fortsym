@@ -368,6 +368,8 @@ sech = _named_function("sech")
 coth = _named_function("coth")
 erf = _named_function("erf")
 erfc = _named_function("erfc")
+gamma = _named_function("gamma")
+loggamma = _named_function("loggamma")
 asinh = _named_function("asinh")
 acosh = _named_function("acosh")
 atanh = _named_function("atanh")
@@ -450,9 +452,9 @@ __all__ = [
     "Symbol", "symbols", "sympify", "Integer", "Rational", "Float",
     "Add", "Mul", "Pow", "Function", "Derivative", "Subs", "sin", "cos",
     "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "csch",
-    "sech", "coth", "erf", "erfc", "asinh", "acosh", "atanh", "exp",
-    "log", "sqrt", "Abs", "sign", "floor", "ceiling", "diff", "subs",
-    "expand",
+    "sech", "coth", "erf", "erfc", "gamma", "loggamma", "asinh", "acosh",
+    "atanh", "exp", "log", "sqrt", "Abs", "sign", "floor", "ceiling",
+    "diff", "subs", "expand",
     "simplify", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
     "integrate", "limit", "series", "solve", "Matrix", "pi", "E", "I",

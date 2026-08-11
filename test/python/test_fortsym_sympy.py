@@ -267,6 +267,19 @@ class SympySubsetTest(unittest.TestCase):
         self.assertIsInstance(sp.simplify(sp.erf(sp.zoo)), sp.Function)
         self.assertIsInstance(sp.simplify(sp.erfc(sp.zoo)), sp.Function)
 
+    def test_gamma_domain_heads(self):
+        cases = [
+            (sp.gamma(sp.oo), sp.oo),
+            (sp.loggamma(sp.oo), sp.oo),
+            (sp.loggamma(-sp.oo), sp.zoo),
+            (sp.loggamma(sp.zoo), sp.zoo),
+        ]
+        for expression, expected in cases:
+            with self.subTest(expression=str(expression)):
+                self.assertEqual(sp.simplify(expression), expected)
+        self.assertIsInstance(sp.simplify(sp.gamma(-sp.oo)), sp.Function)
+        self.assertIsInstance(sp.simplify(sp.gamma(sp.zoo)), sp.Function)
+
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")
         cases = [

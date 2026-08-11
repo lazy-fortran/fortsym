@@ -155,7 +155,7 @@ Every checklist item requires all of the following:
   with [`scripts/audit_api_naming.py`](scripts/audit_api_naming.py) and
   [`doc/sympy-api-naming-audit.json`](doc/sympy-api-naming-audit.json).
   The audit covers all 124 `use fortsym` exports, all 12 native Python facade
-  exports, and all 72 `fortsym.sympy` adapter exports. It keeps the concise
+  exports, and all 74 `fortsym.sympy` adapter exports. It keeps the concise
   native vocabulary separate from the SymPy compatibility vocabulary and
   records the remaining canonical-name decisions for the next checklist item.
 - [x] Select canonical short names for constructors, functions, predicates,
@@ -324,6 +324,10 @@ Every checklist item requires all of the following:
   - [x] Add direct error-function domain rules for `erf` and `erfc`.
     `erf(±oo)` and `erfc(±oo)` match the scalar SymPy 1.14.0 limits, while
     `erf(zoo)` and `erfc(zoo)` remain explicit applied-head refusals.
+  - [x] Add representable gamma-family domain rules for `gamma` and
+    `loggamma`. Positive infinity and the `loggamma` complex-infinity cases
+    match SymPy 1.14.0; pole-sensitive `gamma(-oo)` and `gamma(zoo)` remain
+    explicit applied-head refusals.
   - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
     non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.

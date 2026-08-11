@@ -57,6 +57,7 @@ program test_fortsym_native
     call test_directed_inverse_heads()
     call test_reciprocal_hyperbolic_heads()
     call test_error_function_domain_heads()
+    call test_gamma_domain_heads()
     call test_noninteger_domain_powers()
     call test_verdicts()
     call test_overflow_preservation()
@@ -1169,6 +1170,30 @@ contains
         call check("erfc(zoo) remains an applied head", &
             r%value%kind() == NK_FUNC)
     end subroutine test_error_function_domain_heads
+
+    subroutine test_gamma_domain_heads()
+        type(engine_result_t) :: r
+        type(expr_t) :: infinity, complex_infinity, negative_infinity
+
+        infinity = oo_expr(arena)
+        complex_infinity = zoo_expr(arena)
+        negative_infinity = -infinity
+
+        r = engine%simplify(unary_function("gamma", infinity))
+        call check("gamma(oo) is oo", r%value == infinity)
+        r = engine%simplify(unary_function("gamma", negative_infinity))
+        call check("gamma(-oo) remains an applied head", &
+            r%value%kind() == NK_FUNC)
+        r = engine%simplify(unary_function("gamma", complex_infinity))
+        call check("gamma(zoo) remains an applied head", &
+            r%value%kind() == NK_FUNC)
+        r = engine%simplify(unary_function("loggamma", infinity))
+        call check("loggamma(oo) is oo", r%value == infinity)
+        r = engine%simplify(unary_function("loggamma", negative_infinity))
+        call check("loggamma(-oo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(unary_function("loggamma", complex_infinity))
+        call check("loggamma(zoo) is zoo", r%value == complex_infinity)
+    end subroutine test_gamma_domain_heads
 
     subroutine test_noninteger_domain_powers()
         type(engine_result_t) :: r
