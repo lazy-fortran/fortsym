@@ -17,11 +17,14 @@ program test_fortsym_complexdom
     ! because a symbol that happens to be sampled on the real axis would let a
     ! wrong split pass.
     use, intrinsic :: iso_fortran_env, only: real64, int64
-    use fortsym_string, only: chars
+    use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
-        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
-    use fortsym_expr, only: expr_t, sym, num, rat, i_expr, func, &
-        operator(+), operator(-), operator(*), operator(/), operator(**)
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_ALGEBRAIC
+    use fortsym_algebraic, only: algebraic_i, algebraic_from_re_im, &
+        algebraic_sqrt, algebraic_mul, algebraic_conjugate
+    use fortsym_expr, only: expr_t, sym, num, rat, algebraic_expr, i_expr, func, &
+        operator(+), operator(-), operator(*), operator(/), operator(**), &
+        operator(==)
     use fortsym_assume, only: assumption_context_t, assume, real_valued
     use fortsym_complexdom, only: re_part, im_part, conjugate, arg_of, &
         abs_of, complex_expand, complex_split
@@ -61,6 +64,7 @@ program test_fortsym_complexdom
     call test_identically_zero_refused()
     call test_expansion_is_bounded()
     call test_conjugate_domain_is_wider()
+    call test_algebraic_atoms()
 
     if (nfail /= 0) then
         print *, "test_fortsym_complexdom: ", nfail, " check(s) FAILED"
@@ -516,6 +520,66 @@ contains
         call abs_of(e, facts, out, good, why)
         call ok("Abs(z**30) is still refused by the splitter", .not. good)
     end subroutine test_conjugate_domain_is_wider
+
+    !> Exact algebraic atoms participate in the rectangular boundary when
+    !> FLINT proves they are purely real or purely imaginary. Mixed atoms stay
+    !> refused until exact qqbar real and imaginary extraction is available.
+    subroutine test_algebraic_atoms()
+        type(expr_t) :: real_root, imaginary_root, mixed_root
+        type(expr_t) :: re, im, conjugated, expected
+        type(str_t) :: base_text, real_text, imaginary_text, mixed_text
+        type(str_t) :: imaginary_unit, minus_imaginary, expected_text
+        logical :: good
+        character(:), allocatable :: why
+
+        base_text = algebraic_from_re_im("2", "0", good)
+        real_text = algebraic_sqrt(chars(base_text), good)
+        real_root = algebraic_expr(arena, chars(real_text), good)
+        call ok("complex-domain algebraic atom has its node kind", &
+            real_root%kind() == NK_ALGEBRAIC)
+        call re_part(real_root, facts, re, good, why)
+        call ok("real algebraic Re succeeds", good)
+        if (good) call ok("real algebraic Re retains the atom", re == real_root)
+        call im_part(real_root, facts, im, good, why)
+        call ok("real algebraic Im succeeds", good)
+        if (good) call ok("real algebraic Im is zero", im == num(arena, 0))
+        call conjugate(real_root, facts, conjugated, good, why)
+        call ok("real algebraic conjugation succeeds", good)
+        if (good) call ok("real algebraic conjugation is unchanged", &
+            conjugated == real_root)
+
+        base_text = algebraic_from_re_im("-2", "0", good)
+        imaginary_text = algebraic_sqrt(chars(base_text), good)
+        imaginary_root = algebraic_expr(arena, chars(imaginary_text), good)
+        call im_part(imaginary_root, facts, im, good, why)
+        call ok("pure-imaginary algebraic Im succeeds", good)
+        if (good) then
+            imaginary_unit = algebraic_i(good)
+            minus_imaginary = algebraic_conjugate(chars(imaginary_unit), good)
+            expected_text = algebraic_mul(chars(imaginary_text), &
+                chars(minus_imaginary), good)
+            expected = algebraic_expr(arena, chars(expected_text), good)
+            call ok("pure-imaginary algebraic Im matches bridge", im == expected)
+        end if
+        call re_part(imaginary_root, facts, re, good, why)
+        call ok("pure-imaginary algebraic Re succeeds", good)
+        if (good) call ok("pure-imaginary algebraic Re is zero", &
+            re == num(arena, 0))
+
+        base_text = algebraic_from_re_im("1", "1", good)
+        mixed_text = base_text
+        mixed_root = algebraic_expr(arena, chars(mixed_text), good)
+        call re_part(mixed_root, facts, re, good, why)
+        call ok("mixed algebraic rectangular split is refused", .not. good)
+        call conjugate(mixed_root, facts, conjugated, good, why)
+        call ok("mixed algebraic conjugation succeeds", good)
+        if (good) then
+            expected_text = algebraic_conjugate(chars(mixed_text), good)
+            expected = algebraic_expr(arena, chars(expected_text), good)
+            call ok("mixed algebraic conjugation matches bridge", &
+                conjugated == expected)
+        end if
+    end subroutine test_algebraic_atoms
 
     ! ----------------------------------------------------- the oracle --
 

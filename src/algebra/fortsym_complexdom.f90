@@ -35,13 +35,15 @@ module fortsym_complexdom
     ! to do both would be harder to trust at exactly the point where trust
     ! matters.
     use, intrinsic :: iso_fortran_env, only: int64
-    use fortsym_string, only: chars
+    use fortsym_string, only: str_t, chars
     use fortsym_arena, only: NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
-        NK_BIG_REAL
-    use fortsym_expr, only: expr_t, num, i_expr, is_valid, &
+        NK_BIG_REAL, NK_ALGEBRAIC
+    use fortsym_expr, only: expr_t, num, algebraic_expr, i_expr, is_valid, &
         sin, cos, sinh, cosh, exp, sqrt, atan2, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
+    use fortsym_algebraic, only: algebraic_i, algebraic_mul, &
+        algebraic_conjugate, algebraic_signs
     use fortsym_assume, only: assumption_context_t, FACT_REAL
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -96,6 +98,8 @@ contains
             re = e
             im = zero(e)
             ok = .true.
+        case (NK_ALGEBRAIC)
+            call split_algebraic(e, re, im, ok, why)
         case (NK_CONST)
             call split_const(e, re, im, ok, why)
         case (NK_SYM)
@@ -139,6 +143,58 @@ contains
             why = "constant "//name//" is not known to be real"
         end select
     end subroutine split_const
+
+    !> Split an exact algebraic atom when its rectangular shape is already
+    !> known from the FLINT sign oracle. Mixed real and imaginary parts remain
+    !> refused until the bridge exposes exact qqbar re/im extraction.
+    subroutine split_algebraic(e, re, im, ok, why)
+        type(expr_t),              intent(in)  :: e
+        type(expr_t),              intent(out) :: re, im
+        logical,                    intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(str_t) :: imaginary_unit, minus_imaginary, imaginary_part
+        integer :: real_sign, imag_sign
+        logical :: signs_ok
+
+        ok = .false.
+        why = ""
+        call algebraic_signs(chars(e%algebraic_text()), real_sign, imag_sign, signs_ok)
+        if (.not. signs_ok) then
+            why = "FLINT could not determine the algebraic real and imaginary signs"
+            return
+        end if
+        if (imag_sign == 0) then
+            re = e
+            im = zero(e)
+            ok = .true.
+            return
+        end if
+        if (real_sign == 0) then
+            imaginary_unit = algebraic_i(ok)
+            if (.not. ok) then
+                why = "FLINT could not construct the imaginary unit"
+                return
+            end if
+            minus_imaginary = algebraic_conjugate(chars(imaginary_unit), ok)
+            if (.not. ok) then
+                why = "FLINT could not construct the negative imaginary unit"
+                return
+            end if
+            imaginary_part = algebraic_mul(chars(e%algebraic_text()), &
+                chars(minus_imaginary), ok)
+            if (.not. ok) then
+                why = "FLINT could not construct the pure-imaginary part"
+                return
+            end if
+            re = zero(e)
+            im = algebraic_expr(e%a, chars(imaginary_part), ok)
+            if (.not. ok) then
+                why = "FLINT could not construct the pure-imaginary algebraic part"
+            end if
+            return
+        end if
+        why = "mixed algebraic real and imaginary parts need exact rectangular extraction"
+    end subroutine split_algebraic
 
     !> The single most dangerous case in the module, and therefore the shortest.
     subroutine split_symbol(e, facts, re, im, ok, why)
@@ -382,6 +438,7 @@ contains
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
         type(expr_t) :: part, expo
+        type(str_t) :: conjugated_text
         character(:), allocatable :: name
         integer :: k
 
@@ -396,6 +453,14 @@ contains
         case (NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL)
             out = e
             ok = .true.
+        case (NK_ALGEBRAIC)
+            conjugated_text = algebraic_conjugate(chars(e%algebraic_text()), ok)
+            if (.not. ok) then
+                why = "FLINT could not conjugate the algebraic atom"
+                return
+            end if
+            out = algebraic_expr(e%a, chars(conjugated_text), ok)
+            if (.not. ok) why = "FLINT could not retain the conjugated algebraic atom"
         case (NK_CONST)
             name = chars(e%name())
             select case (name)

@@ -83,6 +83,12 @@ atoms until their conversion semantics are defined. `print_expr` displays the
 canonical payload for inspection, but that spelling is not yet a parser or
 Fortran source literal.
 
+The lower-level `fortsym_complexdom` module provides `re_part`, `im_part`, and
+`conjugate` with an explicit assumption context. Algebraic atoms are accepted
+there when FLINT proves a pure real or pure imaginary value, and conjugation
+is exact. A mixed algebraic value is refused by `re_part` and `im_part` until
+the exact rectangular projection boundary is implemented.
+
 `real_text_expr` retains a bounded finite decimal literal as `NK_BIG_REAL`.
 The arena validates its decimal syntax and preserves the original digits rather
 than converting the value through `real64`.
