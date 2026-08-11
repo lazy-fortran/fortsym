@@ -11,7 +11,7 @@ module fortsym_engine_native
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_SYM, NK_BIG_INT, NK_BIG_RAT
     use fortsym_expr, only: expr_t, num, operator(+), operator(-), operator(*), &
-        operator(/), operator(**)
+        operator(/), operator(**), operator(==)
     use fortsym_exact, only: exact_add, exact_mul, exact_pow
     use fortsym_assume, only: assumption_context_t, FACT_REAL, &
         FACT_POSITIVE, FACT_NONNEGATIVE
@@ -51,6 +51,7 @@ module fortsym_engine_native
         procedure :: expand => native_expand
         procedure :: series => native_series
         procedure :: series_coeff => native_series_coeff
+        procedure :: laurent_series => native_laurent_series
         procedure :: solve => native_solve
     end type native_engine_t
 
@@ -390,6 +391,135 @@ contains
         r = simplified
         r%seconds = wall_seconds() - started
     end function native_series
+
+    !> Laurent series for an expression with a structurally recognised integer
+    !> pole at `point`. The pole is removed first, then the ordinary Taylor
+    !> coefficient path is used on the regularised expression. This keeps the
+    !> two series implementations on one coefficient oracle and refuses
+    !> singular structures whose order cannot be established exactly.
+    function native_laurent_series(self, e, v, point, lowest, highest, limit) &
+            result(r)
+        class(native_engine_t), intent(inout) :: self
+        type(expr_t),           intent(in)    :: e, v, point
+        integer,                intent(in)    :: lowest, highest
+        type(resource_limit_t), intent(in), optional :: limit
+        type(engine_result_t)                 :: r
+        type(engine_result_t) :: shifted_result, regular_result, coefficient
+        type(expr_t) :: shifted, regular, series, term
+        integer :: pole, first, last, k
+        logical :: found, refused
+        real(dp) :: started
+        character(:), allocatable :: reason
+
+        started = wall_seconds()
+        r%value = e
+        call resource_exceeded(e, limit, "laurent series", refused, reason)
+        if (refused) then
+            r%message = str(reason)
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        if (lowest > highest) then
+            r%message = str("native: Laurent series bounds are reversed")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        if (lowest >= 0) then
+            r = self%series(e, v, point, highest, limit)
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        shifted_result = self%simplify(v - point, limit)
+        if (shifted_result%ok) then
+            shifted = shifted_result%value
+        else
+            shifted = v - point
+        end if
+        pole = 0
+        found = .false.
+        call pole_order(e, shifted, pole, found)
+        if (.not. found .or. pole <= 0) then
+            r%message = str("native: Laurent series needs a recognised "// &
+                "integer power of the shifted variable")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        first = max(0, lowest + pole)
+        last = highest + pole
+        if (last < first .or. last > 64) then
+            r%message = str("native: Laurent series order exceeds the "// &
+                "bounded regular-series limit")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        regular_result = self%simplify(e*shifted**num(e%a, pole), limit)
+        if (.not. regular_result%ok) then
+            r = regular_result
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        regular = regular_result%value
+        series = num(e%a, 0)
+        do k = first, last
+            coefficient = self%series_coeff(regular, v, point, k, limit)
+            if (.not. coefficient%ok) then
+                r = coefficient
+                r%seconds = wall_seconds() - started
+                return
+            end if
+            term = coefficient%value*shifted**num(e%a, k - pole)
+            series = series + term
+        end do
+        r = self%simplify(series, limit)
+        r%seconds = wall_seconds() - started
+    end function native_laurent_series
+
+    recursive subroutine pole_order(e, shifted, order, found)
+        type(expr_t), intent(in)    :: e, shifted
+        integer,      intent(inout) :: order
+        logical,      intent(inout) :: found
+        type(expr_t) :: exponent_node, base
+        integer(int64) :: exponent, denominator
+        logical :: exact
+        integer :: k, child_order
+        logical :: child_found
+
+        select case (e%kind())
+        case (NK_ADD)
+            do k = 1, e%nargs()
+                child_order = 0
+                child_found = .false.
+                call pole_order(e%arg(k), shifted, child_order, child_found)
+                if (child_found) then
+                    order = max(order, child_order)
+                    found = .true.
+                end if
+            end do
+        case (NK_MUL)
+            do k = 1, e%nargs()
+                child_order = 0
+                child_found = .false.
+                call pole_order(e%arg(k), shifted, child_order, child_found)
+                if (child_found) then
+                    order = order + child_order
+                    found = .true.
+                end if
+            end do
+        case (NK_POW)
+            base = e%arg(1)
+            exponent_node = e%arg(2)
+            if (.not. (base == shifted)) return
+            call exact_value(e%a, exponent_node%id, exponent, denominator, exact)
+            if (.not. exact .or. denominator /= 1_int64) return
+            if (exponent >= 0_int64 .or. exponent == MIN_I64) return
+            if (exponent < -64_int64) return
+            order = order + int(-exponent)
+            found = .true.
+        end select
+    end subroutine pole_order
 
     function native_solve(self, e, v, limit) result(r)
         class(native_engine_t), intent(inout) :: self
