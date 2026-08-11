@@ -152,10 +152,11 @@ The native exponential zero fragment now also decides exact Euler constants
 periodic forms remain `UNKNOWN`; selected eighth-, sixth-, and twelfth-turn
 roots are represented exactly with `sqrt(2)` and `sqrt(3)`. This removes another bounded periodic-constant
 case from the external exponential oracle without claiming general complex
-transcendental simplification. It also rewrites exact integer powers of
-logarithms inside exponentials, including `exp(log(x))`, `exp(2*log(x))`, and
-additive logarithm factors; fractional logarithm cofactors remain outside the
-fragment. Native `zero_test` now also consumes the existing bounded
+transcendental simplification. It also rewrites exact rational powers of
+logarithms inside exponentials, including `exp(log(x))`, `exp(2*log(x))`, exact
+rational powers, and additive logarithm factors; symbolic cofactors and
+alternate `sqrt` spellings remain outside the fragment. Native `zero_test` now
+also consumes the existing bounded
 trigonometric-to-exponential rewrite, deciding the Pythagorean identity while
 leaving unproved trigonometric forms unknown.
 The independent native oracle also covers sine and cosine angle addition and
