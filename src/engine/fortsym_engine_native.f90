@@ -1855,6 +1855,10 @@ contains
                 call exact_square_root(a, args(1), trig_constant, &
                     trig_constant_ok)
                 if (trig_constant_ok) out = trig_constant
+            else
+                call exact_absolute_value(a, args(1), trig_constant, &
+                    trig_constant_ok)
+                if (trig_constant_ok) out = trig_constant
             end if
         case ("erf", "erfc")
             if (is_zero_id(a, args(1))) then
@@ -2129,6 +2133,30 @@ contains
         end if
         ok = .true.
     end subroutine exact_square_root
+
+    subroutine exact_absolute_value(a, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer(int64) :: numerator, denominator
+        logical :: exact
+
+        out = id
+        ok = .false.
+        call exact_value(a, id, numerator, denominator, exact)
+        if (.not. exact) return
+        if (numerator < 0_int64) then
+            if (numerator == MIN_I64) return
+            numerator = -numerator
+        end if
+        if (denominator == 1_int64) then
+            out = a%int(numerator)
+        else
+            out = a%rat(numerator, denominator)
+        end if
+        ok = .true.
+    end subroutine exact_absolute_value
 
     subroutine integer_square_root(value, root, ok)
         integer(int64), intent(in) :: value
