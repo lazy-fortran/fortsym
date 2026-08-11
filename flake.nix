@@ -34,6 +34,7 @@
           mpfr
           gmp
           git
+          python3
         ];
 
         # Tier 2: optional engines run as separate processes. Their absence must
