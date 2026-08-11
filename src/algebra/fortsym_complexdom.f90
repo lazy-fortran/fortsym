@@ -30,8 +30,10 @@ module fortsym_complexdom
     !     quotients. Their denominators remain in the result, and an identically
     !     zero denominator is refused rather than turned into a claimed value at
     !     a pole.
-    !   * Log, Sqrt, Arg-like heads and everything else are refused rather than
-    !     given a principal-branch answer the caller did not ask for.
+    !   * Log and Sqrt use their explicit principal branches. Log refuses its
+    !     zero argument; Sqrt is defined at zero. Arg-like heads and everything
+    !     else are refused rather than given an answer the caller did not ask
+    !     for.
     !
     ! Nothing here simplifies. `re_part` of a real symbol comes back as an
     ! expression that is equal to it rather than identical to it; deciding the
@@ -342,12 +344,12 @@ contains
         ok = .true.
     end subroutine split_power
 
-    !> Exp, Sin, Cos, Sinh, Cosh, Tan, and Tanh. The first five are entire and
-    !> use their addition formulas. Tan and Tanh use rectangular quotients and
-    !> refuse an identically zero denominator; the denominator remains visible
-    !> for a possible pointwise pole. Log uses the principal `log(abs) + i*Arg`
-    !> form and refuses a proven zero argument. Sqrt and every other head remain
-    !> refused.
+    !> Exp, Sin, Cos, Sinh, Cosh, Tan, Tanh, Log, and Sqrt. The first five are
+    !> entire and use their addition formulas. Tan and Tanh use rectangular
+    !> quotients and refuse an identically zero denominator; the denominator
+    !> remains visible for a possible pointwise pole. Log uses the principal
+    !> `log(abs) + i*Arg` form and refuses a proven zero argument. Sqrt uses the
+    !> principal polar half-angle form; every other head remains refused.
     recursive subroutine split_function(e, facts, re, im, ok, why)
         type(expr_t),               intent(in)  :: e
         type(assumption_context_t), target, intent(in)  :: facts
@@ -365,10 +367,11 @@ contains
             return
         end if
         select case (name)
-        case ("exp", "sin", "cos", "sinh", "cosh", "tan", "tanh", "log")
+        case ("exp", "sin", "cos", "sinh", "cosh", "tan", "tanh", "log", "sqrt")
         case default
             why = "no complex rule for head "//name// &
-                " (only exp, sin, cos, sinh, cosh, tan, tanh, and log are split)"
+                " (only exp, sin, cos, sinh, cosh, tan, tanh, log, and sqrt "// &
+                "are split)"
             return
         end select
 
@@ -396,6 +399,9 @@ contains
             return
         case ("log")
             call split_log(a, b, re, im, ok, why)
+            return
+        case ("sqrt")
+            call split_sqrt(a, b, re, im, ok, why)
             return
         end select
         ok = .true.
@@ -469,29 +475,49 @@ contains
 
         ok = .false.
         why = ""
-        if (structurally_zero(a)) then
-            if (structurally_zero(b)) then
-                why = "log is undefined: its complex argument is identically "// &
-                    "zero"
-                return
-            end if
-            if (provably_zero(b)) then
-                why = "log is undefined: its complex argument is identically "// &
-                    "zero"
-                return
-            end if
-        else if (structurally_zero(b)) then
-            if (provably_zero(a)) then
-                why = "log is undefined: its complex argument is identically "// &
-                    "zero"
-                return
-            end if
+        if (provably_origin(a, b)) then
+            why = "log is undefined: its complex argument is identically "// &
+                "zero"
+            return
         end if
         modulus = sqrt(a*a + b*b)
         re = log(modulus)
         im = atan2(b, a)
         ok = .true.
     end subroutine split_log
+
+    !> Split the principal square root for real a and b. SymPy's
+    !> `expand_complex` expresses the same branch in polar form:
+    !>
+    !>   sqrt(a + i*b) = sqrt(sqrt(a**2 + b**2)) *
+    !>       (cos(atan2(b, a)/2) + i*sin(atan2(b, a)/2)).
+    !>
+    !> Unlike logarithm, the square root is defined at the origin, so the
+    !> zero-radius case is accepted. Keeping the half-angle explicit preserves
+    !> the principal branch on the negative real axis without a sign helper or
+    !> a second branch-specific implementation.
+    subroutine split_sqrt(a, b, re, im, ok, why)
+        type(expr_t),              intent(in)  :: a, b
+        type(expr_t),              intent(out) :: re, im
+        logical,                   intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(expr_t) :: radius, angle, half_angle
+
+        ok = .false.
+        why = ""
+        if (provably_origin(a, b)) then
+            re = zero(a)
+            im = zero(a)
+            ok = .true.
+            return
+        end if
+        radius = sqrt(a*a + b*b)
+        angle = atan2(b, a)
+        half_angle = angle/num(a%a, 2)
+        re = sqrt(radius)*cos(half_angle)
+        im = sqrt(radius)*sin(half_angle)
+        ok = .true.
+    end subroutine split_sqrt
 
     !> Re[e] as a real expression, or a refusal.
     subroutine re_part(e, facts, out, ok, why)
@@ -763,6 +789,25 @@ contains
         if (.not. r%ok) return
         yes = r%verdict == VERDICT_TRUE
     end function provably_zero
+
+    !> Decides whether both real rectangular components are identically zero.
+    !> The structural guards avoid an engine call for ordinary symbolic parts;
+    !> only a remaining component on a zero axis needs the native proof.
+    function provably_origin(a, b) result(yes)
+        type(expr_t), intent(in) :: a, b
+        logical                  :: yes
+
+        yes = .false.
+        if (structurally_zero(a)) then
+            if (structurally_zero(b)) then
+                yes = .true.
+            else if (provably_zero(b)) then
+                yes = .true.
+            end if
+        else if (structurally_zero(b)) then
+            if (provably_zero(a)) yes = .true.
+        end if
+    end function provably_origin
 
     !> Small, engine-independent zero proofs used at domain boundaries.
     !>

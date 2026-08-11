@@ -277,6 +277,9 @@ Every checklist item requires all of the following:
       - [x] Add principal-branch `log` rectangular splitting as
         `log(sqrt(Re**2 + Im**2)) + i*Arg`, with a zero-argument refusal,
         independent complex evaluation, and matched benchmark rows.
+      - [x] Add principal-branch `sqrt` rectangular splitting through the
+        polar half-angle form, including exact negative-real and zero cases,
+        independent complex evaluation, and matched benchmark rows.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.

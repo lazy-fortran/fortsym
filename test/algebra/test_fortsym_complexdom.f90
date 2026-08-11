@@ -63,6 +63,7 @@ program test_fortsym_complexdom
     call test_hyperbolic_pole_refused()
     call test_tangent_pole_refused()
     call test_log_zero_refused()
+    call test_sqrt_principal_branch()
     call test_unknown_reality_refused()
     call test_branch_cases_refused()
     call test_unknown_heads_refused()
@@ -327,6 +328,7 @@ contains
         call check_supported_function("tan")
         call check_supported_function("tanh")
         call check_supported_function("log")
+        call check_supported_function("sqrt")
     end subroutine test_supported_function_splits
 
     subroutine check_supported_function(name)
@@ -466,6 +468,30 @@ contains
                 abs(at(im, 1) - cmplx(acos(-1.0_dp), 0.0_dp, dp)) < TOL)
         end if
     end subroutine test_log_zero_refused
+
+    subroutine test_sqrt_principal_branch()
+        type(expr_t) :: e, re, im
+        complex(dp) :: value
+        logical :: good
+        character(:), allocatable :: why
+
+        e = func_one("sqrt", num(arena, -1))
+        call complex_split(e, facts, re, im, good, why)
+        call ok("sqrt at the negative real branch is accepted", good)
+        if (good) then
+            value = at(re, 1) + cmplx(0.0_dp, 1.0_dp, dp)*at(im, 1)
+            call ok("sqrt(-1) has the principal positive-imaginary value", &
+                abs(value - cmplx(0.0_dp, 1.0_dp, dp)) < TOL)
+        end if
+
+        e = func_one("sqrt", num(arena, 0))
+        call complex_split(e, facts, re, im, good, why)
+        call ok("sqrt at zero is accepted", good)
+        if (good) then
+            call ok("sqrt(0) is zero", abs(at(re, 1)) < TOL .and. &
+                abs(at(im, 1)) < TOL)
+        end if
+    end subroutine test_sqrt_principal_branch
 
     subroutine test_unknown_heads_refused()
         type(expr_t) :: e, out
