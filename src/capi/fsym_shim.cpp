@@ -429,6 +429,46 @@ size_t hold_algebraic_component(const char *text, bool real_part)
     }
 }
 
+bool algebraic_gaussian_rational_text(const char *text,
+                                      std::string &expression)
+{
+    QqbarValue input;
+    QqbarValue real_part;
+    QqbarValue imag_part;
+    FmpqValue real_value;
+    FmpqValue imag_value;
+    if (!parse_algebraic(input, text)) {
+        return false;
+    }
+    qqbar_re(real_part.value, input.value);
+    qqbar_im(imag_part.value, input.value);
+    if (!qqbar_is_rational(real_part.value)
+        || !qqbar_is_rational(imag_part.value)) {
+        return false;
+    }
+    qqbar_get_fmpq(real_value.value, real_part.value);
+    qqbar_get_fmpq(imag_value.value, imag_part.value);
+    FlintString real_text(fmpq_get_str(nullptr, 10, real_value.value));
+    FlintString imag_text(fmpq_get_str(nullptr, 10, imag_value.value));
+    if (!real_text || !imag_text) {
+        return false;
+    }
+
+    const bool real_zero = fmpz_is_zero(fmpq_numref(real_value.value));
+    const bool imag_zero = fmpz_is_zero(fmpq_numref(imag_value.value));
+    if (real_zero && imag_zero) {
+        expression = "0";
+    } else if (imag_zero) {
+        expression = real_text.get();
+    } else if (real_zero) {
+        expression = "(" + std::string(imag_text.get()) + ")*I";
+    } else {
+        expression = std::string(real_text.get()) + " + ("
+                     + std::string(imag_text.get()) + ")*I";
+    }
+    return true;
+}
+
 inline const SymEngine::RCP<const SymEngine::Basic> &deref(const basic s)
 {
     return s->m;
@@ -915,6 +955,30 @@ size_t fsym_algebraic_normalize(const char *value)
     } catch (...) {
         g_algebraic_buffer.clear();
         return 0;
+    }
+}
+
+int fsym_algebraic_symengine_supported(const char *value)
+{
+    try {
+        std::string expression;
+        return algebraic_gaussian_rational_text(value, expression) ? 1 : 0;
+    } catch (...) {
+        return 0;
+    }
+}
+
+CWRAPPER_OUTPUT_TYPE fsym_algebraic_to_symengine(basic out,
+                                                  const char *value)
+{
+    try {
+        std::string expression;
+        if (!algebraic_gaussian_rational_text(value, expression)) {
+            return SYMENGINE_NOT_IMPLEMENTED;
+        }
+        return basic_parse(out, expression.c_str());
+    } catch (...) {
+        return SYMENGINE_RUNTIME_ERROR;
     }
 }
 

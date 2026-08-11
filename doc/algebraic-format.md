@@ -55,5 +55,7 @@ original fortsym wrappers; no upstream implementation code is copied.
 scalar arithmetic and the complex-domain `Re`, `Im`, and conjugation boundary
 use it. The native and backend text dialects print and parse the canonical
 payload losslessly; the parser keeps the payload opaque and lets the
-FLINT-backed arena constructor validate it. SymEngine conversion and Fortran
-code generation integration remain incomplete.
+FLINT-backed arena constructor validate it. The SymEngine boundary converts
+atoms whose exact real and imaginary components are rational to an exact
+rational `re + im*I` expression. Higher-degree or otherwise non-rational atoms
+remain refused there. Fortran code generation integration remains incomplete.

@@ -153,6 +153,16 @@ enum {
  *  output budgets are enforced before a result is retained. */
 size_t fsym_algebraic_normalize(const char *value);
 
+/*! Non-zero when a canonical qqbar1 atom has exact rational real and
+ *  imaginary components and can cross into SymEngine's exact complex domain. */
+int fsym_algebraic_symengine_supported(const char *value);
+
+/*! Convert a supported Gaussian-rational qqbar1 atom to an exact SymEngine
+ *  expression. Higher-degree or otherwise non-rational atoms return
+ *  SYMENGINE_NOT_IMPLEMENTED. */
+CWRAPPER_OUTPUT_TYPE fsym_algebraic_to_symengine(basic out,
+                                                  const char *value);
+
 /*! Construct the imaginary unit, or an exact Gaussian rational from base-ten
  *  rational real and imaginary parts. */
 size_t fsym_algebraic_i(void);
