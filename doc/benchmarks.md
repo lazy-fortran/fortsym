@@ -100,15 +100,14 @@ This is runner and coverage evidence only, not a parity claim: the full
 open. The benchmark command intentionally returns a nonzero status when
 declared differences or oracle disagreements are present.
 
-A matched in-process diagnostic based on fortsym revision `92c9997` on
-2026-08-11 timed 10,000 alternating `sinh` and `cosh` rectangular splits on
-prebuilt expressions. Native Fortran took 66.314 ms. SymPy 1.14.0 took
-6.580117 s when its cache was cleared before each `expand_complex` call, so
-the native cold-operation time was about 99x lower. The corresponding SymPy
-warm run took 9.186 ms; because the native lower-level complex-domain path has
-no persistent result cache, its repeated 66.314 ms remains a real warm-cache
-gap. The earlier 7.078 ms versus 3.779 ms comparison mixed those scopes and is
-superseded by this matched record; warm-cache parity remains open.
+The committed `bench_complexdom` target, based on the 2026-08-11 working tree
+after revision `559595b`, timed 10,000 alternating `sinh` and `cosh`
+rectangular splits on prebuilt expressions. Native Fortran took 77.041 ms
+cold, with the context cache cleared before each call, and 0.392 ms warm.
+SymPy 1.14.0 took 6.584078 s cold with its cache cleared before each call and
+8.430 ms warm. Native was therefore about 85x faster cold and 21x faster warm
+in this workload. The rows are diagnostic rather than a release baseline;
+broader complex-domain workloads and a pinned machine record remain open.
 
 `fo exec bench_native` writes CSV rows for warm, batched end-to-end native and
 SymEngine simplify, differentiation, and expansion calls. Each row includes a
@@ -119,6 +118,14 @@ expression, so native cache hits are part of the measured workload. Cold,
 distinct-expression rows use unique small real shifts and bypass those cache
 entries. The CSV row records separate warmup, repetition, and batch counts for
 the two scopes.
+
+`fo exec bench_complexdom` writes the `complexdom_v1` native rows used for the
+complex-domain cache comparison. Its cold scope clears the assumption-context
+pair cache before each alternating `sinh`/`cosh` split; its warm scope primes
+the same cache and then reuses the prebuilt expressions. Both rows validate
+that the split succeeded. Compare them with SymPy 1.14.0 `expand_complex` on
+the same prebuilt expressions, clearing `sympy.core.cache` before each cold
+call and retaining it for the warm call.
 
 Pinned result CSV files and their TOML environment records live under
 `benchmark/results`. A record with uncontrolled affinity or governor is

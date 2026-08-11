@@ -35,8 +35,10 @@ program test_fortsym_simple_codegen
     spec%mode = KERNEL_SUBROUTINE
     spec%generator = str("test_fortsym_simple_codegen")
     allocate (spec%args(2), spec%outputs(2))
-    spec%args = [str("x"), str("y")]
-    spec%outputs = [str("value"), str("dvalue_dx")]
+    spec%args(1) = str("x")
+    spec%args(2) = str("y")
+    spec%outputs(1) = str("value")
+    spec%outputs(2) = str("dvalue_dx")
     source = chars(emit_kernel(roots, spec, ok))
     call check("facade emits a valid kernel", ok .and. len(source) > 0, failures)
     call check("kernel has the requested public name", &

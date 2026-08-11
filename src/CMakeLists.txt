@@ -14,6 +14,7 @@ target_sources(fortsym PRIVATE
 
     # core representation
     core/fortsym_algebraic.f90
+    core/fortsym_cache.f90
     core/fortsym_exact.f90
     core/fortsym_arena.f90
     core/fortsym_expr.f90

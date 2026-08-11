@@ -7,6 +7,7 @@ module fortsym_assume
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_INT, NK_RAT
+    use fortsym_cache, only: expr_pair_cache_t
     use fortsym_expr, only: expr_t, is_valid
     implicit none
     private
@@ -44,6 +45,7 @@ module fortsym_assume
         integer, allocatable :: ids(:)
         integer, allocatable :: facts(:)
         integer :: n = 0
+        type(expr_pair_cache_t), allocatable :: complex_cache
     contains
         procedure :: init => context_init
         procedure :: has => context_has
@@ -247,6 +249,8 @@ contains
         if (allocated(self%facts)) deallocate (self%facts)
         allocate (self%ids(INITIAL_FACTS), source=0)
         allocate (self%facts(INITIAL_FACTS), source=0)
+        if (.not. allocated(self%complex_cache)) allocate (self%complex_cache)
+        call self%complex_cache%clear()
         self%n = 0
     end subroutine context_init
 
@@ -267,6 +271,8 @@ contains
         else
             allocate (self%facts(INITIAL_FACTS), source=0)
         end if
+        if (.not. allocated(self%complex_cache)) allocate (self%complex_cache)
+        call self%complex_cache%clear()
         self%n = parent%n
     end subroutine context_clone
 
@@ -321,6 +327,9 @@ contains
             end if
         end if
 
+        if (accepted .and. allocated(context%complex_cache)) then
+            call context%complex_cache%clear()
+        end if
         if (present(ok)) ok = accepted
         if (present(why)) why = local_why
     end subroutine assume

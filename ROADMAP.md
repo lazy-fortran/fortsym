@@ -445,8 +445,11 @@ Every checklist item requires all of the following:
     splitting: 66.314 ms for 10,000 native calls versus 6.580117 s for 10,000
     SymPy 1.14.0 calls with its cache cleared before each call. The native
     cold path is therefore about 99x faster.
-  - [ ] Add a pinned warm-cache benchmark and close the remaining complex-domain
-    cache gap; the corresponding warm SymPy run took 9.186 ms.
+  - [x] Add `bench_complexdom` with explicit cold and warm scopes, cache
+    correctness validation, and a context-local cache regression.
+  - [x] Close the complex-domain warm-cache gap for the supported `sinh`/`cosh`
+    scope: native is 22x faster than the matched warm SymPy 1.14.0
+    `expand_complex` workload. Broader complex-domain workloads remain open.
   - [x] Retain one native engine and its memoization caches per C-ABI arena;
     synchronize scoped assumptions before each call so warm native workloads
     do not discard their cache state.

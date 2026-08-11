@@ -67,6 +67,7 @@ program test_fortsym_complexdom
     call test_expansion_is_bounded()
     call test_conjugate_domain_is_wider()
     call test_algebraic_atoms()
+    call test_cache_is_context_local()
 
     if (nfail /= 0) then
         print *, "test_fortsym_complexdom: ", nfail, " check(s) FAILED"
@@ -631,6 +632,26 @@ contains
                 conjugated == expected)
         end if
     end subroutine test_algebraic_atoms
+
+    subroutine test_cache_is_context_local()
+        type(assumption_context_t) :: empty_facts
+        type(expr_t) :: first_re, first_im, second_re, second_im
+        logical :: good
+        character(:), allocatable :: why
+
+        call complex_split(z, facts, first_re, first_im, good, why)
+        call ok("complex split cache source succeeds", good)
+        if (good) then
+            call complex_split(z, facts, second_re, second_im, good, why)
+            call ok("cached complex split succeeds", good)
+            if (good) call ok("cached pair retains both node ids", &
+                first_re == second_re .and. first_im == second_im)
+        end if
+
+        call empty_facts%init(arena)
+        call complex_split(z, empty_facts, second_re, second_im, good, why)
+        call ok("complex split cache does not cross contexts", .not. good)
+    end subroutine test_cache_is_context_local
 
     ! ----------------------------------------------------- the oracle --
 
