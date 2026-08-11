@@ -321,6 +321,12 @@ contains
         call poly_cancel(normalised%a, normalised, cancelled, cancel_ok, &
             cancel_reason)
         if (cancel_ok) normalised = cancelled
+        renormalised = native_exp_normal_form(normalised, &
+            saw_exponential_again, decidable_again, formal_exponential_again)
+        normalised = renormalised
+        saw_exponential = saw_exponential .or. saw_exponential_again
+        decidable = decidable .and. decidable_again
+        formal_exponential = formal_exponential .and. formal_exponential_again
         if (saw_exponential) then
             r = self%simplify(normalised)
             if (.not. r%ok) return

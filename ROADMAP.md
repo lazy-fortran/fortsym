@@ -160,7 +160,10 @@ The independent native oracle also covers sine and cosine angle addition and
 the corresponding hyperbolic-sine identity through the same bounded path. It
 now folds the rational result before expanding only its numerator, then
 re-normalises exponential products; this decides tangent addition while
-preserving the bounded denominator and unsupported-form refusals.
+preserving the bounded denominator and unsupported-form refusals. A final
+normal-form pass after polynomial cancellation closes the corresponding
+hyperbolic Pythagorean and `tanh` addition cases; complex tangent forms with
+symbolic `i` retain the conservative `UNKNOWN` boundary.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.
