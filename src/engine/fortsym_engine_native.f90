@@ -1904,6 +1904,13 @@ contains
                 call exact_absolute_value(a, args(1), trig_constant, &
                     trig_constant_ok)
                 if (trig_constant_ok) out = trig_constant
+                if (a%kind_of(args(1)) == NK_FUNC) then
+                    if (a%nargs_of(args(1)) == 1) then
+                        if (chars(a%name_of(args(1))) == "abs") then
+                            out = args(1)
+                        end if
+                    end if
+                end if
             end if
         case ("erf", "erfc")
             if (is_zero_id(a, args(1))) then

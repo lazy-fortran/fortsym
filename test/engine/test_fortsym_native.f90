@@ -816,6 +816,9 @@ contains
         r = engine%simplify(abs(-x))
         call check("native simplify applies absolute-value parity", &
             r%value == abs(x))
+        r = engine%simplify(abs(abs(x)))
+        call check("native simplify collapses nested absolute value", &
+            r%value == abs(x))
         r = engine%simplify(unary_function("asin", num(arena, 1_int64)))
         call check("native simplify evaluates asin(1)", &
             r%value == rat(arena, 1_int64, 2_int64)*pi_expr(arena))
