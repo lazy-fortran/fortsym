@@ -169,7 +169,13 @@ hyperbolic Pythagorean and `tanh` addition cases; complex tangent forms with
 symbolic `i` retain the conservative `UNKNOWN` boundary.
 The same native zero-test fold now feeds ordinary rational identities even
 when no exponential is present, covering partial-fraction and multivariate
-quotient cancellation without an external engine.
+quotient cancellation without an external engine; supported nonzero rational
+residuals now receive `FALSE` rather than an unnecessary `UNKNOWN`; native
+linear solving still attaches its nonzero-coefficient condition for symbolic
+coefficients under this stronger verdict. Branch-sensitive fractional powers
+remain `UNKNOWN` without domain assumptions, and integration now requires a
+numerically provable nonzero substitution slope before using its verified
+linear-argument rules.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.
