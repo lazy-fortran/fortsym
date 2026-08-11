@@ -462,6 +462,10 @@ Every checklist item requires all of the following:
     unchanged, and invalidate that result when assumptions change.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
+- [ ] Keep the native Fortran build free of compiler-generated array temporaries.
+  - [x] Reuse the existing linear-factor buffer in the rational-root `x`-factor
+    path instead of constructing a temporary divisor array; the full `fo` gate
+    now reports no array-temporary warning for this path.
 - [x] Audit every public symbol for naming consistency and duplicate concepts.
   - [x] Assign every public Fortran facade export to one owning naming concept;
     string conversion and code generation remain native-only vocabularies.
