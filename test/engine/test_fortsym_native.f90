@@ -801,6 +801,18 @@ contains
         r = engine%simplify(unary_function("floor", x))
         call check("native simplify preserves symbolic floor", &
             r%value%kind() == NK_FUNC)
+        r = engine%simplify(sin(-x))
+        call check("native simplify applies odd sine parity", &
+            r%value == -sin(x))
+        r = engine%simplify(cos(-x))
+        call check("native simplify applies even cosine parity", &
+            r%value == cos(x))
+        r = engine%simplify(unary_function("csc", -x))
+        call check("native simplify applies odd cosecant parity", &
+            r%value == -unary_function("csc", x))
+        r = engine%simplify(unary_function("sec", -x))
+        call check("native simplify applies even secant parity", &
+            r%value == unary_function("sec", x))
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
             r%verdict == VERDICT_TRUE)
