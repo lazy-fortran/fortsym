@@ -54,6 +54,7 @@ program test_fortsym_native
     call test_directed_domain_rules()
     call test_directed_domain_functions()
     call test_directed_domain_heads()
+    call test_directed_atan2_heads()
     call test_directed_inverse_heads()
     call test_reciprocal_hyperbolic_heads()
     call test_error_function_domain_heads()
@@ -1057,6 +1058,28 @@ contains
         r = engine%simplify(tanh(complex_infinity))
         call check("tanh(zoo) is nan", r%value == nan_expr(arena))
     end subroutine test_directed_domain_heads
+
+    subroutine test_directed_atan2_heads()
+        type(engine_result_t) :: r
+        type(expr_t) :: infinity, negative_infinity, complex_infinity
+
+        infinity = oo_expr(arena)
+        negative_infinity = -infinity
+        complex_infinity = zoo_expr(arena)
+
+        r = engine%simplify(atan2(infinity, infinity))
+        call check("atan2(oo,oo) is zero", r%value == num(arena, 0_int64))
+        r = engine%simplify(atan2(negative_infinity, infinity))
+        call check("atan2(-oo,oo) is zero", r%value == num(arena, 0_int64))
+        r = engine%simplify(atan2(infinity, negative_infinity))
+        call check("atan2(oo,-oo) is pi", r%value == pi_expr(arena))
+        r = engine%simplify(atan2(negative_infinity, negative_infinity))
+        call check("atan2(-oo,-oo) is negative pi", &
+            r%value == -pi_expr(arena))
+        r = engine%simplify(atan2(complex_infinity, infinity))
+        call check("atan2(zoo,oo) remains an applied head", &
+            r%value%kind() == NK_FUNC)
+    end subroutine test_directed_atan2_heads
 
     subroutine test_directed_inverse_heads()
         type(engine_result_t) :: r

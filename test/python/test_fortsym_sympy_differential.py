@@ -404,6 +404,29 @@ class SympyDifferentialTest(unittest.TestCase):
                 actual = getattr(native, function.__name__)(native.zoo)
                 self.assertIsInstance(native.simplify(actual), native.Function)
 
+    def test_atan2_domain_heads_match_oracle(self):
+        cases = [
+            (oracle.atan2(oracle.oo, oracle.oo),
+             native.atan2(native.oo, native.oo)),
+            (oracle.atan2(-oracle.oo, oracle.oo),
+             native.atan2(-native.oo, native.oo)),
+            (oracle.atan2(oracle.oo, -oracle.oo),
+             native.atan2(native.oo, -native.oo)),
+            (oracle.atan2(-oracle.oo, -oracle.oo),
+             native.atan2(-native.oo, -native.oo)),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                actual_parsed = oracle.sympify(
+                    str(native.simplify(actual)), locals=self.locals
+                )
+                self.assertEqual(actual_parsed, expected)
+
+        # SymPy assigns a value to this complex-infinity case; the declared
+        # native slice refuses it because zoo has no direction.
+        actual = native.atan2(native.zoo, native.oo)
+        self.assertIsInstance(native.simplify(actual), native.Function)
+
     def test_gamma_domain_heads_match_oracle(self):
         cases = [
             (oracle.gamma(oracle.oo), native.gamma(native.oo)),

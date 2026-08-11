@@ -4583,9 +4583,32 @@ contains
         integer,       intent(out)   :: out
         logical,       intent(out)   :: applied
         integer :: domain, direction
+        integer :: y_domain, y_direction, x_domain, x_direction
         logical :: known, contains_domain, has_zero
+        logical :: y_known, y_contains_domain, y_has_zero
+        logical :: x_known, x_contains_domain, x_has_zero
 
         applied = .false.
+        if (size(args) == 2) then
+            if (name /= "atan2") return
+            call classify_domain_id(a, args(1), y_domain, y_direction, &
+                y_known, y_contains_domain, y_has_zero)
+            call classify_domain_id(a, args(2), x_domain, x_direction, &
+                x_known, x_contains_domain, x_has_zero)
+            if (.not. y_known .or. .not. x_known .or. &
+                .not. y_contains_domain .or. .not. x_contains_domain) return
+            if (y_domain /= DOMAIN_OO .or. x_domain /= DOMAIN_OO .or. &
+                y_has_zero .or. x_has_zero) return
+            applied = .true.
+            if (x_direction > 0) then
+                out = a%int(0_int64)
+            else if (y_direction > 0) then
+                out = a%const("pi")
+            else
+                out = mul_pair(a, a%int(-1_int64), a%const("pi"))
+            end if
+            return
+        end if
         if (size(args) /= 1) return
         call classify_domain_id(a, args(1), domain, direction, known, &
             contains_domain, has_zero)

@@ -114,6 +114,9 @@ The gamma heads add the representable limits `gamma(oo)=oo` and
 pole-sensitive `gamma(-oo)` and `gamma(zoo)` remain unevaluated.
 The shared positive-infinity branch also gives `factorial(oo)=oo`; its
 negative and complex-infinity applications remain unevaluated.
+The two-argument `atan2` head evaluates the directed `(+/-oo, +/-oo)`
+quadrants (`0`, `pi`, and `-pi`); complex-infinity and other ambiguous pairs
+remain applied heads.
 
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a

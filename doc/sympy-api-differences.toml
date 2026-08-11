@@ -67,7 +67,7 @@ difference = "Unevaluated-expression semantics, canonical ordering, domain rules
 
 [[semantic]]
 id = "applied-functions"
-affected = ["Function", "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "csch", "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign", "floor", "ceiling"]
+affected = ["Function", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "csch", "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign", "floor", "ceiling"]
 parity = "partial"
 sympy = "SymPy function classes apply function-specific evaluation, assumptions, rewrites, and special-function rules."
 fortsym = "The adapter creates native applied-function nodes for the declared heads; direct domain rules for the supported elementary heads cover representable infinity sentinels, while accumulation-bound outputs, function assumptions, and broad rewrites are refused or absent."
