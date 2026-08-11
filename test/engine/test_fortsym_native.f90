@@ -140,6 +140,7 @@ contains
 
     subroutine test_like_terms_and_powers()
         type(engine_result_t) :: r
+        type(expr_t) :: sqrt_argument
 
         r = engine%simplify(x + x + 2*x - 4*x)
         call check("like terms cancel exactly", r%value == num(arena, 0))
@@ -152,6 +153,11 @@ contains
 
         r = engine%simplify(i_expr(arena)**2)
         call check("integer powers of i are exact", r%value == num(arena, -1))
+
+        sqrt_argument = sym(arena, "sqrt_argument")
+        r = engine%simplify(sqrt(sqrt_argument)**2)
+        call check("square of principal square root is exact", &
+            r%value == sqrt_argument)
     end subroutine test_like_terms_and_powers
 
     subroutine test_common_rational_factor()
@@ -1145,8 +1151,8 @@ contains
         call check("sqrt spelling matches the rational power fragment", &
             r%verdict == VERDICT_TRUE)
         r = engine%zero_test(sqrt(x)**2 - x)
-        call check("sqrt square remains unknown without a domain", &
-            r%verdict == VERDICT_UNKNOWN)
+        call check("square of principal square root is zero", &
+            r%verdict == VERDICT_TRUE)
         r = engine%zero_test(sin(x)**2 + cos(x)**2 - 1)
         call check("trigonometric Pythagorean identity is decided zero", &
             r%verdict == VERDICT_TRUE)

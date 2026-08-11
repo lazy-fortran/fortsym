@@ -170,6 +170,18 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(label=label):
                 self.assert_equivalent(label, expected, native_cases[label])
 
+    def test_principal_sqrt_power_matches_oracle(self):
+        oracle_x = oracle.Symbol("differential_sqrt_power")
+        native_x = native.Symbol("differential_sqrt_power")
+        oracle_raw = oracle.Pow(
+            oracle.sqrt(oracle_x, evaluate=False), 2, evaluate=False
+        )
+        native_raw = native.sqrt(native_x)**2
+        self.assert_equivalent(
+            "principal sqrt power", oracle.simplify(oracle_raw),
+            native.simplify(native_raw),
+        )
+
     def test_three_valued_zero_predicates(self):
         oracle_cases = self.predicate_cases(oracle)
         native_cases = self.predicate_cases(native)

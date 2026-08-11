@@ -303,6 +303,8 @@ Every checklist item requires all of the following:
     values become `-x`; zero becomes `0`; unknown reality remains unevaluated.
   - [x] Add domain-guarded `log(exp(x))` for real `x` and `exp(log(x))` for
     nonzero `x`; unsupported domain cases remain unevaluated.
+  - [x] Match the principal-square-root power convention by reducing
+    `sqrt(x)**2` to `x` for symbolic `x`.
 - [ ] Match SymPy branch conventions while preserving fortsym's refusal of
   unsafe identities.
 - [ ] Implement the general simplification families: `powsimp`, `powdenest`,

@@ -22,7 +22,7 @@ it.
 | Differentiation | yes | yes | Yacas concrete method | memoization and domain-sensitive rules |
 | Multivariate symbolic partials | yes | opaque | opaque | function assumptions and rewrite rules |
 | JVP, VJP, gradient, and HVP | yes | verification | verification | consumer conformance corpus |
-| Simplification | partial: guarded `sqrt`/`abs` and real/nonzero-guarded `log`/`exp` compositions | partial | partial | broader guarded elementary rewrites and polynomial normal form |
+| Simplification | partial: principal-square-root powers, guarded `sqrt`/`abs`, and real/nonzero-guarded `log`/`exp` compositions | partial | partial | broader guarded elementary rewrites and polynomial normal form |
 | Expansion | bounded multinomial | yes | Yacas concrete method | sparse polynomial expansion without the 100,000-term fast-path bound |
 | Zero decision | partial, with C/Python three-valued `is_zero` and `is_nonzero` | partial | weak simplify test | broader predicate inference and polynomial certificates |
 | Polynomial GCD and rational cancellation | no | partial, univariate | partial | multivariate domains |
