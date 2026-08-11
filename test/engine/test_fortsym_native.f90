@@ -40,6 +40,7 @@ program test_fortsym_native
     call test_resource_limits()
     call test_differentiation()
     call test_bessel_recurrence()
+    call test_special_function_identities()
     call test_series()
     call test_linear_solve()
     call test_assumptions()
@@ -391,6 +392,38 @@ contains
         call check("J0 derivative simplifies to -J1", &
             r%value == -besselj(1, x))
     end subroutine test_bessel_recurrence
+
+    subroutine test_special_function_identities()
+        type(engine_result_t) :: r
+        type(expr_t) :: args(2)
+
+        ! Independent exact oracles: erf(0)=0, erfc(0)=1,
+        ! Gamma(n)=(n-1)!, Gamma(1/2)=sqrt(pi), and positive integer
+        ! Bessel orders vanish at zero while J_0(0)=I_0(0)=1.
+        r = engine%simplify(erf(num(arena, 0_int64)))
+        call check("erf(0) simplifies to zero", r%value == num(arena, 0))
+        r = engine%simplify(erfc(num(arena, 0_int64)))
+        call check("erfc(0) simplifies to one", r%value == num(arena, 1))
+
+        r = engine%simplify(gamma(num(arena, 5_int64)))
+        call check("Gamma(5) simplifies to 24", r%value == num(arena, 24))
+        r = engine%simplify(gamma(rat(arena, 1_int64, 2_int64)))
+        call check("Gamma(1/2) simplifies to sqrt(pi)", &
+            r%value == sqrt(pi_expr(arena)))
+
+        r = engine%simplify(besselj(0, num(arena, 0_int64)))
+        call check("J_0(0) simplifies to one", r%value == num(arena, 1))
+        r = engine%simplify(besselj(2, num(arena, 0_int64)))
+        call check("J_2(0) simplifies to zero", r%value == num(arena, 0))
+
+        args(1) = num(arena, 3_int64)
+        args(2) = num(arena, 0_int64)
+        r = engine%simplify(func("besseli", args))
+        call check("I_3(0) simplifies to zero", r%value == num(arena, 0))
+        args(1) = num(arena, 0_int64)
+        r = engine%simplify(func("besseli", args))
+        call check("I_0(0) simplifies to one", r%value == num(arena, 1))
+    end subroutine test_special_function_identities
 
     subroutine test_series()
         type(engine_result_t) :: r

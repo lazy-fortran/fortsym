@@ -144,6 +144,13 @@ the principal part through positive order and explicit refusal of unknown
 singular structures. Infinity, composition, inversion, and special-function
 series remain outside this decision procedure.
 
+Issue #34 (special functions) is complete as of 2026-08-11 for the bounded
+exact identity fragment: native simplification proves `erf(0)`, `erfc(0)`,
+small positive-integer Gamma values, `Gamma(1/2)`, and integer-order `J` and
+`I` values at zero. The independent tests encode the defining identities and
+cover the zero-order boundary. General special-function evaluation, analytic
+continuation, asymptotics, and series remain outside this decision procedure.
+
 Issue #31 (native integration) is complete as of 2026-08-11 for the bounded
 exact fragment: native integration now sends exact rational inputs through
 partial fractions before applying its verified elementary rules. Distinct and
@@ -842,6 +849,13 @@ of the bounded `qqbar` bridge into arena nodes.
 - Oracle: high-precision evaluation and `z * conj(z) == abs(z)^2`.
 
 ### M6 — Special functions (#34) · 1040 sites
+
+Issue #34 is complete for the bounded exact identity fragment above. Native
+simplification handles zero arguments for `erf`, `erfc`, integer-order Bessel
+`J`/`I`, positive integer Gamma values through a checked factorial cap, and
+`Gamma(1/2)`. General Bessel families, elliptic and Legendre functions,
+analytic continuation, asymptotics, and arbitrary-precision evaluation remain
+explicitly outside this decision procedure.
 
 Bessel `J`,`Y`,`I`,`K`; gamma family; `erf`/`erfc`; elliptic `K`,`E`,`F`;
 Legendre.
