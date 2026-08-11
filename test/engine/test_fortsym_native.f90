@@ -55,6 +55,7 @@ program test_fortsym_native
     call test_directed_domain_functions()
     call test_directed_domain_heads()
     call test_directed_inverse_heads()
+    call test_reciprocal_hyperbolic_heads()
     call test_noninteger_domain_powers()
     call test_verdicts()
     call test_overflow_preservation()
@@ -1113,6 +1114,35 @@ contains
         call check("atanh(zoo) remains an applied head", &
             r%value%kind() == NK_FUNC)
     end subroutine test_directed_inverse_heads
+
+    subroutine test_reciprocal_hyperbolic_heads()
+        type(engine_result_t) :: r
+        type(expr_t) :: infinity, complex_infinity, negative_infinity
+
+        infinity = oo_expr(arena)
+        complex_infinity = zoo_expr(arena)
+        negative_infinity = -infinity
+
+        r = engine%simplify(unary_function("csch", infinity))
+        call check("csch(oo) is zero", r%value == num(arena, 0_int64))
+        r = engine%simplify(unary_function("csch", negative_infinity))
+        call check("csch(-oo) is zero", r%value == num(arena, 0_int64))
+        r = engine%simplify(unary_function("csch", complex_infinity))
+        call check("csch(zoo) is nan", r%value == nan_expr(arena))
+        r = engine%simplify(unary_function("sech", infinity))
+        call check("sech(oo) is zero", r%value == num(arena, 0_int64))
+        r = engine%simplify(unary_function("sech", negative_infinity))
+        call check("sech(-oo) is zero", r%value == num(arena, 0_int64))
+        r = engine%simplify(unary_function("sech", complex_infinity))
+        call check("sech(zoo) is nan", r%value == nan_expr(arena))
+        r = engine%simplify(unary_function("coth", infinity))
+        call check("coth(oo) is one", r%value == num(arena, 1_int64))
+        r = engine%simplify(unary_function("coth", negative_infinity))
+        call check("coth(-oo) is negative one", &
+            r%value == num(arena, -1_int64))
+        r = engine%simplify(unary_function("coth", complex_infinity))
+        call check("coth(zoo) is nan", r%value == nan_expr(arena))
+    end subroutine test_reciprocal_hyperbolic_heads
 
     subroutine test_noninteger_domain_powers()
         type(engine_result_t) :: r

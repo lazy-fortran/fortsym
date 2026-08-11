@@ -103,6 +103,9 @@ The inverse heads `asin`, `acos`, `atan`, `asinh`, `acosh`, and `atanh` also
 match the representable `oo`/`-oo` results from SymPy 1.14.0. The
 accumulation-bound results for `atan(zoo)` and `atanh(zoo)` remain applied
 heads until a compatible bounded-set representation exists.
+The reciprocal-hyperbolic heads `csch`, `sech`, and `coth` likewise have
+direct scalar rules: `csch` and `sech` tend to zero, while `coth` tends to
+the corresponding signed one; every `zoo` case becomes `nan`.
 
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a

@@ -4694,6 +4694,22 @@ contains
             if (domain == DOMAIN_ZOO) return
             applied = .true.
             out = imaginary_half_pi_node(a, -direction)
+        case ("csch", "sech")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = nan_node(a)
+            else
+                out = a%int(0_int64)
+            end if
+        case ("coth")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = nan_node(a)
+            else if (direction < 0) then
+                out = a%int(-1_int64)
+            else
+                out = a%int(1_int64)
+            end if
         end select
     end subroutine simplify_domain_function
 
