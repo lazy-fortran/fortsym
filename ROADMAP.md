@@ -450,6 +450,13 @@ Every checklist item requires all of the following:
     `doc/module-architecture.json`.
 - [ ] Run `fo`, CMake/CTest, Python tests, corpus tests, code-generation tests,
   and CUDA/compiler tests on the supported toolchains.
+  - [x] Run the full `fo` gate and the Python adapter suite.
+  - [x] Configure, build, and run the GNU CMake/CTest suite: 50 tests passed;
+    the optional SymPy differential CTest remained skipped in that environment.
+  - [x] Run the code-generation tests, including the CUDA emitter test.
+  - [x] Compile generated Fortran with `nvfortran` 26.5 and generated CUDA with
+    `nvcc` 13.3 on the visible RTX 5060 Ti; broader compiler/corpus coverage
+    remains open.
 - [ ] Publish the compatibility matrix, performance baseline, refusal table,
   and migration notes.
 - [ ] Replace temporary aliases with the final canonical API.

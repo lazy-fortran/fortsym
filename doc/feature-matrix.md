@@ -49,3 +49,19 @@ default arena. Character assignment creates symbols and `symbols(...)` fills
 scalar names. Explicit arenas remain the first-class API for concurrency,
 embedding, and independent derivations. The naming rule and the no-LaTeX-name
 boundary are maintained in [`fortran-api.md`](fortran-api.md).
+
+## Verified toolchain paths
+
+This is a local compatibility snapshot, not a claim that every supported
+toolchain has been exercised:
+
+| Path | Toolchain | Evidence | Result |
+|---|---|---|---|
+| Native gate | `fo`, GNU Fortran 16.1.1 | full static, build, test, and lint stages | passed |
+| CMake/CTest | GNU Fortran/C/C++ 16.1.1, system SymEngine 0.14.0 | fresh Debug configure, build, and 50-test CTest run | 50 passed; optional SymPy CTest skipped |
+| Code generation | CMake codegen targets | kernel, IR, backend, WL, and simple-kernel tests | passed |
+| CUDA generation | `nvcc` 13.3.73, RTX 5060 Ti, driver 610.57.04 | CUDA emitter CTest plus independent generated `.cu` compilation | passed |
+| NVIDIA Fortran | `nvfortran` 26.5-0 | independent compilation of a generated Fortran kernel | passed |
+
+The complete corpus and all supported compiler/toolchain combinations remain
+release-closure work in `ROADMAP.md`.
