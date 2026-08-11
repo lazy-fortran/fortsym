@@ -78,7 +78,8 @@ root = algebraic_expr(default_arena(), qqbar_text, ok=good)
 `root%algebraic_text()` returns its canonical `qqbar1` spelling. The native
 engine combines pure algebraic expressions with exact `+`, `*`, and integer
 powers. Native simplification also combines algebraic coefficients in mixed
-expressions and uses the FLINT sign oracle for algebraic zero. `real64`
+expressions and uses the FLINT sign oracle for algebraic zero, one, and
+definitely-nonzero guards. `real64`
 expression
 evaluation refuses algebraic atoms. Fortran kernel emission accepts exact real
 algebraic atoms through a checked `algebraic_to_real` projection. The

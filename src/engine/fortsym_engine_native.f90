@@ -4009,6 +4009,8 @@ contains
         type(arena_t), intent(in) :: a
         integer,       intent(in) :: id
         logical                   :: nonzero
+        integer :: real_sign, imaginary_sign
+        logical :: signs_ok
 
         select case (a%kind_of(id))
         case (NK_INT, NK_RAT)
@@ -4018,6 +4020,14 @@ contains
             nonzero = .true.
         case (NK_REAL)
             nonzero = a%real_of(id) /= 0.0_dp
+        case (NK_ALGEBRAIC)
+            call algebraic_signs(chars(a%algebraic_text_of(id)), &
+                real_sign, imaginary_sign, signs_ok)
+            if (signs_ok) then
+                nonzero = real_sign /= 0 .or. imaginary_sign /= 0
+            else
+                nonzero = .false.
+            end if
         case default
             nonzero = .false.
         end select
@@ -4067,6 +4077,8 @@ contains
             yes = a%num_of(id) == 0_int64
         case (NK_REAL)
             yes = a%real_of(id) == 0.0_dp
+        case (NK_ALGEBRAIC)
+            yes = is_algebraic_zero_id(a, id)
         end select
     end function is_zero_id
 
@@ -4081,8 +4093,41 @@ contains
             yes = a%num_of(id) == a%den_of(id)
         case (NK_REAL)
             yes = a%real_of(id) == 1.0_dp
+        case (NK_ALGEBRAIC)
+            yes = is_algebraic_one_id(a, id)
         end select
     end function is_one_id
+
+    function is_algebraic_zero_id(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: yes
+        integer :: real_sign, imaginary_sign
+        logical :: ok
+
+        yes = .false.
+        call algebraic_signs(chars(a%algebraic_text_of(id)), real_sign, &
+            imaginary_sign, ok)
+        if (ok) yes = real_sign == 0 .and. imaginary_sign == 0
+    end function is_algebraic_zero_id
+
+    function is_algebraic_one_id(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: yes
+        type(str_t) :: one_text, difference
+        integer :: real_sign, imaginary_sign
+        logical :: ok
+
+        yes = .false.
+        one_text = algebraic_from_re_im("1", "0", ok)
+        if (.not. ok) return
+        difference = algebraic_sub(chars(a%algebraic_text_of(id)), &
+            chars(one_text), ok)
+        if (.not. ok) return
+        call algebraic_signs(chars(difference), real_sign, imaginary_sign, ok)
+        if (ok) yes = real_sign == 0 .and. imaginary_sign == 0
+    end function is_algebraic_one_id
 
     subroutine fraction_add(n1, d1, n2, d2, n, d, ok)
         integer(int64), intent(in)  :: n1, d1, n2, d2

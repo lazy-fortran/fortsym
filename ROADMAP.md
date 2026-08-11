@@ -254,6 +254,8 @@ Every checklist item requires all of the following:
       mixed sums and products, combine them with exact rational coefficients,
       reduce integer powers through the FLINT bridge, and canonicalize proved
       algebraic zero results.
+    - [x] Use the FLINT component-sign oracle in native zero, one, and
+      definitely-nonzero guards, including algebraic linear solve conditions.
     - [ ] Extend algebraic values through full native simplification, then
       complete the remaining complex-domain operations, higher-degree
       conversion, and complex code generation.
