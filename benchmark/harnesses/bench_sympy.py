@@ -29,6 +29,7 @@ _ASSUMPTION_OPERATIONS = (
     "assumption_query", "integer_assumption_query",
     "rational_assumption_query", "algebraic_assumption_query",
 )
+_CONSTRUCTION_OPERATIONS = ("power_constructor",)
 
 
 def predicate_value(expression: Any, operation: str) -> Any:
@@ -307,6 +308,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.sqrt(native_sqrt_power)**2,
             names,
         ),
+        "power_constructor": (
+            oracle_x**0,
+            native_x**0,
+            names,
+        ),
         "domain_function": (
             oracle.sqrt(-oracle.oo, evaluate=False),
             native.sqrt(-native_oo),
@@ -439,6 +445,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         x = engine.Symbol(f"{operation}_x_{suffix}", rational=True)
     elif operation == "algebraic_assumption_query":
         x = engine.Integer(2)
+    elif operation in _CONSTRUCTION_OPERATIONS:
+        x = engine.Symbol(f"{operation}_x_{suffix}")
     elif operation in ("number_predicate", "algebraic_predicate"):
         x = engine.Integer(1 if operation == "number_predicate" else 2)
     else:
@@ -451,6 +459,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.exp(x * y)
     elif operation == "simplify":
         expression = engine.sqrt(x**2)
+    elif operation == "power_constructor":
+        expression = x**0
     elif operation == "domain_function":
         if engine is oracle:
             expression = engine.sqrt(-engine.oo, evaluate=False)
@@ -655,6 +665,9 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation == "simplify":
             expected = oracle.simplify(oracle_expression)
             actual = native.simplify(native_expression)
+        elif operation in _CONSTRUCTION_OPERATIONS:
+            expected = oracle_expression
+            actual = native_expression
         elif operation == "domain_complex":
             expected = oracle.re(oracle_expression)
             actual = native.re(native_expression)
@@ -665,7 +678,8 @@ def correctness_cases() -> list[dict[str, Any]]:
             expected = oracle.expand_complex(oracle_expression)
             actual = native.expand_complex(native_expression)
         elif operation in (
-                "composition", "sqrt_power", "domain_function", "domain_inverse",
+                "composition", "sqrt_power",
+                "domain_function", "domain_inverse",
                 "domain_reciprocal", "domain_error_function", "domain_gamma",
                 "domain_atan2",
                 "domain_bessel", "domain_legendre",
@@ -812,6 +826,8 @@ def benchmark_workload(
                     return engine.ask(expression)
                 if operation in _PREDICATE_OPERATIONS:
                     return predicate_value(expression, operation)
+                if operation in _CONSTRUCTION_OPERATIONS:
+                    return expression
                 if operation == "refine":
                     return engine.refine(expression, engine.Q.negative(variable))
                 if operation == "domain_complex":
@@ -821,7 +837,8 @@ def benchmark_workload(
                 if operation == "domain_expand_complex":
                     return engine.expand_complex(expression)
                 if operation in (
-                        "composition", "sqrt_power", "domain_function", "domain_inverse",
+                    "composition", "sqrt_power",
+                    "domain_function", "domain_inverse",
                         "domain_reciprocal", "domain_error_function", "domain_gamma",
                         "domain_atan2",
                         "domain_bessel", "domain_legendre",
@@ -885,12 +902,15 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "domain_function", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
+        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "domain_function", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):
-        scopes = ("warm_core",) if operation in _PREDICATE_OPERATIONS else (
-            "cold_end_to_end", "warm_core"
-        )
+        if operation in _PREDICATE_OPERATIONS:
+            scopes = ("warm_core",)
+        elif operation in _CONSTRUCTION_OPERATIONS:
+            scopes = ("cold_end_to_end",)
+        else:
+            scopes = ("cold_end_to_end", "warm_core")
         for scope in scopes:
             workloads.append(benchmark_workload(
                 operation, scope, args.warmup, args.repetitions, args.batch,

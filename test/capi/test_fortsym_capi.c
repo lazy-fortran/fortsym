@@ -48,6 +48,7 @@ int main(void)
     fortsym_expr *two = NULL;
     fortsym_expr *square = NULL;
     fortsym_expr *powered = NULL;
+    fortsym_expr *power_identity = NULL;
     fortsym_expr *expanded_input = NULL;
     fortsym_expr *factored = NULL;
     fortsym_expr *quotient_num = NULL;
@@ -133,6 +134,16 @@ int main(void)
     assert(status == FORTSYM_OK);
     status = fortsym_power(arena, sum, two, &powered, message, sizeof message);
     assert(status == FORTSYM_OK);
+    status = fortsym_power(arena, x, zero, &power_identity, message,
+                           sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(power_identity, "1");
+    fortsym_expr_free(power_identity);
+    power_identity = NULL;
+    status = fortsym_power(arena, one, x, &power_identity, message,
+                           sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(power_identity, "1");
     status = fortsym_expand(arena, powered, &expanded_input, message,
                             sizeof message);
     assert(status == FORTSYM_OK);
@@ -455,6 +466,7 @@ int main(void)
     fortsym_expr_free(factored);
     fortsym_expr_free(expanded_input);
     fortsym_expr_free(powered);
+    fortsym_expr_free(power_identity);
     fortsym_expr_free(quotient);
     fortsym_expr_free(quotient_den);
     fortsym_expr_free(quotient_num);
