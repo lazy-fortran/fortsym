@@ -1812,12 +1812,15 @@ contains
         integer,       intent(in)    :: args(:)
         integer                      :: out
         integer(int64) :: order, den
+        integer(int64) :: periodic_numerator, periodic_denominator
         integer(int64) :: factorial
         logical :: exact
         logical :: factorial_ok
         logical :: trig_constant_ok
+        logical :: periodic_ok
         logical :: negated_argument, odd_head, even_head
         integer :: trig_constant
+        integer :: periodic_constant
         integer :: positive_argument
         integer :: bessel_args(2), pair(2), one_arg(1)
 
@@ -1877,6 +1880,14 @@ contains
                 call exact_trig_value(a, name, args(1), trig_constant, &
                     trig_constant_ok)
                 if (trig_constant_ok) out = trig_constant
+            else if (name == "exp") then
+                call rational_i_pi_multiple(a, args(1), periodic_numerator, &
+                    periodic_denominator, periodic_ok)
+                if (periodic_ok) then
+                    periodic_constant = exact_periodic_constant(a, &
+                        periodic_numerator, periodic_denominator, periodic_ok)
+                    if (periodic_ok) out = periodic_constant
+                end if
             end if
         case ("log")
             if (is_one_id(a, args(1))) out = a%int(0_int64)
