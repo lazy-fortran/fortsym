@@ -230,8 +230,14 @@ Every checklist item requires all of the following:
     set, not to every real input.
   - [ ] Integrate exact complex and algebraic values into arena expressions and
     native operations.
-- [ ] Integrate algebraic values into arena expressions, printers, conversion,
-  simplification, and code generation.
+    - [x] Store canonical FLINT `qqbar1` values as `NK_ALGEBRAIC` arena atoms,
+      expose `algebraic_expr` and `%algebraic_text()`, and fold pure exact
+      algebraic `+`, `*`, and integer powers in the native engine. The native
+      zero query uses the FLINT component-sign oracle. Real64 evaluation,
+      Fortran kernel emission, and SymEngine conversion refuse algebraic atoms
+      until explicit conversion semantics exist.
+    - [ ] Extend algebraic values through full native simplification,
+      complex-domain operations, parsing, conversion, and code generation.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.

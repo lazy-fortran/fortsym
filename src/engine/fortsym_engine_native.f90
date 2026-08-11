@@ -9,10 +9,14 @@ module fortsym_engine_native
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, &
-        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_SYM, NK_BIG_INT, NK_BIG_RAT
-    use fortsym_expr, only: expr_t, num, operator(+), operator(-), operator(*), &
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_SYM, NK_BIG_INT, NK_BIG_RAT, &
+        NK_ALGEBRAIC
+    use fortsym_expr, only: expr_t, num, algebraic_expr, operator(+), operator(-), &
+        operator(*), &
         operator(/), operator(**), operator(==)
     use fortsym_exact, only: exact_add, exact_mul, exact_pow
+    use fortsym_algebraic, only: algebraic_i, algebraic_add, algebraic_mul, &
+        algebraic_pow, algebraic_signs
     use fortsym_assume, only: assumption_context_t, FACT_REAL, &
         FACT_POSITIVE, FACT_NONNEGATIVE
     use fortsym_diff, only: diff_expr => diff
@@ -87,6 +91,7 @@ contains
         real(dp) :: started
         logical :: refused
         logical :: cancel_ok
+        logical :: algebraic_ok
         character(:), allocatable :: reason
         character(:), allocatable :: cancel_reason
         type(expr_t) :: simplified_expr, cancelled
@@ -129,6 +134,16 @@ contains
         simplified_id = simplify_id(e%a, e%id, memo, done, active_limit)
         if (active_limit%exceeded_kind /= 0) then
             r%message = str(resource_failure("simplify", active_limit))
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        call try_algebraic_value(e%a, simplified_id, algebraic_ok)
+        if (algebraic_ok) then
+            r%value%id = simplified_id
+            r%ok = .true.
+            if (.not. associated(self%assumptions)) then
+                self%simplify_cache(e%id) = simplified_id
+            end if
             r%seconds = wall_seconds() - started
             return
         end if
@@ -352,6 +367,8 @@ contains
             else
                 r%verdict = VERDICT_FALSE
             end if
+        case (NK_ALGEBRAIC)
+            call algebraic_zero_status(r%value, r%verdict)
         end select
         if (decidable .and. formal_exponential .and. .not. branch_sensitive .and. &
             r%verdict == VERDICT_UNKNOWN) then
@@ -860,6 +877,123 @@ contains
         done(id) = .true.
         memo(id) = out
     end function simplify_id
+
+    recursive subroutine try_algebraic_value(a, out, ok)
+        type(arena_t), target, intent(inout) :: a
+        integer, intent(inout) :: out
+        logical, intent(out) :: ok
+        type(str_t) :: value
+        type(expr_t) :: expression
+
+        ok = .false.
+        if (a%kind_of(out) /= NK_ADD .and. a%kind_of(out) /= NK_MUL .and. &
+            a%kind_of(out) /= NK_POW) return
+        if (.not. contains_algebraic_atom(a, out)) return
+        value = algebraic_value(a, out, ok)
+        if (.not. ok) return
+        expression = algebraic_expr(a, chars(value), ok)
+        if (ok) out = expression%id
+    end subroutine try_algebraic_value
+
+    recursive function contains_algebraic_atom(a, id) result(found)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical :: found
+        integer :: k
+
+        found = .false.
+        select case (a%kind_of(id))
+        case (NK_ALGEBRAIC)
+            found = .true.
+        case (NK_CONST)
+            found = chars(a%name_of(id)) == "i"
+        case (NK_ADD, NK_MUL)
+            do k = 1, a%nargs_of(id)
+                if (contains_algebraic_atom(a, a%arg_of(id, k))) then
+                    found = .true.
+                    return
+                end if
+            end do
+        case (NK_POW)
+            found = contains_algebraic_atom(a, a%arg_of(id, 1))
+        end select
+    end function contains_algebraic_atom
+
+    recursive function algebraic_value(a, id, ok) result(value)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical, intent(out) :: ok
+        type(str_t) :: value
+        type(str_t) :: left, right
+        integer(int64) :: exponent
+        integer :: k
+
+        ok = .true.
+        select case (a%kind_of(id))
+        case (NK_ALGEBRAIC)
+            value = a%algebraic_text_of(id)
+        case (NK_CONST)
+            if (chars(a%name_of(id)) == "i") then
+                value = algebraic_i(ok)
+            else
+                ok = .false.
+            end if
+        case (NK_INT, NK_RAT, NK_BIG_INT, NK_BIG_RAT)
+            value = algebraic_from_real_text(chars(a%exact_text_of(id)), ok)
+        case (NK_ADD, NK_MUL)
+            value = str("")
+            do k = 1, a%nargs_of(id)
+                right = algebraic_value(a, a%arg_of(id, k), ok)
+                if (.not. ok) return
+                if (k == 1) then
+                    value = right
+                else
+                    left = value
+                    if (a%kind_of(id) == NK_ADD) then
+                        value = algebraic_add(chars(left), chars(right), ok)
+                    else
+                        value = algebraic_mul(chars(left), chars(right), ok)
+                    end if
+                    if (.not. ok) return
+                end if
+            end do
+        case (NK_POW)
+            if (a%kind_of(a%arg_of(id, 2)) /= NK_INT) then
+                ok = .false.
+                return
+            end if
+            exponent = a%num_of(a%arg_of(id, 2))
+            left = algebraic_value(a, a%arg_of(id, 1), ok)
+            if (.not. ok) return
+            value = algebraic_pow(chars(left), exponent, ok)
+        case default
+            ok = .false.
+        end select
+    end function algebraic_value
+
+    function algebraic_from_real_text(text, ok) result(value)
+        character(*), intent(in) :: text
+        logical, intent(out) :: ok
+        type(str_t) :: value
+
+        value = algebraic_add(text, "0", ok)
+    end function algebraic_from_real_text
+
+    subroutine algebraic_zero_status(e, verdict)
+        type(expr_t), intent(in) :: e
+        integer, intent(out) :: verdict
+        integer :: real_sign, imag_sign
+        logical :: ok
+
+        call algebraic_signs(chars(e%algebraic_text()), real_sign, imag_sign, ok)
+        if (.not. ok) then
+            verdict = VERDICT_UNKNOWN
+        else if (real_sign == 0 .and. imag_sign == 0) then
+            verdict = VERDICT_TRUE
+        else
+            verdict = VERDICT_FALSE
+        end if
+    end subroutine algebraic_zero_status
 
     function native_exp_normal_form(e, saw_exponential, decidable, &
             formal_exponential) result(out)

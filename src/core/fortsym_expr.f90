@@ -26,7 +26,8 @@ module fortsym_expr
     private
 
     public :: expr_t
-    public :: sym, num, rat, exact, real_expr, real_text_expr, const, func, func_in
+    public :: sym, num, rat, exact, real_expr, real_text_expr, algebraic_expr, &
+        const, func, func_in
     public :: pi_expr, e_expr, i_expr, partial
     public :: is_valid, same_arena
     public :: operator(+), operator(-), operator(*), operator(/), &
@@ -53,6 +54,7 @@ module fortsym_expr
         procedure :: den_value => expr_den_value
         procedure :: real_value => expr_real_value
         procedure :: real_text => expr_real_text
+        procedure :: algebraic_text => expr_algebraic_text
         procedure :: exact_text => expr_exact_text
         procedure :: node_count => expr_node_count
     end type expr_t
@@ -205,6 +207,20 @@ contains
         if (.not. ok) nullify(e%a)
     end function real_text_expr
 
+    !> An exact algebraic value in canonical FLINT qqbar1 form. The payload is
+    !> retained as an arena atom and is never projected through real64.
+    function algebraic_expr(a, value, ok) result(e)
+        type(arena_t), target, intent(inout) :: a
+        character(*), intent(in)    :: value
+        logical,      intent(out)   :: ok
+        type(expr_t)                         :: e
+
+        e%a => a
+        e%id = a%algebraic(value, ok)
+        e%generation = a%generation_value()
+        if (.not. ok) nullify(e%a)
+    end function algebraic_expr
+
     function const(a, name) result(e)
         type(arena_t), target, intent(inout) :: a
         character(*), intent(in)    :: name
@@ -355,6 +371,12 @@ contains
         type(str_t)               :: s
         s = self%a%real_text_of(self%id)
     end function expr_real_text
+
+    function expr_algebraic_text(self) result(s)
+        class(expr_t), intent(in) :: self
+        type(str_t)               :: s
+        s = self%a%algebraic_text_of(self%id)
+    end function expr_algebraic_text
 
     function expr_exact_text(self) result(s)
         class(expr_t), intent(in) :: self

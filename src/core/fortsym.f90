@@ -3,10 +3,10 @@ module fortsym
     ! modules remain available for callers that need independent state.
     use fortsym_arena, only: arena_t, node_kind_name, &
         NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, NK_POW, &
-        NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
+        NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL, NK_ALGEBRAIC
     use fortsym_string, only: str, chars
     use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, &
-        real_text_expr, const, func, func_in, partial, pi_expr, e_expr, &
+        real_text_expr, algebraic_expr, const, func, func_in, partial, pi_expr, e_expr, &
         i_expr, sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, &
         tanh, asinh, acosh, atanh, exp, log, sqrt, abs, erf, erfc, &
         gamma, besselj, legendrep, legendreq, &
@@ -31,8 +31,9 @@ module fortsym
 
     public :: arena_t, node_kind_name
     public :: NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, &
-        NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
-    public :: expr_t, sym, num, rat, exact, real_expr, real_text_expr, const, &
+        NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL, NK_ALGEBRAIC
+    public :: expr_t, sym, num, rat, exact, real_expr, real_text_expr, &
+        algebraic_expr, const, &
         func, func_in, partial, pi_expr, e_expr, i_expr, is_valid, same_arena
     public :: str, chars
     public :: subs, diff, simplify, expand, factor

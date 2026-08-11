@@ -23,7 +23,7 @@ module fortsym_engine_symengine
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
-        NK_BIG_REAL
+        NK_BIG_REAL, NK_ALGEBRAIC
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect, DIA_SYMENGINE
     use fortsym_parse, only: parse_expr_in
@@ -53,6 +53,25 @@ module fortsym_engine_symengine
     end type symengine_engine_t
 
 contains
+
+    recursive function contains_algebraic_node(a, id) result(found)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical :: found
+        integer :: k
+
+        found = .false.
+        if (a%kind_of(id) == NK_ALGEBRAIC) then
+            found = .true.
+            return
+        end if
+        do k = 1, a%nargs_of(id)
+            if (contains_algebraic_node(a, a%arg_of(id, k))) then
+                found = .true.
+                return
+            end if
+        end do
+    end function contains_algebraic_node
 
     !> Build the backend. SymEngine is linked, so it is always available; the
     !> flag exists to keep every engine uniform to the council.
@@ -304,6 +323,10 @@ contains
             why = "requested-precision expression exceeds the evaluator node bound"
             return
         end if
+        if (contains_algebraic_node(e%a, e%id)) then
+            why = "SymEngine requested-precision evaluation does not support algebraic arena atoms"
+            return
+        end if
         if (fsym_have_mpfr() == 0_c_int) then
             why = "SymEngine was built without MPFR requested-precision support"
             return
@@ -401,6 +424,14 @@ contains
         integer(c_int) :: v
 
         t0 = wall_seconds()
+        if (contains_algebraic_node(e%a, e%id)) then
+            r%verdict = VERDICT_UNKNOWN
+            r%ok = .false.
+            r%value = e
+            r%message = str("symengine: algebraic arena atoms are unsupported")
+            r%seconds = wall_seconds() - t0
+            return
+        end if
         h = to_symengine(e%a, e%id)
         v = fsym_zero_test(h, 0_c_long)
         call basic_free_heap(h)
@@ -430,6 +461,13 @@ contains
         logical :: good
 
         t0 = wall_seconds()
+        if (contains_algebraic_node(e%a, e%id)) then
+            r%ok = .false.
+            r%value = e
+            r%message = str("symengine: algebraic arena atoms are unsupported")
+            r%seconds = wall_seconds() - t0
+            return
+        end if
         h = to_symengine(e%a, e%id)
         out = basic_new_heap()
         rc = fsym_simplify(out, h)
@@ -459,6 +497,14 @@ contains
         logical :: good
 
         t0 = wall_seconds()
+        if (contains_algebraic_node(e%a, e%id) .or. &
+            contains_algebraic_node(v%a, v%id)) then
+            r%ok = .false.
+            r%value = e
+            r%message = str("symengine: algebraic arena atoms are unsupported")
+            r%seconds = wall_seconds() - t0
+            return
+        end if
         h = to_symengine(e%a, e%id)
         hv = to_symengine(v%a, v%id)
         out = basic_new_heap()
@@ -491,6 +537,13 @@ contains
         logical :: good
 
         t0 = wall_seconds()
+        if (contains_algebraic_node(e%a, e%id)) then
+            r%ok = .false.
+            r%value = e
+            r%message = str("symengine: algebraic arena atoms are unsupported")
+            r%seconds = wall_seconds() - t0
+            return
+        end if
         h = to_symengine(e%a, e%id)
         out = basic_new_heap()
         rc = basic_expand(out, h)
