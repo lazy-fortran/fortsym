@@ -78,6 +78,11 @@ has not been proved complete. Together, cancel, apart, GCD, division,
 coefficient, collect, exponent, and numerator/denominator operations therefore
 return either an exact expression or a named refusal.
 
+Native integration uses the exact partial-fraction layer as a front end for its
+verified elementary rules. The candidate is differentiated and checked before
+it is returned; rational shapes outside the bounded rule set are named
+refusals, so a partial antiderivative is never exposed as a result.
+
 Fortran kernel emission uses the dialect's declared function map rather than
 passing symbolic heads through as identifiers. Standard intrinsics cover
 `erf`, `erfc`, `gamma`, `log_gamma`, `bessel_jn`, and `bessel_yn`; the default

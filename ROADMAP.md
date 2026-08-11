@@ -107,6 +107,14 @@ factorisation. Independent tests check value preservation, divisibility,
 coefficient reconstruction, factor multiplication, and explicit refusals for
 unsupported high-degree and floating-point inputs.
 
+Issue #31 (native integration) is complete as of 2026-08-11 for the bounded
+exact fragment: native integration now sends exact rational inputs through
+partial fractions before applying its verified elementary rules. Distinct and
+repeated linear factors, polynomial quotients, and the existing quadratic
+arctangent/arcsine cases are covered; unsupported Hermite/Rothstein--Trager
+shapes remain named refusals. Independent Simpson quadrature checks the new
+antiderivatives.
+
 Issue #40 (public trig and power rewrites) is complete as of 2026-08-10:
 `trig_expand`, `trig_reduce`, `trig_to_exp`, `exp_to_trig`, and guarded
 `power_expand` are public operations returning rewritten expressions plus an
@@ -781,6 +789,10 @@ Legendre.
 - Unblocks KiLCA, whose entire conductivity tensor is Bessel and gamma.
 
 ### M7 — Integration (#31) · 350 sites
+
+Issue #31 is complete for the bounded exact fragment above. The full Hermite,
+Rothstein--Trager, and Risch families remain outside this decision procedure
+and are refused rather than partially integrated.
 
 - Current native work covers bounded exact rules and guarded definite
   integration. It must retain the explicit refusal boundary while it grows.
