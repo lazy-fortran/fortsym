@@ -29,6 +29,7 @@ program test_fortsym_roundtrip
     call test_roundtrip_all_dialects()
     call test_algebraic_roundtrip()
     call test_dialect_spellings()
+    call test_infinity_sentinel()
     call test_fortran_emission()
     call test_parse_errors()
 
@@ -389,6 +390,21 @@ contains
             chars(print_expr_in(pi_expr(a), dialect(DIA_YACAS))), "Pi")
     end subroutine test_dialect_spellings
 
+    subroutine test_infinity_sentinel()
+        type(arena_t), target :: a
+        type(expr_t) :: infinity, parsed
+        character(:), allocatable :: message
+        logical :: good
+
+        call a%init()
+        infinity = oo_expr(a)
+        call eq_text("native positive infinity spelling", print_text(infinity), "oo")
+
+        parsed = parse_expr_in(a, "oo", dialect(DIA_NATIVE), good, message)
+        call ok("native positive infinity parses", good)
+        if (good) call ok("parsed infinity retains its sentinel node", parsed == infinity)
+    end subroutine test_infinity_sentinel
+
     !> Fortran emission is deliberately not round-trippable, so it is checked
     !> against what a compiler must be given.
     subroutine test_fortran_emission()
@@ -434,6 +450,10 @@ contains
 
         text = chars(print_expr_in(exact(a, "1"//repeat("0", 400)), d, good))
         call ok("out-of-range exact Fortran emission is refused", &
+            .not. good .and. len(text) == 0)
+
+        text = chars(print_expr_in(oo_expr(a), d, good))
+        call ok("infinity is refused by finite Fortran emission", &
             .not. good .and. len(text) == 0)
     end subroutine test_fortran_emission
 

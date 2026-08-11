@@ -282,6 +282,12 @@ Every checklist item requires all of the following:
         independent complex evaluation, and matched benchmark rows.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
+  - [x] Add the canonical native `oo_expr` positive-infinity sentinel. Native
+    parsing and printing preserve `oo`, the Python adapter matches SymPy's
+    `oo` spelling, and finite real Fortran kernel emission refuses the domain
+    sentinel instead of emitting an invalid literal.
+  - [ ] Add directed-infinity, complex-infinity, NaN, signed-zero, and
+    operation-specific domain arithmetic.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
 - [ ] Preserve exactness through every constructor, operator, and adapter.
 
