@@ -197,6 +197,16 @@ compound expressions whose children are all numeric. Symbols and relation
 objects return false. The C ABI and Python compatibility layer call this same
 native owner.
 
+It also exposes `is_algebraic(expression, assumptions)`, which returns the
+shared `VERDICT_TRUE`, `VERDICT_FALSE`, or `VERDICT_UNKNOWN` values. Exact
+integers, rationals, FLINT algebraic atoms, `I`, and supported exact rational
+powers are proved algebraic; `pi`, `e`, and supported transcendental heads are
+proved non-algebraic; machine reals and unresolved symbols remain unknown.
+The optional immutable assumption context can prove `algebraic_valued`
+symbols. The public `fortsym` facade re-exports the predicate and the existing
+shared verdict constants, so there is no second predicate-specific verdict
+vocabulary.
+
 Requested-precision numeric evaluation uses one generic with two result forms.
 Pass a character variable for the decimal text, or pass `numeric_real_text_t`
 to retain the requested precision with the value:

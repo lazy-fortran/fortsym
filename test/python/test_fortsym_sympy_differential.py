@@ -205,6 +205,40 @@ class SympyDifferentialTest(unittest.TestCase):
                 self.assertEqual(native_cases[label].is_number,
                                  expected.is_number)
 
+    def test_algebraic_predicate_matches_oracle(self):
+        def cases(api):
+            unknown = api.Symbol("algebraic_predicate_unknown")
+            return {
+                "integer": api.Integer(2),
+                "rational": api.Rational(2, 3),
+                "float": api.Float(2.0),
+                "sqrt": api.sqrt(2),
+                "imaginary": api.I,
+                "pi": api.pi,
+                "e": api.E,
+                "infinity": api.oo,
+                "complex_infinity": api.zoo,
+                "nan": api.nan,
+                "transcendental_function": api.sin(1),
+                "sqrt_transcendental": api.sqrt(api.pi),
+                "sqrt_unknown": api.sqrt(unknown),
+                "algebraic_symbol": api.Symbol(
+                    "algebraic_predicate_symbol", algebraic=True
+                ),
+                "integer_symbol": api.Symbol(
+                    "algebraic_predicate_integer", integer=True
+                ),
+                "unknown_symbol": unknown,
+                "mixed_sum": api.pi + api.sqrt(2),
+            }
+
+        oracle_cases = cases(oracle)
+        native_cases = cases(native)
+        for label, expected in oracle_cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(native_cases[label].is_algebraic,
+                                 expected.is_algebraic)
+
     def test_guarded_log_exp_matches_oracle(self):
         def cases(api):
             real = api.Symbol("differential_log_real", real=True)

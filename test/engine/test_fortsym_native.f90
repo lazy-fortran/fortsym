@@ -14,7 +14,8 @@ program test_fortsym_native
         nonpositive, positive, nonnegative, nonzero, real_valued, &
         record_relation, &
         clone_assumption_context, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, &
-        FACT_POSITIVE, FACT_REAL, FACT_NONZERO, FACT_INTEGER, FACT_RATIONAL
+        FACT_POSITIVE, FACT_REAL, FACT_NONZERO, FACT_INTEGER, FACT_RATIONAL, &
+        FACT_ALGEBRAIC, algebraic_valued
     use fortsym_eval, only: binding_t, eval_expr
     use fortsym_print, only: print_expr
     use fortsym_engine, only: engine_result_t, resource_limit_t, &
@@ -22,7 +23,7 @@ program test_fortsym_native
         CAP_FACTOR, has_cap
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_relation, only: greater
-    use fortsym_predicates, only: is_number
+    use fortsym_predicates, only: is_number, is_algebraic
     implicit none
 
     integer, parameter :: dp = real64
@@ -861,7 +862,9 @@ contains
     subroutine test_number_predicate()
         type(expr_t) :: integer_value, rational_value, symbol
         type(expr_t) :: numeric_sum, numeric_sine, symbolic_sum, relation
-        type(expr_t) :: algebraic_value, infinity, undefined
+        type(expr_t) :: algebraic_value, infinity, undefined, real_value
+        type(expr_t) :: pi_value, root_value, transcendental
+        type(assumption_context_t) :: algebraic_context
         logical :: algebraic_ok
 
         integer_value = num(arena, 2_int64)
@@ -874,6 +877,12 @@ contains
         algebraic_value = algebraic_expr(arena, "qqbar1:1:1,0,1", algebraic_ok)
         infinity = oo_expr(arena)
         undefined = nan_expr(arena)
+        real_value = real_expr(arena, 1.0_dp)
+        pi_value = pi_expr(arena)
+        root_value = sqrt(integer_value)
+        transcendental = sin(integer_value)
+        call algebraic_context%init(arena)
+        call assume(algebraic_context, algebraic_valued(symbol))
 
         call check("integer is a number", is_number(integer_value))
         call check("rational is a number", is_number(rational_value))
@@ -886,6 +895,24 @@ contains
         call check("symbol is not a number", .not. is_number(symbol))
         call check("symbolic sum is not a number", .not. is_number(symbolic_sum))
         call check("relation is not a number", .not. is_number(relation))
+        call check("integer is algebraic", &
+            is_algebraic(integer_value) == VERDICT_TRUE)
+        call check("rational is algebraic", &
+            is_algebraic(rational_value) == VERDICT_TRUE)
+        call check("algebraic atom is algebraic", algebraic_ok .and. &
+            is_algebraic(algebraic_value) == VERDICT_TRUE)
+        call check("square root of an integer is algebraic", &
+            is_algebraic(root_value) == VERDICT_TRUE)
+        call check("pi is not algebraic", &
+            is_algebraic(pi_value) == VERDICT_FALSE)
+        call check("transcendental function is not algebraic", &
+            is_algebraic(transcendental) == VERDICT_FALSE)
+        call check("machine real algebraicity is unknown", &
+            is_algebraic(real_value) == VERDICT_UNKNOWN)
+        call check("unconstrained symbol algebraicity is unknown", &
+            is_algebraic(symbol) == VERDICT_UNKNOWN)
+        call check("algebraic assumption is visible to predicate", &
+            is_algebraic(symbol, algebraic_context) == VERDICT_TRUE)
     end subroutine test_number_predicate
 
     subroutine test_domain_conditions()

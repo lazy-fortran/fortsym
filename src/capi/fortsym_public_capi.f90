@@ -13,14 +13,16 @@ module fortsym_public_capi
         operator(*), operator(/), operator(**)
     use fortsym_print, only: print_expr
     use fortsym_subs, only: subs
-    use fortsym_predicates, only: predicate_is_number => is_number
+    use fortsym_predicates, only: predicate_is_number => is_number, &
+        predicate_is_algebraic => is_algebraic
     use fortsym_diff, only: diff
     use fortsym_assume_api, only: assumption_context_t, init_assumption_context, &
         clone_assumption_context, record_assumption, &
         record_relation, &
         assumption_has, &
         FACT_REAL, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, FACT_POSITIVE, &
-        FACT_NONNEGATIVE, FACT_NONZERO, FACT_INTEGER, FACT_RATIONAL
+        FACT_NONNEGATIVE, FACT_NONZERO, FACT_INTEGER, FACT_RATIONAL, &
+        FACT_ALGEBRAIC
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE
@@ -74,13 +76,13 @@ module fortsym_public_capi
     public :: fortsym_expr_equal, fortsym_expr_node_count, fortsym_expr_text
     public :: fortsym_expr_name, fortsym_expr_exact_text
     public :: fortsym_expr_int_value, fortsym_expr_real_value
-    public :: fortsym_expr_is_number
+    public :: fortsym_expr_is_number, fortsym_expr_is_algebraic
 
 contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 11_c_int
+        v = 12_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -244,7 +246,7 @@ contains
             fact /= FACT_NEGATIVE .and. fact /= FACT_NONPOSITIVE .and. &
             fact /= FACT_POSITIVE .and. fact /= FACT_NONNEGATIVE .and. &
             fact /= FACT_NONZERO .and. fact /= FACT_INTEGER .and. &
-            fact /= FACT_RATIONAL) then
+            fact /= FACT_RATIONAL .and. fact /= FACT_ALGEBRAIC) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if
@@ -372,7 +374,7 @@ contains
             fact /= FACT_NEGATIVE .and. fact /= FACT_NONPOSITIVE .and. &
             fact /= FACT_POSITIVE .and. fact /= FACT_NONNEGATIVE .and. &
             fact /= FACT_NONZERO .and. fact /= FACT_INTEGER .and. &
-            fact /= FACT_RATIONAL) then
+            fact /= FACT_RATIONAL .and. fact /= FACT_ALGEBRAIC) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if
@@ -910,6 +912,23 @@ contains
         if (status == FORTSYM_OK) number = merge(1_c_int, 0_c_int, &
             predicate_is_number(e))
     end function fortsym_expr_is_number
+
+    function fortsym_expr_is_algebraic(raw, verdict, message, capacity) &
+            bind(c, name="fortsym_expr_is_algebraic") result(status)
+        type(c_ptr), value :: raw
+        integer(c_int), intent(out) :: verdict
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(expr_owner_t), pointer :: p
+        type(expr_t) :: e
+
+        verdict = VERDICT_UNKNOWN
+        call get_expr(raw, p, e, status, message, capacity)
+        if (status == FORTSYM_OK) then
+            verdict = int(predicate_is_algebraic(e, p%arena%assumptions), c_int)
+        end if
+    end function fortsym_expr_is_algebraic
 
     function fortsym_expr_arity(raw, arity, message, capacity) &
             bind(c, name="fortsym_expr_arity") result(status)

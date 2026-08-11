@@ -13,6 +13,8 @@ import os
 from pathlib import Path
 from threading import Lock
 from fractions import Fraction
+from functools import cached_property
+import weakref
 import sys
 from typing import Iterable
 
@@ -27,6 +29,7 @@ _FACT_NONNEGATIVE = 4
 _FACT_NONZERO = 8
 _FACT_INTEGER = 16
 _FACT_RATIONAL = 512
+_FACT_ALGEBRAIC = 1024
 _FACT_ZERO = 64
 _FACT_NEGATIVE = 128
 _FACT_NONPOSITIVE = 256
@@ -211,6 +214,10 @@ def _configure(lib):
         "fortsym_expr_is_number", ctypes.c_int,
         [_CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
     )
+    lib.expr_is_algebraic = declare(
+        "fortsym_expr_is_algebraic", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
+    )
     lib.expr_arity = declare(
         "fortsym_expr_arity", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
@@ -301,6 +308,7 @@ class Arena:
         self._handle = _CVOID()
         self._integer_cache = {}
         self._assumption_epoch = 0
+        self._algebraic_cache = weakref.WeakSet()
         message = _message()
         status = self._lib.arena_new(ctypes.byref(self._handle), message, len(message))
         if status:
@@ -330,6 +338,12 @@ class Arena:
         if self._handle is None:
             raise FortSymError(2, "arena is closed", "arena")
         return self._handle
+
+    def _assumption_changed(self):
+        self._assumption_epoch += 1
+        for expression in self._algebraic_cache:
+            expression.__dict__.pop("is_algebraic", None)
+        self._algebraic_cache.clear()
 
     def _result(self, function, *arguments):
         output = _CVOID()
@@ -373,7 +387,7 @@ class Arena:
                                   int(fact), message, len(message))
         if status:
             raise FortSymError(status, _decode(message), "assume")
-        self._assumption_epoch += 1
+        self._assumption_changed()
 
     def assume_relation(self, relation: "Expr"):
         relation = self._check(relation)
@@ -383,7 +397,7 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "assume_relation")
-        self._assumption_epoch += 1
+        self._assumption_changed()
 
     def _assumption_push(self):
         message = _message()
@@ -392,7 +406,7 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "assumption_push")
-        self._assumption_epoch += 1
+        self._assumption_changed()
 
     def _assumption_pop(self):
         message = _message()
@@ -401,7 +415,7 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "assumption_pop")
-        self._assumption_epoch += 1
+        self._assumption_changed()
 
     def assuming(self, *facts):
         return _AssumptionScope(self, facts)
@@ -488,6 +502,7 @@ class Expr:
         self._diff_results.clear()
         self._complex_results.clear()
         self._number_value = None
+        self.__dict__.pop("is_algebraic", None)
         if self._handle is not None:
             self._lib.expr_free(self._handle)
             self._handle = None
@@ -743,6 +758,22 @@ class Expr:
             raise FortSymError(status, _decode(message), "expr_is_number")
         self._number_value = bool(number.value)
         return self._number_value
+
+    @cached_property
+    def is_algebraic(self):
+        if self._known_facts & (_FACT_ALGEBRAIC | _FACT_INTEGER | _FACT_RATIONAL):
+            return True
+        verdict = ctypes.c_int()
+        message = _message()
+        status = self._lib.expr_is_algebraic(
+            self._require(), ctypes.byref(verdict), message, len(message)
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "expr_is_algebraic")
+        value = (True if verdict.value == 1 else
+                 False if verdict.value == 2 else None)
+        self._arena._algebraic_cache.add(self)
+        return value
 
     @property
     def kind(self):

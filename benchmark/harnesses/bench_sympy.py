@@ -24,6 +24,15 @@ import fortsym as native_core
 import fortsym.sympy as native
 
 
+_PREDICATE_OPERATIONS = ("number_predicate", "algebraic_predicate")
+
+
+def predicate_value(expression: Any, operation: str) -> Any:
+    if operation == "algebraic_predicate":
+        return expression.is_algebraic
+    return expression.is_number
+
+
 def reset_native_default_arena() -> None:
     """Keep correctness construction from seeding later workload contexts."""
     if native_core._default_arena is not None:
@@ -394,6 +403,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.sin(1),
             names,
         ),
+        "algebraic_predicate": (
+            oracle.sqrt(2),
+            native.sqrt(2),
+            names,
+        ),
     }
     if has_composition:
         expressions["composition"] = (
@@ -414,8 +428,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         x = engine.Symbol(f"{operation}_x_{suffix}", integer=True)
     elif operation == "rational_assumption_query":
         x = engine.Symbol(f"{operation}_x_{suffix}", rational=True)
-    elif operation == "number_predicate":
-        x = engine.Integer(1)
+    elif operation in ("number_predicate", "algebraic_predicate"):
+        x = engine.Integer(1 if operation == "number_predicate" else 2)
     else:
         x = engine.Symbol(f"{operation}_x_{suffix}")
     if operation == "expand":
@@ -477,6 +491,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.Q.rational(x)
     elif operation == "number_predicate":
         expression = engine.sin(x)
+    elif operation == "algebraic_predicate":
+        expression = engine.sqrt(x)
     elif operation == "refine":
         expression = engine.sqrt(x**2)
     elif operation == "composition":
@@ -648,9 +664,9 @@ def correctness_cases() -> list[dict[str, Any]]:
                 "rational_assumption_query"):
             expected = oracle.ask(oracle_expression)
             actual = native.ask(native_expression)
-        elif operation == "number_predicate":
-            expected = oracle_expression.is_number
-            actual = native_expression.is_number
+        elif operation in _PREDICATE_OPERATIONS:
+            expected = predicate_value(oracle_expression, operation)
+            actual = predicate_value(native_expression, operation)
         elif operation == "refine":
             expected = oracle.refine(
                 oracle_expression, oracle.Q.negative(names["check_x_fixed"])
@@ -678,9 +694,10 @@ def correctness_cases() -> list[dict[str, Any]]:
             "operation": operation,
             "correct": (
                 expected == actual
-                if operation in (
+                if (operation in (
                         "assumption_query", "integer_assumption_query",
-                        "rational_assumption_query", "number_predicate")
+                        "rational_assumption_query") or
+                        operation in _PREDICATE_OPERATIONS)
                 else str(expected) == str(actual)
                 if operation == "relation"
                 else compound_equivalent(expected, actual)
@@ -731,9 +748,9 @@ def benchmark_workload(
                     "rational_assumption_query"):
                 oracle_call = lambda: oracle.ask(oracle_expression)
                 native_call = lambda: native.ask(native_expression)
-            elif operation == "number_predicate":
-                oracle_call = lambda: oracle_expression.is_number
-                native_call = lambda: native_expression.is_number
+            elif operation in _PREDICATE_OPERATIONS:
+                oracle_call = lambda: predicate_value(oracle_expression, operation)
+                native_call = lambda: predicate_value(native_expression, operation)
             elif operation == "refine":
                 oracle_x = oracle.Symbol("refine_x_warm")
                 native_x = native.Symbol("refine_x_warm")
@@ -788,8 +805,8 @@ def benchmark_workload(
                         "assumption_query", "integer_assumption_query",
                         "rational_assumption_query"):
                     return engine.ask(expression)
-                if operation == "number_predicate":
-                    return expression.is_number
+                if operation in _PREDICATE_OPERATIONS:
+                    return predicate_value(expression, operation)
                 if operation == "refine":
                     return engine.refine(expression, engine.Q.negative(variable))
                 if operation == "domain_complex":
@@ -865,9 +882,9 @@ def main() -> None:
     for operation in (
         "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "domain_function", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
         "assumption_query", "integer_assumption_query",
-        "rational_assumption_query", "number_predicate"
+        "rational_assumption_query", "number_predicate", "algebraic_predicate"
     ):
-        scopes = ("warm_core",) if operation == "number_predicate" else (
+        scopes = ("warm_core",) if operation in _PREDICATE_OPERATIONS else (
             "cold_end_to_end", "warm_core"
         )
         for scope in scopes:

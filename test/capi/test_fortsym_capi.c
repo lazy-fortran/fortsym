@@ -28,6 +28,7 @@ int main(void)
     int64_t integer_value = 0;
     int kind = 0;
     int number = 0;
+    int predicate_verdict = FORTSYM_ZERO_UNKNOWN;
     int equal = 0;
     int verdict = FORTSYM_ZERO_UNKNOWN;
     int known = 0;
@@ -94,7 +95,7 @@ int main(void)
     const fortsym_expr *special_arguments[2];
     const fortsym_expr *legendre_arguments[3];
 
-    assert(fortsym_abi_version() == 11);
+    assert(fortsym_abi_version() == 12);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
@@ -117,6 +118,9 @@ int main(void)
     assert(status == FORTSYM_OK && kind == FORTSYM_INT);
     status = fortsym_expr_is_number(one, &number, message, sizeof message);
     assert(status == FORTSYM_OK && number == 1);
+    status = fortsym_expr_is_algebraic(one, &predicate_verdict, message,
+                                       sizeof message);
+    assert(status == FORTSYM_OK && predicate_verdict == FORTSYM_ZERO_TRUE);
     status = fortsym_expr_int_value(one, &integer_value, message, sizeof message);
     assert(status == FORTSYM_OK && integer_value == 1);
     status = fortsym_expr_exact_text(one, buffer, sizeof buffer, &required,
@@ -181,6 +185,9 @@ int main(void)
     status = fortsym_assumption_has(arena, y, FORTSYM_FACT_REAL, &known,
                                     message, sizeof message);
     assert(status == FORTSYM_OK && known == 1);
+    status = fortsym_assumption_has(arena, y, FORTSYM_FACT_ALGEBRAIC, &known,
+                                    message, sizeof message);
+    assert(status == FORTSYM_OK && known == 1);
     status = fortsym_assume(arena, x, FORTSYM_FACT_RATIONAL, message,
                             sizeof message);
     assert(status == FORTSYM_OK);
@@ -194,7 +201,7 @@ int main(void)
     status = fortsym_assumption_has(arena, y, FORTSYM_FACT_POSITIVE, &known,
                                     message, sizeof message);
     assert(status == FORTSYM_OK && known == 0);
-    status = fortsym_assumption_has(arena, x, 1024, &known, message,
+    status = fortsym_assumption_has(arena, x, 2048, &known, message,
                                     sizeof message);
     assert(status == FORTSYM_INVALID_ARGUMENT);
     status = fortsym_assumption_push(arena, message, sizeof message);

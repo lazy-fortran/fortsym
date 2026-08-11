@@ -11,7 +11,7 @@ from fractions import Fraction
 
 from .. import (
     Arena, Expr, FortSymError, _Assumption, _CONFLICT, _FACT_INTEGER,
-    _FACT_RATIONAL, _default,
+    _FACT_RATIONAL, _FACT_ALGEBRAIC, _default,
 )
 
 
@@ -55,6 +55,7 @@ class _KindMeta(type):
 _ASSUMPTION_FACTS = {
     "integer": _FACT_INTEGER,
     "rational": _FACT_RATIONAL,
+    "algebraic": _FACT_ALGEBRAIC,
     "real": 1,
     "zero": 64,
     "negative": 128,

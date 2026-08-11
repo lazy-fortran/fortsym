@@ -99,8 +99,9 @@ correctness and parity matrix includes `assumption_query` and
 integer-assumed symbol with SymPy 1.14.0 in both cold and warm scopes.
 It also includes `rational_assumption_query`, which compares the corresponding
 `Q.rational` result for a rational-assumed symbol in both scopes.
-The matrix also includes a warm-core `number_predicate` row, which compares
-the cached native `Expr.is_number` query on a numeric applied expression.
+The matrix also includes warm-core `number_predicate` and
+`algebraic_predicate` rows, which compare the cached native `Expr.is_number`
+and `Expr.is_algebraic` queries on numeric applied expressions.
 Its one-node cold end-to-end call is intentionally a diagnostic rather than
 an enforced parity row because the ctypes crossing dominates the native
 predicate work; the correctness matrix still covers the cold construction.
@@ -201,9 +202,10 @@ result for the same expression until the arena's assumption epoch changes, and
 reuses simplified derivatives for repeated `(expression, variable)` calls.
 The matched differentiation diagnostic after that cache was added measured
 native/SymPy ratios of about 0.14 cold and 0.06 warm; the remaining full-suite
-51-workload enforced parity run also passed with zero correctness failures and
-zero parity violations; the warm `number_predicate` row was 0.24× SymPy in the
-recorded run on 2026-08-12.
+52-workload enforced parity run also passed with zero correctness failures and
+zero parity violations; the warm `number_predicate` row was 0.32× SymPy and
+the warm `algebraic_predicate` row was 0.86× SymPy in the recorded run on
+2026-08-12.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
 text validation, FLINT reconstruction, the exact operation, canonical
