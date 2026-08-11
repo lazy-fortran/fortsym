@@ -19,7 +19,7 @@ module fortsym_print
     use fortsym_string, only: str_t, strbuf_t, str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
-        NK_BIG_REAL
+        NK_BIG_REAL, NK_ALGEBRAIC
     use fortsym_expr, only: expr_t
     use fortsym_exact, only: exact_to_real
     use fortsym_names, only: valid_fortran_symbol, same_fortran_name
@@ -267,6 +267,9 @@ contains
                 if (ok) ok = ieee_is_finite(projected)
             end if
             return
+        case (NK_ALGEBRAIC)
+            ok = .false.
+            return
         case (NK_FUNC)
             if (chars(a%name_of(id)) == "Piecewise") then
                 if (present(array_names) .and. present(bindings)) then
@@ -360,6 +363,9 @@ contains
                 end select
                 ok = ieee_is_finite(projected)
             end if
+            return
+        case (NK_ALGEBRAIC)
+            ok = .false.
             return
         case (NK_REAL)
             projected = a%real_of(id)
@@ -704,6 +710,8 @@ contains
             call emit_big_exact(b, a, id, d, context)
         case (NK_BIG_REAL)
             call emit_big_real(b, a, id, d, context)
+        case (NK_ALGEBRAIC)
+            call emit_algebraic(b, a, id)
         case (NK_REAL)
             call emit_real(b, a, id, d, context)
         case (NK_SYM)
@@ -733,6 +741,14 @@ contains
             call b%append("<?>")
         end select
     end subroutine emit
+
+    subroutine emit_algebraic(b, a, id)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+
+        call b%append(chars(a%algebraic_text_of(id)))
+    end subroutine emit_algebraic
 
     ! ------------------------------------------------------------- atoms --
 
@@ -1834,6 +1850,8 @@ contains
             call emit_latex_exact(b, a, id, positive_only)
         case (NK_BIG_REAL)
             call emit_latex_big_real(b, a, id, positive_only)
+        case (NK_ALGEBRAIC)
+            call b%append(chars(a%algebraic_text_of(id)))
         case (NK_REAL)
             call emit_latex_real(b, a, id, context, positive_only)
         case (NK_SYM)
@@ -2484,6 +2502,8 @@ contains
         case (NK_BIG_REAL)
             text = chars(a%real_text_of(id))
             yes = len(text) > 0 .and. text(1:1) == "-"
+        case (NK_ALGEBRAIC)
+            yes = .false.
         end select
     end function latex_numeric_negative
 

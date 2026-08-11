@@ -15,7 +15,7 @@ module fortsym_eval
     use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
-        NK_BIG_REAL
+        NK_BIG_REAL, NK_ALGEBRAIC
     use fortsym_expr, only: expr_t
     use fortsym_exact, only: exact_to_real
     implicit none
@@ -132,6 +132,11 @@ contains
             text = chars(a%real_text_of(id))
             read (text, *, iostat=k) v
             if (k /= 0) defined = .false.
+
+        case (NK_ALGEBRAIC)
+            ! A real64 probe must not project an exact complex or algebraic
+            ! value without an explicit numerical policy.
+            defined = .false.
 
         case (NK_REAL)
             v = a%real_of(id)

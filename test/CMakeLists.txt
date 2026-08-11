@@ -21,6 +21,7 @@ fortsym_add_test(test_fortsym_string util/test_fortsym_string.f90)
 
 # --- core representation ---
 fortsym_add_test(test_fortsym_algebraic core/test_fortsym_algebraic.f90)
+fortsym_add_test(test_fortsym_algebraic_expr core/test_fortsym_algebraic_expr.f90)
 fortsym_add_test(test_fortsym_arena core/test_fortsym_arena.f90)
 fortsym_add_test(test_fortsym_exact core/test_fortsym_exact.f90)
 fortsym_add_test(test_fortsym_convenience core/test_fortsym_convenience.f90)

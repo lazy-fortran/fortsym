@@ -2801,6 +2801,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym.NK_ALGEBRAIC",
+        "module": "fortsym",
+        "name": "NK_ALGEBRAIC",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym.expr_t",
         "module": "fortsym",
         "name": "expr_t",
@@ -2870,6 +2881,17 @@
         "id": "fortsym.real_text_expr",
         "module": "fortsym",
         "name": "real_text_expr",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.algebraic_expr",
+        "module": "fortsym",
+        "name": "algebraic_expr",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -2977,6 +2999,28 @@
           "facade",
           "native"
         ],
+        "id": "fortsym.str",
+        "module": "fortsym",
+        "name": "str",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.chars",
+        "module": "fortsym",
+        "name": "chars",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym.subs",
         "module": "fortsym",
         "name": "subs",
@@ -3024,6 +3068,39 @@
         "id": "fortsym.factor",
         "module": "fortsym",
         "name": "factor",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.kernel_spec_t",
+        "module": "fortsym",
+        "name": "kernel_spec_t",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.emit_kernel",
+        "module": "fortsym",
+        "name": "emit_kernel",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.KERNEL_SUBROUTINE",
+        "module": "fortsym",
+        "name": "KERNEL_SUBROUTINE",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3953,6 +4030,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_arena.NK_ALGEBRAIC",
+        "module": "fortsym_arena",
+        "name": "NK_ALGEBRAIC",
+        "owner": "src/core/fortsym_arena.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_arena.node_kind_name",
         "module": "fortsym_arena",
         "name": "node_kind_name",
@@ -4416,6 +4503,16 @@
         "id": "fortsym_expr.real_text_expr",
         "module": "fortsym_expr",
         "name": "real_text_expr",
+        "owner": "src/core/fortsym_expr.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_expr.algebraic_expr",
+        "module": "fortsym_expr",
+        "name": "algebraic_expr",
         "owner": "src/core/fortsym_expr.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -6821,12 +6918,12 @@
     "classification_counts": {
       "delegated": 1683,
       "external": 10,
-      "facade": 130,
-      "native": 2256,
+      "facade": 137,
+      "native": 2265,
       "python-adapter": 1639,
       "refused": 26155
     },
-    "fortran_public_exports": 661,
+    "fortran_public_exports": 670,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

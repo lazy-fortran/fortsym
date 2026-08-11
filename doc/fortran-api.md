@@ -66,7 +66,22 @@ half = exact(default_arena(), "6/-8", ok=good)
 
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a
-separate roadmap item.
+separate domain from ordinary `num`, `rat`, and `exact` leaves. Construct a
+canonical FLINT `qqbar1` value with `algebraic_expr`:
+
+```fortran
+type(expr_t) :: root
+root = algebraic_expr(default_arena(), qqbar_text, ok=good)
+```
+
+`algebraic_expr` retains the exact value as an `NK_ALGEBRAIC` arena atom, and
+`root%algebraic_text()` returns its canonical `qqbar1` spelling. The native
+engine combines pure algebraic expressions with exact `+`, `*`, and integer
+powers, and its zero query uses the FLINT sign oracle. `real64` evaluation,
+Fortran kernel emission, parsing, and SymEngine conversion refuse algebraic
+atoms until their conversion semantics are defined. `print_expr` displays the
+canonical payload for inspection, but that spelling is not yet a parser or
+Fortran source literal.
 
 `real_text_expr` retains a bounded finite decimal literal as `NK_BIG_REAL`.
 The arena validates its decimal syntax and preserves the original digits rather

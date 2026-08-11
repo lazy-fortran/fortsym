@@ -471,10 +471,18 @@
         "name": "EXPRESSION_SCHEMA"
       },
       {
+        "concepts": [],
+        "name": "KERNEL_SUBROUTINE"
+      },
+      {
         "concepts": [
           "node-kinds"
         ],
         "name": "NK_ADD"
+      },
+      {
+        "concepts": [],
+        "name": "NK_ALGEBRAIC"
       },
       {
         "concepts": [
@@ -579,6 +587,10 @@
         "name": "acosh"
       },
       {
+        "concepts": [],
+        "name": "algebraic_expr"
+      },
+      {
         "concepts": [
           "arena-and-expression"
         ],
@@ -657,6 +669,10 @@
         "name": "besselj"
       },
       {
+        "concepts": [],
+        "name": "chars"
+      },
+      {
         "concepts": [
           "exact-and-constant-construction"
         ],
@@ -703,6 +719,10 @@
           "backend-evidence"
         ],
         "name": "emit_backend_kernel"
+      },
+      {
+        "concepts": [],
+        "name": "emit_kernel"
       },
       {
         "concepts": [
@@ -787,6 +807,10 @@
           "identity-and-validity"
         ],
         "name": "is_valid"
+      },
+      {
+        "concepts": [],
+        "name": "kernel_spec_t"
       },
       {
         "concepts": [
@@ -981,6 +1005,10 @@
         "name": "sqrt"
       },
       {
+        "concepts": [],
+        "name": "str"
+      },
+      {
         "concepts": [
           "substitution"
         ],
@@ -1098,11 +1126,19 @@
   "summary": {
     "assigned_names": 111,
     "concept_groups": 22,
-    "fortran_facade_exports": 97,
+    "fortran_facade_exports": 104,
     "python_facade_exports": 12,
     "sympy_adapter_exports": 41,
-    "unmapped_fortran_exports": 0
+    "unmapped_fortran_exports": 7
   },
   "sympy_version": "1.14.0",
-  "unmapped_fortran_exports": []
+  "unmapped_fortran_exports": [
+    "KERNEL_SUBROUTINE",
+    "NK_ALGEBRAIC",
+    "algebraic_expr",
+    "chars",
+    "emit_kernel",
+    "kernel_spec_t",
+    "str"
+  ]
 }
