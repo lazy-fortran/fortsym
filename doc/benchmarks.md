@@ -103,8 +103,8 @@ declared differences or oracle disagreements are present.
 The committed `bench_complexdom` target, based on the 2026-08-11 working tree,
 times 10,000 alternating `sinh` and `cosh` rectangular splits, 10,000 `tan`
 rectangular splits, 10,000 `tanh` rectangular splits, 10,000 principal-branch
-`log` splits, and 10,000 structural conjugations of both tangent heads on
-prebuilt expressions. Native Fortran took 72.883 ms cold and 0.708 ms warm for
+`log` and `sqrt` splits, and 10,000 structural conjugations of both tangent
+heads on prebuilt expressions. Native Fortran took 72.883 ms cold and 0.708 ms warm for
 the first workload; matched SymPy 1.14.0 took 6.566109 s cold and 9.389 ms
 warm. Native was therefore about 90x faster cold and 13x faster warm. For
 `tan` splitting, native took 115.868 ms cold and 0.663 ms warm, while SymPy took
@@ -113,8 +113,11 @@ faster warm. For `tanh` splitting, native took 102.566 ms cold and 0.705 ms
 warm, while SymPy took 14.985402 s cold and 12.575 ms warm; native was about
 146x faster cold and 18x faster warm. For `log` splitting, native took 104.091
 ms cold and 0.637 ms warm, while SymPy took 42.552546 s cold and 14.554 ms
-warm; native was about 409x faster cold and 23x faster warm. For structural
-`conjugate(tan(...))`, native took 15.147 ms cold and 0.578 ms warm, while
+warm; native was about 409x faster cold and 23x faster warm. For principal-branch
+`sqrt` splitting, native took 115.458 ms cold and 0.764 ms warm, while SymPy took
+14.320794 s cold and 14.853 ms warm; native was about 124x faster cold and 19x
+faster warm. For structural `conjugate(tan(...))`, native took 15.147 ms cold and
+0.578 ms warm, while
 SymPy took 12.283449 s cold and 7.448 ms warm; native was about 811x faster
 cold and 13x faster warm. For `conjugate(tanh(...))`, native took 15.672 ms
 cold and 0.612 ms warm, while SymPy took 12.296273 s cold and 7.207 ms warm;
