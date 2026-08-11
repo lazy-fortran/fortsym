@@ -1955,29 +1955,7 @@ contains
                 end if
             end if
         case ("loggamma")
-            call exact_value(a, args(1), order, den, exact)
-            if (exact) then
-                if (den == 1_int64 .and. order >= 1_int64 .and. &
-                    order <= 21_int64) then
-                    call factorial_i64(int(order - 1_int64), factorial, &
-                        factorial_ok)
-                    if (factorial_ok) then
-                        one_arg(1) = a%int(factorial)
-                        call exact_log_value(a, one_arg(1), trig_constant, &
-                            trig_constant_ok)
-                        if (trig_constant_ok) then
-                            out = trig_constant
-                        else
-                            out = a%func("log", one_arg)
-                        end if
-                    end if
-                else if (order == 1_int64 .and. den == 2_int64) then
-                    one_arg(1) = a%const("pi")
-                    out = a%func("sqrt", one_arg)
-                    one_arg(1) = out
-                    out = a%func("log", one_arg)
-                end if
-            end if
+            call exact_loggamma_value(a, args(1), out, exact)
         case ("besselj")
             if (size(args) < 2) return
             call exact_value(a, args(1), order, den, exact)
@@ -2367,6 +2345,63 @@ contains
             end if
         end if
     end subroutine exact_log_value
+
+    subroutine exact_loggamma_value(a, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer(int64) :: order, denominator
+        integer(int64) :: factorial_value, factorial_n
+        integer(int64) :: four_power, next_value
+        integer(int64) :: coefficient_denominator
+        logical :: exact, factorial_ok, product_ok
+        integer :: n, k, one_arg(1)
+        integer :: coefficient, square_root_pi, gamma_value
+
+        one_arg(1) = id
+        out = a%func("loggamma", one_arg)
+        ok = .false.
+        call exact_value(a, id, order, denominator, exact)
+        if (.not. exact) return
+
+        if (denominator == 1_int64) then
+            if (order < 1_int64 .or. order > 21_int64) return
+            call factorial_i64(int(order - 1_int64), factorial_value, &
+                factorial_ok)
+            if (.not. factorial_ok) return
+            one_arg(1) = a%int(factorial_value)
+            call exact_log_value(a, one_arg(1), out, ok)
+            if (.not. ok) out = a%func("log", one_arg)
+            ok = .true.
+            return
+        end if
+
+        if (denominator /= 2_int64) return
+        if (order < 1_int64 .or. order > 21_int64) return
+        if (modulo(order, 2_int64) /= 1_int64) return
+        n = int((order - 1_int64)/2_int64)
+        call factorial_i64(2*n, factorial_value, factorial_ok)
+        if (.not. factorial_ok) return
+        call factorial_i64(n, factorial_n, factorial_ok)
+        if (.not. factorial_ok) return
+        four_power = 1_int64
+        do k = 1, n
+            call checked_mul(four_power, 4_int64, next_value, product_ok)
+            if (.not. product_ok) return
+            four_power = next_value
+        end do
+        call checked_mul(four_power, factorial_n, coefficient_denominator, &
+            product_ok)
+        if (.not. product_ok) return
+        coefficient = a%rat(factorial_value, coefficient_denominator)
+        one_arg(1) = a%const("pi")
+        square_root_pi = a%func("sqrt", one_arg)
+        gamma_value = mul_pair(a, coefficient, square_root_pi)
+        one_arg(1) = gamma_value
+        out = a%func("log", one_arg)
+        ok = .true.
+    end subroutine exact_loggamma_value
 
     subroutine exact_atan2_value(a, args, out, ok)
         type(arena_t), intent(inout) :: a
