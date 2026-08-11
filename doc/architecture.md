@@ -92,6 +92,14 @@ verified elementary rules. The candidate is differentiated and checked before
 it is returned; rational shapes outside the bounded rule set are named
 refusals, so a partial antiderivative is never exposed as a result.
 
+The bounded ODE layer in `fortsym_ode` solves one first-order linear equation
+through an integrating factor. It accepts one optional value condition and
+returns a Wolfram rule set only after substituting the candidate back into the
+original derivative node and zero-testing the residual. Exponential forcing
+uses a direct particular solution when its parameter denominator is decidably
+nonzero; nonlinear, higher-order, multi-equation, separable, resonant, and
+numeric ODEs remain explicit refusals.
+
 Complex-domain operations use one rectangular splitter for `Re`, `Im`,
 conjugation, `Arg`, `Abs`, and `ComplexExpand`. It requires explicit real facts
 for symbols and refuses branch-sensitive or unknown-reality cases; the complex

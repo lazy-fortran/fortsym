@@ -52,6 +52,7 @@ module fortsym_wl
         wl_take, wl_drop, &
         CHOP_DEFAULT
     use fortsym_integrate, only: integrate
+    use fortsym_ode, only: solve_ode
     use fortsym_defint, only: definite_integral
     use fortsym_poly, only: poly_together, poly_cancel, poly_apart, &
         poly_factor, poly_coefficient, poly_coefficient_list, poly_collect, &
@@ -1198,6 +1199,20 @@ contains
             inner = wl_solve(s%a, s%engine, r, arg_ok, why, s%engine_limit)
             if (.not. arg_ok) then
                 call refuse(ok, message, "Solve: "//why)
+                return
+            end if
+            r = inner
+
+        case ("DSolve")
+            if (r%nargs() /= 3) then
+                call refuse(ok, message, &
+                    "DSolve needs equations, an unknown function, and a variable")
+                return
+            end if
+            inner = solve_ode(s%a, s%engine, r%arg(1), r%arg(2), r%arg(3), &
+                arg_ok, why)
+            if (.not. arg_ok) then
+                call refuse(ok, message, "DSolve: "//why)
                 return
             end if
             r = inner
@@ -5293,8 +5308,9 @@ contains
             ! Trig and power rewrites (#40)
         case ("Simplify3")
             yes = .true.
-            ! Differential equations (#43)
-        case ("DSolve", "NDSolve")
+            ! Numerical differential equations remain outside the verified
+            ! symbolic fragment (#43).
+        case ("NDSolve")
             yes = .true.
             ! Piecewise (#38)
         case ("Piecewise", "Boole", "If", "Which")
@@ -5356,7 +5372,7 @@ contains
         select case (name)
         case ("List", "Rule", "Equal", "Plus", "Times", "Power", "Derivative", &
                 "Part", "Slot", "Function", "D", "Integrate", "Sum", "Product", &
-                "Limit", "Series", "Solve", "Simplify", "FullSimplify")
+                "Limit", "Series", "Solve", "DSolve", "Simplify", "FullSimplify")
             return
         end select
 

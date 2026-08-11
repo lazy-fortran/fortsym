@@ -265,7 +265,7 @@ id = "differential_equations"
 semantics = "Verify and solve the bounded symbolic ODE fragments evidenced by consumers; unsupported classes return a diagnostic, condition, or UNKNOWN."
 priority = "P2"
 independent_oracle = "Exact residual and condition substitution plus independently known complete solution-set fixtures and parameter-count checks."
-status = "missing"
+status = "partial"
 source_classes = ["local_proj", "local_code", "gitlab", "github"]
 
 [[requirement]]
