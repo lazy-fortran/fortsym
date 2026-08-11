@@ -157,7 +157,10 @@ fragment. Native `zero_test` now also consumes the existing bounded
 trigonometric-to-exponential rewrite, deciding the Pythagorean identity while
 leaving unproved trigonometric forms unknown.
 The independent native oracle also covers sine and cosine angle addition and
-the corresponding hyperbolic-sine identity through the same bounded path.
+the corresponding hyperbolic-sine identity through the same bounded path. It
+now folds the rational result before expanding only its numerator, then
+re-normalises exponential products; this decides tangent addition while
+preserving the bounded denominator and unsupported-form refusals.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.

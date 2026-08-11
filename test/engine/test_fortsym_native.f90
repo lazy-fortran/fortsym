@@ -721,6 +721,10 @@ contains
         r = engine%zero_test(sinh(x + y) - sinh(x)*cosh(y) - cosh(x)*sinh(y))
         call check("hyperbolic sine addition identity is decided zero", &
             r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(tan(x + y) - (tan(x) + tan(y))/ &
+            (1 - tan(x)*tan(y)))
+        call check("tangent addition identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
         r = engine%zero_test(sin(x) + cos(x))
         call check("unproved trigonometric nonidentity remains unknown", &
             r%verdict == VERDICT_UNKNOWN)
