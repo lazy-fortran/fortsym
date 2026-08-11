@@ -4726,6 +4726,17 @@ contains
             else
                 out = a%int(0_int64)
             end if
+        case ("gamma")
+            if (domain == DOMAIN_ZOO .or. direction < 0) return
+            applied = .true.
+            out = a%const("oo")
+        case ("loggamma")
+            applied = .true.
+            if (domain == DOMAIN_OO .and. direction >= 0) then
+                out = a%const("oo")
+            else
+                out = a%const("zoo")
+            end if
         end select
     end subroutine simplify_domain_function
 

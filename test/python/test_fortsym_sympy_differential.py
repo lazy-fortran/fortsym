@@ -404,6 +404,27 @@ class SympyDifferentialTest(unittest.TestCase):
                 actual = getattr(native, function.__name__)(native.zoo)
                 self.assertIsInstance(native.simplify(actual), native.Function)
 
+    def test_gamma_domain_heads_match_oracle(self):
+        cases = [
+            (oracle.gamma(oracle.oo), native.gamma(native.oo)),
+            (oracle.loggamma(oracle.oo), native.loggamma(native.oo)),
+            (oracle.loggamma(-oracle.oo), native.loggamma(-native.oo)),
+            (oracle.loggamma(oracle.zoo), native.loggamma(native.zoo)),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                actual_parsed = oracle.sympify(
+                    str(native.simplify(actual)), locals=self.locals
+                )
+                self.assertEqual(actual_parsed, expected)
+        for expected, actual in [
+            (oracle.gamma(-oracle.oo), native.gamma(-native.oo)),
+            (oracle.gamma(oracle.zoo), native.gamma(native.zoo)),
+        ]:
+            with self.subTest(expected=str(expected)):
+                self.assertIsInstance(expected, oracle.Function)
+                self.assertIsInstance(native.simplify(actual), native.Function)
+
     def test_expand_cache_matches_oracle_and_invalidates_on_assumptions(self):
         oracle_x = oracle.Symbol("differential_expand_cache_x")
         native_x = native.Symbol("differential_expand_cache_x")

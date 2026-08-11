@@ -109,6 +109,9 @@ the corresponding signed one; every `zoo` case becomes `nan`.
 The error-function heads `erf` and `erfc` have the scalar limits
 `erf(oo)=1`, `erf(-oo)=-1`, `erfc(oo)=0`, and `erfc(-oo)=2`; their `zoo`
 applications remain unevaluated.
+The gamma heads add the representable limits `gamma(oo)=oo` and
+`loggamma(oo)=oo`; `loggamma(-oo)` and `loggamma(zoo)` are `zoo`, while
+pole-sensitive `gamma(-oo)` and `gamma(zoo)` remain unevaluated.
 
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a
