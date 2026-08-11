@@ -34,6 +34,7 @@ module fortsym_engine_native
     integer(int64), parameter :: MIN_I64 = -huge(0_int64) - 1_int64
     integer(int64), parameter :: MAX_EXPAND_POWER = 32_int64
     integer(int64), parameter :: MAX_EXPAND_TERMS = 100000_int64
+    integer(int64), parameter :: MAX_NATIVE_LEGENDRE_DEGREE = 16_int64
 
     type :: exact_coefficient_t
         logical :: compact = .true.
@@ -1963,6 +1964,8 @@ contains
             end if
         case ("loggamma")
             call exact_loggamma_value(a, args(1), out, exact)
+        case ("legendrep")
+            call exact_legendre_value(a, args, out, exact)
         case ("besselj")
             if (size(args) < 2) return
             call exact_value(a, args(1), order, den, exact)
@@ -2438,6 +2441,73 @@ contains
         out = best
         ok = .true.
     end subroutine exact_extremum_value
+
+    subroutine exact_legendre_value(a, args, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in)           :: args(:)
+        integer, intent(out)          :: out
+        logical, intent(out)          :: ok
+        integer(int64) :: degree, order, den
+        integer(int64) :: denominator, next_denominator
+        integer(int64) :: left_choice, right_choice, numerator
+        integer(int64) :: product
+        integer :: m, power
+        integer :: coefficient, power_id, term, result
+        logical :: exact, coefficient_ok
+
+        out = a%func("legendrep", args)
+        ok = .false.
+        if (size(args) /= 3) return
+
+        call exact_value(a, args(1), degree, den, exact)
+        if (.not. exact .or. den /= 1_int64) return
+        if (degree < 0_int64 .or. degree > MAX_NATIVE_LEGENDRE_DEGREE) return
+        call exact_value(a, args(2), order, den, exact)
+        if (.not. exact .or. den /= 1_int64 .or. order /= 0_int64) return
+
+        if (degree == 0_int64) then
+            out = a%int(1_int64)
+            ok = .true.
+            return
+        end if
+
+        denominator = 1_int64
+        do m = 1, int(degree)
+            call checked_mul(denominator, 2_int64, next_denominator, &
+                coefficient_ok)
+            if (.not. coefficient_ok) return
+            denominator = next_denominator
+        end do
+
+        result = a%int(0_int64)
+        do m = 0, int(degree/2_int64)
+            call binomial_nonnegative(degree, int(m, int64), left_choice, &
+                coefficient_ok)
+            if (.not. coefficient_ok) return
+            call binomial_nonnegative(2_int64*degree - 2_int64*int(m, int64), &
+                degree, right_choice, coefficient_ok)
+            if (.not. coefficient_ok) return
+            call checked_mul(left_choice, right_choice, product, coefficient_ok)
+            if (.not. coefficient_ok) return
+            if (mod(m, 2) == 1) product = -product
+            numerator = product
+            coefficient = a%rat(numerator, denominator)
+            power = int(degree - 2_int64*int(m, int64))
+            if (power == 0) then
+                power_id = a%int(1_int64)
+            else
+                power_id = simplify_power(a, args(3), a%int(int(power, int64)))
+            end if
+            term = mul_pair(a, coefficient, power_id)
+            if (m == 0) then
+                result = term
+            else
+                result = add_pair(a, result, term)
+            end if
+        end do
+        out = result
+        ok = .true.
+    end subroutine exact_legendre_value
 
     subroutine exact_loggamma_value(a, id, out, ok)
         type(arena_t), intent(inout) :: a
