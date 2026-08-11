@@ -14,23 +14,23 @@ id = "symbol-assumptions-and-symbol-lists"
 affected = ["Symbol", "symbols"]
 parity = "partial"
 sympy = "Symbol accepts SymPy's broad assumption system; symbols also supports range syntax, sequence shapes, and rich options."
-fortsym = "The adapter accepts integer, real, zero, negative, nonpositive, positive, nonnegative, and nonzero facts. symbols splits comma or whitespace separated names and returns one expression or a tuple."
+fortsym = "The adapter accepts rational, integer, real, zero, negative, nonpositive, positive, nonnegative, and nonzero facts. symbols splits comma or whitespace separated names and returns one expression or a tuple."
 difference = "Assumption inference and symbols() input and output forms are intentionally narrower; contradictory sign/zero combinations raise the adapter's InconsistentAssumptions error."
 
 [[semantic]]
 id = "three-valued-predicates"
-affected = ["Expr", "Expr.is_integer", "Expr.is_zero", "Expr.is_nonzero", "Expr.is_real", "Expr.is_positive", "Expr.is_nonnegative", "Expr.is_negative", "Expr.is_nonpositive"]
+affected = ["Expr", "Expr.is_rational", "Expr.is_integer", "Expr.is_zero", "Expr.is_nonzero", "Expr.is_real", "Expr.is_positive", "Expr.is_nonnegative", "Expr.is_negative", "Expr.is_nonpositive"]
 parity = "partial"
 sympy = "SymPy exposes assumption-aware three-valued is_zero and is_nonzero properties on expressions."
-fortsym = "The adapter uses native exact-number kind inference for is_integer and native zero_test and assumption_has queries for the remaining declared predicate properties, returning True, False, or None."
-difference = "Only the declared native integer/sign/zero facts and the native zero decision fragment are covered; the broader SymPy assumption vocabulary and inference rules remain incomplete."
+fortsym = "The adapter uses native exact-number kind inference for is_rational and is_integer, plus native zero_test and assumption_has queries for the remaining declared predicate properties, returning True, False, or None."
+difference = "Only the declared native rational/integer/sign/zero facts and the native zero decision fragment are covered; the broader SymPy assumption vocabulary and inference rules remain incomplete."
 
 [[semantic]]
 id = "scoped-assumptions"
 affected = ["Q", "ask", "assuming"]
 parity = "partial"
 sympy = "SymPy's Q keys, ask(), and assuming() provide assumption propositions, three-valued queries, and nested reversible global scopes."
-fortsym = "The adapter supports the declared native Q keys, including Q.integer, ask(), nested assuming() scopes, and And compound facts backed by one arena-local native context."
+fortsym = "The adapter supports the declared native Q keys, including Q.rational and Q.integer, ask(), nested assuming() scopes, and And compound facts backed by one arena-local native context."
 difference = "The supported fact vocabulary and inference rules are narrower; explicit immutable Fortran contexts and the full SymPy predicate system remain incomplete. Conflicts are diagnosed and scopes are transactional."
 
 [[semantic]]

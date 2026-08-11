@@ -321,6 +321,7 @@
         "nonnegative",
         "nonzero",
         "real_valued",
+        "rational_valued",
         "integer_valued",
         "positive_integer"
       ],
@@ -1259,6 +1260,12 @@
       },
       {
         "concepts": [
+          "assumption-queries"
+        ],
+        "name": "rational_valued"
+      },
+      {
+        "concepts": [
           "complex-domain-functions"
         ],
         "name": "re_part"
@@ -1524,9 +1531,9 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 170,
+    "assigned_names": 171,
     "concept_groups": 27,
-    "fortran_facade_exports": 132,
+    "fortran_facade_exports": 133,
     "python_facade_exports": 12,
     "sympy_adapter_exports": 84,
     "unmapped_fortran_exports": 0

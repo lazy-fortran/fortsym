@@ -3328,6 +3328,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym.rational_valued",
+        "module": "fortsym",
+        "name": "rational_valued",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym.integer_valued",
         "module": "fortsym",
         "name": "integer_valued",
@@ -4608,6 +4619,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_assume.rational_valued",
+        "module": "fortsym_assume",
+        "name": "rational_valued",
+        "owner": "src/core/fortsym_assume.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_assume.integer_valued",
         "module": "fortsym_assume",
         "name": "integer_valued",
@@ -4788,6 +4809,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_assume.FACT_RATIONAL",
+        "module": "fortsym_assume",
+        "name": "FACT_RATIONAL",
+        "owner": "src/core/fortsym_assume.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_assume_api.assumption_context_t",
         "module": "fortsym_assume_api",
         "name": "assumption_context_t",
@@ -4931,6 +4962,16 @@
         "id": "fortsym_assume_api.FACT_POSITIVE_INTEGER",
         "module": "fortsym_assume_api",
         "name": "FACT_POSITIVE_INTEGER",
+        "owner": "src/core/fortsym_assume_api.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_assume_api.FACT_RATIONAL",
+        "module": "fortsym_assume_api",
+        "name": "FACT_RATIONAL",
         "owner": "src/core/fortsym_assume_api.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -7616,12 +7657,12 @@
     "classification_counts": {
       "delegated": 2481,
       "external": 10,
-      "facade": 172,
-      "native": 3125,
+      "facade": 173,
+      "native": 3129,
       "python-adapter": 2437,
       "refused": 25357
     },
-    "fortran_public_exports": 732,
+    "fortran_public_exports": 736,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

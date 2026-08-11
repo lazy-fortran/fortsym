@@ -170,7 +170,16 @@ int main(void)
     status = fortsym_assumption_has(arena, y, FORTSYM_FACT_INTEGER, &known,
                                     message, sizeof message);
     assert(status == FORTSYM_OK && known == 1);
+    status = fortsym_assumption_has(arena, y, FORTSYM_FACT_RATIONAL, &known,
+                                    message, sizeof message);
+    assert(status == FORTSYM_OK && known == 1);
     status = fortsym_assumption_has(arena, y, FORTSYM_FACT_REAL, &known,
+                                    message, sizeof message);
+    assert(status == FORTSYM_OK && known == 1);
+    status = fortsym_assume(arena, x, FORTSYM_FACT_RATIONAL, message,
+                            sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_assumption_has(arena, x, FORTSYM_FACT_RATIONAL, &known,
                                     message, sizeof message);
     assert(status == FORTSYM_OK && known == 1);
     status = fortsym_assume(arena, x, FORTSYM_FACT_NEGATIVE, message,
@@ -180,7 +189,7 @@ int main(void)
     status = fortsym_assumption_has(arena, y, FORTSYM_FACT_POSITIVE, &known,
                                     message, sizeof message);
     assert(status == FORTSYM_OK && known == 0);
-    status = fortsym_assumption_has(arena, x, 512, &known, message,
+    status = fortsym_assumption_has(arena, x, 1024, &known, message,
                                     sizeof message);
     assert(status == FORTSYM_INVALID_ARGUMENT);
     status = fortsym_assumption_push(arena, message, sizeof message);

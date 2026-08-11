@@ -14,7 +14,7 @@ program test_fortsym_native
         nonpositive, positive, nonnegative, nonzero, real_valued, &
         record_relation, &
         clone_assumption_context, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, &
-        FACT_POSITIVE, FACT_REAL, FACT_NONZERO, FACT_INTEGER
+        FACT_POSITIVE, FACT_REAL, FACT_NONZERO, FACT_INTEGER, FACT_RATIONAL
     use fortsym_eval, only: binding_t, eval_expr
     use fortsym_print, only: print_expr
     use fortsym_engine, only: engine_result_t, resource_limit_t, &
@@ -844,7 +844,15 @@ contains
         relation = func("Element", args)
         call record_relation(child, relation, ok, why)
         call check("integer domain is recorded", ok .and. &
-            child%has(y, FACT_INTEGER) .and. child%has(y, FACT_REAL))
+            child%has(y, FACT_INTEGER) .and. child%has(y, FACT_RATIONAL) .and. &
+            child%has(y, FACT_REAL))
+
+        args(1) = x
+        args(2) = sym(arena, "Rationals")
+        relation = func("Element", args)
+        call record_relation(child, relation, ok, why)
+        call check("rational domain is recorded", ok .and. &
+            child%has(x, FACT_RATIONAL) .and. child%has(x, FACT_REAL))
     end subroutine test_assumption_relations
 
     subroutine test_domain_conditions()

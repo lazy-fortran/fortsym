@@ -19,7 +19,7 @@ module fortsym_public_capi
         record_relation, &
         assumption_has, &
         FACT_REAL, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, FACT_POSITIVE, &
-        FACT_NONNEGATIVE, FACT_NONZERO, FACT_INTEGER
+        FACT_NONNEGATIVE, FACT_NONZERO, FACT_INTEGER, FACT_RATIONAL
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE
@@ -241,7 +241,8 @@ contains
         if (fact /= FACT_REAL .and. fact /= FACT_ZERO .and. &
             fact /= FACT_NEGATIVE .and. fact /= FACT_NONPOSITIVE .and. &
             fact /= FACT_POSITIVE .and. fact /= FACT_NONNEGATIVE .and. &
-            fact /= FACT_NONZERO .and. fact /= FACT_INTEGER) then
+            fact /= FACT_NONZERO .and. fact /= FACT_INTEGER .and. &
+            fact /= FACT_RATIONAL) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if
@@ -368,7 +369,8 @@ contains
         if (fact /= FACT_REAL .and. fact /= FACT_ZERO .and. &
             fact /= FACT_NEGATIVE .and. fact /= FACT_NONPOSITIVE .and. &
             fact /= FACT_POSITIVE .and. fact /= FACT_NONNEGATIVE .and. &
-            fact /= FACT_NONZERO .and. fact /= FACT_INTEGER) then
+            fact /= FACT_NONZERO .and. fact /= FACT_INTEGER .and. &
+            fact /= FACT_RATIONAL) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if

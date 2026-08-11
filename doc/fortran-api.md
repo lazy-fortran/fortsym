@@ -264,12 +264,15 @@ result = refine(sqrt(x**2), assumptions=relation_context)
 the native relation vocabulary in snake_case. Exact equality records zero or
 the corresponding sign, `unequal(expression, 0)` records nonzero, and `And`
 relations are ingested transactionally. Bounds that do not imply a supported
-sign and foreign-arena relations are refused.
+sign and foreign-arena relations are refused. `Element(x, Rationals)`,
+`Element(x, Integers)`, and `Element(x, PositiveIntegers)` are also accepted
+through the same native fact owner.
 
-The supported constructors are `real_valued`, `integer_valued`,
-`positive_integer`, `zero`, `negative`, `nonpositive`, `positive`,
-`nonnegative`, and `nonzero`. Integer facts imply real; the combined
-`positive_integer` shorthand implies integer and positive. Sign facts close over
+The supported constructors are `real_valued`, `rational_valued`,
+`integer_valued`, `positive_integer`, `zero`, `negative`, `nonpositive`,
+`positive`, `nonnegative`, and `nonzero`. Rational facts imply real, integer
+facts imply rational and real, and the `positive_integer` shorthand implies
+integer, rational, and positive. Sign facts close over
 their sound implications; nonnegative plus nonpositive infers zero, while
 contradictory facts are refused with an explanatory `ok`/diagnostic result.
 The native guarded simplifier uses these facts for `sqrt(x**2)` and `abs(x)`:

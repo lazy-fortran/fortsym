@@ -400,6 +400,12 @@ Every checklist item requires all of the following:
     Exact integer and rational node kinds match SymPy's `True`/`False` results;
     unknown symbols and floats remain `None`. Differential tests and matched
     cold/warm benchmark rows use SymPy 1.14.0 as the oracle.
+  - [x] Expose the existing exact rational domain through the same owner:
+    native `rational_valued` and Python `rational=True`, `Q.rational`,
+    `ask(Q.rational(x))`, and `Expr.is_rational`. Integer facts close over
+    rational and real; exact integer/rational nodes are `True`, while floats
+    and unknown symbols remain `None`. The C ABI, Fortran facade, differential
+    tests, and matched performance rows share this one fact vocabulary.
 - [ ] Support local contexts, global convenience assumptions, scoped context
   managers in Python, and immutable explicit contexts in Fortran.
   - [x] Add nested native context push/pop with exception-safe Python

@@ -423,19 +423,27 @@ class SympySubsetTest(unittest.TestCase):
 
     def test_supported_assumption_predicates(self):
         integer = sp.Symbol("predicate_integer", integer=True)
+        rational = sp.Symbol("predicate_rational", rational=True)
         real = sp.Symbol("predicate_real", real=True)
         positive = sp.Symbol("predicate_positive", positive=True)
         nonnegative = sp.Symbol("predicate_nonnegative", nonnegative=True)
         nonzero = sp.Symbol("predicate_nonzero", nonzero=True)
 
-        self.assertEqual((integer.is_integer, integer.is_real,
-                          sp.ask(sp.Q.integer(integer))),
-                         (True, True, True))
+        self.assertEqual((integer.is_integer, integer.is_rational,
+                          integer.is_real, sp.ask(sp.Q.integer(integer)),
+                          sp.ask(sp.Q.rational(integer))),
+                         (True, True, True, True, True))
+        self.assertEqual((rational.is_rational, rational.is_integer,
+                          rational.is_real, sp.ask(sp.Q.rational(rational))),
+                         (True, None, True, True))
         self.assertEqual((sp.Integer(2).is_integer,
+                          sp.Integer(2).is_rational,
                           sp.Rational(2, 3).is_integer,
+                          sp.Rational(2, 3).is_rational,
                           sp.Float(2.0).is_integer,
+                          sp.Float(2.0).is_rational,
                           sp.Symbol("predicate_unknown").is_integer),
-                         (True, False, None, None))
+                         (True, True, False, True, None, None, None))
         self.assertEqual((real.is_real, real.is_positive,
                           real.is_nonnegative, real.is_nonzero),
                          (True, None, None, None))

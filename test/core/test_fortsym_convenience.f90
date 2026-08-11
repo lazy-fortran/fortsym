@@ -9,6 +9,7 @@ program test_fortsym_convenience
     type(arena_t), pointer :: default_storage
     type(assumption_context_t) :: base_context, positive_context, nonnegative_context
     type(assumption_context_t) :: integer_context
+    type(assumption_context_t) :: rational_context
     type(assumption_context_t) :: relation_context
     type(assumption_context_t) :: foreign_context
     type(expr_t) :: x, mu, sigma, best, xi, literal
@@ -200,6 +201,9 @@ program test_fortsym_convenience
         positive_integer(explicit_sigma), context_ok)
     call check("value-style context accepts positive integer shorthand", &
         context_ok, failures)
+    rational_context = with_assumption(base_context, &
+        rational_valued(explicit_mu), context_ok)
+    call check("value-style context accepts rational fact", context_ok, failures)
     result = re_part(explicit_mu, assumptions=positive_context)
     call check("real-part facade accepts explicit assumptions", &
         result%ok .and. result%value == explicit_mu, failures)
