@@ -610,6 +610,9 @@ contains
 
     subroutine test_verdicts()
         type(engine_result_t) :: r
+        type(expr_t) :: y
+
+        y = sym(arena, "y")
 
         r = engine%zero_test(x - x)
         call check("x-x is decided zero", r%verdict == VERDICT_TRUE)
@@ -620,6 +623,25 @@ contains
             r%verdict == VERDICT_FALSE)
         r = engine%zero_test(sin(x))
         call check("unknown symbolic form stays unknown", &
+            r%verdict == VERDICT_UNKNOWN)
+
+        r = engine%zero_test(exp(x + y) - exp(x)*exp(y))
+        call check("exponential addition law is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(x) - exp(x/2)**2)
+        call check("integer powers of exponentials are normalised", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(x)*exp(-x) - 1)
+        call check("opposite exponential factors cancel", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(x) - exp(2*x))
+        call check("distinct formal exponentials are nonzero", &
+            r%verdict == VERDICT_FALSE)
+        r = engine%zero_test(exp(x) + sin(y))
+        call check("unsupported heads remain unknown in the fragment", &
+            r%verdict == VERDICT_UNKNOWN)
+        r = engine%zero_test(exp(i_expr(arena)*pi_expr(arena)) + 1)
+        call check("periodic constants remain conservatively unknown", &
             r%verdict == VERDICT_UNKNOWN)
     end subroutine test_verdicts
 
