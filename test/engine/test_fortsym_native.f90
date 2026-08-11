@@ -56,6 +56,7 @@ program test_fortsym_native
     call test_directed_domain_heads()
     call test_directed_inverse_heads()
     call test_reciprocal_hyperbolic_heads()
+    call test_error_function_domain_heads()
     call test_noninteger_domain_powers()
     call test_verdicts()
     call test_overflow_preservation()
@@ -1143,6 +1144,31 @@ contains
         r = engine%simplify(unary_function("coth", complex_infinity))
         call check("coth(zoo) is nan", r%value == nan_expr(arena))
     end subroutine test_reciprocal_hyperbolic_heads
+
+    subroutine test_error_function_domain_heads()
+        type(engine_result_t) :: r
+        type(expr_t) :: infinity, complex_infinity, negative_infinity
+
+        infinity = oo_expr(arena)
+        complex_infinity = zoo_expr(arena)
+        negative_infinity = -infinity
+
+        r = engine%simplify(unary_function("erf", infinity))
+        call check("erf(oo) is one", r%value == num(arena, 1_int64))
+        r = engine%simplify(unary_function("erf", negative_infinity))
+        call check("erf(-oo) is negative one", &
+            r%value == num(arena, -1_int64))
+        r = engine%simplify(unary_function("erf", complex_infinity))
+        call check("erf(zoo) remains an applied head", &
+            r%value%kind() == NK_FUNC)
+        r = engine%simplify(unary_function("erfc", infinity))
+        call check("erfc(oo) is zero", r%value == num(arena, 0_int64))
+        r = engine%simplify(unary_function("erfc", negative_infinity))
+        call check("erfc(-oo) is two", r%value == num(arena, 2_int64))
+        r = engine%simplify(unary_function("erfc", complex_infinity))
+        call check("erfc(zoo) remains an applied head", &
+            r%value%kind() == NK_FUNC)
+    end subroutine test_error_function_domain_heads
 
     subroutine test_noninteger_domain_powers()
         type(engine_result_t) :: r

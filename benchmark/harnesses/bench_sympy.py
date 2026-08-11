@@ -130,6 +130,19 @@ def reciprocal_hyperbolic_domain_expression(engine: Any, suffix: str) -> Any:
     )
 
 
+def error_function_domain_expression(engine: Any, suffix: str) -> Any:
+    if engine is oracle:
+        infinity = engine.oo
+    else:
+        infinity = engine._default().constant("oo")
+    x = engine.Symbol(f"domain_error_x_{suffix}")
+    y = engine.Symbol(f"domain_error_y_{suffix}")
+    return (
+        engine.erf(infinity) + engine.erfc(-infinity)
+        + (x + y + 1)**4
+    )
+
+
 def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[str, Any]]:
     name_x = f"{label}_x_{suffix}"
     name_y = f"{label}_y_{suffix}"
@@ -201,6 +214,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             reciprocal_hyperbolic_domain_expression(native, suffix),
             names,
         ),
+        "domain_error_function": (
+            error_function_domain_expression(oracle, suffix),
+            error_function_domain_expression(native, suffix),
+            names,
+        ),
         "domain_power": (
             oracle.Pow(-oracle.oo, oracle.Rational(3, 2), evaluate=False),
             (-native_oo)**native_three_halves,
@@ -261,6 +279,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = inverse_domain_expression(engine)
     elif operation == "domain_reciprocal":
         expression = reciprocal_hyperbolic_domain_expression(engine, suffix)
+    elif operation == "domain_error_function":
+        expression = error_function_domain_expression(engine, suffix)
     elif operation == "domain_power":
         if engine is oracle:
             expression = engine.Pow(
@@ -316,7 +336,7 @@ def correctness_cases() -> list[dict[str, Any]]:
             actual = native.simplify(native_expression)
         elif operation in (
                 "composition", "sqrt_power", "domain_function", "domain_inverse",
-                "domain_reciprocal", "domain_power"):
+                "domain_reciprocal", "domain_error_function", "domain_power"):
             expected = oracle.simplify(oracle_expression)
             actual = native.simplify(native_expression)
         elif operation == "assumption_query":
@@ -357,7 +377,7 @@ def correctness_cases() -> list[dict[str, Any]]:
                 else structurally_equivalent(expected, actual, names)
                 if operation in (
                         "domain_function", "domain_inverse", "domain_reciprocal",
-                        "domain_power")
+                        "domain_error_function", "domain_power")
                 else equivalent(expected, actual, names)
             ),
             "expected": result_text(expected),
@@ -405,7 +425,7 @@ def benchmark_workload(
                 )
             elif operation in (
                     "composition", "sqrt_power", "domain_function", "domain_inverse",
-                    "domain_reciprocal", "domain_power"):
+                    "domain_reciprocal", "domain_error_function", "domain_power"):
                 oracle_call = lambda: oracle.simplify(oracle_expression)
                 native_call = lambda: native.simplify(native_expression)
             elif operation == "relation":
@@ -438,7 +458,7 @@ def benchmark_workload(
                     return engine.refine(expression, engine.Q.negative(variable))
                 if operation in (
                         "composition", "sqrt_power", "domain_function", "domain_inverse",
-                        "domain_reciprocal", "domain_power"):
+                        "domain_reciprocal", "domain_error_function", "domain_power"):
                     return engine.simplify(expression)
                 if operation == "relation":
                     return engine.Gt(variable, 1)
@@ -498,7 +518,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "domain_function", "domain_inverse", "domain_reciprocal", "domain_power", "relation", "compound", "factor",
+        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "domain_function", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_power", "relation", "compound", "factor",
         "assumption_query"
     ):
         for scope in ("cold_end_to_end", "warm_core"):

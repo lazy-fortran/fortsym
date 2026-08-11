@@ -4710,6 +4710,22 @@ contains
             else
                 out = a%int(1_int64)
             end if
+        case ("erf")
+            if (domain == DOMAIN_ZOO) return
+            applied = .true.
+            if (direction < 0) then
+                out = a%int(-1_int64)
+            else
+                out = a%int(1_int64)
+            end if
+        case ("erfc")
+            if (domain == DOMAIN_ZOO) return
+            applied = .true.
+            if (direction < 0) then
+                out = a%int(2_int64)
+            else
+                out = a%int(0_int64)
+            end if
         end select
     end subroutine simplify_domain_function
 
