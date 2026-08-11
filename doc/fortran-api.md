@@ -5,6 +5,14 @@ and the expression functions under names such as `exp_expr`, `sqrt_expr`, and
 `erf_expr`. The suffix keeps these names distinct from Fortran intrinsics.
 The lower-level `fortsym_expr` and `fortsym_arena` modules remain available.
 
+Symbol names follow one rule: name the symbol as you would name the Fortran
+variable, using the spelling that the printer reads. Names such as `varphi_2`,
+`gamma_1`, `theta_bar`, and `B_r_hat` work as symbolic names, Fortran
+identifiers, and readable typeset input. Never put LaTeX markup in a symbol
+name. A name such as `\varphi_2` is the arena identity and is emitted verbatim
+by every dialect. Use the notation override map when the desired notation
+cannot be a Fortran identifier.
+
 ## Default arena
 
 Assigning character data to an `expr_t` creates one symbol. The right-hand side
