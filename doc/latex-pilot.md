@@ -8,15 +8,15 @@ repository was not modified. The small driver
 component, registers the notation required by the manuscript, and writes
 [`doc/latex-pilot/eqs.tex`](latex-pilot/eqs.tex).
 
-The pilot uses one macro for each named side:
+The pilot now uses one relation macro:
 
 ```latex
-\eqAmpereOne = \eqAmpereOneRhs
+\eqAmpereOne
 ```
 
-This keeps the relation itself document-owned because `expr_t` currently
-represents expressions, not relations. The generated file is included in the
-exported manuscript copy before that equation. Since the local LaTeX
+`latex_t%relation` renders the left and right `expr_t` values into one macro
+with a document-owned equals sign. The generated file is included in the
+exported manuscript copy before the equation. Since the local LaTeX
 installation has no `IEEEtran.cls`, the copy uses the standard `article`
 class; it builds successfully with `pdflatex` and produces a seven-page PDF.
 The only diagnostics are pre-existing undefined references and an overfull
@@ -24,22 +24,22 @@ box in the manuscript.
 
 ## Findings
 
-The generated sides contain seven symbolic leaves. Six need explicit notation
-registration (`d2_nu33_curl_a`, `nu22`, `A1`, `nu21`, `A2`, and `J1`); `n`
-renders acceptably without an override. The pilot registers all seven so the
-output is intentional and reviewable. There are no typesetting failures.
+The generated relation contains the derivative node
+`partial(nu33*curl_t(a), 2)` and the scalar leaves `nu33`, `n`, `A1`, `nu22`,
+`nu21`, `A2`, and `J1`. The pilot registers the manuscript notation for those
+leaves. The printer has evidence-based rules for `partial` and `curl_t`, and
+the independent test checks that symbolic differentiation propagates through
+the partial node. There are no typesetting failures.
 
-One macro per named result is the right shape for the current writer: it gives
-the manuscript stable names and keeps the left/right relation visible at the
-use site. A future relation API could generate one named relation, but that is
-outside this pilot.
+One macro per named relation matches the manuscript use site. The relation API
+keeps the two sides as expressions while making the equality part of the
+generated artifact.
 
-No additional SymPy printer settings were needed. The output is correct but
-slightly unidiomatic in one place: commutative canonicalisation prints
-`A_{1}\,\nu_{22}` where the manuscript writes `\nu_{22}A_{1}`. The derivative
-and curl expression is currently one registered opaque leaf; the scalar tree
-does not yet carry derivative/operator semantics. These findings are tracked
-separately rather than changing the fixed emitter conventions speculatively.
+No additional SymPy printer settings were needed. Products retain the arena's
+canonical semantic order. This can print `A_{1}\,\nu_{22}` where the manuscript
+writes `\nu_{22}A_{1}`. The pilot treats that order as a reproducibility policy
+and does not add a commutative reordering setting. A consumer can register a
+larger notation leaf when a published grouping carries meaning.
 
 ## Reproduction
 
@@ -58,7 +58,7 @@ with `article`, insert
 ```latex
 \input{/tmp/paper-magnetic-eqs.tex}
 \begin{equation}
-\eqAmpereOne = \eqAmpereOneRhs
+\eqAmpereOne
 \end{equation}
 ```
 

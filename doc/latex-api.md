@@ -11,13 +11,15 @@ use fortsym_latex
 
 type(latex_t) :: tex
 type(arena_t), target :: a
-type(expr_t) :: b
+type(expr_t) :: b, rhs, residual
 
 call a%init()
 b = sym(a, "Bfield")
+rhs = sym(a, "J")
+residual = partial(b, num(a, 2))
 call tex%source("field derivation")
 call tex%name("Bfield", "B_{r}")
-call tex%eq("Bfield", b)
+call tex%relation("Bfield", residual, rhs)
 call tex%write("generated/eqs.tex")
 ```
 
@@ -28,6 +30,13 @@ The file is deterministic:
 % derivation: field derivation
 \newcommand{\eqBfield}{B_{r}}
 ```
+
+`tex%relation` stores both sides in one named macro and writes the equals sign
+between them. It keeps an equation relation in the document artifact without
+pretending that a relation is an `expr_t`. `partial(expression, coordinate)`
+stores a first-order partial-derivative node. The LaTeX printer renders it as
+`\partial_{coordinate}\left(expression\right)`, and symbolic differentiation
+propagates through the node.
 
 Equation labels are mapped to letters-only control-sequence names. Digits and
 punctuation and separators are spelled out, so labels
@@ -45,6 +54,7 @@ The printer follows the fixed conventions below. There is one override map,
 | `x**2` | `x^{2}` |
 | `sqrt(x)` | `\sqrt{x}` |
 | `log(x)` | `\ln{\left(x\right)}` |
+| `partial(x, 2)` | `\partial_{2}\left(x\right)` |
 | `sym("q0")` | `q_{0}` |
 | `sym("weight_1_bar")` | `\bar{\mathrm{weight}_{1}}` |
 
@@ -56,6 +66,13 @@ An optional third argument to `tex%eq` is emitted as a companion macro named
 `\assumption...`. This keeps a supplied domain condition beside its equation.
 The writer never invents or drops one. A consumer that has no assumption emits
 no companion macro.
+
+Products retain the arena's canonical semantic order. The real manuscript
+pilot found that this can differ from a preferred printed order such as
+`\nu_{22}A_{1}` versus `A_{1}\,\nu_{22}`. The writer has no commutative
+reordering setting, so identical expression trees remain byte-reproducible
+across consumers. A consumer can register a larger notation leaf when its
+published grouping carries meaning.
 
 The fixture test compares every output line with independently written
 expected strings and then feeds the generated macros into a minimal `amsmath`

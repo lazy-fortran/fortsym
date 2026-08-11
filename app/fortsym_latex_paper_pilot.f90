@@ -2,13 +2,15 @@ program fortsym_latex_paper_pilot
     ! Reproduce the scalar left and right sides of paper_magnetic.py Eq. (40).
     use, intrinsic :: iso_fortran_env, only: error_unit
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, operator(+), operator(-), operator(*), &
-        operator(**)
+    use fortsym_expr, only: expr_t, sym, num, func, partial, operator(+), &
+        operator(-), operator(*), operator(**)
     use fortsym_latex, only: latex_t
     implicit none
 
     type(arena_t), target :: arena
     type(expr_t) :: derivative, n, nu22, a1, nu21, a2, j1, lhs
+    type(expr_t) :: nu33, vector, curl
+    type(expr_t) :: curl_args(1)
     type(latex_t) :: tex
     character(:), allocatable :: output, message
     logical :: ok
@@ -24,7 +26,11 @@ program fortsym_latex_paper_pilot
     call get_command_argument(1, output)
 
     call arena%init()
-    derivative = sym(arena, "d2_nu33_curl_a")
+    nu33 = sym(arena, "nu33")
+    vector = sym(arena, "a")
+    curl_args(1) = vector
+    curl = func("curl_t", curl_args)
+    derivative = partial(nu33*curl, num(arena, 2))
     n = sym(arena, "n")
     nu22 = sym(arena, "nu22")
     a1 = sym(arena, "A1")
@@ -34,17 +40,14 @@ program fortsym_latex_paper_pilot
     lhs = derivative + n**2*(nu22*a1 - nu21*a2)
 
     call tex%source("paper_magnetic.py, Eq. (40)")
-    call register("d2_nu33_curl_a", &
-        "\partial_{2}\left(\nu_{33}\,\operatorname{curl}_{\mathrm{t}}\boldsymbol{a}\right)")
+    call register("nu33", "\nu_{33}")
     call register("n", "n")
     call register("nu22", "\nu_{22}")
     call register("A1", "A_{1}")
     call register("nu21", "\nu_{21}")
     call register("A2", "A_{2}")
     call register("J1", "\mathcal{J}^{1}")
-    call tex%eq("AmpereOne", lhs, ok=ok, message=message)
-    if (.not. ok) call fail(message)
-    call tex%eq("AmpereOneRhs", j1, ok=ok, message=message)
+    call tex%relation("AmpereOne", lhs, j1, ok=ok, message=message)
     if (.not. ok) call fail(message)
     call tex%write(output, ok, message)
     if (.not. ok) call fail(message)

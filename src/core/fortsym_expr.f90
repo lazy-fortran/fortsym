@@ -27,7 +27,7 @@ module fortsym_expr
 
     public :: expr_t
     public :: sym, num, rat, exact, real_expr, real_text_expr, const, func, func_in
-    public :: pi_expr, e_expr, i_expr
+    public :: pi_expr, e_expr, i_expr, partial
     public :: is_valid, same_arena
     public :: operator(+), operator(-), operator(*), operator(/), &
               operator(**), operator(==), operator(/=)
@@ -266,6 +266,23 @@ contains
         e%id = a%func(name, ids)
         e%generation = a%generation_value()
     end function func_in
+
+    !> A first-order partial-derivative node for an expression and coordinate.
+    !>
+    !> The node keeps the operator visible to printers and consumers. It does
+    !> not claim that the coordinate is a symbol or that the operand is an
+    !> applied function. Those decisions belong to the caller's derivation.
+    function partial(expression, coordinate) result(e)
+        type(expr_t), intent(in) :: expression, coordinate
+        type(expr_t)              :: e
+        integer                   :: args(2)
+
+        args(1) = expression%id
+        args(2) = coordinate%id
+        e%a => expression%a
+        e%id = expression%a%func("partial", args)
+        e%generation = expression%generation
+    end function partial
 
     ! ---------------------------------------------------------- predicates --
 
