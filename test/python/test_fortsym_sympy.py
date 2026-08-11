@@ -231,6 +231,9 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(sp.expand_complex(sp.I), sp.I)
         self.assertEqual(sp.expand_complex(sp.exp(sp.I), deep=False),
                          sp.cos(1) + sp.I*sp.sin(1))
+        self.assertEqual(str(sp.expand_complex(sp.oo)), str(sp.oo))
+        self.assertEqual(str(sp.expand_complex(sp.zoo)), str(sp.nan))
+        self.assertEqual(str(sp.expand_complex(sp.nan)), str(sp.nan))
         with self.assertRaises(sp.UnsupportedOperationError):
             sp.expand_complex(sp.Symbol("expand_complex_unknown"))
         with self.assertRaises(sp.UnsupportedOperationError):

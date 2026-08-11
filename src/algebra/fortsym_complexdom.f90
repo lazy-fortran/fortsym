@@ -5,8 +5,10 @@ module fortsym_complexdom
     ! Everything here rests on one splitting routine. Given an expression it
     ! either produces a pair of expressions (a, b) with the property that the
     ! input equals a + i*b *and both a and b are provably real*, or it refuses.
-    ! Every public operation is a thin reading of that pair, so there is exactly
-    ! one place where reality can be got wrong.
+    ! Every ordinary public operation is a thin reading of that pair, so there
+    ! is exactly one place where reality can be got wrong. ComplexExpand also
+    ! preserves the three domain sentinels whose direct SymPy values are
+    ! defined without finite complex parts.
     !
     ! The trap this module exists to avoid: a bare symbol has unknown reality.
     ! Re[x] is x only when x is known real, and a CAS that quietly assumes it is
@@ -46,7 +48,7 @@ module fortsym_complexdom
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
         NK_BIG_REAL, NK_ALGEBRAIC
     use fortsym_cache, only: expr_cache_t, expr_pair_cache_t
-    use fortsym_expr, only: expr_t, num, algebraic_expr, i_expr, is_valid, &
+    use fortsym_expr, only: expr_t, num, algebraic_expr, i_expr, nan_expr, is_valid, &
         sin, cos, tan, sinh, cosh, tanh, exp, log, sqrt, atan2, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_algebraic, only: algebraic_re, algebraic_im, algebraic_conjugate
@@ -756,6 +758,23 @@ contains
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
         type(expr_t) :: re, im
+        character(:), allocatable :: name
+
+        if (e%kind() == NK_CONST) then
+            name = chars(e%name())
+            select case (name)
+            case ("oo", "nan")
+                out = e
+                ok = .true.
+                why = ""
+                return
+            case ("zoo")
+                out = nan_expr(e%a)
+                ok = .true.
+                why = ""
+                return
+            end select
+        end if
 
         call complex_split(e, facts, re, im, ok, why)
         if (.not. ok) return

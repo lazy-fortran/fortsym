@@ -55,9 +55,10 @@ native complex-domain owner rather than constructing duplicate applied heads.
 Their immutable results are cached per assumption epoch; adding or removing
 assumptions invalidates the cache. `arg` returns the principal branch when its
 supported rectangular split is decidable. `expand_complex` uses that split for
-the supported exact and assumption-resolved fragment. `Abs` uses the same owner
-for exact, algebraic, and assumption-resolved complex expressions, while unknown
-reality keeps SymPy's unevaluated `abs(...)` fallback.
+the supported exact and assumption-resolved fragment and matches the direct
+`oo`/`zoo`/`nan` sentinel boundaries (`zoo` becomes `nan`). `Abs` uses the same
+owner for exact, algebraic, and assumption-resolved complex expressions, while
+unknown reality keeps SymPy's unevaluated `abs(...)` fallback.
 
 The compatibility layer guarantees native structural equality only for
 operations listed as construction or transformation above. Unsupported
