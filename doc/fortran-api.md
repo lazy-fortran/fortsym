@@ -174,8 +174,10 @@ meromorphic quotient; `log` uses the principal `log(abs) + i*Arg` form, and
 denominator or logarithm argument is refused, while a nontrivial denominator
 remains in the result to preserve pointwise poles. `complex_expand` preserves
 `oo` and `nan` and maps `zoo` to `nan`, matching SymPy's defined sentinel
-boundary. The same branch and reality refusals apply to other unsupported
-expressions.
+boundary. The direct projections also match the defined sentinel cases:
+`re(oo)=oo`, `re(-oo)=-oo`, `im(oo)=0`, `arg(-oo)=pi`, `Abs(zoo)=oo`, and
+undefined projections return `nan`; `conjugate(zoo)` remains an applied head.
+The same branch and reality refusals apply to other unsupported expressions.
 
 The main `fortsym` facade exposes the same owner as `re_part`, `im_part`,
 `abs_of`, `conjugate`, `arg_of`, and `complex_expand`, each returning the common `engine_result_t`. The

@@ -529,6 +529,30 @@ def correctness_cases() -> list[dict[str, Any]]:
             "expected": result_text(expected),
             "actual": actual_text,
         })
+    sentinel_values = (
+        ("oo", oracle.oo, native.oo),
+        ("negative_oo", -oracle.oo, -native.oo),
+        ("zoo", oracle.zoo, native.zoo),
+        ("nan", oracle.nan, native.nan),
+    )
+    sentinel_functions = (
+        ("re", oracle.re, native.re),
+        ("im", oracle.im, native.im),
+        ("abs", oracle.Abs, native.Abs),
+        ("arg", oracle.arg, native.arg),
+        ("conjugate", oracle.conjugate, native.conjugate),
+        ("expand_complex", oracle.expand_complex, native.expand_complex),
+    )
+    for function_name, oracle_function, native_function in sentinel_functions:
+        for value_name, oracle_value, native_value in sentinel_values:
+            expected = oracle_function(oracle_value)
+            actual = native_function(native_value)
+            results.append({
+                "operation": f"complex_sentinel_{function_name}_{value_name}",
+                "correct": structurally_equivalent(expected, actual, {}),
+                "expected": result_text(expected),
+                "actual": str(actual),
+            })
     for operation in sorted(oracle_cases):
         oracle_expression, native_expression, names = oracle_cases[operation]
         _, native_expression, _ = native_cases[operation]

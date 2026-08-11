@@ -295,6 +295,10 @@ Every checklist item requires all of the following:
       - [x] Match `expand_complex`'s defined domain-sentinel boundaries:
         `oo` and `nan` remain themselves while `zoo` becomes `nan`, with
         independent Fortran, C ABI, and SymPy differential coverage.
+      - [x] Match the direct complex-domain sentinel boundaries for `re`,
+        `im`, `Abs`, `arg`, and `conjugate`, including signed `-oo`; `zoo`
+        and `nan` follow SymPy's defined projection results while
+        `conjugate(zoo)` remains an applied head.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
   - [x] Add the canonical native `oo_expr` positive-infinity sentinel. Native

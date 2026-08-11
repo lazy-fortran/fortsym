@@ -23,7 +23,8 @@ program test_fortsym_complexdom
     use fortsym_algebraic, only: algebraic_i, algebraic_from_re_im, &
         algebraic_sqrt, algebraic_mul, algebraic_conjugate, algebraic_re, &
         algebraic_im
-    use fortsym_expr, only: expr_t, sym, num, rat, algebraic_expr, i_expr, pi_expr, func, &
+    use fortsym_expr, only: expr_t, sym, num, rat, algebraic_expr, i_expr, pi_expr, &
+        oo_expr, zoo_expr, nan_expr, func, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==)
     use fortsym_assume, only: assumption_context_t, assume, real_valued
@@ -59,6 +60,7 @@ program test_fortsym_complexdom
     call test_modulus_and_argument()
     call test_expand_matches()
     call test_literals_and_unit()
+    call test_domain_sentinel_boundaries()
     call test_supported_function_splits()
     call test_hyperbolic_pole_refused()
     call test_tangent_pole_refused()
@@ -321,6 +323,63 @@ contains
         call arg_of(num(arena, 0), facts, e, good, why)
         call ok("Arg at zero is refused", .not. good)
     end subroutine test_literals_and_unit
+
+    subroutine test_domain_sentinel_boundaries()
+        type(expr_t) :: oo, negative_oo, zoo, nan, zero_value, pi_value
+        type(expr_t) :: negative_expected, zoo_conjugate
+        type(expr_t) :: arguments(1)
+
+        oo = oo_expr(arena)
+        negative_oo = -oo
+        zoo = zoo_expr(arena)
+        nan = nan_expr(arena)
+        zero_value = num(arena, 0_int64)
+        pi_value = pi_expr(arena)
+        negative_expected = num(arena, -1_int64)*oo
+        arguments(1) = zoo
+        zoo_conjugate = func("conjugate", arguments)
+
+        call check_domain_sentinel("oo", oo, oo, zero_value, oo, zero_value, &
+            oo, oo)
+        call check_domain_sentinel("negative oo", negative_oo, negative_expected, &
+            zero_value, oo, pi_value, negative_expected, negative_expected)
+        call check_domain_sentinel("zoo", zoo, nan, nan, oo, nan, &
+            zoo_conjugate, nan)
+        call check_domain_sentinel("nan", nan, nan, nan, nan, nan, nan, nan)
+    end subroutine test_domain_sentinel_boundaries
+
+    subroutine check_domain_sentinel(label, expression, expected_re, expected_im, &
+            expected_abs, expected_arg, expected_conjugate, expected_expand)
+        character(*), intent(in) :: label
+        type(expr_t), intent(in) :: expression, expected_re, expected_im
+        type(expr_t), intent(in) :: expected_abs, expected_arg
+        type(expr_t), intent(in) :: expected_conjugate, expected_expand
+        type(expr_t) :: out
+        logical :: good
+        character(:), allocatable :: why
+
+        call re_part(expression, facts, out, good, why)
+        call check_domain_result(label//" re", out, good, expected_re)
+        call im_part(expression, facts, out, good, why)
+        call check_domain_result(label//" im", out, good, expected_im)
+        call abs_of(expression, facts, out, good, why)
+        call check_domain_result(label//" abs", out, good, expected_abs)
+        call arg_of(expression, facts, out, good, why)
+        call check_domain_result(label//" arg", out, good, expected_arg)
+        call conjugate(expression, facts, out, good, why)
+        call check_domain_result(label//" conjugate", out, good, expected_conjugate)
+        call complex_expand(expression, facts, out, good, why)
+        call check_domain_result(label//" expand_complex", out, good, expected_expand)
+    end subroutine check_domain_sentinel
+
+    subroutine check_domain_result(label, out, good, expected)
+        character(*), intent(in) :: label
+        type(expr_t), intent(in) :: out, expected
+        logical, intent(in) :: good
+
+        call ok(label//" is defined", good)
+        if (good) call ok(label//" matches the fixed domain oracle", out == expected)
+    end subroutine check_domain_result
 
     subroutine test_supported_function_splits()
         call check_supported_function("sinh")
