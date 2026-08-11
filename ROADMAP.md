@@ -443,7 +443,11 @@ Every checklist item requires all of the following:
 - [x] Audit every public symbol for naming consistency and duplicate concepts.
   - [x] Assign every public Fortran facade export to one owning naming concept;
     string conversion and code generation remain native-only vocabularies.
-- [ ] Audit every module for single responsibility and dependency direction.
+- [x] Audit every module for single responsibility and dependency direction.
+  - [x] Verify one module per source owner, known internal dependencies, no
+    cycles, and no implementation import of the convenience facade.
+  - [x] Record the current module graph and intentional orchestration edges in
+    `doc/module-architecture.json`.
 - [ ] Run `fo`, CMake/CTest, Python tests, corpus tests, code-generation tests,
   and CUDA/compiler tests on the supported toolchains.
 - [ ] Publish the compatibility matrix, performance baseline, refusal table,
