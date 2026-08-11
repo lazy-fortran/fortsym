@@ -10,9 +10,10 @@ program test_fortsym_native
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_ADD, NK_FUNC
     use fortsym_expr
-    use fortsym_assume, only: assumption_context_t, assume, positive, nonzero, &
-        record_relation, clone_assumption_context, FACT_POSITIVE, FACT_REAL, &
-        FACT_INTEGER
+    use fortsym_assume, only: assumption_context_t, assume, negative, &
+        nonpositive, positive, nonnegative, nonzero, record_relation, &
+        clone_assumption_context, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, &
+        FACT_POSITIVE, FACT_REAL, FACT_NONZERO, FACT_INTEGER
     use fortsym_eval, only: binding_t, eval_expr
     use fortsym_print, only: print_expr
     use fortsym_engine, only: engine_result_t, resource_limit_t, &
@@ -686,8 +687,9 @@ contains
     end subroutine test_assumptions
 
     subroutine test_assumption_relations()
-        type(assumption_context_t) :: parent, child
-        type(expr_t) :: y, relation, args(2)
+        type(assumption_context_t) :: parent, child, negative_context
+        type(assumption_context_t) :: compound_context, zero_context
+        type(expr_t) :: y, relation, first, second, compound, args(2)
         logical :: ok
         character(:), allocatable :: why
 
@@ -707,6 +709,60 @@ contains
         relation = func("Greater", args)
         call record_relation(parent, relation, ok, why)
         call check("lower bound without a sign implication is refused", .not. ok)
+
+        call negative_context%init(arena)
+        args(1) = x
+        args(2) = num(arena, 0)
+        relation = func("Less", args)
+        call record_relation(negative_context, relation, ok, why)
+        call check("x < 0 relation is recorded", ok)
+        call check("x < 0 implies negativity", &
+            negative_context%has(x, FACT_NEGATIVE))
+
+        call record_relation(parent, relation, ok, why)
+        call check("contradictory positive and negative facts are refused", &
+            .not. ok)
+        call check("contradiction has a diagnostic", &
+            index(why, "contradictory assumptions:") == 1)
+        call check("refused contradiction does not alter the parent", &
+            parent%has(x, FACT_POSITIVE) .and. &
+            .not. parent%has(x, FACT_NEGATIVE))
+
+        call compound_context%init(arena)
+        args(1) = x
+        args(2) = num(arena, 1)
+        first = func("Greater", args)
+        args(2) = num(arena, -1)
+        second = func("Greater", args)
+        args(1) = first
+        args(2) = second
+        compound = func("And", args)
+        call record_relation(compound_context, compound, ok, why)
+        call check("refused compound relation is transactional", .not. ok)
+        call check("compound refusal leaves no partial fact", &
+            .not. compound_context%has(x, FACT_POSITIVE))
+
+        args(1) = x
+        args(2) = num(arena, 0)
+        second = func("Unequal", args)
+        args(1) = first
+        args(2) = second
+        compound = func("And", args)
+        call record_relation(compound_context, compound, ok, why)
+        call check("supported compound relation is recorded", ok)
+        call check("compound relation keeps inferred facts", &
+            compound_context%has(x, FACT_POSITIVE) .and. &
+            compound_context%has(x, FACT_NONZERO))
+
+        call zero_context%init(arena)
+        call assume(zero_context, nonnegative(y))
+        call assume(zero_context, nonpositive(y))
+        call check("nonnegative and nonpositive infer zero", &
+            zero_context%has(y, FACT_ZERO))
+        call assume(zero_context, nonzero(y), ok, why)
+        call check("zero and nonzero facts conflict", .not. ok)
+        call check("zero conflict has a diagnostic", &
+            index(why, "zero and nonzero") > 0)
 
         call clone_assumption_context(child, parent)
         args(1) = y

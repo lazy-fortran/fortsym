@@ -25,6 +25,10 @@ _FACT_REAL = 1
 _FACT_POSITIVE = 2
 _FACT_NONNEGATIVE = 4
 _FACT_NONZERO = 8
+_FACT_ZERO = 64
+_FACT_NEGATIVE = 128
+_FACT_NONPOSITIVE = 256
+_CONFLICT = 7
 _RELATIONS = {
     "Equal": ("==", 1),
     "Unequal": ("!=", 2),
@@ -574,6 +578,8 @@ class Expr:
 
     @property
     def is_zero(self):
+        if self._assumption_fact(_FACT_ZERO) is True:
+            return True
         if self._assumption_fact(_FACT_NONZERO) is True:
             return False
         verdict = self._zero_verdict()
@@ -594,6 +600,8 @@ class Expr:
 
     @property
     def is_nonzero(self):
+        if self._assumption_fact(_FACT_ZERO) is True:
+            return False
         if self._assumption_fact(_FACT_NONZERO) is True:
             return True
         zero = self.is_zero
@@ -605,11 +613,35 @@ class Expr:
 
     @property
     def is_positive(self):
-        return self._assumption_fact(_FACT_POSITIVE)
+        if self._assumption_fact(_FACT_POSITIVE) is True:
+            return True
+        if self._assumption_fact(_FACT_NONPOSITIVE) is True:
+            return False
+        return None
 
     @property
     def is_nonnegative(self):
-        return self._assumption_fact(_FACT_NONNEGATIVE)
+        if self._assumption_fact(_FACT_NONNEGATIVE) is True:
+            return True
+        if self._assumption_fact(_FACT_NEGATIVE) is True:
+            return False
+        return None
+
+    @property
+    def is_negative(self):
+        if self._assumption_fact(_FACT_NEGATIVE) is True:
+            return True
+        if self._assumption_fact(_FACT_NONNEGATIVE) is True:
+            return False
+        return None
+
+    @property
+    def is_nonpositive(self):
+        if self._assumption_fact(_FACT_NONPOSITIVE) is True:
+            return True
+        if self._assumption_fact(_FACT_POSITIVE) is True:
+            return False
+        return None
 
     @property
     def kind(self):

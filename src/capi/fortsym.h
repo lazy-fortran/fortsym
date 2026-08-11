@@ -26,7 +26,8 @@ enum fortsym_status {
     FORTSYM_FOREIGN_ARENA = 3,
     FORTSYM_PARSE_ERROR = 4,
     FORTSYM_UNSUPPORTED = 5,
-    FORTSYM_RESOURCE_LIMIT = 6
+    FORTSYM_RESOURCE_LIMIT = 6,
+    FORTSYM_CONFLICT = 7
 };
 
 enum fortsym_node_kind {
@@ -48,7 +49,10 @@ enum fortsym_assumption_fact {
     FORTSYM_FACT_REAL = 1,
     FORTSYM_FACT_POSITIVE = 2,
     FORTSYM_FACT_NONNEGATIVE = 4,
-    FORTSYM_FACT_NONZERO = 8
+    FORTSYM_FACT_NONZERO = 8,
+    FORTSYM_FACT_ZERO = 64,
+    FORTSYM_FACT_NEGATIVE = 128,
+    FORTSYM_FACT_NONPOSITIVE = 256
 };
 
 enum fortsym_relation_kind {
