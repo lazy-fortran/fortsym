@@ -156,6 +156,8 @@ additive logarithm factors; fractional logarithm cofactors remain outside the
 fragment. Native `zero_test` now also consumes the existing bounded
 trigonometric-to-exponential rewrite, deciding the Pythagorean identity while
 leaving unproved trigonometric forms unknown.
+The independent native oracle also covers sine and cosine angle addition and
+the corresponding hyperbolic-sine identity through the same bounded path.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.

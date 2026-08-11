@@ -712,6 +712,15 @@ contains
         r = engine%zero_test(sin(x)**2 + cos(x)**2 - 1)
         call check("trigonometric Pythagorean identity is decided zero", &
             r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(sin(x + y) - sin(x)*cos(y) - cos(x)*sin(y))
+        call check("trigonometric sine addition identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(cos(x + y) - cos(x)*cos(y) + sin(x)*sin(y))
+        call check("trigonometric cosine addition identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(sinh(x + y) - sinh(x)*cosh(y) - cosh(x)*sinh(y))
+        call check("hyperbolic sine addition identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
         r = engine%zero_test(sin(x) + cos(x))
         call check("unproved trigonometric nonidentity remains unknown", &
             r%verdict == VERDICT_UNKNOWN)
