@@ -287,16 +287,16 @@ Every operation returns a result with:
 
 Domain assumptions and conditional results use an explicit context and
 condition field. They must not be encoded in a backend-specific global state.
-The assumption context records `real`, `positive`, `nonnegative`, `nonzero`,
-and integer-domain facts on symbols and expressions. Exact lower relations,
-conjunctions, and `Element` membership derive only implications that are
-provably valid; the current public relation fragment admits only lower bounds
-that imply a supported sign fact. Cloned contexts provide scoped refinement without mutating the
-parent. The public Fortran facade derives value-style contexts with
-`with_assumption` and passes them explicitly to native operations. `refine` is
-the named assumption-aware facade operation, while guarded rewrite ownership
-remains in the native simplifier; unsupported upper-bound inference is refused
-rather than guessed.
+The assumption context records real, zero, negative, nonpositive, positive,
+nonnegative, nonzero, and integer-domain facts on symbols and expressions.
+Exact relations, conjunctions, and `Element` membership derive only
+implications that are provably valid. Compound ingestion is transactional and
+rejects contradictory facts with a diagnostic; cloned contexts provide scoped
+refinement without mutating the parent. The public Fortran facade derives
+value-style contexts with `with_assumption` and passes them explicitly to
+native operations. `refine` is the named assumption-aware facade operation,
+while guarded rewrite ownership remains in the native simplifier; unsupported
+inference is refused rather than guessed.
 
 External engines remain optional. A native operation must not silently invoke
 an external engine. Benchmarks record native operation time, conversion time,

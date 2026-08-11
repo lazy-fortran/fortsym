@@ -136,11 +136,13 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         concept(
             "assumption-queries",
             "Query and scope supported expression assumptions.",
-            ["assumption_context_t", "make_assumption_context", "with_assumption"],
-            ["Arena"], ["Q", "ask", "assuming"],
-            ["Q", "ask", "assuming"],
-            "The native facade owns value-style assumption contexts while the adapter keeps SymPy's Q/ask/assuming vocabulary at the Python boundary.",
-            "Keep one native context owner; derive contexts by value and make every Python scope nested, exception-safe, and reversible.",
+            ["assumption_context_t", "make_assumption_context", "with_assumption",
+             "zero", "negative", "nonpositive", "positive", "nonnegative",
+             "nonzero", "real_valued"],
+            ["Arena"], ["Q", "ask", "assuming", "And", "InconsistentAssumptions"],
+            ["Q", "And"],
+            "The native facade owns value-style contexts and sign facts while the adapter keeps SymPy's Q/ask/assuming/And vocabulary at the Python boundary.",
+            "Keep one native context owner; close compound facts transactionally and expose compatibility names only in the adapter.",
         ),
         concept(
             "substitution",

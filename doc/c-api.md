@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 4). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 7). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, and differentiation. The native library retains an
 arena while any expression handle refers to it; callers may therefore release
@@ -13,10 +13,14 @@ new expression handle. It returns `FORTSYM_ZERO_TRUE` for a proved zero,
 An unknown verdict is still a successful C-ABI call; malformed handles and
 unsupported execution return the ordinary status codes.
 
-`fortsym_assumption_has` reports whether the arena proves one of the four
-supported facts (`real`, `positive`, `nonnegative`, or `nonzero`) for an
-expression. Its `known` output is one for a proven fact and zero for an
-unknown fact; absence is not a proof of the opposite predicate.
+`fortsym_assumption_has` reports whether the arena proves one of the supported
+facts (`real`, `zero`, `negative`, `nonpositive`, `positive`, `nonnegative`, or
+`nonzero`) for an expression. Its `known` output is one for a proven fact and
+zero for an unknown fact; absence is not a proof of the opposite predicate.
+
+`FORTSYM_CONFLICT` reports contradictory assumptions. Compound relation
+ingestion is transactional: a failed child does not leave facts from earlier
+children in the arena, and the diagnostic buffer contains the conflict reason.
 
 `fortsym_assumption_push` and `fortsym_assumption_pop` provide nested,
 exception-safe scopes over the arena's assumption context. Push clones the

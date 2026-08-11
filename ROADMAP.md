@@ -288,11 +288,13 @@ Every checklist item requires all of the following:
     keep scopes reversible and refuse unsupported assumption forms.
   - [x] Add SymPy-compatible relational constructors and bounded lower-bound
     ingestion with explicit domain and arena validation. The supported native
-    fragment accepts exact positive or zero lower bounds and `Unequal(..., 0)`;
-    unsupported upper bounds, negative lower bounds, and foreign arenas refuse
+    fragment accepts exact sign-implying bounds and `Equal`/`Unequal` at zero;
+    bounds that do not imply a supported sign and foreign arenas refuse
     explicitly.
-  - [ ] Add compound inference and conflict diagnostics without guessing from
-    contradictory or unsupported facts.
+  - [x] Add transactional compound inference and conflict diagnostics without
+    guessing from contradictory or unsupported facts. `And` facts close over
+    the native sign/zero implications, and every refused compound leaves its
+    parent context unchanged.
 - [ ] Complete safe elementary simplification: powers, logarithms, radicals,
   trigonometry, inverse functions, exponentials, absolute values, and special
   constants.

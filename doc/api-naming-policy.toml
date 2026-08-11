@@ -53,12 +53,12 @@ decision = "partial constructs an unevaluated first-order node. diff owns the ev
 [[family]]
 id = "contexts-and-handles"
 audit_concepts = ["arena-and-expression", "assumption-queries"]
-canonical_native = ["arena_t", "expr_t", "default_arena", "reset", "assumption_context_t", "make_assumption_context", "with_assumption", "assumption_push", "assumption_pop"]
-current_native = ["arena_t", "expr_t", "default_arena", "reset", "assumption_context_t", "make_assumption_context", "with_assumption", "assumption_push", "assumption_pop"]
+canonical_native = ["arena_t", "expr_t", "default_arena", "reset", "assumption_context_t", "make_assumption_context", "with_assumption", "zero", "negative", "nonpositive", "positive", "nonnegative", "nonzero", "real_valued", "assumption_push", "assumption_pop"]
+current_native = ["arena_t", "expr_t", "default_arena", "reset", "assumption_context_t", "make_assumption_context", "with_assumption", "zero", "negative", "nonpositive", "positive", "nonnegative", "nonzero", "real_valued", "assumption_push", "assumption_pop"]
 transition_aliases = []
 python_facade = ["Arena", "Expr"]
-sympy_adapter = ["Arena", "Expr", "Q", "ask", "assuming"]
-decision = "Keep arena_t and expr_t as type names. Use default_arena and reset in the convenience facade because use fortsym already supplies the namespace. Keep assumption_context_t, make_assumption_context, and with_assumption as the value-style native context vocabulary; assumption_push/pop remain the C/Python scope mechanism. Q, ask, and assuming remain the SymPy adapter vocabulary."
+sympy_adapter = ["Arena", "Expr", "Q", "ask", "assuming", "And", "InconsistentAssumptions"]
+decision = "Keep arena_t and expr_t as type names. Use default_arena and reset in the convenience facade because use fortsym already supplies the namespace. Keep assumption_context_t, make_assumption_context, with_assumption, and the concise sign-fact names as the native vocabulary; assumption_push/pop remain the C/Python scope mechanism. Q, ask, assuming, And, and InconsistentAssumptions remain the SymPy adapter vocabulary."
 
 [[family]]
 id = "transformations"
@@ -87,7 +87,7 @@ canonical_native = ["is_valid", "same_arena", "zero_test", "assumption_has", "VE
 current_native = ["is_valid", "same_arena", "zero_test", "assumption_has", "VERDICT_UNKNOWN", "VERDICT_TRUE", "VERDICT_FALSE", "verdict_name"]
 transition_aliases = []
 python_facade = []
-sympy_adapter = ["Expr.is_zero", "Expr.is_nonzero", "Expr.is_real", "Expr.is_positive", "Expr.is_nonnegative"]
+sympy_adapter = ["Expr.is_zero", "Expr.is_nonzero", "Expr.is_real", "Expr.is_positive", "Expr.is_nonnegative", "Expr.is_negative", "Expr.is_nonpositive"]
 decision = "Keep safety predicates in the expression owner. Expose one native zero_test query and one assumption_has fact query; the SymPy adapter maps them to the standard Expr predicate properties. Keep check_zero, check_identity, and probe_zero in the testing owner."
 
 [[family]]

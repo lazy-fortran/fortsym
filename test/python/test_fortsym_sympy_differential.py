@@ -30,6 +30,8 @@ class SympyDifferentialTest(unittest.TestCase):
         cls.locals = {
             "x": oracle.Symbol("x"),
             "y": oracle.Symbol("y"),
+            "differential_x": oracle.Symbol("differential_x"),
+            "differential_y": oracle.Symbol("differential_y"),
             "abs": oracle.Abs,
         }
 
@@ -47,7 +49,7 @@ class SympyDifferentialTest(unittest.TestCase):
 
     @staticmethod
     def expression_cases(api):
-        x, y = api.symbols("x y")
+        x, y = api.symbols("differential_x differential_y")
         return {
             "integer": api.Integer(2**100),
             "rational": api.Rational(2, 3),
@@ -120,6 +122,26 @@ class SympyDifferentialTest(unittest.TestCase):
         for label, expected in oracle_cases.items():
             with self.subTest(label=label):
                 self.assertEqual(str(native_cases[label]), str(expected))
+
+    def test_compound_constructor_matches_oracle_shape(self):
+        oracle_x = oracle.Symbol("compound_relation_x")
+        native_x = native.Symbol("compound_relation_x")
+        oracle_compound = oracle.And(oracle_x > 1, oracle.Ne(oracle_x, 0))
+        native_compound = native.And(native_x > 1, native.Ne(native_x, 0))
+        self.assertEqual(
+            [type(argument).__name__ for argument in oracle_compound.args],
+            ["StrictGreaterThan", "Unequality"],
+        )
+        native_arguments = native_compound.args
+        try:
+            self.assertEqual(
+                [argument.name for argument in native_arguments],
+                ["Greater", "Unequal"],
+            )
+        finally:
+            for argument in native_arguments:
+                argument.close()
+            native_compound.close()
 
     def test_assumption_condition_results(self):
         oracle_cases = self.assumption_cases(oracle)

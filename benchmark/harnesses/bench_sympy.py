@@ -38,6 +38,36 @@ def equivalent(expected: Any, actual: Any, names: dict[str, Any]) -> bool:
         return False
 
 
+def compound_equivalent(expected: Any, actual: Any) -> bool:
+    expected_names = {
+        "StrictGreaterThan": "Greater",
+        "Unequality": "Unequal",
+    }
+    expected_signature = []
+    for argument in expected.args:
+        expected_signature.append((
+            expected_names.get(type(argument).__name__, type(argument).__name__),
+            tuple(str(child) for child in argument.args),
+        ))
+    native_arguments = actual.args
+    try:
+        actual_signature = []
+        for argument in native_arguments:
+            children = argument.args
+            try:
+                actual_signature.append((
+                    argument.name, tuple(str(child) for child in children)
+                ))
+            finally:
+                for child in children:
+                    child.close()
+    finally:
+        for argument in native_arguments:
+            argument.close()
+        actual.close()
+    return expected_signature == actual_signature
+
+
 def measure(function: Callable[[], Any], warmup: int, repetitions: int, batch: int) -> dict[str, Any]:
     for _ in range(warmup):
         for _ in range(batch):
@@ -92,6 +122,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.Gt(native_x, 1),
             names,
         ),
+        "compound": (
+            oracle.And(oracle.Gt(oracle_x, 1), oracle.Ne(oracle_x, 0)),
+            native.And(native.Gt(native_x, 1), native.Ne(native_x, 0)),
+            names,
+        ),
         "factor": (
             oracle_x**2 + 2 * oracle_x + 1,
             native_x**2 + 2 * native_x + 1,
@@ -124,6 +159,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.sqrt(x**2)
     elif operation == "relation":
         expression = engine.Gt(x, 1)
+    elif operation == "compound":
+        expression = engine.And(engine.Gt(x, 1), engine.Ne(x, 0))
     else:
         raise ValueError(f"unknown benchmark operation: {operation}")
     return expression, x
@@ -158,6 +195,15 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation == "relation":
             expected = oracle.Gt(names["check_x_fixed"], 1)
             actual = native.Gt(native.Symbol("check_x_fixed"), 1)
+        elif operation == "compound":
+            expected = oracle.And(
+                oracle.Gt(names["check_x_fixed"], 1),
+                oracle.Ne(names["check_x_fixed"], 0),
+            )
+            actual = native.And(
+                native.Gt(native.Symbol("check_x_fixed"), 1),
+                native.Ne(native.Symbol("check_x_fixed"), 0),
+            )
         else:
             expected = oracle.factor(oracle_expression)
             actual = native.factor(native_expression)
@@ -168,6 +214,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                 if operation == "assumption_query"
                 else str(expected) == str(actual)
                 if operation == "relation"
+                else compound_equivalent(expected, actual)
+                if operation == "compound"
                 else equivalent(expected, actual, names)
             ),
             "expected": result_text(expected),
@@ -218,6 +266,15 @@ def benchmark_workload(
                 native_x = native.Symbol("relation_x_warm")
                 oracle_call = lambda: oracle.Gt(oracle_x, 1)
                 native_call = lambda: native.Gt(native_x, 1)
+            elif operation == "compound":
+                oracle_x = oracle.Symbol("compound_x_warm")
+                native_x = native.Symbol("compound_x_warm")
+                oracle_call = lambda: oracle.And(
+                    oracle.Gt(oracle_x, 1), oracle.Ne(oracle_x, 0)
+                )
+                native_call = lambda: native.And(
+                    native.Gt(native_x, 1), native.Ne(native_x, 0)
+                )
     else:
         def make_call(engine: Any) -> Callable[[], Any]:
             counter = {"value": 0}
@@ -234,6 +291,8 @@ def benchmark_workload(
                     return engine.refine(expression, engine.Q.positive(variable))
                 if operation == "relation":
                     return engine.Gt(variable, 1)
+                if operation == "compound":
+                    return engine.And(engine.Gt(variable, 1), engine.Ne(variable, 0))
                 return getattr(engine, operation)(expression)
 
             return call
@@ -287,7 +346,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "relation", "factor",
+        "expand", "differentiate", "simplify", "refine", "relation", "compound", "factor",
         "assumption_query"
     ):
         for scope in ("cold_end_to_end", "warm_core"):

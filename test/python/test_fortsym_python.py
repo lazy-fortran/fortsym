@@ -1,4 +1,6 @@
 import gc
+import subprocess
+import sys
 import unittest
 from fractions import Fraction
 
@@ -40,7 +42,16 @@ class NativePackageTest(unittest.TestCase):
             fortsym.Rational(huge_fraction.numerator, huge_fraction.denominator).exact_text,
             f"{huge_fraction.numerator}/{huge_fraction.denominator}",
         )
-        self.assertNotIn("sympy", __import__("sys").modules)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import sys; import fortsym; "
+                "assert 'sympy' not in sys.modules",
+            ],
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0)
 
     def test_foreign_arena_is_rejected(self):
         left = fortsym.Arena()

@@ -160,9 +160,10 @@ nonnegative_y = with_assumption(base, nonnegative(y), good)
 result = simplify(sqrt(x**2), assumptions=positive_x)
 ```
 
-The same value-style constructor accepts a bounded relational expression from
-the facade. Positive and nonnegative facts are derived from exact positive or
-zero lower bounds:
+The same value-style constructor accepts bounded relational expressions from
+the facade. Positive/nonnegative facts are derived from exact positive or zero
+lower bounds; negative/nonpositive facts are derived from exact negative or
+zero upper bounds:
 
 ```fortran
 relation_context = with_assumption(base, greater(x, num(a, 1)), good)
@@ -170,13 +171,16 @@ result = refine(sqrt(x**2), assumptions=relation_context)
 ```
 
 `equal`, `unequal`, `less`, `less_equal`, `greater`, and `greater_equal` keep
-the native relation vocabulary in snake_case. Only lower bounds that imply a
-supported sign fact, plus `unequal(expression, 0)`, are ingested currently;
-unsupported upper or negative lower bounds and foreign-arena relations are
-refused.
+the native relation vocabulary in snake_case. Exact equality records zero or
+the corresponding sign, `unequal(expression, 0)` records nonzero, and `And`
+relations are ingested transactionally. Bounds that do not imply a supported
+sign and foreign-arena relations are refused.
 
-The supported constructors are `real_valued`, `positive`, `nonnegative`, and
-`nonzero`. `simplify`, `refine`, `expand`, `factor`, `diff`, and `zero_test`
+The supported constructors are `real_valued`, `zero`, `negative`,
+`nonpositive`, `positive`, `nonnegative`, and `nonzero`. Sign facts close over
+their sound implications; nonnegative plus nonpositive infers zero, while
+contradictory facts are refused with an explanatory `ok`/diagnostic result.
+`simplify`, `refine`, `expand`, `factor`, `diff`, and `zero_test`
 accept the optional `assumptions=` context. `refine` is the named entry point
 for applying these supported facts; it shares guarded rewrite ownership with
 the native simplifier. A context from another arena is refused with a
