@@ -40,6 +40,7 @@ target_sources(fortsym PRIVATE
     algebra/fortsym_linalg.f90
     algebra/fortsym_complexdom.f90
     algebra/fortsym_integrate.f90
+    algebra/fortsym_poly.f90
     algebra/fortsym_polysolve.f90
 
     # multi-engine adjudication

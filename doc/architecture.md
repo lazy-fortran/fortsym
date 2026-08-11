@@ -25,7 +25,8 @@ naming rule and lifetime contract.
    derivative products.
 4. `src/engine` declares operations and wraps native or external algorithms.
 5. `src/algebra` implements deterministic exact operations over expression
-   arrays, beginning with dense rational linear systems.
+   arrays, including dense rational linear systems and the bounded sparse
+   multivariate polynomial/rational layer.
 6. `src/council` compares supported engine answers and records disagreement.
 7. `src/verify` supplies independent real evaluation and three-valued checks.
 8. `src/codegen` selects shared subexpressions and emits Fortran kernels.
@@ -68,6 +69,14 @@ machine registers or runtime performance.
 An engine capability is a promise that its corresponding type-bound operation
 is callable. A capability bit without an operation entry point is invalid and
 must not be used for dispatch.
+
+The polynomial layer treats opaque subexpressions as exact generators, so a
+proved polynomial identity remains valid when those generators are mapped back
+to expression nodes. It uses checked rational coefficients and refuses on
+overflow, floating-point coefficients, resource limits, or factorisation that
+has not been proved complete. Together, cancel, apart, GCD, division,
+coefficient, collect, exponent, and numerator/denominator operations therefore
+return either an exact expression or a named refusal.
 
 Fortran kernel emission uses the dialect's declared function map rather than
 passing symbolic heads through as identifiers. Standard intrinsics cover
