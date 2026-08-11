@@ -137,6 +137,14 @@ arctangent/arcsine cases are covered; unsupported Hermite/Rothstein--Trager
 shapes remain named refusals. Independent Simpson quadrature checks the new
 antiderivatives.
 
+Issue #32 (native limits) is complete as of 2026-08-11 for the bounded exact
+limit layer: continuity substitution, capped L'Hopital reduction, rational
+degree comparison at both infinities, and restricted exponential/power/log
+growth ordering are implemented with two-sided domain checks. Independent
+approach sampling verifies finite and infinite results, while poles,
+oscillation, one-sided-only behavior, undecidable growth, and cap exhaustion
+remain explicit refusals.
+
 Issue #40 (public trig and power rewrites) is complete as of 2026-08-10:
 `trig_expand`, `trig_reduce`, `trig_to_exp`, `exp_to_trig`, and guarded
 `power_expand` are public operations returning rewritten expressions plus an
@@ -790,6 +798,10 @@ inversion, series of special functions.
   fortsym-bench found this on its first corpus entry.
 
 ### M4 — Limits (#32) · 137 sites
+
+Issue #32 is complete for the bounded limit layer above. General Gruntz-style
+most-rapidly-varying subexpressions and one-sided limits remain outside this
+decision procedure and are refused rather than inferred from samples.
 
 - **Gruntz's algorithm** (Gruntz 1996) over most-rapidly-varying subexpressions.
   It is the only method in wide use that is correct on nested exponentials, and
