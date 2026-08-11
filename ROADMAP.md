@@ -274,6 +274,9 @@ Every checklist item requires all of the following:
       - [x] Complete structural conjugation for meromorphic tangent heads with
         per-context memoization; matched warm native workloads are about 12x
         faster than SymPy for `tan` and 11x faster for `tanh`.
+      - [x] Add principal-branch `log` rectangular splitting as
+        `log(sqrt(Re**2 + Im**2)) + i*Arg`, with a zero-argument refusal,
+        independent complex evaluation, and matched benchmark rows.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
