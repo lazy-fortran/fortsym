@@ -237,6 +237,15 @@ remain hard refusals. The kernel test compiles the generated snippet and checks
 the procedure value, first derivative, and symmetric mixed Hessian slot against
 an independent evaluator and finite differences.
 
+Issue #38 is complete for the evidenced conditional fragment as of
+2026-08-11. Symbolic `Piecewise`, `If`, and `Boole` nodes now simplify exact
+numeric predicates, differentiate branchwise while preserving conditions, and
+emit ordered Fortran `merge` expressions. Malformed branch lists, undecidable
+predicates outside the emitted logical relation vocabulary, and boundary
+derivative claims remain explicit refusals or caller obligations. The compiler
+fixture samples both sides of every branch boundary and checks the generated
+kernel against the direct definition.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.
@@ -829,6 +838,14 @@ unsupported or unsafe cases by name. The Wolfram frontend lowers `Sum` and
 symbolic and concrete bounds, empty ranges, products, overflow-sized spans,
 and refusal cases; unrestricted hypergeometric summation remains outside the
 fragment.
+
+Issue #38 is complete for ordered symbolic branch expressions. The native
+engine discharges exact relational predicates and drops unreachable branches;
+the differentiation path preserves each branch condition; and the Fortran
+printer lowers `Piecewise`, `If`, and `Boole` to typed, ordered `merge`
+expressions. The independent compiler/run oracle covers branch interiors,
+boundaries, and the default branch. General condition solving and derivatives
+at discontinuity boundaries remain outside this fragment.
 
 ### M13 — Codegen completion (#41, #42)
 

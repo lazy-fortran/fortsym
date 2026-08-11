@@ -164,6 +164,14 @@ or array expression, or a procedure-call template containing `%args%`. An
 unbound applied head is refused before source emission, so generated Fortran
 never silently invents an external procedure or variable.
 
+Conditional scalar nodes use the same explicit boundary. `Piecewise` stores a
+`List` of ordered `{value, condition}` pairs followed by its default value;
+`If` and `Boole` carry their ordinary condition and branch arguments. The
+native engine simplifies only exact numeric relations, differentiation is
+branchwise, and the Fortran scalar emitter uses typed nested `merge` calls.
+Predicates outside the supported relational/logical vocabulary are refused;
+the derivative at a branch boundary is not asserted by the library.
+
 ## Backend contract
 
 Every operation returns a result with:
