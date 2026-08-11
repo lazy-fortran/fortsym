@@ -152,6 +152,7 @@ def gamma_domain_expression(engine: Any, suffix: str) -> Any:
     y = engine.Symbol(f"domain_gamma_y_{suffix}")
     return (
         engine.gamma(infinity) + engine.loggamma(infinity)
+        + engine.factorial(infinity)
         + (x + y + 1)**4
     )
 

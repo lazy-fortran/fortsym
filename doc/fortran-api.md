@@ -112,6 +112,8 @@ applications remain unevaluated.
 The gamma heads add the representable limits `gamma(oo)=oo` and
 `loggamma(oo)=oo`; `loggamma(-oo)` and `loggamma(zoo)` are `zoo`, while
 pole-sensitive `gamma(-oo)` and `gamma(zoo)` remain unevaluated.
+The shared positive-infinity branch also gives `factorial(oo)=oo`; its
+negative and complex-infinity applications remain unevaluated.
 
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a

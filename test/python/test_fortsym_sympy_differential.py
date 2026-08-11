@@ -407,6 +407,7 @@ class SympyDifferentialTest(unittest.TestCase):
     def test_gamma_domain_heads_match_oracle(self):
         cases = [
             (oracle.gamma(oracle.oo), native.gamma(native.oo)),
+            (oracle.factorial(oracle.oo), native.factorial(native.oo)),
             (oracle.loggamma(oracle.oo), native.loggamma(native.oo)),
             (oracle.loggamma(-oracle.oo), native.loggamma(-native.oo)),
             (oracle.loggamma(oracle.zoo), native.loggamma(native.zoo)),
@@ -420,6 +421,8 @@ class SympyDifferentialTest(unittest.TestCase):
         for expected, actual in [
             (oracle.gamma(-oracle.oo), native.gamma(-native.oo)),
             (oracle.gamma(oracle.zoo), native.gamma(native.zoo)),
+            (oracle.factorial(-oracle.oo), native.factorial(-native.oo)),
+            (oracle.factorial(oracle.zoo), native.factorial(native.zoo)),
         ]:
             with self.subTest(expected=str(expected)):
                 self.assertIsInstance(expected, oracle.Function)
