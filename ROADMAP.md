@@ -549,6 +549,12 @@ scalar linear cases, polynomial heads, and `DSolve`/`NDSolve`.
 
 ### The oracle ceiling (#47)
 
+Issue #47 is complete as of 2026-08-11: the original 39% ceiling is
+superseded by the refreshed benchmark measurement below, and the reporting
+rule is now part of the roadmap. The remaining ceiling-raising work belongs
+to the corpus tracker (#27), oracle defect reports, or a future third-oracle
+task rather than this finding.
+
 That number is now established, and it changes the target.
 
 | | scripts | share |
