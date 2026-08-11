@@ -45,7 +45,7 @@ module fortsym_complexdom
         NK_BIG_REAL, NK_ALGEBRAIC
     use fortsym_cache, only: expr_cache_t, expr_pair_cache_t
     use fortsym_expr, only: expr_t, num, algebraic_expr, i_expr, is_valid, &
-        sin, cos, tan, sinh, cosh, tanh, exp, sqrt, atan2, &
+        sin, cos, tan, sinh, cosh, tanh, exp, log, sqrt, atan2, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_algebraic, only: algebraic_re, algebraic_im, algebraic_conjugate
     use fortsym_assume, only: assumption_context_t, FACT_REAL
@@ -345,8 +345,9 @@ contains
     !> Exp, Sin, Cos, Sinh, Cosh, Tan, and Tanh. The first five are entire and
     !> use their addition formulas. Tan and Tanh use rectangular quotients and
     !> refuse an identically zero denominator; the denominator remains visible
-    !> for a possible pointwise pole. Every other head, including Log and Sqrt,
-    !> is refused.
+    !> for a possible pointwise pole. Log uses the principal `log(abs) + i*Arg`
+    !> form and refuses a proven zero argument. Sqrt and every other head remain
+    !> refused.
     recursive subroutine split_function(e, facts, re, im, ok, why)
         type(expr_t),               intent(in)  :: e
         type(assumption_context_t), target, intent(in)  :: facts
@@ -364,10 +365,10 @@ contains
             return
         end if
         select case (name)
-        case ("exp", "sin", "cos", "sinh", "cosh", "tan", "tanh")
+        case ("exp", "sin", "cos", "sinh", "cosh", "tan", "tanh", "log")
         case default
             why = "no complex rule for head "//name// &
-                " (only exp, sin, cos, sinh, cosh, tan, and tanh are split)"
+                " (only exp, sin, cos, sinh, cosh, tan, tanh, and log are split)"
             return
         end select
 
@@ -392,6 +393,9 @@ contains
             im = sinh(a)*sin(b)
         case ("tan", "tanh")
             call split_tangent_function(name, a, b, re, im, ok, why)
+            return
+        case ("log")
+            call split_log(a, b, re, im, ok, why)
             return
         end select
         ok = .true.
@@ -451,6 +455,43 @@ contains
         end select
         ok = .true.
     end subroutine split_tangent_function
+
+    !> Split the principal logarithm for real a and b. This is SymPy's
+    !> `log(sqrt(a**2 + b**2)) + i*arg(a + i*b)` form. The origin is the one
+    !> singularity of the logarithm; an expression proved to be that origin is
+    !> refused instead of producing log(0) and an arbitrary angle.
+    subroutine split_log(a, b, re, im, ok, why)
+        type(expr_t),              intent(in)  :: a, b
+        type(expr_t),              intent(out) :: re, im
+        logical,                   intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(expr_t) :: modulus
+
+        ok = .false.
+        why = ""
+        if (structurally_zero(a)) then
+            if (structurally_zero(b)) then
+                why = "log is undefined: its complex argument is identically "// &
+                    "zero"
+                return
+            end if
+            if (provably_zero(b)) then
+                why = "log is undefined: its complex argument is identically "// &
+                    "zero"
+                return
+            end if
+        else if (structurally_zero(b)) then
+            if (provably_zero(a)) then
+                why = "log is undefined: its complex argument is identically "// &
+                    "zero"
+                return
+            end if
+        end if
+        modulus = sqrt(a*a + b*b)
+        re = log(modulus)
+        im = atan2(b, a)
+        ok = .true.
+    end subroutine split_log
 
     !> Re[e] as a real expression, or a refusal.
     subroutine re_part(e, facts, out, ok, why)

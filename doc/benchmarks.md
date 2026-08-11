@@ -102,22 +102,25 @@ declared differences or oracle disagreements are present.
 
 The committed `bench_complexdom` target, based on the 2026-08-11 working tree,
 times 10,000 alternating `sinh` and `cosh` rectangular splits, 10,000 `tan`
-rectangular splits, 10,000 `tanh` rectangular splits, and 10,000 structural
-conjugations of both tangent heads on prebuilt expressions. Native Fortran took
-79.392 ms cold and 0.703 ms warm for the first workload; matched SymPy 1.14.0
-took 6.566109 s cold and 9.389 ms warm. Native was therefore about 83x faster
-cold and 13x faster warm. For `tan` splitting, native took 120.123 ms cold and
-0.683 ms warm, while SymPy took 16.236093 s cold and 13.072 ms warm; native was
-about 135x faster cold and 19x faster warm. For `tanh` splitting, native took
-109.459 ms cold and 0.758 ms warm, while SymPy took 14.985402 s cold and
-12.575 ms warm; native was about 137x faster cold and 17x faster warm. For
-structural `conjugate(tan(...))`, native took 15.505 ms cold and 0.631 ms warm,
-while SymPy took 12.283449 s cold and 7.448 ms warm; native was about 792x
-faster cold and 12x faster warm. For `conjugate(tanh(...))`, native took 15.843
-ms cold and 0.655 ms warm, while SymPy took 12.296273 s cold and 7.207 ms warm;
-native was about 776x faster cold and 11x faster warm. These rows are diagnostic
-rather than a release baseline; broader complex-domain workloads and a pinned
-machine record remain open.
+rectangular splits, 10,000 `tanh` rectangular splits, 10,000 principal-branch
+`log` splits, and 10,000 structural conjugations of both tangent heads on
+prebuilt expressions. Native Fortran took 72.883 ms cold and 0.708 ms warm for
+the first workload; matched SymPy 1.14.0 took 6.566109 s cold and 9.389 ms
+warm. Native was therefore about 90x faster cold and 13x faster warm. For
+`tan` splitting, native took 115.868 ms cold and 0.663 ms warm, while SymPy took
+16.236093 s cold and 13.072 ms warm; native was about 140x faster cold and 20x
+faster warm. For `tanh` splitting, native took 102.566 ms cold and 0.705 ms
+warm, while SymPy took 14.985402 s cold and 12.575 ms warm; native was about
+146x faster cold and 18x faster warm. For `log` splitting, native took 104.091
+ms cold and 0.637 ms warm, while SymPy took 42.552546 s cold and 14.554 ms
+warm; native was about 409x faster cold and 23x faster warm. For structural
+`conjugate(tan(...))`, native took 15.147 ms cold and 0.578 ms warm, while
+SymPy took 12.283449 s cold and 7.448 ms warm; native was about 811x faster
+cold and 13x faster warm. For `conjugate(tanh(...))`, native took 15.672 ms
+cold and 0.612 ms warm, while SymPy took 12.296273 s cold and 7.207 ms warm;
+native was about 785x faster cold and 12x faster warm. These rows are
+diagnostic rather than a release baseline; broader complex-domain workloads
+and a pinned machine record remain open.
 
 `fo exec bench_native` writes CSV rows for warm, batched end-to-end native and
 SymEngine simplify, differentiation, and expansion calls. Each row includes a

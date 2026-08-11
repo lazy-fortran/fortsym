@@ -99,7 +99,8 @@ exact. Structural conjugation commutes with the supported heads `exp`, `sin`,
 splitting also covers the entire heads `exp`, `sin`, `cos`,
 `sinh`, and `cosh` through their addition identities. `tanh` is also split
 through its rectangular quotient, and `tan` through the corresponding
-meromorphic quotient; an identically zero denominator is refused, while a
+meromorphic quotient; `log` uses the principal `log(abs) + i*Arg` form. An
+identically zero denominator or logarithm argument is refused, while a
 nontrivial denominator remains in the result to preserve pointwise poles. The
 same branch and reality refusals apply to other unsupported expressions.
 

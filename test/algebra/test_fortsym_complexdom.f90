@@ -62,6 +62,7 @@ program test_fortsym_complexdom
     call test_supported_function_splits()
     call test_hyperbolic_pole_refused()
     call test_tangent_pole_refused()
+    call test_log_zero_refused()
     call test_unknown_reality_refused()
     call test_branch_cases_refused()
     call test_unknown_heads_refused()
@@ -325,6 +326,7 @@ contains
         call check_supported_function("cosh")
         call check_supported_function("tan")
         call check_supported_function("tanh")
+        call check_supported_function("log")
     end subroutine test_supported_function_splits
 
     subroutine check_supported_function(name)
@@ -427,8 +429,8 @@ contains
         call ok("symbolic exponent is refused", .not. good)
 
         e = func_one("log", z)
-        call re_part(e, facts, out, good, why)
-        call ok("log is refused", .not. good)
+        call conjugate(e, facts, out, good, why)
+        call ok("conj of log is refused across its branch cut", .not. good)
 
         e = func_one("sqrt", z)
         call conjugate(e, facts, out, good, why)
@@ -442,6 +444,28 @@ contains
         call re_part(e, facts, out, good, why)
         call ok("an oversized power is refused", .not. good)
     end subroutine test_branch_cases_refused
+
+    subroutine test_log_zero_refused()
+        type(expr_t) :: e, re, im
+        logical :: good
+        character(:), allocatable :: why
+
+        e = func_one("log", num(arena, 0))
+        call complex_split(e, facts, re, im, good, why)
+        call ok("log at zero is refused", .not. good)
+        if (.not. good) then
+            call ok("log zero refusal names the singularity", &
+                index(why, "identically zero") > 0)
+        end if
+
+        e = func_one("log", num(arena, -1))
+        call complex_split(e, facts, re, im, good, why)
+        call ok("log on the negative real axis is accepted", good)
+        if (good) then
+            call ok("log negative real branch has argument pi", &
+                abs(at(im, 1) - cmplx(acos(-1.0_dp), 0.0_dp, dp)) < TOL)
+        end if
+    end subroutine test_log_zero_refused
 
     subroutine test_unknown_heads_refused()
         type(expr_t) :: e, out
