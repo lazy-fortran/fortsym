@@ -192,7 +192,11 @@ suites use the same input formulae, shifts, warmup counts, batches, validation
 points, and correctness oracles. The Python C-ABI arena retains its native
 engine and memoization caches across warm calls, while scoped assumptions are
 synchronized before each operation. The Python facade also reuses an expanded
-result for the same expression until the arena's assumption epoch changes.
+result for the same expression until the arena's assumption epoch changes, and
+reuses simplified derivatives for repeated `(expression, variable)` calls.
+The matched differentiation diagnostic after that cache was added measured
+native/SymPy ratios of about 0.14 cold and 0.06 warm; the remaining full-suite
+50-workload enforced parity run also passed.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
 text validation, FLINT reconstruction, the exact operation, canonical

@@ -455,8 +455,8 @@ def diff(expression, *variables, **_):
         raise UnsupportedOperationError("differentiation options")
     result = sympify(expression)
     for variable in variables:
-        result = result.diff(sympify(variable))
-    return result.simplify()
+        result = result._diff_simplified(sympify(variable))
+    return result if variables else result.simplify()
 
 
 def subs(expression, substitutions, new=None):

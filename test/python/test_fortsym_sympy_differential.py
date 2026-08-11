@@ -666,6 +666,22 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assert_equivalent("assumption-invalidated expansion", expected_real,
                                 actual_real)
 
+    def test_differentiation_cache_matches_oracle(self):
+        oracle_x, oracle_y = oracle.symbols("differential_diff_cache_x y")
+        native_x, native_y = native.symbols("differential_diff_cache_x y")
+        oracle_expression = oracle.exp(oracle_x * oracle_y)
+        native_expression = native.exp(native_x * native_y)
+        oracle_first = oracle.diff(oracle_expression, oracle_x)
+        oracle_second = oracle.diff(oracle_expression, oracle_x)
+        native_first = native.diff(native_expression, native_x)
+        native_second = native.diff(native_expression, native_x)
+        self.assertIs(oracle_second, oracle_first)
+        self.assertIs(native_second, native_first)
+        self.assert_equivalent("first cached derivative", oracle_first,
+                                native_first)
+        self.assert_equivalent("second cached derivative", oracle_second,
+                                native_second)
+
     def test_three_valued_zero_predicates(self):
         oracle_cases = self.predicate_cases(oracle)
         native_cases = self.predicate_cases(native)

@@ -470,6 +470,7 @@ class Expr:
         self._pretty = False
         self._expanded_result = None
         self._expanded_epoch = -1
+        self._diff_results = {}
         self._complex_results = {}
 
     def _require(self):
@@ -479,6 +480,7 @@ class Expr:
 
     def close(self):
         self._expanded_result = None
+        self._diff_results.clear()
         self._complex_results.clear()
         if self._handle is not None:
             self._lib.expr_free(self._handle)
@@ -558,6 +560,20 @@ class Expr:
         variable = self._arena._check(variable)
         return self._arena._result(self._lib.differentiate, self._arena._require(),
                                    self._require(), variable._handle)
+
+    def _diff_simplified(self, variable):
+        variable = self._arena._check(variable)
+        key = variable.exact_text
+        cached = self._diff_results.get(key)
+        if cached is not None and cached._handle is not None:
+            return cached
+        raw = self.diff(variable)
+        try:
+            result = raw.simplify()
+        finally:
+            raw.close()
+        self._diff_results[key] = result
+        return result
 
     def expand(self):
         cached = self._expanded_result
