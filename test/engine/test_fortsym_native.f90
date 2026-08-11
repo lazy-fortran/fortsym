@@ -443,6 +443,7 @@ contains
         type(expr_t) :: args(2)
         type(expr_t) :: loggamma_args(1)
         type(expr_t) :: extremum_args(3)
+        type(expr_t) :: legendre_args(3)
 
         ! Independent exact oracles: erf(0)=0, erfc(0)=1,
         ! Gamma(n)=(n-1)!, Gamma(1/2)=sqrt(pi), and positive integer
@@ -497,6 +498,32 @@ contains
         loggamma_args(1) = num(arena, 12_int64)
         r = engine%simplify(func("log10", loggamma_args))
         call check("non-power-of-ten log10 remains opaque", &
+            r%value%kind() == NK_FUNC)
+
+        legendre_args(1) = num(arena, 0_int64)
+        legendre_args(2) = num(arena, 0_int64)
+        legendre_args(3) = x
+        r = engine%simplify(func("legendrep", legendre_args))
+        call check("LegendreP(0,0,x) simplifies to one", &
+            r%value == num(arena, 1_int64))
+        legendre_args(1) = num(arena, 3_int64)
+        r = engine%simplify(func("legendrep", legendre_args))
+        call check("LegendreP(3,0,x) simplifies successfully", r%ok)
+        call check_values("LegendreP(3,0,x) matches its defining polynomial", &
+            r%value, (5*x**3 - 3*x)/2, 0.3_dp, 1.0e-13_dp)
+        legendre_args(3) = rat(arena, 3_int64, 10_int64)
+        r = engine%simplify(func("legendrep", legendre_args))
+        call check("LegendreP(3,0,3/10) is exact", &
+            r%value == rat(arena, -153_int64, 400_int64))
+        legendre_args(2) = num(arena, 1_int64)
+        legendre_args(3) = x
+        r = engine%simplify(func("legendrep", legendre_args))
+        call check("associated Legendre order remains opaque", &
+            r%value%kind() == NK_FUNC)
+        legendre_args(1) = num(arena, 17_int64)
+        legendre_args(2) = num(arena, 0_int64)
+        r = engine%simplify(func("legendrep", legendre_args))
+        call check("over-cap Legendre degree remains opaque", &
             r%value%kind() == NK_FUNC)
 
         extremum_args(1) = num(arena, 3_int64)
