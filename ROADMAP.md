@@ -107,6 +107,14 @@ factorisation. Independent tests check value preservation, divisibility,
 coefficient reconstruction, factor multiplication, and explicit refusals for
 unsupported high-degree and floating-point inputs.
 
+Issue #29 (assumption ranges, domains, and scoped contexts) is complete as of
+2026-08-11 for the bounded exact fact fragment: relation recording accepts
+conjunctions, lower inequalities against exact integer/rational bounds, exact
+zero/nonzero relations, and real/integer domain membership. Positive and
+nonnegative implications are derived soundly, and contexts can be cloned for
+scoped evaluation without leaking facts. Unsupported upper-bound inference
+remains an explicit refusal.
+
 Issue #31 (native integration) is complete as of 2026-08-11 for the bounded
 exact fragment: native integration now sends exact rational inputs through
 partial fractions before applying its verified elementary rules. Distinct and
@@ -742,6 +750,11 @@ resultant, `cancel`, `together`, `apart`, `factor`.
 - Oracle: divisibility, Bezout, and finite-field evaluation — not another CAS.
 
 ### M2 — Assumptions (#29) · 895 sites
+
+Issue #29 is complete for the bounded exact fragment above. The public
+assumption context records sound lower-bound and domain implications, and a
+clone is the scope boundary for nested transformations. General inequality
+solving and upper-bound propagation remain outside this decision procedure.
 
 Inequality ranges, domain membership, scoped contexts, `refine`, compound
 inference.

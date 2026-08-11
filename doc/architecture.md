@@ -198,8 +198,11 @@ Every operation returns a result with:
 
 Domain assumptions and conditional results use an explicit context and
 condition field. They must not be encoded in a backend-specific global state.
-The assumption context will begin with `real`, `positive`, `nonnegative`, and
-`nonzero` facts on symbols and expressions.
+The assumption context records `real`, `positive`, `nonnegative`, `nonzero`,
+and integer-domain facts on symbols and expressions. Exact lower relations,
+conjunctions, and `Element` membership derive only implications that are
+provably valid; cloned contexts provide scoped refinement without mutating the
+parent. Unsupported upper-bound inference is refused rather than guessed.
 
 External engines remain optional. A native operation must not silently invoke
 an external engine. Benchmarks record native operation time, conversion time,
