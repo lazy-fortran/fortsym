@@ -1816,11 +1816,36 @@ contains
         logical :: exact
         logical :: factorial_ok
         logical :: trig_constant_ok
+        logical :: negated_argument, odd_head, even_head
         integer :: trig_constant
+        integer :: positive_argument
         integer :: bessel_args(2), pair(2), one_arg(1)
 
         out = a%func(name, args)
         if (size(args) == 0) return
+
+        call split_negated_argument(a, args(1), positive_argument, &
+            negated_argument)
+        odd_head = .false.
+        even_head = .false.
+        select case (name)
+        case ("sin", "tan", "sinh", "tanh", "csc", "cot", "csch", &
+                "coth", "asin", "atan", "asinh", "atanh")
+            odd_head = .true.
+        case ("cos", "cosh", "sec", "sech")
+            even_head = .true.
+        end select
+        if (negated_argument .and. (odd_head .or. even_head)) then
+            one_arg(1) = positive_argument
+            if (odd_head) then
+                pair(1) = a%int(-1_int64)
+                pair(2) = a%func(name, one_arg)
+                out = simplify_mul(a, pair)
+            else
+                out = a%func(name, one_arg)
+            end if
+            return
+        end if
 
         select case (name)
         case ("Piecewise")
@@ -2164,6 +2189,41 @@ contains
         end if
         ok = .true.
     end subroutine exact_absolute_value
+
+    subroutine split_negated_argument(a, id, positive, ok)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: positive
+        logical, intent(out) :: ok
+        integer :: first, second
+
+        positive = id
+        ok = .false.
+        if (a%kind_of(id) /= NK_MUL) return
+        if (a%nargs_of(id) /= 2) return
+        first = a%arg_of(id, 1)
+        second = a%arg_of(id, 2)
+        if (is_minus_one_id(a, first)) then
+            positive = second
+        else if (is_minus_one_id(a, second)) then
+            positive = first
+        else
+            return
+        end if
+        ok = .true.
+    end subroutine split_negated_argument
+
+    function is_minus_one_id(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical :: yes
+        integer(int64) :: numerator, denominator
+        logical :: exact
+
+        yes = .false.
+        call exact_value(a, id, numerator, denominator, exact)
+        if (exact) yes = numerator == -1_int64 .and. denominator == 1_int64
+    end function is_minus_one_id
 
     subroutine exact_sign_value(a, id, out, ok)
         type(arena_t), intent(inout) :: a

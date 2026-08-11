@@ -199,6 +199,9 @@ rationals as well, while symbolic absolute values and the unrepresentable
 minimum signed integer retain their conservative forms.
 Exact rational `sign`, `floor`, and `ceiling` values now canonicalize directly,
 including negative nonintegral quotients; symbolic rounding remains opaque.
+Canonical parity handling now rewrites negative arguments for the ordinary and
+reciprocal circular/hyperbolic odd and even heads, with inverse odd functions
+included where their principal branches preserve the identity.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.
