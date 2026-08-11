@@ -170,6 +170,20 @@ class SympySubsetTest(unittest.TestCase):
             "exp(domain_function_x*oo)",
         )
 
+    def test_directed_atan2_heads(self):
+        cases = [
+            (sp.atan2(sp.oo, sp.oo), sp.Integer(0)),
+            (sp.atan2(-sp.oo, sp.oo), sp.Integer(0)),
+            (sp.atan2(sp.oo, -sp.oo), sp.pi),
+            (sp.atan2(-sp.oo, -sp.oo), sp.Integer(-1) * sp.pi),
+        ]
+        for expression, expected in cases:
+            with self.subTest(expression=str(expression)):
+                self.assertEqual(sp.simplify(expression), expected)
+        self.assertIsInstance(
+            sp.simplify(sp.atan2(sp.zoo, sp.oo)), sp.Function
+        )
+
     def test_noninteger_domain_powers(self):
         cases = [
             (sp.oo**sp.Rational(1, 2), sp.oo),

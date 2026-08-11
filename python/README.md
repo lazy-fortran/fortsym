@@ -29,13 +29,17 @@ does not import SymPy. Unsupported names raise
 | `real=True`, `zero=True`, `positive=True`, `nonnegative=True`, `nonzero=True`, `negative=True`, `nonpositive=True` | native arena facts; sign facts close to real/nonzero/zero implications and contradictory combinations raise `InconsistentAssumptions` |
 | `Q.real`, `Q.zero`, `Q.positive`, `Q.nonnegative`, `Q.nonzero`, `Q.negative`, `Q.nonpositive`, `ask`, `assuming`, `And` | nested, reversible assumption queries and transactional compound scopes backed by the native arena context; bounded relational facts are accepted in scopes |
 | `Add`, `Mul`, `Pow`, `Function` | native operator construction; `isinstance` checks use native node kinds |
-| `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `sinh`, `cosh`, `tanh`, `csch`, `sech`, `coth`, `erf`, `erfc`, `gamma`, `loggamma`, `factorial`, `asinh`, `acosh`, `atanh`, `exp`, `log`, `sqrt`, `Abs`, `sign`, `floor`, `ceiling` | native applied-function nodes; direct sentinel rules for the declared heads match SymPy where the result is representable, while accumulation-bound and pole-sensitive cases remain explicit refusals |
+| `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`, `csch`, `sech`, `coth`, `erf`, `erfc`, `gamma`, `loggamma`, `factorial`, `asinh`, `acosh`, `atanh`, `exp`, `log`, `sqrt`, `Abs`, `sign`, `floor`, `ceiling` | native applied-function nodes; direct sentinel rules for the declared heads match SymPy where the result is representable, while accumulation-bound and pole-sensitive cases remain explicit refusals |
 | `diff`, `Derivative` | native differentiation, including repeated variables; `evaluate=False` retains a typed wrapper with `.doit()` |
 | `subs`, `expand` | native substitution and expansion |
 | `Subs` | typed wrapper with `.doit()` for explicit `(old, new)` pairs |
 | `simplify`, `refine`, `factor` | native bounded simplification, principal-square-root powers, safe compact-rational `oo`/`zoo` powers, signed/zero-guarded `sqrt`/`Abs` refinement, direct known-domain rules for the supported elementary heads, real/nonzero-guarded `log`/`exp` composition, and polynomial factorisation; unsupported domain rewrites and refinement assumptions are refused |
 | `Eq`, `Ne`, `Gt`, `Ge`, `Lt`, `Le` and `Expr` comparisons | SymPy-compatible relational constructor spellings at the adapter boundary; exact sign/zero bounds and transactional `And` facts are ingested by native scopes |
 | `together`, `cancel`, `apart`, `collect`, `integrate`, `limit`, `series`, `solve`, `Matrix` | explicit refusal until their semantics are covered |
+
+For `atan2(y, x)`, the adapter evaluates the representable directed-infinity
+quadrants for `y` and `x` both equal to `+oo` or `-oo`; complex infinity and
+other ambiguous domain cases remain applied heads.
 
 The compatibility layer guarantees native structural equality only for
 operations listed as construction or transformation above. Unsupported

@@ -360,6 +360,7 @@ tan = _named_function("tan")
 asin = _named_function("asin")
 acos = _named_function("acos")
 atan = _named_function("atan")
+atan2 = _named_function("atan2")
 sinh = _named_function("sinh")
 cosh = _named_function("cosh")
 tanh = _named_function("tanh")
@@ -452,7 +453,7 @@ __all__ = [
     "InconsistentAssumptions",
     "Symbol", "symbols", "sympify", "Integer", "Rational", "Float",
     "Add", "Mul", "Pow", "Function", "Derivative", "Subs", "sin", "cos",
-    "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "csch",
+    "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "csch",
     "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial",
     "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign",
     "floor", "ceiling", "diff", "subs", "expand",

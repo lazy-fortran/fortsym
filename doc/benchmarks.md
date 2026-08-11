@@ -70,7 +70,8 @@ simplification, signed refinement, real/nonzero-guarded `log`/`exp` composition,
 principal-square-root powers, direct domain-function simplification of
 `sqrt(-oo)`, gamma-family domain-head simplification, inverse domain-head
 simplification, and reciprocal-hyperbolic domain-head simplification embedded
-in a symbolic fourth-degree expression,
+in a symbolic fourth-degree expression, directed-infinity `atan2` domain-head
+simplification,
 and the principal
 `(-oo)**(3/2)` domain-power branch, relational
 and compound-assumption construction, factorization, and supported assumption
