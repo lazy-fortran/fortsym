@@ -1196,6 +1196,24 @@ contains
         args(3) = complex_infinity
         r = engine%simplify(func("legendrep", args))
         call check("legendre(3,zoo) is nan", r%value == nan_expr(arena))
+        args(1) = num(arena, -1_int64)
+        args(3) = infinity
+        r = engine%simplify(func("legendrep", args))
+        call check("legendre(-1,oo) is one", &
+            r%value == num(arena, 1_int64))
+        args(1) = num(arena, -2_int64)
+        args(3) = negative_infinity
+        r = engine%simplify(func("legendrep", args))
+        call check("legendre(-2,-oo) is negative oo", &
+            r%value == negative_infinity)
+        args(1) = num(arena, -3_int64)
+        args(3) = infinity
+        r = engine%simplify(func("legendrep", args))
+        call check("legendre(-3,oo) is oo", r%value == infinity)
+        args(1) = num(arena, -4_int64)
+        args(3) = complex_infinity
+        r = engine%simplify(func("legendrep", args))
+        call check("legendre(-4,zoo) is nan", r%value == nan_expr(arena))
         args(1) = rat(arena, 1_int64, 2_int64)
         r = engine%simplify(func("legendrep", args))
         call check("noninteger legendre degree remains an applied head", &

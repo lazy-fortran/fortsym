@@ -70,7 +70,7 @@ id = "applied-functions"
 affected = ["Function", "sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "csch", "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial", "besselj", "besseli", "legendre", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign", "floor", "ceiling"]
 parity = "partial"
 sympy = "SymPy function classes apply function-specific evaluation, assumptions, rewrites, and special-function rules."
-fortsym = "The adapter creates native applied-function nodes for the declared heads; direct domain rules for the supported elementary heads cover representable infinity sentinels, including sin(zoo)=cos(zoo)=tan(zoo)=nan, besseli(nan,-oo)=nan, and legendre(3,oo)=nan, while unresolved NaN arguments in order-bearing heads, accumulation-bound outputs, function assumptions, and broad rewrites are refused or absent."
+fortsym = "The adapter creates native applied-function nodes for the declared heads; direct domain rules for the supported elementary heads cover representable infinity sentinels, including sin(zoo)=cos(zoo)=tan(zoo)=nan, besseli(nan,-oo)=nan, and Legendre's integer-degree infinity identities, while unresolved NaN arguments in order-bearing heads, accumulation-bound outputs, function assumptions, and broad rewrites are refused or absent."
 difference = "Applied heads are structurally compatible for the supported fragment, not a claim of SymPy's complete evaluation and rewrite behaviour."
 
 [[semantic]]

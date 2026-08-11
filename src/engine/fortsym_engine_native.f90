@@ -4593,8 +4593,16 @@ contains
         if (size(args) == 3) then
             if (name /= "legendrep") return
             call exact_value(a, args(1), degree, denominator, exact_degree)
-            if (.not. exact_degree .or. denominator /= 1_int64 .or. &
-                degree < 0_int64) return
+            if (.not. exact_degree .or. denominator /= 1_int64) return
+            if (degree <= -4_int64) then
+                degree = 3_int64
+            else if (degree == -3_int64) then
+                degree = 2_int64
+            else if (degree == -2_int64) then
+                degree = 1_int64
+            else if (degree == -1_int64) then
+                degree = 0_int64
+            end if
             call exact_value(a, args(2), order, denominator, exact_order)
             if (.not. exact_order .or. denominator /= 1_int64 .or. &
                 order /= 0_int64) return
