@@ -92,6 +92,13 @@ the native test covers exactness, precedence, implicit multiplication, lists,
 rules, patterns, associations, comments, and refusal paths. The GitHub issue is
 now closed; native and Nix-wrapped suites both pass 38/38.
 
+Issue #25 (bounded Wolfram command lowering) is complete as of 2026-08-11:
+`fortsym_wl` separates parsing from command dispatch, validates supported
+arguments, lowers results to native expressions, and reports unsupported
+options and semantic forms by name. The compatibility document and focused
+frontend tests define the supported subset and its differences. Larger
+operation families remain independently tracked in #28–#43.
+
 Issue #40 (public trig and power rewrites) is complete as of 2026-08-10:
 `trig_expand`, `trig_reduce`, `trig_to_exp`, `exp_to_trig`, and guarded
 `power_expand` are public operations returning rewritten expressions plus an
