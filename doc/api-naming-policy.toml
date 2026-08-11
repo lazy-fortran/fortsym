@@ -52,13 +52,13 @@ decision = "partial constructs an unevaluated first-order node. diff owns the ev
 
 [[family]]
 id = "contexts-and-handles"
-audit_concepts = ["arena-and-expression"]
-canonical_native = ["arena_t", "expr_t", "default_arena", "reset"]
-current_native = ["arena_t", "expr_t", "default_arena", "reset"]
+audit_concepts = ["arena-and-expression", "assumption-queries"]
+canonical_native = ["arena_t", "expr_t", "default_arena", "reset", "assumption_push", "assumption_pop"]
+current_native = ["arena_t", "expr_t", "default_arena", "reset", "assumption_push", "assumption_pop"]
 transition_aliases = []
 python_facade = ["Arena", "Expr"]
-sympy_adapter = ["Arena", "Expr"]
-decision = "Keep arena_t and expr_t as type names. Use default_arena and reset in the convenience facade because use fortsym already supplies the namespace. Keep explicit arenas and the easy default state with one syntax."
+sympy_adapter = ["Arena", "Expr", "Q", "ask", "assuming"]
+decision = "Keep arena_t and expr_t as type names. Use default_arena and reset in the convenience facade because use fortsym already supplies the namespace. Keep nested assumption_push/pop in the one native context owner; Q, ask, and assuming remain the SymPy adapter vocabulary."
 
 [[family]]
 id = "transformations"
@@ -73,8 +73,8 @@ decision = "Expose the native operations under the same short names from one fac
 [[family]]
 id = "predicates"
 audit_concepts = ["identity-and-validity", "three-valued-query"]
-canonical_native = ["is_valid", "same_arena", "zero_test", "VERDICT_UNKNOWN", "VERDICT_TRUE", "VERDICT_FALSE", "verdict_name"]
-current_native = ["is_valid", "same_arena", "zero_test", "VERDICT_UNKNOWN", "VERDICT_TRUE", "VERDICT_FALSE", "verdict_name"]
+canonical_native = ["is_valid", "same_arena", "zero_test", "assumption_has", "VERDICT_UNKNOWN", "VERDICT_TRUE", "VERDICT_FALSE", "verdict_name"]
+current_native = ["is_valid", "same_arena", "zero_test", "assumption_has", "VERDICT_UNKNOWN", "VERDICT_TRUE", "VERDICT_FALSE", "verdict_name"]
 transition_aliases = []
 python_facade = []
 sympy_adapter = ["Expr.is_zero", "Expr.is_nonzero", "Expr.is_real", "Expr.is_positive", "Expr.is_nonnegative"]

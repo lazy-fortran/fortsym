@@ -45,78 +45,96 @@ class SympyDifferentialTest(unittest.TestCase):
             label,
         )
 
+    @staticmethod
+    def expression_cases(api):
+        x, y = api.symbols("x y")
+        return {
+            "integer": api.Integer(2**100),
+            "rational": api.Rational(2, 3),
+            "large integer normalization": api.Integer(10**80),
+            "rational normalization": api.Rational(6, -8),
+            "addition": x + y,
+            "multiplication": (x + 1) * y,
+            "power": (x + 1)**2,
+            "function": api.exp(x * y),
+            "derivative": api.diff(api.exp(x * y), x),
+            "substitution": api.expand((x + 1)**2).subs(x, 2),
+            "expansion": api.expand((x + 1)**2),
+            "simplification": api.simplify(api.sqrt(x**2)),
+            "factorisation": api.factor(x**2 + 2*x + 1),
+        }
+
+    @staticmethod
+    def assumption_cases(api):
+        cases = {}
+        for assumption in ("real", "nonnegative", "positive"):
+            symbol = api.Symbol(
+                "condition_" + assumption, **{assumption: True}
+            )
+            cases[assumption] = api.simplify(api.sqrt(symbol**2))
+        return cases
+
+    @staticmethod
+    def predicate_cases(api):
+        x = api.Symbol("predicate_x")
+        return [api.Integer(0), api.Integer(7), x - x, api.sin(x), x]
+
+    @staticmethod
+    def scoped_assumption_trace(api):
+        x = api.Symbol("scoped_positive")
+        y = api.Symbol("scoped_nonnegative")
+        positive = api.Q.positive(x)
+        nonnegative = api.Q.nonnegative(y)
+        trace = [api.ask(positive), api.ask(api.Q.real(x))]
+        with api.assuming(positive):
+            trace.extend((api.ask(positive), api.ask(api.Q.real(x))))
+            with api.assuming(nonnegative):
+                trace.extend((api.ask(nonnegative), api.ask(api.Q.real(y))))
+            trace.extend((api.ask(nonnegative), api.ask(api.Q.real(y))))
+        trace.extend((api.ask(positive), api.ask(api.Q.real(x))))
+        return trace
+
     def test_exact_and_symbolic_results(self):
-        oracle_x, oracle_y = oracle.symbols("x y")
-        native_x, native_y = native.symbols("x y")
-        cases = [
-            ("integer", oracle.Integer(2**100), native.Integer(2**100)),
-            ("rational", oracle.Rational(2, 3), native.Rational(2, 3)),
-            ("large integer normalization", oracle.Integer(10**80),
-             native.Integer(10**80)),
-            ("rational normalization", oracle.Rational(6, -8),
-             native.Rational(6, -8)),
-            ("addition", oracle_x + oracle_y, native_x + native_y),
-            ("multiplication", (oracle_x + 1) * oracle_y,
-             (native_x + 1) * native_y),
-            ("power", (oracle_x + 1)**2, (native_x + 1)**2),
-            ("function", oracle.exp(oracle_x * oracle_y),
-             native.exp(native_x * native_y)),
-            ("derivative", oracle.diff(oracle.exp(oracle_x * oracle_y), oracle_x),
-             native.diff(native.exp(native_x * native_y), native_x)),
-            ("substitution", oracle.expand((oracle_x + 1)**2).subs(oracle_x, 2),
-             native.subs(native.expand((native_x + 1)**2), native_x, 2)),
-            ("expansion", oracle.expand((oracle_x + 1)**2),
-             native.expand((native_x + 1)**2)),
-            ("simplification", oracle.simplify(oracle.sqrt(oracle_x**2)),
-             native.simplify(native.sqrt(native_x**2))),
-            ("factorisation", oracle.factor(oracle_x**2 + 2*oracle_x + 1),
-             native.factor(native_x**2 + 2*native_x + 1)),
-        ]
-        for label, expected, actual in cases:
+        oracle_cases = self.expression_cases(oracle)
+        native_cases = self.expression_cases(native)
+        for label, expected in oracle_cases.items():
             with self.subTest(label=label):
-                self.assert_equivalent(label, expected, actual)
+                self.assert_equivalent(label, expected, native_cases[label])
 
     def test_assumption_condition_results(self):
-        assumptions = ("real", "nonnegative", "positive")
-        for assumption in assumptions:
+        oracle_cases = self.assumption_cases(oracle)
+        native_cases = self.assumption_cases(native)
+        for assumption, expected in oracle_cases.items():
             with self.subTest(assumption=assumption):
-                oracle_x = oracle.Symbol("condition_" + assumption, **{assumption: True})
-                native_x = native.Symbol("condition_" + assumption, **{assumption: True})
-                expected = oracle.simplify(oracle.sqrt(oracle_x**2))
-                actual = native.simplify(native.sqrt(native_x**2))
-                self.assert_equivalent(assumption, expected, actual)
+                self.assert_equivalent(assumption, expected, native_cases[assumption])
 
     def test_three_valued_zero_predicates(self):
-        oracle_x = oracle.Symbol("predicate_x")
-        native_x = native.Symbol("predicate_x")
-        cases = [
-            (oracle.Integer(0), native.Integer(0)),
-            (oracle.Integer(7), native.Integer(7)),
-            (oracle_x - oracle_x, native_x - native_x),
-            (oracle.sin(oracle_x), native.sin(native_x)),
-            (oracle_x, native_x),
-        ]
-        for expected, actual in cases:
+        oracle_cases = self.predicate_cases(oracle)
+        native_cases = self.predicate_cases(native)
+        for expected, actual in zip(oracle_cases, native_cases):
             with self.subTest(expression=str(expected)):
                 self.assertEqual(actual.is_zero, expected.is_zero)
                 self.assertEqual(actual.is_nonzero, expected.is_nonzero)
 
     def test_supported_assumption_predicates(self):
-        assumptions = ("real", "positive", "nonnegative", "nonzero")
-        for assumption in assumptions:
+        for assumption in ("real", "positive", "nonnegative", "nonzero"):
             with self.subTest(assumption=assumption):
-                oracle_symbol = oracle.Symbol(
-                    "predicate_" + assumption, **{assumption: True}
-                )
-                native_symbol = native.Symbol(
-                    "predicate_" + assumption, **{assumption: True}
-                )
+                oracle_symbol = oracle.Symbol("predicate_" + assumption,
+                                              **{assumption: True})
+                native_symbol = native.Symbol("predicate_" + assumption,
+                                              **{assumption: True})
                 for name in ("is_real", "is_positive", "is_nonnegative",
                              "is_nonzero"):
                     self.assertEqual(
                         getattr(native_symbol, name),
                         getattr(oracle_symbol, name),
                     )
+
+    def test_scoped_assumption_context(self):
+        self.assertEqual(
+            self.scoped_assumption_trace(oracle),
+            self.scoped_assumption_trace(native),
+        )
 
     def test_exceptions_and_unevaluated_objects(self):
         oracle_x = oracle.Symbol("x")

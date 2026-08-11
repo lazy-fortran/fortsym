@@ -19,11 +19,19 @@ difference = "Assumption inference and symbols() input and output forms are inte
 
 [[semantic]]
 id = "three-valued-predicates"
-affected = ["Expr", "is_zero", "is_nonzero", "is_real", "is_positive", "is_nonnegative"]
+affected = ["Expr", "Expr.is_zero", "Expr.is_nonzero", "Expr.is_real", "Expr.is_positive", "Expr.is_nonnegative"]
 parity = "partial"
 sympy = "SymPy exposes assumption-aware three-valued is_zero and is_nonzero properties on expressions."
 fortsym = "The adapter uses the native zero_test and assumption_has queries plus a scalar-result guard to return True, False, or None for the declared predicate properties."
 difference = "Only the four native assumption facts and the native zero decision fragment are covered; the broader SymPy assumption vocabulary and inference rules remain incomplete."
+
+[[semantic]]
+id = "scoped-assumptions"
+affected = ["Q", "ask", "assuming"]
+parity = "partial"
+sympy = "SymPy's Q keys, ask(), and assuming() provide assumption propositions, three-valued queries, and nested reversible global scopes."
+fortsym = "The adapter supports the four native Q keys, ask(), and nested assuming() scopes backed by one arena-local native context."
+difference = "The supported fact vocabulary and inference rules are narrower; explicit immutable Fortran contexts and the full SymPy predicate system remain incomplete."
 
 [[semantic]]
 id = "exact-number-construction"

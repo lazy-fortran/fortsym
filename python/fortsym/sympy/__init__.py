@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-from .. import Arena, Expr, FortSymError, _default
+from .. import Arena, Expr, FortSymError, _Assumption, _default
 
 
 class UnsupportedOperationError(NotImplementedError):
@@ -66,6 +66,37 @@ def _apply_assumptions(expression, assumptions):
             continue
         _default().assume(expression, _ASSUMPTION_FACTS[name])
     return expression
+
+
+class _AssumptionPredicate:
+    __slots__ = ("_fact", "_name")
+
+    def __init__(self, name, fact):
+        self._name = name
+        self._fact = fact
+
+    def __call__(self, expression):
+        return _Assumption(sympify(expression), self._fact, self._name)
+
+
+class _AssumptionQueries:
+    real = _AssumptionPredicate("real", 1)
+    positive = _AssumptionPredicate("positive", 2)
+    nonnegative = _AssumptionPredicate("nonnegative", 4)
+    nonzero = _AssumptionPredicate("nonzero", 8)
+
+
+Q = _AssumptionQueries()
+
+
+def ask(proposition):
+    if not isinstance(proposition, _Assumption):
+        raise TypeError("ask expects a Q fact")
+    return proposition.expression._assumption_fact(proposition.fact)
+
+
+def assuming(*facts):
+    return _default().assuming(*facts)
 
 
 class Symbol(Expr, metaclass=_KindMeta):
@@ -288,7 +319,7 @@ __all__ = [
     "Symbol", "symbols", "sympify", "Integer", "Rational", "Float",
     "Add", "Mul", "Pow", "Function", "Derivative", "Subs", "sin", "cos",
     "tan", "exp", "log", "sqrt", "Abs", "diff", "subs", "expand",
-    "simplify", "factor", "together", "cancel", "apart", "collect",
+    "simplify", "factor", "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
     "integrate", "limit", "series", "solve", "Matrix", "pi", "E", "I",
     "oo",
 ]

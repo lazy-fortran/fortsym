@@ -161,6 +161,12 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.c_int, _CHAR_PTR, _SIZE],
     )
+    lib.assumption_push = declare(
+        "fortsym_assumption_push", ctypes.c_int, [_CVOID, _CHAR_PTR, _SIZE]
+    )
+    lib.assumption_pop = declare(
+        "fortsym_assumption_pop", ctypes.c_int, [_CVOID, _CHAR_PTR, _SIZE]
+    )
     lib.assumption_has = declare(
         "fortsym_assumption_has",
         ctypes.c_int,
@@ -329,6 +335,25 @@ class Arena:
                                   int(fact), message, len(message))
         if status:
             raise FortSymError(status, _decode(message), "assume")
+
+    def _assumption_push(self):
+        message = _message()
+        status = self._lib.assumption_push(
+            self._require(), message, len(message)
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "assumption_push")
+
+    def _assumption_pop(self):
+        message = _message()
+        status = self._lib.assumption_pop(
+            self._require(), message, len(message)
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "assumption_pop")
+
+    def assuming(self, *facts):
+        return _AssumptionScope(self, facts)
 
     def function(self, name: str, arguments: Iterable["Expr"]):
         values = list(arguments)
@@ -612,6 +637,43 @@ class Expr:
 
 
 _default_arena = None
+
+
+class _Assumption:
+    __slots__ = ("expression", "fact", "name")
+
+    def __init__(self, expression, fact, name):
+        self.expression = expression
+        self.fact = fact
+        self.name = name
+
+
+class _AssumptionScope:
+    def __init__(self, arena, facts):
+        self._arena = arena
+        self._facts = tuple(facts)
+        self._entered = False
+
+    def __enter__(self):
+        for fact in self._facts:
+            if not isinstance(fact, _Assumption):
+                raise TypeError("assuming expects Q facts")
+            self._arena._check(fact.expression)
+        self._arena._assumption_push()
+        try:
+            for fact in self._facts:
+                self._arena.assume(fact.expression, fact.fact)
+        except BaseException:
+            self._arena._assumption_pop()
+            raise
+        self._entered = True
+        return self
+
+    def __exit__(self, *_):
+        if self._entered:
+            self._arena._assumption_pop()
+            self._entered = False
+        return False
 
 
 def _default():

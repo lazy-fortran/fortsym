@@ -27,6 +27,7 @@ does not import SymPy. Unsupported names raise
 | `Symbol`, `symbols`, `Integer`, `Rational`, `Float`, `pi`, `E`, `I` | exact native construction and structural equality |
 | `Expr.is_zero`, `Expr.is_nonzero`, `Expr.is_real`, `Expr.is_positive`, `Expr.is_nonnegative` | SymPy-compatible three-valued predicates backed by native zero and assumption queries (`True`, `False`, or `None`) |
 | `real=True`, `positive=True`, `nonnegative=True`, `nonzero=True` | native arena facts; positive/nonnegative/real facts affect guarded simplification |
+| `Q.real`, `Q.positive`, `Q.nonnegative`, `Q.nonzero`, `ask`, `assuming` | nested, reversible assumption queries and scopes backed by the native arena context |
 | `Add`, `Mul`, `Pow`, `Function` | native operator construction; `isinstance` checks use native node kinds |
 | `sin`, `cos`, `tan`, `exp`, `log`, `sqrt`, `Abs` | native applied-function nodes |
 | `diff`, `Derivative` | native differentiation, including repeated variables; `evaluate=False` retains a typed wrapper with `.doit()` |
