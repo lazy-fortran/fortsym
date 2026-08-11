@@ -25,8 +25,8 @@ naming rule and lifetime contract.
    derivative products.
 4. `src/engine` declares operations and wraps native or external algorithms.
 5. `src/algebra` implements deterministic exact operations over expression
-   arrays, including dense rational linear systems and the bounded sparse
-   multivariate polynomial/rational layer.
+   arrays, including dense rational linear systems, bounded symbolic matrices,
+   and the bounded sparse multivariate polynomial/rational layer.
 6. `src/council` compares supported engine answers and records disagreement.
 7. `src/verify` supplies independent real evaluation and three-valued checks.
 8. `src/codegen` selects shared subexpressions and emits Fortran kernels.
