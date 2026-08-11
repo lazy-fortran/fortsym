@@ -33,12 +33,12 @@ decision = "Use the intrinsic spellings in the native facade so it mirrors forts
 [[family]]
 id = "constants"
 audit_concepts = ["constants"]
-canonical_native = ["pi_expr", "e_expr", "i_expr", "oo_expr"]
-current_native = ["pi_expr", "e_expr", "i_expr", "oo_expr"]
+canonical_native = ["pi_expr", "e_expr", "i_expr", "oo_expr", "zoo_expr", "nan_expr"]
+current_native = ["pi_expr", "e_expr", "i_expr", "oo_expr", "zoo_expr", "nan_expr"]
 transition_aliases = []
 python_facade = []
-sympy_adapter = ["pi", "E", "I", "oo"]
-decision = "Keep typed expression suffixes for constants because pi, e, i, and oo are common scalar names or Fortran identifiers. Add oo_expr when infinity enters the native facade. The adapter retains SymPy capitalization."
+sympy_adapter = ["pi", "E", "I", "oo", "zoo", "nan"]
+decision = "Keep typed expression suffixes for constants because pi, e, i, oo, zoo, and nan are common scalar names or Fortran identifiers. The adapter retains SymPy's lowercase constant names."
 
 [[family]]
 id = "calculus"

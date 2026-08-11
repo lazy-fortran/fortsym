@@ -286,8 +286,12 @@ Every checklist item requires all of the following:
     parsing and printing preserve `oo`, the Python adapter matches SymPy's
     `oo` spelling, and finite real Fortran kernel emission refuses the domain
     sentinel instead of emitting an invalid literal.
-  - [ ] Add directed-infinity, complex-infinity, NaN, signed-zero, and
-    operation-specific domain arithmetic.
+  - [x] Add canonical native `zoo_expr` and `nan_expr` sentinels. Native and
+    Wolfram-dialect parsing/printing preserve complex infinity and undefined
+    values, the Python adapter matches SymPy's `zoo`/`nan` spellings, and
+    finite real Fortran kernel emission refuses both values.
+  - [ ] Preserve signed zero and add operation-specific arithmetic and
+    directed-domain rules for `oo`, `zoo`, and `nan`.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
 - [ ] Preserve exactness through every constructor, operator, and adapter.
 

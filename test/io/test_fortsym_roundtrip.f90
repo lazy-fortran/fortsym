@@ -16,7 +16,7 @@ program test_fortsym_roundtrip
     use fortsym_expr
     use fortsym_algebraic, only: algebraic_from_re_im, algebraic_sqrt
     use fortsym_dialect, only: dialect_t, dialect, DIA_NATIVE, DIA_SYMENGINE, &
-        DIA_YACAS, DIA_SYMPY, DIA_MAXIMA, DIA_FORTRAN
+        DIA_YACAS, DIA_SYMPY, DIA_MAXIMA, DIA_FORTRAN, DIA_WOLFRAM
     use fortsym_print, only: print_expr, print_expr_in
     use fortsym_parse, only: parse_expr_in
     implicit none
@@ -388,21 +388,58 @@ contains
             "pi")
         call eq_text("yacas pi", &
             chars(print_expr_in(pi_expr(a), dialect(DIA_YACAS))), "Pi")
+        call eq_text("wolfram positive infinity", &
+            chars(print_expr_in(oo_expr(a), dialect(DIA_WOLFRAM))), "Infinity")
+        call eq_text("wolfram complex infinity", &
+            chars(print_expr_in(zoo_expr(a), dialect(DIA_WOLFRAM))), &
+            "ComplexInfinity")
+        call eq_text("wolfram undefined value", &
+            chars(print_expr_in(nan_expr(a), dialect(DIA_WOLFRAM))), &
+            "Indeterminate")
     end subroutine test_dialect_spellings
 
     subroutine test_infinity_sentinel()
         type(arena_t), target :: a
-        type(expr_t) :: infinity, parsed
+        type(expr_t) :: infinity, complex_infinity, undefined, parsed
         character(:), allocatable :: message
         logical :: good
 
         call a%init()
         infinity = oo_expr(a)
         call eq_text("native positive infinity spelling", print_text(infinity), "oo")
+        complex_infinity = zoo_expr(a)
+        undefined = nan_expr(a)
+        call eq_text("native complex infinity spelling", print_text(complex_infinity), "zoo")
+        call eq_text("native undefined spelling", print_text(undefined), "nan")
 
         parsed = parse_expr_in(a, "oo", dialect(DIA_NATIVE), good, message)
         call ok("native positive infinity parses", good)
         if (good) call ok("parsed infinity retains its sentinel node", parsed == infinity)
+
+        parsed = parse_expr_in(a, "zoo", dialect(DIA_NATIVE), good, message)
+        call ok("native complex infinity parses", good)
+        if (good) call ok("parsed complex infinity retains its sentinel node", &
+            parsed == complex_infinity)
+
+        parsed = parse_expr_in(a, "nan", dialect(DIA_NATIVE), good, message)
+        call ok("native undefined value parses", good)
+        if (good) call ok("parsed undefined value retains its sentinel node", &
+            parsed == undefined)
+
+        parsed = parse_expr_in(a, "Infinity", dialect(DIA_WOLFRAM), good, message)
+        call ok("wolfram positive infinity parses", good)
+        if (good) call ok("parsed wolfram infinity retains its sentinel node", &
+            parsed == infinity)
+
+        parsed = parse_expr_in(a, "ComplexInfinity", dialect(DIA_WOLFRAM), good, message)
+        call ok("wolfram complex infinity parses", good)
+        if (good) call ok("parsed wolfram complex infinity retains its sentinel node", &
+            parsed == complex_infinity)
+
+        parsed = parse_expr_in(a, "Indeterminate", dialect(DIA_WOLFRAM), good, message)
+        call ok("wolfram undefined value parses", good)
+        if (good) call ok("parsed wolfram undefined value retains its sentinel node", &
+            parsed == undefined)
     end subroutine test_infinity_sentinel
 
     !> Fortran emission is deliberately not round-trippable, so it is checked
@@ -454,6 +491,14 @@ contains
 
         text = chars(print_expr_in(oo_expr(a), d, good))
         call ok("infinity is refused by finite Fortran emission", &
+            .not. good .and. len(text) == 0)
+
+        text = chars(print_expr_in(zoo_expr(a), d, good))
+        call ok("complex infinity is refused by finite Fortran emission", &
+            .not. good .and. len(text) == 0)
+
+        text = chars(print_expr_in(nan_expr(a), d, good))
+        call ok("undefined value is refused by finite Fortran emission", &
             .not. good .and. len(text) == 0)
     end subroutine test_fortran_emission
 

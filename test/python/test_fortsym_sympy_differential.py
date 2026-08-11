@@ -182,9 +182,11 @@ class SympyDifferentialTest(unittest.TestCase):
             native.simplify(native_raw),
         )
 
-    def test_infinity_sentinel_matches_oracle_spelling(self):
-        self.assertEqual(str(native.oo), str(oracle.oo))
-        self.assertEqual(native.oo.name, "oo")
+    def test_domain_sentinels_match_oracle_spelling(self):
+        for name in ("oo", "zoo", "nan"):
+            with self.subTest(name=name):
+                self.assertEqual(str(getattr(native, name)), str(getattr(oracle, name)))
+                self.assertEqual(getattr(native, name).name, name)
 
     def test_expand_cache_matches_oracle_and_invalidates_on_assumptions(self):
         oracle_x = oracle.Symbol("differential_expand_cache_x")

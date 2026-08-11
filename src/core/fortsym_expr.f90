@@ -28,7 +28,7 @@ module fortsym_expr
     public :: expr_t
     public :: sym, num, rat, exact, real_expr, real_text_expr, algebraic_expr, &
         const, func, func_in
-    public :: pi_expr, e_expr, i_expr, oo_expr, partial
+    public :: pi_expr, e_expr, i_expr, oo_expr, zoo_expr, nan_expr, partial
     public :: is_valid, same_arena
     public :: operator(+), operator(-), operator(*), operator(/), &
               operator(**), operator(==), operator(/=)
@@ -256,6 +256,24 @@ contains
         type(expr_t)                         :: e
         e = const(a, "oo")
     end function oo_expr
+
+    !> Complex infinity as a structural sentinel. It is deliberately not a
+    !> numeric value: finite evaluation, arithmetic, and real-kernel emission
+    !> must reject it until their domain rules are implemented.
+    function zoo_expr(a) result(e)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t)                         :: e
+        e = const(a, "zoo")
+    end function zoo_expr
+
+    !> Undefined/NaN as a structural sentinel. It is deliberately not a
+    !> floating NaN: numerical evaluation and finite kernel emission must
+    !> reject it until operation-specific domain rules are implemented.
+    function nan_expr(a) result(e)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t)                         :: e
+        e = const(a, "nan")
+    end function nan_expr
 
     !> Application of a named function to a list of arguments. The general form
     !> behind every elementary function below, and the way a caller reaches a

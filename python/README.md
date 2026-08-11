@@ -24,7 +24,7 @@ does not import SymPy. Unsupported names raise
 
 | Surface | Supported semantics |
 |---|---|
-| `Symbol`, `symbols`, `Integer`, `Rational`, `Float`, `pi`, `E`, `I` | exact native construction and structural equality |
+| `Symbol`, `symbols`, `Integer`, `Rational`, `Float`, `pi`, `E`, `I`, `oo`, `zoo`, `nan` | exact native construction and structural equality; domain sentinels remain unevaluated until their operation rules are implemented |
 | `Expr.is_zero`, `Expr.is_nonzero`, `Expr.is_real`, `Expr.is_positive`, `Expr.is_nonnegative`, `Expr.is_negative`, `Expr.is_nonpositive` | SymPy-compatible three-valued predicates backed by native zero and sign-fact queries (`True`, `False`, or `None`) |
 | `real=True`, `zero=True`, `positive=True`, `nonnegative=True`, `nonzero=True`, `negative=True`, `nonpositive=True` | native arena facts; sign facts close to real/nonzero/zero implications and contradictory combinations raise `InconsistentAssumptions` |
 | `Q.real`, `Q.zero`, `Q.positive`, `Q.nonnegative`, `Q.nonzero`, `Q.negative`, `Q.nonpositive`, `ask`, `assuming`, `And` | nested, reversible assumption queries and transactional compound scopes backed by the native arena context; bounded relational facts are accepted in scopes |
