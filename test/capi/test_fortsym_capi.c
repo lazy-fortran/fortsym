@@ -91,6 +91,9 @@ int main(void)
     fortsym_expr *log_zero_simplified = NULL;
     fortsym_expr *exp_log_zero = NULL;
     fortsym_expr *exp_log_zero_simplified = NULL;
+    fortsym_expr *negative_two = NULL;
+    fortsym_expr *negative_log = NULL;
+    fortsym_expr *negative_log_simplified = NULL;
     fortsym_expr *special = NULL;
     fortsym_expr *special_simplified = NULL;
     fortsym_expr *legendre = NULL;
@@ -358,6 +361,16 @@ int main(void)
                               message, sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(exp_log_zero_simplified, "nan");
+    status = fortsym_int(arena, -2, &negative_two, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    root_argument[0] = negative_two;
+    status = fortsym_function(arena, "log", root_argument, 1, &negative_log,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, negative_log, &negative_log_simplified,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(negative_log_simplified, "log(2) + i*pi");
     special_arguments[0] = undefined;
     special_arguments[1] = x;
     status = fortsym_function(arena, "besselj", special_arguments, 2,
@@ -476,6 +489,9 @@ int main(void)
     fortsym_expr_free(exp_log_zero);
     fortsym_expr_free(log_zero_simplified);
     fortsym_expr_free(log_zero);
+    fortsym_expr_free(negative_log_simplified);
+    fortsym_expr_free(negative_log);
+    fortsym_expr_free(negative_two);
     fortsym_expr_free(legendre_simplified);
     fortsym_expr_free(legendre);
     fortsym_expr_free(undefined);

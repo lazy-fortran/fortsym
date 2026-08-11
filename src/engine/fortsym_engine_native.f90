@@ -2572,7 +2572,7 @@ contains
         integer, intent(in) :: id
         integer, intent(out) :: out
         logical, intent(out) :: ok
-        integer :: half_pi, positive
+        integer :: half_pi, positive, positive_log, imaginary_pi, one_arg(1)
         logical :: negated
         integer(int64) :: numerator, denominator
         logical :: exact
@@ -2618,8 +2618,21 @@ contains
             end if
         end if
         call exact_value(a, id, numerator, denominator, exact)
-        if (exact .and. numerator == -1_int64 .and. denominator == 1_int64) then
-            out = mul_pair(a, a%const("i"), a%const("pi"))
+        if (exact .and. numerator < 0_int64) then
+            if (numerator == MIN_I64) return
+            if (denominator == 1_int64) then
+                positive = a%int(-numerator)
+            else
+                positive = a%rat(-numerator, denominator)
+            end if
+            if (is_one_id(a, positive)) then
+                positive_log = a%int(0_int64)
+            else
+                one_arg(1) = positive
+                positive_log = a%func("log", one_arg)
+            end if
+            imaginary_pi = mul_pair(a, a%const("i"), a%const("pi"))
+            out = add_pair(a, positive_log, imaginary_pi)
             ok = .true.
             return
         end if

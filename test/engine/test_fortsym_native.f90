@@ -1106,6 +1106,14 @@ contains
         call check("log(-oo) is oo", r%value == infinity)
         r = engine%simplify(log(complex_infinity))
         call check("log(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(log(num(arena, -2_int64)))
+        call check("log(-2) uses the principal branch", &
+            r%value == log(num(arena, 2_int64)) + &
+            i_expr(arena)*pi_expr(arena))
+        r = engine%simplify(log(rat(arena, -2_int64, 3_int64)))
+        call check("log(-2/3) uses the principal branch", &
+            r%value == log(rat(arena, 2_int64, 3_int64)) + &
+            i_expr(arena)*pi_expr(arena))
         r = engine%simplify(sin(complex_infinity))
         call check("sin(zoo) is nan", r%value == undefined)
         r = engine%simplify(cos(complex_infinity))

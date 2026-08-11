@@ -520,6 +520,16 @@ class SympyDifferentialTest(unittest.TestCase):
         for expected, actual in cases:
             with self.subTest(expected=str(expected)):
                 self.assertEqual(str(native.simplify(actual)), str(expected))
+        for expected, actual in (
+            (oracle.log(-2), native.log(-2)),
+            (oracle.log(oracle.Rational(-2, 3)),
+             native.log(native.Rational(-2, 3))),
+        ):
+            with self.subTest(expected=str(expected)):
+                self.assert_equivalent(
+                    "negative logarithm principal branch",
+                    expected, native.simplify(actual),
+                )
         expected_text = str(oracle.I * oracle.oo)
         actual_text = str(native.simplify(native.sqrt(-native.oo)))
         self.assertEqual(
