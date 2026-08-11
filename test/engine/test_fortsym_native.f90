@@ -794,6 +794,17 @@ contains
         r = engine%zero_test(sin(x) - 2*sin(x/2)*cos(x/2))
         call check("sine half-angle identity is decided zero", &
             r%verdict == VERDICT_TRUE)
+        r = engine%zero_test((x**2 - 1)/(x - 1) - (x + 1))
+        call check("rational quotient identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(1/(x - 1) + 1/(x + 1) - &
+            2*x/(x**2 - 1))
+        call check("rational partial-fraction identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test((x**3 - y**3)/(x - y) - &
+            (x**2 + x*y + y**2))
+        call check("multivariate rational identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
     end subroutine test_verdicts
 
     subroutine test_overflow_preservation()

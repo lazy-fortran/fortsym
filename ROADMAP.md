@@ -167,6 +167,9 @@ preserving the bounded denominator and unsupported-form refusals. A final
 normal-form pass after polynomial cancellation closes the corresponding
 hyperbolic Pythagorean and `tanh` addition cases; complex tangent forms with
 symbolic `i` retain the conservative `UNKNOWN` boundary.
+The same native zero-test fold now feeds ordinary rational identities even
+when no exponential is present, covering partial-fraction and multivariate
+quotient cancellation without an external engine.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.
