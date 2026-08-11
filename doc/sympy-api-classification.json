@@ -3820,6 +3820,26 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_algebraic.algebraic_re",
+        "module": "fortsym_algebraic",
+        "name": "algebraic_re",
+        "owner": "src/core/fortsym_algebraic.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_algebraic.algebraic_im",
+        "module": "fortsym_algebraic",
+        "name": "algebraic_im",
+        "owner": "src/core/fortsym_algebraic.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_algebraic.algebraic_add",
         "module": "fortsym_algebraic",
         "name": "algebraic_add",
@@ -6919,11 +6939,11 @@
       "delegated": 1683,
       "external": 10,
       "facade": 137,
-      "native": 2265,
+      "native": 2267,
       "python-adapter": 1639,
       "refused": 26155
     },
-    "fortran_public_exports": 670,
+    "fortran_public_exports": 672,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

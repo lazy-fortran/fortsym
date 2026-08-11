@@ -21,7 +21,8 @@ program test_fortsym_complexdom
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_ALGEBRAIC
     use fortsym_algebraic, only: algebraic_i, algebraic_from_re_im, &
-        algebraic_sqrt, algebraic_mul, algebraic_conjugate
+        algebraic_sqrt, algebraic_mul, algebraic_conjugate, algebraic_re, &
+        algebraic_im
     use fortsym_expr, only: expr_t, sym, num, rat, algebraic_expr, i_expr, func, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==)
@@ -405,7 +406,7 @@ contains
         call ok("0**(-1) is refused, not split into NaNs", .not. good)
         if (.not. good) then
             call ok("the refusal names the zero base", &
-                    index(why, "identically zero") > 0)
+                index(why, "identically zero") > 0)
         end if
 
         e = (i_expr(arena)*i_expr(arena) + num(arena, 1))**num(arena, -1)
@@ -469,7 +470,7 @@ contains
         call ok("z**13 exceeds the term bound", .not. good)
         if (.not. good) then
             call ok("the refusal names the term count", &
-                    index(why, "terms") > 0)
+                index(why, "terms") > 0)
         end if
 
         e = (z**num(arena, 24))**num(arena, 24)
@@ -521,9 +522,8 @@ contains
         call ok("Abs(z**30) is still refused by the splitter", .not. good)
     end subroutine test_conjugate_domain_is_wider
 
-    !> Exact algebraic atoms participate in the rectangular boundary when
-    !> FLINT proves they are purely real or purely imaginary. Mixed atoms stay
-    !> refused until exact qqbar real and imaginary extraction is available.
+    !> Exact algebraic atoms participate in the rectangular boundary through
+    !> FLINT's exact qqbar real and imaginary projections.
     subroutine test_algebraic_atoms()
         type(expr_t) :: real_root, imaginary_root, mixed_root
         type(expr_t) :: re, im, conjugated, expected
@@ -542,7 +542,13 @@ contains
         if (good) call ok("real algebraic Re retains the atom", re == real_root)
         call im_part(real_root, facts, im, good, why)
         call ok("real algebraic Im succeeds", good)
-        if (good) call ok("real algebraic Im is zero", im == num(arena, 0))
+        if (good) then
+            expected_text = algebraic_im(chars(real_text), good)
+            expected = algebraic_expr(arena, chars(expected_text), good)
+            print *, "real im", chars(im%algebraic_text()), &
+                chars(expected%algebraic_text())
+            call ok("real algebraic Im matches bridge", im == expected)
+        end if
         call conjugate(real_root, facts, conjugated, good, why)
         call ok("real algebraic conjugation succeeds", good)
         if (good) call ok("real algebraic conjugation is unchanged", &
@@ -563,14 +569,35 @@ contains
         end if
         call re_part(imaginary_root, facts, re, good, why)
         call ok("pure-imaginary algebraic Re succeeds", good)
-        if (good) call ok("pure-imaginary algebraic Re is zero", &
-            re == num(arena, 0))
+        if (good) then
+            expected_text = algebraic_re(chars(imaginary_text), good)
+            expected = algebraic_expr(arena, chars(expected_text), good)
+            print *, "imaginary re", chars(re%algebraic_text()), &
+                chars(expected%algebraic_text())
+            call ok("pure-imaginary algebraic Re matches bridge", re == expected)
+        end if
 
         base_text = algebraic_from_re_im("1", "1", good)
         mixed_text = base_text
         mixed_root = algebraic_expr(arena, chars(mixed_text), good)
         call re_part(mixed_root, facts, re, good, why)
-        call ok("mixed algebraic rectangular split is refused", .not. good)
+        call ok("mixed algebraic real projection succeeds", good)
+        if (good) then
+            expected_text = algebraic_re(chars(mixed_text), good)
+            expected = algebraic_expr(arena, chars(expected_text), good)
+            print *, "mixed re", chars(re%algebraic_text()), &
+                chars(expected%algebraic_text())
+            call ok("mixed algebraic Re matches bridge", re == expected)
+        end if
+        call im_part(mixed_root, facts, im, good, why)
+        call ok("mixed algebraic imaginary projection succeeds", good)
+        if (good) then
+            expected_text = algebraic_im(chars(mixed_text), good)
+            expected = algebraic_expr(arena, chars(expected_text), good)
+            print *, "mixed im", chars(im%algebraic_text()), &
+                chars(expected%algebraic_text())
+            call ok("mixed algebraic Im matches bridge", im == expected)
+        end if
         call conjugate(mixed_root, facts, conjugated, good, why)
         call ok("mixed algebraic conjugation succeeds", good)
         if (good) then
@@ -618,7 +645,7 @@ contains
             v = cmplx(real(e%int_value(), dp), 0.0_dp, dp)
         case (NK_RAT)
             v = cmplx(real(e%int_value(), dp)/real(e%den_value(), dp), &
-                      0.0_dp, dp)
+                0.0_dp, dp)
         case (NK_REAL)
             v = cmplx(e%real_value(), 0.0_dp, dp)
         case (NK_SYM)

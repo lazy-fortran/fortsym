@@ -158,6 +158,9 @@ size_t fsym_algebraic_normalize(const char *value);
 size_t fsym_algebraic_i(void);
 size_t fsym_algebraic_from_re_im(const char *real_part,
                                  const char *imag_part);
+/*! Return the exact real or imaginary qqbar component. */
+size_t fsym_algebraic_re(const char *value);
+size_t fsym_algebraic_im(const char *value);
 
 /*! Apply bounded exact arithmetic in FLINT's qqbar domain. Division by zero,
  *  negative powers of zero, and resource-limit crossings fail. Square root

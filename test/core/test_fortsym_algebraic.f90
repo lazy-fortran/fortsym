@@ -7,14 +7,14 @@ program test_fortsym_algebraic
     use fortsym_algebraic, only: algebraic_normalize, algebraic_i, &
         algebraic_from_re_im, algebraic_add, algebraic_sub, algebraic_mul, &
         algebraic_div, algebraic_conjugate, algebraic_sqrt, algebraic_pow, &
-        algebraic_signs
+        algebraic_signs, algebraic_re, algebraic_im
     implicit none
 
     integer :: nfail = 0
     integer :: real_sign, imag_sign
     logical :: ok
     type(str_t) :: zero, one, two, minus_two, imaginary, minus_imaginary
-    type(str_t) :: sqrt_two, z, zbar, got, phi
+    type(str_t) :: sqrt_two, z, zbar, got, phi, real_part, imag_part
 
     zero = algebraic_from_re_im("0", "0", ok)
     call check_result("rational zero", zero, ok, "qqbar1:0:0,1")
@@ -27,6 +27,12 @@ program test_fortsym_algebraic
 
     imaginary = algebraic_i(ok)
     call check_result("imaginary unit", imaginary, ok, "qqbar1:0:1,0,1")
+    real_part = algebraic_re(chars(imaginary), ok)
+    call check_result("imaginary unit real projection", real_part, ok, &
+        "qqbar1:0:0,1")
+    imag_part = algebraic_im(chars(imaginary), ok)
+    call check_result("imaginary unit imaginary projection", imag_part, ok, &
+        "qqbar1:0:-1,1")
     minus_imaginary = algebraic_conjugate(chars(imaginary), ok)
     call check_result("negative imaginary unit", minus_imaginary, ok, &
         "qqbar1:1:1,0,1")
@@ -68,6 +74,12 @@ program test_fortsym_algebraic
     z = algebraic_from_re_im("1/2", "3/4", ok)
     call check_result("Gaussian rational construction", z, ok, &
         "qqbar1:0:13,-16,16")
+    real_part = algebraic_re(chars(z), ok)
+    call check_result("Gaussian real projection", real_part, ok, &
+        "qqbar1:0:-1,2")
+    imag_part = algebraic_im(chars(z), ok)
+    call check_result("Gaussian imaginary projection", imag_part, ok, &
+        "qqbar1:0:-3,4")
     zbar = algebraic_conjugate(chars(z), ok)
     call check_result("Gaussian rational conjugate", zbar, ok, &
         "qqbar1:1:13,-16,16")
@@ -78,6 +90,11 @@ program test_fortsym_algebraic
         "qqbar1:0:-13,16")
 
     got = algebraic_from_re_im("1", "1", ok)
+    real_part = algebraic_re(chars(got), ok)
+    call check_result("mixed real projection", real_part, ok, "qqbar1:0:-1,1")
+    imag_part = algebraic_im(chars(got), ok)
+    call check_result("mixed imaginary projection", imag_part, ok, &
+        "qqbar1:0:-1,1")
     got = algebraic_pow(chars(got), 2_int64, ok)
     call check_result("(1+i)^2 is 2i", got, ok, "qqbar1:0:4,0,1")
 

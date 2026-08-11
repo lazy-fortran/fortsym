@@ -237,9 +237,9 @@ Every checklist item requires all of the following:
       Fortran kernel emission, and SymEngine conversion refuse algebraic atoms
       until explicit conversion semantics exist.
     - [x] Integrate algebraic atoms with the existing complex-domain boundary.
-      `fortsym_complexdom` handles exact real and pure-imaginary atoms in
-      `re_part` and `im_part`, and delegates exact algebraic conjugation to
-      FLINT. Mixed algebraic rectangular projections remain a named refusal.
+      `fortsym_complexdom` handles exact real, pure-imaginary, and mixed atoms
+      in `re_part` and `im_part` through FLINT's exact qqbar projections, and
+      delegates exact algebraic conjugation to FLINT.
     - [ ] Extend algebraic values through full native simplification,
       complex-domain operations, parsing, conversion, and code generation.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
