@@ -436,6 +436,8 @@ Every checklist item requires all of the following:
   - [x] Retain one native engine and its memoization caches per C-ABI arena;
     synchronize scoped assumptions before each call so warm native workloads
     do not discard their cache state.
+  - [x] Reuse a Python facade's expanded result while its assumption epoch is
+    unchanged, and invalidate that result when assumptions change.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Audit every public symbol for naming consistency and duplicate concepts.

@@ -288,6 +288,7 @@ class Arena:
         self._lib = _load_library()
         self._handle = _CVOID()
         self._integer_cache = {}
+        self._assumption_epoch = 0
         message = _message()
         status = self._lib.arena_new(ctypes.byref(self._handle), message, len(message))
         if status:
@@ -360,6 +361,7 @@ class Arena:
                                   int(fact), message, len(message))
         if status:
             raise FortSymError(status, _decode(message), "assume")
+        self._assumption_epoch += 1
 
     def assume_relation(self, relation: "Expr"):
         relation = self._check(relation)
@@ -369,6 +371,7 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "assume_relation")
+        self._assumption_epoch += 1
 
     def _assumption_push(self):
         message = _message()
@@ -377,6 +380,7 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "assumption_push")
+        self._assumption_epoch += 1
 
     def _assumption_pop(self):
         message = _message()
@@ -385,6 +389,7 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "assumption_pop")
+        self._assumption_epoch += 1
 
     def assuming(self, *facts):
         return _AssumptionScope(self, facts)
@@ -454,6 +459,8 @@ class Expr:
         self._lib = arena._lib
         self._handle = handle
         self._pretty = False
+        self._expanded_result = None
+        self._expanded_epoch = -1
 
     def _require(self):
         if self._handle is None:
@@ -461,6 +468,7 @@ class Expr:
         return self._handle
 
     def close(self):
+        self._expanded_result = None
         if self._handle is not None:
             self._lib.expr_free(self._handle)
             self._handle = None
@@ -541,9 +549,16 @@ class Expr:
                                    self._require(), variable._handle)
 
     def expand(self):
+        cached = self._expanded_result
+        if (cached is not None and cached._handle is not None and
+                self._expanded_epoch == self._arena._assumption_epoch):
+            return cached
+        self._expanded_result = None
         result = self._arena._result(self._lib.expand, self._arena._require(),
                                      self._require())
         result._pretty = True
+        self._expanded_result = result
+        self._expanded_epoch = self._arena._assumption_epoch
         return result
 
     def simplify(self):
