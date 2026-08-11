@@ -173,15 +173,29 @@ contains
         type(expr_t),           intent(in)    :: e
         type(engine_result_t)                 :: r
         type(engine_result_t) :: simplified
+        type(expr_t) :: normalised
+        logical :: saw_exponential, decidable, formal_exponential
 
         simplified = self%simplify(e)
         r = simplified
         r%verdict = VERDICT_UNKNOWN
         if (.not. simplified%ok) return
 
-        select case (simplified%value%kind())
+        ! The general simplifier deliberately does not rewrite exponentials:
+        ! that would make ordinary pretty-printing choose a complex
+        ! exponential spelling.  Zero testing has a different contract, so
+        ! use a conservative formal exponential fragment here and then run
+        ! the ordinary simplifier over the resulting product.
+        normalised = native_exp_normal_form(simplified%value, &
+            saw_exponential, decidable, formal_exponential)
+        if (saw_exponential) then
+            r = self%simplify(normalised)
+            if (.not. r%ok) return
+        end if
+
+        select case (r%value%kind())
         case (NK_INT, NK_RAT)
-            if (simplified%value%int_value() == 0_int64) then
+            if (r%value%int_value() == 0_int64) then
                 r%verdict = VERDICT_TRUE
             else
                 r%verdict = VERDICT_FALSE
@@ -190,12 +204,19 @@ contains
             ! Canonical zero is always downcast to NK_INT.
             r%verdict = VERDICT_FALSE
         case (NK_REAL)
-            if (simplified%value%real_value() == 0.0_dp) then
+            if (r%value%real_value() == 0.0_dp) then
                 r%verdict = VERDICT_TRUE
             else
                 r%verdict = VERDICT_FALSE
             end if
         end select
+        if (saw_exponential .and. decidable .and. formal_exponential .and. &
+            r%verdict == VERDICT_UNKNOWN) then
+            ! Distinct canonical formal exponentials are distinct functions.
+            ! This is a disproof only after the fragment guard succeeds; an
+            ! unsupported head must remain UNKNOWN.
+            r%verdict = VERDICT_FALSE
+        end if
     end function native_zero_test
 
     function native_diff(self, e, v) result(r)
@@ -666,6 +687,235 @@ contains
         done(id) = .true.
         memo(id) = out
     end function simplify_id
+
+    function native_exp_normal_form(e, saw_exponential, decidable, &
+            formal_exponential) result(out)
+        type(expr_t), intent(in) :: e
+        logical, intent(out)      :: saw_exponential, decidable
+        logical, intent(out)      :: formal_exponential
+        type(expr_t)              :: out
+        integer, allocatable      :: memo(:)
+        logical, allocatable      :: done(:)
+
+        saw_exponential = .false.
+        decidable = .true.
+        formal_exponential = .true.
+        allocate (memo(e%a%size()), source=0)
+        allocate (done(e%a%size()), source=.false.)
+        out = e
+        out%id = normalise_exp_id(e%a, e%id, memo, done, &
+            saw_exponential, decidable, formal_exponential)
+    end function native_exp_normal_form
+
+    recursive function normalise_exp_id(a, id, memo, done, saw_exponential, &
+            decidable, formal_exponential) result(out)
+        type(arena_t), target, intent(inout) :: a
+        integer, intent(in)                  :: id
+        integer, intent(inout)                :: memo(:)
+        logical, intent(inout)                :: done(:)
+        logical, intent(inout)                :: saw_exponential, decidable
+        logical, intent(inout)                :: formal_exponential
+        integer                                :: out, k, child, base, exponent
+        integer(int64)                         :: power, denominator
+        logical                                :: exact
+        character(:), allocatable              :: name
+        integer :: one(1)
+
+        if (done(id)) then
+            out = memo(id)
+            return
+        end if
+
+        select case (a%kind_of(id))
+        case (NK_ADD)
+            out = a%int(0_int64)
+            do k = 1, a%nargs_of(id)
+                child = normalise_exp_id(a, a%arg_of(id, k), memo, done, &
+                    saw_exponential, decidable, formal_exponential)
+                out = add_pair(a, out, child)
+            end do
+        case (NK_MUL)
+            out = normalise_exp_product(a, id, memo, done, saw_exponential, &
+                decidable, formal_exponential)
+        case (NK_POW)
+            base = normalise_exp_id(a, a%arg_of(id, 1), memo, done, &
+                saw_exponential, decidable, formal_exponential)
+            exponent = normalise_exp_id(a, a%arg_of(id, 2), memo, done, &
+                saw_exponential, decidable, formal_exponential)
+            if (is_exp_node(a, base)) then
+                call exact_value(a, exponent, power, denominator, exact)
+                if (exact .and. denominator == 1_int64) then
+                    saw_exponential = .true.
+                    if (power == 0_int64) then
+                        out = a%int(1_int64)
+                    else
+                        child = mul_pair(a, a%arg_of(base, 1), &
+                            a%int(power))
+                        out = normalise_exp_argument(a, child)
+                    end if
+                else
+                    out = simplify_power(a, base, exponent)
+                end if
+            else
+                out = simplify_power(a, base, exponent)
+            end if
+        case (NK_FUNC)
+            name = chars(a%name_of(id))
+            if (name == "exp") then
+                saw_exponential = .true.
+                if (a%nargs_of(id) /= 1) then
+                    decidable = .false.
+                    out = id
+                else
+                    child = normalise_exp_id(a, a%arg_of(id, 1), memo, done, &
+                        saw_exponential, decidable, formal_exponential)
+                    if (.not. formal_exp_argument(a, child)) &
+                        formal_exponential = .false.
+                    out = normalise_exp_argument(a, child)
+                end if
+            else if (name == "log") then
+                if (a%nargs_of(id) /= 1) then
+                    decidable = .false.
+                    out = id
+                else
+                    child = normalise_exp_id(a, a%arg_of(id, 1), memo, done, &
+                        saw_exponential, decidable, formal_exponential)
+                    one(1) = child
+                    out = a%func(name, one)
+                end if
+            else
+                ! This normal form is deliberately narrower than the general
+                ! native simplifier. Returning UNKNOWN for an unrecognised
+                ! function is safer than treating it as an algebraic atom and
+                ! claiming that its residual is nonzero.
+                decidable = .false.
+                out = id
+            end if
+        case default
+            out = id
+        end select
+
+        done(id) = .true.
+        memo(id) = out
+    end function normalise_exp_id
+
+    function normalise_exp_product(a, id, memo, done, saw_exponential, &
+            decidable, formal_exponential) result(out)
+        type(arena_t), target, intent(inout) :: a
+        integer, intent(in)                  :: id
+        integer, intent(inout)                :: memo(:)
+        logical, intent(inout)                :: done(:)
+        logical, intent(inout)                :: saw_exponential, decidable
+        logical, intent(inout)                :: formal_exponential
+        integer                                :: out, k, child, exponent
+        integer                                :: other, exp_sum, exp_factor
+        logical                                :: have_exponential
+
+        other = a%int(1_int64)
+        have_exponential = .false.
+        do k = 1, a%nargs_of(id)
+            child = normalise_exp_id(a, a%arg_of(id, k), memo, done, &
+                saw_exponential, decidable, formal_exponential)
+            if (is_exp_node(a, child)) then
+                exponent = a%arg_of(child, 1)
+                if (have_exponential) then
+                    exp_sum = add_pair(a, exp_sum, exponent)
+                else
+                    exp_sum = exponent
+                    have_exponential = .true.
+                end if
+            else
+                other = mul_pair(a, other, child)
+            end if
+        end do
+
+        if (have_exponential) then
+            exp_factor = normalise_exp_argument(a, exp_sum)
+            out = mul_pair(a, other, exp_factor)
+        else
+            out = other
+        end if
+    end function normalise_exp_product
+
+    function normalise_exp_argument(a, argument) result(out)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in)           :: argument
+        integer                       :: out, k, factor
+
+        out = a%int(1_int64)
+        if (a%kind_of(argument) == NK_ADD) then
+            do k = 1, a%nargs_of(argument)
+                factor = make_exp(a, a%arg_of(argument, k))
+                out = mul_pair(a, out, factor)
+            end do
+        else
+            out = make_exp(a, argument)
+        end if
+    end function normalise_exp_argument
+
+    function make_exp(a, argument) result(out)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in)           :: argument
+        integer                       :: out
+        integer                       :: one(1)
+
+        one(1) = argument
+        out = simplify_function(a, "exp", one)
+    end function make_exp
+
+    function add_pair(a, left, right) result(out)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in)           :: left, right
+        integer                       :: out
+        integer                       :: pair(2)
+
+        pair(1) = left
+        pair(2) = right
+        out = simplify_add(a, pair)
+    end function add_pair
+
+    function mul_pair(a, left, right) result(out)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in)           :: left, right
+        integer                       :: out
+        integer                       :: pair(2)
+
+        pair(1) = left
+        pair(2) = right
+        out = simplify_mul(a, pair)
+    end function mul_pair
+
+    function is_exp_node(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer, intent(in)       :: id
+        logical                   :: yes
+
+        yes = .false.
+        if (a%kind_of(id) /= NK_FUNC) return
+        if (a%nargs_of(id) /= 1) return
+        yes = chars(a%name_of(id)) == "exp"
+    end function is_exp_node
+
+    recursive function formal_exp_argument(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer, intent(in)       :: id
+        logical                   :: yes
+        integer                   :: k
+
+        yes = .false.
+        select case (a%kind_of(id))
+        case (NK_INT, NK_RAT, NK_BIG_INT, NK_BIG_RAT, NK_SYM)
+            yes = .true.
+        case (NK_ADD, NK_MUL)
+            yes = .true.
+            do k = 1, a%nargs_of(id)
+                if (.not. formal_exp_argument(a, a%arg_of(id, k))) then
+                    yes = .false.
+                    return
+                end if
+            end do
+        end select
+    end function formal_exp_argument
 
     recursive function contextual_id(a, id, context, memo, done, limit) result(out)
         type(arena_t), target, intent(inout) :: a

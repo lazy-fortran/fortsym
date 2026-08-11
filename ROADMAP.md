@@ -111,6 +111,15 @@ and a four-binding native/oracle smoke audit pass; known oracle errors,
 timeouts, refusals, and disagreements remain visible in reports rather than
 being relabelled as parity.
 
+Issue #11 remains a long-term tracker. On 2026-08-11 the native Fortran engine
+gained a conservative exponential-normal-form zero fragment: products of
+`Exp` terms combine exponents, `Exp[a + b]` factors, and integer powers of
+`Exp` are reduced before the ordinary native simplifier runs. Exact symbolic
+identities and nonidentities are tested independently; unsupported heads and
+periodic constants remain `UNKNOWN`. The bounded native engine is now stronger,
+but SymEngine still supplies the broader exponential decision procedure, so
+the tracker is not closed.
+
 Issue #44 (plotting through fortplot) is complete as of 2026-08-11 for the
 bounded adapter. `fortsym_plot` samples real curves, parametric curves, list
 data, and fields, drops undefined curve samples without joining across a pole,
