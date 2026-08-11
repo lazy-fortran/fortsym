@@ -27,7 +27,7 @@ canonical_native = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh"
 current_native = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", "besselj", "legendrep", "legendreq"]
 transition_aliases = []
 python_facade = []
-sympy_adapter = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "csch", "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs"]
+sympy_adapter = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "csch", "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial", "besselj", "besseli", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs"]
 decision = "Use the intrinsic spellings in the native facade so it mirrors fortsym_expr. The old _expr spellings are removed rather than retained as a second vocabulary. The adapter maps abs to SymPy Abs."
 
 [[family]]

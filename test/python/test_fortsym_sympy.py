@@ -184,6 +184,26 @@ class SympySubsetTest(unittest.TestCase):
             sp.simplify(sp.atan2(sp.zoo, sp.oo)), sp.Function
         )
 
+    def test_bessel_domain_heads(self):
+        order = sp.Symbol("bessel_order")
+        cases = [
+            (sp.besselj(order, sp.oo), sp.Integer(0)),
+            (sp.besselj(order, -sp.oo), sp.Integer(0)),
+            (sp.besseli(order, sp.oo), sp.oo),
+        ]
+        for expression, expected in cases:
+            with self.subTest(expression=str(expression)):
+                self.assertEqual(sp.simplify(expression), expected)
+        self.assertIsInstance(
+            sp.simplify(sp.besseli(order, -sp.oo)), sp.Function
+        )
+        self.assertIsInstance(
+            sp.simplify(sp.besselj(order, sp.zoo)), sp.Function
+        )
+        self.assertIsInstance(
+            sp.simplify(sp.besseli(order, sp.zoo)), sp.Function
+        )
+
     def test_noninteger_domain_powers(self):
         cases = [
             (sp.oo**sp.Rational(1, 2), sp.oo),
