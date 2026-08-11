@@ -10,6 +10,7 @@ program test_fortsym_kernel
     ! itself is the requirement.
     use, intrinsic :: iso_fortran_env, only: real32, real64
     use fortsym_string, only: str, str_t, chars
+    use fortsym_algebraic, only: algebraic_from_re_im, algebraic_sqrt
     use fortsym_arena, only: arena_t, NK_FUNC
     use fortsym_expr
     use fortsym_parse, only: parse_expr
@@ -42,6 +43,7 @@ program test_fortsym_kernel
     call test_operation_cost_record()
     call test_projected_exact_operation_count()
     call test_unrepresentable_exact_is_refused()
+    call test_real_algebraic_codegen()
     call test_temporaries_are_declared()
     call test_precision_modes()
     call test_default_temporary_prefix()
@@ -359,6 +361,57 @@ contains
         call ok("non-finite exact kernel emits no partial source", &
             len(code) == 0)
     end subroutine test_unrepresentable_exact_is_refused
+
+    subroutine test_real_algebraic_codegen()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1), algebraic_root
+        type(kernel_spec_t) :: spec
+        type(str_t) :: two_text, root_text, complex_text
+        character(:), allocatable :: code, message
+        logical :: bridge_ok, good
+        integer :: unit, ios, stat
+
+        call a%init()
+        two_text = algebraic_from_re_im("2", "0", bridge_ok)
+        root_text = algebraic_sqrt(chars(two_text), bridge_ok)
+        algebraic_root = algebraic_expr(a, chars(root_text), bridge_ok)
+        roots(1) = sym(a, "x") + algebraic_root
+        spec = spec_for("real_algebraic_k", X_ARGS, R_OUT)
+        code = chars(emit_kernel(roots, spec, good, message=message))
+        call ok("real algebraic kernel is accepted", good)
+        call ok("real algebraic kernel has source", good .and. len(code) > 0)
+        if (.not. good) return
+
+        open (newunit=unit, file="/tmp/fortsym_real_algebraic.f90", &
+            status="replace", action="write", iostat=ios)
+        call ok("real algebraic fixture opens", ios == 0)
+        if (ios /= 0) return
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_real_algebraic"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(real64) :: value"
+        write (unit, "(a)") "  call real_algebraic_k(3.0_real64, value)"
+        write (unit, "(a)") "  if (abs(value - 4.4142135623730951_real64) > 0.0_real64) error stop 1"
+        write (unit, "(a)") "end program drive_real_algebraic"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -o /tmp/fortsym_real_algebraic "// &
+            "/tmp/fortsym_real_algebraic.f90 > /tmp/fortsym_real_algebraic.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("real algebraic kernel compiles", stat == 0)
+        if (stat /= 0) return
+        call execute_command_line("/tmp/fortsym_real_algebraic", wait=.true., &
+            exitstat=stat)
+        call ok("real algebraic kernel matches independent sqrt(2) oracle", &
+            stat == 0)
+
+        complex_text = algebraic_from_re_im("1/2", "3/4", bridge_ok)
+        roots(1) = algebraic_expr(a, chars(complex_text), bridge_ok)
+        code = chars(emit_kernel(roots, spec, good, message=message))
+        call ok("non-real algebraic kernel remains refused", &
+            .not. good .and. len(code) == 0)
+    end subroutine test_real_algebraic_codegen
 
     subroutine test_temporaries_are_declared()
         type(arena_t), target :: a

@@ -11,8 +11,9 @@ module fortsym_kernel_ir
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
-        NK_BIG_REAL
+        NK_BIG_REAL, NK_ALGEBRAIC
     use fortsym_exact, only: exact_to_real
+    use fortsym_algebraic, only: algebraic_to_real
     use fortsym_expr, only: expr_t
     use fortsym_string, only: chars, str_t
     implicit none
@@ -206,7 +207,8 @@ contains
 
         kind = arena%kind_of(id)
         select case (kind)
-        case (NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL)
+        case (NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL, &
+                NK_ALGEBRAIC)
             ir%nodes(node_index)%operation = IR_LITERAL
             call literal_value(arena, id, ir%nodes(node_index)%value, ok, &
                 message)
@@ -262,6 +264,9 @@ contains
                 ok = .false.
                 message = "kernel IR: decimal literal cannot be parsed"
             end if
+        case (NK_ALGEBRAIC)
+            value = algebraic_to_real(chars(arena%algebraic_text_of(id)), ok)
+            if (.not. ok) message = "kernel IR: algebraic value is not a finite real64 literal"
         end select
         if (ok) then
             if (.not. ieee_is_finite(value)) then

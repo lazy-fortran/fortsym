@@ -21,6 +21,7 @@ module fortsym_print
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
         NK_BIG_REAL, NK_ALGEBRAIC
     use fortsym_expr, only: expr_t
+    use fortsym_algebraic, only: algebraic_to_real
     use fortsym_exact, only: exact_to_real
     use fortsym_names, only: valid_fortran_symbol, same_fortran_name
     use fortsym_dialect, only: dialect_t, dialect, fn_spelling, const_spelling, &
@@ -268,7 +269,7 @@ contains
             end if
             return
         case (NK_ALGEBRAIC)
-            ok = .false.
+            projected = algebraic_to_real(chars(a%algebraic_text_of(id)), ok)
             return
         case (NK_FUNC)
             if (chars(a%name_of(id)) == "Piecewise") then
@@ -365,7 +366,18 @@ contains
             end if
             return
         case (NK_ALGEBRAIC)
-            ok = .false.
+            projected = algebraic_to_real(chars(a%algebraic_text_of(id)), ok)
+            if (ok) then
+                select case (real_kind)
+                case (real32)
+                    projected = real(projected, real32)
+                case (real64)
+                    continue
+                case default
+                    ok = .false.
+                end select
+                if (ok) ok = ieee_is_finite(projected)
+            end if
             return
         case (NK_REAL)
             projected = a%real_of(id)
@@ -711,7 +723,7 @@ contains
         case (NK_BIG_REAL)
             call emit_big_real(b, a, id, d, context)
         case (NK_ALGEBRAIC)
-            call emit_algebraic(b, a, id)
+            call emit_algebraic(b, a, id, d, context)
         case (NK_REAL)
             call emit_real(b, a, id, d, context)
         case (NK_SYM)
@@ -742,12 +754,30 @@ contains
         end select
     end subroutine emit
 
-    subroutine emit_algebraic(b, a, id)
+    subroutine emit_algebraic(b, a, id, d, context)
         type(strbuf_t), intent(inout) :: b
         type(arena_t), intent(in) :: a
         integer, intent(in) :: id
+        type(dialect_t), intent(in) :: d
+        integer, intent(in) :: context
+        real(dp) :: value
+        logical :: ok, wrap
 
-        call b%append(chars(a%algebraic_text_of(id)))
+        if (d%id /= DIA_FORTRAN) then
+            call b%append(chars(a%algebraic_text_of(id)))
+            return
+        end if
+        value = algebraic_to_real(chars(a%algebraic_text_of(id)), ok)
+        if (.not. ok) return
+        wrap = value < 0.0_dp .and. context >= PREC_MUL
+        if (wrap) call b%append("(")
+        if (d%compact_reals) then
+            call b%append(compact_real(value))
+        else
+            call b%append(chars(str(value)))
+        end if
+        call b%append(chars(d%real_suffix))
+        if (wrap) call b%append(")")
     end subroutine emit_algebraic
 
     ! ------------------------------------------------------------- atoms --

@@ -58,4 +58,8 @@ payload losslessly; the parser keeps the payload opaque and lets the
 FLINT-backed arena constructor validate it. The SymEngine boundary converts
 atoms whose exact real and imaginary components are rational to an exact
 rational `re + im*I` expression. Higher-degree or otherwise non-rational atoms
-remain refused there. Fortran code generation integration remains incomplete.
+remain refused there. `algebraic_to_real` projects an exact real atom to a
+finite normal binary64 value only when a FLINT Arb enclosure proves a unique
+nearest-even result. Fortran printing and kernel generation use that checked
+projection. Non-real, subnormal, overflow, and ambiguous-rounding values are
+refused.

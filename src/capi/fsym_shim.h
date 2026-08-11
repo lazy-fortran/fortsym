@@ -153,6 +153,11 @@ enum {
  *  output budgets are enforced before a result is retained. */
 size_t fsym_algebraic_normalize(const char *value);
 
+/*! Project an exact real qqbar1 atom to a uniquely rounded finite normal
+ *  binary64 value using a FLINT Arb enclosure. Non-real, subnormal, overflow,
+ *  and rounding-boundary values are refused. */
+int fsym_algebraic_get_d(const char *value, double *result);
+
 /*! Non-zero when a canonical qqbar1 atom has exact rational real and
  *  imaginary components and can cross into SymEngine's exact complex domain. */
 int fsym_algebraic_symengine_supported(const char *value);

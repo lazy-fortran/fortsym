@@ -2,17 +2,18 @@ program test_fortsym_algebraic
     ! Independent oracles are derived minimal polynomials plus FLINT's
     ! documented canonical root order. Arithmetic checks also reconstruct
     ! rational norms and defining equations rather than echoing bridge output.
-    use, intrinsic :: iso_fortran_env, only: int64
+    use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, chars
     use fortsym_algebraic, only: algebraic_normalize, algebraic_i, &
         algebraic_from_re_im, algebraic_add, algebraic_sub, algebraic_mul, &
         algebraic_div, algebraic_conjugate, algebraic_sqrt, algebraic_pow, &
-        algebraic_signs, algebraic_re, algebraic_im
+        algebraic_signs, algebraic_re, algebraic_im, algebraic_to_real
     implicit none
 
     integer :: nfail = 0
     integer :: real_sign, imag_sign
     logical :: ok
+    real(real64) :: real_value
     type(str_t) :: zero, one, two, minus_two, imaginary, minus_imaginary
     type(str_t) :: sqrt_two, z, zbar, got, phi, real_part, imag_part
 
@@ -47,6 +48,9 @@ program test_fortsym_algebraic
     call algebraic_signs(chars(sqrt_two), real_sign, imag_sign, ok)
     call check_condition("sqrt(2) has positive-real branch", &
         ok .and. real_sign == 1 .and. imag_sign == 0)
+    real_value = algebraic_to_real(chars(sqrt_two), ok)
+    call check_condition("sqrt(2) has a checked binary64 projection", &
+        ok .and. real_value == 1.4142135623730951_real64)
     got = algebraic_pow(chars(sqrt_two), 2_int64, ok)
     call check_result("sqrt(2) squared reconstructs two", got, ok, &
         "qqbar1:0:-2,1")
@@ -68,6 +72,8 @@ program test_fortsym_algebraic
     call algebraic_signs(chars(got), real_sign, imag_sign, ok)
     call check_condition("conjugated sqrt(-2) is in lower half-plane", &
         ok .and. real_sign == 0 .and. imag_sign == -1)
+    real_value = algebraic_to_real(chars(got), ok)
+    call check_condition("non-real algebraic projection is refused", .not. ok)
 
     ! For z = 1/2 + 3i/4, clearing denominators from
     ! (x-1/2)^2 + (3/4)^2 gives 16*x^2 - 16*x + 13.

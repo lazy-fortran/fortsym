@@ -233,9 +233,8 @@ Every checklist item requires all of the following:
     - [x] Store canonical FLINT `qqbar1` values as `NK_ALGEBRAIC` arena atoms,
       expose `algebraic_expr` and `%algebraic_text()`, and fold pure exact
       algebraic `+`, `*`, and integer powers in the native engine. The native
-      zero query uses the FLINT component-sign oracle. Real64 evaluation,
-      Fortran kernel emission, and higher-degree SymEngine conversion retain
-      explicit refusal semantics.
+      zero query uses the FLINT component-sign oracle. Real64 evaluation and
+      higher-degree SymEngine conversion retain explicit refusal semantics.
     - [x] Integrate algebraic atoms with the existing complex-domain boundary.
       `fortsym_complexdom` handles exact real, pure-imaginary, and mixed atoms
       in `re_part` and `im_part` through FLINT's exact qqbar projections, and
@@ -247,9 +246,13 @@ Every checklist item requires all of the following:
     - [x] Convert exact Gaussian-rational algebraic atoms through the SymEngine
       boundary as exact rational `re + im*I` expressions. Higher-degree or
       otherwise non-rational atoms retain an explicit refusal.
+    - [x] Project exact real algebraic atoms to finite normal binary64 literals
+      for Fortran printing and kernel IR/code generation through a checked FLINT
+      Arb enclosure. Non-real, subnormal, overflow, and ambiguous-rounding
+      values retain explicit refusal semantics.
     - [ ] Extend algebraic values through full native simplification, then
-      complete the remaining complex-domain operations, conversion, and code
-      generation.
+      complete the remaining complex-domain operations, higher-degree
+      conversion, and complex code generation.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.

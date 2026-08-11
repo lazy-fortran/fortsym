@@ -3,10 +3,11 @@ program test_fortsym_kernel_ir
     ! deliberately does not compare serialized IR or source text: a changed
     ! numbering is harmless, a changed value is not.
     use, intrinsic :: iso_fortran_env, only: real64
-    use fortsym_string, only: chars
+    use fortsym_string, only: chars, str_t
+    use fortsym_algebraic, only: algebraic_from_re_im, algebraic_sqrt
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, sin_expr => sin, exp_expr => exp, &
-        operator(+), operator(*), operator(/), operator(**)
+    use fortsym_expr, only: expr_t, algebraic_expr, sym, sin_expr => sin, &
+        exp_expr => exp, operator(+), operator(*), operator(/), operator(**)
     use fortsym_kernel_ir
     implicit none
 
@@ -14,6 +15,7 @@ program test_fortsym_kernel_ir
     integer :: nfail = 0
 
     call test_lowered_dag_has_independent_meaning()
+    call test_real_algebraic_literal()
     call test_empty_roots()
     call test_mixed_arenas_are_rejected()
 
@@ -92,6 +94,32 @@ contains
         call ok("independent evaluator agrees for the shared root", &
             abs(values(ir%outputs(2)) - x_value*y_value) < 1.0e-14_dp)
     end subroutine test_lowered_dag_has_independent_meaning
+
+    subroutine test_real_algebraic_literal()
+        type(arena_t), target :: arena
+        type(expr_t) :: root, roots(1)
+        type(kernel_ir_t) :: ir
+        type(str_t) :: two_text, root_text
+        character(:), allocatable :: message
+        logical :: bridge_ok, good
+
+        call arena%init()
+        two_text = algebraic_from_re_im("2", "0", bridge_ok)
+        root_text = algebraic_sqrt(chars(two_text), bridge_ok)
+        root = algebraic_expr(arena, chars(root_text), bridge_ok)
+        roots(1) = root
+
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("real algebraic literal lowers", good)
+        if (.not. good) return
+        call ok("real algebraic literal has one output", size(ir%outputs) == 1)
+        if (size(ir%outputs) /= 1) return
+        call ok("real algebraic literal becomes an IR literal", &
+            ir%nodes(ir%outputs(1))%operation == IR_LITERAL)
+        if (ir%nodes(ir%outputs(1))%operation /= IR_LITERAL) return
+        call ok("real algebraic literal has checked binary64 value", &
+            ir%nodes(ir%outputs(1))%value == 1.4142135623730951_dp)
+    end subroutine test_real_algebraic_literal
 
     subroutine test_empty_roots()
         type(expr_t) :: roots(0)
