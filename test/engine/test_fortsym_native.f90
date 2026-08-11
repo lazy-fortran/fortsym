@@ -442,6 +442,7 @@ contains
         type(engine_result_t) :: r
         type(expr_t) :: args(2)
         type(expr_t) :: loggamma_args(1)
+        type(expr_t) :: extremum_args(3)
 
         ! Independent exact oracles: erf(0)=0, erfc(0)=1,
         ! Gamma(n)=(n-1)!, Gamma(1/2)=sqrt(pi), and positive integer
@@ -497,6 +498,28 @@ contains
         r = engine%simplify(func("log10", loggamma_args))
         call check("non-power-of-ten log10 remains opaque", &
             r%value%kind() == NK_FUNC)
+
+        extremum_args(1) = num(arena, 3_int64)
+        extremum_args(2) = num(arena, 1_int64)
+        extremum_args(3) = num(arena, 2_int64)
+        r = engine%simplify(func("min", extremum_args))
+        call check("min over exact integers selects the least", &
+            r%value == num(arena, 1_int64))
+        r = engine%simplify(func("max", extremum_args))
+        call check("max over exact integers selects the greatest", &
+            r%value == num(arena, 3_int64))
+        extremum_args(1) = rat(arena, -1_int64, 2_int64)
+        extremum_args(2) = rat(arena, 1_int64, 3_int64)
+        extremum_args(3) = rat(arena, 1_int64, 4_int64)
+        r = engine%simplify(func("min", extremum_args))
+        call check("min over exact rationals compares safely", &
+            r%value == rat(arena, -1_int64, 2_int64))
+        r = engine%simplify(func("max", extremum_args))
+        call check("max over exact rationals compares safely", &
+            r%value == rat(arena, 1_int64, 3_int64))
+        extremum_args(1) = x
+        r = engine%simplify(func("min", extremum_args))
+        call check("symbolic min remains opaque", r%value%kind() == NK_FUNC)
 
         r = engine%simplify(besselj(0, num(arena, 0_int64)))
         call check("J_0(0) simplifies to one", r%value == num(arena, 1))
