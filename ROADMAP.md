@@ -220,7 +220,14 @@ Every checklist item requires all of the following:
   - [x] Expose requested decimal precision in typed real and complex text
     results through `numeric_real_text_t` and `numeric_complex_text_t`, while
     keeping `numeric_precision_text` as the one generic native name.
-  - [ ] Add independently verified accuracy bounds to real operations.
+  - [x] Add independently verified sample-set accuracy bounds to real
+    operations. `fortsym_accuracy.measure_accuracy` evaluates each declared
+    sample through the MPFR reference path, compares the caller-owned real64
+    kernel in local ULPs, and retains maximum/RMS error, the maximizing input,
+    reference and observed values, condition data when defined, and refusal
+    counts. The independent test kernel adds one `spacing(x)` and therefore
+    provides a known one-ULP oracle. The bound applies to the declared sample
+    set, not to every real input.
   - [ ] Integrate exact complex and algebraic values into arena expressions and
     native operations.
 - [ ] Integrate algebraic values into arena expressions, printers, conversion,

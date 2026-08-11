@@ -14,7 +14,7 @@ it.
 |---|---:|---:|---:|---|
 | Hash-consed scalar expression DAG | stable structural order | conversion | conversion | persist a versioned cross-process structural digest |
 | Arbitrary-precision integers and rationals | native scalar arithmetic yes | yes | yes | requested-precision real and complex evaluation |
-| Real literals and real evaluation | yes | yes | partial | high precision and intervals |
+| Real literals and real evaluation | yes, with sampled MPFR ULP bounds | yes | partial | rigorous intervals and arbitrary-precision operations |
 | Complex and algebraic domains | bounded `qqbar` bridge | conversion only | partial | arena nodes and expression integration |
 | Applied functions and Bessel `J` | yes | opaque Bessel head | partial | broader special-function rules |
 | Parse, print, and Fortran dialect | deterministic | yes | yes | versioned serialization format |
