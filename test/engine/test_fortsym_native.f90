@@ -780,6 +780,15 @@ contains
         r = engine%simplify(sqrt(num(arena, -4_int64)))
         call check("native simplify preserves negative square root", &
             r%value%kind() == NK_FUNC)
+        r = engine%simplify(abs(num(arena, -7_int64)))
+        call check("native simplify evaluates exact integer absolute value", &
+            r%value == num(arena, 7_int64))
+        r = engine%simplify(abs(rat(arena, -2_int64, 3_int64)))
+        call check("native simplify evaluates exact rational absolute value", &
+            r%value == rat(arena, 2_int64, 3_int64))
+        r = engine%simplify(abs(x))
+        call check("native simplify preserves symbolic absolute value", &
+            r%value%kind() == NK_FUNC)
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
             r%verdict == VERDICT_TRUE)
