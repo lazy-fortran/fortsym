@@ -56,6 +56,7 @@ program test_fortsym_native
     call test_directed_domain_heads()
     call test_directed_atan2_heads()
     call test_directed_bessel_heads()
+    call test_directed_legendre_heads()
     call test_directed_inverse_heads()
     call test_reciprocal_hyperbolic_heads()
     call test_error_function_domain_heads()
@@ -1116,6 +1117,41 @@ contains
         call check("besseli(order,zoo) remains an applied head", &
             r%value%kind() == NK_FUNC)
     end subroutine test_directed_bessel_heads
+
+    subroutine test_directed_legendre_heads()
+        type(engine_result_t) :: r
+        type(expr_t) :: infinity, negative_infinity, complex_infinity
+        type(expr_t) :: args(3)
+
+        infinity = oo_expr(arena)
+        negative_infinity = -infinity
+        complex_infinity = zoo_expr(arena)
+        args(1) = num(arena, 2_int64)
+        args(2) = num(arena, 0_int64)
+        args(3) = infinity
+
+        r = engine%simplify(func("legendrep", args))
+        call check("legendre(2,oo) is oo", r%value == infinity)
+        args(1) = num(arena, 1_int64)
+        args(3) = negative_infinity
+        r = engine%simplify(func("legendrep", args))
+        call check("legendre(1,-oo) is negative oo", &
+            r%value == negative_infinity)
+        args(1) = num(arena, 2_int64)
+        r = engine%simplify(func("legendrep", args))
+        call check("legendre(2,-oo) is oo", r%value == infinity)
+        args(1) = num(arena, 0_int64)
+        args(3) = complex_infinity
+        r = engine%simplify(func("legendrep", args))
+        call check("legendre(0,zoo) is one", r%value == num(arena, 1_int64))
+        args(1) = num(arena, 2_int64)
+        r = engine%simplify(func("legendrep", args))
+        call check("legendre(2,zoo) is zoo", r%value == complex_infinity)
+        args(1) = rat(arena, 1_int64, 2_int64)
+        r = engine%simplify(func("legendrep", args))
+        call check("noninteger legendre degree remains an applied head", &
+            r%value%kind() == NK_FUNC)
+    end subroutine test_directed_legendre_heads
 
     subroutine test_directed_inverse_heads()
         type(engine_result_t) :: r

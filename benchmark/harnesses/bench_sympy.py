@@ -186,6 +186,16 @@ def bessel_domain_expression(engine: Any, suffix: str) -> Any:
     )
 
 
+def legendre_domain_expression(engine: Any, suffix: str) -> Any:
+    if engine is oracle:
+        infinity = engine.oo
+    else:
+        infinity = engine._default().constant("oo")
+    x = engine.Symbol(f"domain_legendre_x_{suffix}")
+    y = engine.Symbol(f"domain_legendre_y_{suffix}")
+    return engine.legendre(2, infinity) + (x + y + 1)**4
+
+
 def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[str, Any]]:
     name_x = f"{label}_x_{suffix}"
     name_y = f"{label}_y_{suffix}"
@@ -277,6 +287,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             bessel_domain_expression(native, suffix),
             names,
         ),
+        "domain_legendre": (
+            legendre_domain_expression(oracle, suffix),
+            legendre_domain_expression(native, suffix),
+            names,
+        ),
         "domain_power": (
             oracle.Pow(-oracle.oo, oracle.Rational(3, 2), evaluate=False),
             (-native_oo)**native_three_halves,
@@ -345,6 +360,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = atan2_domain_expression(engine, suffix)
     elif operation == "domain_bessel":
         expression = bessel_domain_expression(engine, suffix)
+    elif operation == "domain_legendre":
+        expression = legendre_domain_expression(engine, suffix)
     elif operation == "domain_power":
         if engine is oracle:
             expression = engine.Pow(
@@ -402,7 +419,7 @@ def correctness_cases() -> list[dict[str, Any]]:
                 "composition", "sqrt_power", "domain_function", "domain_inverse",
                 "domain_reciprocal", "domain_error_function", "domain_gamma",
                 "domain_atan2",
-                "domain_bessel",
+                "domain_bessel", "domain_legendre",
                 "domain_power"):
             expected = oracle.simplify(oracle_expression)
             actual = native.simplify(native_expression)
@@ -445,7 +462,7 @@ def correctness_cases() -> list[dict[str, Any]]:
                 if operation in (
                         "domain_function", "domain_inverse", "domain_reciprocal",
                         "domain_error_function", "domain_gamma", "domain_atan2",
-                        "domain_bessel",
+                        "domain_bessel", "domain_legendre",
                         "domain_power")
                 else equivalent(expected, actual, names)
             ),
@@ -496,7 +513,7 @@ def benchmark_workload(
                     "composition", "sqrt_power", "domain_function", "domain_inverse",
                     "domain_reciprocal", "domain_error_function", "domain_gamma",
                     "domain_atan2",
-                    "domain_bessel",
+                    "domain_bessel", "domain_legendre",
                     "domain_power"):
                 oracle_call = lambda: oracle.simplify(oracle_expression)
                 native_call = lambda: native.simplify(native_expression)
@@ -532,7 +549,7 @@ def benchmark_workload(
                         "composition", "sqrt_power", "domain_function", "domain_inverse",
                         "domain_reciprocal", "domain_error_function", "domain_gamma",
                         "domain_atan2",
-                        "domain_bessel",
+                        "domain_bessel", "domain_legendre",
                         "domain_power"):
                     return engine.simplify(expression)
                 if operation == "relation":
@@ -593,7 +610,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "domain_function", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_power", "relation", "compound", "factor",
+        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "domain_function", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_power", "relation", "compound", "factor",
         "assumption_query"
     ):
         for scope in ("cold_end_to_end", "warm_core"):

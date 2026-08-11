@@ -1,6 +1,6 @@
 {
   "adapter_profile": {
-    "declared_count": 78,
+    "declared_count": 79,
     "explicit_refusals": [
       "Matrix",
       "apart",
@@ -64,6 +64,7 @@
       "factorial",
       "floor",
       "gamma",
+      "legendre",
       "log",
       "loggamma",
       "nan",
@@ -7509,12 +7510,12 @@
   "source_inventory": "doc/sympy-api-inventory.json",
   "summary": {
     "classification_counts": {
-      "delegated": 2370,
+      "delegated": 2376,
       "external": 10,
       "facade": 163,
-      "native": 3005,
-      "python-adapter": 2326,
-      "refused": 25468
+      "native": 3011,
+      "python-adapter": 2332,
+      "refused": 25462
     },
     "fortran_public_exports": 723,
     "sympy": {
@@ -13659,13 +13660,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.special.polynomials.legendre",
         "kind": "class",
         "name": "legendre",
-        "owner": "ROADMAP.md",
-        "reason": "class is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -89531,14 +89534,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.legendre",
         "kind": "class",
         "module": "sympy",
         "name": "legendre",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -128867,14 +128872,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.legendre",
         "kind": "class",
         "module": "sympy.functions",
         "name": "legendre",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -138905,14 +138912,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.special.polynomials.legendre",
         "kind": "class",
         "module": "sympy.functions.special.polynomials",
         "name": "legendre",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -150061,14 +150070,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.manualintegrate.legendre",
         "kind": "class",
         "module": "sympy.integrals.manualintegrate",
         "name": "legendre",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -304693,13 +304704,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.legendre",
         "kind": "class",
         "name": "legendre",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [

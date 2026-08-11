@@ -374,6 +374,13 @@ loggamma = _named_function("loggamma")
 factorial = _named_function("factorial")
 besselj = _named_function("besselj")
 besseli = _named_function("besseli")
+_legendrep = _named_function("legendrep")
+
+
+def legendre(degree, argument):
+    return _legendrep(degree, Integer(0), argument)
+
+
 asinh = _named_function("asinh")
 acosh = _named_function("acosh")
 atanh = _named_function("atanh")
@@ -457,7 +464,7 @@ __all__ = [
     "Add", "Mul", "Pow", "Function", "Derivative", "Subs", "sin", "cos",
     "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "csch",
     "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial",
-    "besselj", "besseli",
+    "besselj", "besseli", "legendre",
     "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign",
     "floor", "ceiling", "diff", "subs", "expand",
     "simplify", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",

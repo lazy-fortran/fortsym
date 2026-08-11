@@ -204,6 +204,21 @@ class SympySubsetTest(unittest.TestCase):
             sp.simplify(sp.besseli(order, sp.zoo)), sp.Function
         )
 
+    def test_legendre_domain_heads(self):
+        cases = [
+            (sp.legendre(2, sp.oo), sp.oo),
+            (sp.legendre(1, -sp.oo), sp.Integer(-1) * sp.oo),
+            (sp.legendre(2, -sp.oo), sp.oo),
+            (sp.legendre(0, sp.zoo), sp.Integer(1)),
+            (sp.legendre(2, sp.zoo), sp.zoo),
+        ]
+        for expression, expected in cases:
+            with self.subTest(expression=str(expression)):
+                self.assertEqual(sp.simplify(expression), expected)
+        self.assertIsInstance(
+            sp.simplify(sp.legendre(sp.Rational(1, 2), sp.oo)), sp.Function
+        )
+
     def test_noninteger_domain_powers(self):
         cases = [
             (sp.oo**sp.Rational(1, 2), sp.oo),
