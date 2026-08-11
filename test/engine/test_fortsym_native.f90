@@ -768,6 +768,18 @@ contains
         r = engine%simplify(tan(pi_expr(arena)/2))
         call check("native simplify preserves tangent pole", &
             r%value%kind() == NK_FUNC)
+        r = engine%simplify(sqrt(num(arena, 4_int64)))
+        call check("native simplify evaluates exact integer square root", &
+            r%value == num(arena, 2_int64))
+        r = engine%simplify(sqrt(rat(arena, 4_int64, 9_int64)))
+        call check("native simplify evaluates exact rational square root", &
+            r%value == rat(arena, 2_int64, 3_int64))
+        r = engine%simplify(sqrt(num(arena, 2_int64)))
+        call check("native simplify preserves irrational square root", &
+            r%value%kind() == NK_FUNC)
+        r = engine%simplify(sqrt(num(arena, -4_int64)))
+        call check("native simplify preserves negative square root", &
+            r%value%kind() == NK_FUNC)
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
             r%verdict == VERDICT_TRUE)

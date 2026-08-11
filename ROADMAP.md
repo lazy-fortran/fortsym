@@ -191,6 +191,9 @@ exponential normal form, rather than leaving those roots tested only as raw
 `sin`, `cos`, and `tan` rational-angle fragment with direct exact roots,
 including the refusal boundary at tangent poles; it preserves the inverse-
 square-root spelling needed for equivalent eighth-turn forms to meet.
+Exact nonnegative integer and rational square roots now collapse when both
+numerator and denominator are perfect squares; nonsquares, negative radicands,
+and symbolic branch-sensitive roots remain untouched.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.
