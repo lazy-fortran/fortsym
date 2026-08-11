@@ -15,7 +15,7 @@ module fortsym_public_capi
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
     use fortsym_assume_api, only: assumption_context_t, init_assumption_context, &
-        record_assumption, &
+        clone_assumption_context, record_assumption, &
         assumption_has, &
         FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -32,9 +32,15 @@ module fortsym_public_capi
     integer(c_int), parameter, public :: FORTSYM_UNSUPPORTED = 5_c_int
     integer(c_int), parameter, public :: FORTSYM_RESOURCE_LIMIT = 6_c_int
 
+    type :: assumption_frame_t
+        type(assumption_context_t), pointer :: context => null()
+        type(assumption_frame_t), pointer :: previous => null()
+    end type assumption_frame_t
+
     type :: arena_owner_t
         type(arena_t) :: value
         type(assumption_context_t), pointer :: assumptions => null()
+        type(assumption_frame_t), pointer :: assumption_stack => null()
         integer       :: references = 1
     end type arena_owner_t
 
@@ -45,7 +51,8 @@ module fortsym_public_capi
 
     public :: fortsym_abi_version, fortsym_arena_new, fortsym_arena_free
     public :: fortsym_int, fortsym_rational, fortsym_real, fortsym_exact
-    public :: fortsym_symbol, c_fortsym_assume, fortsym_assumption_has, &
+    public :: fortsym_symbol, c_fortsym_assume, fortsym_assumption_push, &
+        fortsym_assumption_pop, fortsym_assumption_has, &
         fortsym_constant
     public :: fortsym_add, fortsym_subtract, fortsym_multiply, fortsym_divide
     public :: fortsym_power, fortsym_add_many, fortsym_function
@@ -61,7 +68,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 3_c_int
+        v = 4_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -227,6 +234,56 @@ contains
         call put_error(message, capacity, FORTSYM_OK)
         status = FORTSYM_OK
     end function c_fortsym_assume
+
+    function fortsym_assumption_push(raw, message, capacity) &
+            bind(c, name="fortsym_assumption_push") result(status)
+        type(c_ptr), value :: raw
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(assumption_frame_t), pointer :: frame
+
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+
+        allocate (frame)
+        frame%context => a%assumptions
+        frame%previous => a%assumption_stack
+        allocate (a%assumptions)
+        call clone_assumption_context(a%assumptions, frame%context)
+        a%assumption_stack => frame
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end function fortsym_assumption_push
+
+    function fortsym_assumption_pop(raw, message, capacity) &
+            bind(c, name="fortsym_assumption_pop") result(status)
+        type(c_ptr), value :: raw
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(assumption_frame_t), pointer :: frame
+        type(assumption_context_t), pointer :: current
+
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(a%assumption_stack)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+
+        frame => a%assumption_stack
+        current => a%assumptions
+        if (associated(current)) deallocate (current)
+        a%assumptions => frame%context
+        a%assumption_stack => frame%previous
+        nullify (frame%context, frame%previous)
+        deallocate (frame)
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end function fortsym_assumption_pop
 
     function fortsym_assumption_has(raw, expression_raw, fact, known, &
             message, capacity) bind(c, name="fortsym_assumption_has") &
@@ -953,12 +1010,21 @@ contains
 
     subroutine release_arena(a)
         type(arena_owner_t), pointer :: a
+        type(assumption_frame_t), pointer :: frame, previous
 
         if (.not. associated(a)) return
         a%references = a%references - 1
         if (a%references <= 0) then
             call a%value%clear()
             if (associated(a%assumptions)) deallocate (a%assumptions)
+            frame => a%assumption_stack
+            do while (associated(frame))
+                previous => frame%previous
+                if (associated(frame%context)) deallocate (frame%context)
+                nullify (frame%context, frame%previous)
+                deallocate (frame)
+                frame => previous
+            end do
             deallocate (a)
         end if
     end subroutine release_arena

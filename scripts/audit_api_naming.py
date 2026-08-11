@@ -134,6 +134,14 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "Keep one responsibility per owner and document default versus explicit state once.",
         ),
         concept(
+            "assumption-queries",
+            "Query and scope supported expression assumptions.",
+            [], ["Arena"], ["Q", "ask", "assuming"],
+            ["Q", "ask", "assuming"],
+            "The native arena owns the assumption context while the adapter keeps SymPy's Q/ask/assuming vocabulary at the Python boundary.",
+            "Keep one native context owner and make every scope nested, exception-safe, and reversible.",
+        ),
+        concept(
             "substitution",
             "Replace expressions.",
             ["subs"], ["subs"], ["subs", "Subs"], ["Expr", "Subs"],

@@ -229,6 +229,26 @@
       ]
     },
     {
+      "action": "Keep one native context owner and make every scope nested, exception-safe, and reversible.",
+      "description": "Query and scope supported expression assumptions.",
+      "finding": "The native arena owns the assumption context while the adapter keeps SymPy's Q/ask/assuming vocabulary at the Python boundary.",
+      "fortran_facade": [],
+      "id": "assumption-queries",
+      "python_facade": [
+        "Arena"
+      ],
+      "sympy_adapter": [
+        "Q",
+        "ask",
+        "assuming"
+      ],
+      "sympy_reference": [
+        "Q",
+        "ask",
+        "assuming"
+      ]
+    },
+    {
       "action": "Keep structural substitution in fortsym_subs and expose only the concise native subs entry point from the facade.",
       "description": "Replace expressions.",
       "finding": "The native facade forwards structural substitution from its single owning module and reports invalid handles through the common optional status outputs.",
@@ -1080,11 +1100,14 @@
       "Matrix",
       "Mul",
       "Pow",
+      "Q",
       "Rational",
       "Subs",
       "Symbol",
       "UnsupportedOperationError",
       "apart",
+      "ask",
+      "assuming",
       "cancel",
       "collect",
       "cos",
@@ -1124,11 +1147,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 111,
-    "concept_groups": 22,
+    "assigned_names": 114,
+    "concept_groups": 23,
     "fortran_facade_exports": 104,
     "python_facade_exports": 12,
-    "sympy_adapter_exports": 41,
+    "sympy_adapter_exports": 44,
     "unmapped_fortran_exports": 7
   },
   "sympy_version": "1.14.0",

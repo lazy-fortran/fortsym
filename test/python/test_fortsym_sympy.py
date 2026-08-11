@@ -1,6 +1,7 @@
 import sys
 import unittest
 
+import fortsym
 import fortsym.sympy as sp
 
 
@@ -78,6 +79,38 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual((nonzero.is_real, nonzero.is_positive,
                           nonzero.is_nonnegative, nonzero.is_nonzero),
                          (True, None, None, True))
+
+    def test_scoped_assumptions_restore_nested_default_state(self):
+        x = sp.Symbol("scoped_positive")
+        y = sp.Symbol("scoped_nonnegative")
+        positive = sp.Q.positive(x)
+        nonnegative = sp.Q.nonnegative(y)
+
+        self.assertIsNone(sp.ask(positive))
+        with sp.assuming(positive):
+            self.assertTrue(sp.ask(positive))
+            self.assertTrue(sp.ask(sp.Q.real(x)))
+            with sp.assuming(nonnegative):
+                self.assertTrue(sp.ask(nonnegative))
+                self.assertTrue(sp.ask(sp.Q.real(y)))
+            self.assertIsNone(sp.ask(nonnegative))
+        self.assertIsNone(sp.ask(positive))
+
+    def test_scoped_assumptions_reject_foreign_expression(self):
+        with fortsym.Arena() as arena:
+            foreign = arena.symbol("foreign_scope")
+            with self.assertRaises(ValueError):
+                with sp.assuming(sp.Q.positive(foreign)):
+                    pass
+
+    def test_scoped_assumptions_restore_after_exception(self):
+        x = sp.Symbol("exception_scope")
+        fact = sp.Q.positive(x)
+        with self.assertRaisesRegex(RuntimeError, "scope body"):
+            with sp.assuming(fact):
+                self.assertTrue(sp.ask(fact))
+                raise RuntimeError("scope body")
+        self.assertIsNone(sp.ask(fact))
 
 
 if __name__ == "__main__":

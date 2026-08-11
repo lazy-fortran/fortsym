@@ -27,7 +27,7 @@ it.
 | Zero decision | partial, with C/Python three-valued `is_zero` and `is_nonzero` | partial | weak simplify test | broader predicate inference and polynomial certificates |
 | Polynomial GCD and rational cancellation | no | partial, univariate | partial | multivariate domains |
 | Factor, apart, and together | no | no public operation | Yacas factor only | typed engine operations |
-| Assumptions and conditions | sign facts, C/Python fact queries, and three-valued predicate properties | no public context | no public context | compound inference and returned conditions |
+| Assumptions and conditions | sign facts, nested C/Python context scopes, `Q`/`ask` queries, and three-valued predicate properties | no public context | no public context | immutable Fortran contexts, compound inference, and returned conditions |
 | Series and coefficient extraction | Taylor | C shim only | no public operation | Laurent series and singular points |
 | Linear and polynomial solve | scalar linear | no public operation | Yacas concrete method | univariate polynomial roots |
 | Integration | no | no generic operation | Yacas concrete method | rational integration first |

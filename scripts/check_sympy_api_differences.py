@@ -37,8 +37,9 @@ def main() -> None:
         for item in semantic
         for name in item["affected"]
     }
-    assert semantic_names == supported
-    assert all(name in supported for name in semantic_names)
+    semantic_roots = {name.split(".", 1)[0] for name in semantic_names}
+    assert semantic_roots == supported
+    assert all(root in supported for root in semantic_roots)
     assert all(item["parity"] in {"partial", "same", "refused"} for item in semantic)
     assert all(item["affected"] for item in semantic + implementation)
     assert all(item["sympy"] and item["fortsym"] and item["difference"]

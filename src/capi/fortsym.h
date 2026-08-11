@@ -75,6 +75,10 @@ int fortsym_symbol(fortsym_arena *arena, const char *name, fortsym_expr **out,
                    char *message, size_t capacity);
 int fortsym_assume(fortsym_arena *arena, const fortsym_expr *expression,
                    int fact, char *message, size_t capacity);
+int fortsym_assumption_push(fortsym_arena *arena, char *message,
+                            size_t capacity);
+int fortsym_assumption_pop(fortsym_arena *arena, char *message,
+                           size_t capacity);
 /* `known` is one when the arena proves the fact and zero when it is unknown. */
 int fortsym_assumption_has(fortsym_arena *arena,
                            const fortsym_expr *expression, int fact,
