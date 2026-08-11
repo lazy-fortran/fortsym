@@ -944,6 +944,16 @@ round-trip: there is no reader, and write-then-read would only prove two halves
 of one implementation agree. Reading foreign LaTeX, rendering to PDF, and
 notebook integration are out of scope.
 
+Issue #67 is complete as of 2026-08-11. `fortsym_latex` writes a deterministic,
+self-contained macro file from the original `expr_t`, with explicit notation
+registration, letters-only label mapping, collision refusal, assumption
+companions, fractions, roots, scripts, and function conventions. The printer
+has a dedicated two-dimensional LaTeX walk rather than a flat spelling flag.
+The independent fixture oracle checks exact output and compiles a minimal
+`amsmath` document with `pdflatex`; the parser explicitly refuses `DIA_LATEX`.
+The API and provenance decision are documented in `doc/latex-api.md` and
+`doc/provenance.md`. The real-manuscript pilot remains #68.
+
 The conventions are validated against a real manuscript before they harden
 (#68), because fixtures are written by whoever wrote the emitter and agree with
 it by construction. Reaching the derivations that are stored as notebooks rather

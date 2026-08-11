@@ -34,6 +34,7 @@ fortsym_add_test(test_fortsym_polysolve algebra/test_fortsym_polysolve.f90)
 
 # --- surface syntax ---
 fortsym_add_test(test_fortsym_roundtrip io/test_fortsym_roundtrip.f90)
+fortsym_add_test(test_fortsym_latex io/test_fortsym_latex.f90)
 fortsym_add_test(test_fortsym_wolfram io/test_fortsym_wolfram.f90)
 
 # --- engines ---
