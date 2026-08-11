@@ -80,7 +80,13 @@ queries. Every workload passes through a SymPy
 correctness check before timing; domain expressions use structural equality
 because subtracting equal infinities is itself undefined. The JSON report includes the individual
 samples, median, min/max, native-to-SymPy ratio, Python and platform metadata,
-and the timing parameters. Run it from a built checkout with:
+and the timing parameters.
+The correctness report also checks the direct `sin(zoo)`, `cos(zoo)`, and
+`tan(zoo)` boundaries. They are not timing rows: a one-node sentinel call is
+dominated by the compatibility ABI crossing rather than the native algorithm,
+and would not be a meaningful SymPy performance comparison.
+
+Run it from a built checkout with:
 
 ```text
 FORTSYM_LIBRARY=build/lib/libfortsym.so PYTHONPATH=python \

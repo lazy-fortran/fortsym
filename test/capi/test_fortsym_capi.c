@@ -71,6 +71,8 @@ int main(void)
     fortsym_expr *expanded_infinity = NULL;
     fortsym_expr *expanded_complex_infinity = NULL;
     fortsym_expr *expanded_undefined = NULL;
+    fortsym_expr *periodic = NULL;
+    fortsym_expr *periodic_simplified = NULL;
     fortsym_expr *unknown_head = NULL;
     const fortsym_expr *root_argument[1];
 
@@ -241,6 +243,14 @@ int main(void)
                                        sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(expanded_undefined, "nan");
+    root_argument[0] = complex_infinity;
+    status = fortsym_function(arena, "sin", root_argument, 1, &periodic,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, periodic, &periodic_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(periodic_simplified, "nan");
     status = fortsym_complex_operation(arena, imaginary, "conjugate",
                                        &conjugated, message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -304,6 +314,8 @@ int main(void)
     fortsym_expr_free(expanded_undefined);
     fortsym_expr_free(expanded_complex_infinity);
     fortsym_expr_free(expanded_infinity);
+    fortsym_expr_free(periodic_simplified);
+    fortsym_expr_free(periodic);
     fortsym_expr_free(undefined);
     fortsym_expr_free(complex_infinity);
     fortsym_expr_free(infinity);
