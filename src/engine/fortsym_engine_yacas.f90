@@ -29,7 +29,7 @@ module fortsym_engine_yacas
     use fortsym_engine, only: engine_t, engine_result_t, wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, &
         CAP_SIMPLIFY, CAP_EXPAND, CAP_FACTOR, CAP_INTEGRATE, CAP_LIMIT, &
-        CAP_SOLVE, CAP_DIFF
+        CAP_SOLVE, CAP_DIFF, resource_limit_t
     implicit none
     private
 
@@ -225,9 +225,10 @@ contains
         end if
     end function evaluate
 
-    function yc_simplify(self, e) result(r)
+    function yc_simplify(self, e, limit) result(r)
         class(yacas_engine_t), intent(inout) :: self
         type(expr_t),          intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                :: r
         character(:), allocatable :: text
         real(dp) :: t0

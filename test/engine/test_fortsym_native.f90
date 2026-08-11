@@ -13,8 +13,8 @@ program test_fortsym_native
     use fortsym_assume, only: assumption_context_t, assume, positive
     use fortsym_eval, only: binding_t, eval_expr
     use fortsym_print, only: print_expr
-    use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
-        VERDICT_FALSE
+    use fortsym_engine, only: engine_result_t, resource_limit_t, &
+        new_resource_limit, VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     implicit none
 
@@ -35,6 +35,7 @@ program test_fortsym_native
     call test_common_rational_factor()
     call test_expansion()
     call test_expansion_limits()
+    call test_resource_limits()
     call test_differentiation()
     call test_bessel_recurrence()
     call test_series()
@@ -299,6 +300,55 @@ contains
         call check("coefficient-overflow preserved power keeps its value", &
             abs(got - expected) <= 1.0e-12_dp*max(1.0_dp, abs(expected)))
     end subroutine test_expansion_limits
+
+    subroutine test_resource_limits()
+        type(engine_result_t) :: r
+        type(resource_limit_t) :: limit
+        type(expr_t) :: original
+
+        original = x + sym(arena, "resource_y")
+        limit = new_resource_limit(1_int64)
+        r = engine%simplify(original, limit)
+        call check("simplify refuses its node budget", .not. r%ok)
+        call check("simplify budget names the operation", &
+            index(chars(r%message), "simplify") > 0)
+        call check("simplify budget names the limit", &
+            index(chars(r%message), "node budget") > 0)
+        call check("simplify budget preserves the expression", &
+            r%value == original)
+
+        original = (x + sym(arena, "resource_y"))**2
+        limit = new_resource_limit(4_int64)
+        r = engine%simplify(original, limit)
+        call check("simplify charges recursive visits", .not. r%ok)
+        call check("recursive node refusal preserves the expression", &
+            r%value == original)
+
+        r = engine%expand((x + num(arena, 1))**2, limit)
+        call check("expand refuses its node budget", .not. r%ok)
+        call check("expand budget names the operation", &
+            index(chars(r%message), "expand") > 0)
+
+        limit = new_resource_limit(seconds=-1.0_dp)
+        r = engine%series(x, x, num(arena, 0), 1, limit)
+        call check("series refuses an expired deadline", .not. r%ok)
+        call check("series deadline names the operation", &
+            index(chars(r%message), "series") > 0 .and. &
+            index(chars(r%message), "deadline") > 0)
+
+        limit = new_resource_limit(1_int64)
+        r = engine%solve(x + num(arena, 1), x, limit)
+        call check("solve refuses its node budget", .not. r%ok)
+        call check("solve budget names the operation", &
+            index(chars(r%message), "solve") > 0)
+
+        ! Limits belong to a call. A refused operation must not poison the
+        ! engine or a later independent session.
+        r = engine%simplify(original)
+        call check("unbounded simplify after refusal succeeds", r%ok)
+        call check("unbounded simplify still returns the right value", &
+            r%value == original)
+    end subroutine test_resource_limits
 
     subroutine test_differentiation()
         type(engine_result_t) :: r
