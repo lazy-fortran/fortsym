@@ -124,6 +124,15 @@ program test_fortsym_convenience
     call check("complex expansion preserves the principal exponential form", &
         result%ok .and. result%value == cos(num(default_storage, 1_int64)) + &
         i_expr(default_storage)*sin(num(default_storage, 1_int64)), failures)
+    result = complex_expand(oo_expr(default_storage))
+    call check("complex expansion preserves positive infinity", &
+        result%ok .and. result%value == oo_expr(default_storage), failures)
+    result = complex_expand(zoo_expr(default_storage))
+    call check("complex expansion maps complex infinity to undefined", &
+        result%ok .and. result%value == nan_expr(default_storage), failures)
+    result = complex_expand(nan_expr(default_storage))
+    call check("complex expansion preserves undefined", &
+        result%ok .and. result%value == nan_expr(default_storage), failures)
     result = complex_expand(mu)
     call check("native complex expansion refuses unknown reality", .not. result%ok, failures)
     result = re_part(mu)

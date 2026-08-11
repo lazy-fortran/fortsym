@@ -65,6 +65,12 @@ int main(void)
     fortsym_expr *argument = NULL;
     fortsym_expr *modulus = NULL;
     fortsym_expr *complex_expanded = NULL;
+    fortsym_expr *infinity = NULL;
+    fortsym_expr *complex_infinity = NULL;
+    fortsym_expr *undefined = NULL;
+    fortsym_expr *expanded_infinity = NULL;
+    fortsym_expr *expanded_complex_infinity = NULL;
+    fortsym_expr *expanded_undefined = NULL;
     fortsym_expr *unknown_head = NULL;
     const fortsym_expr *root_argument[1];
 
@@ -212,6 +218,29 @@ int main(void)
                                        sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(complex_expanded, "i");
+    status = fortsym_constant(arena, "oo", &infinity, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_constant(arena, "zoo", &complex_infinity, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_constant(arena, "nan", &undefined, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_complex_operation(arena, infinity, "expand_complex",
+                                       &expanded_infinity, message,
+                                       sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(expanded_infinity, "oo");
+    status = fortsym_complex_operation(arena, complex_infinity,
+                                       "expand_complex", &expanded_complex_infinity,
+                                       message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(expanded_complex_infinity, "nan");
+    status = fortsym_complex_operation(arena, undefined, "expand_complex",
+                                       &expanded_undefined, message,
+                                       sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(expanded_undefined, "nan");
     status = fortsym_complex_operation(arena, imaginary, "conjugate",
                                        &conjugated, message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -272,6 +301,12 @@ int main(void)
     fortsym_expr_free(argument);
     fortsym_expr_free(modulus);
     fortsym_expr_free(complex_expanded);
+    fortsym_expr_free(expanded_undefined);
+    fortsym_expr_free(expanded_complex_infinity);
+    fortsym_expr_free(expanded_infinity);
+    fortsym_expr_free(undefined);
+    fortsym_expr_free(complex_infinity);
+    fortsym_expr_free(infinity);
     fortsym_expr_free(minus_one);
     fortsym_expr_free(conjugate_sum);
     fortsym_expr_free(conjugated);

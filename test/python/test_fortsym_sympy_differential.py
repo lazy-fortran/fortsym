@@ -201,6 +201,14 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(expected=str(expected)):
                 self.assert_equivalent("complex domain", expected, actual)
 
+        for expected, actual in (
+            (oracle.expand_complex(oracle.oo), native.expand_complex(native.oo)),
+            (oracle.expand_complex(oracle.zoo), native.expand_complex(native.zoo)),
+            (oracle.expand_complex(oracle.nan), native.expand_complex(native.nan)),
+        ):
+            with self.subTest(expected=str(expected)):
+                self.assertEqual(str(actual), str(expected))
+
         expected_identity = oracle.simplify(oracle.conjugate(oracle.I) + oracle.I)
         actual_identity = native.simplify(native.conjugate(native.I) + native.I)
         self.assertEqual(expected_identity, oracle.Integer(0))

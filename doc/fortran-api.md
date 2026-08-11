@@ -163,8 +163,10 @@ through its rectangular quotient, and `tan` through the corresponding
 meromorphic quotient; `log` uses the principal `log(abs) + i*Arg` form, and
 `sqrt` uses the principal polar half-angle form. An identically zero
 denominator or logarithm argument is refused, while a nontrivial denominator
-remains in the result to preserve pointwise poles. The same branch and reality
-refusals apply to other unsupported expressions.
+remains in the result to preserve pointwise poles. `complex_expand` preserves
+`oo` and `nan` and maps `zoo` to `nan`, matching SymPy's defined sentinel
+boundary. The same branch and reality refusals apply to other unsupported
+expressions.
 
 The main `fortsym` facade exposes the same owner as `re_part`, `im_part`,
 `abs_of`, `conjugate`, `arg_of`, and `complex_expand`, each returning the common `engine_result_t`. The

@@ -292,6 +292,9 @@ Every checklist item requires all of the following:
         `complex_expand`/`expand_complex`. The adapter accepts SymPy's
         `deep=True`/`False` option for the supported recursive fragment;
         unknown reality and unsupported branches remain named refusals.
+      - [x] Match `expand_complex`'s defined domain-sentinel boundaries:
+        `oo` and `nan` remain themselves while `zoo` becomes `nan`, with
+        independent Fortran, C ABI, and SymPy differential coverage.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
   - [x] Add the canonical native `oo_expr` positive-infinity sentinel. Native
