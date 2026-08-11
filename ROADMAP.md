@@ -179,7 +179,9 @@ Every checklist item requires all of the following:
   forwards the core operations to their owning modules or the native engine,
   using one optional `ok`/`why` refusal convention and preserving the
   Fortran-native `expr_t` return shape.
-- [ ] Keep `x = "x"` and `symbols(...)` as the default-state entry points.
+- [x] Keep `x = "x"` and `symbols(...)` as the default-state entry points.
+  The convenience test covers both the single-symbol assignment and the
+  whitespace/comma-separated `symbols(...)` helper.
 - [ ] Make default-state reset, stale-handle behaviour, and global-state
   lifetime explicit and tested.
 - [ ] Add the same procedures to explicit-arena usage without a second syntax.
