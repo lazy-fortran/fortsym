@@ -73,8 +73,8 @@ simplification, and reciprocal-hyperbolic domain-head simplification embedded
 in a symbolic fourth-degree expression, directed-infinity `atan2` domain-head
 simplification, and Bessel infinity-domain simplification,
 Legendre infinity-domain simplification,
-and the principal
-`(-oo)**(3/2)` domain-power branch, relational
+and the principal `(-oo)**(3/2)` domain-power branch plus the normalized
+`(-oo)**(2/3)` phase, relational
 and compound-assumption construction, factorization, and supported assumption
 queries. Every workload passes through a SymPy
 correctness check before timing; domain expressions use structural equality
@@ -90,9 +90,10 @@ including the representable `besseli(nan, -oo)` result; these are correctness
 cases rather than standalone timing rows for the same reason. The same report
 checks the high-degree `legendre(3, oo) = nan` boundary and the supported
 negative-integer identity cases. It also checks symbolic and integer
-`besseli(order, -oo)` phase boundaries, normalized positive rational phases of
-`(-oo)**(p/q)`, and the zero result for negative rational exponents. These are
-correctness boundaries rather than standalone timing rows.
+`besseli(order, -oo)` phase boundaries, and the zero result for negative
+rational exponents. The normalized positive rational phase also has the
+matched `domain_phase` cold and warm timing rows; the remaining sentinel cases
+are correctness boundaries rather than standalone timing rows.
 
 Run it from a built checkout with:
 
