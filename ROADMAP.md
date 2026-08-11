@@ -219,6 +219,16 @@ The native oracle checks preflight and recursive node refusals, expired
 deadlines, expression preservation, and recovery after a refused call. The
 policy is documented in `doc/architecture.md`.
 
+Issue #42 is complete as of 2026-08-11. Fortran kernel emission now uses one
+declared function map for standard intrinsics and the FortNum special runtime:
+`loggamma` maps to `log_gamma`, ordinary and modified Bessel heads map to their
+Fortran or `fortnum_special` entry points, and the generated source declares
+the required module imports. Integer Bessel orders are rendered as integer
+literals, unknown heads are hard refusals, and `fortran_representable` rejects
+them before printing. A compiler/run fixture checks exact special-function
+values independently; the current FortNum release has no elliptic entry point,
+so elliptic heads remain explicit refusals until that runtime contract exists.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.

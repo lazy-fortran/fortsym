@@ -618,7 +618,7 @@ contains
         if (present(prechecked)) then
             valid = prechecked
         else
-            valid = fortran_roots_representable(roots)
+            valid = fortran_roots_representable(roots, spec%args)
         end if
         if (present(ok)) ok = valid
         if (.not. valid) then
@@ -758,7 +758,8 @@ contains
         if (present(message)) message = diagnostic
         if (valid .and. (spec%precision == PRECISION_REAL32 .or. &
             spec%precision == PRECISION_MIXED)) then
-            valid = fortran_roots_representable_kind(mapped_roots, real32)
+            valid = fortran_roots_representable_kind(mapped_roots, real32, &
+                mapped_spec%args)
         end if
         if (present(ok)) ok = valid
         if (present(cost_record)) cost_record = str("")
@@ -948,7 +949,7 @@ contains
                 if (.not. ok) return
             end do
         end if
-        if (.not. fortran_roots_representable(mapped_roots)) then
+        if (.not. fortran_roots_representable(mapped_roots, mapped_spec%args)) then
             ok = .false.
             message = "kernel emitter: expression contains a value not representable in Fortran"
             return

@@ -13,7 +13,9 @@ module fortsym_kernel_emit
     use fortsym_string, only: str_t, strbuf_t, str, chars
     use fortsym_expr, only: expr_t
     use fortsym_quadratic, only: quadratic_t
-    use fortsym_dialect, only: dialect, DIA_FORTRAN
+    use fortsym_dialect, only: dialect, DIA_FORTRAN, fn_spelling, &
+        fortran_function_supported, fortran_function_arity_ok, &
+        fortran_function_uses_special
     use fortsym_print, only: print_expr_in
     use fortsym_kernel_target, only: TARGET_DEFAULT_VALUE => TARGET_DEFAULT, &
         TARGET_FORTRAN_CPU_VALUE => TARGET_FORTRAN_CPU, &
@@ -93,6 +95,9 @@ module fortsym_kernel_emit
         !! until their consumer asks for it. Ignored by the CUDA backend, which
         !! has no such concept.
         logical :: pure_procedure = .false.
+        !> Optional module supplying nonstandard special functions. An empty
+        !> value selects the consumer-standard `fortnum_special` umbrella.
+        type(str_t) :: special_module
         type(str_t) :: generator
         type(str_t) :: generator_revision
         type(str_t) :: regenerate_command
@@ -895,6 +900,7 @@ contains
                 call b%append("    use, intrinsic :: iso_fortran_env, only: real64")
             end if
             call b%newline()
+            call append_special_use(b, ir, spec)
             call b%append("    implicit none")
             call b%newline()
             if (size(spec%args) > 0) then
@@ -993,6 +999,36 @@ contains
         source = b%to_str()
     end function emit_source
 
+    subroutine append_special_use(b, ir, spec)
+        type(strbuf_t), intent(inout) :: b
+        type(kernel_ir_t), intent(in) :: ir
+        type(kernel_emit_spec_t), intent(in) :: spec
+        logical :: have_in, have_kn
+        integer :: k
+        character(:), allocatable :: module_name
+
+        have_in = .false.
+        have_kn = .false.
+        do k = 1, ir%n_nodes
+            if (ir%nodes(k)%operation /= IR_FUNCTION) cycle
+            select case (chars(ir%nodes(k)%name))
+            case ("besseli")
+                have_in = .true.
+            case ("besselk")
+                have_kn = .true.
+            end select
+        end do
+        if (.not. have_in .and. .not. have_kn) return
+
+        module_name = chars(spec%special_module)
+        if (len_trim(module_name) == 0) module_name = "fortnum_special"
+        call b%append("    use "//trim(module_name)//", only: ")
+        if (have_in) call b%append("bessel_in")
+        if (have_in .and. have_kn) call b%append(", ")
+        if (have_kn) call b%append("bessel_kn")
+        call b%newline()
+    end subroutine append_special_use
+
     subroutine append_name_mapping(b, original_names, emitted_names, changed_names, comment)
         type(strbuf_t), intent(inout) :: b
         type(str_t), intent(in), optional :: original_names(:), emitted_names(:)
@@ -1018,9 +1054,9 @@ contains
         integer, intent(in) :: backend
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: message
-        integer :: k, j, operand, first, last
+        integer :: k, j, operand, first, last, order_value
         real(real32) :: single_value
-        character(:), allocatable :: prefix, temporary
+        character(:), allocatable :: prefix, temporary, module_name
 
         ok = .false.
         message = ""
@@ -1096,6 +1132,15 @@ contains
             message = "kernel emitter: temporary prefix is invalid"
             return
         end if
+        if (backend == BACKEND_FORTRAN .and. has_special_function(ir)) then
+            module_name = chars(spec%special_module)
+            if (len_trim(module_name) > 0) then
+                if (.not. valid_fortran_name(trim(module_name))) then
+                    message = "kernel emitter: special module name is invalid"
+                    return
+                end if
+            end if
+        end if
 
         do k = 1, ir%n_nodes
             first = ir%nodes(k)%first_operand
@@ -1139,6 +1184,13 @@ contains
                     message = "kernel emitter: wrong arity for function "// &
                         chars(ir%nodes(k)%name)
                     return
+                end if
+                if (backend == BACKEND_FORTRAN .and. &
+                    integer_order_function(chars(ir%nodes(k)%name))) then
+                    if (.not. literal_integer(ir, ir%operands(first), order_value)) then
+                        message = "kernel emitter: Bessel order must be an integer literal"
+                        return
+                    end if
                 end if
                 if (.not. supported_function(chars(ir%nodes(k)%name), backend)) then
                     message = "kernel emitter: unsupported "//backend_name(backend)// &
@@ -1304,8 +1356,13 @@ contains
             do k = 1, ir%nodes(index)%n_operands
                 if (k > 1) call b%append(", ")
                 operand = ir%operands(ir%nodes(index)%first_operand + k - 1)
-                call b%append(operand_reference(ir, operand, prefix, backend, &
-                    precision))
+                if (backend == BACKEND_FORTRAN .and. k == 1 .and. &
+                    integer_order_function(chars(ir%nodes(index)%name))) then
+                    call b%append(integer_order_text(ir, operand))
+                else
+                    call b%append(operand_reference(ir, operand, prefix, backend, &
+                        precision))
+                end if
             end do
             call b%append(")")
             text = chars(b%to_str())
@@ -1465,7 +1522,11 @@ contains
         integer, intent(in) :: precision
         character(:), allocatable :: text
 
-        text = name
+        if (backend == BACKEND_FORTRAN) then
+            text = chars(fn_spelling(dialect(DIA_FORTRAN), name))
+        else
+            text = name
+        end if
         if (backend == BACKEND_CUDA) then
             if (name == "abs") text = "fabs"
             if (name == "gamma") text = "tgamma"
@@ -1491,6 +1552,10 @@ contains
         integer, intent(in) :: backend
 
         supported_function = .false.
+        if (backend == BACKEND_FORTRAN) then
+            supported_function = fortran_function_supported(name)
+            return
+        end if
         select case (name)
         case ("sin", "cos", "tan", "asin", "acos", "atan", "atan2", &
                 "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", &
@@ -1506,12 +1571,41 @@ contains
         character(*), intent(in) :: name
         integer, intent(in) :: n
 
-        if (name == "atan2") then
-            function_arity_ok = n == 2
-        else
-            function_arity_ok = n == 1
-        end if
+        function_arity_ok = fortran_function_arity_ok(name, n)
     end function function_arity_ok
+
+    pure logical function integer_order_function(name) result(ok)
+        character(*), intent(in) :: name
+
+        ok = name == "besselj" .or. name == "bessely" .or. &
+            name == "besseli" .or. name == "besselk"
+    end function integer_order_function
+
+    logical function has_special_function(ir) result(found)
+        type(kernel_ir_t), intent(in) :: ir
+        integer :: k
+
+        found = .false.
+        do k = 1, ir%n_nodes
+            if (ir%nodes(k)%operation /= IR_FUNCTION) cycle
+            if (fortran_function_uses_special(chars(ir%nodes(k)%name))) then
+                found = .true.
+                return
+            end if
+        end do
+    end function has_special_function
+
+    function integer_order_text(ir, index) result(text)
+        type(kernel_ir_t), intent(in) :: ir
+        integer, intent(in) :: index
+        character(:), allocatable :: text
+        character(64) :: buffer
+        integer :: value
+
+        value = nint(ir%nodes(index)%value)
+        write (buffer, "(i0)") value
+        text = trim(buffer)
+    end function integer_order_text
 
     logical function supported_constant(name, backend)
         character(*), intent(in) :: name

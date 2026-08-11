@@ -22,9 +22,10 @@ module fortsym_print
         NK_BIG_REAL
     use fortsym_expr, only: expr_t
     use fortsym_exact, only: exact_to_real
-    use fortsym_names, only: valid_fortran_symbol
+    use fortsym_names, only: valid_fortran_symbol, same_fortran_name
     use fortsym_dialect, only: dialect_t, dialect, fn_spelling, const_spelling, &
-        DIA_NATIVE, DIA_FORTRAN, DIA_WOLFRAM
+        DIA_NATIVE, DIA_FORTRAN, DIA_WOLFRAM, fortran_function_supported, &
+        fortran_function_arity_ok
     implicit none
     private
 
@@ -155,8 +156,9 @@ contains
         ok = fortran_node_representable(e%a, e%id, visited)
     end function fortran_representable
 
-    function fortran_roots_representable(roots) result(ok)
+    function fortran_roots_representable(roots, array_names) result(ok)
         type(expr_t), intent(in) :: roots(:)
+        type(str_t), intent(in), optional :: array_names(:)
         logical                  :: ok
         logical, allocatable :: visited(:)
         integer :: k
@@ -165,7 +167,12 @@ contains
         if (size(roots) == 0) return
         allocate (visited(roots(1)%a%size()), source=.false.)
         do k = 1, size(roots)
-            ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited)
+            if (present(array_names)) then
+                ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited, &
+                    array_names)
+            else
+                ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited)
+            end if
             if (.not. ok) return
         end do
     end function fortran_roots_representable
@@ -173,9 +180,10 @@ contains
     !> Whether every reachable real value survives conversion to the selected
     !> generated kind. This is stricter than the historical binary64 gate and
     !> prevents a real32 kernel from compiling a literal as infinity.
-    function fortran_roots_representable_kind(roots, real_kind) result(ok)
+    function fortran_roots_representable_kind(roots, real_kind, array_names) result(ok)
         type(expr_t), intent(in) :: roots(:)
         integer, intent(in) :: real_kind
+        type(str_t), intent(in), optional :: array_names(:)
         logical :: ok
         logical, allocatable :: visited(:)
         integer :: k
@@ -184,16 +192,22 @@ contains
         if (size(roots) == 0) return
         allocate (visited(roots(1)%a%size()), source=.false.)
         do k = 1, size(roots)
-            ok = fortran_node_representable_kind(roots(k)%a, roots(k)%id, &
-                visited, real_kind)
+            if (present(array_names)) then
+                ok = fortran_node_representable_kind(roots(k)%a, roots(k)%id, &
+                    visited, real_kind, array_names)
+            else
+                ok = fortran_node_representable_kind(roots(k)%a, roots(k)%id, &
+                    visited, real_kind)
+            end if
             if (.not. ok) return
         end do
     end function fortran_roots_representable_kind
 
-    recursive function fortran_node_representable(a, id, visited) result(ok)
+    recursive function fortran_node_representable(a, id, visited, array_names) result(ok)
         type(arena_t), intent(in) :: a
         integer,       intent(in) :: id
         logical,       intent(inout) :: visited(:)
+        type(str_t), intent(in), optional :: array_names(:)
         logical                  :: ok
         real(dp) :: projected
         integer :: k
@@ -219,18 +233,31 @@ contains
                 if (ok) ok = ieee_is_finite(projected)
             end if
             return
+        case (NK_FUNC)
+            if (present(array_names)) then
+                ok = fortran_function_node_representable(a, id, array_names)
+            else
+                ok = fortran_function_node_representable(a, id)
+            end if
+            if (.not. ok) return
         end select
         do k = 1, a%nargs_of(id)
-            ok = fortran_node_representable(a, a%arg_of(id, k), visited)
+            if (present(array_names)) then
+                ok = fortran_node_representable(a, a%arg_of(id, k), visited, &
+                    array_names)
+            else
+                ok = fortran_node_representable(a, a%arg_of(id, k), visited)
+            end if
             if (.not. ok) return
         end do
     end function fortran_node_representable
 
     recursive function fortran_node_representable_kind(a, id, visited, &
-            real_kind) result(ok)
+            real_kind, array_names) result(ok)
         type(arena_t), intent(in) :: a
         integer, intent(in) :: id, real_kind
         logical, intent(inout) :: visited(:)
+        type(str_t), intent(in), optional :: array_names(:)
         logical :: ok
         real(dp) :: projected
         integer :: k, ios
@@ -286,13 +313,52 @@ contains
             end select
             if (ok) ok = ieee_is_finite(projected)
             return
+        case (NK_FUNC)
+            if (present(array_names)) then
+                ok = fortran_function_node_representable(a, id, array_names)
+            else
+                ok = fortran_function_node_representable(a, id)
+            end if
+            if (.not. ok) return
         end select
         do k = 1, a%nargs_of(id)
-            ok = fortran_node_representable_kind(a, a%arg_of(id, k), visited, &
-                real_kind)
+            if (present(array_names)) then
+                ok = fortran_node_representable_kind(a, a%arg_of(id, k), visited, &
+                    real_kind, array_names)
+            else
+                ok = fortran_node_representable_kind(a, a%arg_of(id, k), visited, &
+                    real_kind)
+            end if
             if (.not. ok) return
         end do
     end function fortran_node_representable_kind
+
+    logical function fortran_function_node_representable(a, id, array_names) result(ok)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        type(str_t), intent(in), optional :: array_names(:)
+        character(:), allocatable :: name
+        integer :: order, k
+
+        name = chars(a%name_of(id))
+        ok = fortran_function_supported(name) .and. &
+            fortran_function_arity_ok(name, a%nargs_of(id))
+        if (.not. ok .and. present(array_names) .and. a%nargs_of(id) == 1) then
+            do k = 1, size(array_names)
+                if (same_fortran_name(name, chars(array_names(k)))) then
+                    ok = .true.
+                    exit
+                end if
+            end do
+        end if
+        if (.not. ok) return
+        if (name == "besselj" .or. name == "bessely" .or. &
+            name == "besseli" .or. name == "besselk") then
+            order = a%arg_of(id, 1)
+            ok = a%kind_of(order) == NK_INT .or. &
+                (a%kind_of(order) == NK_RAT .and. a%den_of(order) == 1)
+        end if
+    end function fortran_function_node_representable
 
     !> Index of `id` in the substitution table, or 0.
     pure function subst_slot(id, ids) result(k)
@@ -1202,10 +1268,12 @@ contains
         case ("sin", "cos", "tan", "asin", "acos", "atan", "atan2", &
                 "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
                 "exp", "log", "log10", "sqrt", "abs", &
-                "erf", "erfc", "gamma", "max", "min")
+                "erf", "erfc", "gamma", "loggamma", "max", "min", &
+                "Min", "Max")
             is_real = .true.
-        case ("besselj")
-            ! bessel_jn takes an integer order followed by a real value.
+        case ("besselj", "bessely", "besseli", "besselk")
+            ! All four Fortran Bessel entry points take an integer order
+            ! followed by a real value.
             is_real = position > 1
         case default
             ! A declared kernel array being indexed, or any other head fortsym

@@ -69,6 +69,14 @@ An engine capability is a promise that its corresponding type-bound operation
 is callable. A capability bit without an operation entry point is invalid and
 must not be used for dispatch.
 
+Fortran kernel emission uses the dialect's declared function map rather than
+passing symbolic heads through as identifiers. Standard intrinsics cover
+`erf`, `erfc`, `gamma`, `log_gamma`, `bessel_jn`, and `bessel_yn`; the default
+`fortnum_special` module supplies `bessel_in` and `bessel_kn`. Bessel orders
+must be integer literals in the scalar kernel IR, and an unmapped head is
+refused before source is returned. A consumer can override the special-module
+name in `kernel_emit_spec_t` when its dependency exposes the same procedures.
+
 Tier-2 adapters accept only plain symbol identifiers, known exact constants,
 and the audited function vocabulary before rendering an expression as CAS
 source. Unsupported names return `UNKNOWN`. SymPy receives an explicit local
