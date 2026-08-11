@@ -1824,6 +1824,13 @@ contains
         out = a%func(name, args)
         if (size(args) == 0) return
 
+        call exact_inverse_value(a, name, args(1), trig_constant, &
+            trig_constant_ok)
+        if (trig_constant_ok) then
+            out = trig_constant
+            return
+        end if
+
         call split_negated_argument(a, args(1), positive_argument, &
             negated_argument)
         odd_head = .false.
@@ -2142,6 +2149,65 @@ contains
         end select
         ok = .true.
     end subroutine exact_trig_value
+
+    subroutine exact_inverse_value(a, name, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        character(*), intent(in) :: name
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer :: half_pi, quarter_pi
+
+        out = id
+        ok = .false.
+        half_pi = mul_pair(a, a%rat(1_int64, 2_int64), a%const("pi"))
+        quarter_pi = mul_pair(a, a%rat(1_int64, 4_int64), a%const("pi"))
+
+        select case (name)
+        case ("asin")
+            if (is_zero_id(a, id)) then
+                out = a%int(0_int64)
+            else if (is_one_id(a, id)) then
+                out = half_pi
+            else if (is_minus_one_id(a, id)) then
+                out = mul_pair(a, a%int(-1_int64), half_pi)
+            else
+                return
+            end if
+        case ("acos")
+            if (is_one_id(a, id)) then
+                out = a%int(0_int64)
+            else if (is_zero_id(a, id)) then
+                out = half_pi
+            else if (is_minus_one_id(a, id)) then
+                out = a%const("pi")
+            else
+                return
+            end if
+        case ("atan")
+            if (is_zero_id(a, id)) then
+                out = a%int(0_int64)
+            else if (is_one_id(a, id)) then
+                out = quarter_pi
+            else if (is_minus_one_id(a, id)) then
+                out = mul_pair(a, a%int(-1_int64), quarter_pi)
+            else
+                return
+            end if
+        case ("asinh")
+            if (.not. is_zero_id(a, id)) return
+            out = a%int(0_int64)
+        case ("acosh")
+            if (.not. is_one_id(a, id)) return
+            out = a%int(0_int64)
+        case ("atanh")
+            if (.not. is_zero_id(a, id)) return
+            out = a%int(0_int64)
+        case default
+            return
+        end select
+        ok = .true.
+    end subroutine exact_inverse_value
 
     subroutine exact_square_root(a, id, out, ok)
         type(arena_t), intent(inout) :: a
