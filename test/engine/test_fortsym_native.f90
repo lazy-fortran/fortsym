@@ -831,6 +831,21 @@ contains
         r = engine%simplify(unary_function("atanh", num(arena, 0_int64)))
         call check("native simplify evaluates atanh(0)", &
             r%value == num(arena, 0_int64))
+        r = engine%simplify(unary_function("csc", pi_expr(arena)/2))
+        call check("native simplify evaluates csc(pi/2)", &
+            r%value == num(arena, 1_int64))
+        r = engine%simplify(unary_function("sec", pi_expr(arena)/3))
+        call check("native simplify evaluates sec(pi/3)", &
+            r%value == num(arena, 2_int64))
+        r = engine%simplify(unary_function("cot", pi_expr(arena)/4))
+        call check("native simplify evaluates cot(pi/4)", &
+            r%value == num(arena, 1_int64))
+        r = engine%simplify(unary_function("csc", num(arena, 0_int64)))
+        call check("native simplify preserves csc pole", &
+            r%value%kind() == NK_FUNC)
+        r = engine%simplify(unary_function("sech", num(arena, 0_int64)))
+        call check("native simplify evaluates sech(0)", &
+            r%value == num(arena, 1_int64))
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
             r%verdict == VERDICT_TRUE)
