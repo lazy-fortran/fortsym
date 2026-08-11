@@ -13,6 +13,7 @@ module fortsym_public_capi
         operator(*), operator(/), operator(**)
     use fortsym_print, only: print_expr
     use fortsym_subs, only: subs
+    use fortsym_predicates, only: predicate_is_number => is_number
     use fortsym_diff, only: diff
     use fortsym_assume_api, only: assumption_context_t, init_assumption_context, &
         clone_assumption_context, record_assumption, &
@@ -73,12 +74,13 @@ module fortsym_public_capi
     public :: fortsym_expr_equal, fortsym_expr_node_count, fortsym_expr_text
     public :: fortsym_expr_name, fortsym_expr_exact_text
     public :: fortsym_expr_int_value, fortsym_expr_real_value
+    public :: fortsym_expr_is_number
 
 contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 10_c_int
+        v = 11_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -892,6 +894,22 @@ contains
         call get_expr(raw, p, e, status, message, capacity)
         if (status == FORTSYM_OK) kind = int(e%kind(), c_int)
     end function fortsym_expr_kind
+
+    function fortsym_expr_is_number(raw, number, message, capacity) &
+            bind(c, name="fortsym_expr_is_number") result(status)
+        type(c_ptr), value :: raw
+        integer(c_int), intent(out) :: number
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(expr_owner_t), pointer :: p
+        type(expr_t) :: e
+
+        number = 0_c_int
+        call get_expr(raw, p, e, status, message, capacity)
+        if (status == FORTSYM_OK) number = merge(1_c_int, 0_c_int, &
+            predicate_is_number(e))
+    end function fortsym_expr_is_number
 
     function fortsym_expr_arity(raw, arity, message, capacity) &
             bind(c, name="fortsym_expr_arity") result(status)

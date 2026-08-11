@@ -451,6 +451,18 @@
       "sympy_reference": []
     },
     {
+      "action": "Keep numeric-expression classification in fortsym_predicates and do not duplicate it in the C ABI or Python adapter.",
+      "description": "Ask whether an expression is numeric.",
+      "finding": "The native predicate owner classifies numeric atoms and numeric-only compounds once; the compatibility adapter preserves SymPy's boolean Expr.is_number spelling.",
+      "fortran_facade": [
+        "is_number"
+      ],
+      "id": "numeric-predicate",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    },
+    {
       "action": "Reuse one result type across facade operations and zero queries instead of adding operation-specific status vocabularies.",
       "description": "Return one common result for native expression operations.",
       "finding": "The easy facade and native engine share engine_result_t for expression values, success, verdicts, timings, and diagnostics.",
@@ -1050,6 +1062,12 @@
       },
       {
         "concepts": [
+          "numeric-predicate"
+        ],
+        "name": "is_number"
+      },
+      {
+        "concepts": [
           "identity-and-validity"
         ],
         "name": "is_valid"
@@ -1531,9 +1549,9 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 171,
-    "concept_groups": 27,
-    "fortran_facade_exports": 133,
+    "assigned_names": 172,
+    "concept_groups": 28,
+    "fortran_facade_exports": 134,
     "python_facade_exports": 12,
     "sympy_adapter_exports": 84,
     "unmapped_fortran_exports": 0

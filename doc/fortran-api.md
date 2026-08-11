@@ -191,6 +191,12 @@ boundary and preserve the complex-domain refusal diagnostics.
 The arena validates its decimal syntax and preserves the original digits rather
 than converting the value through `real64`.
 
+The `fortsym_predicates` module exposes `is_number(expression)`. It returns true for
+numeric atoms, named constants, domain sentinels, exact algebraic atoms, and
+compound expressions whose children are all numeric. Symbols and relation
+objects return false. The C ABI and Python compatibility layer call this same
+native owner.
+
 Requested-precision numeric evaluation uses one generic with two result forms.
 Pass a character variable for the decimal text, or pass `numeric_real_text_t`
 to retain the requested precision with the value:

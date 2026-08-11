@@ -406,6 +406,14 @@ Every checklist item requires all of the following:
     rational and real; exact integer/rational nodes are `True`, while floats
     and unknown symbols remain `None`. The C ABI, Fortran facade, differential
     tests, and matched performance rows share this one fact vocabulary.
+  - [x] Add the scalar `Expr.is_number` predicate through one native owner.
+    Numeric atoms, named constants, domain sentinels, exact algebraic atoms,
+    and numeric-only compound expressions return `True`; symbols and Boolean
+    relations return `False`. Fortran, the C ABI, the Python adapter, the
+    independent native tests, and SymPy 1.14.0 differential cases use the
+    same implementation. The immutable Python result is cached; its warm-core
+    benchmark row is enforced, while the one-node cold call is recorded as a
+    conversion-dominated diagnostic rather than a native algorithm claim.
 - [ ] Support local contexts, global convenience assumptions, scoped context
   managers in Python, and immutable explicit contexts in Fortran.
   - [x] Add nested native context push/pop with exception-safe Python
@@ -588,10 +596,12 @@ Every checklist item requires all of the following:
     expression owner. The cache preserves the raw low-level `Expr.diff` and
     C-ABI contract; the SymPy adapter now matches SymPy's repeated-derivative
     reuse and is faster in both matched cold and warm scopes.
-  - [x] Run the enforced 50-workload cold/warm parity matrix with a fresh
+  - [x] Run the enforced 51-workload cold/warm parity matrix with a fresh
     native C-ABI arena per workload; every declared workload, including
-    differentiation and rational/integer assumptions, is at or below the
-    SymPy 1.14.0 median in the recorded run.
+    differentiation, rational/integer assumptions, and the warm numeric
+    predicate query, is at or below the SymPy 1.14.0 median in the recorded
+    run. The cold numeric-predicate call remains a documented ABI-crossing
+    diagnostic.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

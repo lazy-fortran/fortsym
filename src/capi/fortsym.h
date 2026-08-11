@@ -42,7 +42,8 @@ enum fortsym_node_kind {
     FORTSYM_FUNCTION = 9,
     FORTSYM_BIG_INT = 10,
     FORTSYM_BIG_RAT = 11,
-    FORTSYM_BIG_REAL = 12
+    FORTSYM_BIG_REAL = 12,
+    FORTSYM_ALGEBRAIC = 13
 };
 
 enum fortsym_assumption_fact {
@@ -153,6 +154,10 @@ int fortsym_complex_operation(fortsym_arena *arena,
 void fortsym_expr_free(fortsym_expr *expression);
 int fortsym_expr_kind(const fortsym_expr *expression, int *kind,
                       char *message, size_t capacity);
+/* `number` is one when the expression is numeric in SymPy's sense, including
+ * numeric-only compound expressions, and zero for symbolic or Boolean ones. */
+int fortsym_expr_is_number(const fortsym_expr *expression, int *number,
+                           char *message, size_t capacity);
 int fortsym_expr_arity(const fortsym_expr *expression, size_t *arity,
                        char *message, size_t capacity);
 int fortsym_expr_argument(const fortsym_expr *expression, size_t index,

@@ -389,6 +389,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.Q.rational(native_rational),
             names,
         ),
+        "number_predicate": (
+            oracle.sin(1),
+            native.sin(1),
+            names,
+        ),
     }
     if has_composition:
         expressions["composition"] = (
@@ -409,6 +414,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         x = engine.Symbol(f"{operation}_x_{suffix}", integer=True)
     elif operation == "rational_assumption_query":
         x = engine.Symbol(f"{operation}_x_{suffix}", rational=True)
+    elif operation == "number_predicate":
+        x = engine.Integer(1)
     else:
         x = engine.Symbol(f"{operation}_x_{suffix}")
     if operation == "expand":
@@ -468,6 +475,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.Q.integer(x)
     elif operation == "rational_assumption_query":
         expression = engine.Q.rational(x)
+    elif operation == "number_predicate":
+        expression = engine.sin(x)
     elif operation == "refine":
         expression = engine.sqrt(x**2)
     elif operation == "composition":
@@ -639,6 +648,9 @@ def correctness_cases() -> list[dict[str, Any]]:
                 "rational_assumption_query"):
             expected = oracle.ask(oracle_expression)
             actual = native.ask(native_expression)
+        elif operation == "number_predicate":
+            expected = oracle_expression.is_number
+            actual = native_expression.is_number
         elif operation == "refine":
             expected = oracle.refine(
                 oracle_expression, oracle.Q.negative(names["check_x_fixed"])
@@ -668,7 +680,7 @@ def correctness_cases() -> list[dict[str, Any]]:
                 expected == actual
                 if operation in (
                         "assumption_query", "integer_assumption_query",
-                        "rational_assumption_query")
+                        "rational_assumption_query", "number_predicate")
                 else str(expected) == str(actual)
                 if operation == "relation"
                 else compound_equivalent(expected, actual)
@@ -719,6 +731,9 @@ def benchmark_workload(
                     "rational_assumption_query"):
                 oracle_call = lambda: oracle.ask(oracle_expression)
                 native_call = lambda: native.ask(native_expression)
+            elif operation == "number_predicate":
+                oracle_call = lambda: oracle_expression.is_number
+                native_call = lambda: native_expression.is_number
             elif operation == "refine":
                 oracle_x = oracle.Symbol("refine_x_warm")
                 native_x = native.Symbol("refine_x_warm")
@@ -773,6 +788,8 @@ def benchmark_workload(
                         "assumption_query", "integer_assumption_query",
                         "rational_assumption_query"):
                     return engine.ask(expression)
+                if operation == "number_predicate":
+                    return expression.is_number
                 if operation == "refine":
                     return engine.refine(expression, engine.Q.negative(variable))
                 if operation == "domain_complex":
@@ -848,9 +865,12 @@ def main() -> None:
     for operation in (
         "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "domain_function", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
         "assumption_query", "integer_assumption_query",
-        "rational_assumption_query"
+        "rational_assumption_query", "number_predicate"
     ):
-        for scope in ("cold_end_to_end", "warm_core"):
+        scopes = ("warm_core",) if operation == "number_predicate" else (
+            "cold_end_to_end", "warm_core"
+        )
+        for scope in scopes:
             workloads.append(benchmark_workload(
                 operation, scope, args.warmup, args.repetitions, args.batch,
             ))

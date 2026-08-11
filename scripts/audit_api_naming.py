@@ -196,6 +196,13 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "Keep zero_test as the only user-facing zero query and reuse the engine verdict constants rather than adding check_* sisters.",
         ),
         concept(
+            "numeric-predicate",
+            "Ask whether an expression is numeric.",
+            ["is_number"], [], [], [],
+            "The native predicate owner classifies numeric atoms and numeric-only compounds once; the compatibility adapter preserves SymPy's boolean Expr.is_number spelling.",
+            "Keep numeric-expression classification in fortsym_predicates and do not duplicate it in the C ABI or Python adapter.",
+        ),
+        concept(
             "operation-results",
             "Return one common result for native expression operations.",
             ["engine_result_t"], [], [], [],

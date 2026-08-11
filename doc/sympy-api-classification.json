@@ -1834,6 +1834,17 @@
       },
       {
         "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_expr_is_number",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_expr_is_number",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
           "native"
         ],
         "id": "fortsym_backend.BACKEND_PROTOCOL_VERSION",
@@ -3210,6 +3221,17 @@
         "id": "fortsym.same_arena",
         "module": "fortsym",
         "name": "same_arena",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.is_number",
+        "module": "fortsym",
+        "name": "is_number",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -5589,6 +5611,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_predicates.is_number",
+        "module": "fortsym_predicates",
+        "name": "is_number",
+        "owner": "src/core/fortsym_predicates.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_quadratic.quadratic_t",
         "module": "fortsym_quadratic",
         "name": "quadratic_t",
@@ -7657,12 +7689,12 @@
     "classification_counts": {
       "delegated": 2481,
       "external": 10,
-      "facade": 173,
-      "native": 3129,
+      "facade": 175,
+      "native": 3132,
       "python-adapter": 2437,
       "refused": 25357
     },
-    "fortran_public_exports": 736,
+    "fortran_public_exports": 739,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
