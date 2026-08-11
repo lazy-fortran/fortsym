@@ -99,6 +99,14 @@ options and semantic forms by name. The compatibility document and focused
 frontend tests define the supported subset and its differences. Larger
 operation families remain independently tracked in #28–#43.
 
+Issue #28 (polynomial and rational algebra) is complete as of 2026-08-11:
+the exact sparse multivariate layer is now registered in the library and test
+builds. It provides together, cancel, apart, coefficient/collect/exponent,
+exact division and GCD, numerator/denominator extraction, and bounded complete
+factorisation. Independent tests check value preservation, divisibility,
+coefficient reconstruction, factor multiplication, and explicit refusals for
+unsupported high-degree and floating-point inputs.
+
 Issue #40 (public trig and power rewrites) is complete as of 2026-08-10:
 `trig_expand`, `trig_reduce`, `trig_to_exp`, `exp_to_trig`, and guarded
 `power_expand` are public operations returning rewritten expressions plus an
@@ -705,6 +713,12 @@ pass is not optional.
 Ordered by corpus impact. Counts are call sites across the 384-script corpus.
 
 ### M1 — Polynomial and rational core (#28) · 2189 sites
+
+Issue #28 is complete for the bounded exact fragment above. The implementation
+uses checked rational arithmetic, sparse generator polynomials, primitive PRS
+GCD, Yun square-free decomposition, rational-root factorisation through degree
+three, and exact partial-fraction recombination. Higher-degree factorisation
+and floating-point coefficients remain named refusals.
 
 Content, primitive part, exact division, GCD, square-free decomposition,
 resultant, `cancel`, `together`, `apart`, `factor`.
