@@ -53,12 +53,12 @@ decision = "partial constructs an unevaluated first-order node. diff owns the ev
 [[family]]
 id = "contexts-and-handles"
 audit_concepts = ["arena-and-expression", "assumption-queries"]
-canonical_native = ["arena_t", "expr_t", "default_arena", "reset", "assumption_push", "assumption_pop"]
-current_native = ["arena_t", "expr_t", "default_arena", "reset", "assumption_push", "assumption_pop"]
+canonical_native = ["arena_t", "expr_t", "default_arena", "reset", "assumption_context_t", "make_assumption_context", "with_assumption", "assumption_push", "assumption_pop"]
+current_native = ["arena_t", "expr_t", "default_arena", "reset", "assumption_context_t", "make_assumption_context", "with_assumption", "assumption_push", "assumption_pop"]
 transition_aliases = []
 python_facade = ["Arena", "Expr"]
 sympy_adapter = ["Arena", "Expr", "Q", "ask", "assuming"]
-decision = "Keep arena_t and expr_t as type names. Use default_arena and reset in the convenience facade because use fortsym already supplies the namespace. Keep nested assumption_push/pop in the one native context owner; Q, ask, and assuming remain the SymPy adapter vocabulary."
+decision = "Keep arena_t and expr_t as type names. Use default_arena and reset in the convenience facade because use fortsym already supplies the namespace. Keep assumption_context_t, make_assumption_context, and with_assumption as the value-style native context vocabulary; assumption_push/pop remain the C/Python scope mechanism. Q, ask, and assuming remain the SymPy adapter vocabulary."
 
 [[family]]
 id = "transformations"

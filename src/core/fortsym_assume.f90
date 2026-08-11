@@ -6,7 +6,7 @@ module fortsym_assume
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_INT, NK_RAT
-    use fortsym_expr, only: expr_t
+    use fortsym_expr, only: expr_t, is_valid
     implicit none
     private
 
@@ -15,6 +15,7 @@ module fortsym_assume
     public :: integer_valued, positive_integer, record_relation
     public :: assumption_has
     public :: init_assumption_context, record_assumption, clone_assumption_context
+    public :: make_assumption_context, with_assumption
     public :: FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, &
         FACT_INTEGER, FACT_POSITIVE_INTEGER
 
@@ -57,6 +58,28 @@ contains
 
         call context_clone(child, parent)
     end subroutine clone_assumption_context
+
+    function make_assumption_context(home) result(context)
+        type(arena_t), target, intent(inout) :: home
+        type(assumption_context_t) :: context
+
+        call init_assumption_context(context, home)
+    end function make_assumption_context
+
+    function with_assumption(parent, assumption, ok) result(child)
+        type(assumption_context_t), intent(in) :: parent
+        type(assumption_t), intent(in) :: assumption
+        logical, intent(out), optional :: ok
+        type(assumption_context_t) :: child
+        logical :: valid
+
+        call clone_assumption_context(child, parent)
+        valid = associated(parent%home)
+        if (valid) valid = is_valid(assumption%expression)
+        if (valid) valid = associated(assumption%expression%a, parent%home)
+        if (valid) call assume(child, assumption)
+        if (present(ok)) ok = valid
+    end function with_assumption
 
     subroutine record_assumption(context, expression, facts)
         type(assumption_context_t), intent(inout) :: context

@@ -143,6 +143,29 @@ The core operations use the expression's owning arena, so the same `subs`,
 `diff`, `simplify`, `expand`, and `factor` calls work without an explicit-arena
 variant or a second calling syntax.
 
+## Explicit assumption contexts
+
+The facade provides value-style assumption contexts for isolated derivations.
+`make_assumption_context` creates an empty context for an arena, and
+`with_assumption` returns a copied context with one supported fact. The parent
+is unchanged, so sibling contexts can be used independently:
+
+```fortran
+type(assumption_context_t) :: base, positive_x, nonnegative_y
+logical :: good
+
+base = make_assumption_context(a)
+positive_x = with_assumption(base, positive(x), good)
+nonnegative_y = with_assumption(base, nonnegative(y), good)
+result = simplify(sqrt(x**2), assumptions=positive_x)
+```
+
+The supported constructors are `real_valued`, `positive`, `nonnegative`, and
+`nonzero`. `simplify`, `expand`, `factor`, `diff`, and `zero_test` accept the
+optional `assumptions=` context. A context from another arena is refused with
+a diagnostic. The default facade remains unchanged and does not consult an
+implicit process-global context.
+
 ## Core operations
 
 The easy facade uses the same short names as the owning modules:
