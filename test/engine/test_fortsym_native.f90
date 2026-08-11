@@ -740,6 +740,16 @@ contains
         r = engine%zero_test(exp(i_expr(arena)*pi_expr(arena)/4) - i_expr(arena))
         call check("other fractional periodic constants remain unknown", &
             r%verdict == VERDICT_UNKNOWN)
+        r = engine%zero_test(sin(pi_expr(arena)/6) - rat(arena, 1_int64, 2_int64))
+        call check("sine sixth-turn constant is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(cos(pi_expr(arena)/3) - rat(arena, 1_int64, 2_int64))
+        call check("cosine sixth-turn constant is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(sin(pi_expr(arena)/4) - &
+            1/sqrt(num(arena, 2_int64)))
+        call check("sine eighth-turn constant is decided zero", &
+            r%verdict == VERDICT_TRUE)
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
             r%verdict == VERDICT_TRUE)
