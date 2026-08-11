@@ -174,6 +174,17 @@ and verifies reset invalidation. The Nix build and all 39 CTest cases pass, the
 rewritten consumer compiles, and `fo build` exits successfully after its stale
 mixed-toolchain build directory was reconfigured.
 
+Issue #71 (guidance for the short form) is complete as of 2026-08-11: the
+README, Fortran API reference, architecture note, and feature matrix point
+callers to `use fortsym` for ordinary single-threaded derivations and retain
+explicit arenas for concurrency, embedding, and independent state. The API
+reference states the identifier naming rule and the no-LaTeX-in-symbol-names
+boundary. The external `symbolic` skill now opens with character assignment,
+keeps `parse_expr` explicit, and retains the explicit-arena example in its
+proper scope. Its prompts-repository commit is
+[`9d7e53c`](https://github.com/krystophny/prompts/commit/9d7e53c). The GitHub
+issue is now closed after the documentation checks and both repository pushes.
+
 Build hygiene is also part of the current regression gate: the global
 `-Warray-temporaries` pass is clean across the library, applications, and
 tests, and the Nix CI jobs add their dependency library directories to the

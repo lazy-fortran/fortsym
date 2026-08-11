@@ -10,7 +10,11 @@ its decision procedures rather than infer a Boolean answer.
 The public expression type is independent of every backend. `arena_t` stores a
 hash-consed directed acyclic graph, and `expr_t` holds an arena pointer and a
 node index. Backends translate this graph to their own representation. The
-native backend operates on it directly.
+native backend operates on it directly. The ordinary Fortran entry point is
+`use fortsym`, which supplies a documented default arena and character-to-symbol
+assignment. The explicit modules remain the first-class choice for independent
+or concurrent derivations. See [`fortran-api.md`](fortran-api.md) for the
+naming rule and lifetime contract.
 
 ## Layers
 

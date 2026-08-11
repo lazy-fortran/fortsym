@@ -43,3 +43,9 @@ simplification, and Taylor or Fourier projection.
 
 The matrix does not claim Mathematica-wide coverage. The competitive target is
 the measured FortNum and MHD1D fragment, followed by named algebraic domains.
+
+Fortran callers start with the short `use fortsym` surface and its documented
+default arena. Character assignment creates symbols and `symbols(...)` fills
+scalar names. Explicit arenas remain the first-class API for concurrency,
+embedding, and independent derivations. The naming rule and the no-LaTeX-name
+boundary are maintained in [`fortran-api.md`](fortran-api.md).
