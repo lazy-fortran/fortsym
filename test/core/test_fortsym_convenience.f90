@@ -11,7 +11,7 @@ program test_fortsym_convenience
     type(expr_t) :: explicit_mu, explicit_sigma, explicit_best, explicit_xi
     type(expr_t) :: explicit_expression, default_expression, mixed
     type(expr_t) :: sine, substituted, derivative, simplified, expanded, factored
-    type(expr_t) :: failed
+    type(expr_t) :: failed, stale
     character(:), allocatable :: why
     logical :: good
     integer :: failures
@@ -75,10 +75,17 @@ program test_fortsym_convenience
     call check("facade reports cross-arena substitution refusal", &
         .not. good .and. .not. is_valid(failed), failures)
 
+    stale = mu
     call reset()
-    call check("reset invalidates old handles", .not. is_valid(mixed), failures)
+    call reset()
+    call check("reset invalidates old handles", &
+        .not. is_valid(mixed) .and. .not. is_valid(stale), failures)
     mu = "mu"
-    call check("the default arena can be reused after reset", is_valid(mu), failures)
+    call check("the default arena can be reused after reset", &
+        is_valid(mu) .and. .not. is_valid(stale), failures)
+    call check("the default arena pointer remains usable after reset", &
+        associated(default_storage) .and. &
+        same_arena(mu, sym(default_storage, "mu")), failures)
 
     if (failures /= 0) error stop failures
     write (*, '(a)') "PASS fortsym convenience API"

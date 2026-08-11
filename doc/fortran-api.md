@@ -37,10 +37,14 @@ sigma = "sigma"
 e = (mu + 1) / sigma
 ```
 
-The default arena is process-local mutable state for single-threaded programs.
-`default_arena()` returns it when an explicit API needs the same arena.
-`reset()` clears it and invalidates every expression made from it.
-Expressions from before a reset must be discarded before the arena is reused.
+The module owns one saved default arena for the process lifetime. It is a
+single-threaded convenience state. `default_arena()` returns the same arena
+when an explicit constructor needs to share that state. `reset()` is safe
+before first use and can be called more than once. It clears the node store and
+invalidates every expression made before the reset, including handles whose
+node index is reused later. The arena pointer remains usable after reset.
+Discard pre-reset expressions at every reset boundary. Use explicit arenas for
+concurrency, isolation, and library code that outlives one problem.
 
 `symbols` assigns whitespace- or comma-separated names to scalar outputs:
 
