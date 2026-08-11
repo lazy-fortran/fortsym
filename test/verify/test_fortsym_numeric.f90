@@ -8,13 +8,14 @@ program test_fortsym_numeric
     ! bit for bit -- which is verified with a plain READ, not by comparing
     ! against a string the test author typed.
     use, intrinsic :: iso_fortran_env, only: real64, int64
-    use fortsym_string, only: chars
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, num, rat, pi_expr, &
-                            sin, exp, log, sqrt, &
-                            operator(+), operator(-), operator(*), &
-                            operator(/), operator(**)
-    use fortsym_numeric, only: numeric_value, numeric_text
+        i_expr, sin, exp, log, sqrt, &
+        operator(+), operator(-), operator(*), &
+        operator(/), operator(**)
+    use fortsym_numeric, only: numeric_value, numeric_text, &
+        numeric_precision_text, numeric_complex_text, numeric_complex_text_t, &
+        numeric_callable_t
     implicit none
 
     integer, parameter :: dp = real64
@@ -33,6 +34,9 @@ program test_fortsym_numeric
     call test_text_round_trips()
     call test_text_is_short()
     call test_text_refuses_when_value_does()
+    call test_requested_precision()
+    call test_complex_precision()
+    call test_numeric_callable()
 
     if (nfail /= 0) then
         print *, "test_fortsym_numeric: ", nfail, " check(s) FAILED"
@@ -61,7 +65,7 @@ contains
         logical  :: good
         character(:), allocatable :: why
 
-        e = num(arena, 1099511627776_int64)   ! 2**40
+        e = num(arena, 1099511627776_int64) ! 2**40
         call numeric_value(e, v, good, why)
         call ok("2**40 evaluates", good)
         call ok("2**40 is exact", v == 1099511627776.0_dp)
@@ -158,12 +162,13 @@ contains
 
     subroutine test_unknown_head_refused()
         use fortsym_expr, only: func
-        type(expr_t) :: e
+        type(expr_t) :: e, args(1)
         real(dp) :: v
         logical  :: good
         character(:), allocatable :: why
 
-        e = func("zeta", [num(arena, 2)])
+        args(1) = num(arena, 2)
+        e = func("zeta", args)
         call numeric_value(e, v, good, why)
         call ok("unknown head zeta is refused", .not. good)
     end subroutine test_unknown_head_refused
@@ -233,7 +238,7 @@ contains
             back = 0.0_dp
             read (buf, *, iostat=ios) back
             call ok("no shorter form of 1/3 round-trips", &
-                    ios /= 0 .or. back /= v)
+                ios /= 0 .or. back /= v)
         else
             call ok("1/3 text has at least two digits", .false.)
         end if
@@ -250,6 +255,82 @@ contains
         call ok("text refusal names y", index(why, "symbol y") > 0)
         call ok("refused text is empty", len(text) == 0)
     end subroutine test_text_refuses_when_value_does
+
+    subroutine test_requested_precision()
+        type(expr_t) :: e
+        character(:), allocatable :: text, why
+        logical :: good
+
+        e = pi_expr(arena)
+        call numeric_precision_text(e, 40, text, good, why)
+        call ok("requested precision returns a decimal", good)
+        call ok("requested precision retains digits", &
+            len_trim(text) > 30 .and. &
+            index(text, "3.14159265358979323846") == 1)
+
+        e = sym(arena, "open")
+        call numeric_precision_text(e, 30, text, good, why)
+        call ok("requested precision refuses free symbols", .not. good)
+        call ok("precision refusal names the symbol", index(why, "open") > 0)
+    end subroutine test_requested_precision
+
+    subroutine test_complex_precision()
+        type(expr_t) :: e
+        type(numeric_complex_text_t) :: result
+        character(:), allocatable :: why
+        real(dp) :: re, im
+        integer :: ios
+        logical :: good
+
+        ! Independent oracle: Euler's identity gives exp(i)=cos(1)+i*sin(1).
+        ! The decimal components are retained at the requested precision, then
+        ! read here only for a coarse binary64 sanity check.
+        e = exp(i_expr(arena))
+        call numeric_complex_text(e, 40, result, good, why)
+        call ok("complex requested precision succeeds", good)
+        re = 0.0_dp
+        im = 0.0_dp
+        read (result%real, *, iostat=ios) re
+        call ok("complex real component is readable", ios == 0)
+        read (result%imag, *, iostat=ios) im
+        call ok("complex imaginary component is readable", ios == 0)
+        call ok("complex real component matches Euler oracle", &
+            abs(re - 0.5403023058681397174_dp) < 1.0e-15_dp)
+        call ok("complex imaginary component matches Euler oracle", &
+            abs(im - 0.8414709848078965067_dp) < 1.0e-15_dp)
+        call ok("complex components retain requested precision", &
+            len_trim(result%real) > 30 .and. len_trim(result%imag) > 30)
+    end subroutine test_complex_precision
+
+    subroutine test_numeric_callable()
+        type(numeric_callable_t) :: callable
+        type(expr_t) :: x, variables(1)
+        real(dp) :: point(1), wrong_point(2), value
+        character(:), allocatable :: text, why
+        logical :: good
+
+        x = sym(arena, "call_x")
+        variables(1) = x
+        call callable%initialise(x**2 + 1, variables, good, why)
+        call ok("numeric callable initialises", good)
+
+        point(1) = 3.0_dp
+        call callable%evaluate(point, value, good, why)
+        call ok("numeric callable evaluates", good)
+        call ok("numeric callable has the expected value", value == 10.0_dp)
+        call callable%evaluate_text(point, 30, text, good, why)
+        call ok("numeric callable exposes precision text", good)
+        call ok("numeric callable precision text is ten", &
+            index(text, "10") == 1)
+
+        point(1) = 0.0_dp
+        call callable%evaluate(point, value, good, why)
+        call ok("numeric callable can be reused", good .and. value == 1.0_dp)
+        wrong_point(1) = 3.0_dp
+        wrong_point(2) = 4.0_dp
+        call callable%evaluate(wrong_point, value, good, why)
+        call ok("numeric callable refuses a wrong dimension", .not. good)
+    end subroutine test_numeric_callable
 
     !> Significant digits in a scientific-form string: mantissa digits before
     !> the exponent marker.

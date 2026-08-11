@@ -9,6 +9,9 @@ module fortsym
         i_expr, &
         is_valid, same_arena, operator(+), operator(-), operator(*), &
         operator(/), operator(**), operator(==), operator(/=)
+    use fortsym_numeric, only: numeric_value, numeric_text, &
+        numeric_precision_text, numeric_complex_text, &
+        numeric_complex_text_t, numeric_callable_t
     use fortsym_expr, only: sin_expr => sin, cos_expr => cos, tan_expr => tan, &
         asin_expr => asin, acos_expr => acos, atan_expr => atan, &
         atan2_expr => atan2, sinh_expr => sinh, cosh_expr => cosh, &
@@ -25,6 +28,8 @@ module fortsym
         NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
     public :: expr_t, sym, num, rat, exact, real_expr, real_text_expr, const, &
         func, func_in, partial, pi_expr, e_expr, i_expr, is_valid, same_arena
+    public :: numeric_value, numeric_text, numeric_precision_text, &
+        numeric_complex_text, numeric_complex_text_t, numeric_callable_t
     public :: operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), operator(/=)
     public :: sin_expr, cos_expr, tan_expr, asin_expr, acos_expr, atan_expr, &
