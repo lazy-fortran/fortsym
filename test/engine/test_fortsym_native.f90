@@ -147,6 +147,9 @@ contains
 
         r = engine%simplify((x**2)**3)
         call check("nested integer powers combine", r%value == x**6)
+
+        r = engine%simplify(i_expr(arena)**2)
+        call check("integer powers of i are exact", r%value == num(arena, -1))
     end subroutine test_like_terms_and_powers
 
     subroutine test_common_rational_factor()
@@ -705,6 +708,12 @@ contains
             r%verdict == VERDICT_TRUE)
         r = engine%zero_test(exp(rat(arena, 1_int64, 2_int64)*log(x)) - sqrt(x))
         call check("fractional logarithm powers remain unknown", &
+            r%verdict == VERDICT_UNKNOWN)
+        r = engine%zero_test(sin(x)**2 + cos(x)**2 - 1)
+        call check("trigonometric Pythagorean identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(sin(x) + cos(x))
+        call check("unproved trigonometric nonidentity remains unknown", &
             r%verdict == VERDICT_UNKNOWN)
     end subroutine test_verdicts
 
