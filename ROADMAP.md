@@ -977,8 +977,11 @@ Symbol names follow the printer's conventions — `varphi_2`, `gamma_1`,
 readable symbolic name, and a correct typeset form with no registration. LaTeX
 markup never belongs in a name: the name is the arena identity and every dialect
 renders it verbatim, so one such name breaks several outputs to improve one.
-That the emission boundary currently checks numeric representability but not
-names is #72.
+The shared Fortran-name boundary now refuses invalid names with diagnostics in
+the printer, legacy kernel emitter, and IR emitters. It deterministically maps
+case collisions such as `Gamma`/`gamma` and `B`/`b`, records changed spellings in
+generated comments, and leaves the symbolic arena untouched (#72, completed
+2026-08-11).
 
 Names are **case-sensitive**, and that is a feature rather than an accident of
 strings. It is what lets `gamma` and `Gamma` be different symbols rendering as
@@ -996,7 +999,9 @@ emitter resolves the collision deterministically, renames only the symbols that
 actually collide, and emits the mapping into the generated source so a kernel
 stays traceable to its derivation. What must never happen is the silent alias —
 two quantities sharing one variable, compiling cleanly, returning a wrong
-number (#72).
+number. Independent tests cover `\[Alpha]` and `Global`x` refusal, deterministic
+mapping, compilation, and a numeric case-collision oracle; the IR Fortran path
+is covered as well.
 
 Documentation lands with the code (#71), including the `symbolic` skill in the
 internal prompts repository. That skill teaches the explicit-arena form today

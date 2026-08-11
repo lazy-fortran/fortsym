@@ -15,12 +15,13 @@ module fortsym_kernel
     use fortsym_string, only: str_t, strbuf_t, str, chars, compare_str, &
         operator(==)
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_ADD, NK_MUL, NK_POW, &
-        NK_FUNC
+        NK_FUNC, NK_SYM
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
     use fortsym_print, only: print_expr_sub, fortran_roots_representable, &
         fortran_roots_representable_kind
-    use fortsym_eval, only: collect_free_symbols
+    use fortsym_names, only: valid_fortran_name, same_fortran_name, &
+        map_fortran_names
     use fortsym_kernel_target, only: TARGET_DEFAULT_VALUE => TARGET_DEFAULT, &
         TARGET_FORTRAN_CPU_VALUE => TARGET_FORTRAN_CPU, &
         TARGET_FORTRAN_OPENMP_TARGET_VALUE => TARGET_FORTRAN_OPENMP_TARGET, &
@@ -607,7 +608,7 @@ contains
 
         d = dialect(DIA_FORTRAN)
         if (spec%precision == PRECISION_REAL32 .or. &
-                spec%precision == PRECISION_MIXED) then
+            spec%precision == PRECISION_MIXED) then
             d%real_suffix = str("_real32")
             d%int_real_suffix = str(".0_real32")
         else
@@ -733,22 +734,31 @@ contains
     end function is_exponent_sign
 
     !> A complete kernel: banner, subroutine header, declarations, body.
-    function emit_kernel(roots, spec, ok, cost_record) result(s)
+    function emit_kernel(roots, spec, ok, cost_record, message) result(s)
         type(expr_t),        intent(in) :: roots(:)
         type(kernel_spec_t), intent(in) :: spec
         logical, intent(out), optional :: ok
         type(str_t), intent(out), optional :: cost_record
+        character(:), allocatable, intent(out), optional :: message
         type(str_t)                     :: s
 
         type(strbuf_t)     :: b, body
         type(cse_result_t) :: res
+        type(arena_t), target :: mapped_arena
+        type(expr_t), allocatable :: mapped_roots(:)
+        type(kernel_spec_t) :: mapped_spec
+        type(str_t), allocatable :: original_names(:), emitted_names(:)
+        logical, allocatable :: changed_names(:)
         logical :: valid, emit_openmp, emit_openacc
+        character(:), allocatable :: diagnostic
 
-        valid = fortran_roots_representable(roots)
-        if (valid) valid = kernel_symbols_are_declared(roots, spec%args)
+        call prepare_fortran_kernel(roots, spec, mapped_arena, mapped_roots, &
+            mapped_spec, original_names, emitted_names, changed_names, valid, &
+            diagnostic)
+        if (present(message)) message = diagnostic
         if (valid .and. (spec%precision == PRECISION_REAL32 .or. &
-                spec%precision == PRECISION_MIXED)) then
-            valid = fortran_roots_representable_kind(roots, real32)
+            spec%precision == PRECISION_MIXED)) then
+            valid = fortran_roots_representable_kind(mapped_roots, real32)
         end if
         if (present(ok)) ok = valid
         if (present(cost_record)) cost_record = str("")
@@ -756,128 +766,102 @@ contains
             s = str("")
             return
         end if
-        if (.not. target_is_valid(spec%target)) then
+        if (.not. target_is_valid(mapped_spec%target)) then
             error stop "invalid kernel target"
         end if
-        if (.not. precision_is_valid(spec%precision)) then
+        if (.not. precision_is_valid(mapped_spec%precision)) then
             error stop "invalid kernel precision"
         end if
-        if (spec%precision /= PRECISION_REAL64 .and. &
-                len(chars(spec%scalar_type)) > 0) then
+        if (mapped_spec%precision /= PRECISION_REAL64 .and. &
+            len(chars(mapped_spec%scalar_type)) > 0) then
             error stop "precision choice cannot be combined with scalar_type"
         end if
-        if (spec%cse_level < CSE_NONE .or. spec%cse_level > CSE_FULL) then
+        if (mapped_spec%cse_level < CSE_NONE .or. mapped_spec%cse_level > CSE_FULL) then
             error stop "invalid kernel CSE level"
         end if
-        if (spec%remat_threshold < 0) then
+        if (mapped_spec%remat_threshold < 0) then
             error stop "negative rematerialisation threshold"
         end if
-        call target_directives(spec%target, spec%openmp_declare_target, &
-            spec%openacc_routine_seq, emit_openmp, emit_openacc)
+        call target_directives(mapped_spec%target, mapped_spec%openmp_declare_target, &
+            mapped_spec%openacc_routine_seq, emit_openmp, emit_openacc)
         if (present(cost_record)) cost_record = emit_cost_record(roots)
 
         if (emit_openmp) then
-            if (len(chars(spec%module_name)) == 0) then
+            if (len(chars(mapped_spec%module_name)) == 0) then
                 error stop "OpenMP device emission requires module_name"
             end if
         end if
-        if (allocated(spec%arg_shapes)) then
-            if (size(spec%arg_shapes) /= size(spec%args)) then
+        if (allocated(mapped_spec%arg_shapes)) then
+            if (size(mapped_spec%arg_shapes) /= size(mapped_spec%args)) then
                 error stop "arg_shapes must match args"
             end if
         end if
-        if (allocated(spec%output_shapes)) then
-            if (size(spec%output_shapes) /= size(spec%outputs)) then
+        if (allocated(mapped_spec%output_shapes)) then
+            if (size(mapped_spec%output_shapes) /= size(mapped_spec%outputs)) then
                 error stop "output_shapes must match outputs"
             end if
         end if
-        if (allocated(spec%output_references)) then
-            if (size(spec%output_references) /= size(roots)) then
+        if (allocated(mapped_spec%output_references)) then
+            if (size(mapped_spec%output_references) /= size(mapped_roots)) then
                 error stop "output_references must match expressions"
             end if
-        else if (size(spec%outputs) /= size(roots)) then
+        else if (size(mapped_spec%outputs) /= size(mapped_roots)) then
             error stop "outputs must match expressions without output_references"
         end if
-        if (spec%elemental_procedure) then
-            if (allocated(spec%arg_shapes) .or. &
-                allocated(spec%output_shapes)) then
+        if (mapped_spec%elemental_procedure) then
+            if (allocated(mapped_spec%arg_shapes) .or. &
+                allocated(mapped_spec%output_shapes)) then
                 error stop "elemental procedures require scalar arguments"
             end if
         end if
 
-        if (len(chars(spec%temp_prefix)) > 0) then
-            res = cse_analyse(roots, chars(spec%temp_prefix), spec%cse_level, &
-                spec%remat_threshold)
+        if (len(chars(mapped_spec%temp_prefix)) > 0) then
+            res = cse_analyse(mapped_roots, chars(mapped_spec%temp_prefix), &
+                mapped_spec%cse_level, mapped_spec%remat_threshold)
         else
-            res = cse_analyse(roots, "t", spec%cse_level, spec%remat_threshold)
+            res = cse_analyse(mapped_roots, "t", mapped_spec%cse_level, &
+                mapped_spec%remat_threshold)
         end if
 
-        call append_banner(b, spec)
+        call append_banner(b, mapped_spec, original_names, emitted_names, changed_names)
 
-        if (spec%mode == KERNEL_SNIPPET) then
+        if (mapped_spec%mode == KERNEL_SNIPPET) then
             ! Bare statements over host-scope names. No header, no declarations:
             ! the including scope owns them.
-            call b%append(chars(emit_statements(roots, spec, res, &
+            call b%append(chars(emit_statements(mapped_roots, mapped_spec, res, &
                 prechecked=.true.)))
             s = b%to_str()
             return
         end if
 
-        if (len(chars(spec%module_name)) > 0) then
+        if (len(chars(mapped_spec%module_name)) > 0) then
             call b%append("module ")
-            call b%append(chars(spec%module_name))
+            call b%append(chars(mapped_spec%module_name))
             call b%newline()
             call b%append("    implicit none")
             call b%newline()
             call b%append("    private")
             call b%newline()
             call b%append("    public :: ")
-            call b%append(chars(spec%name))
+            call b%append(chars(mapped_spec%name))
             call b%newline()
             call b%append("contains")
             call b%newline()
             call b%newline()
-            call append_subroutine(body, roots, spec, res, emit_openmp, emit_openacc)
+            call append_subroutine(body, mapped_roots, mapped_spec, res, &
+                emit_openmp, emit_openacc)
             call append_indented(b, chars(body%to_str()))
             call b%newline()
             call b%append("end module ")
-            call b%append(chars(spec%module_name))
+            call b%append(chars(mapped_spec%module_name))
             call b%newline()
         else
-            call append_subroutine(b, roots, spec, res, emit_openmp, emit_openacc)
+            call append_subroutine(b, mapped_roots, mapped_spec, res, &
+                emit_openmp, emit_openacc)
         end if
 
         s = b%to_str()
     end function emit_kernel
-
-    !> Refuse a kernel whose expression DAG contains a symbol absent from the
-    !> declared input interface. Otherwise implicit-none compilation catches
-    !> the generator defect only after invalid source has already been written.
-    function kernel_symbols_are_declared(roots, args) result(valid)
-        type(expr_t), intent(in) :: roots(:)
-        type(str_t), allocatable, intent(in) :: args(:)
-        type(str_t), allocatable :: symbols(:)
-        logical :: valid, found
-        integer :: i, j, k
-
-        valid = .true.
-        do k = 1, size(roots)
-            call collect_free_symbols(roots(k), symbols)
-            do i = 1, size(symbols)
-                found = .false.
-                if (allocated(args)) then
-                    do j = 1, size(args)
-                        if (symbol_matches_argument(chars(symbols(i)), &
-                            chars(args(j)))) found = .true.
-                    end do
-                end if
-                if (.not. found) then
-                    valid = .false.
-                    return
-                end if
-            end do
-        end do
-    end function kernel_symbols_are_declared
 
     function symbol_matches_argument(symbol_name, argument_name) result(matches)
         character(*), intent(in) :: symbol_name, argument_name
@@ -898,31 +882,194 @@ contains
             symbol_name(symbol_length:symbol_length) == ")"
     end function symbol_matches_argument
 
-    pure function same_fortran_name(left, right) result(matches)
-        character(*), intent(in) :: left, right
-        logical :: matches
-        integer :: i
+    subroutine prepare_fortran_kernel(roots, spec, mapped_arena, mapped_roots, &
+            mapped_spec, original_names, emitted_names, changed_names, ok, message)
+        type(expr_t), intent(in) :: roots(:)
+        type(kernel_spec_t), intent(in) :: spec
+        type(arena_t), target, intent(out) :: mapped_arena
+        type(expr_t), allocatable, intent(out) :: mapped_roots(:)
+        type(kernel_spec_t), intent(out) :: mapped_spec
+        type(str_t), allocatable, intent(out) :: original_names(:), emitted_names(:)
+        logical, allocatable, intent(out) :: changed_names(:)
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
 
-        matches = len(left) == len(right)
-        if (.not. matches) return
-        do i = 1, len(left)
-            if (lower_ascii(left(i:i)) /= lower_ascii(right(i:i))) then
-                matches = .false.
-                return
-            end if
-        end do
-    end function same_fortran_name
+        integer :: k, n_args, n_outputs
+        logical, allocatable :: visited(:)
+        logical :: map_ok
 
-    pure function lower_ascii(character_value) result(lower)
-        character, intent(in) :: character_value
-        character :: lower
-
-        if (character_value >= "A" .and. character_value <= "Z") then
-            lower = achar(iachar(character_value) + iachar("a") - iachar("A"))
-        else
-            lower = character_value
+        ok = .false.
+        message = ""
+        mapped_spec = spec
+        allocate (mapped_roots(size(roots)))
+        if (.not. allocated(spec%args)) then
+            message = "kernel emitter: argument names are not allocated"
+            return
         end if
-    end function lower_ascii
+        if (.not. allocated(spec%outputs)) then
+            message = "kernel emitter: output names are not allocated"
+            return
+        end if
+        n_args = size(spec%args)
+        n_outputs = size(spec%outputs)
+        allocate (original_names(n_args + n_outputs))
+        allocate (emitted_names(n_args + n_outputs))
+        original_names(1:n_args) = spec%args
+        if (n_outputs > 0) original_names(n_args + 1:) = spec%outputs
+        do k = 1, size(original_names)
+            original_names(k) = str(trim(chars(original_names(k))))
+        end do
+        call map_fortran_names(original_names, emitted_names, changed_names, &
+            map_ok, message)
+        if (.not. map_ok) return
+        mapped_spec%args = emitted_names(1:n_args)
+        if (n_outputs > 0) mapped_spec%outputs = emitted_names(n_args + 1:)
+        if (.not. valid_fortran_name(chars(spec%name))) then
+            message = "kernel emitter: kernel name is not a valid Fortran identifier: "// &
+                chars(spec%name)
+            return
+        end if
+        if (len(chars(spec%temp_prefix)) > 0 .and. &
+            .not. valid_fortran_name(chars(spec%temp_prefix))) then
+            message = "kernel emitter: temporary prefix is not a valid Fortran identifier: "// &
+                chars(spec%temp_prefix)
+            return
+        end if
+        if (size(roots) > 0) then
+            mapped_arena = roots(1)%a
+            mapped_roots = roots
+            do k = 1, size(mapped_roots)
+                mapped_roots(k)%a => mapped_arena
+            end do
+            allocate (visited(mapped_arena%n_nodes), source=.false.)
+            do k = 1, size(roots)
+                call map_fortran_kernel_node(mapped_arena, roots(1)%a, &
+                    roots(k)%id, spec%args, mapped_spec%args, visited, ok, message)
+                if (.not. ok) return
+            end do
+        end if
+        if (.not. fortran_roots_representable(mapped_roots)) then
+            ok = .false.
+            message = "kernel emitter: expression contains a value not representable in Fortran"
+            return
+        end if
+        ok = .true.
+    end subroutine prepare_fortran_kernel
+
+    recursive subroutine map_fortran_kernel_node(mapped_arena, original_arena, id, &
+            args, mapped_args, visited, ok, message)
+        type(arena_t), intent(inout) :: mapped_arena
+        type(arena_t), intent(in) :: original_arena
+        integer, intent(in) :: id
+        type(str_t), intent(in) :: args(:), mapped_args(:)
+        logical, intent(inout) :: visited(:)
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+
+        integer :: k, j, node_name
+        character(:), allocatable :: raw_name, emitted_name
+        logical :: found
+
+        ok = .false.
+        message = ""
+        if (visited(id)) then
+            ok = .true.
+            return
+        end if
+        visited(id) = .true.
+        do k = 1, mapped_arena%nargs_of(id)
+            call map_fortran_kernel_node(mapped_arena, original_arena, &
+                mapped_arena%arg_of(id, k), args, mapped_args, visited, ok, message)
+            if (.not. ok) return
+        end do
+        if (mapped_arena%kind_of(id) /= NK_SYM) then
+            ok = .true.
+            return
+        end if
+
+        raw_name = chars(original_arena%name_of(id))
+        found = .false.
+        do j = 1, size(args)
+            if (.not. symbol_matches_argument_exact(raw_name, chars(args(j)))) cycle
+            emitted_name = map_symbol_name(raw_name, chars(args(j)), &
+                chars(mapped_args(j)))
+            found = .true.
+            exit
+        end do
+        if (.not. found) then
+            do j = 1, size(args)
+                if (.not. symbol_matches_argument(raw_name, chars(args(j)))) cycle
+                emitted_name = map_symbol_name(raw_name, chars(args(j)), &
+                    chars(mapped_args(j)))
+                found = .true.
+                exit
+            end do
+        end if
+        if (.not. found) then
+            if (.not. valid_fortran_name(raw_name)) then
+                message = "kernel emitter: symbol name is not a valid Fortran identifier: "// &
+                    raw_name
+            else
+                message = "kernel emitter: symbol is not a declared input argument: "// &
+                    raw_name
+            end if
+            return
+        end if
+        if (emitted_name /= raw_name) then
+            node_name = append_mapped_arena_name(mapped_arena, emitted_name)
+            mapped_arena%nodes(id)%name = node_name
+        end if
+        ok = .true.
+    end subroutine map_fortran_kernel_node
+
+    function symbol_matches_argument_exact(symbol_name, argument_name) result(matches)
+        character(*), intent(in) :: symbol_name, argument_name
+        logical :: matches
+        integer :: argument_length, symbol_length
+
+        argument_length = len_trim(argument_name)
+        symbol_length = len_trim(symbol_name)
+        matches = symbol_length == argument_length .and. &
+            symbol_name(:symbol_length) == argument_name(:argument_length)
+        if (matches) return
+        matches = symbol_length > argument_length + 2
+        if (.not. matches) return
+        matches = symbol_name(:argument_length) == argument_name(:argument_length) .and. &
+            symbol_name(argument_length + 1:argument_length + 1) == "(" .and. &
+            symbol_name(symbol_length:symbol_length) == ")"
+    end function symbol_matches_argument_exact
+
+    function map_symbol_name(symbol_name, argument_name, emitted_argument) result(name)
+        character(*), intent(in) :: symbol_name, argument_name, emitted_argument
+        character(:), allocatable :: name
+        integer :: argument_length, symbol_length
+
+        argument_length = len_trim(argument_name)
+        symbol_length = len_trim(symbol_name)
+        if (symbol_length == argument_length) then
+            name = emitted_argument
+        else
+            name = emitted_argument//symbol_name(argument_length + 1:symbol_length)
+        end if
+    end function map_symbol_name
+
+    function append_mapped_arena_name(arena, name) result(index)
+        type(arena_t), intent(inout) :: arena
+        character(*), intent(in) :: name
+        type(str_t), allocatable :: names(:)
+        integer :: index, capacity
+
+        if (arena%n_names >= size(arena%names)) then
+            capacity = max(1, 2 * size(arena%names))
+            allocate (names(capacity))
+            if (arena%n_names > 0) names(1:arena%n_names) = &
+                arena%names(1:arena%n_names)
+            call move_alloc(names, arena%names)
+        end if
+        arena%n_names = arena%n_names + 1
+        index = arena%n_names
+        arena%names(index) = str(name)
+    end function append_mapped_arena_name
 
     subroutine append_subroutine(b, roots, spec, res, emit_openmp, emit_openacc)
         type(strbuf_t), intent(inout) :: b
@@ -938,7 +1085,7 @@ contains
         scalar_type = chars(spec%scalar_type)
         if (len(scalar_type) == 0) then
             if (spec%precision == PRECISION_REAL32 .or. &
-                    spec%precision == PRECISION_MIXED) then
+                spec%precision == PRECISION_MIXED) then
                 input_type = "real(real32)"
                 temporary_type = "real(real32)"
             else
@@ -1078,9 +1225,12 @@ contains
     !> generated" note and no generator, so they can no longer be reproduced or
     !> trusted; naming the generator here, plus the CI job that reruns it, is
     !> what keeps that from happening again.
-    subroutine append_banner(b, spec)
+    subroutine append_banner(b, spec, original_names, emitted_names, changed_names)
         type(strbuf_t),      intent(inout) :: b
         type(kernel_spec_t), intent(in)    :: spec
+        type(str_t), intent(in), optional :: original_names(:), emitted_names(:)
+        logical, intent(in), optional :: changed_names(:)
+        integer :: k
 
         call b%append("! Generated by fortsym. Do not edit.")
         call b%newline()
@@ -1100,6 +1250,17 @@ contains
             call b%append(chars(spec%generator))
         end if
         call b%newline()
+        if (present(original_names) .and. present(emitted_names) .and. &
+            present(changed_names)) then
+            do k = 1, size(original_names)
+                if (.not. changed_names(k)) cycle
+                call b%append("! Fortran symbol name mapping: ")
+                call b%append(chars(original_names(k)))
+                call b%append(" -> ")
+                call b%append(chars(emitted_names(k)))
+                call b%newline()
+            end do
+        end if
         call b%newline()
     end subroutine append_banner
 

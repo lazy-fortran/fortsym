@@ -59,6 +59,7 @@ program test_fortsym_kernel
     call test_simplified_negative_product_emission()
     call test_undeclared_symbol_is_refused()
     call test_fortran_symbol_case_is_ignored()
+    call test_fortran_symbol_name_boundary()
     call test_pure_procedure()
     call test_ordering_is_topological()
     call test_codegen_is_construction_history_independent()
@@ -344,12 +345,13 @@ contains
         type(arena_t), target :: a
         type(expr_t) :: roots(1)
         character(:), allocatable :: code
+        character(:), allocatable :: message
         logical :: good
 
         call a%init()
         roots(1) = exact(a, "1"//repeat("0", 400))
         code = chars(emit_kernel(roots, &
-            spec_for("too_large_k", X_ARGS, R_OUT), good))
+            spec_for("too_large_k", X_ARGS, R_OUT), good, message=message))
         call ok("non-finite exact kernel reports refusal", .not. good)
         call ok("non-finite exact kernel emits no partial source", &
             len(code) == 0)
@@ -1112,6 +1114,77 @@ contains
         call ok("Fortran kernel symbols match inputs case-insensitively", &
             accepted .and. len(code) > 0)
     end subroutine test_fortran_symbol_case_is_ignored
+
+    subroutine test_fortran_symbol_name_boundary()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1), gamma_upper, gamma_lower, b_upper, b_lower
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code, repeat_code, message
+        logical :: accepted
+        integer :: unit, ios, stat
+
+        call a%init()
+        roots(1) = sym(a, "\[Alpha]")
+        spec = spec_for("invalid_name", [character(len=1) :: "x"], R_OUT)
+        code = chars(emit_kernel(roots, spec, accepted, message=message))
+        call ok("invalid Wolfram character name is refused", .not. accepted)
+        call ok("invalid Wolfram character name has a diagnostic", &
+            index(message, "\[Alpha]") > 0 .and. len(code) == 0)
+
+        call a%clear()
+        call a%init()
+        roots(1) = sym(a, "Global`x")
+        code = chars(emit_kernel(roots, spec, accepted, message=message))
+        call ok("invalid Wolfram context name is refused", .not. accepted)
+        call ok("invalid Wolfram context name has a diagnostic", &
+            index(message, "Global`x") > 0 .and. len(code) == 0)
+
+        call a%clear()
+        call a%init()
+        gamma_upper = sym(a, "Gamma")
+        gamma_lower = sym(a, "gamma")
+        b_upper = sym(a, "B")
+        b_lower = sym(a, "b")
+        roots(1) = gamma_upper + gamma_lower + b_upper - b_lower
+        spec%name = str("case_collision")
+        deallocate (spec%args, spec%outputs)
+        allocate (spec%args(4), spec%outputs(1))
+        spec%args(1) = str("Gamma")
+        spec%args(2) = str("gamma")
+        spec%args(3) = str("B")
+        spec%args(4) = str("b")
+        spec%outputs(1) = str("r")
+        spec%generator = str("test_fortsym_kernel")
+        code = chars(emit_kernel(roots, spec, accepted, message=message))
+        call ok("case-colliding Fortran symbols are accepted", accepted)
+        call ok("case collision has a deterministic mapping comment", &
+            index(code, "Gamma -> gamma__1") > 0 .and. &
+            index(code, "B -> b__1") > 0)
+        repeat_code = chars(emit_kernel(roots, spec, message=message))
+        call ok("case collision emission is deterministic", code == repeat_code)
+
+        open (newunit=unit, file="/tmp/fortsym_case_collision.f90", &
+            status="replace", action="write", iostat=ios)
+        call ok("case collision fixture opens", ios == 0)
+        if (ios /= 0) return
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_case_collision"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(real64) :: r"
+        write (unit, "(a)") "  call case_collision(2.0_real64, 3.0_real64, 5.0_real64, 7.0_real64, r)"
+        write (unit, "(a)") "  if (abs(r - 3.0_real64) > 1.0e-14_real64) error stop 1"
+        write (unit, "(a)") "end program drive_case_collision"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -o /tmp/fortsym_case_collision /tmp/fortsym_case_collision.f90 "// &
+            "> /tmp/fortsym_case_collision.log 2>&1", wait=.true., exitstat=stat)
+        call ok("case-collision Fortran compiles", stat == 0)
+        if (stat /= 0) return
+        call execute_command_line("/tmp/fortsym_case_collision", wait=.true., &
+            exitstat=stat)
+        call ok("case-collision kernel preserves distinct values", stat == 0)
+    end subroutine test_fortran_symbol_name_boundary
 
     !> A temporary must be assigned before anything uses it.
     subroutine test_ordering_is_topological()

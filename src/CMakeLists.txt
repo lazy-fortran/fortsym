@@ -45,6 +45,7 @@ target_sources(fortsym PRIVATE
     council/fortsym_council.f90
 
     # code generation
+    codegen/fortsym_names.f90
     codegen/fortsym_precision.f90
     codegen/fortsym_enzyme.f90
     codegen/fortsym_kernel_target.f90
