@@ -1,0 +1,1031 @@
+{
+  "audit_scope": {
+    "dependency_direction": "known internal use edges, no cycles, and no implementation import of the convenience facade",
+    "non_module_units": "generated source units may contain no module and are reported separately",
+    "single_responsibility": "one named Fortran module per source file, with filename and directory ownership"
+  },
+  "layer_edges": [
+    {
+      "from": "algebra",
+      "to": "calculus",
+      "uses": 3
+    },
+    {
+      "from": "algebra",
+      "to": "core",
+      "uses": 29
+    },
+    {
+      "from": "algebra",
+      "to": "engine",
+      "uses": 11
+    },
+    {
+      "from": "algebra",
+      "to": "util",
+      "uses": 10
+    },
+    {
+      "from": "algebra",
+      "to": "verify",
+      "uses": 4
+    },
+    {
+      "from": "calculus",
+      "to": "algebra",
+      "uses": 1
+    },
+    {
+      "from": "calculus",
+      "to": "core",
+      "uses": 11
+    },
+    {
+      "from": "calculus",
+      "to": "engine",
+      "uses": 2
+    },
+    {
+      "from": "calculus",
+      "to": "io",
+      "uses": 1
+    },
+    {
+      "from": "calculus",
+      "to": "util",
+      "uses": 3
+    },
+    {
+      "from": "capi",
+      "to": "calculus",
+      "uses": 1
+    },
+    {
+      "from": "capi",
+      "to": "core",
+      "uses": 4
+    },
+    {
+      "from": "capi",
+      "to": "engine",
+      "uses": 2
+    },
+    {
+      "from": "capi",
+      "to": "io",
+      "uses": 1
+    },
+    {
+      "from": "capi",
+      "to": "util",
+      "uses": 1
+    },
+    {
+      "from": "codegen",
+      "to": "core",
+      "uses": 14
+    },
+    {
+      "from": "codegen",
+      "to": "engine",
+      "uses": 1
+    },
+    {
+      "from": "codegen",
+      "to": "io",
+      "uses": 9
+    },
+    {
+      "from": "codegen",
+      "to": "util",
+      "uses": 7
+    },
+    {
+      "from": "codegen",
+      "to": "verify",
+      "uses": 1
+    },
+    {
+      "from": "core",
+      "to": "calculus",
+      "uses": 1
+    },
+    {
+      "from": "core",
+      "to": "capi",
+      "uses": 2
+    },
+    {
+      "from": "core",
+      "to": "codegen",
+      "uses": 2
+    },
+    {
+      "from": "core",
+      "to": "engine",
+      "uses": 2
+    },
+    {
+      "from": "core",
+      "to": "util",
+      "uses": 8
+    },
+    {
+      "from": "core",
+      "to": "verify",
+      "uses": 1
+    },
+    {
+      "from": "council",
+      "to": "core",
+      "uses": 1
+    },
+    {
+      "from": "council",
+      "to": "engine",
+      "uses": 1
+    },
+    {
+      "from": "council",
+      "to": "util",
+      "uses": 1
+    },
+    {
+      "from": "engine",
+      "to": "algebra",
+      "uses": 2
+    },
+    {
+      "from": "engine",
+      "to": "calculus",
+      "uses": 1
+    },
+    {
+      "from": "engine",
+      "to": "capi",
+      "uses": 1
+    },
+    {
+      "from": "engine",
+      "to": "core",
+      "uses": 13
+    },
+    {
+      "from": "engine",
+      "to": "io",
+      "uses": 8
+    },
+    {
+      "from": "engine",
+      "to": "util",
+      "uses": 6
+    },
+    {
+      "from": "io",
+      "to": "algebra",
+      "uses": 12
+    },
+    {
+      "from": "io",
+      "to": "calculus",
+      "uses": 3
+    },
+    {
+      "from": "io",
+      "to": "codegen",
+      "uses": 1
+    },
+    {
+      "from": "io",
+      "to": "core",
+      "uses": 19
+    },
+    {
+      "from": "io",
+      "to": "engine",
+      "uses": 4
+    },
+    {
+      "from": "io",
+      "to": "util",
+      "uses": 8
+    },
+    {
+      "from": "io",
+      "to": "verify",
+      "uses": 5
+    },
+    {
+      "from": "parse_fortran",
+      "to": "core",
+      "uses": 2
+    },
+    {
+      "from": "parse_fortran",
+      "to": "io",
+      "uses": 2
+    },
+    {
+      "from": "parse_fortran",
+      "to": "util",
+      "uses": 1
+    },
+    {
+      "from": "verify",
+      "to": "algebra",
+      "uses": 1
+    },
+    {
+      "from": "verify",
+      "to": "calculus",
+      "uses": 1
+    },
+    {
+      "from": "verify",
+      "to": "capi",
+      "uses": 1
+    },
+    {
+      "from": "verify",
+      "to": "core",
+      "uses": 12
+    },
+    {
+      "from": "verify",
+      "to": "engine",
+      "uses": 3
+    },
+    {
+      "from": "verify",
+      "to": "io",
+      "uses": 1
+    },
+    {
+      "from": "verify",
+      "to": "util",
+      "uses": 5
+    }
+  ],
+  "modules": [
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_assume",
+        "fortsym_backend",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_expr",
+        "fortsym_kernel",
+        "fortsym_numeric",
+        "fortsym_ode",
+        "fortsym_relation",
+        "fortsym_string",
+        "fortsym_subs"
+      ],
+      "name": "fortsym",
+      "owner": "core",
+      "path": "src/core/fortsym.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_capi",
+        "fortsym_diff",
+        "fortsym_engine_symengine",
+        "fortsym_eval",
+        "fortsym_expr",
+        "fortsym_numeric",
+        "fortsym_string",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_accuracy",
+      "owner": "verify",
+      "path": "src/verify/fortsym_accuracy.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_capi",
+        "fortsym_string"
+      ],
+      "name": "fortsym_algebraic",
+      "owner": "core",
+      "path": "src/core/fortsym_algebraic.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_algebraic",
+        "fortsym_exact",
+        "fortsym_string"
+      ],
+      "name": "fortsym_arena",
+      "owner": "core",
+      "path": "src/core/fortsym_arena.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_assume",
+      "owner": "core",
+      "path": "src/core/fortsym_assume.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_assume",
+        "fortsym_expr"
+      ],
+      "name": "fortsym_assume_api",
+      "owner": "core",
+      "path": "src/core/fortsym_assume_api.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_engine",
+        "fortsym_expr",
+        "fortsym_kernel",
+        "fortsym_parse",
+        "fortsym_print",
+        "fortsym_string"
+      ],
+      "name": "fortsym_backend",
+      "owner": "codegen",
+      "path": "src/codegen/fortsym_backend.f90"
+    },
+    {
+      "dependencies": [],
+      "name": "fortsym_capi",
+      "owner": "capi",
+      "path": "src/capi/fortsym_capi.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_diff",
+        "fortsym_expr"
+      ],
+      "name": "fortsym_chart",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_chart.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_engine",
+        "fortsym_eval",
+        "fortsym_expr",
+        "fortsym_print",
+        "fortsym_string"
+      ],
+      "name": "fortsym_check",
+      "owner": "verify",
+      "path": "src/verify/fortsym_check.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_algebraic",
+        "fortsym_arena",
+        "fortsym_assume",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_complexdom",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_complexdom.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_engine",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_council",
+      "owner": "council",
+      "path": "src/council/fortsym_council.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_diff",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_eval",
+        "fortsym_expr",
+        "fortsym_integrate",
+        "fortsym_polysolve",
+        "fortsym_string",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_defint",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_defint.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_string"
+      ],
+      "name": "fortsym_dialect",
+      "owner": "io",
+      "path": "src/io/fortsym_dialect.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_diff",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_diff.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_engine",
+      "owner": "engine",
+      "path": "src/engine/fortsym_engine.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_dialect",
+        "fortsym_engine",
+        "fortsym_expr",
+        "fortsym_parse",
+        "fortsym_print",
+        "fortsym_proc",
+        "fortsym_string"
+      ],
+      "name": "fortsym_engine_ext",
+      "owner": "engine",
+      "path": "src/engine/fortsym_engine_ext.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_algebraic",
+        "fortsym_arena",
+        "fortsym_assume",
+        "fortsym_diff",
+        "fortsym_engine",
+        "fortsym_exact",
+        "fortsym_expr",
+        "fortsym_poly",
+        "fortsym_string",
+        "fortsym_subs",
+        "fortsym_trigrewrite"
+      ],
+      "name": "fortsym_engine_native",
+      "owner": "engine",
+      "path": "src/engine/fortsym_engine_native.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_capi",
+        "fortsym_dialect",
+        "fortsym_engine",
+        "fortsym_expr",
+        "fortsym_parse",
+        "fortsym_string"
+      ],
+      "name": "fortsym_engine_symengine",
+      "owner": "engine",
+      "path": "src/engine/fortsym_engine_symengine.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_dialect",
+        "fortsym_engine",
+        "fortsym_expr",
+        "fortsym_parse",
+        "fortsym_print",
+        "fortsym_string"
+      ],
+      "name": "fortsym_engine_yacas",
+      "owner": "engine",
+      "path": "src/engine/fortsym_engine_yacas.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_string"
+      ],
+      "name": "fortsym_enzyme",
+      "owner": "codegen",
+      "path": "src/codegen/fortsym_enzyme.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_exact",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_eval",
+      "owner": "verify",
+      "path": "src/verify/fortsym_eval.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_capi",
+        "fortsym_string"
+      ],
+      "name": "fortsym_exact",
+      "owner": "core",
+      "path": "src/core/fortsym_exact.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_string"
+      ],
+      "name": "fortsym_expr",
+      "owner": "core",
+      "path": "src/core/fortsym_expr.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_dialect",
+        "fortsym_expr",
+        "fortsym_parse",
+        "fortsym_string"
+      ],
+      "name": "fortsym_fparse",
+      "owner": "parse_fortran",
+      "path": "src/parse_fortran/fortsym_fparse.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_diff",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_eval",
+        "fortsym_expr",
+        "fortsym_poly",
+        "fortsym_string"
+      ],
+      "name": "fortsym_integrate",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_integrate.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_dialect",
+        "fortsym_expr",
+        "fortsym_kernel_target",
+        "fortsym_names",
+        "fortsym_precision",
+        "fortsym_print",
+        "fortsym_string"
+      ],
+      "name": "fortsym_kernel",
+      "owner": "codegen",
+      "path": "src/codegen/fortsym_kernel.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_dialect",
+        "fortsym_expr",
+        "fortsym_kernel_ir",
+        "fortsym_kernel_target",
+        "fortsym_names",
+        "fortsym_precision",
+        "fortsym_print",
+        "fortsym_quadratic",
+        "fortsym_string"
+      ],
+      "name": "fortsym_kernel_emit",
+      "owner": "codegen",
+      "path": "src/codegen/fortsym_kernel_emit.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_algebraic",
+        "fortsym_arena",
+        "fortsym_exact",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_kernel_ir",
+      "owner": "codegen",
+      "path": "src/codegen/fortsym_kernel_ir.f90"
+    },
+    {
+      "dependencies": [],
+      "name": "fortsym_kernel_target",
+      "owner": "codegen",
+      "path": "src/codegen/fortsym_kernel_target.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_expr",
+        "fortsym_print",
+        "fortsym_string"
+      ],
+      "name": "fortsym_latex",
+      "owner": "io",
+      "path": "src/io/fortsym_latex.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_diff",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_eval",
+        "fortsym_expr",
+        "fortsym_numeric",
+        "fortsym_string",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_limits",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_limits.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_engine",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_linalg",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_linalg.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_matrix",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_matrix.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_string"
+      ],
+      "name": "fortsym_names",
+      "owner": "codegen",
+      "path": "src/codegen/fortsym_names.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_assume",
+        "fortsym_complexdom",
+        "fortsym_engine_symengine",
+        "fortsym_eval",
+        "fortsym_expr",
+        "fortsym_string",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_numeric",
+      "owner": "verify",
+      "path": "src/verify/fortsym_numeric.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_diff",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_expr",
+        "fortsym_integrate",
+        "fortsym_print",
+        "fortsym_string",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_ode",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_ode.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_dialect",
+        "fortsym_exact",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_parse",
+      "owner": "io",
+      "path": "src/io/fortsym_parse.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_eval",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_plot",
+      "owner": "io",
+      "path": "src/io/fortsym_plot.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_poly",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_poly.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_polysolve",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_polysolve.f90"
+    },
+    {
+      "dependencies": [],
+      "name": "fortsym_precision",
+      "owner": "codegen",
+      "path": "src/codegen/fortsym_precision.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_algebraic",
+        "fortsym_arena",
+        "fortsym_dialect",
+        "fortsym_exact",
+        "fortsym_expr",
+        "fortsym_names",
+        "fortsym_string"
+      ],
+      "name": "fortsym_print",
+      "owner": "io",
+      "path": "src/io/fortsym_print.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_string"
+      ],
+      "name": "fortsym_proc",
+      "owner": "engine",
+      "path": "src/engine/fortsym_proc.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_diff",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_products",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_products.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_assume_api",
+        "fortsym_diff",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_expr",
+        "fortsym_print",
+        "fortsym_string",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_public_capi",
+      "owner": "capi",
+      "path": "src/capi/fortsym_public_capi.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_exact",
+        "fortsym_string"
+      ],
+      "name": "fortsym_quadratic",
+      "owner": "core",
+      "path": "src/core/fortsym_quadratic.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_quadratic"
+      ],
+      "name": "fortsym_quadratic_linalg",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_quadratic_linalg.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_quadratic",
+        "fortsym_quadratic_poly"
+      ],
+      "name": "fortsym_quadratic_multipoly",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_quadratic_multipoly.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_quadratic"
+      ],
+      "name": "fortsym_quadratic_poly",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_quadratic_poly.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_expr"
+      ],
+      "name": "fortsym_relation",
+      "owner": "core",
+      "path": "src/core/fortsym_relation.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_exact",
+        "fortsym_rk_trees",
+        "fortsym_string"
+      ],
+      "name": "fortsym_rk",
+      "owner": "verify",
+      "path": "src/verify/fortsym_rk.f90"
+    },
+    {
+      "dependencies": [],
+      "name": "fortsym_rk_trees",
+      "owner": "verify",
+      "path": "src/verify/fortsym_rk_trees.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_expr"
+      ],
+      "name": "fortsym_stability",
+      "owner": "codegen",
+      "path": "src/codegen/fortsym_stability.f90"
+    },
+    {
+      "dependencies": [],
+      "name": "fortsym_string",
+      "owner": "util",
+      "path": "src/util/fortsym_string.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_subs",
+      "owner": "core",
+      "path": "src/core/fortsym_subs.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_expr",
+        "fortsym_string",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_sums",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_sums.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_chart",
+        "fortsym_expr"
+      ],
+      "name": "fortsym_toroidal",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_toroidal.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_assume",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_trigrewrite",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_trigrewrite.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_assume",
+        "fortsym_complexdom",
+        "fortsym_defint",
+        "fortsym_dialect",
+        "fortsym_diff",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_eval",
+        "fortsym_expr",
+        "fortsym_integrate",
+        "fortsym_limits",
+        "fortsym_linalg",
+        "fortsym_matrix",
+        "fortsym_numeric",
+        "fortsym_ode",
+        "fortsym_parse",
+        "fortsym_plot",
+        "fortsym_poly",
+        "fortsym_print",
+        "fortsym_string",
+        "fortsym_subs",
+        "fortsym_sums",
+        "fortsym_trigrewrite",
+        "fortsym_wl_num",
+        "fortsym_wl_solve"
+      ],
+      "name": "fortsym_wl",
+      "owner": "io",
+      "path": "src/io/fortsym_wl.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_dialect",
+        "fortsym_eval",
+        "fortsym_expr",
+        "fortsym_kernel",
+        "fortsym_names",
+        "fortsym_parse",
+        "fortsym_print",
+        "fortsym_string",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_wl_f90",
+      "owner": "codegen",
+      "path": "src/codegen/fortsym_wl_f90.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_engine_symengine",
+        "fortsym_expr",
+        "fortsym_matrix",
+        "fortsym_numeric",
+        "fortsym_string"
+      ],
+      "name": "fortsym_wl_num",
+      "owner": "io",
+      "path": "src/io/fortsym_wl_num.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_diff",
+        "fortsym_engine",
+        "fortsym_eval",
+        "fortsym_expr",
+        "fortsym_linalg",
+        "fortsym_polysolve",
+        "fortsym_string",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_wl_solve",
+      "owner": "io",
+      "path": "src/io/fortsym_wl_solve.f90"
+    }
+  ],
+  "non_module_units": [
+    "src/generated/fortsym_demo_kernel.f90"
+  ],
+  "schema_version": 1,
+  "source_root": "src",
+  "summary": {
+    "cycles": 0,
+    "duplicate_modules": 0,
+    "facade_importers": 0,
+    "internal_edges": 301,
+    "module_file_mismatches": 0,
+    "module_units": 63,
+    "modules": 63,
+    "source_units": 64,
+    "unknown_internal_dependencies": 0
+  },
+  "violations": {
+    "cycles": [],
+    "duplicate_modules": [],
+    "facade_importers": [],
+    "module_file_mismatches": [],
+    "unknown_internal_dependencies": []
+  }
+}

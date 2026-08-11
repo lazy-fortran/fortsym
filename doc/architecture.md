@@ -31,6 +31,23 @@ naming rule and lifetime contract.
 7. `src/verify` supplies independent real evaluation and three-valued checks.
 8. `src/codegen` selects shared subexpressions and emits Fortran kernels.
 
+### Module ownership audit
+
+The structural module audit is reproducible with:
+
+```text
+python3 scripts/audit_module_architecture.py doc/module-architecture.json
+```
+
+At the current revision it covers 63 Fortran modules and 301 internal `use`
+edges. It requires one named module per source owner, matching filenames,
+known internal dependencies, an acyclic module graph, and no implementation
+module importing the convenience facade. The generated report records the
+cross-directory edges for review; aggregation by `fortsym`, the public C ABI,
+Wolfram I/O, and the native engine is intentional orchestration, not a second
+public vocabulary. Generated source units without a module are listed rather
+than treated as module owners.
+
 Kernel targets are represented by stable integer identities with canonical
 names: `fortran_cpu`, `fortran_openmp_target`, `fortran_openacc`, and `cuda`.
 The target descriptor selects only source spelling and leaf decoration; it
