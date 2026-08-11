@@ -883,6 +883,7 @@ contains
         logical, intent(inout)                :: saw_exponential, decidable
         logical, intent(inout)                :: formal_exponential
         integer                                :: out, k, child, base, exponent
+        integer                                :: root_inverse
         integer(int64)                         :: power, denominator
         logical                                :: exact
         character(:), allocatable              :: name
@@ -959,6 +960,29 @@ contains
                             out = a%int(-1_int64)
                         case default
                             out = mul_pair(a, a%int(-1_int64), a%const("i"))
+                        end select
+                    else if (pi_multiple_ok .and. &
+                            pi_denominator == 4_int64) then
+                        one(1) = a%int(2_int64)
+                        root_inverse = simplify_power(a, a%func("sqrt", one), &
+                            a%int(-1_int64))
+                        select case (modulo(pi_multiple, 8_int64))
+                        case (1)
+                            base = add_pair(a, a%int(1_int64), a%const("i"))
+                            out = mul_pair(a, base, root_inverse)
+                        case (3)
+                            base = add_pair(a, a%int(-1_int64), a%const("i"))
+                            out = mul_pair(a, base, root_inverse)
+                        case (5)
+                            base = add_pair(a, a%int(-1_int64), &
+                                mul_pair(a, a%int(-1_int64), a%const("i")))
+                            out = mul_pair(a, base, root_inverse)
+                        case (7)
+                            base = add_pair(a, a%int(1_int64), &
+                                mul_pair(a, a%int(-1_int64), a%const("i")))
+                            out = mul_pair(a, base, root_inverse)
+                        case default
+                            out = normalise_exp_argument(a, child)
                         end select
                     else
                         out = normalise_exp_argument(a, child)
