@@ -2514,7 +2514,7 @@ contains
         integer, intent(in) :: id
         integer, intent(out) :: out
         logical, intent(out) :: ok
-        integer :: half_pi, quarter_pi
+        integer :: half_pi, quarter_pi, imaginary_half_pi
 
         out = id
         ok = .false.
@@ -2556,8 +2556,16 @@ contains
             if (.not. is_zero_id(a, id)) return
             out = a%int(0_int64)
         case ("acosh")
-            if (.not. is_one_id(a, id)) return
-            out = a%int(0_int64)
+            if (is_one_id(a, id)) then
+                out = a%int(0_int64)
+            else if (is_zero_id(a, id)) then
+                imaginary_half_pi = mul_pair(a, a%const("i"), half_pi)
+                out = imaginary_half_pi
+            else if (is_minus_one_id(a, id)) then
+                out = mul_pair(a, a%const("i"), a%const("pi"))
+            else
+                return
+            end if
         case ("atanh")
             if (is_zero_id(a, id)) then
                 out = a%int(0_int64)

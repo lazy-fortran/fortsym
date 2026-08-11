@@ -96,6 +96,8 @@ int main(void)
     fortsym_expr *negative_log_simplified = NULL;
     fortsym_expr *pole = NULL;
     fortsym_expr *pole_simplified = NULL;
+    fortsym_expr *branch = NULL;
+    fortsym_expr *branch_simplified = NULL;
     fortsym_expr *special = NULL;
     fortsym_expr *special_simplified = NULL;
     fortsym_expr *legendre = NULL;
@@ -427,6 +429,30 @@ int main(void)
     fortsym_expr_free(pole);
     pole_simplified = NULL;
     pole = NULL;
+    root_argument[0] = zero;
+    status = fortsym_function(arena, "acosh", root_argument, 1, &branch,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, branch, &branch_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(branch_simplified, "i*pi*1/2");
+    fortsym_expr_free(branch_simplified);
+    fortsym_expr_free(branch);
+    branch_simplified = NULL;
+    branch = NULL;
+    root_argument[0] = minus_one;
+    status = fortsym_function(arena, "acosh", root_argument, 1, &branch,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, branch, &branch_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(branch_simplified, "i*pi");
+    fortsym_expr_free(branch_simplified);
+    fortsym_expr_free(branch);
+    branch_simplified = NULL;
+    branch = NULL;
     status = fortsym_multiply(arena, minus_one, infinity, &negative_infinity,
                               message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -520,6 +546,8 @@ int main(void)
     fortsym_expr_free(negative_two);
     fortsym_expr_free(pole_simplified);
     fortsym_expr_free(pole);
+    fortsym_expr_free(branch_simplified);
+    fortsym_expr_free(branch);
     fortsym_expr_free(legendre_simplified);
     fortsym_expr_free(legendre);
     fortsym_expr_free(undefined);
