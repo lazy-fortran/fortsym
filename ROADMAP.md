@@ -421,8 +421,12 @@ Every checklist item requires all of the following:
     supported transcendental heads return `False`, while machine reals and
     unresolved symbols remain `None`. The Fortran facade, C ABI, Python
     adapter, `algebraic=True`, differential cases, and warm benchmark row all
-    use one implementation; SymPy's separate `Q.algebraic` handler remains a
-    later compatibility step rather than an adapter-only approximation.
+    use one implementation.
+  - [x] Add `Q.algebraic` and `ask(Q.algebraic(x))` at the Python boundary
+    without creating a second classifier. Exact values and local Q facts match
+    SymPy 1.14.0; constructor-attached algebraic symbols preserve SymPy's
+    `None` dispatcher result, and unsupported function heads remain undecided
+    rather than being guessed from a native false result.
 - [ ] Support local contexts, global convenience assumptions, scoped context
   managers in Python, and immutable explicit contexts in Fortran.
   - [x] Add nested native context push/pop with exception-safe Python
@@ -605,12 +609,12 @@ Every checklist item requires all of the following:
     expression owner. The cache preserves the raw low-level `Expr.diff` and
     C-ABI contract; the SymPy adapter now matches SymPy's repeated-derivative
     reuse and is faster in both matched cold and warm scopes.
-  - [x] Run the enforced 52-workload cold/warm parity matrix with a fresh
+  - [x] Run the enforced 54-workload cold/warm parity matrix with a fresh
     native C-ABI arena per workload; every declared workload, including
-    differentiation, rational/integer assumptions, and the warm numeric and
-    algebraic predicate queries, is at or below the SymPy 1.14.0 median in the
-    recorded run. The cold predicate calls remain documented ABI-crossing
-    diagnostics.
+    differentiation, rational/integer/algebraic assumptions, and the warm
+    numeric and algebraic predicate queries, is at or below the SymPy 1.14.0
+    median in the recorded run. The cold predicate calls remain documented
+    ABI-crossing diagnostics.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

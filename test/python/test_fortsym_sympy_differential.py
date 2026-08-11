@@ -239,6 +239,43 @@ class SympyDifferentialTest(unittest.TestCase):
                 self.assertEqual(native_cases[label].is_algebraic,
                                  expected.is_algebraic)
 
+    def test_algebraic_assumption_query_matches_oracle(self):
+        def cases(api):
+            unknown = api.Symbol("algebraic_query_unknown")
+            return {
+                "integer": api.Integer(2),
+                "rational": api.Rational(2, 3),
+                "float": api.Float(2.0),
+                "sqrt": api.sqrt(2),
+                "imaginary": api.I,
+                "pi": api.pi,
+                "infinity": api.oo,
+                "nan": api.nan,
+                "unknown_symbol": unknown,
+                "algebraic_symbol": api.Symbol(
+                    "algebraic_query_symbol", algebraic=True
+                ),
+                "sqrt_transcendental": api.sqrt(api.pi),
+                "gamma_algebraic": api.gamma(api.sqrt(2)),
+            }
+
+        oracle_cases = cases(oracle)
+        native_cases = cases(native)
+        for label, expected in oracle_cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(
+                    native.ask(native.Q.algebraic(native_cases[label])),
+                    oracle.ask(oracle.Q.algebraic(expected)),
+                )
+
+        oracle_symbol = oracle.Symbol("algebraic_query_scoped")
+        native_symbol = native.Symbol("algebraic_query_scoped")
+        with oracle.assuming(oracle.Q.integer(oracle_symbol)):
+            oracle_value = oracle.ask(oracle.Q.algebraic(oracle_symbol))
+        with native.assuming(native.Q.integer(native_symbol)):
+            native_value = native.ask(native.Q.algebraic(native_symbol))
+        self.assertEqual(native_value, oracle_value)
+
     def test_guarded_log_exp_matches_oracle(self):
         def cases(api):
             real = api.Symbol("differential_log_real", real=True)
