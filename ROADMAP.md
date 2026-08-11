@@ -154,7 +154,7 @@ Every checklist item requires all of the following:
 - [x] Audit every public export for duplicate concepts and inconsistent names
   with [`scripts/audit_api_naming.py`](scripts/audit_api_naming.py) and
   [`doc/sympy-api-naming-audit.json`](doc/sympy-api-naming-audit.json).
-  The audit covers all 85 `use fortsym` exports, all 12 native Python facade
+  The audit covers all 96 `use fortsym` exports, all 12 native Python facade
   exports, and all 41 `fortsym.sympy` adapter exports. It keeps the concise
   native vocabulary separate from the SymPy compatibility vocabulary and
   records the remaining canonical-name decisions for the next checklist item.
@@ -177,8 +177,7 @@ Every checklist item requires all of the following:
   substitution, differentiation, simplification, expansion, equality, and
   numerical evaluation available through one easy facade. `fortsym` now
   forwards the core operations to their owning modules or the native engine,
-  using one optional `ok`/`why` refusal convention and preserving the
-  Fortran-native `expr_t` return shape.
+  using the shared `engine_result_t` status and value contract.
 - [x] Keep `x = "x"` and `symbols(...)` as the default-state entry points.
   The convenience test covers both the single-symbol assignment and the
   whitespace/comma-separated `symbols(...)` helper.
@@ -198,8 +197,10 @@ Every checklist item requires all of the following:
   vocabularies. The easy facade uses `engine_result_t` for all core expression
   operations and the zero query. `%ok`, `%value`, `%verdict`, and `%message`
   provide one native contract.
-- [ ] Test single-threaded facade use, explicit concurrent arenas, and
-  cross-arena refusal.
+- [x] Test single-threaded facade use, explicit concurrent arenas, and
+  cross-arena refusal. The convenience test exercises the default state,
+  interleaves operations in two independent explicit arenas, and checks the
+  diagnostic plus invalid result returned for a cross-arena substitution.
 
 ## Phase 2 — expression core and exact domains
 

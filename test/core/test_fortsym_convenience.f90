@@ -4,11 +4,12 @@ program test_fortsym_convenience
     use fortsym_string, only: chars
     implicit none
 
-    type(arena_t), target :: explicit_arena
+    type(arena_t), target :: explicit_arena, concurrent_arena
     type(arena_t), pointer :: default_storage
     type(expr_t) :: x, mu, sigma, best, xi, literal
     type(expr_t) :: bulk_mu, bulk_sigma, bulk_best, bulk_xi
     type(expr_t) :: explicit_mu, explicit_sigma, explicit_best, explicit_xi
+    type(expr_t) :: concurrent_mu
     type(expr_t) :: explicit_expression, default_expression, mixed
     type(expr_t) :: sine, substituted, derivative, simplified, expanded, factored
     type(expr_t) :: stale
@@ -18,11 +19,15 @@ program test_fortsym_convenience
 
     failures = 0
     call explicit_arena%init()
+    call concurrent_arena%init()
     explicit_mu = sym(explicit_arena, "mu")
     explicit_sigma = sym(explicit_arena, "sigma")
     explicit_best = sym(explicit_arena, "best")
     explicit_xi = sym(explicit_arena, "xi")
     explicit_expression = (explicit_best - explicit_xi - explicit_mu)/explicit_sigma
+    concurrent_mu = sym(concurrent_arena, "mu")
+    call check("explicit arenas remain independent", &
+        .not. same_arena(explicit_mu, concurrent_mu), failures)
 
     call reset()
     x = "x"
@@ -80,6 +85,9 @@ program test_fortsym_convenience
     substituted = result%value
     call check("explicit arena uses facade substitution", &
         result%ok .and. substituted == explicit_sigma + explicit_sigma, failures)
+    result = diff(concurrent_mu*concurrent_mu, concurrent_mu)
+    call check("independent arenas can be interleaved", &
+        result%ok .and. result%value == 2*concurrent_mu, failures)
     result = diff(explicit_mu*explicit_mu, explicit_mu)
     derivative = result%value
     call check("explicit arena uses facade differentiation", &
