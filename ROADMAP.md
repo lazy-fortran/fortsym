@@ -433,6 +433,9 @@ Every checklist item requires all of the following:
   resource-limit fuzzing.
 - [ ] Compare cold-start, warm-cache, conversion, core-operation, memory, and
   expression-growth metrics against SymPy.
+  - [x] Retain one native engine and its memoization caches per C-ABI arena;
+    synchronize scoped assumptions before each call so warm native workloads
+    do not discard their cache state.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Audit every public symbol for naming consistency and duplicate concepts.

@@ -103,7 +103,9 @@ Native and SymEngine benchmark suites construct separate fresh arenas and
 engine instances. This prevents one engine's expanded result or cache growth
 from changing the other engine's cold conversion and interning cost. The two
 suites use the same input formulae, shifts, warmup counts, batches, validation
-points, and correctness oracles.
+points, and correctness oracles. The Python C-ABI arena retains its native
+engine and memoization caches across warm calls, while scoped assumptions are
+synchronized before each operation.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
 text validation, FLINT reconstruction, the exact operation, canonical
