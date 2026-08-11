@@ -17,7 +17,8 @@ module fortsym_engine_native
         FACT_POSITIVE, FACT_NONNEGATIVE
     use fortsym_diff, only: diff_expr => diff
     use fortsym_subs, only: subs
-    use fortsym_poly, only: poly_cancel, poly_factor
+    use fortsym_poly, only: poly_together, poly_cancel, poly_factor, &
+        poly_numerator, poly_denominator
     use fortsym_trigrewrite, only: trig_to_exp
     use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
         resource_exceeded, resource_visit, resource_failure, wall_seconds, &
@@ -270,10 +271,13 @@ contains
         type(engine_result_t)                 :: r
         type(engine_result_t) :: simplified
         type(engine_result_t) :: expanded
-        type(expr_t) :: normalised, exp_input, trig_normalised
+        type(expr_t) :: normalised, exp_input, trig_normalised, together, cancelled
+        type(expr_t) :: renormalised
+        type(expr_t) :: numerator, denominator
         logical :: saw_exponential, decidable, formal_exponential
-        logical :: trig_ok
-        character(:), allocatable :: trig_reason
+        logical :: trig_ok, together_ok, cancel_ok
+        logical :: saw_exponential_again, decidable_again, formal_exponential_again
+        character(:), allocatable :: trig_reason, cancel_reason
 
         simplified = self%simplify(e)
         r = simplified
@@ -290,12 +294,33 @@ contains
         if (trig_ok) then
             if (trig_normalised%id /= exp_input%id) then
                 exp_input = trig_normalised
-                expanded = self%expand(exp_input)
-                if (expanded%ok) exp_input = expanded%value
             end if
         end if
         normalised = native_exp_normal_form(exp_input, &
             saw_exponential, decidable, formal_exponential)
+        call poly_together(normalised%a, normalised, together, together_ok, &
+            cancel_reason)
+        if (together_ok) normalised = together
+        numerator = poly_numerator(normalised%a, normalised)
+        denominator = poly_denominator(normalised%a, normalised)
+        expanded = self%expand(numerator)
+        if (expanded%ok) then
+            normalised = expanded%value / denominator
+            renormalised = native_exp_normal_form(normalised, &
+                saw_exponential_again, decidable_again, &
+                formal_exponential_again)
+            normalised = renormalised
+            saw_exponential = saw_exponential .or. saw_exponential_again
+            decidable = decidable .and. decidable_again
+            formal_exponential = formal_exponential .and. &
+                formal_exponential_again
+            call poly_together(normalised%a, normalised, together, together_ok, &
+                cancel_reason)
+            if (together_ok) normalised = together
+        end if
+        call poly_cancel(normalised%a, normalised, cancelled, cancel_ok, &
+            cancel_reason)
+        if (cancel_ok) normalised = cancelled
         if (saw_exponential) then
             r = self%simplify(normalised)
             if (.not. r%ok) return
