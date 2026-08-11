@@ -100,13 +100,15 @@ This is runner and coverage evidence only, not a parity claim: the full
 open. The benchmark command intentionally returns a nonzero status when
 declared differences or oracle disagreements are present.
 
-A same-process diagnostic based on fortsym revision `2235cca` on 2026-08-11
-timed 1,000 alternating `sinh` and `cosh` rectangular splits on the native
-Fortran path at 7.078 ms, versus
-3.779 ms for `sympy.expand_complex` on the same symbolic form with SymPy
-1.14.0. The native path was therefore 1.87x slower in this repeated scope;
-this result is not a release baseline, and complex-domain cache/core
-performance work remains open rather than being presented as parity.
+A matched in-process diagnostic based on fortsym revision `92c9997` on
+2026-08-11 timed 10,000 alternating `sinh` and `cosh` rectangular splits on
+prebuilt expressions. Native Fortran took 66.314 ms. SymPy 1.14.0 took
+6.580117 s when its cache was cleared before each `expand_complex` call, so
+the native cold-operation time was about 99x lower. The corresponding SymPy
+warm run took 9.186 ms; because the native lower-level complex-domain path has
+no persistent result cache, its repeated 66.314 ms remains a real warm-cache
+gap. The earlier 7.078 ms versus 3.779 ms comparison mixed those scopes and is
+superseded by this matched record; warm-cache parity remains open.
 
 `fo exec bench_native` writes CSV rows for warm, batched end-to-end native and
 SymEngine simplify, differentiation, and expansion calls. Each row includes a

@@ -441,9 +441,12 @@ Every checklist item requires all of the following:
   resource-limit fuzzing.
 - [ ] Compare cold-start, warm-cache, conversion, core-operation, memory, and
   expression-growth metrics against SymPy.
-  - [ ] Add a pinned complex-domain split benchmark and close its performance
-    gap; the 2026-08-11 diagnostic recorded native `sinh`/`cosh` splitting at
-    1.87x the SymPy 1.14.0 timing in a repeated scope.
+  - [x] Record a matched cold-operation diagnostic for native `sinh`/`cosh`
+    splitting: 66.314 ms for 10,000 native calls versus 6.580117 s for 10,000
+    SymPy 1.14.0 calls with its cache cleared before each call. The native
+    cold path is therefore about 99x faster.
+  - [ ] Add a pinned warm-cache benchmark and close the remaining complex-domain
+    cache gap; the corresponding warm SymPy run took 9.186 ms.
   - [x] Retain one native engine and its memoization caches per C-ABI arena;
     synchronize scoped assumptions before each call so warm native workloads
     do not discard their cache state.
