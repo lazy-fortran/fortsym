@@ -87,6 +87,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.sqrt(native_x**2),
             names,
         ),
+        "relation": (
+            oracle.Gt(oracle_x, 1),
+            native.Gt(native_x, 1),
+            names,
+        ),
         "factor": (
             oracle_x**2 + 2 * oracle_x + 1,
             native_x**2 + 2 * native_x + 1,
@@ -103,10 +108,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
 
 def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any]:
     x = engine.Symbol(f"{operation}_x_{suffix}")
-    y = engine.Symbol(f"{operation}_y_{suffix}")
     if operation == "expand":
+        y = engine.Symbol(f"{operation}_y_{suffix}")
         expression = (x + y + 1) ** 4
     elif operation == "differentiate":
+        y = engine.Symbol(f"{operation}_y_{suffix}")
         expression = engine.exp(x * y)
     elif operation == "simplify":
         expression = engine.sqrt(x**2)
@@ -116,6 +122,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.Q.positive(x)
     elif operation == "refine":
         expression = engine.sqrt(x**2)
+    elif operation == "relation":
+        expression = engine.Gt(x, 1)
     else:
         raise ValueError(f"unknown benchmark operation: {operation}")
     return expression, x
@@ -147,15 +155,20 @@ def correctness_cases() -> list[dict[str, Any]]:
             actual = native.refine(
                 native_expression, native.Q.positive(native.Symbol("check_x_fixed"))
             )
+        elif operation == "relation":
+            expected = oracle.Gt(names["check_x_fixed"], 1)
+            actual = native.Gt(native.Symbol("check_x_fixed"), 1)
         else:
             expected = oracle.factor(oracle_expression)
             actual = native.factor(native_expression)
         results.append({
             "operation": operation,
             "correct": (
-                equivalent(expected, actual, names)
-                if operation != "assumption_query"
-                else expected == actual
+                expected == actual
+                if operation == "assumption_query"
+                else str(expected) == str(actual)
+                if operation == "relation"
+                else equivalent(expected, actual, names)
             ),
             "expected": result_text(expected),
             "actual": str(actual),
@@ -200,6 +213,11 @@ def benchmark_workload(
                 native_call = lambda: native.refine(
                     native_expression, native.Q.positive(native_x)
                 )
+            elif operation == "relation":
+                oracle_x = oracle.Symbol("relation_x_warm")
+                native_x = native.Symbol("relation_x_warm")
+                oracle_call = lambda: oracle.Gt(oracle_x, 1)
+                native_call = lambda: native.Gt(native_x, 1)
     else:
         def make_call(engine: Any) -> Callable[[], Any]:
             counter = {"value": 0}
@@ -214,6 +232,8 @@ def benchmark_workload(
                     return engine.ask(expression)
                 if operation == "refine":
                     return engine.refine(expression, engine.Q.positive(variable))
+                if operation == "relation":
+                    return engine.Gt(variable, 1)
                 return getattr(engine, operation)(expression)
 
             return call
@@ -267,7 +287,8 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "factor", "assumption_query"
+        "expand", "differentiate", "simplify", "refine", "relation", "factor",
+        "assumption_query"
     ):
         for scope in ("cold_end_to_end", "warm_core"):
             workloads.append(benchmark_workload(

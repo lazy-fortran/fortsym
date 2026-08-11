@@ -52,12 +52,13 @@ int main(void)
     fortsym_expr *quotient = NULL;
     fortsym_expr *root = NULL;
     fortsym_expr *assumed = NULL;
+    fortsym_expr *relation = NULL;
     fortsym_expr *zero_expression = NULL;
     fortsym_expr *seven = NULL;
     fortsym_expr *sine = NULL;
     const fortsym_expr *root_argument[1];
 
-    assert(fortsym_abi_version() == 4);
+    assert(fortsym_abi_version() == 6);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
@@ -109,6 +110,14 @@ int main(void)
     status = fortsym_function(arena, "sqrt", root_argument, 1, &root,
                               message, sizeof message);
     assert(status == FORTSYM_OK);
+    status = fortsym_relation(arena, x, one, FORTSYM_RELATION_GREATER,
+                              &relation, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_assume_relation(arena, relation, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_assumption_has(arena, x, FORTSYM_FACT_POSITIVE, &known,
+                                    message, sizeof message);
+    assert(status == FORTSYM_OK && known == 1);
     status = fortsym_assume(arena, x, FORTSYM_FACT_POSITIVE, message,
                             sizeof message);
     assert(status == FORTSYM_OK);
@@ -201,6 +210,7 @@ int main(void)
 
     fortsym_expr_free(foreign);
     fortsym_expr_free(assumed);
+    fortsym_expr_free(relation);
     fortsym_expr_free(sine);
     fortsym_expr_free(seven);
     fortsym_expr_free(zero_expression);

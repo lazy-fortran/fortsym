@@ -702,6 +702,12 @@ contains
             parent%has(x, FACT_POSITIVE))
         call check("x > 1 implies reality", parent%has(x, FACT_REAL))
 
+        args(1) = x
+        args(2) = num(arena, -1)
+        relation = func("Greater", args)
+        call record_relation(parent, relation, ok, why)
+        call check("lower bound without a sign implication is refused", .not. ok)
+
         call clone_assumption_context(child, parent)
         args(1) = y
         args(2) = num(arena, 0)

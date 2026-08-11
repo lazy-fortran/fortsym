@@ -20,6 +20,7 @@ target_sources(fortsym PRIVATE
     core/fortsym.f90
     core/fortsym_assume.f90
     core/fortsym_assume_api.f90
+    core/fortsym_relation.f90
     core/fortsym_subs.f90
 
     # surface syntax

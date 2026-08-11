@@ -127,7 +127,15 @@ affected = ["refine"]
 parity = "partial"
 sympy = "SymPy refine applies assumptions to expressions and can use its broad predicate, relational, and compound inference system."
 fortsym = "The adapter accepts one or more supported Q facts and routes them through a reversible native assumption scope and guarded simplifier."
-difference = "Only the native real, positive, nonnegative, and nonzero fact fragment is covered; relational constructors, compound inference, conflict diagnostics, and the broader SymPy refine rules remain incomplete."
+difference = "Only the native real, positive, nonnegative, and nonzero facts plus bounded sign-implying relations are covered; compound inference, conflict diagnostics, and the broader SymPy refine rules remain incomplete."
+
+[[semantic]]
+id = "relational-constructors"
+affected = ["Eq", "Ne", "Gt", "Ge", "Lt", "Le"]
+parity = "partial"
+sympy = "SymPy exposes relational constructors and comparison operators with evaluated Boolean results where possible and symbolic relational objects otherwise."
+fortsym = "The adapter exposes the same constructor spellings and symbolic comparison operators as native relation nodes; scopes pass them to one native bounded relation recorder."
+difference = "Exact Boolean evaluation, equality inference, compound relations, upper bounds, and arbitrary relational assumptions are not yet covered. SymPy 1.14 does not infer these relational facts in ask/refine; fortsym adds the sound bounded sign implications as an explicit native extension, plus Unequal(..., 0) ingestion."
 
 [[semantic]]
 id = "factorisation"

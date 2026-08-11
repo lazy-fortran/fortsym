@@ -290,7 +290,8 @@ condition field. They must not be encoded in a backend-specific global state.
 The assumption context records `real`, `positive`, `nonnegative`, `nonzero`,
 and integer-domain facts on symbols and expressions. Exact lower relations,
 conjunctions, and `Element` membership derive only implications that are
-provably valid; cloned contexts provide scoped refinement without mutating the
+provably valid; the current public relation fragment admits only lower bounds
+that imply a supported sign fact. Cloned contexts provide scoped refinement without mutating the
 parent. The public Fortran facade derives value-style contexts with
 `with_assumption` and passes them explicitly to native operations. `refine` is
 the named assumption-aware facade operation, while guarded rewrite ownership

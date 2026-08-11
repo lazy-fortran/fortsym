@@ -102,6 +102,8 @@ class SympySubsetTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 with sp.assuming(sp.Q.positive(foreign)):
                     pass
+            with self.assertRaises(ValueError):
+                sp.refine(sp.sqrt(sp.Symbol("foreign_target")**2), foreign > 0)
 
     def test_scoped_assumptions_restore_after_exception(self):
         x = sp.Symbol("exception_scope")
@@ -117,6 +119,18 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(sp.refine(sp.sqrt(x**2), sp.Q.positive(x)), x)
         self.assertEqual(sp.refine(sp.sqrt(x**2), sp.Q.real(x)), sp.Abs(x))
         self.assertIsNone(sp.ask(sp.Q.positive(x)))
+
+    def test_relational_facts_use_bounded_native_ingestion(self):
+        x = sp.Symbol("relation_x")
+        self.assertEqual(str(sp.Gt(x, 1)), "relation_x > 1")
+        self.assertEqual(sp.refine(sp.sqrt(x**2), x > 1), x)
+        self.assertEqual(sp.refine(sp.sqrt(x**2), x >= 0), x)
+        with sp.assuming(sp.Ne(x, 0)):
+            self.assertTrue(sp.ask(sp.Q.nonzero(x)))
+        with self.assertRaises(sp.UnsupportedOperationError):
+            sp.refine(sp.sqrt(x**2), x < 1)
+        with self.assertRaises(sp.UnsupportedOperationError):
+            sp.refine(sp.sqrt(x**2), x > -1)
 
 
 if __name__ == "__main__":

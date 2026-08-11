@@ -16,6 +16,7 @@ module fortsym_public_capi
     use fortsym_diff, only: diff
     use fortsym_assume_api, only: assumption_context_t, init_assumption_context, &
         clone_assumption_context, record_assumption, &
+        record_relation, &
         assumption_has, &
         FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -51,11 +52,12 @@ module fortsym_public_capi
 
     public :: fortsym_abi_version, fortsym_arena_new, fortsym_arena_free
     public :: fortsym_int, fortsym_rational, fortsym_real, fortsym_exact
-    public :: fortsym_symbol, c_fortsym_assume, fortsym_assumption_push, &
+    public :: fortsym_symbol, c_fortsym_assume, fortsym_assume_relation, &
+        fortsym_assumption_push, &
         fortsym_assumption_pop, fortsym_assumption_has, &
         fortsym_constant
     public :: fortsym_add, fortsym_subtract, fortsym_multiply, fortsym_divide
-    public :: fortsym_power, fortsym_add_many, fortsym_function
+    public :: fortsym_power, fortsym_add_many, fortsym_function, fortsym_relation
     public :: fortsym_substitute, fortsym_differentiate, fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor
     public :: fortsym_zero_test
@@ -68,7 +70,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 4_c_int
+        v = 6_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -234,6 +236,37 @@ contains
         call put_error(message, capacity, FORTSYM_OK)
         status = FORTSYM_OK
     end function c_fortsym_assume
+
+    function fortsym_assume_relation(raw, relation_raw, message, capacity) &
+            bind(c, name="fortsym_assume_relation") result(status)
+        type(c_ptr), value :: raw, relation_raw
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a, relation_arena
+        type(expr_owner_t), pointer :: relation_owner
+        type(expr_t) :: relation
+        character(:), allocatable :: why
+        logical :: ok
+
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(relation_raw, relation_owner, relation, status, &
+            message, capacity)
+        if (status /= FORTSYM_OK) return
+        relation_arena => relation_owner%arena
+        if (.not. associated(relation_arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call record_relation(a%assumptions, relation, ok, why)
+        if (.not. ok) then
+            call fail(status, message, capacity, FORTSYM_UNSUPPORTED)
+            return
+        end if
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end function fortsym_assume_relation
 
     function fortsym_assumption_push(raw, message, capacity) &
             bind(c, name="fortsym_assumption_push") result(status)
@@ -512,6 +545,48 @@ contains
         end if
         call make_handle(a, e, out, status, message, capacity)
     end function fortsym_function
+
+    function fortsym_relation(raw, left_raw, right_raw, relation_kind, out, &
+            message, capacity) bind(c, name="fortsym_relation") result(status)
+        type(c_ptr), value :: raw, left_raw, right_raw, out
+        integer(c_int), value :: relation_kind
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: lp, rp
+        type(expr_t) :: left, right, relation
+        character(:), allocatable :: name
+        integer :: ids(2)
+
+        call begin_output(out, message, capacity)
+        call get_binary(raw, left_raw, right_raw, a, lp, rp, left, right, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        select case (relation_kind)
+        case (1_c_int)
+            name = "Equal"
+        case (2_c_int)
+            name = "Unequal"
+        case (3_c_int)
+            name = "Less"
+        case (4_c_int)
+            name = "LessEqual"
+        case (5_c_int)
+            name = "Greater"
+        case (6_c_int)
+            name = "GreaterEqual"
+        case default
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end select
+        ids(1) = left%id
+        ids(2) = right%id
+        relation%a => a%value
+        relation%id = a%value%func(name, ids)
+        relation%generation = left%generation
+        call make_handle(a, relation, out, status, message, capacity)
+    end function fortsym_relation
 
     function fortsym_substitute(raw, expression_raw, old_raw, new_raw, out, &
             message, capacity) bind(c, name="fortsym_substitute") result(status)
