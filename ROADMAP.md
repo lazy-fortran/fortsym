@@ -146,6 +146,11 @@ as `Expr.factor()` and `fortsym.factor()`, while the separate
 outside the bounded polynomial subset; that subset is now covered by a
 native factor implementation and tests for options and domain-condition
 refusal.
+The native exponential zero fragment now also decides exact Euler constants
+`exp(i*n*pi)` for integer `n`, while fractional multiples and unsupported
+periodic forms remain `UNKNOWN`. This removes another bounded periodic-constant
+case from the external exponential oracle without claiming general complex
+transcendental simplification.
 
 Issue #44 (plotting through fortplot) is complete as of 2026-08-11 for the
 bounded adapter. `fortsym_plot` samples real curves, parametric curves, list

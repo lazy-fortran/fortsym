@@ -683,7 +683,16 @@ contains
         call check("unsupported heads remain unknown in the fragment", &
             r%verdict == VERDICT_UNKNOWN)
         r = engine%zero_test(exp(i_expr(arena)*pi_expr(arena)) + 1)
-        call check("periodic constants remain conservatively unknown", &
+        call check("Euler periodic constant is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(2*i_expr(arena)*pi_expr(arena)) - 1)
+        call check("even Euler periodic constant is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(i_expr(arena)*pi_expr(arena)) - 1)
+        call check("Euler periodic constant nonidentity is nonzero", &
+            r%verdict == VERDICT_FALSE)
+        r = engine%zero_test(exp(i_expr(arena)*pi_expr(arena)/2) - i_expr(arena))
+        call check("fractional periodic constants remain unknown", &
             r%verdict == VERDICT_UNKNOWN)
     end subroutine test_verdicts
 
