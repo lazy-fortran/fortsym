@@ -106,6 +106,9 @@ heads until a compatible bounded-set representation exists.
 The reciprocal-hyperbolic heads `csch`, `sech`, and `coth` likewise have
 direct scalar rules: `csch` and `sech` tend to zero, while `coth` tends to
 the corresponding signed one; every `zoo` case becomes `nan`.
+The error-function heads `erf` and `erfc` have the scalar limits
+`erf(oo)=1`, `erf(-oo)=-1`, `erfc(oo)=0`, and `erfc(-oo)=2`; their `zoo`
+applications remain unevaluated.
 
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a

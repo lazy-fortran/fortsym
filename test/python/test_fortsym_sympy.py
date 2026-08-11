@@ -254,6 +254,19 @@ class SympySubsetTest(unittest.TestCase):
             with self.subTest(expression=str(expression)):
                 self.assertEqual(sp.simplify(expression), expected)
 
+    def test_error_function_domain_heads(self):
+        cases = [
+            (sp.erf(sp.oo), sp.Integer(1)),
+            (sp.erf(-sp.oo), sp.Integer(-1)),
+            (sp.erfc(sp.oo), sp.Integer(0)),
+            (sp.erfc(-sp.oo), sp.Integer(2)),
+        ]
+        for expression, expected in cases:
+            with self.subTest(expression=str(expression)):
+                self.assertEqual(sp.simplify(expression), expected)
+        self.assertIsInstance(sp.simplify(sp.erf(sp.zoo)), sp.Function)
+        self.assertIsInstance(sp.simplify(sp.erfc(sp.zoo)), sp.Function)
+
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")
         cases = [

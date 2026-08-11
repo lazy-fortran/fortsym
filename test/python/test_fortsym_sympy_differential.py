@@ -384,6 +384,26 @@ class SympyDifferentialTest(unittest.TestCase):
                 )
                 self.assertEqual(actual_parsed, expected)
 
+    def test_error_function_domain_heads_match_oracle(self):
+        cases = [
+            (oracle.erf(oracle.oo), native.erf(native.oo)),
+            (oracle.erf(-oracle.oo), native.erf(-native.oo)),
+            (oracle.erfc(oracle.oo), native.erfc(native.oo)),
+            (oracle.erfc(-oracle.oo), native.erfc(-native.oo)),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                actual_parsed = oracle.sympify(
+                    str(native.simplify(actual)), locals=self.locals
+                )
+                self.assertEqual(actual_parsed, expected)
+        for function in (oracle.erf, oracle.erfc):
+            with self.subTest(function=function.__name__):
+                expected = function(oracle.zoo)
+                self.assertIsInstance(expected, oracle.Function)
+                actual = getattr(native, function.__name__)(native.zoo)
+                self.assertIsInstance(native.simplify(actual), native.Function)
+
     def test_expand_cache_matches_oracle_and_invalidates_on_assumptions(self):
         oracle_x = oracle.Symbol("differential_expand_cache_x")
         native_x = native.Symbol("differential_expand_cache_x")
