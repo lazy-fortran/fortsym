@@ -469,6 +469,14 @@ contains
         r = engine%simplify(func("loggamma", loggamma_args))
         call check("loggamma(1/2) simplifies to log(sqrt(pi))", &
             r%value == log(sqrt(pi_expr(arena))))
+        loggamma_args(1) = rat(arena, 3_int64, 2_int64)
+        r = engine%simplify(func("loggamma", loggamma_args))
+        call check("loggamma(3/2) simplifies by the half recurrence", &
+            r%value == log(sqrt(pi_expr(arena))*rat(arena, 1_int64, 2_int64)))
+        loggamma_args(1) = rat(arena, 5_int64, 2_int64)
+        r = engine%simplify(func("loggamma", loggamma_args))
+        call check("loggamma(5/2) simplifies by the half recurrence", &
+            r%value == log(sqrt(pi_expr(arena))*rat(arena, 3_int64, 4_int64)))
         loggamma_args(1) = num(arena, 0_int64)
         r = engine%simplify(func("loggamma", loggamma_args))
         call check("loggamma pole remains opaque", r%value%kind() == NK_FUNC)
