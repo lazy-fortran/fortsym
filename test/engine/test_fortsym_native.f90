@@ -394,7 +394,7 @@ contains
 
     subroutine test_series()
         type(engine_result_t) :: r
-        type(expr_t) :: expected
+        type(expr_t) :: expected, laurent_expected
 
         r = engine%series(exp(x), x, num(arena, 0), 3)
         expected = 1 + x + x**2/2 + x**3/6
@@ -411,6 +411,17 @@ contains
         end if
 
         call test_axis_series_case()
+
+        r = engine%laurent_series(exp(x)/x, x, num(arena, 0), -1, 2)
+        laurent_expected = 1/x + 1 + x/2 + x**2/6
+        call check("Laurent series with a simple pole succeeds", r%ok)
+        if (r%ok) call check_values("Laurent coefficients reconstruct away from pole", &
+            r%value, laurent_expected, 0.25_dp, 1.0e-12_dp)
+
+        r = engine%laurent_series(exp(x), x, num(arena, 0), -1, 1)
+        call check("unrecognised negative order is refused", .not. r%ok)
+        call check("Laurent refusal names the singular order", &
+            index(chars(r%message), "integer power") > 0)
     end subroutine test_series
 
     subroutine test_axis_series_case()

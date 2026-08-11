@@ -101,6 +101,11 @@ reconstructs the polynomial through an independent test path; irreducible
 higher-degree factors and systems are named refusals, never floating-point
 guesses.
 
+The native series engine computes Taylor coefficients by repeated exact
+differentiation. Its bounded Laurent extension first identifies an integer
+power of the shifted variable, regularises that pole, and then uses the same
+coefficient path; a singularity it cannot classify exactly is refused.
+
 Fortran kernel emission uses the dialect's declared function map rather than
 passing symbolic heads through as identifiers. Standard intrinsics cover
 `erf`, `erfc`, `gamma`, `log_gamma`, `bessel_jn`, and `bessel_yn`; the default

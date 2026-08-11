@@ -136,6 +136,14 @@ rational are verified by root-count and polynomial-reconstruction tests.
 Non-rational irreducible cubics/quartics, systems, and non-polynomial inputs
 remain named refusals rather than approximate solutions.
 
+Issue #35 (series depth) is complete as of 2026-08-11 for the bounded native
+series fragment: the existing Taylor engine now also exposes Laurent-series
+construction for structurally recognised integer poles. It regularises the
+pole and reuses the independent Taylor coefficient path, with tests covering
+the principal part through positive order and explicit refusal of unknown
+singular structures. Infinity, composition, inversion, and special-function
+series remain outside this decision procedure.
+
 Issue #31 (native integration) is complete as of 2026-08-11 for the bounded
 exact fragment: native integration now sends exact rational inputs through
 partial fractions before applying its verified elementary rules. Distinct and
@@ -794,6 +802,11 @@ inference.
   admissible points and be refused outside them.
 
 ### M3 — Series (#35) · 321 sites
+
+Issue #35 is complete for the bounded native Laurent extension above. General
+series composition, inversion, infinity expansions, and special-function
+series remain named refusals until their independent coefficient oracles are
+available.
 
 Laurent series, expansion at infinity and at singular points, composition,
 inversion, series of special functions.
