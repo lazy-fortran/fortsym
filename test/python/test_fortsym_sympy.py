@@ -103,6 +103,15 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(str(positive), "0.0000000000000000E+000")
         self.assertEqual(str(negative), "-0.0000000000000000E+000")
 
+    def test_nan_domain_rules(self):
+        x = sp.Symbol("nan_rule_x")
+        self.assertEqual(sp.simplify(sp.nan + x), sp.nan)
+        self.assertEqual(sp.simplify(sp.nan * 0), sp.nan)
+        self.assertEqual(sp.simplify(sp.sqrt(sp.nan)), sp.nan)
+        self.assertEqual(sp.simplify(sp.nan**0), sp.Integer(1))
+        self.assertEqual(sp.simplify(sp.nan**x), sp.nan)
+        self.assertEqual(sp.simplify(x**sp.nan), sp.nan)
+
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")
         cases = [

@@ -193,6 +193,21 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(str(native.Float(-0.0)), "-0.0000000000000000E+000")
         self.assertNotEqual(native.Float(-0.0), native.Float(0.0))
 
+    def test_nan_domain_rules_match_oracle(self):
+        oracle_x = oracle.Symbol("nan_rule_x")
+        native_x = native.Symbol("nan_rule_x")
+        cases = [
+            (oracle.nan + oracle_x, native.nan + native_x),
+            (oracle.nan * 0, native.nan * 0),
+            (oracle.sqrt(oracle.nan), native.sqrt(native.nan)),
+            (oracle.nan**0, native.nan**0),
+            (oracle.nan**oracle_x, native.nan**native_x),
+            (oracle_x**oracle.nan, native_x**native.nan),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                self.assertEqual(str(native.simplify(actual)), str(expected))
+
     def test_expand_cache_matches_oracle_and_invalidates_on_assumptions(self):
         oracle_x = oracle.Symbol("differential_expand_cache_x")
         native_x = native.Symbol("differential_expand_cache_x")

@@ -1542,6 +1542,11 @@ contains
         integer :: pair(2)
         logical :: exact, exact2, combined
 
+        if (has_nan_operand(a, operands)) then
+            out = nan_node(a)
+            return
+        end if
+
         ! Preserve a composite term long enough to cancel its explicit
         ! negative. Flattening u + (-u) first would splice u's children into
         ! the outer sum and hide that the two operands are opposites.
@@ -1832,6 +1837,11 @@ contains
         integer :: flat, i, j, count, base
         logical :: exact, product_ok, combined, power_factor
 
+        if (has_nan_operand(a, operands)) then
+            out = nan_node(a)
+            return
+        end if
+
         flat = a%mul(operands)
         if (a%kind_of(flat) /= NK_MUL) then
             out = flat
@@ -1943,9 +1953,18 @@ contains
         integer :: k, normalized_base, pair(2)
         logical :: exact, power_ok, nested_ok
 
+        if (is_nan_id(a, exponent_id)) then
+            out = nan_node(a)
+            return
+        end if
+
         call exact_value(a, exponent_id, exponent, den, exact)
         if (.not. exact) then
-            out = a%pow(base, exponent_id)
+            if (is_nan_id(a, base)) then
+                out = nan_node(a)
+            else
+                out = a%pow(base, exponent_id)
+            end if
             return
         end if
         if (den /= 1_int64) then
@@ -1959,6 +1978,10 @@ contains
             else
                 out = a%int(1_int64)
             end if
+            return
+        end if
+        if (is_nan_id(a, base)) then
+            out = nan_node(a)
             return
         end if
         if (exponent == 1_int64) then
@@ -2061,6 +2084,11 @@ contains
         integer :: periodic_constant
         integer :: positive_argument
         integer :: bessel_args(2), pair(2), one_arg(1)
+
+        if (nan_propagates_function(name, a, args)) then
+            out = nan_node(a)
+            return
+        end if
 
         out = a%func(name, args)
         if (size(args) == 0) return
@@ -4180,6 +4208,61 @@ contains
             yes = is_algebraic_zero_id(a, id)
         end select
     end function is_zero_id
+
+    !> A structural NaN/undefined sentinel is absorbing for the supported
+    !> arithmetic heads. Keep this test in the native simplifier's one domain
+    !> helper rather than teaching every coefficient and function rule about
+    !> one special constant. Unknown applied heads remain opaque: their domain
+    !> semantics are not ours to guess.
+    function has_nan_operand(a, ids) result(found)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: ids(:)
+        logical                   :: found
+        integer                   :: k
+
+        found = .false.
+        do k = 1, size(ids)
+            if (is_nan_id(a, ids(k))) then
+                found = .true.
+                return
+            end if
+        end do
+    end function has_nan_operand
+
+    function is_nan_id(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: yes
+
+        yes = a%kind_of(id) == NK_CONST .and. &
+            chars(a%name_of(id)) == "nan"
+    end function is_nan_id
+
+    function nan_node(a) result(id)
+        type(arena_t), intent(inout) :: a
+        integer                     :: id
+
+        id = a%const("nan")
+    end function nan_node
+
+    function nan_propagates_function(name, a, args) result(yes)
+        character(*),  intent(in) :: name
+        type(arena_t), intent(in)  :: a
+        integer,       intent(in)  :: args(:)
+        logical                    :: yes
+
+        yes = .false.
+        if (.not. has_nan_operand(a, args)) return
+        select case (name)
+        case ("sin", "cos", "tan", "asin", "acos", "atan", "atan2", &
+                "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
+                "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", &
+                "loggamma", "log10", "floor", "ceiling", "sign", &
+                "csc", "sec", "cot", "csch", "sech", "coth", &
+                "besselj", "besseli", "legendrep", "legendreq")
+            yes = .true.
+        end select
+    end function nan_propagates_function
 
     function is_one_id(a, id) result(yes)
         type(arena_t), intent(in) :: a

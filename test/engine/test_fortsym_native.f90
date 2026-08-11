@@ -50,6 +50,7 @@ program test_fortsym_native
     call test_assumptions()
     call test_assumption_relations()
     call test_domain_conditions()
+    call test_nan_domain_rules()
     call test_verdicts()
     call test_overflow_preservation()
 
@@ -862,6 +863,39 @@ contains
             r%conditional .and. chars(r%condition) == &
             "cancelled denominator bases must be nonzero")
     end subroutine test_domain_conditions
+
+    subroutine test_nan_domain_rules()
+        type(engine_result_t) :: r
+        type(expr_t) :: undefined
+
+        undefined = const(arena, "nan")
+
+        r = engine%simplify(undefined + x)
+        call check("nan absorbs addition", r%ok .and. r%value == undefined)
+
+        r = engine%simplify(undefined*num(arena, 0_int64))
+        call check("nan absorbs multiplication by zero", &
+            r%ok .and. r%value == undefined)
+
+        r = engine%simplify(undefined*x)
+        call check("nan absorbs multiplication by a symbol", &
+            r%ok .and. r%value == undefined)
+
+        r = engine%simplify(sqrt(undefined))
+        call check("sqrt(nan) is nan", r%ok .and. r%value == undefined)
+
+        r = engine%simplify(undefined**num(arena, 0_int64))
+        call check("nan to the zeroth power is one", &
+            r%ok .and. r%value == num(arena, 1_int64))
+
+        r = engine%simplify(undefined**x)
+        call check("nan to an unknown power is nan", &
+            r%ok .and. r%value == undefined)
+
+        r = engine%simplify(x**undefined)
+        call check("an unknown base to nan is nan", &
+            r%ok .and. r%value == undefined)
+    end subroutine test_nan_domain_rules
 
     subroutine test_verdicts()
         type(engine_result_t) :: r
