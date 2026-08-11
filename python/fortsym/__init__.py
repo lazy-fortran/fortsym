@@ -142,6 +142,11 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.factor = declare(
+        "fortsym_factor",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.assume = declare(
         "fortsym_assume",
         ctypes.c_int,
@@ -439,6 +444,10 @@ class Expr:
         return self._arena._result(self._lib.simplify, self._arena._require(),
                                    self._require())
 
+    def factor(self):
+        return self._arena._result(self._lib.factor, self._arena._require(),
+                                   self._require())
+
     @property
     def kind(self):
         value = ctypes.c_int()
@@ -547,9 +556,10 @@ def Float(value: float): return _default().real(value)
 def Function(name: str): return lambda *args: _default().function(name, args)
 def diff(expression: Expr, variable: Expr): return expression.diff(variable)
 def subs(expression: Expr, old: Expr, new: Expr): return expression.subs(old, new)
+def factor(expression: Expr): return expression.factor()
 
 
 __all__ = [
     "Arena", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
-    "Rational", "Float", "Function", "diff", "subs",
+    "Rational", "Float", "Function", "diff", "subs", "factor",
 ]

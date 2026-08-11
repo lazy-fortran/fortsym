@@ -140,6 +140,10 @@ polynomials. It refuses results that carry a cancelled-denominator condition,
 because the current handle ABI has no condition field and must not silently
 erase that domain information; the C test covers both the successful
 factorisation and this refusal.
+The standard-library-only Python facade now exposes the safe polynomial path
+as `Expr.factor()` and `fortsym.factor()`, while the separate
+`fortsym.sympy` compatibility layer keeps `factor` as an explicit refusal
+until its broader compatibility semantics are specified.
 
 Issue #44 (plotting through fortplot) is complete as of 2026-08-11 for the
 bounded adapter. `fortsym_plot` samples real curves, parametric curves, list

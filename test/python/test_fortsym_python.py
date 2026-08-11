@@ -13,6 +13,7 @@ class NativePackageTest(unittest.TestCase):
             expression = (x + 1) * y
             self.assertEqual(str(expression), "y*(x + 1)")
             self.assertEqual(str(((x + 1) ** 2).expand()), "x**2 + 2*x + 1")
+            self.assertEqual(str(((x + 1) ** 2).expand().factor()), "(x + 1)**2")
             self.assertEqual(str(x.diff(x)), "1")
             self.assertEqual(expression.subs(x, 2), y * 3)
             self.assertEqual(((x + 1) ** 2).subs(x, 2), 9)
