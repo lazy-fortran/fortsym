@@ -1187,6 +1187,14 @@ contains
         r = engine%simplify(unary_function("gamma", complex_infinity))
         call check("gamma(zoo) remains an applied head", &
             r%value%kind() == NK_FUNC)
+        r = engine%simplify(unary_function("factorial", infinity))
+        call check("factorial(oo) is oo", r%value == infinity)
+        r = engine%simplify(unary_function("factorial", negative_infinity))
+        call check("factorial(-oo) remains an applied head", &
+            r%value%kind() == NK_FUNC)
+        r = engine%simplify(unary_function("factorial", complex_infinity))
+        call check("factorial(zoo) remains an applied head", &
+            r%value%kind() == NK_FUNC)
         r = engine%simplify(unary_function("loggamma", infinity))
         call check("loggamma(oo) is oo", r%value == infinity)
         r = engine%simplify(unary_function("loggamma", negative_infinity))

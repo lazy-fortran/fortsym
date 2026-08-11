@@ -4726,7 +4726,7 @@ contains
             else
                 out = a%int(0_int64)
             end if
-        case ("gamma")
+        case ("gamma", "factorial")
             if (domain == DOMAIN_ZOO .or. direction < 0) return
             applied = .true.
             out = a%const("oo")

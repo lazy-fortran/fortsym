@@ -158,6 +158,7 @@
         "erfc",
         "gamma",
         "loggamma",
+        "factorial",
         "asinh",
         "acosh",
         "atanh",
@@ -183,6 +184,7 @@
         "erfc",
         "gamma",
         "loggamma",
+        "factorial",
         "asinh",
         "acosh",
         "atanh",
@@ -1383,6 +1385,7 @@
       "exp",
       "expand",
       "factor",
+      "factorial",
       "floor",
       "gamma",
       "integrate",
@@ -1425,11 +1428,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 155,
+    "assigned_names": 156,
     "concept_groups": 26,
     "fortran_facade_exports": 124,
     "python_facade_exports": 12,
-    "sympy_adapter_exports": 74,
+    "sympy_adapter_exports": 75,
     "unmapped_fortran_exports": 0
   },
   "sympy_version": "1.14.0",
