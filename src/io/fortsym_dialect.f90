@@ -14,8 +14,9 @@ module fortsym_dialect
     ! so a dialect cannot print something it would not read back. The round-trip
     ! test in test/io exists to keep that honest.
     !
-    ! fortsym's canonical function names are the lowercase Fortran intrinsic
-    ! names: sin, cos, asin, atan2, exp, log, sqrt, abs, erf, gamma.
+    ! fortsym's canonical function names are lowercase mathematical names.
+    ! The Fortran map below distinguishes standard intrinsics from the small
+    ! runtime surface supplied by fortnum.
     ! DIA_SYMPY is an expression spelling for the subprocess adapter. Python
     ! callers use the C ABI package and do not receive a SymPy script session.
     ! DIA_WOLFRAM has a separate bounded script surface because the consumers
@@ -28,6 +29,8 @@ module fortsym_dialect
     public :: DIA_NATIVE, DIA_SYMENGINE, DIA_YACAS, DIA_SYMPY, DIA_MAXIMA, &
         DIA_FORTRAN, DIA_WOLFRAM, DIA_LATEX
     public :: fn_spelling, fn_canonical
+    public :: fortran_function_supported, fortran_function_arity_ok
+    public :: fortran_function_uses_special
     public :: const_spelling, const_canonical
 
     integer, parameter :: DIA_NATIVE = 1 !< fortsym's own notation
@@ -177,8 +180,14 @@ contains
             s = wolfram_spelling(canonical)
         case (DIA_FORTRAN)
             select case (canonical)
-            case ("besselj"); s = str("bessel_jn")
-            case default;     s = str(canonical)
+            case ("loggamma"); s = str("log_gamma")
+            case ("besselj");  s = str("bessel_jn")
+            case ("bessely");  s = str("bessel_yn")
+            case ("besseli");  s = str("bessel_in")
+            case ("besselk");  s = str("bessel_kn")
+            case ("Min");      s = str("min")
+            case ("Max");      s = str("max")
+            case default;       s = str(canonical)
             end select
         case default
             s = str(canonical)
@@ -227,13 +236,61 @@ contains
             end select
         case (DIA_FORTRAN)
             select case (spelling)
+            case ("log_gamma"); s = str("loggamma")
             case ("bessel_jn"); s = str("besselj")
-            case default;       s = str(spelling)
+            case ("bessel_yn"); s = str("bessely")
+            case ("bessel_in"); s = str("besseli")
+            case ("bessel_kn"); s = str("besselk")
+            case ("min");       s = str("Min")
+            case ("max");       s = str("Max")
+            case default;        s = str(spelling)
             end select
         case default
             s = str(spelling)
         end select
     end function fn_canonical
+
+    !> Canonical heads accepted by the real scalar Fortran kernel emitter.
+    !> Unknown heads must be rejected before source text is returned: emitting
+    !> an unqualified identifier would defer a symbolic error to compilation.
+    pure logical function fortran_function_supported(name) result(ok)
+        character(*), intent(in) :: name
+
+        select case (name)
+        case ("sin", "cos", "tan", "asin", "acos", "atan", "atan2", &
+                "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
+                "exp", "log", "log10", "sqrt", "abs", "erf", "erfc", &
+                "gamma", "loggamma", "max", "min", "Min", "Max", &
+                "besselj", "bessely", "besseli", "besselk")
+            ok = .true.
+        case default
+            ok = .false.
+        end select
+    end function fortran_function_supported
+
+    !> Arity of a canonical function in the scalar Fortran kernel surface.
+    pure logical function fortran_function_arity_ok(name, n) result(ok)
+        character(*), intent(in) :: name
+        integer, intent(in) :: n
+
+        if (name == "max" .or. name == "min" .or. name == "Min" .or. &
+            name == "Max") then
+            ok = n >= 2
+        else if (name == "atan2" .or. name == "besselj" .or. &
+                name == "bessely" .or. name == "besseli" .or. &
+                name == "besselk") then
+            ok = n == 2
+        else
+            ok = n == 1
+        end if
+    end function fortran_function_arity_ok
+
+    !> Whether a mapped function is provided by fortnum's special umbrella.
+    pure logical function fortran_function_uses_special(name) result(ok)
+        character(*), intent(in) :: name
+
+        ok = name == "besseli" .or. name == "besselk"
+    end function fortran_function_uses_special
 
     !> Spelling of a named constant. fortsym's canonical names are pi, e and i.
     !>

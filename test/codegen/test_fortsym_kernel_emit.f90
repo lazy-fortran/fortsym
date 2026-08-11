@@ -8,10 +8,12 @@ program test_fortsym_kernel_emit
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, sin_expr => sin, exp_expr => exp, &
         operator(+), operator(*), operator(/), operator(**), num, rat, real_expr, &
-        operator(==)
+        operator(==), func, erf_expr => erf, erfc_expr => erfc, gamma_expr => gamma, &
+        besselj_expr => besselj
     use fortsym_kernel_ir, only: kernel_ir_t, lower_kernel_ir
     use fortsym_kernel_emit
     use fortsym_fparse, only: parse_fortran_array
+    use fortsym_print, only: fortran_representable
     use fortsym_quadratic, only: quadratic_t, quad
     use fortsym_proc, only: proc_available
     implicit none
@@ -22,6 +24,7 @@ program test_fortsym_kernel_emit
     call test_emitters_share_ir()
     call test_emission_policies()
     call test_target_driven_emission()
+    call test_special_function_emission()
     call test_emit_tables()
     call test_fortran_symbol_name_boundary()
 
@@ -43,6 +46,105 @@ contains
             print *, "FAIL ", label
         end if
     end subroutine ok
+
+    function named1(name, x) result(e)
+        character(*), intent(in) :: name
+        type(expr_t), intent(in) :: x
+        type(expr_t) :: e, args(1)
+
+        args(1) = x
+        e = func(name, args)
+    end function named1
+
+    function named2(name, x, y) result(e)
+        character(*), intent(in) :: name
+        type(expr_t), intent(in) :: x, y
+        type(expr_t) :: e, args(2)
+
+        args(1) = x
+        args(2) = y
+        e = func(name, args)
+    end function named2
+
+    subroutine test_special_function_emission()
+        type(arena_t), target :: arena
+        type(expr_t) :: x, one, zero, root, roots(1)
+        type(kernel_ir_t) :: ir
+        type(kernel_emit_spec_t) :: spec
+        type(str_t) :: source
+        logical :: good
+        character(:), allocatable :: message
+        integer :: unit, ios, stat
+
+        call arena%init()
+        x = sym(arena, "x")
+        one = num(arena, 1)
+        zero = num(arena, 0)
+        root = erf_expr(x) + erfc_expr(x) + gamma_expr(x + one) + &
+            named1("loggamma", x + one) + besselj_expr(zero, x)
+        roots(1) = root
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("special-function IR lowers", good)
+        if (.not. good) return
+
+        spec%name = str("fortsym_special_leaf")
+        allocate (spec%args(1), spec%outputs(1))
+        spec%args(1) = str("x")
+        spec%outputs(1) = str("r")
+        source = emit_fortran_kernel_ir(ir, spec, good, message)
+        call ok("standard special functions emit", good)
+        call ok("standard specials need no fortnum use", &
+            index(chars(source), "use fortnum_special") == 0)
+        call ok("loggamma maps to log_gamma", &
+            index(chars(source), "log_gamma(") > 0)
+        call ok("BesselJ maps to bessel_jn with integer order", &
+            index(chars(source), "bessel_jn(0,") > 0)
+
+        open (newunit=unit, file="/tmp/fortsym_special_fortran.f90", &
+            status="replace", action="write", iostat=ios)
+        call ok("special-function fixture opens", ios == 0)
+        if (ios /= 0) return
+        write (unit, "(a)") chars(source)
+        write (unit, "(a)") "program drive_fortsym_special"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(real64) :: r"
+        write (unit, "(a)") "  call fortsym_special_leaf(0.0_real64, r)"
+        write (unit, "(a)") "  if (abs(r - 3.0_real64) > 1.0e-14_real64) error stop 1"
+        write (unit, "(a)") "end program drive_fortsym_special"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -o /tmp/fortsym_special_fortran "// &
+            "/tmp/fortsym_special_fortran.f90 > /tmp/fortsym_special_fortran.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("standard special kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_special_fortran", wait=.true., &
+                exitstat=stat)
+            call ok("standard special kernel matches exact-value oracle", stat == 0)
+        end if
+
+        root = named2("besseli", zero, x) + named2("besselk", zero, x)
+        roots(1) = root
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("fortnum special IR lowers", good)
+        source = emit_fortran_kernel_ir(ir, spec, good, message)
+        call ok("fortnum special functions emit", good)
+        call ok("fortnum special module is declared", &
+            index(chars(source), "use fortnum_special, only: bessel_in, bessel_kn") > 0)
+        call ok("besseli maps to bessel_in", index(chars(source), "bessel_in(0,") > 0)
+        call ok("besselk maps to bessel_kn", index(chars(source), "bessel_kn(0,") > 0)
+
+        root = named1("elliptic_k", x)
+        roots(1) = root
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("unmapped special IR lowers for refusal", good)
+        source = emit_fortran_kernel_ir(ir, spec, good, message)
+        call ok("unmapped special is refused at emission", .not. good)
+        call ok("unmapped special names the head", index(message, "elliptic_k") > 0)
+        call ok("unmapped special is refused by representability", &
+            .not. fortran_representable(root))
+    end subroutine test_special_function_emission
 
     subroutine test_emitters_share_ir()
         type(arena_t), target :: arena
