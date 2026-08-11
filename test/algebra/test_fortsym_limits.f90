@@ -602,12 +602,13 @@ contains
         type(limit_value_t) :: r
         logical :: good
         character(:), allocatable :: why
-        real(dp) :: up(8)
+        real(dp) :: up(8), down(8)
         integer :: k
 
         do k = 1, 8
             up(k) = 10.0_dp**(k + 9)
         end do
+        down = -up
 
         e = rat(arena, 1_int64, 10000000000_int64)*x
         r = limit_of(arena, e, x, plus_infinity(), TWO_SIDED, good, why)
@@ -625,7 +626,7 @@ contains
         if (good) then
             call ok("x/10^10 at -inf is -infinity", r%kind == LIMIT_MINUS_INF)
             call ok("x/10^10 samples diverge downwards", &
-                    diverges(e, -up, .false.))
+                    diverges(e, down, .false.))
         end if
     end subroutine test_small_leading_coefficient
 

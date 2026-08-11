@@ -185,7 +185,7 @@ contains
         logical,                   intent(out)   :: ok
         character(:), allocatable, intent(out)   :: why
         type(resource_limit_t),    intent(in), optional :: limit
-        type(expr_t)                             :: r
+        type(expr_t)                             :: r, inner(1)
         type(exact_linear_system_result_t) :: sol
         type(expr_t), allocatable :: m(:, :), rhs(:, :), rules(:)
         type(expr_t) :: resid, konst, coef, recon, probe
@@ -292,7 +292,8 @@ contains
             rules(j) = single_rule(vars(j), sol%values(j, 1))
         end do
         ! One solution, so one inner rule list holding every unknown.
-        r = func("List", [func("List", rules)])
+        inner(1) = func("List", rules)
+        r = func("List", inner)
         ok = .true.
     end function solve_linear_system
 
@@ -341,7 +342,7 @@ contains
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: why
         type(resource_limit_t), intent(in), optional :: limit
-        type(expr_t) :: r
+        type(expr_t) :: r, inner(1)
         type(expr_t) :: x_value, y_value, reduced, rules(2)
         type(engine_result_t) :: x_solution, y_solution
 
@@ -366,7 +367,8 @@ contains
 
         rules(1) = single_rule(x, x_value)
         rules(2) = single_rule(y, y_value)
-        r = func("List", [func("List", rules)])
+        inner(1) = func("List", rules)
+        r = func("List", inner)
         ok = .true.
     end function solve_symbolic_order
 
@@ -515,7 +517,11 @@ contains
     function single_rule(var, value) result(r)
         type(expr_t), intent(in) :: var, value
         type(expr_t)             :: r
-        r = func("Rule", [var, value])
+        type(expr_t)             :: args(2)
+
+        args(1) = var
+        args(2) = value
+        r = func("Rule", args)
     end function single_rule
 
     !> {{x -> r1}, {x -> r2}}: one outer element per solution.
@@ -524,6 +530,7 @@ contains
         type(expr_t),          intent(in)    :: rules(:)
         type(expr_t)                         :: r
         type(expr_t), allocatable :: outer(:)
+        type(expr_t) :: inner(1)
         integer :: k
 
         if (size(rules) == 0) then
@@ -533,7 +540,8 @@ contains
         end if
         allocate (outer(size(rules)))
         do k = 1, size(rules)
-            outer(k) = func("List", [rules(k)])
+            inner(1) = rules(k)
+            outer(k) = func("List", inner)
         end do
         r = func("List", outer)
     end function rule_set

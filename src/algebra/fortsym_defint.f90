@@ -726,7 +726,10 @@ contains
                     why = reason
                     return
                 end if
-                corners = [lowest*bl, lowest*bh, highest*bl, highest*bh]
+                corners(1) = lowest*bl
+                corners(2) = lowest*bh
+                corners(3) = highest*bl
+                corners(4) = highest*bh
                 lowest = minval(corners)
                 highest = maxval(corners)
             end do

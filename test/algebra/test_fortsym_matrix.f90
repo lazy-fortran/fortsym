@@ -238,6 +238,8 @@ contains
     subroutine test_rref_null_space_and_rank()
         type(arena_t), target :: a
         type(expr_t) :: matrix, reduced, nulls, rank_value, product, row, item
+        type(expr_t) :: row1(4), row2(4), row3(4), rows(3)
+        type(expr_t) :: short_row1(2), short_row2(2), short_rows(2)
         type(native_engine_t) :: engine
         type(engine_result_t) :: simplified
         logical :: ok
@@ -246,10 +248,22 @@ contains
 
         call a%init()
         engine = make_native_engine(a)
-        matrix = func("List", [ &
-            func("List", [num(a, 1), num(a, 2), num(a, 3), num(a, 4)]), &
-            func("List", [num(a, 2), num(a, 4), num(a, 6), num(a, 8)]), &
-            func("List", [num(a, 0), num(a, 1), num(a, 1), num(a, 1)])])
+        row1(1) = num(a, 1)
+        row1(2) = num(a, 2)
+        row1(3) = num(a, 3)
+        row1(4) = num(a, 4)
+        row2(1) = num(a, 2)
+        row2(2) = num(a, 4)
+        row2(3) = num(a, 6)
+        row2(4) = num(a, 8)
+        row3(1) = num(a, 0)
+        row3(2) = num(a, 1)
+        row3(3) = num(a, 1)
+        row3(4) = num(a, 1)
+        rows(1) = func("List", row1)
+        rows(2) = func("List", row2)
+        rows(3) = func("List", row3)
+        matrix = func("List", rows)
 
         reduced = matrix_row_reduce(a, matrix, ok, why)
         if (.not. ok) then
@@ -306,8 +320,13 @@ contains
 
         ! Full column rank has no free directions and must return the genuine
         ! empty List, not a one-element zero vector.
-        row = func("List", [num(a, 1), num(a, 0)])
-        matrix = func("List", [row, func("List", [num(a, 0), num(a, 1)])])
+        short_row1(1) = num(a, 1)
+        short_row1(2) = num(a, 0)
+        short_row2(1) = num(a, 0)
+        short_row2(2) = num(a, 1)
+        short_rows(1) = func("List", short_row1)
+        short_rows(2) = func("List", short_row2)
+        matrix = func("List", short_rows)
         nulls = matrix_null_space(a, matrix, ok, why)
         if (.not. ok .or. nulls%nargs() /= 0) then
             print *, "FAIL full-rank null space: expected empty List"
@@ -321,14 +340,27 @@ contains
     subroutine test_minors()
         type(arena_t), target :: a
         type(expr_t) :: matrix, minors, row
+        type(expr_t) :: row1(4), row2(4), row3(4), rows(3)
         logical :: ok
         type(str_t) :: why
 
         call a%init()
-        matrix = func("List", [ &
-            func("List", [num(a, 1), num(a, 2), num(a, 3), num(a, 4)]), &
-            func("List", [num(a, 0), num(a, 1), num(a, 4), num(a, 2)]), &
-            func("List", [num(a, 2), num(a, 0), num(a, 1), num(a, 3)])])
+        row1(1) = num(a, 1)
+        row1(2) = num(a, 2)
+        row1(3) = num(a, 3)
+        row1(4) = num(a, 4)
+        row2(1) = num(a, 0)
+        row2(2) = num(a, 1)
+        row2(3) = num(a, 4)
+        row2(4) = num(a, 2)
+        row3(1) = num(a, 2)
+        row3(2) = num(a, 0)
+        row3(3) = num(a, 1)
+        row3(4) = num(a, 3)
+        rows(1) = func("List", row1)
+        rows(2) = func("List", row2)
+        rows(3) = func("List", row3)
+        matrix = func("List", rows)
 
         minors = matrix_minors(a, matrix, 3, ok, why)
         if (.not. ok) then
@@ -382,6 +414,8 @@ contains
     subroutine test_shape_errors_are_refused()
         type(arena_t), target :: a
         type(expr_t) :: ragged, oblong, vector, r
+        type(expr_t) :: ragged_row(2), ragged_short(1), ragged_rows(2)
+        type(expr_t) :: oblong_row(2), oblong_rows(1), vector_items(3)
         logical :: ok
         type(str_t) :: why
 
@@ -389,14 +423,21 @@ contains
 
         ! Ragged rows are a transcription error in the source. Padding one
         ! would produce a determinant for something that has none.
-        ragged = func("List", [func("List", [sym(a, "p"), sym(a, "q")]), &
-                               func("List", [sym(a, "r")])])
+        ragged_row(1) = sym(a, "p")
+        ragged_row(2) = sym(a, "q")
+        ragged_short(1) = sym(a, "r")
+        ragged_rows(1) = func("List", ragged_row)
+        ragged_rows(2) = func("List", ragged_short)
+        ragged = func("List", ragged_rows)
         if (is_matrix(ragged)) then
             print *, "FAIL ragged accepted as a matrix"
             nfail = nfail + 1
         end if
 
-        oblong = func("List", [func("List", [sym(a, "p"), sym(a, "q")])])
+        oblong_row(1) = sym(a, "p")
+        oblong_row(2) = sym(a, "q")
+        oblong_rows(1) = func("List", oblong_row)
+        oblong = func("List", oblong_rows)
         r = matrix_det(a, oblong, ok, why)
         if (ok) then
             print *, "FAIL determinant of a non-square matrix"
@@ -405,7 +446,10 @@ contains
 
         ! A truncated product is dimensionally plausible and wrong, which is
         ! the hardest kind of error to notice downstream.
-        vector = func("List", [num(a, 1), num(a, 2), num(a, 3)])
+        vector_items(1) = num(a, 1)
+        vector_items(2) = num(a, 2)
+        vector_items(3) = num(a, 3)
+        vector = func("List", vector_items)
         r = matrix_dot(a, symbolic_matrix(a, "a", 2), vector, ok, why)
         if (ok) then
             print *, "FAIL dot with mismatched dimensions accepted"

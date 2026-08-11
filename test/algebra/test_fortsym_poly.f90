@@ -75,10 +75,14 @@ contains
         real(dp),     intent(out) :: v
         logical,      intent(out) :: ok
         logical :: done
-        type(expr_t) :: at
+        type(expr_t) :: at, symbols(2), values(2)
         character(:), allocatable :: why
 
-        at = subs_many(e, [x, y], [real_expr(arena, vx), real_expr(arena, vy)])
+        symbols(1) = x
+        symbols(2) = y
+        values(1) = real_expr(arena, vx)
+        values(2) = real_expr(arena, vy)
+        at = subs_many(e, symbols, values)
         call numeric_value(at, v, ok, why)
         done = ok
     end function value_at

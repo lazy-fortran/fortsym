@@ -25,7 +25,7 @@ link = ["symengine", "flint", "mpfr", "gmp", "stdc++", "dl"]
 # Plotting. fortsym samples an expression into arrays and maps options; it
 # implements no plotting of its own, and anything missing is fixed upstream in
 # fortplot rather than worked around here. See issue #44.
-fortplot = { git = "https://github.com/lazy-fortran/fortplot" }
+fortplot = { git = "https://github.com/lazy-fortran/fortplot", rev = "178e6fd2f0440d557faf01cc36cd6ec2a2ef5244" }
 
 [fortran]
 implicit-typing = false
