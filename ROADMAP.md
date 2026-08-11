@@ -440,7 +440,9 @@ Every checklist item requires all of the following:
     unchanged, and invalidate that result when assumptions change.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
-- [ ] Audit every public symbol for naming consistency and duplicate concepts.
+- [x] Audit every public symbol for naming consistency and duplicate concepts.
+  - [x] Assign every public Fortran facade export to one owning naming concept;
+    string conversion and code generation remain native-only vocabularies.
 - [ ] Audit every module for single responsibility and dependency direction.
 - [ ] Run `fo`, CMake/CTest, Python tests, corpus tests, code-generation tests,
   and CUDA/compiler tests on the supported toolchains.

@@ -121,6 +121,26 @@ sympy_adapter = []
 decision = "Keep representation tags in the low-level owner. They are not part of the SymPy compatibility vocabulary."
 
 [[family]]
+id = "string-conversion"
+audit_concepts = ["string-conversion"]
+canonical_native = ["str", "chars"]
+current_native = ["str", "chars"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = []
+decision = "Keep str and chars as the one concise string-boundary pair owned by fortsym_string; they are not symbolic constructors or compatibility aliases."
+
+[[family]]
+id = "code-generation"
+audit_concepts = ["code-generation"]
+canonical_native = ["kernel_spec_t", "emit_kernel", "KERNEL_SUBROUTINE"]
+current_native = ["kernel_spec_t", "emit_kernel", "KERNEL_SUBROUTINE"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = []
+decision = "Keep the kernel specification, emitter, and subroutine mode together under the code-generation owner; do not duplicate backend-evidence names."
+
+[[family]]
 id = "numeric-inspection"
 audit_concepts = ["numeric-inspection"]
 canonical_native = ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_real_text_t", "numeric_complex_text", "numeric_complex_text_t", "numeric_callable_t"]

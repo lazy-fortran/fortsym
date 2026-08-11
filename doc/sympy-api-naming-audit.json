@@ -436,7 +436,8 @@
         "NK_FUNC",
         "NK_BIG_INT",
         "NK_BIG_RAT",
-        "NK_BIG_REAL"
+        "NK_BIG_REAL",
+        "NK_ALGEBRAIC"
       ],
       "id": "node-kinds",
       "python_facade": [],
@@ -444,14 +445,42 @@
       "sympy_reference": []
     },
     {
-      "action": "Decide whether the generic constructors remain public or become lower-level implementation entry points.",
-      "description": "Construct exact text or named constants in the native arena.",
-      "finding": "exact and const are concise native constructors. They overlap with the more specialized numeric and constant families above.",
+      "action": "Keep the exact-domain constructors under one documented native vocabulary and avoid duplicate aliases for the same domain.",
+      "description": "Construct exact text, algebraic values, or named constants in the native arena.",
+      "finding": "exact, algebraic_expr, and const are concise native constructors. They cover distinct exact domains and overlap only at the deliberate constructor boundary.",
       "fortran_facade": [
         "exact",
+        "algebraic_expr",
         "const"
       ],
       "id": "exact-and-constant-construction",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    },
+    {
+      "action": "Keep one concise pair for string construction and extraction; do not add symbolic string aliases.",
+      "description": "Convert between Fortran character values and the native string wrapper.",
+      "finding": "str and chars are language-boundary helpers owned by fortsym_string, not symbolic operations or SymPy compatibility names.",
+      "fortran_facade": [
+        "str",
+        "chars"
+      ],
+      "id": "string-conversion",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    },
+    {
+      "action": "Keep code-generation names together under the kernel owner and expose no duplicate backend-evidence aliases.",
+      "description": "Describe and emit generated Fortran kernels.",
+      "finding": "The kernel specification, emitter, and mode constant form one native code-generation vocabulary with no current SymPy root alias.",
+      "fortran_facade": [
+        "kernel_spec_t",
+        "emit_kernel",
+        "KERNEL_SUBROUTINE"
+      ],
+      "id": "code-generation",
       "python_facade": [],
       "sympy_adapter": [],
       "sympy_reference": []
@@ -537,7 +566,9 @@
         "name": "EXPRESSION_SCHEMA"
       },
       {
-        "concepts": [],
+        "concepts": [
+          "code-generation"
+        ],
         "name": "KERNEL_SUBROUTINE"
       },
       {
@@ -547,7 +578,9 @@
         "name": "NK_ADD"
       },
       {
-        "concepts": [],
+        "concepts": [
+          "node-kinds"
+        ],
         "name": "NK_ALGEBRAIC"
       },
       {
@@ -653,7 +686,9 @@
         "name": "acosh"
       },
       {
-        "concepts": [],
+        "concepts": [
+          "exact-and-constant-construction"
+        ],
         "name": "algebraic_expr"
       },
       {
@@ -741,7 +776,9 @@
         "name": "besselj"
       },
       {
-        "concepts": [],
+        "concepts": [
+          "string-conversion"
+        ],
         "name": "chars"
       },
       {
@@ -793,7 +830,9 @@
         "name": "emit_backend_kernel"
       },
       {
-        "concepts": [],
+        "concepts": [
+          "code-generation"
+        ],
         "name": "emit_kernel"
       },
       {
@@ -899,7 +938,9 @@
         "name": "is_valid"
       },
       {
-        "concepts": [],
+        "concepts": [
+          "code-generation"
+        ],
         "name": "kernel_spec_t"
       },
       {
@@ -1155,7 +1196,9 @@
         "name": "sqrt"
       },
       {
-        "concepts": [],
+        "concepts": [
+          "string-conversion"
+        ],
         "name": "str"
       },
       {
@@ -1304,21 +1347,13 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 139,
-    "concept_groups": 24,
+    "assigned_names": 146,
+    "concept_groups": 26,
     "fortran_facade_exports": 121,
     "python_facade_exports": 12,
     "sympy_adapter_exports": 53,
-    "unmapped_fortran_exports": 7
+    "unmapped_fortran_exports": 0
   },
   "sympy_version": "1.14.0",
-  "unmapped_fortran_exports": [
-    "KERNEL_SUBROUTINE",
-    "NK_ALGEBRAIC",
-    "algebraic_expr",
-    "chars",
-    "emit_kernel",
-    "kernel_spec_t",
-    "str"
-  ]
+  "unmapped_fortran_exports": []
 }
