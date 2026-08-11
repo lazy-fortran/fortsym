@@ -951,6 +951,18 @@ than scripts is a separate question with a separate answer (#69): a `.nb` file
 is a document expression built from typeset boxes, not the script text the
 existing parser reads.
 
+Issue #69 is complete as of 2026-08-11. The committed notebook inventory finds
+26 tracked notebooks across DESC, KiLCA, paper_magnetic, and profit: 18 live
+candidates and 8 files explicitly archived under `paper_magnetic/old/`. Four
+representative notebooks contain 176 Input cells against 189 cached Output and
+69 prose or heading cells, a 40.6% Input-cell share under the documented proxy.
+The route is a held Mathematica StandardForm export to `.wl`, with one file per
+Input cell available for coverage measurement; a real cylindrical notebook
+exported 26 cells and the current translator accepted 1/26. The inventory,
+procedure, result, and limits are recorded in `doc/notebook-estate.md` and the
+helper is `scripts/export_notebook_inputs.wls`. This issue adds neither a box
+parser nor whole-estate conversion.
+
 ### M16 — The short form (#70, #71, #72)
 
 Also ordered by consumer need. Writing a derivation is more verbose than the
