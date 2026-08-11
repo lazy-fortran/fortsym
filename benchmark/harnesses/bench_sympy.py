@@ -457,6 +457,15 @@ def correctness_cases() -> list[dict[str, Any]]:
     oracle_cases = workload_factories("check", "fixed")[0]
     native_cases = workload_factories("check", "fixed")[0]
     results = []
+    for name in ("sin", "cos", "tan"):
+        expected = getattr(oracle, name)(oracle.zoo)
+        actual = getattr(native, name)(native.zoo)
+        results.append({
+            "operation": f"domain_periodic_{name}",
+            "correct": str(expected) == str(actual),
+            "expected": result_text(expected),
+            "actual": str(actual),
+        })
     for operation in sorted(oracle_cases):
         oracle_expression, native_expression, names = oracle_cases[operation]
         _, native_expression, _ = native_cases[operation]

@@ -4683,6 +4683,10 @@ contains
             else
                 out = a%const("oo")
             end if
+        case ("sin", "cos", "tan")
+            if (domain /= DOMAIN_ZOO) return
+            applied = .true.
+            out = nan_node(a)
         case ("sign")
             if (domain == DOMAIN_ZOO) return
             applied = .true.

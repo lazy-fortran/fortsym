@@ -1005,6 +1005,21 @@ contains
         call check("log(-oo) is oo", r%value == infinity)
         r = engine%simplify(log(complex_infinity))
         call check("log(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(sin(complex_infinity))
+        call check("sin(zoo) is nan", r%value == undefined)
+        r = engine%simplify(cos(complex_infinity))
+        call check("cos(zoo) is nan", r%value == undefined)
+        r = engine%simplify(tan(complex_infinity))
+        call check("tan(zoo) is nan", r%value == undefined)
+        r = engine%simplify(sin(infinity))
+        call check("sin(oo) remains an accumulation-bound refusal", &
+            r%value%kind() == NK_FUNC)
+        r = engine%simplify(cos(infinity))
+        call check("cos(oo) remains an accumulation-bound refusal", &
+            r%value%kind() == NK_FUNC)
+        r = engine%simplify(tan(infinity))
+        call check("tan(oo) remains an accumulation-bound refusal", &
+            r%value%kind() == NK_FUNC)
         r = engine%simplify(sqrt(infinity*x))
         call check("sqrt of symbolic infinity remains unevaluated", &
             r%value == sqrt(infinity*x))

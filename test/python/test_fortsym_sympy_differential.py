@@ -302,6 +302,9 @@ class SympyDifferentialTest(unittest.TestCase):
             (oracle.log(oracle.oo), native.log(native.oo)),
             (oracle.log(-oracle.oo), native.log(-native.oo)),
             (oracle.log(oracle.zoo), native.log(native.zoo)),
+            (oracle.sin(oracle.zoo), native.sin(native.zoo)),
+            (oracle.cos(oracle.zoo), native.cos(native.zoo)),
+            (oracle.tan(oracle.zoo), native.tan(native.zoo)),
         ]
         for expected, actual in cases:
             with self.subTest(expected=str(expected)):
@@ -312,6 +315,13 @@ class SympyDifferentialTest(unittest.TestCase):
             oracle.sympify(actual_text, locals=self.locals),
             oracle.sympify(expected_text, locals=self.locals),
         )
+
+    def test_periodic_infinity_refusals_match_oracle_boundary(self):
+        for function in (oracle.sin, oracle.cos, oracle.tan):
+            with self.subTest(function=function.__name__):
+                self.assertIsInstance(function(oracle.oo), oracle.AccumBounds)
+                actual = getattr(native, function.__name__)(native.oo)
+                self.assertIsInstance(native.simplify(actual), native.Function)
 
     def test_noninteger_domain_powers_match_oracle(self):
         cases = [

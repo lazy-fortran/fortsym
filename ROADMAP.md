@@ -355,6 +355,9 @@ Every checklist item requires all of the following:
   - [x] Map SymPy's `legendre(degree, argument)` to the native `legendrep`
     owner and add nonnegative integer degree/order-zero infinity rules;
     symbolic, noninteger, and negative-degree cases remain refusals.
+  - [x] Add representable complex-infinity rules for `sin`, `cos`, and `tan`:
+    each becomes `nan` like SymPy, while their `+/-oo` accumulation-bound
+    results remain explicit applied-head refusals.
   - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
     non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
