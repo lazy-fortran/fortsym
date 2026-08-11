@@ -73,6 +73,26 @@ contains
         end do
     end function contains_algebraic_node
 
+    recursive function contains_unsupported_algebraic_node(a, id) result(found)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical :: found
+        integer :: k
+
+        found = .false.
+        if (a%kind_of(id) == NK_ALGEBRAIC) then
+            found = fsym_algebraic_symengine_supported( &
+                cstr(chars(a%algebraic_text_of(id)))) == 0_c_int
+            return
+        end if
+        do k = 1, a%nargs_of(id)
+            if (contains_unsupported_algebraic_node(a, a%arg_of(id, k))) then
+                found = .true.
+                return
+            end if
+        end do
+    end function contains_unsupported_algebraic_node
+
     !> Build the backend. SymEngine is linked, so it is always available; the
     !> flag exists to keep every engine uniform to the council.
     function make_symengine_engine(home) result(eng)
@@ -114,6 +134,10 @@ contains
 
         case (NK_BIG_REAL)
             rc = basic_parse(h, cstr(chars(a%real_text_of(id))))
+
+        case (NK_ALGEBRAIC)
+            rc = fsym_algebraic_to_symengine(h, &
+                cstr(chars(a%algebraic_text_of(id))))
 
         case (NK_REAL)
             rc = real_double_set_d(h, a%real_of(id))
@@ -424,11 +448,11 @@ contains
         integer(c_int) :: v
 
         t0 = wall_seconds()
-        if (contains_algebraic_node(e%a, e%id)) then
+        if (contains_unsupported_algebraic_node(e%a, e%id)) then
             r%verdict = VERDICT_UNKNOWN
             r%ok = .false.
             r%value = e
-            r%message = str("symengine: algebraic arena atoms are unsupported")
+            r%message = str("symengine: algebraic value is outside the supported Gaussian-rational conversion fragment")
             r%seconds = wall_seconds() - t0
             return
         end if
@@ -461,10 +485,10 @@ contains
         logical :: good
 
         t0 = wall_seconds()
-        if (contains_algebraic_node(e%a, e%id)) then
+        if (contains_unsupported_algebraic_node(e%a, e%id)) then
             r%ok = .false.
             r%value = e
-            r%message = str("symengine: algebraic arena atoms are unsupported")
+            r%message = str("symengine: algebraic value is outside the supported Gaussian-rational conversion fragment")
             r%seconds = wall_seconds() - t0
             return
         end if
@@ -497,11 +521,11 @@ contains
         logical :: good
 
         t0 = wall_seconds()
-        if (contains_algebraic_node(e%a, e%id) .or. &
-            contains_algebraic_node(v%a, v%id)) then
+        if (contains_unsupported_algebraic_node(e%a, e%id) .or. &
+            contains_unsupported_algebraic_node(v%a, v%id)) then
             r%ok = .false.
             r%value = e
-            r%message = str("symengine: algebraic arena atoms are unsupported")
+            r%message = str("symengine: algebraic value is outside the supported Gaussian-rational conversion fragment")
             r%seconds = wall_seconds() - t0
             return
         end if
@@ -537,10 +561,10 @@ contains
         logical :: good
 
         t0 = wall_seconds()
-        if (contains_algebraic_node(e%a, e%id)) then
+        if (contains_unsupported_algebraic_node(e%a, e%id)) then
             r%ok = .false.
             r%value = e
-            r%message = str("symengine: algebraic arena atoms are unsupported")
+            r%message = str("symengine: algebraic value is outside the supported Gaussian-rational conversion fragment")
             r%seconds = wall_seconds() - t0
             return
         end if

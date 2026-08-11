@@ -718,6 +718,21 @@ module fortsym_capi
             integer(c_size_t)                  :: n
         end function fsym_algebraic_normalize
 
+        function fsym_algebraic_symengine_supported(value) &
+                bind(c, name="fsym_algebraic_symengine_supported") result(ok)
+            import :: c_char, c_int
+            character(kind=c_char), intent(in) :: value(*)
+            integer(c_int)                     :: ok
+        end function fsym_algebraic_symengine_supported
+
+        function fsym_algebraic_to_symengine(out, value) &
+                bind(c, name="fsym_algebraic_to_symengine") result(rc)
+            import :: c_ptr, c_char, c_int
+            type(c_ptr), value :: out
+            character(kind=c_char), intent(in) :: value(*)
+            integer(c_int) :: rc
+        end function fsym_algebraic_to_symengine
+
         function fsym_algebraic_i() bind(c, name="fsym_algebraic_i") result(n)
             import :: c_size_t
             integer(c_size_t) :: n

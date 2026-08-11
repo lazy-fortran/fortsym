@@ -77,11 +77,13 @@ root = algebraic_expr(default_arena(), qqbar_text, ok=good)
 `algebraic_expr` retains the exact value as an `NK_ALGEBRAIC` arena atom, and
 `root%algebraic_text()` returns its canonical `qqbar1` spelling. The native
 engine combines pure algebraic expressions with exact `+`, `*`, and integer
-powers, and its zero query uses the FLINT sign oracle. `real64` evaluation,
-Fortran kernel emission, and SymEngine conversion refuse algebraic atoms until
-their conversion semantics are defined. `print_expr` displays the canonical
-payload, and the native/backend text parsers accept it as one opaque lossless
-token; it is not a Fortran source literal.
+powers, and its zero query uses the FLINT sign oracle. `real64` evaluation and
+Fortran kernel emission refuse algebraic atoms. SymEngine accepts atoms whose
+exact real and imaginary components are rational and converts them to an exact
+`re + im*I` expression. Higher-degree or otherwise non-rational atoms retain a
+named refusal. `print_expr` displays the canonical payload, and the
+native/backend text parsers accept it as one opaque lossless token; it is not a
+Fortran source literal.
 
 The lower-level `fortsym_complexdom` module provides `re_part`, `im_part`, and
 `conjugate` with an explicit assumption context. Algebraic atoms are accepted

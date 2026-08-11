@@ -1,16 +1,17 @@
 program test_fortsym_algebraic_expr
     ! The bridge supplies the independent algebraic oracle. The native engine
     ! must preserve its canonical qqbar1 value while combining arena nodes.
-    use fortsym_algebraic, only: algebraic_i, algebraic_conjugate, &
-        algebraic_add, algebraic_sqrt, algebraic_mul
+    use, intrinsic :: iso_fortran_env, only: int64
+    use fortsym_algebraic, only: algebraic_i, algebraic_from_re_im, &
+        algebraic_conjugate, algebraic_add, algebraic_sqrt, algebraic_mul
     use fortsym_arena, only: arena_t, NK_ALGEBRAIC
-    use fortsym_engine, only: engine_result_t, VERDICT_TRUE
+    use fortsym_engine, only: engine_result_t, VERDICT_TRUE, VERDICT_FALSE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, algebraic_expr, operator(+), operator(*), &
-        operator(==), is_valid, sym, num
+        operator(==), is_valid, sym, num, rat, i_expr
     use fortsym_print, only: print_expr
     use fortsym_string, only: chars, str, str_t
     implicit none
@@ -18,9 +19,11 @@ program test_fortsym_algebraic_expr
     type(arena_t), target :: arena
     type(native_engine_t) :: engine
     type(symengine_engine_t) :: symengine
-    type(expr_t) :: minus_i, i_atom, root, expected, x, derivative
+    type(expr_t) :: minus_i, i_atom, root, expected, gaussian
+    type(expr_t) :: gaussian_expected, x, derivative
     type(engine_result_t) :: result, zero_result
     type(str_t) :: i_text, minus_i_text, expected_text, root_text
+    type(str_t) :: gaussian_text
     type(str_t) :: minus_two_text
     logical :: good
     integer :: nfail
@@ -69,11 +72,29 @@ program test_fortsym_algebraic_expr
     call check("algebraic atoms differentiate as constants", &
         derivative == num(arena, 0))
 
-    zero_result = symengine%zero_test(i_atom)
-    call check("symengine refuses algebraic zero testing", &
+    gaussian_text = algebraic_from_re_im("1/2", "3/4", good)
+    call check("Gaussian-rational algebraic oracle is available", good)
+    gaussian = algebraic_expr(arena, chars(gaussian_text), good)
+    call check("Gaussian-rational algebraic atom is accepted", &
+        good .and. is_valid(gaussian))
+    gaussian_expected = rat(arena, 1_int64, 2_int64) + &
+        rat(arena, 3_int64, 4_int64)*i_expr(arena)
+    result = symengine%simplify(gaussian)
+    call check("SymEngine simplifies Gaussian-rational algebraic atoms", &
+        result%ok .and. result%value == gaussian_expected)
+    zero_result = symengine%zero_test(gaussian)
+    call check("SymEngine proves Gaussian-rational algebraic nonzero", &
+        zero_result%ok .and. zero_result%verdict == VERDICT_FALSE)
+    result = symengine%diff(gaussian, x)
+    call check("SymEngine differentiates Gaussian-rational constants", &
+        result%ok .and. result%value == num(arena, 0))
+
+    zero_result = symengine%zero_test(root)
+    call check("SymEngine refuses irrational algebraic zero testing", &
         .not. zero_result%ok)
-    result = symengine%simplify(i_atom)
-    call check("symengine refuses algebraic simplification", .not. result%ok)
+    result = symengine%simplify(root)
+    call check("SymEngine refuses irrational algebraic simplification", &
+        .not. result%ok)
 
     if (nfail /= 0) then
         print *, "test_fortsym_algebraic_expr: ", nfail, " check(s) FAILED"

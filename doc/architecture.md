@@ -204,8 +204,10 @@ Algebraic values are stored as `NK_ALGEBRAIC` atoms containing canonical
 powers through the FLINT bridge, and its zero query uses the independent
 component-sign result. The native and backend text parsers treat `qqbar1`
 payloads as opaque lossless atoms and delegate validation to the FLINT bridge.
-Real64 evaluation, Fortran kernel emission, and SymEngine conversion refuse
-algebraic atoms until explicit conversion semantics exist. A real64 Fortran kernel projects an arbitrary exact
+Real64 evaluation and Fortran kernel emission refuse algebraic atoms. The
+SymEngine boundary converts Gaussian-rational atoms to exact rational complex
+expressions and refuses higher-degree or otherwise non-rational atoms. A
+real64 Fortran kernel projects an arbitrary exact
 value in the finite normal binary64 range through a 53-bit MPFR 4.2.2 value
 with nearest-even rounding and emits one short typed literal. Subnormal and
 overflow-range projections are conservatively refused. `print_expr_in`,
