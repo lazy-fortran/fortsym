@@ -111,6 +111,8 @@ The inverse heads `asin`, `acos`, `atan`, `asinh`, `acosh`, and `atanh` also
 match the representable `oo`/`-oo` results from SymPy 1.14.0. The
 accumulation-bound results for `atan(zoo)` and `atanh(zoo)` remain applied
 heads until a compatible bounded-set representation exists.
+The exact real poles `atanh(1)` and `atanh(-1)` are canonicalized to `oo` and
+`-oo`; unsupported complex and accumulation-bound cases remain unevaluated.
 The reciprocal-hyperbolic heads `csch`, `sech`, and `coth` likewise have
 direct scalar rules: `csch` and `sech` tend to zero, while `coth` tends to
 the corresponding signed one; every `zoo` case becomes `nan`.

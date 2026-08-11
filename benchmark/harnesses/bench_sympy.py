@@ -333,6 +333,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.log(-2),
             names,
         ),
+        "domain_atanh_pole": (
+            oracle.atanh(1),
+            native.atanh(1),
+            names,
+        ),
         "domain_inverse": (
             inverse_domain_expression(oracle),
             inverse_domain_expression(native),
@@ -486,6 +491,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.log(0)
     elif operation == "domain_log_negative":
         expression = engine.log(-2)
+    elif operation == "domain_atanh_pole":
+        expression = engine.atanh(1)
     elif operation == "domain_inverse":
         expression = inverse_domain_expression(engine)
     elif operation == "domain_reciprocal":
@@ -700,7 +707,7 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation in (
                 "composition", "sqrt_power",
                 "domain_function", "domain_log_zero", "domain_log_negative",
-                "domain_inverse",
+                "domain_atanh_pole", "domain_inverse",
                 "domain_reciprocal", "domain_error_function", "domain_gamma",
                 "domain_atan2",
                 "domain_bessel", "domain_legendre",
@@ -749,7 +756,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                 else structurally_equivalent(expected, actual, names)
                 if operation in (
                         "domain_function", "domain_log_zero",
-                        "domain_log_negative", "domain_inverse",
+                        "domain_log_negative", "domain_atanh_pole",
+                        "domain_inverse",
                         "domain_reciprocal",
                         "domain_error_function", "domain_gamma", "domain_atan2",
                         "domain_bessel", "domain_legendre", "domain_complex",
@@ -815,7 +823,8 @@ def benchmark_workload(
                 native_call = lambda: native.expand_complex(native_expression)
             elif operation in (
                     "composition", "sqrt_power", "domain_function",
-                    "domain_log_zero", "domain_log_negative", "domain_inverse",
+                    "domain_log_zero", "domain_log_negative",
+                    "domain_atanh_pole", "domain_inverse",
                     "domain_reciprocal", "domain_error_function", "domain_gamma",
                     "domain_atan2",
                     "domain_bessel", "domain_legendre",
@@ -863,7 +872,7 @@ def benchmark_workload(
                 if operation in (
                     "composition", "sqrt_power",
                     "domain_function", "domain_log_zero", "domain_log_negative",
-                    "domain_inverse",
+                    "domain_atanh_pole", "domain_inverse",
                         "domain_reciprocal", "domain_error_function", "domain_gamma",
                         "domain_atan2",
                         "domain_bessel", "domain_legendre",
@@ -927,7 +936,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
+        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_atanh_pole", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):
         if operation in _PREDICATE_OPERATIONS:

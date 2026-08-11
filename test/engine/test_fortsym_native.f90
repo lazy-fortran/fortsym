@@ -1368,6 +1368,12 @@ contains
         r = engine%simplify(atanh(negative_infinity))
         call check("atanh(-oo) is i pi over two", &
             r%value == imaginary_half_pi)
+        r = engine%simplify(atanh(num(arena, 1_int64)))
+        call check("atanh(1) is the positive-infinity pole", &
+            r%value == infinity)
+        r = engine%simplify(atanh(num(arena, -1_int64)))
+        call check("atanh(-1) is the negative-infinity pole", &
+            r%value == negative_infinity)
         r = engine%simplify(atanh(complex_infinity))
         call check("atanh(zoo) remains an applied head", &
             r%value%kind() == NK_FUNC)
