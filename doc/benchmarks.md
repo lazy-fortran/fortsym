@@ -85,6 +85,9 @@ The correctness report also checks the direct `sin(zoo)`, `cos(zoo)`, and
 `tan(zoo)` boundaries. They are not timing rows: a one-node sentinel call is
 dominated by the compatibility ABI crossing rather than the native algorithm,
 and would not be a meaningful SymPy performance comparison.
+It also checks the unresolved NaN boundaries for Bessel and Legendre heads,
+including the representable `besseli(nan, -oo)` result; these are correctness
+cases rather than standalone timing rows for the same reason.
 
 Run it from a built checkout with:
 

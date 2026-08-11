@@ -878,6 +878,7 @@ contains
     subroutine test_nan_domain_rules()
         type(engine_result_t) :: r
         type(expr_t) :: undefined
+        type(expr_t) :: bessel_args(2), legendre_args(3)
 
         undefined = const(arena, "nan")
 
@@ -906,6 +907,24 @@ contains
         r = engine%simplify(x**undefined)
         call check("an unknown base to nan is nan", &
             r%ok .and. r%value == undefined)
+
+        bessel_args(1) = undefined
+        bessel_args(2) = x
+        r = engine%simplify(func("besselj", bessel_args))
+        call check("besselj with a nan order remains applied", &
+            r%ok .and. r%value%kind() == NK_FUNC)
+        bessel_args(1) = x
+        bessel_args(2) = undefined
+        r = engine%simplify(func("besseli", bessel_args))
+        call check("besseli with a nan argument remains applied", &
+            r%ok .and. r%value%kind() == NK_FUNC)
+
+        legendre_args(1) = undefined
+        legendre_args(2) = num(arena, 0_int64)
+        legendre_args(3) = x
+        r = engine%simplify(func("legendrep", legendre_args))
+        call check("legendre with a nan degree remains applied", &
+            r%ok .and. r%value%kind() == NK_FUNC)
     end subroutine test_nan_domain_rules
 
     subroutine test_directed_domain_rules()
@@ -1101,12 +1120,14 @@ contains
     subroutine test_directed_bessel_heads()
         type(engine_result_t) :: r
         type(expr_t) :: order, infinity, negative_infinity, complex_infinity
+        type(expr_t) :: undefined
         type(expr_t) :: args(2)
 
         order = sym(arena, "bessel_order")
         infinity = oo_expr(arena)
         negative_infinity = -infinity
         complex_infinity = zoo_expr(arena)
+        undefined = nan_expr(arena)
         args(1) = order
         args(2) = infinity
 
@@ -1124,6 +1145,9 @@ contains
         r = engine%simplify(func("besseli", args))
         call check("besseli(order,-oo) remains an applied head", &
             r%value%kind() == NK_FUNC)
+        args(1) = undefined
+        r = engine%simplify(func("besseli", args))
+        call check("besseli(nan,-oo) is nan", r%value == undefined)
         args(2) = complex_infinity
         r = engine%simplify(func("besselj", args))
         call check("besselj(order,zoo) remains an applied head", &

@@ -249,6 +249,34 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(expected=str(expected)):
                 self.assertEqual(str(native.simplify(actual)), str(expected))
 
+    def test_nan_ordered_special_functions_match_oracle(self):
+        oracle_order = oracle.Symbol("nan_order")
+        native_order = native.Symbol("nan_order")
+        oracle_argument = oracle.Symbol("nan_argument")
+        native_argument = native.Symbol("nan_argument")
+        cases = [
+            (oracle.besselj(oracle.nan, oracle_argument),
+             native.besselj(native.nan, native_argument)),
+            (oracle.besseli(oracle_order, oracle.nan),
+             native.besseli(native_order, native.nan)),
+            (oracle.legendre(oracle.nan, oracle_argument),
+             native.legendre(native.nan, native_argument)),
+            (oracle.besseli(oracle.nan, -oracle.oo),
+             native.besseli(native.nan, -native.oo)),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                actual_text = str(native.simplify(actual)).replace(
+                    "legendrep(", "legendre("
+                )
+                actual_text = actual_text.replace(
+                    "legendre(nan, 0, ", "legendre(nan, "
+                )
+                actual_parsed = oracle.sympify(
+                    actual_text, locals=self.locals
+                )
+                self.assertEqual(actual_parsed, expected)
+
     def test_directed_domain_rules_match_oracle(self):
         oracle_x = oracle.Symbol("domain_rule_x")
         native_x = native.Symbol("domain_rule_x")

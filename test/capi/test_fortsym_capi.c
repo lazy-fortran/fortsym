@@ -73,8 +73,11 @@ int main(void)
     fortsym_expr *expanded_undefined = NULL;
     fortsym_expr *periodic = NULL;
     fortsym_expr *periodic_simplified = NULL;
+    fortsym_expr *special = NULL;
+    fortsym_expr *special_simplified = NULL;
     fortsym_expr *unknown_head = NULL;
     const fortsym_expr *root_argument[1];
+    const fortsym_expr *special_arguments[2];
 
     assert(fortsym_abi_version() == 10);
     status = fortsym_arena_new(&arena, message, sizeof message);
@@ -251,6 +254,15 @@ int main(void)
                               sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(periodic_simplified, "nan");
+    special_arguments[0] = undefined;
+    special_arguments[1] = x;
+    status = fortsym_function(arena, "besselj", special_arguments, 2,
+                              &special, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, special, &special_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(special_simplified, "besselj(nan, x)");
     status = fortsym_complex_operation(arena, imaginary, "conjugate",
                                        &conjugated, message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -316,6 +328,8 @@ int main(void)
     fortsym_expr_free(expanded_infinity);
     fortsym_expr_free(periodic_simplified);
     fortsym_expr_free(periodic);
+    fortsym_expr_free(special_simplified);
+    fortsym_expr_free(special);
     fortsym_expr_free(undefined);
     fortsym_expr_free(complex_infinity);
     fortsym_expr_free(infinity);

@@ -122,7 +122,9 @@ quadrants (`0`, `pi`, and `-pi`); complex-infinity and other ambiguous pairs
 remain applied heads.
 The Bessel heads add `besselj(order, +/-oo)=0` and
 `besseli(order, oo)=oo`; negative-real `besseli` and complex-infinity cases
-remain applied heads.
+remain applied heads. NaN is not generically propagated through the
+order-bearing Bessel and Legendre heads: unresolved NaN arguments remain
+applied, while `besseli(nan, -oo)` follows SymPy's representable `nan` result.
 Native `legendrep(degree, order, argument)` keeps its Fortran spelling; the
 adapter's `legendre(degree, argument)` maps to order zero. Nonnegative integer
 degrees at `+/-oo` and `zoo` use the representable parity/domain rules, while
