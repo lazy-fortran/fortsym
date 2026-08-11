@@ -66,8 +66,9 @@ Wolfram notebooks, scripts, and outputs remain excluded by `LEGAL.md`.
 `benchmark/harnesses/bench_sympy.py` compares the declared `fortsym.sympy`
 subset with SymPy 1.14.0. It measures cold end-to-end construction plus
 operation and warm core operation separately for expansion, differentiation,
-simplification, signed refinement, relational and compound-assumption construction,
-factorization, and supported assumption queries. Every workload passes through a SymPy
+simplification, signed refinement, real/nonzero-guarded `log`/`exp` composition,
+relational and compound-assumption construction, factorization, and supported
+assumption queries. Every workload passes through a SymPy
 correctness check before timing. The JSON report includes the individual
 samples, median, min/max, native-to-SymPy ratio, Python and platform metadata,
 and the timing parameters. Run it from a built checkout with:

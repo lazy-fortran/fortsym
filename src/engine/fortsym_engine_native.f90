@@ -18,7 +18,8 @@ module fortsym_engine_native
     use fortsym_algebraic, only: algebraic_i, algebraic_add, algebraic_sub, &
         algebraic_from_re_im, algebraic_mul, algebraic_pow, algebraic_signs
     use fortsym_assume, only: assumption_context_t, FACT_REAL, FACT_ZERO, &
-        FACT_NEGATIVE, FACT_NONPOSITIVE, FACT_POSITIVE, FACT_NONNEGATIVE
+        FACT_NEGATIVE, FACT_NONPOSITIVE, FACT_POSITIVE, FACT_NONNEGATIVE, &
+        FACT_NONZERO
     use fortsym_diff, only: diff_expr => diff
     use fortsym_subs, only: subs
     use fortsym_poly, only: poly_together, poly_cancel, poly_factor, &
@@ -94,6 +95,7 @@ contains
         integer :: cached_id, simplified_id
         real(dp) :: started
         logical :: refused
+        logical :: applied
         logical :: cancel_ok
         logical :: algebraic_ok
         character(:), allocatable :: reason
@@ -103,6 +105,20 @@ contains
 
         started = wall_seconds()
         r%value = e
+        if (.not. present(limit)) then
+            if (associated(self%assumptions)) then
+                if (associated(e%a, self%home)) then
+                    call try_contextual_composition(e%a, e%id, self%assumptions, &
+                        simplified_id, applied)
+                    if (applied) then
+                        r%value%id = simplified_id
+                        r%ok = .true.
+                        r%seconds = wall_seconds() - started
+                        return
+                    end if
+                end if
+            end if
+        end if
         call resource_exceeded(e, limit, "simplify", refused, reason)
         if (refused) then
             r%message = str(reason)
@@ -882,6 +898,61 @@ contains
         memo(id) = out
     end function simplify_id
 
+    subroutine try_contextual_composition(a, id, context, out, applied)
+        type(arena_t), target, intent(inout) :: a
+        integer, intent(in) :: id
+        type(assumption_context_t), intent(in) :: context
+        integer, intent(out) :: out
+        logical, intent(out) :: applied
+        integer :: child_id
+        character(:), allocatable :: name
+
+        out = id
+        applied = .false.
+        if (a%kind_of(id) /= NK_FUNC) return
+        if (a%nargs_of(id) /= 1) return
+        child_id = a%arg_of(id, 1)
+        name = chars(a%name_of(id))
+        call try_log_exp_composition(a, name, child_id, context, out, applied)
+    end subroutine try_contextual_composition
+
+    subroutine try_log_exp_composition(a, name, child_id, context, out, applied)
+        type(arena_t), target, intent(inout) :: a
+        character(*), intent(in) :: name
+        integer, intent(in) :: child_id
+        type(assumption_context_t), intent(in) :: context
+        integer, intent(inout) :: out
+        logical, intent(out) :: applied
+        type(expr_t) :: base_expression
+        integer :: composition_base
+        integer :: required_fact
+        character(:), allocatable :: expected_inner
+        character(:), allocatable :: inner_name
+
+        applied = .false.
+        select case (name)
+        case ("log")
+            expected_inner = "exp"
+            required_fact = FACT_REAL
+        case ("exp")
+            expected_inner = "log"
+            required_fact = FACT_NONZERO
+        case default
+            return
+        end select
+        if (a%kind_of(child_id) /= NK_FUNC) return
+        if (a%nargs_of(child_id) /= 1) return
+        inner_name = chars(a%name_of(child_id))
+        if (inner_name /= expected_inner) return
+        composition_base = a%arg_of(child_id, 1)
+        base_expression%a => a
+        base_expression%id = composition_base
+        base_expression%generation = a%generation_value()
+        if (.not. context%has(base_expression, required_fact)) return
+        out = composition_base
+        applied = .true.
+    end subroutine try_log_exp_composition
+
     recursive subroutine try_algebraic_value(a, out, ok)
         type(arena_t), target, intent(inout) :: a
         integer, intent(inout) :: out
@@ -1334,6 +1405,7 @@ contains
         integer :: abs_argument(1)
         integer :: negative_pair(2)
         logical :: refused
+        logical :: applied
         character(:), allocatable :: reason
 
         if (present(limit)) then
@@ -1398,6 +1470,8 @@ contains
                         out = children(1)
                     end if
                 end if
+                call try_log_exp_composition(a, chars(a%name_of(id)), children(1), &
+                    context, out, applied)
                 if (chars(a%name_of(id)) == "sqrt") then
                     if (a%kind_of(children(1)) == NK_POW) then
                         call is_square_power(a, children(1), base_id, square)

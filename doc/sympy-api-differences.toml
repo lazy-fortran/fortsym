@@ -118,7 +118,7 @@ id = "simplification"
 affected = ["simplify"]
 parity = "partial"
 sympy = "SymPy simplify is a broad heuristic transformation that may select different normal forms."
-fortsym = "Native simplify applies guarded, resource-bounded rewrites and returns the original or an unevaluated form when it cannot prove a transformation."
+fortsym = "Native simplify applies guarded, resource-bounded rewrites, including real/nonzero-guarded log/exp compositions, and returns the original or an unevaluated form when it cannot prove a transformation."
 difference = "Normal-form choice, rewrite coverage, assumptions, and resource-limit outcomes are not identical."
 
 [[semantic]]
@@ -126,7 +126,7 @@ id = "refinement"
 affected = ["refine"]
 parity = "partial"
 sympy = "SymPy refine applies assumptions to expressions and can use its broad predicate, relational, and compound inference system."
-fortsym = "The adapter accepts one or more supported Q facts or transactional And relations and routes them through a reversible native assumption scope and guarded simplifier, including signed and zero facts for sqrt/Abs refinement."
+fortsym = "The adapter accepts one or more supported Q facts or transactional And relations and routes them through a reversible native assumption scope and guarded simplifier, including signed and zero facts for sqrt/Abs refinement and real/nonzero facts for log/exp composition."
 difference = "Only the native sign/zero facts plus bounded sign-implying relations and conjunctions are covered; the broader SymPy refine rules remain incomplete."
 
 [[semantic]]

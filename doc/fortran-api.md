@@ -183,6 +183,9 @@ contradictory facts are refused with an explanatory `ok`/diagnostic result.
 The native guarded simplifier uses these facts for `sqrt(x**2)` and `abs(x)`:
 positive/nonnegative values return `x`, negative/nonpositive values return
 `-x`, and zero returns `0`; unknown reality remains unevaluated.
+It also reduces `log(exp(x))` when `x` is real and `exp(log(x))` when `x` is
+nonzero. Without the required fact, these compositions remain unevaluated so
+branch-sensitive identities are never guessed.
 `simplify`, `refine`, `expand`, `factor`, `diff`, and `zero_test`
 accept the optional `assumptions=` context. `refine` is the named entry point
 for applying these supported facts; it shares guarded rewrite ownership with

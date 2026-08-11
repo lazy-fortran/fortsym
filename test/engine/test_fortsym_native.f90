@@ -11,7 +11,8 @@ program test_fortsym_native
     use fortsym_arena, only: arena_t, NK_ADD, NK_FUNC
     use fortsym_expr
     use fortsym_assume, only: assumption_context_t, assume, zero, negative, &
-        nonpositive, positive, nonnegative, nonzero, record_relation, &
+        nonpositive, positive, nonnegative, nonzero, real_valued, &
+        record_relation, &
         clone_assumption_context, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, &
         FACT_POSITIVE, FACT_REAL, FACT_NONZERO, FACT_INTEGER
     use fortsym_eval, only: binding_t, eval_expr
@@ -657,6 +658,7 @@ contains
         type(native_engine_t) :: assumed_engine
         type(engine_result_t) :: r
         type(expr_t) :: u, z, negative_x, nonpositive_x, zero_x
+        type(expr_t) :: log_real, log_nonzero, unknown_log
 
         r = engine%zero_test(sqrt(x**2) - x)
         call check("sqrt(x^2)-x is unknown without a domain", &
@@ -696,6 +698,24 @@ contains
         r = assumed_engine%simplify(abs(zero_x))
         call check("zero x permits abs(x)=0", &
             r%value == num(arena, 0_int64))
+
+        log_real = sym(arena, "log_real")
+        call assume(assumptions, real_valued(log_real))
+        log_nonzero = sym(arena, "log_nonzero")
+        call assume(assumptions, nonzero(log_nonzero))
+        assumed_engine = make_native_engine(arena, assumptions)
+        r = assumed_engine%simplify(log(exp(log_real)))
+        call check("real x permits log(exp(x))=x", r%value == log_real)
+        r = assumed_engine%simplify(exp(log(log_nonzero)))
+        call check("nonzero x permits exp(log(x))=x", &
+            r%value == log_nonzero)
+        unknown_log = sym(arena, "unknown_log")
+        r = engine%simplify(log(exp(unknown_log)))
+        call check("unknown log/exp composition remains guarded", &
+            r%value%kind() == NK_FUNC)
+        r = engine%simplify(exp(log(unknown_log)))
+        call check("unknown exp/log composition remains guarded", &
+            r%value%kind() == NK_FUNC)
 
         z = sym(arena, "z")
         call assume(assumptions, nonzero(z))
