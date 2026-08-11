@@ -813,6 +813,21 @@ contains
         r = engine%simplify(unary_function("sec", -x))
         call check("native simplify applies even secant parity", &
             r%value == unary_function("sec", x))
+        r = engine%simplify(unary_function("asin", num(arena, 1_int64)))
+        call check("native simplify evaluates asin(1)", &
+            r%value == rat(arena, 1_int64, 2_int64)*pi_expr(arena))
+        r = engine%simplify(unary_function("acos", num(arena, -1_int64)))
+        call check("native simplify evaluates acos(-1)", &
+            r%value == pi_expr(arena))
+        r = engine%simplify(unary_function("atan", num(arena, -1_int64)))
+        call check("native simplify evaluates atan(-1)", &
+            r%value == rat(arena, -1_int64, 4_int64)*pi_expr(arena))
+        r = engine%simplify(unary_function("acosh", num(arena, 1_int64)))
+        call check("native simplify evaluates acosh(1)", &
+            r%value == num(arena, 0_int64))
+        r = engine%simplify(unary_function("atanh", num(arena, 0_int64)))
+        call check("native simplify evaluates atanh(0)", &
+            r%value == num(arena, 0_int64))
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
             r%verdict == VERDICT_TRUE)
