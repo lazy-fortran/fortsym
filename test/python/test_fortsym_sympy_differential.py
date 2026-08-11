@@ -51,6 +51,10 @@ class SympyDifferentialTest(unittest.TestCase):
         cases = [
             ("integer", oracle.Integer(2**100), native.Integer(2**100)),
             ("rational", oracle.Rational(2, 3), native.Rational(2, 3)),
+            ("large integer normalization", oracle.Integer(10**80),
+             native.Integer(10**80)),
+            ("rational normalization", oracle.Rational(6, -8),
+             native.Rational(6, -8)),
             ("addition", oracle_x + oracle_y, native_x + native_y),
             ("multiplication", (oracle_x + 1) * oracle_y,
              (native_x + 1) * native_y),

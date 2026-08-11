@@ -1,4 +1,5 @@
 program test_fortsym_convenience
+    use, intrinsic :: iso_fortran_env, only: int64
     use fortsym
     use fortsym_print, only: print_expr
     use fortsym_string, only: chars
@@ -12,9 +13,10 @@ program test_fortsym_convenience
     type(expr_t) :: concurrent_mu
     type(expr_t) :: explicit_expression, default_expression, mixed
     type(expr_t) :: sine, substituted, derivative, simplified, expanded, factored
+    type(expr_t) :: huge_integer, exact_fraction
     type(expr_t) :: stale
     type(engine_result_t) :: result
-    logical :: good
+    logical :: good, exact_good
     integer :: failures
 
     failures = 0
@@ -55,6 +57,14 @@ program test_fortsym_convenience
     default_storage => default_arena()
     call check("default and explicit constructors share the default arena", &
         same_arena(mu, sym(default_storage, "mu")), failures)
+    huge_integer = exact(default_storage, "9223372036854775808", exact_good)
+    call check("facade accepts arbitrary-precision integers", &
+        exact_good .and. chars(huge_integer%exact_text()) == &
+        "9223372036854775808", failures)
+    exact_fraction = exact(default_storage, "6/-8", exact_good)
+    call check("facade canonicalizes arbitrary-precision rationals", &
+        exact_good .and. exact_fraction == rat(default_storage, -3_int64, 4_int64), &
+        failures)
     mixed = mu + sigma
     call check("default expression participates in ordinary operators", &
         is_valid(mixed), failures)
