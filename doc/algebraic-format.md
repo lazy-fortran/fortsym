@@ -21,9 +21,10 @@ Malformed, out-of-range, or over-budget input is refused.
 
 The bridge currently provides exact Gaussian-rational construction, the
 imaginary unit, addition, subtraction, multiplication, division, conjugation,
-signed integer powers, principal square roots, and exact real/imaginary sign
-predicates. Division by zero and negative powers of zero are rejected before
-calling FLINT. Square root follows FLINT's documented principal branch.
+signed integer powers, principal square roots, exact real/imaginary projections,
+and exact real/imaginary sign predicates. Division by zero and negative powers
+of zero are rejected before calling FLINT. Square root follows FLINT's
+documented principal branch.
 
 ## Resource contract
 
@@ -50,6 +51,7 @@ FLINT is LGPL-3.0-or-later and remains a shared linked dependency. The
 `qqbar1` text envelope, ownership boundary, validation, and resource policy are
 original fortsym wrappers; no upstream implementation code is copied.
 
-The bridge is not yet an arena scalar kind. Parser, printer, native-expression
-arithmetic, SymEngine conversion, and code generation integration remain the
-next coherent fragment.
+`NK_ALGEBRAIC` now stores the bounded `qqbar1` value as an arena atom. Native
+scalar arithmetic and the complex-domain `Re`, `Im`, and conjugation boundary
+use it. Parser, printer round trips, SymEngine conversion, and code generation
+integration remain incomplete and are the next coherent fragment.

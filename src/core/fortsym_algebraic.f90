@@ -12,12 +12,13 @@ module fortsym_algebraic
         FSYM_ALGEBRAIC_MUL, FSYM_ALGEBRAIC_DIV, FSYM_ALGEBRAIC_CONJ, &
         FSYM_ALGEBRAIC_SQRT, fsym_algebraic_normalize, fsym_algebraic_i, &
         fsym_algebraic_from_re_im, fsym_algebraic_binary, &
-        fsym_algebraic_unary, fsym_algebraic_pow_si, fsym_algebraic_signs, &
-        fsym_algebraic_fetch
+        fsym_algebraic_re, fsym_algebraic_im, fsym_algebraic_unary, &
+        fsym_algebraic_pow_si, fsym_algebraic_signs, fsym_algebraic_fetch
     implicit none
     private
 
     public :: algebraic_normalize, algebraic_i, algebraic_from_re_im
+    public :: algebraic_re, algebraic_im
     public :: algebraic_add, algebraic_sub, algebraic_mul, algebraic_div
     public :: algebraic_conjugate, algebraic_sqrt, algebraic_pow
     public :: algebraic_signs
@@ -61,6 +62,22 @@ contains
         n = fsym_algebraic_from_re_im(c_string(real_part), c_string(imag_part))
         value = fetch_algebraic(n, ok)
     end function algebraic_from_re_im
+
+    function algebraic_re(input, ok) result(value)
+        character(*), intent(in) :: input
+        logical,      intent(out) :: ok
+        type(str_t)               :: value
+
+        value = algebraic_component(input, .true., ok)
+    end function algebraic_re
+
+    function algebraic_im(input, ok) result(value)
+        character(*), intent(in) :: input
+        logical,      intent(out) :: ok
+        type(str_t)               :: value
+
+        value = algebraic_component(input, .false., ok)
+    end function algebraic_im
 
     function algebraic_add(left, right, ok) result(value)
         character(*), intent(in) :: left, right
@@ -168,6 +185,26 @@ contains
         n = fsym_algebraic_unary(c_string(input), operation)
         value = fetch_algebraic(n, ok)
     end function algebraic_unary
+
+    function algebraic_component(input, real_part, ok) result(value)
+        character(*), intent(in) :: input
+        logical,      intent(in) :: real_part
+        logical,      intent(out) :: ok
+        type(str_t)               :: value
+        integer(c_size_t)         :: n
+
+        ok = valid_input(input)
+        if (.not. ok) then
+            value = str("")
+            return
+        end if
+        if (real_part) then
+            n = fsym_algebraic_re(c_string(input))
+        else
+            n = fsym_algebraic_im(c_string(input))
+        end if
+        value = fetch_algebraic(n, ok)
+    end function algebraic_component
 
     pure function valid_input(value) result(valid)
         character(*), intent(in) :: value

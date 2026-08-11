@@ -408,6 +408,27 @@ size_t hold_algebraic(const qqbar_t value)
     return g_algebraic_buffer.size();
 }
 
+size_t hold_algebraic_component(const char *text, bool real_part)
+{
+    try {
+        QqbarValue input;
+        QqbarValue component;
+        g_algebraic_buffer.clear();
+        if (!parse_algebraic(input, text)) {
+            return 0;
+        }
+        if (real_part) {
+            qqbar_re(component.value, input.value);
+        } else {
+            qqbar_im(component.value, input.value);
+        }
+        return hold_algebraic(component.value);
+    } catch (...) {
+        g_algebraic_buffer.clear();
+        return 0;
+    }
+}
+
 inline const SymEngine::RCP<const SymEngine::Basic> &deref(const basic s)
 {
     return s->m;
@@ -938,6 +959,16 @@ size_t fsym_algebraic_from_re_im(const char *real_part,
         g_algebraic_buffer.clear();
         return 0;
     }
+}
+
+size_t fsym_algebraic_re(const char *value)
+{
+    return hold_algebraic_component(value, true);
+}
+
+size_t fsym_algebraic_im(const char *value)
+{
+    return hold_algebraic_component(value, false);
 }
 
 size_t fsym_algebraic_binary(const char *left, const char *right,

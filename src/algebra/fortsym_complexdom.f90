@@ -42,8 +42,7 @@ module fortsym_complexdom
     use fortsym_expr, only: expr_t, num, algebraic_expr, i_expr, is_valid, &
         sin, cos, sinh, cosh, exp, sqrt, atan2, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
-    use fortsym_algebraic, only: algebraic_i, algebraic_mul, &
-        algebraic_conjugate, algebraic_signs
+    use fortsym_algebraic, only: algebraic_re, algebraic_im, algebraic_conjugate
     use fortsym_assume, only: assumption_context_t, FACT_REAL
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -144,56 +143,34 @@ contains
         end select
     end subroutine split_const
 
-    !> Split an exact algebraic atom when its rectangular shape is already
-    !> known from the FLINT sign oracle. Mixed real and imaginary parts remain
-    !> refused until the bridge exposes exact qqbar re/im extraction.
+    !> Split an exact algebraic atom through FLINT's exact qqbar projections.
     subroutine split_algebraic(e, re, im, ok, why)
         type(expr_t),              intent(in)  :: e
         type(expr_t),              intent(out) :: re, im
         logical,                    intent(out) :: ok
         character(:), allocatable, intent(out) :: why
-        type(str_t) :: imaginary_unit, minus_imaginary, imaginary_part
-        integer :: real_sign, imag_sign
-        logical :: signs_ok
+        type(str_t) :: real_text, imaginary_text
 
         ok = .false.
         why = ""
-        call algebraic_signs(chars(e%algebraic_text()), real_sign, imag_sign, signs_ok)
-        if (.not. signs_ok) then
-            why = "FLINT could not determine the algebraic real and imaginary signs"
+        real_text = algebraic_re(chars(e%algebraic_text()), ok)
+        if (.not. ok) then
+            why = "FLINT could not extract the algebraic real part"
             return
         end if
-        if (imag_sign == 0) then
-            re = e
-            im = zero(e)
-            ok = .true.
+        imaginary_text = algebraic_im(chars(e%algebraic_text()), ok)
+        if (.not. ok) then
+            why = "FLINT could not extract the algebraic imaginary part"
             return
         end if
-        if (real_sign == 0) then
-            imaginary_unit = algebraic_i(ok)
-            if (.not. ok) then
-                why = "FLINT could not construct the imaginary unit"
-                return
-            end if
-            minus_imaginary = algebraic_conjugate(chars(imaginary_unit), ok)
-            if (.not. ok) then
-                why = "FLINT could not construct the negative imaginary unit"
-                return
-            end if
-            imaginary_part = algebraic_mul(chars(e%algebraic_text()), &
-                chars(minus_imaginary), ok)
-            if (.not. ok) then
-                why = "FLINT could not construct the pure-imaginary part"
-                return
-            end if
-            re = zero(e)
-            im = algebraic_expr(e%a, chars(imaginary_part), ok)
-            if (.not. ok) then
-                why = "FLINT could not construct the pure-imaginary algebraic part"
-            end if
+        re = algebraic_expr(e%a, chars(real_text), ok)
+        if (.not. ok) then
+            why = "FLINT could not retain the algebraic real part"
             return
         end if
-        why = "mixed algebraic real and imaginary parts need exact rectangular extraction"
+
+        im = algebraic_expr(e%a, chars(imaginary_text), ok)
+        if (.not. ok) why = "FLINT could not retain the algebraic imaginary part"
     end subroutine split_algebraic
 
     !> The single most dangerous case in the module, and therefore the shortest.

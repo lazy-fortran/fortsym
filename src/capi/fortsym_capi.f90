@@ -730,6 +730,20 @@ module fortsym_capi
             integer(c_size_t)                  :: n
         end function fsym_algebraic_from_re_im
 
+        function fsym_algebraic_re(value) &
+                bind(c, name="fsym_algebraic_re") result(n)
+            import :: c_char, c_size_t
+            character(kind=c_char), intent(in) :: value(*)
+            integer(c_size_t)                  :: n
+        end function fsym_algebraic_re
+
+        function fsym_algebraic_im(value) &
+                bind(c, name="fsym_algebraic_im") result(n)
+            import :: c_char, c_size_t
+            character(kind=c_char), intent(in) :: value(*)
+            integer(c_size_t)                  :: n
+        end function fsym_algebraic_im
+
         function fsym_algebraic_binary(left, right, operation) &
                 bind(c, name="fsym_algebraic_binary") result(n)
             import :: c_char, c_int, c_size_t
