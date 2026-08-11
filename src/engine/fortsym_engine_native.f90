@@ -1283,10 +1283,12 @@ contains
         integer,       intent(in)    :: args(:)
         integer                      :: out
         integer(int64) :: order, den
+        integer(int64) :: factorial
         integer(int64) :: pi_multiple
         logical :: exact
+        logical :: factorial_ok
         logical :: pi_multiple_ok
-        integer :: bessel_args(2), pair(2)
+        integer :: bessel_args(2), pair(2), one_arg(1)
 
         out = a%func(name, args)
         if (size(args) == 0) return
@@ -1326,11 +1328,40 @@ contains
         case ("sqrt", "abs")
             if (is_zero_id(a, args(1))) out = a%int(0_int64)
             if (is_one_id(a, args(1))) out = a%int(1_int64)
+        case ("erf", "erfc")
+            if (is_zero_id(a, args(1))) then
+                if (name == "erf") then
+                    out = a%int(0_int64)
+                else
+                    out = a%int(1_int64)
+                end if
+            end if
+        case ("gamma")
+            call exact_value(a, args(1), order, den, exact)
+            if (exact) then
+                if (den == 1_int64 .and. order >= 1_int64 .and. &
+                    order <= 21_int64) then
+                    call factorial_i64(int(order - 1_int64), factorial, &
+                        factorial_ok)
+                    if (factorial_ok) out = a%int(factorial)
+                else if (order == 1_int64 .and. den == 2_int64) then
+                    one_arg(1) = a%const("pi")
+                    out = a%func("sqrt", one_arg)
+                end if
+            end if
         case ("besselj")
             if (size(args) < 2) return
             call exact_value(a, args(1), order, den, exact)
             if (.not. exact) return
             if (den /= 1_int64) return
+            if (order >= 0_int64 .and. is_zero_id(a, args(2))) then
+                if (order == 0_int64) then
+                    out = a%int(1_int64)
+                else
+                    out = a%int(0_int64)
+                end if
+                return
+            end if
             if (order >= 0_int64) return
             if (order == MIN_I64) return
             bessel_args(1) = a%int(-order)
@@ -1340,6 +1371,17 @@ contains
                 pair(1) = a%int(-1_int64)
                 pair(2) = out
                 out = a%mul(pair)
+            end if
+        case ("besseli")
+            if (size(args) < 2) return
+            call exact_value(a, args(1), order, den, exact)
+            if (.not. exact .or. den /= 1_int64 .or. order < 0_int64) return
+            if (is_zero_id(a, args(2))) then
+                if (order == 0_int64) then
+                    out = a%int(1_int64)
+                else
+                    out = a%int(0_int64)
+                end if
             end if
         end select
     end function simplify_function

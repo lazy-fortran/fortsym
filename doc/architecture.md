@@ -106,6 +106,13 @@ differentiation. Its bounded Laurent extension first identifies an integer
 power of the shifted variable, regularises that pole, and then uses the same
 coefficient path; a singularity it cannot classify exactly is refused.
 
+Native special-function simplification is deliberately identity-based. It
+proves `erf(0)`, `erfc(0)`, positive integer Gamma values through a checked
+factorial cap, `Gamma(1/2)`, and integer-order `J`/`I` values at zero. It does
+not approximate special functions or infer analytic continuation, asymptotic,
+or branch-sensitive identities; those inputs remain symbolic until an
+independent numeric backend is available.
+
 Fortran kernel emission uses the dialect's declared function map rather than
 passing symbolic heads through as identifiers. Standard intrinsics cover
 `erf`, `erfc`, `gamma`, `log_gamma`, `bessel_jn`, and `bessel_yn`; the default
