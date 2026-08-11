@@ -209,6 +209,16 @@ binding names and refusal diagnostics are recorded in
 `doc/wolfram-coverage-39.md`. Definite integration and numeric plotting remain
 named refusals for separate follow-up work.
 
+Issue #45 is complete as of 2026-08-11. The engine contract now exposes a
+call-local `resource_limit_t` with node-budget and monotonic-deadline fields;
+native simplify, expand, series, and solve preserve the original expression
+and return an operation-specific refusal when the bound is crossed. Recursive
+simplification, expansion, multinomial enumeration, and distribution charge
+the same limit, while separate engine instances retain independent limits.
+The native oracle checks preflight and recursive node refusals, expired
+deadlines, expression preservation, and recovery after a refused call. The
+policy is documented in `doc/architecture.md`.
+
 ## Performance contract
 
 Performance is a release criterion, not a follow-up.

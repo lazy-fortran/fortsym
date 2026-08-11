@@ -29,7 +29,8 @@ module fortsym_wl_solve
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_INT, NK_RAT
     use fortsym_expr, only: expr_t, sym, num, func, func_in, &
         operator(+), operator(-), operator(*), operator(/)
-    use fortsym_engine, only: engine_t, engine_result_t, VERDICT_TRUE, wall_seconds
+    use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
+        VERDICT_TRUE, wall_seconds
     use fortsym_polysolve, only: solve_polynomial
     use fortsym_linalg, only: solve_exact_linear_system, &
         exact_linear_system_result_t
@@ -51,12 +52,13 @@ contains
 
     !> Evaluate a Solve application. `e` is the whole Solve[...] node with its
     !> arguments already evaluated. On refusal `why` names what stopped it.
-    function wl_solve(a, engine, e, ok, why) result(r)
+    function wl_solve(a, engine, e, ok, why, limit) result(r)
         type(arena_t), target,     intent(inout) :: a
         class(engine_t),           intent(inout) :: engine
         type(expr_t),              intent(in)    :: e
         logical,                   intent(out)   :: ok
         character(:), allocatable, intent(out)   :: why
+        type(resource_limit_t),    intent(in), optional :: limit
         type(expr_t)                             :: r
         type(expr_t), allocatable :: eqns(:), vars(:)
         integer :: k
@@ -97,7 +99,7 @@ contains
         end do
 
         if (size(eqns) == 1 .and. size(vars) == 1) then
-            r = solve_scalar(a, engine, eqns(1), vars(1), ok, why)
+            r = solve_scalar(a, engine, eqns(1), vars(1), ok, why, limit)
             return
         end if
         if (size(eqns) /= size(vars)) then
@@ -108,19 +110,20 @@ contains
             why = "Solve with more unknowns than the exact solver bound"
             return
         end if
-        r = solve_linear_system(a, engine, eqns, vars, ok, why)
+        r = solve_linear_system(a, engine, eqns, vars, ok, why, limit)
     end function wl_solve
 
     ! ------------------------------------------------------------- scalar --
 
     !> One equation in one unknown: exact polynomial roots first, the engine's
     !> scalar solver second.
-    function solve_scalar(a, engine, eqn, var, ok, why) result(r)
+    function solve_scalar(a, engine, eqn, var, ok, why, limit) result(r)
         type(arena_t), target,     intent(inout) :: a
         class(engine_t),           intent(inout) :: engine
         type(expr_t),              intent(in)    :: eqn, var
         logical,                   intent(out)   :: ok
         character(:), allocatable, intent(out)   :: why
+        type(resource_limit_t),    intent(in), optional :: limit
         type(expr_t)                             :: r
         type(expr_t), allocatable :: roots(:), rules(:)
         type(expr_t)          :: resid
@@ -154,7 +157,7 @@ contains
         ! Not a polynomial in the unknown, or of a degree with no exact root
         ! formula here. The engine's scalar solver still covers the linear case
         ! with symbolic coefficients, and refuses rather than guesses otherwise.
-        res = engine%solve(resid, var)
+        res = engine%solve(resid, var, limit)
         if (.not. res%ok) then
             ok = .false.
             why = poly_why//"; scalar solver: "//chars(res%message)
@@ -175,12 +178,13 @@ contains
     !> rebuild the equation and the difference must zero-test true. A quadratic
     !> term would otherwise be silently dropped by the derivative extraction and
     !> the wrong root reported as the answer.
-    function solve_linear_system(a, engine, eqns, vars, ok, why) result(r)
+    function solve_linear_system(a, engine, eqns, vars, ok, why, limit) result(r)
         type(arena_t), target,     intent(inout) :: a
         class(engine_t),           intent(inout) :: engine
         type(expr_t),              intent(in)    :: eqns(:), vars(:)
         logical,                   intent(out)   :: ok
         character(:), allocatable, intent(out)   :: why
+        type(resource_limit_t),    intent(in), optional :: limit
         type(expr_t)                             :: r
         type(exact_linear_system_result_t) :: sol
         type(expr_t), allocatable :: m(:, :), rhs(:, :), rules(:)
@@ -209,7 +213,7 @@ contains
             do j = 1, n
                 konst = subs(konst, vars(j), num(a, 0))
             end do
-            simplified = engine%simplify(konst)
+            simplified = engine%simplify(konst, limit)
             if (.not. simplified%ok) then
                 why = "Solve: "//chars(simplified%message)
                 return
@@ -222,7 +226,7 @@ contains
 
             recon = konst
             do j = 1, n
-                simplified = engine%simplify(diff(resid, vars(j)))
+                simplified = engine%simplify(diff(resid, vars(j)), limit)
                 if (.not. simplified%ok) then
                     why = "Solve: "//chars(simplified%message)
                     return
@@ -239,7 +243,7 @@ contains
             ! distribute a leading minus over a sum, so a genuinely zero
             ! difference tests UNKNOWN and a correct linear system would be
             ! refused as nonlinear.
-            verdict = zero_after_expansion(engine, resid - recon)
+            verdict = zero_after_expansion(engine, resid - recon, limit)
             if (verdict%verdict /= VERDICT_TRUE) then
                 write (tag, "(i0)") i
                 why = "equation "//trim(tag)// &
@@ -249,7 +253,7 @@ contains
         end do
 
         if (.not. all_exact .and. n == 2) then
-            r = solve_symbolic_two_by_two(engine, eqns, vars, ok, why)
+            r = solve_symbolic_two_by_two(engine, eqns, vars, ok, why, limit)
             if (ok) return
             return
         end if
@@ -274,7 +278,7 @@ contains
             do j = 1, n
                 probe = subs(probe, vars(j), sol%values(j, 1))
             end do
-            verdict = zero_after_expansion(engine, probe)
+            verdict = zero_after_expansion(engine, probe, limit)
             if (verdict%verdict /= VERDICT_TRUE) then
                 write (tag, "(i0)") i
                 why = "the computed solution could not be verified in "// &
@@ -297,11 +301,12 @@ contains
     !> intentionally does not generalise to arbitrary symbolic Gaussian
     !> elimination: a conditional pivot or a rapidly growing expression must
     !> remain visible as a refusal.
-    function solve_symbolic_two_by_two(engine, eqns, vars, ok, why) result(r)
+    function solve_symbolic_two_by_two(engine, eqns, vars, ok, why, limit) result(r)
         class(engine_t), intent(inout) :: engine
         type(expr_t), intent(in) :: eqns(:), vars(:)
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: why
+        type(resource_limit_t), intent(in), optional :: limit
         type(expr_t) :: r
         type(expr_t) :: first, second
         logical :: good
@@ -324,17 +329,18 @@ contains
             return
         end if
 
-        r = solve_symbolic_order(engine, first, second, vars(1), vars(2), ok, why)
+        r = solve_symbolic_order(engine, first, second, vars(1), vars(2), ok, why, limit)
         if (ok) return
-        r = solve_symbolic_order(engine, second, first, vars(1), vars(2), ok, why)
+        r = solve_symbolic_order(engine, second, first, vars(1), vars(2), ok, why, limit)
     end function solve_symbolic_two_by_two
 
     function solve_symbolic_order( &
-            engine, first, second, x, y, ok, why) result(r)
+            engine, first, second, x, y, ok, why, limit) result(r)
         class(engine_t), intent(inout) :: engine
         type(expr_t), intent(in) :: first, second, x, y
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: why
+        type(resource_limit_t), intent(in), optional :: limit
         type(expr_t) :: r
         type(expr_t) :: x_value, y_value, reduced, rules(2)
         type(engine_result_t) :: x_solution, y_solution
@@ -342,14 +348,14 @@ contains
         r = first
         ok = .false.
         why = ""
-        x_solution = solve_symbolic_linear_equation(engine, first, x)
+        x_solution = solve_symbolic_linear_equation(engine, first, x, limit)
         if (.not. x_solution%ok) then
             why = "symbolic Solve first elimination: "// &
                 chars(x_solution%message)
             return
         end if
         reduced = subs(second, x, x_solution%value)
-        y_solution = solve_symbolic_linear_equation(engine, reduced, y)
+        y_solution = solve_symbolic_linear_equation(engine, reduced, y, limit)
         if (.not. y_solution%ok) then
             why = "symbolic Solve second elimination: "// &
                 chars(y_solution%message)
@@ -364,9 +370,10 @@ contains
         ok = .true.
     end function solve_symbolic_order
 
-    function solve_symbolic_linear_equation(engine, equation, variable) result(r)
+    function solve_symbolic_linear_equation(engine, equation, variable, limit) result(r)
         class(engine_t), intent(inout) :: engine
         type(expr_t), intent(in) :: equation, variable
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t) :: r
         type(engine_result_t) :: coefficient, constant, linearity, candidate
         type(engine_result_t) :: coefficient_zero
@@ -376,14 +383,14 @@ contains
         started = wall_seconds()
         r%value = equation
         derivative = diff(equation, variable)
-        coefficient = engine%simplify(derivative)
+        coefficient = engine%simplify(derivative, limit)
         if (.not. coefficient%ok) then
             r = coefficient
             r%seconds = wall_seconds() - started
             return
         end if
         linearity = zero_after_expansion( &
-            engine, diff(coefficient%value, variable))
+            engine, diff(coefficient%value, variable), limit)
         if (linearity%verdict /= VERDICT_TRUE) then
             r%message = str("symbolic equation is not linear in the variable")
             r%seconds = wall_seconds() - started
@@ -397,20 +404,20 @@ contains
         end if
 
         constant = engine%simplify( &
-            subs(equation, variable, variable - variable))
+            subs(equation, variable, variable - variable), limit)
         if (.not. constant%ok) then
             r = constant
             r%seconds = wall_seconds() - started
             return
         end if
         linearity = zero_after_expansion( &
-            engine, equation - (constant%value + coefficient%value*variable))
+            engine, equation - (constant%value + coefficient%value*variable), limit)
         if (linearity%verdict /= VERDICT_TRUE) then
             r%message = str("symbolic linear reconstruction could not be verified")
             r%seconds = wall_seconds() - started
             return
         end if
-        candidate = engine%simplify(-constant%value/coefficient%value)
+        candidate = engine%simplify(-constant%value/coefficient%value, limit)
         if (.not. candidate%ok) then
             r = candidate
             r%seconds = wall_seconds() - started
@@ -490,13 +497,14 @@ contains
     !> Zero test after expansion. Expansion can only fail to prove a zero, it
     !> can never turn a nonzero difference into a zero one, so nothing is
     !> loosened here -- an UNKNOWN still refuses.
-    function zero_after_expansion(engine, e) result(verdict)
+    function zero_after_expansion(engine, e, limit) result(verdict)
         class(engine_t), intent(inout) :: engine
         type(expr_t),    intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)          :: verdict
         type(engine_result_t) :: expanded
 
-        expanded = engine%expand(e)
+        expanded = engine%expand(e, limit)
         if (.not. expanded%ok) then
             verdict = engine%zero_test(e)
             return

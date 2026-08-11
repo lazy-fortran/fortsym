@@ -17,7 +17,8 @@ module fortsym_engine_native
         FACT_POSITIVE, FACT_NONNEGATIVE
     use fortsym_diff, only: diff_expr => diff
     use fortsym_subs, only: subs
-    use fortsym_engine, only: engine_t, engine_result_t, wall_seconds, &
+    use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
+        resource_exceeded, resource_visit, resource_failure, wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, CAP_ZERO_TEST, &
         CAP_SIMPLIFY, CAP_DIFF, CAP_EXPAND, CAP_SOLVE, CAP_SERIES
     implicit none
@@ -69,17 +70,30 @@ contains
         if (present(assumptions)) eng%assumptions => assumptions
     end function make_native_engine
 
-    function native_simplify(self, e) result(r)
+    function native_simplify(self, e, limit) result(r)
         class(native_engine_t), intent(inout) :: self
         type(expr_t),           intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                 :: r
         integer, allocatable :: memo(:), contextual_memo(:)
         logical, allocatable :: done(:), contextual_done(:)
         integer :: cached_id, simplified_id
         real(dp) :: started
+        logical :: refused
+        character(:), allocatable :: reason
+        type(resource_limit_t) :: active_limit
 
         started = wall_seconds()
         r%value = e
+        call resource_exceeded(e, limit, "simplify", refused, reason)
+        if (refused) then
+            r%message = str(reason)
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        if (present(limit)) active_limit = limit
+        active_limit%visited_nodes = 0_int64
+        active_limit%exceeded_kind = 0
         if (.not. associated(e%a, self%home)) then
             r%message = str("native: expression belongs to a different arena")
             r%seconds = wall_seconds() - started
@@ -103,16 +117,31 @@ contains
 
         allocate (memo(e%a%size()), source=0)
         allocate (done(e%a%size()), source=.false.)
-        simplified_id = simplify_id(e%a, e%id, memo, done)
+        simplified_id = simplify_id(e%a, e%id, memo, done, active_limit)
+        if (active_limit%exceeded_kind /= 0) then
+            r%message = str(resource_failure("simplify", active_limit))
+            r%seconds = wall_seconds() - started
+            return
+        end if
         if (associated(self%assumptions)) then
             allocate (contextual_memo(e%a%size()), source=0)
             allocate (contextual_done(e%a%size()), source=.false.)
             simplified_id = contextual_id(e%a, simplified_id, self%assumptions, &
-                contextual_memo, contextual_done)
+                contextual_memo, contextual_done, active_limit)
+            if (active_limit%exceeded_kind /= 0) then
+                r%message = str(resource_failure("simplify", active_limit))
+                r%seconds = wall_seconds() - started
+                return
+            end if
             deallocate (memo, done)
             allocate (memo(e%a%size()), source=0)
             allocate (done(e%a%size()), source=.false.)
-            simplified_id = simplify_id(e%a, simplified_id, memo, done)
+            simplified_id = simplify_id(e%a, simplified_id, memo, done, active_limit)
+            if (active_limit%exceeded_kind /= 0) then
+                r%message = str(resource_failure("simplify", active_limit))
+                r%seconds = wall_seconds() - started
+                return
+            end if
         end if
         r%value%id = simplified_id
         r%ok = .true.
@@ -181,17 +210,30 @@ contains
         r%seconds = wall_seconds() - started
     end function native_diff
 
-    function native_expand(self, e) result(r)
+    function native_expand(self, e, limit) result(r)
         class(native_engine_t), intent(inout) :: self
         type(expr_t),           intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                 :: r
         integer, allocatable :: memo(:)
         logical, allocatable :: done(:)
         type(expr_t) :: expanded
         real(dp) :: started
+        logical :: refused
+        character(:), allocatable :: reason
+        type(resource_limit_t) :: active_limit
 
         started = wall_seconds()
         r%value = e
+        call resource_exceeded(e, limit, "expand", refused, reason)
+        if (refused) then
+            r%message = str(reason)
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        if (present(limit)) active_limit = limit
+        active_limit%visited_nodes = 0_int64
+        active_limit%exceeded_kind = 0
         if (.not. associated(e%a, self%home)) then
             r%message = str("native: expression belongs to a different arena")
             r%seconds = wall_seconds() - started
@@ -210,8 +252,13 @@ contains
         allocate (memo(e%a%size()), source=0)
         allocate (done(e%a%size()), source=.false.)
         expanded = e
-        expanded%id = expand_id(e%a, e%id, memo, done)
-        r = self%simplify(expanded)
+        expanded%id = expand_id(e%a, e%id, memo, done, active_limit)
+        if (active_limit%exceeded_kind /= 0) then
+            r%message = str(resource_failure("expand", active_limit))
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        r = self%simplify(expanded, limit)
         if (r%ok) then
             if (.not. associated(self%assumptions)) then
                 self%expand_cache(e%id) = r%value%id
@@ -241,10 +288,11 @@ contains
         call move_alloc(larger, cache)
     end subroutine ensure_cache
 
-    function native_series_coeff(self, e, v, point, order) result(r)
+    function native_series_coeff(self, e, v, point, order, limit) result(r)
         class(native_engine_t), intent(inout) :: self
         type(expr_t),           intent(in)    :: e, v, point
         integer,                intent(in)    :: order
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                 :: r
         type(engine_result_t) :: prepared, differentiated
         type(expr_t) :: derivative, at_point
@@ -252,9 +300,17 @@ contains
         real(dp) :: started
         logical :: factorial_ok
         integer :: k, normalized_base
+        logical :: refused
+        character(:), allocatable :: reason
 
         started = wall_seconds()
         r%value = e
+        call resource_exceeded(e, limit, "series", refused, reason)
+        if (refused) then
+            r%message = str(reason)
+            r%seconds = wall_seconds() - started
+            return
+        end if
         if (order < 0) then
             r%message = str("native: series order must be nonnegative")
             r%seconds = wall_seconds() - started
@@ -271,7 +327,7 @@ contains
         ! Expand and cancel polynomial powers before substituting the center.
         ! This turns removable forms such as (2*a*r + 4*b*r**3)/r into a
         ! regular polynomial before r=0 is applied.
-        prepared = self%expand(e)
+        prepared = self%expand(e, limit)
         if (.not. prepared%ok) then
             r = prepared
             r%seconds = wall_seconds() - started
@@ -288,22 +344,31 @@ contains
             derivative = differentiated%value
         end do
         at_point = subs(derivative, v, point)
-        r = self%simplify(at_point/num(e%a, factorial))
+        r = self%simplify(at_point/num(e%a, factorial), limit)
         r%seconds = wall_seconds() - started
     end function native_series_coeff
 
-    function native_series(self, e, v, point, order) result(r)
+    function native_series(self, e, v, point, order, limit) result(r)
         class(native_engine_t), intent(inout) :: self
         type(expr_t),           intent(in)    :: e, v, point
         integer,                intent(in)    :: order
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                 :: r
         type(engine_result_t) :: coefficient, simplified
         type(expr_t) :: polynomial, term
         integer :: k
         real(dp) :: started
+        logical :: refused
+        character(:), allocatable :: reason
 
         started = wall_seconds()
         r%value = e
+        call resource_exceeded(e, limit, "series", refused, reason)
+        if (refused) then
+            r%message = str(reason)
+            r%seconds = wall_seconds() - started
+            return
+        end if
         if (order < 0) then
             r%message = str("native: series order must be nonnegative")
             r%seconds = wall_seconds() - started
@@ -312,7 +377,7 @@ contains
 
         polynomial = point - point
         do k = 0, order
-            coefficient = self%series_coeff(e, v, point, k)
+            coefficient = self%series_coeff(e, v, point, k, limit)
             if (.not. coefficient%ok) then
                 r = coefficient
                 r%seconds = wall_seconds() - started
@@ -321,27 +386,36 @@ contains
             term = coefficient%value*(v - point)**k
             polynomial = polynomial + term
         end do
-        simplified = self%simplify(polynomial)
+        simplified = self%simplify(polynomial, limit)
         r = simplified
         r%seconds = wall_seconds() - started
     end function native_series
 
-    function native_solve(self, e, v) result(r)
+    function native_solve(self, e, v, limit) result(r)
         class(native_engine_t), intent(inout) :: self
         type(expr_t),           intent(in)    :: e, v
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                 :: r
         type(engine_result_t) :: coefficient, constant, linearity, candidate
         type(engine_result_t) :: verified
         type(expr_t) :: derivative, residual
         real(dp) :: started
         logical :: conditional
+        logical :: refused
+        character(:), allocatable :: reason
 
         started = wall_seconds()
         r%value = e
         conditional = .false.
+        call resource_exceeded(e, limit, "solve", refused, reason)
+        if (refused) then
+            r%message = str(reason)
+            r%seconds = wall_seconds() - started
+            return
+        end if
 
         derivative = diff_expr(e, v)
-        coefficient = self%simplify(derivative)
+        coefficient = self%simplify(derivative, limit)
         if (.not. coefficient%ok) then
             r = coefficient
             r%seconds = wall_seconds() - started
@@ -365,13 +439,13 @@ contains
             conditional = .true.
         end if
 
-        constant = self%simplify(subs(e, v, v - v))
+        constant = self%simplify(subs(e, v, v - v), limit)
         if (.not. constant%ok) then
             r = constant
             r%seconds = wall_seconds() - started
             return
         end if
-        candidate = self%simplify(-constant%value/coefficient%value)
+        candidate = self%simplify(-constant%value/coefficient%value, limit)
         if (.not. candidate%ok) then
             r = candidate
             r%seconds = wall_seconds() - started
@@ -411,14 +485,25 @@ contains
         end do
     end subroutine factorial_i64
 
-    recursive function simplify_id(a, id, memo, done) result(out)
+    recursive function simplify_id(a, id, memo, done, limit) result(out)
         type(arena_t), target, intent(inout) :: a
         integer,       intent(in)    :: id
         integer,       intent(inout) :: memo(:)
         logical,       intent(inout) :: done(:)
+        type(resource_limit_t), intent(inout), optional :: limit
         integer                      :: out
         integer, allocatable :: children(:)
         integer :: k
+        logical :: refused
+        character(:), allocatable :: reason
+
+        if (present(limit)) then
+            call resource_visit(limit, "simplify", refused, reason)
+            if (refused) then
+                out = id
+                return
+            end if
+        end if
 
         if (done(id)) then
             out = memo(id)
@@ -429,7 +514,7 @@ contains
         case (NK_ADD, NK_MUL, NK_FUNC)
             allocate (children(a%nargs_of(id)))
             do k = 1, size(children)
-                children(k) = simplify_id(a, a%arg_of(id, k), memo, done)
+                children(k) = simplify_id(a, a%arg_of(id, k), memo, done, limit)
             end do
             select case (a%kind_of(id))
             case (NK_ADD)
@@ -441,8 +526,8 @@ contains
             end select
         case (NK_POW)
             allocate (children(2))
-            children(1) = simplify_id(a, a%arg_of(id, 1), memo, done)
-            children(2) = simplify_id(a, a%arg_of(id, 2), memo, done)
+            children(1) = simplify_id(a, a%arg_of(id, 1), memo, done, limit)
+            children(2) = simplify_id(a, a%arg_of(id, 2), memo, done, limit)
             out = simplify_power(a, children(1), children(2))
         case default
             out = id
@@ -452,18 +537,29 @@ contains
         memo(id) = out
     end function simplify_id
 
-    recursive function contextual_id(a, id, context, memo, done) result(out)
+    recursive function contextual_id(a, id, context, memo, done, limit) result(out)
         type(arena_t), target, intent(inout) :: a
         integer,       intent(in)    :: id
         type(assumption_context_t), intent(in) :: context
         integer,       intent(inout) :: memo(:)
         logical,       intent(inout) :: done(:)
+        type(resource_limit_t), intent(inout), optional :: limit
         integer                      :: out
         type(expr_t) :: base_expression
         integer, allocatable :: children(:)
         integer :: k, exponent_id, base_id
         logical :: square, definitely_positive, definitely_nonnegative, real_valued
         integer :: abs_argument(1)
+        logical :: refused
+        character(:), allocatable :: reason
+
+        if (present(limit)) then
+            call resource_visit(limit, "simplify", refused, reason)
+            if (refused) then
+                out = id
+                return
+            end if
+        end if
 
         if (done(id)) then
             out = memo(id)
@@ -475,25 +571,25 @@ contains
             allocate (children(a%nargs_of(id)))
             do k = 1, size(children)
                 children(k) = contextual_id(a, a%arg_of(id, k), context, &
-                    memo, done)
+                    memo, done, limit)
             end do
             out = simplify_add(a, children)
         case (NK_MUL)
             allocate (children(a%nargs_of(id)))
             do k = 1, size(children)
                 children(k) = contextual_id(a, a%arg_of(id, k), context, &
-                    memo, done)
+                    memo, done, limit)
             end do
             out = a%mul(children)
         case (NK_POW)
-            base_id = contextual_id(a, a%arg_of(id, 1), context, memo, done)
-            exponent_id = contextual_id(a, a%arg_of(id, 2), context, memo, done)
+            base_id = contextual_id(a, a%arg_of(id, 1), context, memo, done, limit)
+            exponent_id = contextual_id(a, a%arg_of(id, 2), context, memo, done, limit)
             out = a%pow(base_id, exponent_id)
         case (NK_FUNC)
             allocate (children(a%nargs_of(id)))
             do k = 1, size(children)
                 children(k) = contextual_id(a, a%arg_of(id, k), context, &
-                    memo, done)
+                    memo, done, limit)
             end do
             out = a%func(chars(a%name_of(id)), children)
 
@@ -1157,16 +1253,27 @@ contains
         ok = saw_pi
     end subroutine integer_pi_multiple
 
-    recursive function expand_id(a, id, memo, done) result(out)
+    recursive function expand_id(a, id, memo, done, limit) result(out)
         type(arena_t), intent(inout) :: a
         integer,       intent(in)    :: id
         integer,       intent(inout) :: memo(:)
         logical,       intent(inout) :: done(:)
+        type(resource_limit_t), intent(inout), optional :: limit
         integer                      :: out
         integer, allocatable :: children(:)
         integer(int64) :: exponent, den, remaining
         integer :: k, base, acc, factor
         logical :: exact, multinomial_ok
+        logical :: refused
+        character(:), allocatable :: reason
+
+        if (present(limit)) then
+            call resource_visit(limit, "expand", refused, reason)
+            if (refused) then
+                out = id
+                return
+            end if
+        end if
 
         if (done(id)) then
             out = memo(id)
@@ -1177,19 +1284,19 @@ contains
         case (NK_ADD)
             allocate (children(a%nargs_of(id)))
             do k = 1, size(children)
-                children(k) = expand_id(a, a%arg_of(id, k), memo, done)
+                children(k) = expand_id(a, a%arg_of(id, k), memo, done, limit)
             end do
             out = a%add(children)
         case (NK_MUL)
             acc = a%int(1_int64)
             do k = 1, a%nargs_of(id)
-                base = expand_id(a, a%arg_of(id, k), memo, done)
-                acc = distribute(a, acc, base)
+                base = expand_id(a, a%arg_of(id, k), memo, done, limit)
+                acc = distribute(a, acc, base, limit)
             end do
             out = acc
         case (NK_POW)
-            base = expand_id(a, a%arg_of(id, 1), memo, done)
-            out = expand_id(a, a%arg_of(id, 2), memo, done)
+            base = expand_id(a, a%arg_of(id, 1), memo, done, limit)
+            out = expand_id(a, a%arg_of(id, 2), memo, done, limit)
             call exact_value(a, out, exponent, den, exact)
             if (exact) then
                 if (den /= 1_int64) exact = .false.
@@ -1207,7 +1314,7 @@ contains
                     out = base
                     multinomial_ok = .true.
                 else if (a%kind_of(base) == NK_ADD) then
-                    out = expand_sum_power(a, base, exponent, multinomial_ok)
+                    out = expand_sum_power(a, base, exponent, multinomial_ok, limit)
                     if (.not. multinomial_ok) then
                         out = a%pow(base, a%int(exponent))
                         multinomial_ok = .true.
@@ -1219,13 +1326,13 @@ contains
                     remaining = exponent
                     do while (remaining > 0_int64)
                         if (mod(remaining, 2_int64) == 1_int64) then
-                            acc = distribute(a, acc, factor)
-                            acc = simplify_root_id(a, acc)
+                            acc = distribute(a, acc, factor, limit)
+                            acc = simplify_root_id(a, acc, limit)
                         end if
                         remaining = remaining/2_int64
                         if (remaining > 0_int64) then
-                            factor = distribute(a, factor, factor)
-                            factor = simplify_root_id(a, factor)
+                            factor = distribute(a, factor, factor, limit)
+                            factor = simplify_root_id(a, factor, limit)
                         end if
                     end do
                     out = acc
@@ -1236,7 +1343,7 @@ contains
         case (NK_FUNC)
             allocate (children(a%nargs_of(id)))
             do k = 1, size(children)
-                children(k) = expand_id(a, a%arg_of(id, k), memo, done)
+                children(k) = expand_id(a, a%arg_of(id, k), memo, done, limit)
             end do
             out = a%func(chars(a%name_of(id)), children)
         case default
@@ -1252,11 +1359,12 @@ contains
     !> and recollecting the same monomial at every repeated distribution step.
     !> Coefficient or output-size overflow declines the fast path without
     !> changing the expression.
-    function expand_sum_power(a, base, exponent, success) result(out)
+    function expand_sum_power(a, base, exponent, success, limit) result(out)
         type(arena_t), intent(inout) :: a
         integer,       intent(in)    :: base
         integer(int64), intent(in)   :: exponent
         logical,       intent(out)   :: success
+        type(resource_limit_t), intent(inout), optional :: limit
         integer                      :: out
         integer(int64), allocatable :: composition(:)
         integer, allocatable :: factors(:), terms(:)
@@ -1274,7 +1382,7 @@ contains
         nterms = int(term_count)
         allocate (composition(a%nargs_of(base)), source=0_int64)
         success = .true.
-        call validate_multinomial(exponent, 1, composition, success)
+        call validate_multinomial(exponent, 1, composition, success, limit)
         if (.not. success) return
 
         allocate (factors(a%nargs_of(base) + 1))
@@ -1282,7 +1390,7 @@ contains
         index = 0
         success = .true.
         call enumerate_multinomial(a, base, exponent, 1, composition, terms, &
-            factors, index, success)
+            factors, index, success, limit)
         if (.not. success) return
         if (index /= nterms) then
             success = .false.
@@ -1292,12 +1400,23 @@ contains
     end function expand_sum_power
 
     recursive subroutine validate_multinomial(remaining, position, &
-            composition, success)
+            composition, success, limit)
         integer(int64), intent(in)    :: remaining
         integer,        intent(in)    :: position
         integer(int64), intent(inout) :: composition(:)
         logical,        intent(inout) :: success
+        type(resource_limit_t), intent(inout), optional :: limit
         integer(int64) :: coefficient, power
+        logical :: refused
+        character(:), allocatable :: reason
+
+        if (present(limit)) then
+            call resource_visit(limit, "expand", refused, reason)
+            if (refused) then
+                success = .false.
+                return
+            end if
+        end if
 
         if (.not. success) return
         if (position == size(composition)) then
@@ -1309,20 +1428,31 @@ contains
         do power = 0_int64, remaining
             composition(position) = power
             call validate_multinomial(remaining - power, position + 1, &
-                composition, success)
+                composition, success, limit)
             if (.not. success) return
         end do
     end subroutine validate_multinomial
 
     recursive subroutine enumerate_multinomial(a, base, remaining, position, &
-            composition, terms, factors, index, success)
+            composition, terms, factors, index, success, limit)
         type(arena_t), intent(inout) :: a
         integer,       intent(in)    :: base, position
         integer(int64), intent(in)   :: remaining
         integer(int64), intent(inout) :: composition(:)
         integer,       intent(inout) :: terms(:), factors(:), index
         logical,       intent(inout) :: success
+        type(resource_limit_t), intent(inout), optional :: limit
         integer(int64) :: power
+        logical :: refused
+        character(:), allocatable :: reason
+
+        if (present(limit)) then
+            call resource_visit(limit, "expand", refused, reason)
+            if (refused) then
+                success = .false.
+                return
+            end if
+        end if
 
         if (.not. success) return
         if (position == size(composition)) then
@@ -1340,7 +1470,7 @@ contains
         do power = 0_int64, remaining
             composition(position) = power
             call enumerate_multinomial(a, base, remaining - power, &
-                position + 1, composition, terms, factors, index, success)
+                position + 1, composition, terms, factors, index, success, limit)
             if (.not. success) return
         end do
     end subroutine enumerate_multinomial
@@ -1449,25 +1579,29 @@ contains
         success = .true.
     end subroutine binomial_nonnegative
 
-    function simplify_root_id(a, id) result(out)
+    function simplify_root_id(a, id, limit) result(out)
         type(arena_t), target, intent(inout) :: a
         integer,       intent(in)            :: id
+        type(resource_limit_t), intent(inout), optional :: limit
         integer                              :: out
         integer, allocatable :: memo(:)
         logical, allocatable :: done(:)
 
         allocate (memo(a%size()), source=0)
         allocate (done(a%size()), source=.false.)
-        out = simplify_id(a, id, memo, done)
+        out = simplify_id(a, id, memo, done, limit)
     end function simplify_root_id
 
-    function distribute(a, left, right) result(out)
+    function distribute(a, left, right, limit) result(out)
         type(arena_t), intent(inout) :: a
         integer,       intent(in)    :: left, right
+        type(resource_limit_t), intent(inout), optional :: limit
         integer                      :: out
         integer, allocatable :: terms(:)
         integer :: i, j, nleft, nright, k, lid, rid
         integer :: pair(2)
+        logical :: refused
+        character(:), allocatable :: reason
 
         nleft = 1
         if (a%kind_of(left) == NK_ADD) nleft = a%nargs_of(left)
@@ -1487,6 +1621,13 @@ contains
             lid = left
             if (a%kind_of(left) == NK_ADD) lid = a%arg_of(left, i)
             do j = 1, nright
+                if (present(limit)) then
+                    call resource_visit(limit, "expand", refused, reason)
+                    if (refused) then
+                        out = left
+                        return
+                    end if
+                end if
                 rid = right
                 if (a%kind_of(right) == NK_ADD) rid = a%arg_of(right, j)
                 k = k + 1

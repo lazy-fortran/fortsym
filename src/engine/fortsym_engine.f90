@@ -22,13 +22,24 @@ module fortsym_engine
     implicit none
     private
 
-    public :: engine_t, engine_result_t
+    public :: engine_t, engine_result_t, resource_limit_t, new_resource_limit
     public :: VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, verdict_name
     public :: CAP_ZERO_TEST, CAP_SIMPLIFY, CAP_DIFF, CAP_EXPAND, CAP_FACTOR, &
         CAP_INTEGRATE, CAP_LIMIT, CAP_SOLVE, CAP_CSE, CAP_EVAL, CAP_SERIES
-    public :: has_cap, wall_seconds
+    public :: has_cap, wall_seconds, resource_exceeded, resource_visit, &
+        resource_failure
 
     integer, parameter :: dp = real64
+
+    !> Per-call resource bounds. A zero field means unlimited. `deadline` is
+    !> an absolute value from `wall_seconds`, so nested operations can share a
+    !> caller-owned deadline without global state.
+    type :: resource_limit_t
+        integer(int64) :: max_nodes = 0_int64
+        real(dp)       :: deadline = 0.0_dp
+        integer(int64) :: visited_nodes = 0_int64
+        integer        :: exceeded_kind = 0
+    end type resource_limit_t
 
     !> Three-valued verdict. The distinction between FALSE and UNKNOWN is the
     !> whole point: FALSE is a decision, UNKNOWN is a refusal to guess.
@@ -131,9 +142,10 @@ contains
         r%message = str(chars(self%name)//": zero_test not supported")
     end function engine_zero_test_default
 
-    function engine_simplify_default(self, e) result(r)
+    function engine_simplify_default(self, e, limit) result(r)
         class(engine_t), intent(inout) :: self
         type(expr_t),    intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)          :: r
         r%ok = .false.
         r%value = e
@@ -149,19 +161,21 @@ contains
         r%message = str(chars(self%name)//": diff not supported")
     end function engine_diff_default
 
-    function engine_expand_default(self, e) result(r)
+    function engine_expand_default(self, e, limit) result(r)
         class(engine_t), intent(inout) :: self
         type(expr_t),    intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)          :: r
         r%ok = .false.
         r%value = e
         r%message = str(chars(self%name)//": expand not supported")
     end function engine_expand_default
 
-    function engine_series_default(self, e, v, point, order) result(r)
+    function engine_series_default(self, e, v, point, order, limit) result(r)
         class(engine_t), intent(inout) :: self
         type(expr_t),    intent(in)    :: e, v, point
         integer,         intent(in)    :: order
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)          :: r
         r%ok = .false.
         r%value = e
@@ -170,10 +184,11 @@ contains
         end associate
     end function engine_series_default
 
-    function engine_series_coeff_default(self, e, v, point, order) result(r)
+    function engine_series_coeff_default(self, e, v, point, order, limit) result(r)
         class(engine_t), intent(inout) :: self
         type(expr_t),    intent(in)    :: e, v, point
         integer,         intent(in)    :: order
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)          :: r
         r%ok = .false.
         r%value = e
@@ -182,9 +197,10 @@ contains
         end associate
     end function engine_series_coeff_default
 
-    function engine_solve_default(self, e, v) result(r)
+    function engine_solve_default(self, e, v, limit) result(r)
         class(engine_t), intent(inout) :: self
         type(expr_t),    intent(in)    :: e, v
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)          :: r
         r%ok = .false.
         r%value = e
@@ -192,6 +208,95 @@ contains
         associate (unused_v => v)
         end associate
     end function engine_solve_default
+
+    !> Construct a call-local limit. `seconds` is relative to construction;
+    !> callers composing several operations can instead assign an absolute
+    !> `deadline` to the returned value.
+    function new_resource_limit(max_nodes, seconds) result(limit)
+        integer(int64), intent(in), optional :: max_nodes
+        real(dp),       intent(in), optional :: seconds
+        type(resource_limit_t) :: limit
+
+        if (present(max_nodes)) limit%max_nodes = max_nodes
+        if (present(seconds)) limit%deadline = wall_seconds() + seconds
+    end function new_resource_limit
+
+    !> Check a limit without changing it, leaving callers free to preserve the
+    !> original expression when refusing a request.
+    subroutine resource_exceeded(e, limit, operation, exceeded, reason)
+        type(expr_t),              intent(in) :: e
+        type(resource_limit_t),    intent(in), optional :: limit
+        character(*),              intent(in) :: operation
+        logical,                   intent(out) :: exceeded
+        character(:), allocatable, intent(out) :: reason
+        integer(int64) :: nodes
+
+        exceeded = .false.
+        reason = ""
+        if (.not. present(limit)) return
+        if (.not. associated(e%a)) return
+        if (limit%max_nodes > 0_int64) then
+            nodes = int(e%node_count(), int64)
+            if (nodes > limit%max_nodes) then
+                exceeded = .true.
+                reason = "native: "//operation//" exceeds node budget ("// &
+                    chars(str(limit%max_nodes))//")"
+                return
+            end if
+        end if
+        if (limit%deadline > 0.0_dp) then
+            if (wall_seconds() >= limit%deadline) then
+                exceeded = .true.
+                reason = "native: "//operation//" deadline exceeded"
+            end if
+        end if
+    end subroutine resource_exceeded
+
+    !> Charge one unit of recursive work to a call-local limit.
+    subroutine resource_visit(limit, operation, exceeded, reason)
+        type(resource_limit_t), intent(inout) :: limit
+        character(*),            intent(in) :: operation
+        logical,                 intent(out) :: exceeded
+        character(:), allocatable, intent(out) :: reason
+
+        exceeded = .false.
+        reason = ""
+        if (limit%exceeded_kind /= 0) then
+            exceeded = .true.
+            reason = resource_failure(operation, limit)
+            return
+        end if
+        if (limit%deadline > 0.0_dp) then
+            if (wall_seconds() >= limit%deadline) then
+                limit%exceeded_kind = 2
+                exceeded = .true.
+                reason = resource_failure(operation, limit)
+                return
+            end if
+        end if
+        if (limit%max_nodes > 0_int64) then
+            if (limit%visited_nodes >= limit%max_nodes) then
+                limit%exceeded_kind = 1
+                exceeded = .true.
+                reason = resource_failure(operation, limit)
+                return
+            end if
+        end if
+        limit%visited_nodes = limit%visited_nodes + 1_int64
+    end subroutine resource_visit
+
+    function resource_failure(operation, limit) result(reason)
+        character(*), intent(in) :: operation
+        type(resource_limit_t), intent(in) :: limit
+        character(:), allocatable :: reason
+
+        if (limit%exceeded_kind == 2) then
+            reason = "native: "//operation//" deadline exceeded"
+        else
+            reason = "native: "//operation//" exceeds node budget ("// &
+                chars(str(limit%max_nodes))//")"
+        end if
+    end function resource_failure
 
     subroutine engine_shutdown_default(self)
         class(engine_t), intent(inout) :: self

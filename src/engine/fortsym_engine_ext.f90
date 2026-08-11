@@ -23,7 +23,8 @@ module fortsym_engine_ext
     use fortsym_print, only: print_expr_in
     use fortsym_parse, only: parse_expr_in
     use fortsym_proc, only: proc_available, proc_run, MARK_BEGIN, MARK_END
-    use fortsym_engine, only: engine_t, engine_result_t, wall_seconds, &
+    use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
+        wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, &
         CAP_ZERO_TEST, CAP_SIMPLIFY
     implicit none
@@ -88,9 +89,10 @@ contains
         s = b%chars()
     end function maxima_script
 
-    function mx_simplify(self, e) result(r)
+    function mx_simplify(self, e, limit) result(r)
         class(maxima_engine_t), intent(inout) :: self
         type(expr_t),           intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                 :: r
         type(str_t), allocatable :: lines(:)
         character(:), allocatable :: text, message
@@ -188,9 +190,10 @@ contains
         s = b%chars()
     end function sympy_script
 
-    function sp_simplify(self, e) result(r)
+    function sp_simplify(self, e, limit) result(r)
         class(sympy_engine_t), intent(inout) :: self
         type(expr_t),          intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                :: r
         type(str_t), allocatable :: lines(:)
         character(:), allocatable :: text, message

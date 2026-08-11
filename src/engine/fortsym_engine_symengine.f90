@@ -27,7 +27,8 @@ module fortsym_engine_symengine
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect, DIA_SYMENGINE
     use fortsym_parse, only: parse_expr_in
-    use fortsym_engine, only: engine_t, engine_result_t, wall_seconds, &
+    use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
+        wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, &
         CAP_ZERO_TEST, CAP_SIMPLIFY, CAP_DIFF, CAP_EXPAND, CAP_EVAL
     use fortsym_capi
@@ -418,9 +419,10 @@ contains
         r%value = e
     end function se_zero_test
 
-    function se_simplify(self, e) result(r)
+    function se_simplify(self, e, limit) result(r)
         class(symengine_engine_t), intent(inout) :: self
         type(expr_t),              intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                    :: r
         type(c_ptr) :: h, out
         real(dp) :: t0
@@ -478,9 +480,10 @@ contains
         r%seconds = wall_seconds() - t0
     end function se_diff
 
-    function se_expand(self, e) result(r)
+    function se_expand(self, e, limit) result(r)
         class(symengine_engine_t), intent(inout) :: self
         type(expr_t),              intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                    :: r
         type(c_ptr) :: h, out
         real(dp) :: t0

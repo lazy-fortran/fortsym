@@ -30,7 +30,8 @@ module fortsym_wl
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
     use fortsym_eval, only: collect_free_symbols
-    use fortsym_engine, only: engine_result_t, wall_seconds, VERDICT_TRUE
+    use fortsym_engine, only: engine_result_t, resource_limit_t, &
+        new_resource_limit, wall_seconds, VERDICT_TRUE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_matrix, only: matrix_transpose, matrix_dot, matrix_det, &
         matrix_inverse, matrix_row_reduce, matrix_null_space, matrix_rank, &
@@ -91,6 +92,10 @@ module fortsym_wl
     integer, parameter :: MAX_POSITION_RESULTS = 10000
     integer, parameter :: MAX_POSITION_DEPTH = 64
     integer, parameter :: MAX_UNION_ITEMS = 10000
+    !> Generous per-operation native bound. A call may override it through the
+    !> engine API; the Wolfram frontend uses it to turn runaway work into a
+    !> named refusal while retaining earlier bindings.
+    integer(int64), parameter :: MAX_ENGINE_NODES = 1000000_int64
     integer, parameter :: dp = real64
 
     !> One top-level assignment produced by a script.
@@ -148,6 +153,7 @@ module fortsym_wl
         !> killed by a harness timeout that records nothing.
         real(dp)               :: budget_seconds = 20.0_dp
         real(dp)               :: started = 0.0_dp
+        type(resource_limit_t) :: engine_limit
         !> Plots written so far, used to name the output files. A script
         !> plotting twenty curves must not overwrite one file nineteen times.
         integer                :: plot_count = 0
@@ -164,6 +170,7 @@ contains
         s%nfunctions = 0
         s%functions(:)%defined = .false.
         s%n_plots = 0
+        s%engine_limit = new_resource_limit(MAX_ENGINE_NODES)
         s%started = wall_seconds()
     end subroutine wl_session_begin
 
@@ -401,6 +408,7 @@ contains
 
         call wl_split_statements(source, starts, ends, n)
         s%started = wall_seconds()
+        s%engine_limit%deadline = s%started + s%budget_seconds
         do k = 1, n
             if (wall_seconds() - s%started > s%budget_seconds) then
                 if (s%n < MAX_BINDINGS) then
@@ -817,7 +825,7 @@ contains
         type(expr_t)                      :: r
         type(engine_result_t) :: res
 
-        res = s%engine%simplify(e)
+        res = s%engine%simplify(e, s%engine_limit)
         if (res%ok) then
             r = res%value
         else
@@ -1144,7 +1152,7 @@ contains
             if (.not. ok) return
 
         case ("Simplify", "FullSimplify")
-            res = s%engine%simplify(r%arg(1))
+            res = s%engine%simplify(r%arg(1), s%engine_limit)
             if (.not. res%ok) then
                 call refuse(ok, message, "Simplify: "//chars(res%message))
                 return
@@ -1157,7 +1165,7 @@ contains
             if (is_pythagorean_identity(r)) r = num(s%a, 1)
 
         case ("Expand", "ExpandAll")
-            res = s%engine%expand(r%arg(1))
+            res = s%engine%expand(r%arg(1), s%engine_limit)
             if (.not. res%ok) then
                 call refuse(ok, message, "Expand: "//chars(res%message))
                 return
@@ -1174,7 +1182,7 @@ contains
             ! unchanged. Measured against Mathics rather than assumed: an
             ! off-by-one here silently lengthens or truncates every series in
             ! the corpus by one term, and both look plausible.
-            res = s%engine%series(r%arg(1), var, point, order)
+            res = s%engine%series(r%arg(1), var, point, order, s%engine_limit)
             if (.not. res%ok) then
                 call refuse(ok, message, "Series: "//chars(res%message))
                 return
@@ -1187,7 +1195,7 @@ contains
             r = r%arg(1)
 
         case ("Solve")
-            inner = wl_solve(s%a, s%engine, r, arg_ok, why)
+            inner = wl_solve(s%a, s%engine, r, arg_ok, why, s%engine_limit)
             if (.not. arg_ok) then
                 call refuse(ok, message, "Solve: "//why)
                 return

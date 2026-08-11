@@ -169,6 +169,14 @@ External engines remain optional. A native operation must not silently invoke
 an external engine. Benchmarks record native operation time, conversion time,
 and total dispatch time separately.
 
+Expensive native operations accept an optional `resource_limit_t` containing a
+per-call node budget and an absolute monotonic deadline. Recursive simplifier
+and expansion work charges the same call-local record, so a refusal does not
+partially publish an expression or leak a limit into another engine/session.
+`new_resource_limit` supplies the ordinary relative-seconds constructor; a
+zero field means unlimited. The result diagnostic names the operation and the
+limit that stopped it.
+
 Native simplification reports a nonzero-denominator condition whenever a
 rewrite changes an expression containing a symbolic negative integer power.
 This conservative guard covers cancellation such as `x*x**(-1) -> 1`; the
