@@ -203,6 +203,7 @@ Canonical parity handling now rewrites negative arguments for the ordinary and
 reciprocal circular/hyperbolic odd and even heads, with inverse odd functions
 included where their principal branches preserve the identity.
 The same parity path handles `abs(-u)` without changing its branch semantics.
+Absolute value is also now idempotently canonicalized for nested `abs` heads.
 The native simplifier now also evaluates the exact principal inverse-function
 constants `asin(±1)`, `acos(0, ±1)`, and `atan(±1)`, plus `acosh(1)` and
 `atanh(0)`; symbolic and out-of-fragment inverse functions remain untouched.
