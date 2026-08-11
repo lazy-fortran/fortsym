@@ -295,8 +295,12 @@ Every checklist item requires all of the following:
     independent IEEE checks keep `+0.0` and `-0.0` distinct; SymPy 1.14.0
     canonicalizes its own `Float(-0.0)` to `0.0`, which is recorded as an
     adapter semantic extension rather than silently treated as parity.
-  - [ ] Add operation-specific arithmetic and directed-domain rules for `oo`,
-    `zoo`, and `nan`.
+  - [x] Add SymPy-matched `nan` propagation for native `Add`, `Mul`, supported
+    numeric unary heads, and `Pow` edge cases: `nan**0` is `1`, while a NaN
+    base or exponent in every other supported power is `nan`. Unknown heads
+    remain opaque instead of receiving guessed domain semantics.
+  - [ ] Add operation-specific arithmetic and directed-domain rules for `oo`
+    and `zoo`.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
 - [ ] Preserve exactness through every constructor, operator, and adapter.
 

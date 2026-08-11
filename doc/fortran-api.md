@@ -83,6 +83,13 @@ complex_infinity = zoo_expr(default_arena())
 undefined = nan_expr(default_arena())
 ```
 
+Native simplification propagates `nan` through addition, multiplication, the
+supported numeric unary heads, and powers. The defined power exception is
+`nan**0 = 1`; a NaN base or exponent in every other supported power produces
+`nan`. Unknown function heads remain structural and are not assigned guessed
+domain rules. Directed arithmetic for `oo` and `zoo` is a separate roadmap
+step.
+
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a
 separate domain from ordinary `num`, `rat`, and `exact` leaves. Construct a
