@@ -172,8 +172,8 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         concept(
             "numeric-inspection",
             "Evaluate or inspect numeric values.",
-            ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_complex_text",
-             "numeric_complex_text_t", "numeric_callable_t"],
+            ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_real_text_t",
+             "numeric_complex_text", "numeric_complex_text_t", "numeric_callable_t"],
             [], [], [],
             "These are fortsym-specific inspection and callback concepts, not SymPy root aliases.",
             "Keep them in a numeric module with one naming family.",

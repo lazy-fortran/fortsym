@@ -15,7 +15,7 @@ module fortsym
     use fortsym_subs, only: subs_impl => subs
     use fortsym_numeric, only: numeric_value, numeric_text, &
         numeric_precision_text, numeric_complex_text, &
-        numeric_complex_text_t, numeric_callable_t
+        numeric_real_text_t, numeric_complex_text_t, numeric_callable_t
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE, verdict_name
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -37,7 +37,8 @@ module fortsym
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE, verdict_name
     public :: numeric_value, numeric_text, numeric_precision_text, &
-        numeric_complex_text, numeric_complex_text_t, numeric_callable_t
+        numeric_real_text_t, numeric_complex_text, numeric_complex_text_t, &
+        numeric_callable_t
     public :: BACKEND_PROTOCOL_VERSION, EXPRESSION_SCHEMA, BACKEND_PROVED, &
         BACKEND_DISPROVED, BACKEND_UNKNOWN, backend_evidence_t, &
         backend_result_t, backend_status_name, serialize_expression, &

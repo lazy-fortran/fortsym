@@ -113,12 +113,12 @@ decision = "Keep representation tags in the low-level owner. They are not part o
 [[family]]
 id = "numeric-inspection"
 audit_concepts = ["numeric-inspection"]
-canonical_native = ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_complex_text", "numeric_complex_text_t", "numeric_callable_t"]
-current_native = ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_complex_text", "numeric_complex_text_t", "numeric_callable_t"]
+canonical_native = ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_real_text_t", "numeric_complex_text", "numeric_complex_text_t", "numeric_callable_t"]
+current_native = ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_real_text_t", "numeric_complex_text", "numeric_complex_text_t", "numeric_callable_t"]
 transition_aliases = []
 python_facade = []
 sympy_adapter = []
-decision = "Keep one numeric_ family owned by the numeric verification module. Do not invent SymPy aliases for callback and text-boundary details."
+decision = "Keep one numeric_ family owned by the numeric verification module. Use one numeric_precision_text generic with character and typed decimal-result overloads. Do not invent SymPy aliases for callback and text-boundary details."
 
 [[family]]
 id = "backend-evidence"

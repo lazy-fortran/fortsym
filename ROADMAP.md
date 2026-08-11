@@ -217,7 +217,10 @@ Every checklist item requires all of the following:
   - [x] Retain bounded finite decimal literals as precision-bearing `NK_BIG_REAL`
     nodes without conversion through `real64`, and reject malformed or
     non-finite text at the arena boundary.
-  - [ ] Add explicit precision and accuracy metadata to real operations.
+  - [x] Expose requested decimal precision in typed real and complex text
+    results through `numeric_real_text_t` and `numeric_complex_text_t`, while
+    keeping `numeric_precision_text` as the one generic native name.
+  - [ ] Add independently verified accuracy bounds to real operations.
   - [ ] Integrate exact complex and algebraic values into arena expressions and
     native operations.
 - [ ] Integrate algebraic values into arena expressions, printers, conversion,

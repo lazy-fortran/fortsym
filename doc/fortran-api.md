@@ -72,6 +72,18 @@ exact complex or algebraic values remain separate roadmap items.
 The arena validates its decimal syntax and preserves the original digits rather
 than converting the value through `real64`.
 
+Requested-precision numeric evaluation uses one generic with two result forms.
+Pass a character variable for the decimal text, or pass `numeric_real_text_t`
+to retain the requested precision with the value:
+
+```fortran
+type(numeric_real_text_t) :: numeric
+call numeric_precision_text(pi_expr(default_arena()), 40, numeric, good, why)
+```
+
+`numeric%digits` records the requested decimal precision. An independently
+verified error bound remains a separate roadmap item.
+
 ## Explicit arenas
 
 An explicit arena remains the first-class API for independent problems and

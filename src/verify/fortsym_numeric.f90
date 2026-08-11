@@ -31,7 +31,7 @@ module fortsym_numeric
     private
 
     public :: numeric_value, numeric_text, numeric_precision_text
-    public :: numeric_complex_text, numeric_complex_text_t
+    public :: numeric_real_text_t, numeric_complex_text, numeric_complex_text_t
     public :: numeric_callable_t
 
     integer, parameter :: dp = real64
@@ -40,6 +40,14 @@ module fortsym_numeric
     ! so a search that reaches this without a round trip indicates a broken
     ! formatter rather than a hard number.
     integer, parameter :: MAX_SIGNIFICANT = 17
+
+    !> A requested-precision real result. The text remains decimal so the
+    !> caller cannot mistake it for a real64 projection. `digits` records the
+    !> requested decimal precision used by the evaluator.
+    type :: numeric_real_text_t
+        character(:), allocatable :: text
+        integer :: digits = 0
+    end type numeric_real_text_t
 
     !> Precision-bearing rectangular result. The components are decimal text
     !> rather than real64 so a caller cannot mistake a rounded projection for
@@ -64,6 +72,11 @@ module fortsym_numeric
         procedure :: evaluate => numeric_callable_evaluate
         procedure :: evaluate_text => numeric_callable_evaluate_text
     end type numeric_callable_t
+
+    interface numeric_precision_text
+        module procedure numeric_precision_text_chars
+        module procedure numeric_precision_text_value
+    end interface numeric_precision_text
 
 contains
 
@@ -117,7 +130,7 @@ contains
     !> Evaluate a closed real expression to a decimal at requested precision.
     !> The MPFR-backed SymEngine path is kept separate from numeric_value so a
     !> high-precision result is never rounded into real64 on the way out.
-    subroutine numeric_precision_text(e, digits, text, ok, why)
+    subroutine numeric_precision_text_chars(e, digits, text, ok, why)
         type(expr_t),              intent(in)  :: e
         integer,                   intent(in)  :: digits
         character(:), allocatable, intent(out) :: text
@@ -144,7 +157,23 @@ contains
             return
         end if
         text = symengine_evalf_text(e, digits, ok, why)
-    end subroutine numeric_precision_text
+    end subroutine numeric_precision_text_chars
+
+    subroutine numeric_precision_text_value(e, digits, result, ok, why)
+        type(expr_t),                intent(in)  :: e
+        integer,                     intent(in)  :: digits
+        type(numeric_real_text_t),   intent(out) :: result
+        logical,                     intent(out) :: ok
+        character(:), allocatable,   intent(out) :: why
+        character(:), allocatable :: text
+
+        result%text = ""
+        result%digits = 0
+        call numeric_precision_text_chars(e, digits, text, ok, why)
+        if (.not. ok) return
+        result%text = text
+        result%digits = digits
+    end subroutine numeric_precision_text_value
 
     !> Evaluate a supported closed complex expression as independent
     !> high-precision real and imaginary decimal components. The rectangular
