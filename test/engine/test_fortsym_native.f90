@@ -679,6 +679,24 @@ contains
         r = engine%zero_test(exp(x)*exp(-x) - 1)
         call check("opposite exponential factors cancel", &
             r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(unary_function("csc", x)*sin(x) - 1)
+        call check("csc(x)*sin(x)-1 is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(unary_function("sec", x)*cos(x) - 1)
+        call check("sec(x)*cos(x)-1 is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(unary_function("cot", x)*sin(x) - cos(x))
+        call check("cot(x)*sin(x)-cos(x) is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(unary_function("csch", x)*sinh(x) - 1)
+        call check("csch(x)*sinh(x)-1 is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(unary_function("sech", x)*cosh(x) - 1)
+        call check("sech(x)*cosh(x)-1 is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(unary_function("coth", x)*sinh(x) - cosh(x))
+        call check("coth(x)*sinh(x)-cosh(x) is decided zero", &
+            r%verdict == VERDICT_TRUE)
         r = engine%zero_test(exp(x) - exp(2*x))
         call check("distinct formal exponentials are nonzero", &
             r%verdict == VERDICT_FALSE)
@@ -809,6 +827,17 @@ contains
         call check("nonzero rational residual is rejected", &
             r%verdict == VERDICT_FALSE)
     end subroutine test_verdicts
+
+    function unary_function(name, argument) result(e)
+        character(*), intent(in) :: name
+        type(expr_t), intent(in) :: argument
+        type(expr_t), allocatable :: arguments(:)
+        type(expr_t) :: e
+
+        allocate (arguments(1))
+        arguments(1) = argument
+        e = func(name, arguments)
+    end function unary_function
 
     subroutine test_overflow_preservation()
         type(engine_result_t) :: r

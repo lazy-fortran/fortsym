@@ -175,7 +175,11 @@ linear solving still attaches its nonzero-coefficient condition for symbolic
 coefficients under this stronger verdict. Branch-sensitive fractional powers
 remain `UNKNOWN` without domain assumptions, and integration now requires a
 numerically provable nonzero substitution slope before using its verified
-linear-argument rules.
+linear-argument rules. Reciprocal circular and hyperbolic heads (`csc`, `sec`,
+`cot`, `csch`, `sech`, and `coth`) now lower through their sound quotient
+identities before the exponential normal form; the native oracle covers all
+six cancellations. Their pole conditions remain implicit in the identity,
+so this slice does not claim a domain-free simplification at the poles.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.
