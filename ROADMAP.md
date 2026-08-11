@@ -266,6 +266,8 @@ Every checklist item requires all of the following:
       - [x] Add rectangular `tanh` splitting with SymPy's equivalent
         denominator form, an explicit identically-zero-denominator refusal,
         independent complex evaluation, and matched cold/warm benchmark rows.
+      - [x] Extend structural conjugation to `sinh`, `cosh`, and `tanh`; the
+        independent complex evaluator checks all three against `conjg`.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.

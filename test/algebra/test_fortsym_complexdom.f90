@@ -126,6 +126,9 @@ contains
             e = z**num(arena, 2) - num(arena, 3)*z &
                 + rat(arena, 1_int64, 3_int64)
         case (9); e = func_one("cos", z**num(arena, 2))*z
+        case (10); e = func_one("sinh", z)
+        case (11); e = func_one("cosh", z)
+        case (12); e = func_one("tanh", z)
         case default
             ! nprobe() and this list are separate constants; an index outside
             ! the list must stop the run rather than hand back an expr_t that
@@ -135,7 +138,7 @@ contains
     end function probe
 
     integer function nprobe()
-        nprobe = 9
+        nprobe = 12
     end function nprobe
 
     !> Re[e] + i Im[e] must be e, numerically, at every sample point.

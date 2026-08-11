@@ -44,7 +44,7 @@ module fortsym_complexdom
         NK_BIG_REAL, NK_ALGEBRAIC
     use fortsym_cache, only: expr_pair_cache_t
     use fortsym_expr, only: expr_t, num, algebraic_expr, i_expr, is_valid, &
-        sin, cos, sinh, cosh, exp, sqrt, atan2, &
+        sin, cos, sinh, cosh, tanh, exp, sqrt, atan2, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_algebraic, only: algebraic_re, algebraic_im, algebraic_conjugate
     use fortsym_assume, only: assumption_context_t, FACT_REAL
@@ -462,8 +462,9 @@ contains
     !> The complex conjugate, computed structurally rather than as re - i*im.
     !>
     !> Two routes to the same quantity is deliberate: conjugation distributes
-    !> over sums, products and integer powers and commutes with the entire
-    !> functions, so the recursion below never needs the parts. That makes it an
+    !> over sums, products and integer powers and commutes with the supported
+    !> elementary functions wherever they are defined, so the recursion below
+    !> never needs the parts. That makes it an
     !> independent check on the splitter rather than a restatement of it, and it
     !> keeps the result small -- conj(z**5) stays a fifth power.
     !>
@@ -558,10 +559,10 @@ contains
                 return
             end if
             select case (name)
-            case ("exp", "sin", "cos")
+            case ("exp", "sin", "cos", "sinh", "cosh", "tanh")
             case default
                 why = "no conjugation rule for head "//name// &
-                    " (only exp, sin and cos commute here)"
+                    " (only exp, sin, cos, sinh, cosh, and tanh commute here)"
                 return
             end select
             call conjugate(e%arg(1), facts, part, ok, why)
@@ -573,6 +574,12 @@ contains
                 out = sin(part)
             case ("cos")
                 out = cos(part)
+            case ("sinh")
+                out = sinh(part)
+            case ("cosh")
+                out = cosh(part)
+            case ("tanh")
+                out = tanh(part)
             end select
             ok = .true.
         case default
