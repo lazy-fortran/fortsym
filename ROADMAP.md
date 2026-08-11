@@ -583,6 +583,15 @@ Every checklist item requires all of the following:
     do not discard their cache state.
   - [x] Reuse a Python facade's expanded result while its assumption epoch is
     unchanged, and invalidate that result when assumptions change.
+  - [x] Close the repeated `differentiate:warm_core` gap by caching one
+    simplified derivative per immutable `(expression, variable)` pair in the
+    expression owner. The cache preserves the raw low-level `Expr.diff` and
+    C-ABI contract; the SymPy adapter now matches SymPy's repeated-derivative
+    reuse and is faster in both matched cold and warm scopes.
+  - [x] Run the enforced 50-workload cold/warm parity matrix with a fresh
+    native C-ABI arena per workload; every declared workload, including
+    differentiation and rational/integer assumptions, is at or below the
+    SymPy 1.14.0 median in the recorded run.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

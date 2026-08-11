@@ -695,6 +695,7 @@ def benchmark_workload(
     repetitions: int,
     batch: int,
 ) -> dict[str, Any]:
+    reset_native_default_arena()
     if scope == "warm_core":
         expressions, _ = workload_factories(operation, "warm")
         oracle_expression, native_expression, _ = expressions[operation]

@@ -70,6 +70,9 @@ corresponding `nan` projections; `conjugate(zoo)` remains an applied head.
 `Abs` uses the same owner for exact, algebraic, and assumption-resolved complex
 expressions, while unknown reality keeps SymPy's unevaluated `abs(...)`
 fallback.
+Repeated `diff` calls through the SymPy adapter likewise reuse the simplified
+derivative of an immutable expression and variable; the raw low-level
+`Expr.diff` and C-ABI derivative remain available separately.
 
 The compatibility layer guarantees native structural equality only for
 operations listed as construction or transformation above. Unsupported
