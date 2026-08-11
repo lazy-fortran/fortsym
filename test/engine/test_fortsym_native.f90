@@ -10,7 +10,9 @@ program test_fortsym_native
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_ADD
     use fortsym_expr
-    use fortsym_assume, only: assumption_context_t, assume, positive
+    use fortsym_assume, only: assumption_context_t, assume, positive, &
+        record_relation, clone_assumption_context, FACT_POSITIVE, FACT_REAL, &
+        FACT_INTEGER
     use fortsym_eval, only: binding_t, eval_expr
     use fortsym_print, only: print_expr
     use fortsym_engine, only: engine_result_t, resource_limit_t, &
@@ -41,6 +43,7 @@ program test_fortsym_native
     call test_series()
     call test_linear_solve()
     call test_assumptions()
+    call test_assumption_relations()
     call test_domain_conditions()
     call test_verdicts()
     call test_overflow_preservation()
@@ -496,6 +499,42 @@ contains
             print *, "  compound residual: ", chars(print_expr(r%value))
         end if
     end subroutine test_assumptions
+
+    subroutine test_assumption_relations()
+        type(assumption_context_t) :: parent, child
+        type(expr_t) :: y, relation, args(2)
+        logical :: ok
+        character(:), allocatable :: why
+
+        y = sym(arena, "y")
+        args(1) = x
+        args(2) = num(arena, 1)
+        relation = func("Greater", args)
+        call parent%init(arena)
+        call record_relation(parent, relation, ok, why)
+        call check("x > 1 relation is recorded", ok)
+        call check("x > 1 implies positivity", &
+            parent%has(x, FACT_POSITIVE))
+        call check("x > 1 implies reality", parent%has(x, FACT_REAL))
+
+        call clone_assumption_context(child, parent)
+        args(1) = y
+        args(2) = num(arena, 0)
+        relation = func("Greater", args)
+        call record_relation(child, relation, ok, why)
+        call check("scoped relation is recorded", ok)
+        call check("scoped relation implies y positive", &
+            child%has(y, FACT_POSITIVE))
+        call check("scoped relation does not leak to parent", &
+            .not. parent%has(y, FACT_POSITIVE))
+
+        args(1) = y
+        args(2) = sym(arena, "Integers")
+        relation = func("Element", args)
+        call record_relation(child, relation, ok, why)
+        call check("integer domain is recorded", ok .and. &
+            child%has(y, FACT_INTEGER) .and. child%has(y, FACT_REAL))
+    end subroutine test_assumption_relations
 
     subroutine test_domain_conditions()
         type(engine_result_t) :: r
