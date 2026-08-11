@@ -42,9 +42,10 @@ For `atan2(y, x)`, the adapter evaluates the representable directed-infinity
 quadrants for `y` and `x` both equal to `+oo` or `-oo`; complex infinity and
 other ambiguous domain cases remain applied heads.
 For the Bessel heads, `besselj(order, +/-oo)` is zero and
-`besseli(order, oo)` is positive infinity; negative-real `besseli` and complex
-infinity remain applied heads because their result depends on unresolved order
-or direction. NaN in an order-bearing head remains applied unless an existing
+`besseli(order, oo)` is positive infinity. For symbolic order,
+`besseli(order, -oo)` is `oo*(-1)**order`; integer orders reduce to signed
+infinity, while unsupported exact non-integer and complex-infinity cases remain
+applied heads. NaN in an order-bearing head remains applied unless an existing
 directed-domain rule proves a result; `besseli(nan, -oo)` is the representable
 `nan` boundary.
 `legendre(degree, argument)` is the SymPy spelling for the native

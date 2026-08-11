@@ -1143,8 +1143,12 @@ contains
         call check("besseli(order,oo) is oo", r%value == infinity)
         args(2) = negative_infinity
         r = engine%simplify(func("besseli", args))
-        call check("besseli(order,-oo) remains an applied head", &
-            r%value%kind() == NK_FUNC)
+        call check("besseli(order,-oo) has the symbolic phase", &
+            r%value == (num(arena, -1_int64)**order)*infinity)
+        args(1) = num(arena, 1_int64)
+        r = engine%simplify(func("besseli", args))
+        call check("besseli(1,-oo) is negative oo", &
+            r%value == negative_infinity)
         args(1) = undefined
         r = engine%simplify(func("besseli", args))
         call check("besseli(nan,-oo) is nan", r%value == undefined)

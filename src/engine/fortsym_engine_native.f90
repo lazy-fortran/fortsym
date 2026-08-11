@@ -4657,6 +4657,20 @@ contains
                 else if (is_nan_id(a, args(1))) then
                     applied = .true.
                     out = nan_node(a)
+                else
+                    call exact_value(a, args(1), order, denominator, exact_order)
+                    if (exact_order .and. denominator == 1_int64) then
+                        applied = .true.
+                        if (modulo(order, 2_int64) == 0_int64) then
+                            out = a%const("oo")
+                        else
+                            out = signed_oo_node(a, -1)
+                        end if
+                    else if (.not. exact_order) then
+                        applied = .true.
+                        out = mul_pair(a, a%pow(a%int(-1_int64), args(1)), &
+                            a%const("oo"))
+                    end if
                 end if
             end select
             return

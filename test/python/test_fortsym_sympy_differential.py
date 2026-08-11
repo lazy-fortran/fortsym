@@ -527,6 +527,10 @@ class SympyDifferentialTest(unittest.TestCase):
              native.besselj(native_order, -native.oo)),
             (oracle.besseli(oracle_order, oracle.oo),
              native.besseli(native_order, native.oo)),
+            (oracle.besseli(oracle_order, -oracle.oo),
+             native.besseli(native_order, -native.oo)),
+            (oracle.besseli(1, -oracle.oo),
+             native.besseli(1, -native.oo)),
         ]
         for expected, actual in cases:
             with self.subTest(expected=str(expected)):
@@ -536,7 +540,6 @@ class SympyDifferentialTest(unittest.TestCase):
                 self.assertEqual(actual_parsed, expected)
 
         for actual in (
-            native.besseli(native_order, -native.oo),
             native.besselj(native_order, native.zoo),
             native.besseli(native_order, native.zoo),
         ):
