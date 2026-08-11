@@ -20,7 +20,15 @@ from typing import Any, Callable
 
 import sympy as oracle
 
+import fortsym as native_core
 import fortsym.sympy as native
+
+
+def reset_native_default_arena() -> None:
+    """Keep correctness construction from seeding later workload contexts."""
+    if native_core._default_arena is not None:
+        native_core._default_arena.close()
+    native_core._default_arena = None
 
 
 def result_text(value: Any) -> str:
@@ -94,19 +102,21 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
     oracle_y = oracle.Symbol(name_y)
     native_x = native.Symbol(name_x)
     native_y = native.Symbol(name_y)
-    composition_name = f"{label}_composition_{suffix}"
-    oracle_composition = oracle.Symbol(composition_name, real=True)
-    native_composition = native.Symbol(composition_name, real=True)
     sqrt_power_name = f"{label}_sqrt_power_{suffix}"
     oracle_sqrt_power = oracle.Symbol(sqrt_power_name)
     native_sqrt_power = native.Symbol(sqrt_power_name)
+    has_composition = label in ("check", "composition")
     names = {
         name_x: oracle_x,
         name_y: oracle_y,
-        composition_name: oracle_composition,
         sqrt_power_name: oracle_sqrt_power,
         "abs": oracle.Abs,
     }
+    if has_composition:
+        composition_name = f"{label}_composition_{suffix}"
+        oracle_composition = oracle.Symbol(composition_name, real=True)
+        native_composition = native.Symbol(composition_name, real=True)
+        names[composition_name] = oracle_composition
 
     expressions = {
         "expand": (
@@ -127,14 +137,6 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
         "refine": (
             oracle.sqrt(oracle_x**2),
             native.sqrt(native_x**2),
-            names,
-        ),
-        "composition": (
-            oracle.log(
-                oracle.exp(oracle_composition, evaluate=False),
-                evaluate=False,
-            ),
-            native.log(native.exp(native_composition)),
             names,
         ),
         "sqrt_power": (
@@ -167,6 +169,15 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             names,
         ),
     }
+    if has_composition:
+        expressions["composition"] = (
+            oracle.log(
+                oracle.exp(oracle_composition, evaluate=False),
+                evaluate=False,
+            ),
+            native.log(native.exp(native_composition)),
+            names,
+        )
     return expressions, names
 
 
@@ -398,6 +409,7 @@ def main() -> None:
     correctness = correctness_cases()
     if not all(case["correct"] for case in correctness):
         raise SystemExit(json.dumps({"correctness": correctness}, indent=2))
+    reset_native_default_arena()
 
     workloads = []
     for operation in (

@@ -44,6 +44,7 @@ module fortsym_public_capi
         type(arena_t) :: value
         type(assumption_context_t), pointer :: assumptions => null()
         type(assumption_frame_t), pointer :: assumption_stack => null()
+        type(native_engine_t) :: engine
         integer       :: references = 1
     end type arena_owner_t
 
@@ -95,6 +96,7 @@ contains
         call a%value%init()
         allocate (a%assumptions)
         call init_assumption_context(a%assumptions, a%value)
+        a%engine = make_native_engine(a%value)
         call c_store_pointer(out, c_loc(a))
         status = FORTSYM_OK
     end function fortsym_arena_new
@@ -667,7 +669,6 @@ contains
         type(arena_owner_t), pointer :: a, ep_arena
         type(expr_owner_t), pointer :: ep
         type(expr_t) :: expression
-        type(native_engine_t) :: engine
         type(engine_result_t) :: result
 
         call begin_output(out, message, capacity)
@@ -680,8 +681,8 @@ contains
             call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
             return
         end if
-        engine = make_native_engine(a%value, a%assumptions)
-        result = engine%expand(expression)
+        call prepare_native_engine(a)
+        result = a%engine%expand(expression)
         if (.not. result%ok) then
             call fail(status, message, capacity, FORTSYM_UNSUPPORTED)
             return
@@ -698,7 +699,6 @@ contains
         type(arena_owner_t), pointer :: a, ep_arena
         type(expr_owner_t), pointer :: ep
         type(expr_t) :: expression
-        type(native_engine_t) :: engine
         type(engine_result_t) :: result
 
         call begin_output(out, message, capacity)
@@ -711,8 +711,8 @@ contains
             call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
             return
         end if
-        engine = make_native_engine(a%value, a%assumptions)
-        result = engine%simplify(expression)
+        call prepare_native_engine(a)
+        result = a%engine%simplify(expression)
         if (.not. result%ok) then
             call fail(status, message, capacity, FORTSYM_UNSUPPORTED)
             return
@@ -729,7 +729,6 @@ contains
         type(arena_owner_t), pointer :: a, ep_arena
         type(expr_owner_t), pointer :: ep
         type(expr_t) :: expression
-        type(native_engine_t) :: engine
         type(engine_result_t) :: result
 
         call begin_output(out, message, capacity)
@@ -742,8 +741,8 @@ contains
             call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
             return
         end if
-        engine = make_native_engine(a%value, a%assumptions)
-        result = engine%factor(expression)
+        call prepare_native_engine(a)
+        result = a%engine%factor(expression)
         if (.not. result%ok .or. result%conditional) then
             call fail(status, message, capacity, FORTSYM_UNSUPPORTED)
             return
@@ -761,7 +760,6 @@ contains
         type(arena_owner_t), pointer :: a, ep_arena
         type(expr_owner_t), pointer :: ep
         type(expr_t) :: expression
-        type(native_engine_t) :: engine
         type(engine_result_t) :: result
 
         verdict = int(VERDICT_UNKNOWN, c_int)
@@ -775,8 +773,8 @@ contains
             call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
             return
         end if
-        engine = make_native_engine(a%value, a%assumptions)
-        result = engine%zero_test(expression)
+        call prepare_native_engine(a)
+        result = a%engine%zero_test(expression)
         if (.not. result%ok) then
             call fail(status, message, capacity, FORTSYM_UNSUPPORTED)
             return
@@ -1099,6 +1097,18 @@ contains
         call c_store_pointer(out, c_loc(p))
         status = FORTSYM_OK
     end subroutine make_handle
+
+    subroutine prepare_native_engine(a)
+        type(arena_owner_t), pointer :: a
+
+        a%engine%home => a%value
+        nullify (a%engine%assumptions)
+        if (associated(a%assumptions)) then
+            if (a%assumptions%n > 0) then
+                a%engine%assumptions => a%assumptions
+            end if
+        end if
+    end subroutine prepare_native_engine
 
     subroutine release_arena(a)
         type(arena_owner_t), pointer :: a
