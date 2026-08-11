@@ -113,10 +113,11 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         concept(
             "constants",
             "Create standard named constants.",
-            ["pi_expr", "e_expr", "i_expr"], [], ["pi", "E", "I", "oo"],
-            ["pi", "E", "I", "oo"],
-            "Native names describe expression constructors. Python compatibility names follow SymPy's capitalization and infinity spelling.",
-            "Keep the adapter spelling and decide whether the native names should remain descriptive or shorten as a consistent family.",
+            ["pi_expr", "e_expr", "i_expr", "oo_expr", "zoo_expr", "nan_expr"], [],
+            ["pi", "E", "I", "oo", "zoo", "nan"],
+            ["pi", "E", "I", "oo", "zoo", "nan"],
+            "Native names describe expression constructors, including the explicit sentinel suffixes. Python compatibility names follow SymPy's capitalization and infinity spelling.",
+            "Keep one native constructor family and the SymPy spelling at the adapter boundary; retain suffixes where they distinguish expression sentinels from other native names.",
         ),
         concept(
             "differentiation",

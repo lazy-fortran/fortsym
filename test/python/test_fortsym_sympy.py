@@ -189,6 +189,30 @@ class SympySubsetTest(unittest.TestCase):
         self.assertIsInstance(refused, sp.Pow)
         self.assertNotEqual(refused, sp.oo)
 
+    def test_direct_domain_heads(self):
+        cases = [
+            (sp.sign(sp.oo), sp.Integer(1)),
+            (sp.sign(-sp.oo), sp.Integer(-1)),
+            (sp.sign(sp.zoo), sp.sign(sp.zoo)),
+            (sp.floor(sp.oo), sp.oo),
+            (sp.floor(-sp.oo), sp.simplify(-sp.oo)),
+            (sp.floor(sp.zoo), sp.zoo),
+            (sp.ceiling(sp.oo), sp.oo),
+            (sp.ceiling(-sp.oo), sp.simplify(-sp.oo)),
+            (sp.ceiling(sp.zoo), sp.zoo),
+            (sp.sinh(sp.oo), sp.oo),
+            (sp.sinh(-sp.oo), sp.simplify(-sp.oo)),
+            (sp.sinh(sp.zoo), sp.nan),
+            (sp.cosh(-sp.oo), sp.oo),
+            (sp.cosh(sp.zoo), sp.nan),
+            (sp.tanh(sp.oo), sp.Integer(1)),
+            (sp.tanh(-sp.oo), sp.Integer(-1)),
+            (sp.tanh(sp.zoo), sp.nan),
+        ]
+        for expression, expected in cases:
+            with self.subTest(expression=str(expression)):
+                self.assertEqual(sp.simplify(expression), expected)
+
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")
         cases = [

@@ -4599,6 +4599,44 @@ contains
             else
                 out = a%const("oo")
             end if
+        case ("sign")
+            if (domain == DOMAIN_ZOO) return
+            applied = .true.
+            if (direction < 0) then
+                out = a%int(-1_int64)
+            else
+                out = a%int(1_int64)
+            end if
+        case ("floor", "ceiling")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = a%const("zoo")
+            else
+                out = signed_oo_node(a, direction)
+            end if
+        case ("sinh")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = nan_node(a)
+            else
+                out = signed_oo_node(a, direction)
+            end if
+        case ("cosh")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = nan_node(a)
+            else
+                out = a%const("oo")
+            end if
+        case ("tanh")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = nan_node(a)
+            else if (direction < 0) then
+                out = a%int(-1_int64)
+            else
+                out = a%int(1_int64)
+            end if
         end select
     end subroutine simplify_domain_function
 
