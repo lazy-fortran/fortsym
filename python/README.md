@@ -49,8 +49,9 @@ directed-domain rule proves a result; `besseli(nan, -oo)` is the representable
 `nan` boundary.
 `legendre(degree, argument)` is the SymPy spelling for the native
 `legendrep(degree, 0, argument)` owner. Its infinity rules cover nonnegative
-integer degrees and order zero; symbolic, noninteger, and negative-degree cases
-remain applied heads.
+integer degrees through two and order zero; degree three and higher map to
+`nan` at infinity, while symbolic, noninteger, and negative-degree cases remain
+applied heads.
 The periodic heads `sin`, `cos`, and `tan` map complex infinity to `nan`.
 Their `+/-oo` results are SymPy `AccumBounds` values and therefore remain
 explicit applied heads until fortsym has a bounded-set representation.

@@ -4605,6 +4605,8 @@ contains
             applied = .true.
             if (degree == 0_int64) then
                 out = a%int(1_int64)
+            else if (degree >= 3_int64) then
+                out = a%const("nan")
             else if (domain == DOMAIN_ZOO) then
                 out = a%const("zoo")
             else if (direction > 0 .or. modulo(degree, 2_int64) == 0_int64) then

@@ -87,7 +87,8 @@ dominated by the compatibility ABI crossing rather than the native algorithm,
 and would not be a meaningful SymPy performance comparison.
 It also checks the unresolved NaN boundaries for Bessel and Legendre heads,
 including the representable `besseli(nan, -oo)` result; these are correctness
-cases rather than standalone timing rows for the same reason.
+cases rather than standalone timing rows for the same reason. The same report
+checks the high-degree `legendre(3, oo) = nan` boundary.
 
 Run it from a built checkout with:
 

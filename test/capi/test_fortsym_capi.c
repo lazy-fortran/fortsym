@@ -35,6 +35,7 @@ int main(void)
     fortsym_arena *other_arena = NULL;
     fortsym_expr *x = NULL;
     fortsym_expr *y = NULL;
+    fortsym_expr *zero = NULL;
     fortsym_expr *one = NULL;
     fortsym_expr *sum = NULL;
     fortsym_expr *product = NULL;
@@ -75,9 +76,12 @@ int main(void)
     fortsym_expr *periodic_simplified = NULL;
     fortsym_expr *special = NULL;
     fortsym_expr *special_simplified = NULL;
+    fortsym_expr *legendre = NULL;
+    fortsym_expr *legendre_simplified = NULL;
     fortsym_expr *unknown_head = NULL;
     const fortsym_expr *root_argument[1];
     const fortsym_expr *special_arguments[2];
+    const fortsym_expr *legendre_arguments[3];
 
     assert(fortsym_abi_version() == 10);
     status = fortsym_arena_new(&arena, message, sizeof message);
@@ -87,6 +91,8 @@ int main(void)
     status = fortsym_symbol(arena, "y", &y, message, sizeof message);
     assert(status == FORTSYM_OK);
     status = fortsym_int(arena, 1, &one, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_int(arena, 0, &zero, message, sizeof message);
     assert(status == FORTSYM_OK);
     status = fortsym_add(arena, x, one, &sum, message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -263,6 +269,16 @@ int main(void)
                               sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(special_simplified, "besselj(nan, x)");
+    legendre_arguments[0] = seven;
+    legendre_arguments[1] = zero;
+    legendre_arguments[2] = infinity;
+    status = fortsym_function(arena, "legendrep", legendre_arguments, 3,
+                              &legendre, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, legendre, &legendre_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(legendre_simplified, "nan");
     status = fortsym_complex_operation(arena, imaginary, "conjugate",
                                        &conjugated, message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -330,9 +346,12 @@ int main(void)
     fortsym_expr_free(periodic);
     fortsym_expr_free(special_simplified);
     fortsym_expr_free(special);
+    fortsym_expr_free(legendre_simplified);
+    fortsym_expr_free(legendre);
     fortsym_expr_free(undefined);
     fortsym_expr_free(complex_infinity);
     fortsym_expr_free(infinity);
+    fortsym_expr_free(zero);
     fortsym_expr_free(minus_one);
     fortsym_expr_free(conjugate_sum);
     fortsym_expr_free(conjugated);
