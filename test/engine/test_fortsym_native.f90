@@ -481,6 +481,23 @@ contains
         r = engine%simplify(func("loggamma", loggamma_args))
         call check("loggamma pole remains opaque", r%value%kind() == NK_FUNC)
 
+        loggamma_args(1) = num(arena, 1_int64)
+        r = engine%simplify(func("log10", loggamma_args))
+        call check("log10(1) simplifies to zero", &
+            r%value == num(arena, 0_int64))
+        loggamma_args(1) = num(arena, 1000_int64)
+        r = engine%simplify(func("log10", loggamma_args))
+        call check("log10(1000) simplifies to three", &
+            r%value == num(arena, 3_int64))
+        loggamma_args(1) = rat(arena, 1_int64, 100_int64)
+        r = engine%simplify(func("log10", loggamma_args))
+        call check("log10(1/100) simplifies to minus two", &
+            r%value == num(arena, -2_int64))
+        loggamma_args(1) = num(arena, 12_int64)
+        r = engine%simplify(func("log10", loggamma_args))
+        call check("non-power-of-ten log10 remains opaque", &
+            r%value%kind() == NK_FUNC)
+
         r = engine%simplify(besselj(0, num(arena, 0_int64)))
         call check("J_0(0) simplifies to one", r%value == num(arena, 1))
         r = engine%simplify(besselj(2, num(arena, 0_int64)))
