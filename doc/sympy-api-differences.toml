@@ -14,24 +14,24 @@ id = "symbol-assumptions-and-symbol-lists"
 affected = ["Symbol", "symbols"]
 parity = "partial"
 sympy = "Symbol accepts SymPy's broad assumption system; symbols also supports range syntax, sequence shapes, and rich options."
-fortsym = "Only real, positive, nonnegative, and nonzero facts are accepted. symbols splits comma or whitespace separated names and returns one expression or a tuple."
-difference = "Assumption inference and symbols() input and output forms are intentionally narrower."
+fortsym = "The adapter accepts real, zero, negative, nonpositive, positive, nonnegative, and nonzero facts. symbols splits comma or whitespace separated names and returns one expression or a tuple."
+difference = "Assumption inference and symbols() input and output forms are intentionally narrower; contradictory sign/zero combinations raise the adapter's InconsistentAssumptions error."
 
 [[semantic]]
 id = "three-valued-predicates"
-affected = ["Expr", "Expr.is_zero", "Expr.is_nonzero", "Expr.is_real", "Expr.is_positive", "Expr.is_nonnegative"]
+affected = ["Expr", "Expr.is_zero", "Expr.is_nonzero", "Expr.is_real", "Expr.is_positive", "Expr.is_nonnegative", "Expr.is_negative", "Expr.is_nonpositive"]
 parity = "partial"
 sympy = "SymPy exposes assumption-aware three-valued is_zero and is_nonzero properties on expressions."
 fortsym = "The adapter uses the native zero_test and assumption_has queries plus a scalar-result guard to return True, False, or None for the declared predicate properties."
-difference = "Only the four native assumption facts and the native zero decision fragment are covered; the broader SymPy assumption vocabulary and inference rules remain incomplete."
+difference = "Only the declared native sign/zero facts and the native zero decision fragment are covered; the broader SymPy assumption vocabulary and inference rules remain incomplete."
 
 [[semantic]]
 id = "scoped-assumptions"
 affected = ["Q", "ask", "assuming"]
 parity = "partial"
 sympy = "SymPy's Q keys, ask(), and assuming() provide assumption propositions, three-valued queries, and nested reversible global scopes."
-fortsym = "The adapter supports the four native Q keys, ask(), and nested assuming() scopes backed by one arena-local native context."
-difference = "The supported fact vocabulary and inference rules are narrower; explicit immutable Fortran contexts and the full SymPy predicate system remain incomplete."
+fortsym = "The adapter supports the declared native Q keys, ask(), nested assuming() scopes, and And compound facts backed by one arena-local native context."
+difference = "The supported fact vocabulary and inference rules are narrower; explicit immutable Fortran contexts and the full SymPy predicate system remain incomplete. Conflicts are diagnosed and scopes are transactional."
 
 [[semantic]]
 id = "exact-number-construction"
@@ -126,16 +126,16 @@ id = "refinement"
 affected = ["refine"]
 parity = "partial"
 sympy = "SymPy refine applies assumptions to expressions and can use its broad predicate, relational, and compound inference system."
-fortsym = "The adapter accepts one or more supported Q facts and routes them through a reversible native assumption scope and guarded simplifier."
-difference = "Only the native real, positive, nonnegative, and nonzero facts plus bounded sign-implying relations are covered; compound inference, conflict diagnostics, and the broader SymPy refine rules remain incomplete."
+fortsym = "The adapter accepts one or more supported Q facts or transactional And relations and routes them through a reversible native assumption scope and guarded simplifier."
+difference = "Only the native sign/zero facts plus bounded sign-implying relations and conjunctions are covered; the broader SymPy refine rules remain incomplete."
 
 [[semantic]]
 id = "relational-constructors"
-affected = ["Eq", "Ne", "Gt", "Ge", "Lt", "Le"]
+affected = ["Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And"]
 parity = "partial"
-sympy = "SymPy exposes relational constructors and comparison operators with evaluated Boolean results where possible and symbolic relational objects otherwise."
-fortsym = "The adapter exposes the same constructor spellings and symbolic comparison operators as native relation nodes; scopes pass them to one native bounded relation recorder."
-difference = "Exact Boolean evaluation, equality inference, compound relations, upper bounds, and arbitrary relational assumptions are not yet covered. SymPy 1.14 does not infer these relational facts in ask/refine; fortsym adds the sound bounded sign implications as an explicit native extension, plus Unequal(..., 0) ingestion."
+sympy = "SymPy exposes relational constructors, Boolean And compounds, and comparison operators with evaluated Boolean results where possible and symbolic relational objects otherwise."
+fortsym = "The adapter exposes the same constructor spellings plus And and symbolic comparison operators as native relation nodes; scopes pass them to one transactional bounded relation recorder."
+difference = "Exact Boolean evaluation and arbitrary relational assumptions remain narrower. SymPy 1.14 does not infer these relational facts in ask/refine; fortsym adds sound bounded sign/zero implications, conjunction inference, and explicit conflict diagnostics as native extensions."
 
 [[semantic]]
 id = "factorisation"

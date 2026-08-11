@@ -1,6 +1,6 @@
 {
   "adapter_profile": {
-    "declared_count": 51,
+    "declared_count": 53,
     "explicit_refusals": [
       "Matrix",
       "apart",
@@ -15,6 +15,7 @@
     "supported": [
       "Abs",
       "Add",
+      "And",
       "Arena",
       "Derivative",
       "E",
@@ -26,6 +27,7 @@
       "Ge",
       "Gt",
       "I",
+      "InconsistentAssumptions",
       "Integer",
       "Le",
       "Lt",
@@ -1587,6 +1589,17 @@
         "id": "fortsym_public_capi.fortsym_function",
         "module": "fortsym_public_capi",
         "name": "fortsym_function",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_relation",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_relation",
         "owner": "src/capi/fortsym_public_capi.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -3163,6 +3176,39 @@
           "facade",
           "native"
         ],
+        "id": "fortsym.zero",
+        "module": "fortsym",
+        "name": "zero",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.negative",
+        "module": "fortsym",
+        "name": "negative",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.nonpositive",
+        "module": "fortsym",
+        "name": "nonpositive",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym.positive",
         "module": "fortsym",
         "name": "positive",
@@ -4329,6 +4375,36 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_assume.zero",
+        "module": "fortsym_assume",
+        "name": "zero",
+        "owner": "src/core/fortsym_assume.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_assume.negative",
+        "module": "fortsym_assume",
+        "name": "negative",
+        "owner": "src/core/fortsym_assume.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_assume.nonpositive",
+        "module": "fortsym_assume",
+        "name": "nonpositive",
+        "owner": "src/core/fortsym_assume.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_assume.positive",
         "module": "fortsym_assume",
         "name": "positive",
@@ -4469,6 +4545,36 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_assume.FACT_ZERO",
+        "module": "fortsym_assume",
+        "name": "FACT_ZERO",
+        "owner": "src/core/fortsym_assume.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_assume.FACT_NEGATIVE",
+        "module": "fortsym_assume",
+        "name": "FACT_NEGATIVE",
+        "owner": "src/core/fortsym_assume.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_assume.FACT_NONPOSITIVE",
+        "module": "fortsym_assume",
+        "name": "FACT_NONPOSITIVE",
+        "owner": "src/core/fortsym_assume.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_assume.FACT_POSITIVE",
         "module": "fortsym_assume",
         "name": "FACT_POSITIVE",
@@ -4582,6 +4688,36 @@
         "id": "fortsym_assume_api.FACT_REAL",
         "module": "fortsym_assume_api",
         "name": "FACT_REAL",
+        "owner": "src/core/fortsym_assume_api.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_assume_api.FACT_ZERO",
+        "module": "fortsym_assume_api",
+        "name": "FACT_ZERO",
+        "owner": "src/core/fortsym_assume_api.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_assume_api.FACT_NEGATIVE",
+        "module": "fortsym_assume_api",
+        "name": "FACT_NEGATIVE",
+        "owner": "src/core/fortsym_assume_api.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_assume_api.FACT_NONPOSITIVE",
+        "module": "fortsym_assume_api",
+        "name": "FACT_NONPOSITIVE",
         "owner": "src/core/fortsym_assume_api.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -4832,66 +4968,6 @@
         "id": "fortsym_expr.func_in",
         "module": "fortsym_expr",
         "name": "func_in",
-        "owner": "src/core/fortsym_expr.f90",
-        "reason": "public declaration is owned by the in-process Fortran implementation"
-      },
-      {
-        "classification": [
-          "native"
-        ],
-        "id": "fortsym_expr.equal",
-        "module": "fortsym_expr",
-        "name": "equal",
-        "owner": "src/core/fortsym_expr.f90",
-        "reason": "public declaration is owned by the in-process Fortran implementation"
-      },
-      {
-        "classification": [
-          "native"
-        ],
-        "id": "fortsym_expr.unequal",
-        "module": "fortsym_expr",
-        "name": "unequal",
-        "owner": "src/core/fortsym_expr.f90",
-        "reason": "public declaration is owned by the in-process Fortran implementation"
-      },
-      {
-        "classification": [
-          "native"
-        ],
-        "id": "fortsym_expr.less",
-        "module": "fortsym_expr",
-        "name": "less",
-        "owner": "src/core/fortsym_expr.f90",
-        "reason": "public declaration is owned by the in-process Fortran implementation"
-      },
-      {
-        "classification": [
-          "native"
-        ],
-        "id": "fortsym_expr.less_equal",
-        "module": "fortsym_expr",
-        "name": "less_equal",
-        "owner": "src/core/fortsym_expr.f90",
-        "reason": "public declaration is owned by the in-process Fortran implementation"
-      },
-      {
-        "classification": [
-          "native"
-        ],
-        "id": "fortsym_expr.greater",
-        "module": "fortsym_expr",
-        "name": "greater",
-        "owner": "src/core/fortsym_expr.f90",
-        "reason": "public declaration is owned by the in-process Fortran implementation"
-      },
-      {
-        "classification": [
-          "native"
-        ],
-        "id": "fortsym_expr.greater_equal",
-        "module": "fortsym_expr",
-        "name": "greater_equal",
         "owner": "src/core/fortsym_expr.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -5413,6 +5489,66 @@
         "module": "fortsym_quadratic",
         "name": "quad_text",
         "owner": "src/core/fortsym_quadratic.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_relation.equal",
+        "module": "fortsym_relation",
+        "name": "equal",
+        "owner": "src/core/fortsym_relation.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_relation.unequal",
+        "module": "fortsym_relation",
+        "name": "unequal",
+        "owner": "src/core/fortsym_relation.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_relation.less",
+        "module": "fortsym_relation",
+        "name": "less",
+        "owner": "src/core/fortsym_relation.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_relation.less_equal",
+        "module": "fortsym_relation",
+        "name": "less_equal",
+        "owner": "src/core/fortsym_relation.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_relation.greater",
+        "module": "fortsym_relation",
+        "name": "greater",
+        "owner": "src/core/fortsym_relation.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_relation.greater_equal",
+        "module": "fortsym_relation",
+        "name": "greater_equal",
+        "owner": "src/core/fortsym_relation.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
       {
@@ -7265,14 +7401,14 @@
   "source_inventory": "doc/sympy-api-inventory.json",
   "summary": {
     "classification_counts": {
-      "delegated": 1885,
+      "delegated": 1928,
       "external": 10,
-      "facade": 156,
-      "native": 2499,
-      "python-adapter": 1841,
-      "refused": 25953
+      "facade": 160,
+      "native": 2555,
+      "python-adapter": 1884,
+      "refused": 25910
     },
-    "fortran_public_exports": 702,
+    "fortran_public_exports": 715,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
@@ -14899,13 +15035,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.logic.boolalg.And",
         "kind": "class",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "class is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -82483,14 +82621,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.And",
         "kind": "class",
         "module": "sympy",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -94558,14 +94698,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.assumptions.cnf.And",
         "kind": "class",
         "module": "sympy.assumptions.cnf",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -94878,14 +95020,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.assumptions.facts.And",
         "kind": "class",
         "module": "sympy.assumptions.facts",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -95456,14 +95600,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.assumptions.handlers.common.And",
         "kind": "class",
         "module": "sympy.assumptions.handlers.common",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -99385,14 +99531,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.assumptions.sathandlers.And",
         "kind": "class",
         "module": "sympy.assumptions.sathandlers",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -100991,14 +101139,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.calculus.accumulationbounds.And",
         "kind": "class",
         "module": "sympy.calculus.accumulationbounds",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -103189,14 +103339,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.codegen.algorithms.And",
         "kind": "class",
         "module": "sympy.codegen.algorithms",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -111180,14 +111332,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.concrete.summations.And",
         "kind": "class",
         "module": "sympy.concrete.summations",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -132605,14 +132759,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.elementary.miscellaneous.And",
         "kind": "class",
         "module": "sympy.functions.elementary.miscellaneous",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -133050,14 +133206,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.elementary.piecewise.And",
         "kind": "class",
         "module": "sympy.functions.elementary.piecewise",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -133550,14 +133708,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.elementary.trigonometric.And",
         "kind": "class",
         "module": "sympy.functions.elementary.trigonometric",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -135335,14 +135495,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.special.bsplines.And",
         "kind": "class",
         "module": "sympy.functions.special.bsplines",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -137114,14 +137276,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.special.hyper.And",
         "kind": "class",
         "module": "sympy.functions.special.hyper",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -140629,14 +140793,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.geometry.line.And",
         "kind": "class",
         "module": "sympy.geometry.line",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -142061,14 +142227,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.geometry.polygon.And",
         "kind": "class",
         "module": "sympy.geometry.polygon",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -144599,14 +144767,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.heurisch.And",
         "kind": "class",
         "module": "sympy.integrals.heurisch",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -146478,14 +146648,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.laplace.And",
         "kind": "class",
         "module": "sympy.integrals.laplace",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -147576,14 +147748,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.manualintegrate.And",
         "kind": "class",
         "module": "sympy.integrals.manualintegrate",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -150010,14 +150184,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.meijerint.And",
         "kind": "class",
         "module": "sympy.integrals.meijerint",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -153413,14 +153589,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.transforms.And",
         "kind": "class",
         "module": "sympy.integrals.transforms",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -155343,14 +155521,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.logic.And",
         "kind": "class",
         "module": "sympy.logic",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -156221,14 +156401,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.logic.algorithms.z3_wrapper.And",
         "kind": "class",
         "module": "sympy.logic.algorithms.z3_wrapper",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -156581,14 +156763,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.logic.boolalg.And",
         "kind": "class",
         "module": "sympy.logic.boolalg",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -157443,14 +157627,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.logic.inference.And",
         "kind": "class",
         "module": "sympy.logic.inference",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -157621,14 +157807,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.logic.utilities.dimacs.And",
         "kind": "class",
         "module": "sympy.logic.utilities.dimacs",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -160517,14 +160705,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.expressions._shape.And",
         "kind": "class",
         "module": "sympy.matrices.expressions._shape",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -173307,14 +173497,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.parsing.c.c_parser.And",
         "kind": "class",
         "module": "sympy.parsing.c.c_parser",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -175895,14 +176087,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.parsing.mathematica.And",
         "kind": "class",
         "module": "sympy.parsing.mathematica",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -238369,14 +238563,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.printing.smtlib.And",
         "kind": "class",
         "module": "sympy.printing.smtlib",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -243073,14 +243269,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.sets.conditionset.And",
         "kind": "class",
         "module": "sympy.sets.conditionset",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -243411,14 +243609,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.sets.fancysets.And",
         "kind": "class",
         "module": "sympy.sets.fancysets",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -244106,14 +244306,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.sets.handlers.comparison.And",
         "kind": "class",
         "module": "sympy.sets.handlers.comparison",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -246037,14 +246239,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.sets.sets.And",
         "kind": "class",
         "module": "sympy.sets.sets",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -254952,14 +255156,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.inequalities.And",
         "kind": "class",
         "module": "sympy.solvers.inequalities",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -260459,14 +260665,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.polysys.And",
         "kind": "class",
         "module": "sympy.solvers.polysys",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -261545,14 +261753,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.solvers.And",
         "kind": "class",
         "module": "sympy.solvers.solvers",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -262920,14 +263130,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.solveset.And",
         "kind": "class",
         "module": "sympy.solvers.solveset",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -266421,14 +266633,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.stats.crv.And",
         "kind": "class",
         "module": "sympy.stats.crv",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -267568,14 +267782,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.stats.drv.And",
         "kind": "class",
         "module": "sympy.stats.drv",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -268329,14 +268545,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.stats.frv.And",
         "kind": "class",
         "module": "sympy.stats.frv",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -270080,14 +270298,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.stats.rv.And",
         "kind": "class",
         "module": "sympy.stats.rv",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -297381,13 +297601,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.And",
         "kind": "class",
         "name": "And",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [

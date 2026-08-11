@@ -1,3 +1,4 @@
+import subprocess
 import sys
 import unittest
 
@@ -34,7 +35,16 @@ class SympySubsetTest(unittest.TestCase):
             sp.symbols("z", integer=True)
         with self.assertRaises(sp.UnsupportedOperationError):
             sp.symbols("z", positive=False)
-        self.assertNotIn("sympy", sys.modules)
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "import sys; import fortsym.sympy; "
+                "assert 'sympy' not in sys.modules",
+            ],
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0)
 
     def test_supported_assumptions_reach_native_simplifier(self):
         x = sp.Symbol("x", real=True)
@@ -79,6 +89,17 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual((nonzero.is_real, nonzero.is_positive,
                           nonzero.is_nonnegative, nonzero.is_nonzero),
                          (True, None, None, True))
+
+        negative = sp.Symbol("predicate_negative", negative=True)
+        zero = sp.Symbol("predicate_zero", zero=True)
+        self.assertEqual((negative.is_negative, negative.is_nonpositive,
+                          negative.is_positive, negative.is_nonnegative,
+                          negative.is_nonzero),
+                         (True, True, False, False, True))
+        self.assertEqual((zero.is_zero, zero.is_nonpositive,
+                          zero.is_nonnegative, zero.is_positive,
+                          zero.is_negative, zero.is_nonzero),
+                         (True, True, True, False, False, False))
 
     def test_scoped_assumptions_restore_nested_default_state(self):
         x = sp.Symbol("scoped_positive")
@@ -131,6 +152,23 @@ class SympySubsetTest(unittest.TestCase):
             sp.refine(sp.sqrt(x**2), x < 1)
         with self.assertRaises(sp.UnsupportedOperationError):
             sp.refine(sp.sqrt(x**2), x > -1)
+
+    def test_compound_assumptions_are_transactional_and_infer(self):
+        x = sp.Symbol("compound_x")
+        supported = sp.And(x > 1, sp.Ne(x, 0))
+        with sp.assuming(supported):
+            self.assertTrue(sp.ask(sp.Q.positive(x)))
+            self.assertTrue(sp.ask(sp.Q.nonzero(x)))
+            self.assertEqual(sp.refine(sp.sqrt(x**2), supported), x)
+        self.assertIsNone(sp.ask(sp.Q.positive(x)))
+
+        contradictory = sp.And(x > 1, x < 0)
+        with self.assertRaises(sp.InconsistentAssumptions):
+            with sp.assuming(contradictory):
+                pass
+        self.assertIsNone(sp.ask(sp.Q.positive(x)))
+        with self.assertRaises(sp.InconsistentAssumptions):
+            sp.Symbol("contradictory_symbol", positive=True, negative=True)
 
 
 if __name__ == "__main__":

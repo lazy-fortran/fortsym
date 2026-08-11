@@ -229,13 +229,20 @@
       ]
     },
     {
-      "action": "Keep one native context owner; derive contexts by value and make every Python scope nested, exception-safe, and reversible.",
+      "action": "Keep one native context owner; close compound facts transactionally and expose compatibility names only in the adapter.",
       "description": "Query and scope supported expression assumptions.",
-      "finding": "The native facade owns value-style assumption contexts while the adapter keeps SymPy's Q/ask/assuming vocabulary at the Python boundary.",
+      "finding": "The native facade owns value-style contexts and sign facts while the adapter keeps SymPy's Q/ask/assuming/And vocabulary at the Python boundary.",
       "fortran_facade": [
         "assumption_context_t",
         "make_assumption_context",
-        "with_assumption"
+        "with_assumption",
+        "zero",
+        "negative",
+        "nonpositive",
+        "positive",
+        "nonnegative",
+        "nonzero",
+        "real_valued"
       ],
       "id": "assumption-queries",
       "python_facade": [
@@ -244,12 +251,13 @@
       "sympy_adapter": [
         "Q",
         "ask",
-        "assuming"
+        "assuming",
+        "And",
+        "InconsistentAssumptions"
       ],
       "sympy_reference": [
         "Q",
-        "ask",
-        "assuming"
+        "And"
       ]
     },
     {
@@ -932,16 +940,32 @@
       },
       {
         "concepts": [
+          "assumption-queries"
+        ],
+        "name": "negative"
+      },
+      {
+        "concepts": [
           "node-kinds"
         ],
         "name": "node_kind_name"
       },
       {
-        "concepts": [],
+        "concepts": [
+          "assumption-queries"
+        ],
         "name": "nonnegative"
       },
       {
-        "concepts": [],
+        "concepts": [
+          "assumption-queries"
+        ],
+        "name": "nonpositive"
+      },
+      {
+        "concepts": [
+          "assumption-queries"
+        ],
         "name": "nonzero"
       },
       {
@@ -1047,7 +1071,9 @@
         "name": "pi_expr"
       },
       {
-        "concepts": [],
+        "concepts": [
+          "assumption-queries"
+        ],
         "name": "positive"
       },
       {
@@ -1069,7 +1095,9 @@
         "name": "real_text_expr"
       },
       {
-        "concepts": [],
+        "concepts": [
+          "assumption-queries"
+        ],
         "name": "real_valued"
       },
       {
@@ -1180,6 +1208,12 @@
       },
       {
         "concepts": [
+          "assumption-queries"
+        ],
+        "name": "zero"
+      },
+      {
+        "concepts": [
           "three-valued-query"
         ],
         "name": "zero_test"
@@ -1202,6 +1236,7 @@
     "sympy_adapter": [
       "Abs",
       "Add",
+      "And",
       "Arena",
       "Derivative",
       "E",
@@ -1213,6 +1248,7 @@
       "Ge",
       "Gt",
       "I",
+      "InconsistentAssumptions",
       "Integer",
       "Le",
       "Lt",
@@ -1268,12 +1304,12 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 130,
+    "assigned_names": 139,
     "concept_groups": 24,
-    "fortran_facade_exports": 118,
+    "fortran_facade_exports": 121,
     "python_facade_exports": 12,
-    "sympy_adapter_exports": 51,
-    "unmapped_fortran_exports": 11
+    "sympy_adapter_exports": 53,
+    "unmapped_fortran_exports": 7
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -1283,10 +1319,6 @@
     "chars",
     "emit_kernel",
     "kernel_spec_t",
-    "nonnegative",
-    "nonzero",
-    "positive",
-    "real_valued",
     "str"
   ]
 }

@@ -25,21 +25,21 @@ does not import SymPy. Unsupported names raise
 | Surface | Supported semantics |
 |---|---|
 | `Symbol`, `symbols`, `Integer`, `Rational`, `Float`, `pi`, `E`, `I` | exact native construction and structural equality |
-| `Expr.is_zero`, `Expr.is_nonzero`, `Expr.is_real`, `Expr.is_positive`, `Expr.is_nonnegative` | SymPy-compatible three-valued predicates backed by native zero and assumption queries (`True`, `False`, or `None`) |
-| `real=True`, `positive=True`, `nonnegative=True`, `nonzero=True` | native arena facts; positive/nonnegative/real facts affect guarded simplification |
-| `Q.real`, `Q.positive`, `Q.nonnegative`, `Q.nonzero`, `ask`, `assuming` | nested, reversible assumption queries and scopes backed by the native arena context; bounded relational facts are accepted in scopes |
+| `Expr.is_zero`, `Expr.is_nonzero`, `Expr.is_real`, `Expr.is_positive`, `Expr.is_nonnegative`, `Expr.is_negative`, `Expr.is_nonpositive` | SymPy-compatible three-valued predicates backed by native zero and sign-fact queries (`True`, `False`, or `None`) |
+| `real=True`, `zero=True`, `positive=True`, `nonnegative=True`, `nonzero=True`, `negative=True`, `nonpositive=True` | native arena facts; sign facts close to real/nonzero/zero implications and contradictory combinations raise `InconsistentAssumptions` |
+| `Q.real`, `Q.zero`, `Q.positive`, `Q.nonnegative`, `Q.nonzero`, `Q.negative`, `Q.nonpositive`, `ask`, `assuming`, `And` | nested, reversible assumption queries and transactional compound scopes backed by the native arena context; bounded relational facts are accepted in scopes |
 | `Add`, `Mul`, `Pow`, `Function` | native operator construction; `isinstance` checks use native node kinds |
 | `sin`, `cos`, `tan`, `exp`, `log`, `sqrt`, `Abs` | native applied-function nodes |
 | `diff`, `Derivative` | native differentiation, including repeated variables; `evaluate=False` retains a typed wrapper with `.doit()` |
 | `subs`, `expand` | native substitution and expansion |
 | `Subs` | typed wrapper with `.doit()` for explicit `(old, new)` pairs |
 | `simplify`, `refine`, `factor` | native bounded simplification, supported Q-fact refinement, and polynomial factorisation; domain-conditional factorisations and unsupported refinement assumptions are refused |
-| `Eq`, `Ne`, `Gt`, `Ge`, `Lt`, `Le` and `Expr` comparisons | SymPy-compatible relational constructor spellings at the adapter boundary; only supported lower-bound facts are ingested by native scopes |
+| `Eq`, `Ne`, `Gt`, `Ge`, `Lt`, `Le` and `Expr` comparisons | SymPy-compatible relational constructor spellings at the adapter boundary; exact sign/zero bounds and transactional `And` facts are ingested by native scopes |
 | `together`, `cancel`, `apart`, `collect`, `integrate`, `limit`, `series`, `solve`, `Matrix` | explicit refusal until their semantics are covered |
 
 The compatibility layer guarantees native structural equality only for
-operations listed as construction or transformation above. Assumptions outside
-the listed four facts, unsupported relational forms, false assumptions, and
-unsupported option combinations raise `UnsupportedOperationError`; they are
-not silently ignored. Matrix,
+operations listed as construction or transformation above. Unsupported
+assumption forms and relational bounds raise `UnsupportedOperationError`, while
+contradictory sign, zero, and compound facts raise `InconsistentAssumptions`;
+they are not silently ignored. Matrix,
 ordering, and unevaluated-expression semantics remain outside the subset.
