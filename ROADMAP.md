@@ -358,6 +358,9 @@ Every checklist item requires all of the following:
   - [x] Add representable complex-infinity rules for `sin`, `cos`, and `tan`:
     each becomes `nan` like SymPy, while their `+/-oo` accumulation-bound
     results remain explicit applied-head refusals.
+  - [x] Match NaN boundaries for order-bearing Bessel and Legendre heads:
+    unresolved NaN arguments remain applied, while `besseli(nan, -oo)` becomes
+    `nan` through the existing directed-domain rule.
   - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
     non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.

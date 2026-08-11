@@ -203,6 +203,13 @@ class SympySubsetTest(unittest.TestCase):
         self.assertIsInstance(
             sp.simplify(sp.besseli(order, sp.zoo)), sp.Function
         )
+        self.assertIsInstance(
+            sp.simplify(sp.besselj(sp.nan, order)), sp.Function
+        )
+        self.assertIsInstance(
+            sp.simplify(sp.besseli(order, sp.nan)), sp.Function
+        )
+        self.assertEqual(sp.simplify(sp.besseli(sp.nan, -sp.oo)), sp.nan)
 
     def test_legendre_domain_heads(self):
         cases = [
@@ -217,6 +224,10 @@ class SympySubsetTest(unittest.TestCase):
                 self.assertEqual(sp.simplify(expression), expected)
         self.assertIsInstance(
             sp.simplify(sp.legendre(sp.Rational(1, 2), sp.oo)), sp.Function
+        )
+        self.assertIsInstance(
+            sp.simplify(sp.legendre(sp.nan, sp.Symbol("legendre_argument"))),
+            sp.Function,
         )
 
     def test_complex_domain_operations(self):

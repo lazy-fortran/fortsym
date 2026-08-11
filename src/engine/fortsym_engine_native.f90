@@ -4269,8 +4269,7 @@ contains
                 "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
                 "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", &
                 "loggamma", "log10", "floor", "ceiling", "sign", &
-                "csc", "sec", "cot", "csch", "sech", "coth", &
-                "besselj", "besseli", "legendrep", "legendreq")
+                "csc", "sec", "cot", "csch", "sech", "coth")
             yes = .true.
         end select
     end function nan_propagates_function
@@ -4645,6 +4644,9 @@ contains
                 else if (direction > 0) then
                     applied = .true.
                     out = a%const("oo")
+                else if (is_nan_id(a, args(1))) then
+                    applied = .true.
+                    out = nan_node(a)
                 end if
             end select
             return

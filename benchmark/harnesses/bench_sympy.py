@@ -466,6 +466,45 @@ def correctness_cases() -> list[dict[str, Any]]:
             "expected": result_text(expected),
             "actual": str(actual),
         })
+    oracle_order = oracle.Symbol("benchmark_nan_order")
+    native_order = native.Symbol("benchmark_nan_order")
+    oracle_argument = oracle.Symbol("benchmark_nan_argument")
+    native_argument = native.Symbol("benchmark_nan_argument")
+    special_cases = {
+        "besselj_nan_order": (
+            oracle.besselj(oracle.nan, oracle_argument),
+            native.besselj(native.nan, native_argument),
+        ),
+        "besseli_nan_argument": (
+            oracle.besseli(oracle_order, oracle.nan),
+            native.besseli(native_order, native.nan),
+        ),
+        "legendre_nan_degree": (
+            oracle.legendre(oracle.nan, oracle_argument),
+            native.legendre(native.nan, native_argument),
+        ),
+        "besseli_nan_order_negative_infinity": (
+            oracle.besseli(oracle.nan, -oracle.oo),
+            native.besseli(native.nan, -native.oo),
+        ),
+    }
+    names = {
+        "benchmark_nan_order": oracle_order,
+        "benchmark_nan_argument": oracle_argument,
+    }
+    for name, (expected, actual) in special_cases.items():
+        actual_text = str(actual).replace("legendrep(", "legendre(")
+        actual_text = actual_text.replace(
+            "legendre(nan, 0, ", "legendre(nan, "
+        )
+        results.append({
+            "operation": f"nan_special_{name}",
+            "correct": oracle.sympify(
+                actual_text, locals=names
+            ) == expected,
+            "expected": result_text(expected),
+            "actual": actual_text,
+        })
     for operation in sorted(oracle_cases):
         oracle_expression, native_expression, names = oracle_cases[operation]
         _, native_expression, _ = native_cases[operation]
