@@ -30,6 +30,7 @@ class SympyDifferentialTest(unittest.TestCase):
         cls.locals = {
             "x": oracle.Symbol("x"),
             "y": oracle.Symbol("y"),
+            "i": oracle.I,
             "differential_x": oracle.Symbol("differential_x"),
             "differential_y": oracle.Symbol("differential_y"),
             "abs": oracle.Abs,
@@ -248,6 +249,29 @@ class SympyDifferentialTest(unittest.TestCase):
                     oracle.sympify(actual_text, locals=self.locals),
                     oracle.sympify(expected_text, locals=self.locals),
                 )
+
+    def test_directed_domain_functions_match_oracle(self):
+        cases = [
+            (oracle.sqrt(oracle.oo), native.sqrt(native.oo)),
+            (oracle.sqrt(oracle.zoo), native.sqrt(native.zoo)),
+            (oracle.Abs(-oracle.oo), native.Abs(-native.oo)),
+            (oracle.Abs(oracle.zoo), native.Abs(native.zoo)),
+            (oracle.exp(oracle.oo), native.exp(native.oo)),
+            (oracle.exp(-oracle.oo), native.exp(-native.oo)),
+            (oracle.exp(oracle.zoo), native.exp(native.zoo)),
+            (oracle.log(oracle.oo), native.log(native.oo)),
+            (oracle.log(-oracle.oo), native.log(-native.oo)),
+            (oracle.log(oracle.zoo), native.log(native.zoo)),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                self.assertEqual(str(native.simplify(actual)), str(expected))
+        expected_text = str(oracle.I * oracle.oo)
+        actual_text = str(native.simplify(native.sqrt(-native.oo)))
+        self.assertEqual(
+            oracle.sympify(actual_text, locals=self.locals),
+            oracle.sympify(expected_text, locals=self.locals),
+        )
 
     def test_expand_cache_matches_oracle_and_invalidates_on_assumptions(self):
         oracle_x = oracle.Symbol("differential_expand_cache_x")

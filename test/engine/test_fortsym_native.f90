@@ -52,6 +52,7 @@ program test_fortsym_native
     call test_domain_conditions()
     call test_nan_domain_rules()
     call test_directed_domain_rules()
+    call test_directed_domain_functions()
     call test_verdicts()
     call test_overflow_preservation()
 
@@ -961,6 +962,47 @@ contains
         call check("zoo times a symbol remains unevaluated", &
             r%value == complex_infinity*x)
     end subroutine test_directed_domain_rules
+
+    subroutine test_directed_domain_functions()
+        type(engine_result_t) :: r
+        type(expr_t) :: infinity, complex_infinity, undefined, negative_infinity
+        type(expr_t) :: imaginary_infinity
+
+        infinity = oo_expr(arena)
+        complex_infinity = zoo_expr(arena)
+        undefined = nan_expr(arena)
+        negative_infinity = -infinity
+        imaginary_infinity = i_expr(arena)*infinity
+
+        r = engine%simplify(sqrt(infinity))
+        call check("sqrt(oo) is oo", r%value == infinity)
+        r = engine%simplify(sqrt(negative_infinity))
+        call check("sqrt(-oo) is i*oo", r%value == imaginary_infinity)
+        r = engine%simplify(sqrt(complex_infinity))
+        call check("sqrt(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(abs(negative_infinity))
+        call check("abs(-oo) is oo", r%value == infinity)
+        r = engine%simplify(abs(complex_infinity))
+        call check("abs(zoo) is oo", r%value == infinity)
+        r = engine%simplify(exp(infinity))
+        call check("exp(oo) is oo", r%value == infinity)
+        r = engine%simplify(exp(negative_infinity))
+        call check("exp(-oo) is zero", r%value == num(arena, 0_int64))
+        r = engine%simplify(exp(complex_infinity))
+        call check("exp(zoo) is nan", r%value == undefined)
+        r = engine%simplify(log(infinity))
+        call check("log(oo) is oo", r%value == infinity)
+        r = engine%simplify(log(negative_infinity))
+        call check("log(-oo) is oo", r%value == infinity)
+        r = engine%simplify(log(complex_infinity))
+        call check("log(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(sqrt(infinity*x))
+        call check("sqrt of symbolic infinity remains unevaluated", &
+            r%value == sqrt(infinity*x))
+        r = engine%simplify(exp(infinity*x))
+        call check("exp of symbolic infinity remains unevaluated", &
+            r%value == exp(infinity*x))
+    end subroutine test_directed_domain_functions
 
     subroutine test_verdicts()
         type(engine_result_t) :: r
