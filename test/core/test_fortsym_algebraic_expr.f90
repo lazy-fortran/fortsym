@@ -5,15 +5,15 @@ program test_fortsym_algebraic_expr
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_algebraic, only: algebraic_i, algebraic_from_re_im, &
         algebraic_conjugate, algebraic_add, algebraic_sqrt, algebraic_mul, &
-        algebraic_signs
+        algebraic_signs, algebraic_pow
     use fortsym_arena, only: arena_t, NK_ALGEBRAIC
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE, VERDICT_FALSE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortsym_diff, only: diff
-    use fortsym_expr, only: expr_t, algebraic_expr, operator(+), operator(*), &
-        operator(**), operator(==), is_valid, sym, num, rat, i_expr
+    use fortsym_expr, only: expr_t, algebraic_expr, operator(+), operator(-), &
+        operator(*), operator(**), operator(==), is_valid, sym, num, rat, i_expr
     use fortsym_print, only: print_expr
     use fortsym_string, only: chars, str, str_t
     implicit none
@@ -22,12 +22,14 @@ program test_fortsym_algebraic_expr
     type(native_engine_t) :: engine
     type(symengine_engine_t) :: symengine
     type(expr_t) :: minus_i, i_atom, root, expected, gaussian
+    type(expr_t) :: zero_atom, one_atom
     type(expr_t) :: gaussian_expected, x, derivative
     type(engine_result_t) :: result, zero_result
     type(str_t) :: i_text, minus_i_text, expected_text, root_text
     type(str_t) :: gaussian_text
     type(str_t) :: minus_two_text, two_text, sqrt_two_text
     type(str_t) :: two_sqrt_two_text, half_text, mixed_text
+    type(str_t) :: zero_text, one_text
     logical :: good
     integer :: real_sign, imag_sign
     integer :: nfail
@@ -78,6 +80,17 @@ program test_fortsym_algebraic_expr
     call check("algebraic atoms differentiate as constants", &
         derivative == num(arena, 0))
 
+    zero_text = algebraic_from_re_im("0", "0", good)
+    zero_atom = algebraic_expr(arena, chars(zero_text), good)
+    one_text = algebraic_from_re_im("1", "0", good)
+    one_atom = algebraic_expr(arena, chars(one_text), good)
+    result = engine%simplify(zero_atom**num(arena, 2_int64))
+    call check("algebraic zero is recognised by power simplification", &
+        result%ok .and. result%value == num(arena, 0_int64))
+    result = engine%simplify(one_atom**num(arena, 7_int64))
+    call check("algebraic one is recognised by power simplification", &
+        result%ok .and. result%value == num(arena, 1_int64))
+
     two_text = algebraic_from_re_im("2", "0", good)
     sqrt_two_text = algebraic_sqrt(chars(two_text), good)
     root = algebraic_expr(arena, chars(sqrt_two_text), good)
@@ -104,6 +117,14 @@ program test_fortsym_algebraic_expr
     expected = algebraic_expr(arena, chars(two_text), good)*x
     call check("native powers algebraic coefficients", &
         result%ok .and. result%value == expected)
+
+    result = engine%solve(root*x - num(arena, 1_int64), x)
+    expected_text = algebraic_pow(chars(sqrt_two_text), -1_int64, good)
+    expected = algebraic_expr(arena, chars(expected_text), good)
+    call check("native solves with an algebraic nonzero coefficient", &
+        result%ok .and. result%value == expected)
+    call check("algebraic coefficient solve needs no nonzero condition", &
+        result%ok .and. .not. result%conditional)
 
     gaussian_text = algebraic_from_re_im("1/2", "3/4", good)
     call check("Gaussian-rational algebraic oracle is available", good)
