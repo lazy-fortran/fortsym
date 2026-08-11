@@ -59,6 +59,15 @@ These transformations preserve the exact expression's real-valued semantics;
 they do not enable compiler reassociation. Purity remains an opt-in field until
 the downstream `fortnum#73` contract is settled.
 
+The `fortsym_backend` module is the bounded synthesis handoff. It serializes
+canonical native expressions under `fortsym.expression.v1`, exposes typed
+`PROVED`, `DISPROVED`, and `UNKNOWN` evidence with a versioned JSON record, and
+packages kernel source with the existing `fortsym.operation_cost.v1` metadata.
+Source generation alone always carries `UNKNOWN`: only a consumer's Fortran
+readback and equivalence assessment can establish a proof. This protocol is
+stable enough for FortFront integration without claiming Lean/Why3 certificates
+or IEEE floating-point equivalence.
+
 The expression emitter's `kernel_spec_t` separately controls CSE per target
 variant. `CSE_FULL` preserves the historical naming of repeated compounds;
 `CSE_NONE` rematerialises them; and `CSE_THRESHOLDED` rematerialises nodes

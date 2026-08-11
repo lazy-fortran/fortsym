@@ -109,6 +109,16 @@ field refusal, `Show`, and explicit refusal of unsupported `Graphics` forms.
 The remaining Wolfram plotting surface is still a named refusal or an upstream
 fortplot capability question; fortsym does not grow a second renderer.
 
+Issue #48 (verified-generation backend) is complete as of 2026-08-11 for the
+bounded protocol slice. `fortsym_backend` provides a versioned canonical
+expression payload, typed `PROVED`/`DISPROVED`/`UNKNOWN` evidence, escaped
+machine-readable evidence records, and a kernel/cost handoff whose successful
+source remains explicitly unproved until a consumer performs Fortran readback
+and checks equivalence. Existing resource limits, readback, operation-cost,
+provenance, JVP/VJP/HVP, and CUDA-target APIs remain the corresponding bounded
+consumer surfaces. Lean/Why3 export, unrestricted tensor synthesis, and a
+theorem-prover-grade certificate format are explicit follow-up boundaries.
+
 Issue #28 (polynomial and rational algebra) is complete as of 2026-08-11:
 the exact sparse multivariate layer is now registered in the library and test
 builds. It provides together, cancel, apart, coefficient/collect/exponent,
@@ -1260,6 +1270,19 @@ internal prompts repository. That skill teaches the explicit-arena form today
 and is read more often than any document here, so it is named in the issue
 rather than left to a general clause — no acceptance check in this repository
 can reach it, and #71 does not close while it is outstanding.
+
+### M17 — Verified-generation backend handoff (#48)
+
+The FortFront boundary is typed and versioned for the first practical slice:
+canonical native expression serialization, three-valued identity evidence, and
+kernel source plus the existing symbolic operation-cost record. A generated
+kernel is never reported as proved by this boundary; the consumer must parse
+its source back and assess the original/generated difference. This keeps proof,
+probe, and unknown outcomes separate while allowing the existing bounded
+derivation, code-generation, provenance, and target APIs to be composed.
+
+The Lean/Why3 bridge, unrestricted tensor/index protocol, dependent-type
+semantics, and stepwise proof-producing rewrites remain outside this milestone.
 
 ## Roadmap maintenance
 
