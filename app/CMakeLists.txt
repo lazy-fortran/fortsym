@@ -33,6 +33,9 @@ target_link_libraries(bench_algebraic PRIVATE fortsym)
 add_executable(fortsym_wl_to_f90 fortsym_wl_to_f90.f90)
 target_link_libraries(fortsym_wl_to_f90 PRIVATE fortsym)
 
+add_executable(fortsym_latex_paper_pilot fortsym_latex_paper_pilot.f90)
+target_link_libraries(fortsym_latex_paper_pilot PRIVATE fortsym)
+
 # Lives under benchmark/harnesses rather than app/ because fpm treats every
 # file in app/ as a program and links their objects together, so a C++ main
 # here collides with every Fortran app's main and breaks `fo install`.
