@@ -1898,6 +1898,9 @@ contains
         case ("log")
             call exact_log_value(a, args(1), trig_constant, trig_constant_ok)
             if (trig_constant_ok) out = trig_constant
+        case ("atan2")
+            call exact_atan2_value(a, args, trig_constant, trig_constant_ok)
+            if (trig_constant_ok) out = trig_constant
         case ("sign")
             call exact_sign_value(a, args(1), trig_constant, trig_constant_ok)
             if (trig_constant_ok) out = trig_constant
@@ -2340,6 +2343,74 @@ contains
             end if
         end if
     end subroutine exact_log_value
+
+    subroutine exact_atan2_value(a, args, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: args(:)
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer(int64) :: y_numerator, y_denominator
+        integer(int64) :: x_numerator, x_denominator
+        logical :: y_exact, x_exact
+        integer :: half_pi, quarter_pi, three_quarter_pi
+
+        out = a%func("atan2", args)
+        ok = .false.
+        if (size(args) /= 2) return
+        call exact_value(a, args(1), y_numerator, y_denominator, y_exact)
+        if (.not. y_exact) return
+        call exact_value(a, args(2), x_numerator, x_denominator, x_exact)
+        if (.not. x_exact) return
+
+        half_pi = mul_pair(a, a%rat(1_int64, 2_int64), a%const("pi"))
+        quarter_pi = mul_pair(a, a%rat(1_int64, 4_int64), a%const("pi"))
+        three_quarter_pi = mul_pair(a, a%rat(3_int64, 4_int64), &
+            a%const("pi"))
+
+        if (y_numerator == 0_int64) then
+            if (x_numerator > 0_int64) then
+                out = a%int(0_int64)
+                ok = .true.
+            else if (x_numerator < 0_int64) then
+                out = a%const("pi")
+                ok = .true.
+            end if
+            return
+        end if
+        if (x_numerator == 0_int64) then
+            if (y_numerator > 0_int64) then
+                out = half_pi
+                ok = .true.
+            else if (y_numerator < 0_int64) then
+                out = mul_pair(a, a%rat(-1_int64, 2_int64), &
+                    a%const("pi"))
+                ok = .true.
+            end if
+            return
+        end if
+
+        if (y_denominator /= x_denominator) return
+        if (y_numerator == x_numerator) then
+            if (x_numerator > 0_int64) then
+                out = quarter_pi
+            else
+                out = mul_pair(a, a%rat(-3_int64, 4_int64), &
+                    a%const("pi"))
+            end if
+            ok = .true.
+            return
+        end if
+        if (x_numerator == MIN_I64) return
+        if (y_numerator == -x_numerator) then
+            if (x_numerator > 0_int64) then
+                out = mul_pair(a, a%rat(-1_int64, 4_int64), &
+                    a%const("pi"))
+            else
+                out = three_quarter_pi
+            end if
+            ok = .true.
+        end if
+    end subroutine exact_atan2_value
 
     subroutine exact_square_root(a, id, out, ok)
         type(arena_t), intent(inout) :: a

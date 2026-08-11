@@ -897,6 +897,33 @@ contains
         r = engine%simplify(log(e_expr(arena)**i_expr(arena)))
         call check("native simplify preserves complex e power log", &
             r%value%kind() == NK_FUNC)
+        r = engine%simplify(atan2(num(arena, 0_int64), num(arena, 1_int64)))
+        call check("native simplify evaluates atan2(0,1)", &
+            r%value == num(arena, 0_int64))
+        r = engine%simplify(atan2(num(arena, 0_int64), num(arena, -1_int64)))
+        call check("native simplify evaluates atan2(0,-1)", &
+            r%value == pi_expr(arena))
+        r = engine%simplify(atan2(num(arena, 1_int64), num(arena, 0_int64)))
+        call check("native simplify evaluates atan2(1,0)", &
+            r%value == rat(arena, 1_int64, 2_int64)*pi_expr(arena))
+        r = engine%simplify(atan2(num(arena, -1_int64), num(arena, 0_int64)))
+        call check("native simplify evaluates atan2(-1,0)", &
+            r%value == rat(arena, -1_int64, 2_int64)*pi_expr(arena))
+        r = engine%simplify(atan2(num(arena, 1_int64), num(arena, -1_int64)))
+        call check("native simplify evaluates atan2(1,-1)", &
+            r%value == rat(arena, 3_int64, 4_int64)*pi_expr(arena))
+        r = engine%simplify(atan2(num(arena, -1_int64), num(arena, 1_int64)))
+        call check("native simplify evaluates atan2(-1,1)", &
+            r%value == rat(arena, -1_int64, 4_int64)*pi_expr(arena))
+        r = engine%simplify(atan2(num(arena, 1_int64), num(arena, 1_int64)))
+        call check("native simplify evaluates atan2(1,1)", &
+            r%value == rat(arena, 1_int64, 4_int64)*pi_expr(arena))
+        r = engine%simplify(atan2(num(arena, 0_int64), num(arena, 0_int64)))
+        call check("native simplify preserves atan2 origin", &
+            r%value%kind() == NK_FUNC)
+        r = engine%simplify(atan2(x, sym(arena, "y")))
+        call check("native simplify preserves symbolic atan2", &
+            r%value%kind() == NK_FUNC)
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
             r%verdict == VERDICT_TRUE)
