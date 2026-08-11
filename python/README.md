@@ -50,11 +50,13 @@ or direction.
 integer degrees and order zero; symbolic, noninteger, and negative-degree cases
 remain applied heads.
 
-The complex-domain functions `re`, `im`, `conjugate`, and `arg` use the same
+The complex-domain functions `re`, `im`, `Abs`, `conjugate`, and `arg` use the same
 native complex-domain owner rather than constructing duplicate applied heads.
 Their immutable results are cached per assumption epoch; adding or removing
 assumptions invalidates the cache. `arg` returns the principal branch when its
-supported rectangular split is decidable.
+supported rectangular split is decidable. `Abs` uses the same owner for exact,
+algebraic, and assumption-resolved complex expressions, while unknown reality
+keeps SymPy's unevaluated `abs(...)` fallback.
 
 The compatibility layer guarantees native structural equality only for
 operations listed as construction or transformation above. Unsupported

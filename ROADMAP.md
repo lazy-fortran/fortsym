@@ -154,7 +154,7 @@ Every checklist item requires all of the following:
 - [x] Audit every public export for duplicate concepts and inconsistent names
   with [`scripts/audit_api_naming.py`](scripts/audit_api_naming.py) and
   [`doc/sympy-api-naming-audit.json`](doc/sympy-api-naming-audit.json).
-  The audit covers all 128 `use fortsym` exports, all 12 native Python facade
+  The audit covers all 129 `use fortsym` exports, all 12 native Python facade
   exports, and all 83 `fortsym.sympy` adapter exports. It keeps the concise
   native vocabulary separate from the SymPy compatibility vocabulary and
   records the remaining canonical-name decisions for the next checklist item.
@@ -281,10 +281,12 @@ Every checklist item requires all of the following:
         polar half-angle form, including exact negative-real and zero cases,
         independent complex evaluation, and matched benchmark rows.
       - [x] Expose the shared complex-domain owner through the main Fortran
-        facade, C ABI v8, and SymPy adapter as `re_part`/`re`, `im_part`/`im`,
-        `conjugate`, and `arg_of`/`arg`. Unknown reality, unresolved branches,
-        and `Arg` at decidable zero remain explicit refusals; repeated Python
-        calls reuse immutable results until the assumption epoch changes.
+        facade, C ABI v9, and SymPy adapter as `re_part`/`re`, `im_part`/`im`,
+        `abs_of`/`Abs`, `conjugate`, and `arg_of`/`arg`. Unknown reality,
+        unresolved branches, and `Arg` at decidable zero remain explicit
+        refusals; `Abs` retains SymPy's unevaluated fallback for unknown
+        reality, and repeated Python calls reuse immutable results until the
+        assumption epoch changes.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
   - [x] Add the canonical native `oo_expr` positive-infinity sentinel. Native

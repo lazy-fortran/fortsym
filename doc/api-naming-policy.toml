@@ -27,7 +27,7 @@ canonical_native = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh"
 current_native = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", "besselj", "legendrep", "legendreq"]
 transition_aliases = []
 python_facade = []
-sympy_adapter = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "csch", "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial", "besselj", "besseli", "legendre", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs"]
+sympy_adapter = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "csch", "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial", "besselj", "besseli", "legendre", "asinh", "acosh", "atanh", "exp", "log", "sqrt"]
 decision = "Use the intrinsic spellings in the native facade so it mirrors fortsym_expr. The old _expr spellings are removed rather than retained as a second vocabulary. The adapter maps abs to SymPy Abs."
 
 [[family]]
@@ -43,12 +43,12 @@ decision = "Keep typed expression suffixes for constants because pi, e, i, oo, z
 [[family]]
 id = "complex-domain-functions"
 audit_concepts = ["complex-domain-functions"]
-canonical_native = ["re_part", "im_part", "conjugate", "arg_of"]
-current_native = ["re_part", "im_part", "conjugate", "arg_of"]
+canonical_native = ["re_part", "im_part", "abs_of", "conjugate", "arg_of"]
+current_native = ["re_part", "im_part", "abs_of", "conjugate", "arg_of"]
 transition_aliases = []
 python_facade = []
-sympy_adapter = ["re", "im", "conjugate", "arg"]
-decision = "Keep the explicit snake_case projection names in the native facade and lower-level complex-domain owner. Map SymPy's re, im, conjugate, and arg only in the compatibility adapter; all four use one shared operation boundary and explicit refusal semantics."
+sympy_adapter = ["re", "im", "Abs", "conjugate", "arg"]
+decision = "Keep the explicit snake_case projection names in the native facade and lower-level complex-domain owner. Map SymPy's re, im, Abs, conjugate, and arg only in the compatibility adapter; all use one shared operation boundary, with Abs retaining an unevaluated fallback for unknown reality."
 
 [[family]]
 id = "calculus"

@@ -75,10 +75,10 @@ difference = "Applied heads are structurally compatible for the supported fragme
 
 [[semantic]]
 id = "complex-domain-functions"
-affected = ["re", "im", "conjugate", "arg"]
+affected = ["re", "im", "Abs", "conjugate", "arg"]
 parity = "partial"
 sympy = "SymPy evaluates real and imaginary projections, conjugation, and principal argument with broad assumptions, rewrites, branch, and algebraic-number support."
-fortsym = "The adapter routes re, im, conjugate, and arg through the native fortsym_complexdom owner. Supported exact, algebraic, real-assumption, elementary, and principal-branch cases are evaluated; unknown reality, unsupported branches, and Arg at decidable zero return UnsupportedOperationError."
+fortsym = "The adapter routes re, im, Abs, conjugate, and arg through the native fortsym_complexdom owner where the supported domain is decidable. Supported exact, algebraic, real-assumption, elementary, and principal-branch cases are evaluated; unknown reality, unsupported branches, and Arg at decidable zero return UnsupportedOperationError, while Abs falls back to an unevaluated native head."
 difference = "The supported expression fragment and printer coverage are narrower than SymPy's complete complex-domain protocol; refusals are explicit rather than guessed."
 
 [[semantic]]

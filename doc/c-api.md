@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 8). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 9). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, and differentiation. The native library retains an
 arena while any expression handle refers to it; callers may therefore release
@@ -30,7 +30,7 @@ matching pop. A pop without a matching push returns
 operations.
 
 `fortsym_complex_operation` exposes the supported native complex-domain
-operations `re`, `im`, `conjugate`, and `arg`. It returns a new expression when
+operations `re`, `im`, `abs`, `conjugate`, and `arg`. It returns a new expression when
 the expression's reality, branch, and singularity conditions are decidable;
 otherwise it returns `FORTSYM_UNSUPPORTED` with the native refusal reason.
 

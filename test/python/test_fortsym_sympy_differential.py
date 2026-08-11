@@ -191,6 +191,9 @@ class SympyDifferentialTest(unittest.TestCase):
              native.conjugate(native.Integer(2))),
             (oracle.arg(oracle.Integer(-1)),
              native.arg(native.Integer(-1))),
+            (oracle.Abs(oracle.I), native.Abs(native.I)),
+            (oracle.Abs(oracle.Integer(2) + oracle.I),
+             native.Abs(native.Integer(2) + native.I)),
         ]
         for expected, actual in cases:
             with self.subTest(expected=str(expected)):

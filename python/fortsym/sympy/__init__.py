@@ -417,7 +417,16 @@ atanh = _named_function("atanh")
 exp = _named_function("exp")
 log = _named_function("log")
 sqrt = _named_function("sqrt")
-Abs = _named_function("abs")
+_native_abs = _named_function("abs")
+
+
+def Abs(expression):
+    try:
+        return _complex_operation("abs", expression)
+    except UnsupportedOperationError:
+        return _native_abs(expression)
+
+
 sign = _named_function("sign")
 floor = _named_function("floor")
 ceiling = _named_function("ceiling")
