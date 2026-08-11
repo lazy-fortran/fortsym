@@ -115,6 +115,13 @@ nonnegative implications are derived soundly, and contexts can be cloned for
 scoped evaluation without leaking facts. Unsupported upper-bound inference
 remains an explicit refusal.
 
+Issue #30 (symbolic vectors and matrices) is complete as of 2026-08-11 for
+the bounded exact matrix fragment: nested-list matrices support shape checks,
+transpose, dot and cross products, Bareiss determinant, exact inverse, row
+reduction, null space, rank, and bounded minors. Independent tests verify
+determinant multiplicativity, two-sided inverse identities, transpose
+involution, null-space/rank behavior, minors, and refusal of invalid shapes.
+
 Issue #31 (native integration) is complete as of 2026-08-11 for the bounded
 exact fragment: native integration now sends exact rational inputs through
 partial fractions before applying its verified elementary rules. Distinct and
@@ -823,6 +830,10 @@ elimination for systems, Gröbner only where a traced case needs it
 (**F4**, Faugère 1999; bounded Buchberger otherwise).
 
 ### M9 — Matrices (#30) · 589 sites
+
+Issue #30 is complete for the bounded exact matrix fragment above. Eigenvalues
+and symbolic pivots whose validity conditions cannot be decided remain named
+refusals rather than approximate or unconditional answers.
 
 - Determinant and linear solve by **fraction-free Bareiss** (Bareiss 1968).
 - Rational systems by **Dixon p-adic lifting** (Dixon 1982), which is the fast
