@@ -263,6 +263,9 @@ Every checklist item requires all of the following:
         `cosh` heads. The independent complex evaluator verifies the addition
         identities and the real-valued parts; branch-sensitive heads remain
         explicit refusals.
+      - [x] Add rectangular `tanh` splitting with SymPy's equivalent
+        denominator form, an explicit identically-zero-denominator refusal,
+        independent complex evaluation, and matched cold/warm benchmark rows.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.

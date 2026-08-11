@@ -24,10 +24,13 @@ module fortsym_complexdom
     !   * integer powers -- repeated multiplication, and for a negative exponent
     !     one reciprocal, (p - i q)/(p^2 + q^2). A *non*-integer power is a
     !     branch-cut question this module cannot answer and refuses.
-    !   * Exp, Sin, Cos of an already-split argument, via the addition formulas.
-    !     These three are entire, so no branch enters. Log, Sqrt, Arg-like heads
-    !     and everything else are refused rather than given a principal-branch
-    !     answer the caller did not ask for.
+    !   * Exp, Sin, Cos, Sinh, and Cosh of an already-split argument, via the
+    !     addition formulas. These five are entire, so no branch enters.
+    !   * Tanh of an already-split argument, via its rectangular quotient. The
+    !     denominator remains in the result, and an identically zero denominator
+    !     is refused rather than turned into a claimed value at a pole.
+    !   * Log, Sqrt, Arg-like heads and everything else are refused rather than
+    !     given a principal-branch answer the caller did not ask for.
     !
     ! Nothing here simplifies. `re_part` of a real symbol comes back as an
     ! expression that is equal to it rather than identical to it; deciding the
@@ -338,9 +341,11 @@ contains
         ok = .true.
     end subroutine split_power
 
-    !> Exp, Sin, Cos, Sinh, and Cosh only. All five are entire, so the addition
-    !> formulas hold everywhere and no branch is involved. Every other head,
-    !> including Log and Sqrt, is refused.
+    !> Exp, Sin, Cos, Sinh, Cosh, and Tanh. The first five are entire and use
+    !> their addition formulas. Tanh uses a rectangular quotient and refuses an
+    !> identically zero denominator; the denominator remains visible for a
+    !> possible pointwise pole. Every other head, including Log and Sqrt, is
+    !> refused.
     recursive subroutine split_function(e, facts, re, im, ok, why)
         type(expr_t),               intent(in)  :: e
         type(assumption_context_t), target, intent(in)  :: facts
@@ -358,10 +363,10 @@ contains
             return
         end if
         select case (name)
-        case ("exp", "sin", "cos", "sinh", "cosh")
+        case ("exp", "sin", "cos", "sinh", "cosh", "tanh")
         case default
             why = "no complex rule for head "//name// &
-                " (only exp, sin, cos, sinh, and cosh are split)"
+                " (only exp, sin, cos, sinh, cosh, and tanh are split)"
             return
         end select
 
@@ -384,9 +389,47 @@ contains
         case ("cosh")
             re = cosh(a)*cos(b)
             im = sinh(a)*sin(b)
+        case ("tanh")
+            call split_tanh(a, b, re, im, ok, why)
+            return
         end select
         ok = .true.
     end subroutine split_function
+
+    !> Split tanh(a + i*b) for real a and b. SymPy's `expand_complex` uses the
+    !> equivalent form
+    !>
+    !>   sinh(a)*cosh(a) / (cos(b)**2 + sinh(a)**2)
+    !>   + i*sin(b)*cos(b) / (cos(b)**2 + sinh(a)**2).
+    !>
+    !> The denominator is zero exactly at tanh's poles. A denominator proved
+    !> identically zero is refused; otherwise it is kept in the result so a
+    !> caller does not lose the pointwise singularity.
+    subroutine split_tanh(a, b, re, im, ok, why)
+        type(expr_t),              intent(in)  :: a, b
+        type(expr_t),              intent(out) :: re, im
+        logical,                   intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(expr_t) :: den
+
+        ok = .false.
+        why = ""
+        ! A nonzero real part makes the sum of squares nonzero, so the
+        ! expensive engine proof is only needed on the zero-real-part path.
+        ! `structurally_zero` is sufficient here because `a` was produced by
+        ! the splitter and already carries its exact zero structure.
+        if (structurally_zero(a)) then
+            if (provably_zero(cos(b))) then
+                why = "tanh is undefined: its rectangular denominator is "// &
+                    "identically zero"
+                return
+            end if
+        end if
+        den = cos(b)*cos(b) + sinh(a)*sinh(a)
+        re = sinh(a)*cosh(a)/den
+        im = sin(b)*cos(b)/den
+        ok = .true.
+    end subroutine split_tanh
 
     !> Re[e] as a real expression, or a refusal.
     subroutine re_part(e, facts, out, ok, why)
