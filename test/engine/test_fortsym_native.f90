@@ -441,6 +441,7 @@ contains
     subroutine test_special_function_identities()
         type(engine_result_t) :: r
         type(expr_t) :: args(2)
+        type(expr_t) :: loggamma_args(1)
 
         ! Independent exact oracles: erf(0)=0, erfc(0)=1,
         ! Gamma(n)=(n-1)!, Gamma(1/2)=sqrt(pi), and positive integer
@@ -455,6 +456,22 @@ contains
         r = engine%simplify(gamma(rat(arena, 1_int64, 2_int64)))
         call check("Gamma(1/2) simplifies to sqrt(pi)", &
             r%value == sqrt(pi_expr(arena)))
+
+        loggamma_args(1) = num(arena, 1_int64)
+        r = engine%simplify(func("loggamma", loggamma_args))
+        call check("loggamma(1) simplifies to zero", &
+            r%value == num(arena, 0_int64))
+        loggamma_args(1) = num(arena, 5_int64)
+        r = engine%simplify(func("loggamma", loggamma_args))
+        call check("loggamma(5) simplifies to log(24)", &
+            r%value == log(num(arena, 24_int64)))
+        loggamma_args(1) = rat(arena, 1_int64, 2_int64)
+        r = engine%simplify(func("loggamma", loggamma_args))
+        call check("loggamma(1/2) simplifies to log(sqrt(pi))", &
+            r%value == log(sqrt(pi_expr(arena))))
+        loggamma_args(1) = num(arena, 0_int64)
+        r = engine%simplify(func("loggamma", loggamma_args))
+        call check("loggamma pole remains opaque", r%value%kind() == NK_FUNC)
 
         r = engine%simplify(besselj(0, num(arena, 0_int64)))
         call check("J_0(0) simplifies to one", r%value == num(arena, 1))

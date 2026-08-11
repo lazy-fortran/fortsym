@@ -1954,6 +1954,30 @@ contains
                     out = a%func("sqrt", one_arg)
                 end if
             end if
+        case ("loggamma")
+            call exact_value(a, args(1), order, den, exact)
+            if (exact) then
+                if (den == 1_int64 .and. order >= 1_int64 .and. &
+                    order <= 21_int64) then
+                    call factorial_i64(int(order - 1_int64), factorial, &
+                        factorial_ok)
+                    if (factorial_ok) then
+                        one_arg(1) = a%int(factorial)
+                        call exact_log_value(a, one_arg(1), trig_constant, &
+                            trig_constant_ok)
+                        if (trig_constant_ok) then
+                            out = trig_constant
+                        else
+                            out = a%func("log", one_arg)
+                        end if
+                    end if
+                else if (order == 1_int64 .and. den == 2_int64) then
+                    one_arg(1) = a%const("pi")
+                    out = a%func("sqrt", one_arg)
+                    one_arg(1) = out
+                    out = a%func("log", one_arg)
+                end if
+            end if
         case ("besselj")
             if (size(args) < 2) return
             call exact_value(a, args(1), order, den, exact)
