@@ -275,6 +275,7 @@ contains
         type(expr_t) :: renormalised
         type(expr_t) :: numerator, denominator
         logical :: saw_exponential, decidable, formal_exponential
+        logical :: branch_sensitive
         logical :: trig_ok, together_ok, cancel_ok
         logical :: saw_exponential_again, decidable_again, formal_exponential_again
         character(:), allocatable :: trig_reason, cancel_reason
@@ -332,6 +333,7 @@ contains
         ! every normalized result before selecting the verdict.
         r = self%simplify(normalised)
         if (.not. r%ok) return
+        branch_sensitive = has_branch_sensitive_power(r%value%a, r%value%id)
 
         select case (r%value%kind())
         case (NK_INT, NK_RAT)
@@ -350,10 +352,10 @@ contains
                 r%verdict = VERDICT_FALSE
             end if
         end select
-        if (saw_exponential .and. decidable .and. formal_exponential .and. &
+        if (decidable .and. formal_exponential .and. .not. branch_sensitive .and. &
             r%verdict == VERDICT_UNKNOWN) then
             ! Distinct canonical formal exponentials are distinct functions.
-            ! This is a disproof only after the fragment guard succeeds; an
+            ! The same fragment also includes exact rational expressions; an
             ! unsupported head must remain UNKNOWN.
             r%verdict = VERDICT_FALSE
         end if
@@ -754,7 +756,9 @@ contains
             r%seconds = wall_seconds() - started
             return
         end if
-        if (verified%verdict == VERDICT_UNKNOWN) then
+        if (verified%verdict == VERDICT_UNKNOWN .or. &
+            (verified%verdict == VERDICT_FALSE .and. &
+            .not. definitely_nonzero(e%a, coefficient%value%id))) then
             conditional = .true.
         end if
 
@@ -2942,6 +2946,39 @@ contains
             nonzero = .false.
         end select
     end function definitely_nonzero
+
+    recursive function has_branch_sensitive_power(a, id) result(found)
+        type(arena_t), intent(in) :: a
+        integer, intent(in)       :: id
+        logical                   :: found
+        integer                   :: k
+        integer(int64)            :: numerator, denominator
+        logical                   :: exact
+
+        found = .false.
+        select case (a%kind_of(id))
+        case (NK_FUNC)
+            if (chars(a%name_of(id)) == "sqrt") then
+                found = .true.
+                return
+            end if
+        case (NK_POW)
+            call exact_value(a, a%arg_of(id, 2), numerator, denominator, exact)
+            if (exact) then
+                if (denominator /= 1_int64) then
+                    found = .true.
+                    return
+                end if
+            end if
+        end select
+
+        do k = 1, a%nargs_of(id)
+            if (has_branch_sensitive_power(a, a%arg_of(id, k))) then
+                found = .true.
+                return
+            end if
+        end do
+    end function has_branch_sensitive_power
 
     function is_zero_id(a, id) result(yes)
         type(arena_t), intent(in) :: a

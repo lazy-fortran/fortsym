@@ -805,6 +805,9 @@ contains
             (x**2 + x*y + y**2))
         call check("multivariate rational identity is decided zero", &
             r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(1/(x - 1) + 1/(x + 1))
+        call check("nonzero rational residual is rejected", &
+            r%verdict == VERDICT_FALSE)
     end subroutine test_verdicts
 
     subroutine test_overflow_preservation()

@@ -821,6 +821,8 @@ contains
         type(expr_t),          intent(out)   :: slope, offset
         logical,               intent(out)   :: linear
         type(engine_result_t) :: verdict
+        real(dp) :: slope_value
+        logical :: numeric_slope
 
         linear = .false.
         slope = num(e%a, 0)
@@ -835,6 +837,8 @@ contains
         verdict = eng%zero_test(slope)
         if (.not. verdict%ok) return
         if (verdict%verdict /= VERDICT_FALSE) return
+        call number_of(slope, slope_value, numeric_slope)
+        if (.not. numeric_slope .or. slope_value == 0.0_dp) return
 
         linear = .true.
     end subroutine linear_in
