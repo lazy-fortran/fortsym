@@ -4,7 +4,7 @@ module fortsym
     use fortsym_arena, only: arena_t, node_kind_name, &
         NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, NK_POW, &
         NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
-    use fortsym_string, only: str
+    use fortsym_string, only: str, chars
     use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, &
         real_text_expr, const, func, func_in, partial, pi_expr, e_expr, &
         i_expr, sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, &
@@ -19,6 +19,7 @@ module fortsym
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE, verdict_name
     use fortsym_engine_native, only: native_engine_t, make_native_engine
+    use fortsym_kernel, only: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     use fortsym_backend, only: BACKEND_PROTOCOL_VERSION, EXPRESSION_SCHEMA, &
         BACKEND_PROVED, BACKEND_DISPROVED, BACKEND_UNKNOWN, &
         backend_evidence_t, backend_result_t, backend_status_name, &
@@ -33,7 +34,9 @@ module fortsym
         NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
     public :: expr_t, sym, num, rat, exact, real_expr, real_text_expr, const, &
         func, func_in, partial, pi_expr, e_expr, i_expr, is_valid, same_arena
+    public :: str, chars
     public :: subs, diff, simplify, expand, factor
+    public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE, verdict_name
     public :: numeric_value, numeric_text, numeric_precision_text, &
