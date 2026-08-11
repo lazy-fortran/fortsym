@@ -786,6 +786,15 @@ Indexed sums (**Gosper 1978**, **Zeilberger 1990** for the hypergeometric
 cases), piecewise with branch emission, public trig/power rewrites, and finally
 `DSolve`.
 
+Issue #39 is complete as of 2026-08-11 for the evidenced bounded fragment:
+`fortsym_sums` handles polynomial, geometric, telescoping, and constant
+sum/product bodies, expands concrete ranges under an explicit cap, and refuses
+unsupported or unsafe cases by name. The Wolfram frontend lowers `Sum` and
+`Product` through that API. Its independent direct-loop oracle passes across
+symbolic and concrete bounds, empty ranges, products, overflow-sized spans,
+and refusal cases; unrestricted hypergeometric summation remains outside the
+fragment.
+
 ### M13 — Codegen completion (#41, #42)
 
 Binding opaque applied functions and their `Derivative` nodes to
