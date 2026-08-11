@@ -19,8 +19,8 @@ module fortsym_parse
     use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, &
         NK_BIG_RAT, NK_MUL, NK_SYM, NK_FUNC
-    use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, const, func, &
-        func_in, &
+    use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, &
+        algebraic_expr, const, func, func_in, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_exact, only: exact_sub, exact_div
     use fortsym_dialect, only: dialect_t, dialect, fn_canonical, DIA_WOLFRAM, &
@@ -54,6 +54,10 @@ module fortsym_parse
     integer, parameter :: T_RASSOC = 14
     !> Wolfram pattern blanks: _, __ and ___
     integer, parameter :: T_BLANK = 15
+    !> Canonical FLINT qqbar1 atoms are one lossless internal token. Keeping
+    !> the payload opaque prevents its commas and colons from becoming parser
+    !> punctuation.
+    integer, parameter :: T_ALGEBRAIC = 16
 
     !> Parser state. Kept in one object so the recursive descent needs no
     !> module-level variables and two parses can never interfere.
@@ -245,6 +249,11 @@ contains
                 p%text = "."
                 p%pos = p%pos + 1
             end if
+            return
+        end if
+
+        if (algebraic_prefix(p, n)) then
+            call lex_algebraic(p, n)
             return
         end if
 
@@ -455,6 +464,100 @@ contains
             call fail(p, "unexpected character '"//c//"'")
         end select
     end subroutine advance
+
+    pure function algebraic_prefix(p, n) result(yes)
+        type(parser_t), intent(in) :: p
+        integer,        intent(in) :: n
+        logical                    :: yes
+        integer, parameter :: prefix_length = 7
+
+        yes = .false.
+        if (p%pos > n) return
+        if (n - p%pos + 1 < prefix_length) return
+        yes = p%src(p%pos:p%pos + prefix_length - 1) == "qqbar1:"
+    end function algebraic_prefix
+
+    pure function algebraic_coefficient_after_comma(p, n) result(yes)
+        type(parser_t), intent(in) :: p
+        integer,        intent(in) :: n
+        logical                    :: yes
+        integer                    :: next
+        character                   :: c
+
+        yes = .false.
+        next = p%pos + 1
+        if (next > n) return
+        c = p%src(next:next)
+        if (c == "+" .or. c == "-") then
+            next = next + 1
+            if (next > n) return
+        end if
+        yes = is_digit(p%src(next:next))
+    end function algebraic_coefficient_after_comma
+
+    !> Consume a canonical qqbar1 payload without exposing its internal
+    !> punctuation to the ordinary expression grammar. The arena constructor
+    !> performs the full FLINT validation and canonicalization after this token
+    !> is handed to parse_primary.
+    subroutine lex_algebraic(p, n)
+        type(parser_t), intent(inout) :: p
+        integer,        intent(in)    :: n
+        integer :: start
+        logical :: have_digits
+
+        start = p%pos
+        p%pos = p%pos + 7
+
+        ! The root index is unsigned and ends at the first colon.
+        have_digits = .false.
+        do while (p%pos <= n)
+            if (.not. is_digit(p%src(p%pos:p%pos))) exit
+            have_digits = .true.
+            p%pos = p%pos + 1
+        end do
+        if (.not. have_digits) then
+            p%tok = T_ALGEBRAIC
+            p%text = p%src(start:p%pos - 1)
+            return
+        end if
+        if (p%pos > n) then
+            p%tok = T_ALGEBRAIC
+            p%text = p%src(start:p%pos - 1)
+            return
+        end if
+        if (p%src(p%pos:p%pos) /= ":") then
+            p%tok = T_ALGEBRAIC
+            p%text = p%src(start:p%pos - 1)
+            return
+        end if
+        p%pos = p%pos + 1
+
+        ! Each coefficient is an optional sign followed by decimal digits.
+        ! A plus or minus after a completed coefficient is an expression
+        ! operator, so it remains for the precedence parser when no comma
+        ! introduces another coefficient.
+        do
+            if (p%pos > n) exit
+            if (p%src(p%pos:p%pos) == "+" .or. &
+                p%src(p%pos:p%pos) == "-") then
+                p%pos = p%pos + 1
+            end if
+            have_digits = .false.
+            do while (p%pos <= n)
+                if (.not. is_digit(p%src(p%pos:p%pos))) exit
+                have_digits = .true.
+                p%pos = p%pos + 1
+            end do
+            if (.not. have_digits) exit
+            if (p%pos > n) exit
+            if (p%src(p%pos:p%pos) /= ",") exit
+            if (.not. algebraic_coefficient_after_comma(p, n)) exit
+            p%pos = p%pos + 1
+        end do
+
+        p%tok = T_ALGEBRAIC
+        p%text = p%src(start:p%pos - 1)
+    end subroutine lex_algebraic
 
     !> A pure-function slot: #, #1, ## or ##2.
     !>
@@ -833,6 +936,7 @@ contains
         type(parser_t), intent(in) :: p
         logical                    :: yes
         yes = p%tok == T_NUMBER .or. p%tok == T_NAME .or. &
+            p%tok == T_ALGEBRAIC .or. &
             p%tok == T_LPAREN .or. p%tok == T_LBRACE .or. &
             p%tok == T_LASSOC .or. p%tok == T_SLOT .or. p%tok == T_BLANK
     end function starts_primary
@@ -1324,6 +1428,7 @@ contains
         type(expr_t), allocatable :: fargs(:)
         type(expr_t) :: one(1), pair(2)
         integer :: nargs, nprimes
+        logical :: valid
 
         select case (p%tok)
 
@@ -1338,6 +1443,14 @@ contains
                     call fail(p, "invalid exact integer '"//p%text//"'")
                     return
                 end if
+            end if
+            call advance(p, d)
+
+        case (T_ALGEBRAIC)
+            e = algebraic_expr(a, p%text, valid)
+            if (.not. valid) then
+                call fail(p, "invalid qqbar1 algebraic literal '"//p%text//"'")
+                return
             end if
             call advance(p, d)
 

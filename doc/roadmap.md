@@ -53,10 +53,11 @@ name. SymPy and Yacas requirements are limited to operations evidenced in
   structural.
 - The ownership-safe bounded `qqbar` bridge now provides a lossless
   minimal-polynomial/root-index format, Gaussian rationals, exact arithmetic,
-  conjugation, principal square roots, and exact component signs. Promote it
-  into arena nodes, parsing/printing, native expressions, and conversion next;
-  use Calcium or Arb/Acb only where their three-valued or rigorous enclosure
-  semantics are explicit.
+  conjugation, principal square roots, and exact component signs. It is now an
+  arena atom with native scalar/complex-domain support and lossless
+  parser/printer IO; conversion and code generation remain next. Use Calcium or
+  Arb/Acb only where their three-valued or rigorous enclosure semantics are
+  explicit.
 - Its pinned 45-row diagnostic passed every exact oracle. Warm end-to-end
   add/multiply/divide were 1.34x/1.47x/1.16x the separately scoped direct-FLINT
   no-text floor; a near-64-KiB height refusal completed in 1.50 ms.

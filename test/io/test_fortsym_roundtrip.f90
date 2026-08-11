@@ -12,8 +12,9 @@ program test_fortsym_roundtrip
     ! lossy. Its output is checked separately, against what a compiler must see.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: chars
-    use fortsym_arena, only: arena_t, NK_MUL
+    use fortsym_arena, only: arena_t, NK_MUL, NK_FUNC, NK_ALGEBRAIC
     use fortsym_expr
+    use fortsym_algebraic, only: algebraic_from_re_im, algebraic_sqrt
     use fortsym_dialect, only: dialect_t, dialect, DIA_NATIVE, DIA_SYMENGINE, &
         DIA_YACAS, DIA_SYMPY, DIA_MAXIMA, DIA_FORTRAN
     use fortsym_print, only: print_expr, print_expr_in
@@ -26,6 +27,7 @@ program test_fortsym_roundtrip
     call test_printing_shape()
     call test_construction_history_independence()
     call test_roundtrip_all_dialects()
+    call test_algebraic_roundtrip()
     call test_dialect_spellings()
     call test_fortran_emission()
     call test_parse_errors()
@@ -233,6 +235,74 @@ contains
             call check_roundtrip(a, d, cases(k), k)
         end do
     end subroutine roundtrip_corpus
+
+    !> Canonical qqbar1 text is the lossless internal representation of an
+    !> algebraic atom. The known minimal polynomial for sqrt(2) is an
+    !> independent mathematical oracle; the bridge supplies the root ordering
+    !> and the parser must retain the resulting atom without treating its
+    !> punctuation as expression syntax.
+    subroutine test_algebraic_roundtrip()
+        integer, parameter :: dialects(*) = [DIA_NATIVE, DIA_SYMENGINE, &
+            DIA_YACAS, DIA_SYMPY, DIA_MAXIMA]
+        type(arena_t), target :: a
+        type(dialect_t) :: d
+        type(expr_t) :: root, back, x, mixed
+        character(:), allocatable :: root_text, text, message
+        logical :: bridge_ok, valid, good
+        integer :: k
+
+        call a%init()
+        root_text = chars(algebraic_from_re_im("2", "0", bridge_ok))
+        call ok("algebraic round-trip bridge construction succeeds", bridge_ok)
+        if (.not. bridge_ok) return
+        root_text = chars(algebraic_sqrt(root_text, bridge_ok))
+        call ok("algebraic round-trip sqrt succeeds", bridge_ok)
+        if (.not. bridge_ok) return
+        call eq_text("sqrt(2) has the known qqbar1 root", root_text, &
+            "qqbar1:0:-2,0,1")
+
+        root = algebraic_expr(a, root_text, valid)
+        call ok("canonical algebraic atom enters the arena", valid)
+        if (.not. valid) return
+        call ok("canonical algebraic atom has its node kind", &
+            root%kind() == NK_ALGEBRAIC)
+
+        do k = 1, size(dialects)
+            d = dialect(dialects(k))
+            text = chars(print_expr_in(root, d, valid))
+            call ok("algebraic printer accepts a lossless dialect", valid)
+            if (.not. valid) cycle
+            call eq_text("algebraic printer retains canonical text", text, root_text)
+            back = parse_expr_in(a, text, d, good, message)
+            call ok("algebraic parser accepts printer output", good)
+            if (good) then
+                call ok("algebraic parser restores the atom", back == root)
+                call eq_text("algebraic parser retains canonical payload", &
+                    chars(back%algebraic_text()), root_text)
+            end if
+        end do
+
+        x = sym(a, "x")
+        mixed = root + x
+        text = chars(print_expr(mixed))
+        back = parse_expr_in(a, text, dialect(DIA_NATIVE), good, message)
+        call ok("algebraic token works inside an expression", good)
+        if (good) call ok("mixed algebraic expression round-trips", back == mixed)
+
+        back = parse_expr_in(a, root_text//"+x", dialect(DIA_NATIVE), good, message)
+        call ok("algebraic token touches an operator without whitespace", good)
+        if (good) call ok("unspaced algebraic expression round-trips", back == mixed)
+
+        back = parse_expr_in(a, "f("//root_text//",x)", &
+            dialect(DIA_NATIVE), good, message)
+        call ok("algebraic token works in a multi-argument call", good)
+        if (good) call ok("multi-argument algebraic call keeps both arguments", &
+            back%kind() == NK_FUNC .and. back%nargs() == 2)
+
+        back = parse_expr_in(a, "qqbar1:0:not-an-integer,1", &
+            dialect(DIA_NATIVE), good, message)
+        call ok("malformed qqbar1 text is refused", .not. good)
+    end subroutine test_algebraic_roundtrip
 
     subroutine check_roundtrip(a, d, e, k)
         type(arena_t), target, intent(inout) :: a

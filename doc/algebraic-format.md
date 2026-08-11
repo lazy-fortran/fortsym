@@ -53,5 +53,7 @@ original fortsym wrappers; no upstream implementation code is copied.
 
 `NK_ALGEBRAIC` now stores the bounded `qqbar1` value as an arena atom. Native
 scalar arithmetic and the complex-domain `Re`, `Im`, and conjugation boundary
-use it. Parser, printer round trips, SymEngine conversion, and code generation
-integration remain incomplete and are the next coherent fragment.
+use it. The native and backend text dialects print and parse the canonical
+payload losslessly; the parser keeps the payload opaque and lets the
+FLINT-backed arena constructor validate it. SymEngine conversion and Fortran
+code generation integration remain incomplete.
