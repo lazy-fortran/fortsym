@@ -151,7 +151,13 @@ Every checklist item requires all of the following:
 
 ## Phase 1 — make the Fortran facade coherent
 
-- [ ] Audit every public export for duplicate concepts and inconsistent names.
+- [x] Audit every public export for duplicate concepts and inconsistent names
+  with [`scripts/audit_api_naming.py`](scripts/audit_api_naming.py) and
+  [`doc/sympy-api-naming-audit.json`](doc/sympy-api-naming-audit.json).
+  The audit covers all 85 `use fortsym` exports, all 12 native Python facade
+  exports, and all 41 `fortsym.sympy` adapter exports. It keeps the concise
+  native vocabulary separate from the SymPy compatibility vocabulary and
+  records the remaining canonical-name decisions for the next checklist item.
 - [ ] Select canonical short names for constructors, functions, predicates,
   results, statuses, and contexts.
 - [ ] Remove `_expr` suffixes and other facade-only aliases where they do not
