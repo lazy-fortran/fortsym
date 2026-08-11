@@ -83,6 +83,12 @@ verified elementary rules. The candidate is differentiated and checked before
 it is returned; rational shapes outside the bounded rule set are named
 refusals, so a partial antiderivative is never exposed as a result.
 
+Complex-domain operations use one rectangular splitter for `Re`, `Im`,
+conjugation, `Arg`, `Abs`, and `ComplexExpand`. It requires explicit real facts
+for symbols and refuses branch-sensitive or unknown-reality cases; the complex
+test oracle evaluates the original expression independently rather than
+reconstructing the expected parts from the splitter.
+
 Fortran kernel emission uses the dialect's declared function map rather than
 passing symbolic heads through as identifiers. Standard intrinsics cover
 `erf`, `erfc`, `gamma`, `log_gamma`, `bessel_jn`, and `bessel_yn`; the default

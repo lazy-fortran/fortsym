@@ -122,6 +122,13 @@ reduction, null space, rank, and bounded minors. Independent tests verify
 determinant multiplicativity, two-sided inverse identities, transpose
 involution, null-space/rank behavior, minors, and refusal of invalid shapes.
 
+Issue #33 (complex-domain algebra) is complete as of 2026-08-11 for the
+bounded direct API: exact and real-valued expressions support rectangular
+splitting, `Re`, `Im`, conjugation, `Arg`, `Abs`, and `ComplexExpand`, with
+unknown reality, branch-cut cases, zero arguments, and expansion blow-up
+refused by name. An independent complex evaluator checks reconstruction,
+realness of parts, conjugation, modulus/argument, and the refusal boundary.
+
 Issue #31 (native integration) is complete as of 2026-08-11 for the bounded
 exact fragment: native integration now sends exact rational inputs through
 partial fractions before applying its verified elementary rules. Distinct and
@@ -790,6 +797,10 @@ inversion, series of special functions.
 - Taylor-derived limits first for the cheap finite cases.
 
 ### M5 — Complex domain (#33) · 782 sites
+
+Issue #33 is complete for the bounded direct API above. Promotion of arbitrary
+algebraic complex values and branch-sensitive functions remains outside this
+decision procedure and is refused rather than given a principal-branch guess.
 
 `re`, `im`, `conjugate`, `arg`, guarded `abs`, `complex_expand`, and promotion
 of the bounded `qqbar` bridge into arena nodes.
