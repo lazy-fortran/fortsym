@@ -1890,7 +1890,8 @@ contains
                 end if
             end if
         case ("log")
-            if (is_one_id(a, args(1))) out = a%int(0_int64)
+            call exact_log_value(a, args(1), trig_constant, trig_constant_ok)
+            if (trig_constant_ok) out = trig_constant
         case ("sign")
             call exact_sign_value(a, args(1), trig_constant, trig_constant_ok)
             if (trig_constant_ok) out = trig_constant
@@ -2268,6 +2269,56 @@ contains
         end select
         ok = .true.
     end subroutine exact_inverse_value
+
+    subroutine exact_log_value(a, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer :: half_pi, positive
+        logical :: negated
+        integer(int64) :: numerator, denominator
+        logical :: exact
+
+        out = id
+        ok = .false.
+        if (is_one_id(a, id)) then
+            out = a%int(0_int64)
+            ok = .true.
+            return
+        end if
+        if (a%kind_of(id) == NK_CONST) then
+            if (chars(a%name_of(id)) == "e") then
+                out = a%int(1_int64)
+                ok = .true.
+                return
+            else if (chars(a%name_of(id)) == "i") then
+                half_pi = mul_pair(a, a%rat(1_int64, 2_int64), &
+                    a%const("pi"))
+                out = mul_pair(a, a%const("i"), half_pi)
+                ok = .true.
+                return
+            end if
+        end if
+        call exact_value(a, id, numerator, denominator, exact)
+        if (exact .and. numerator == -1_int64 .and. denominator == 1_int64) then
+            out = mul_pair(a, a%const("i"), a%const("pi"))
+            ok = .true.
+            return
+        end if
+        call split_negated_argument(a, id, positive, negated)
+        if (negated) then
+            if (a%kind_of(positive) == NK_CONST) then
+                if (chars(a%name_of(positive)) == "i") then
+                    half_pi = mul_pair(a, a%rat(1_int64, 2_int64), &
+                        a%const("pi"))
+                    out = mul_pair(a, a%int(-1_int64), &
+                        mul_pair(a, a%const("i"), half_pi))
+                    ok = .true.
+                end if
+            end if
+        end if
+    end subroutine exact_log_value
 
     subroutine exact_square_root(a, id, out, ok)
         type(arena_t), intent(inout) :: a
