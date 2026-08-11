@@ -96,6 +96,13 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(str(sp.nan), "nan")
         self.assertEqual(sp.nan.name, "nan")
 
+    def test_signed_zero_is_preserved_by_native_float(self):
+        positive = sp.Float(0.0)
+        negative = sp.Float(-0.0)
+        self.assertNotEqual(positive, negative)
+        self.assertEqual(str(positive), "0.0000000000000000E+000")
+        self.assertEqual(str(negative), "-0.0000000000000000E+000")
+
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")
         cases = [
