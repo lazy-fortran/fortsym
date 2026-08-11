@@ -49,11 +49,11 @@ module fortsym_poly
     !     the result is recombined and cross-multiplied against the input --
     !     an answer that fails that identity is discarded.
     use, intrinsic :: iso_fortran_env, only: int64
-    use fortsym_string, only: str_t, chars
+    use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
         node_kind_name
-    use fortsym_expr, only: expr_t, num, rat, is_valid, same_arena, &
+    use fortsym_expr, only: expr_t, num, rat, is_valid, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     implicit none
     private
@@ -2085,8 +2085,8 @@ contains
                 lin(1) = rat_of(0_int64)
                 lin(2) = rat_of(1_int64)
                 call append_factor(roots, lin, 1)
+                call u_divmod(rest, lin, q, r, ok)
                 deallocate (lin)
-                call u_divmod(rest, [rat_of(0_int64), rat_of(1_int64)], q, r, ok)
                 if (.not. ok) then
                     why = OVERFLOW_WHY
                     return
