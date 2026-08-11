@@ -279,7 +279,7 @@ Every checklist item requires all of the following:
   - [x] Add nested native context push/pop with exception-safe Python
     `Q`, `ask`, and `assuming` scopes; restore the previous arena facts after
     every scope and keep foreign-arena facts refused.
-  - [ ] Add immutable explicit assumption contexts to the Fortran facade and
+  - [x] Add immutable explicit assumption contexts to the Fortran facade and
     make native transformations accept them without process-global state.
 - [ ] Implement `refine`, relational facts, compound inference, and conflict
   diagnostics.

@@ -7,6 +7,8 @@ program test_fortsym_convenience
 
     type(arena_t), target :: explicit_arena, concurrent_arena
     type(arena_t), pointer :: default_storage
+    type(assumption_context_t) :: base_context, positive_context, nonnegative_context
+    type(assumption_context_t) :: foreign_context
     type(expr_t) :: x, mu, sigma, best, xi, literal
     type(expr_t) :: bulk_mu, bulk_sigma, bulk_best, bulk_xi
     type(expr_t) :: explicit_mu, explicit_sigma, explicit_best, explicit_xi
@@ -16,7 +18,7 @@ program test_fortsym_convenience
     type(expr_t) :: huge_integer, exact_fraction
     type(expr_t) :: stale
     type(engine_result_t) :: result
-    logical :: good, exact_good
+    logical :: good, exact_good, context_ok
     integer :: failures
 
     failures = 0
@@ -114,6 +116,34 @@ program test_fortsym_convenience
     factored = result%value
     call check("explicit arena uses facade factorisation", &
         result%ok .and. factored == (explicit_mu + 1)**2, failures)
+
+    base_context = make_assumption_context(explicit_arena)
+    positive_context = with_assumption(base_context, positive(explicit_mu), context_ok)
+    call check("value-style context accepts same-arena fact", context_ok, failures)
+    result = simplify(sqrt(explicit_mu**2), assumptions=base_context)
+    call check("base context stays assumption-free", &
+        result%ok .and. result%value == sqrt(explicit_mu**2), failures)
+    result = simplify(sqrt(explicit_mu**2), assumptions=positive_context)
+    call check("derived positive context is isolated and effective", &
+        result%ok .and. result%value == explicit_mu, failures)
+    nonnegative_context = with_assumption(base_context, &
+        nonnegative(explicit_sigma), context_ok)
+    call check("second derived context accepts same-arena fact", context_ok, failures)
+    result = simplify(sqrt(explicit_sigma**2), assumptions=nonnegative_context)
+    call check("derived nonnegative context is independent", &
+        result%ok .and. result%value == explicit_sigma, failures)
+    result = zero_test(sqrt(explicit_mu**2) - explicit_mu, &
+        assumptions=positive_context)
+    call check("zero query accepts an explicit context", &
+        result%ok .and. result%verdict == VERDICT_TRUE, failures)
+    result = diff(explicit_mu**2, explicit_mu, assumptions=positive_context)
+    call check("differentiation accepts an explicit context", &
+        result%ok .and. result%value == 2*explicit_mu, failures)
+    foreign_context = make_assumption_context(concurrent_arena)
+    result = simplify(sqrt(explicit_mu**2), assumptions=foreign_context)
+    call check("foreign explicit context is refused", &
+        .not. result%ok .and. chars(result%message) == &
+        "simplify: assumptions belong to a different arena", failures)
     result = zero_test(mu - mu)
     call check("facade zero query proves an identity", &
         result%ok .and. result%verdict == VERDICT_TRUE, failures)

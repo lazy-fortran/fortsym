@@ -13,6 +13,9 @@ module fortsym
         is_valid, same_arena, operator(+), operator(-), operator(*), &
         operator(/), operator(**), operator(==), operator(/=)
     use fortsym_subs, only: subs_impl => subs
+    use fortsym_assume, only: assumption_context_t, &
+        make_assumption_context, with_assumption, positive, nonnegative, &
+        nonzero, real_valued
     use fortsym_numeric, only: numeric_value, numeric_text, &
         numeric_precision_text, numeric_complex_text, &
         numeric_real_text_t, numeric_complex_text_t, numeric_callable_t
@@ -35,6 +38,8 @@ module fortsym
     public :: expr_t, sym, num, rat, exact, real_expr, real_text_expr, &
         algebraic_expr, const, &
         func, func_in, partial, pi_expr, e_expr, i_expr, is_valid, same_arena
+    public :: assumption_context_t, make_assumption_context, with_assumption, &
+        positive, nonnegative, nonzero, real_valued
     public :: str, chars
     public :: subs, diff, simplify, expand, factor
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
@@ -112,8 +117,9 @@ contains
     !> Differentiate and simplify through the native engine in the expression's
     !> arena. The low-level fortsym_diff module remains available when callers
     !> specifically need the unsimplified derivative DAG.
-    function diff(expression, variable) result(result)
+    function diff(expression, variable, assumptions) result(result)
         type(expr_t), intent(in) :: expression, variable
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
         type(engine_result_t) :: result
         type(native_engine_t) :: engine
 
@@ -126,13 +132,22 @@ contains
             return
         end if
 
-        engine = make_native_engine(expression%a)
+        if (.not. context_matches(expression, assumptions)) then
+            call report_failure(result, "diff: assumptions belong to a different arena")
+            return
+        end if
+        if (present(assumptions)) then
+            engine = make_native_engine(expression%a, assumptions)
+        else
+            engine = make_native_engine(expression%a)
+        end if
         result = engine%diff(expression, variable)
     end function diff
 
     !> Simplify an expression with the native engine in its owning arena.
-    function simplify(expression) result(result)
+    function simplify(expression, assumptions) result(result)
         type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
         type(engine_result_t) :: result
         type(native_engine_t) :: engine
 
@@ -141,13 +156,23 @@ contains
             return
         end if
 
-        engine = make_native_engine(expression%a)
+        if (.not. context_matches(expression, assumptions)) then
+            call report_failure(result, &
+                "simplify: assumptions belong to a different arena")
+            return
+        end if
+        if (present(assumptions)) then
+            engine = make_native_engine(expression%a, assumptions)
+        else
+            engine = make_native_engine(expression%a)
+        end if
         result = engine%simplify(expression)
     end function simplify
 
     !> Expand an expression with the native engine in its owning arena.
-    function expand(expression) result(result)
+    function expand(expression, assumptions) result(result)
         type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
         type(engine_result_t) :: result
         type(native_engine_t) :: engine
 
@@ -156,13 +181,23 @@ contains
             return
         end if
 
-        engine = make_native_engine(expression%a)
+        if (.not. context_matches(expression, assumptions)) then
+            call report_failure(result, &
+                "expand: assumptions belong to a different arena")
+            return
+        end if
+        if (present(assumptions)) then
+            engine = make_native_engine(expression%a, assumptions)
+        else
+            engine = make_native_engine(expression%a)
+        end if
         result = engine%expand(expression)
     end function expand
 
     !> Factor an expression with the native engine in its owning arena.
-    function factor(expression) result(result)
+    function factor(expression, assumptions) result(result)
         type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
         type(engine_result_t) :: result
         type(native_engine_t) :: engine
 
@@ -171,15 +206,25 @@ contains
             return
         end if
 
-        engine = make_native_engine(expression%a)
+        if (.not. context_matches(expression, assumptions)) then
+            call report_failure(result, &
+                "factor: assumptions belong to a different arena")
+            return
+        end if
+        if (present(assumptions)) then
+            engine = make_native_engine(expression%a, assumptions)
+        else
+            engine = make_native_engine(expression%a)
+        end if
         result = engine%factor(expression)
     end function factor
 
     !> Return the native three-valued zero verdict for an expression.
     !> VERDICT_TRUE means proved zero, VERDICT_FALSE means proved nonzero, and
     !> VERDICT_UNKNOWN means the native engine declined to decide.
-    function zero_test(expression) result(result)
+    function zero_test(expression, assumptions) result(result)
         type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
         type(engine_result_t) :: result
         type(native_engine_t) :: engine
 
@@ -187,7 +232,16 @@ contains
             call report_failure(result, "zero_test: invalid expression")
             return
         end if
-        engine = make_native_engine(expression%a)
+        if (.not. context_matches(expression, assumptions)) then
+            call report_failure(result, &
+                "zero_test: assumptions belong to a different arena")
+            return
+        end if
+        if (present(assumptions)) then
+            engine = make_native_engine(expression%a, assumptions)
+        else
+            engine = make_native_engine(expression%a)
+        end if
         result = engine%zero_test(expression)
     end function zero_test
 
@@ -209,6 +263,16 @@ contains
         result%verdict = VERDICT_UNKNOWN
         result%message = str(message)
     end subroutine report_failure
+
+    logical function context_matches(expression, assumptions) result(matches)
+        type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, intent(in) :: assumptions
+
+        matches = .true.
+        if (.not. present(assumptions)) return
+        matches = associated(assumptions%home)
+        if (matches) matches = associated(assumptions%home, expression%a)
+    end function context_matches
 
     !> Read up to eight whitespace- or comma-separated symbol names into scalar
     !> outputs. A missing output or an extra name sets ok=.false.; every output

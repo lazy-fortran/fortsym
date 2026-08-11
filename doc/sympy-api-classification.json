@@ -3046,6 +3046,83 @@
           "facade",
           "native"
         ],
+        "id": "fortsym.assumption_context_t",
+        "module": "fortsym",
+        "name": "assumption_context_t",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.make_assumption_context",
+        "module": "fortsym",
+        "name": "make_assumption_context",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.with_assumption",
+        "module": "fortsym",
+        "name": "with_assumption",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.positive",
+        "module": "fortsym",
+        "name": "positive",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.nonnegative",
+        "module": "fortsym",
+        "name": "nonnegative",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.nonzero",
+        "module": "fortsym",
+        "name": "nonzero",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.real_valued",
+        "module": "fortsym",
+        "name": "real_valued",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym.str",
         "module": "fortsym",
         "name": "str",
@@ -4260,6 +4337,26 @@
         "id": "fortsym_assume.clone_assumption_context",
         "module": "fortsym_assume",
         "name": "clone_assumption_context",
+        "owner": "src/core/fortsym_assume.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_assume.make_assumption_context",
+        "module": "fortsym_assume",
+        "name": "make_assumption_context",
+        "owner": "src/core/fortsym_assume.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_assume.with_assumption",
+        "module": "fortsym_assume",
+        "name": "with_assumption",
         "owner": "src/core/fortsym_assume.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -7015,12 +7112,12 @@
     "classification_counts": {
       "delegated": 1737,
       "external": 10,
-      "facade": 141,
-      "native": 2328,
+      "facade": 148,
+      "native": 2337,
       "python-adapter": 1693,
       "refused": 26101
     },
-    "fortran_public_exports": 679,
+    "fortran_public_exports": 688,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
