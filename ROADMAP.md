@@ -130,8 +130,10 @@ Every checklist item requires all of the following:
   [`scripts/check_sympy_api_differences.py`](scripts/check_sympy_api_differences.py)
   requiring every currently supported SymPy root name to appear in the
   semantic ledger.
-- [ ] Add a versioned API-diff report so new or removed SymPy names cannot pass
-  unnoticed.
+- [x] Add a versioned API-diff report so new or removed SymPy names cannot pass
+  unnoticed, using [`scripts/diff_sympy_api.py`](scripts/diff_sympy_api.py),
+  the frozen [`doc/sympy-api-baseline-1.14.0.json`](doc/sympy-api-baseline-1.14.0.json),
+  and the clean [`doc/sympy-api-diff-1.14.0.json`](doc/sympy-api-diff-1.14.0.json).
 - [ ] Add a common differential harness for exact results, symbolic results,
   conditions, exceptions, and unevaluated objects.
 - [ ] Add a common benchmark harness with cold-start, warm-cache, end-to-end,
