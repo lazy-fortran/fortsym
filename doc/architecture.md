@@ -221,8 +221,10 @@ rejects either static archive at configuration. Parsing, lossless CAS-dialect
 printing, differentiation as
 constants, and real probing when representable accept both representations.
 Algebraic values are stored as `NK_ALGEBRAIC` atoms containing canonical
-`qqbar1` text. The native engine promotes pure algebraic `+`, `*`, and integer
-powers through the FLINT bridge. Native simplification also collects
+`qqbar1` text. The native engine promotes pure non-rational algebraic `+`, `*`,
+and integer powers through the FLINT bridge; Gaussian-rational forms containing
+the native `i` constant remain structural so the compatibility printers retain
+the standard `i` vocabulary. Native simplification also collects
 algebraic coefficients in mixed sums and products. Its zero, one, and
 definitely-nonzero guards use the independent FLINT component-sign result.
 The native and backend text parsers treat

@@ -967,6 +967,7 @@ contains
         if (a%kind_of(out) /= NK_ADD .and. a%kind_of(out) /= NK_MUL .and. &
             a%kind_of(out) /= NK_POW) return
         if (.not. contains_algebraic_atom(a, out)) return
+        if (is_gaussian_rational_expression(a, out)) return
         value = algebraic_value(a, out, ok)
         if (.not. ok) return
         expression = algebraic_expr(a, chars(value), ok)
@@ -996,6 +997,30 @@ contains
             found = contains_algebraic_atom(a, a%arg_of(id, 1))
         end select
     end function contains_algebraic_atom
+
+    recursive function is_gaussian_rational_expression(a, id) result(found)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical :: found
+        integer :: k
+
+        found = .false.
+        select case (a%kind_of(id))
+        case (NK_INT, NK_RAT, NK_BIG_INT, NK_BIG_RAT)
+            found = .true.
+        case (NK_CONST)
+            found = chars(a%name_of(id)) == "i"
+        case (NK_ADD, NK_MUL)
+            found = a%nargs_of(id) > 0
+            do k = 1, a%nargs_of(id)
+                if (.not. is_gaussian_rational_expression( &
+                    a, a%arg_of(id, k))) then
+                    found = .false.
+                    return
+                end if
+            end do
+        end select
+    end function is_gaussian_rational_expression
 
     recursive function algebraic_value(a, id, ok) result(value)
         type(arena_t), intent(in) :: a
@@ -2949,12 +2974,18 @@ contains
         integer, intent(out) :: out
         logical, intent(out) :: ok
         integer(int64) :: numerator, denominator, root_numerator, root_denominator
-        logical :: exact, numerator_ok, denominator_ok
+        logical :: exact, numerator_ok, denominator_ok, negative
+        integer :: pair(2)
 
         out = id
         ok = .false.
         call exact_value(a, id, numerator, denominator, exact)
-        if (.not. exact .or. numerator < 0_int64) return
+        if (.not. exact) return
+        negative = numerator < 0_int64
+        if (negative) then
+            if (numerator == MIN_I64) return
+            numerator = -numerator
+        end if
         call integer_square_root(numerator, root_numerator, numerator_ok)
         call integer_square_root(denominator, root_denominator, denominator_ok)
         if (.not. numerator_ok .or. .not. denominator_ok) return
@@ -2962,6 +2993,16 @@ contains
             out = a%int(root_numerator)
         else
             out = a%rat(root_numerator, root_denominator)
+        end if
+        if (negative) then
+            if (root_numerator == 1_int64 .and. &
+                root_denominator == 1_int64) then
+                out = a%const("i")
+            else
+                pair(1) = a%const("i")
+                pair(2) = out
+                out = a%mul(pair)
+            end if
         end if
         ok = .true.
     end subroutine exact_square_root

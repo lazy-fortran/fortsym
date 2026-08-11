@@ -482,6 +482,10 @@ Every checklist item requires all of the following:
   - [x] Canonicalize the exact principal inverse-hyperbolic branch points:
     `acosh(0)` becomes `i*pi/2` and `acosh(-1)` becomes `i*pi`; unsupported
     negative-real branches remain unevaluated.
+  - [x] Canonicalize principal square roots of exact negative perfect-square
+    rationals: `sqrt(-1)` becomes `i` and `sqrt(-4)` becomes `i*2`; irrational
+    negative roots remain unevaluated and Gaussian-rational results stay in
+    the structural expression vocabulary.
 - [ ] Implement the general simplification families: `powsimp`, `powdenest`,
   `trigsimp`, `radsimp`, `ratsimp`, `sqrtdenest`, `fu`, `combsimp`,
   `hyperexpand`, `logcombine`, `posify`, and `refine`.
@@ -659,6 +663,10 @@ Every checklist item requires all of the following:
   - [x] Add the exact `acosh(0)`/`acosh(-1)` branch points to the correctness
     and performance matrix. Their cold and warm rows are enforced and measured
     at 0.017x and 0.058x SymPy; the 58 substantive rows remain enforced with
+    zero unwaived violations.
+  - [x] Add exact negative perfect-square roots to the correctness and
+    performance matrix. The cold and warm rows are enforced and measured at
+    0.029x and 0.062x SymPy; the 60 substantive rows remain enforced with
     zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.

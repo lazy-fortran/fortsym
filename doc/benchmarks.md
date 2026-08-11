@@ -68,7 +68,7 @@ subset with SymPy 1.14.0. It measures cold end-to-end construction plus
 operation and warm core operation separately for expansion, differentiation,
 simplification, signed refinement, real/nonzero-guarded `log`/`exp` composition,
 principal-square-root powers, direct domain-function simplification of
-`sqrt(-oo)`, exact `log(0)`, exact negative-real `log`, exact `atanh(1)`/`atanh(-1)`, and exact `acosh(0)`/`acosh(-1)`, gamma-family domain-head
+`sqrt(-oo)`, exact negative perfect-square roots, exact `log(0)`, exact negative-real `log`, exact `atanh(1)`/`atanh(-1)`, and exact `acosh(0)`/`acosh(-1)`, gamma-family domain-head
 simplification, inverse domain-head
 simplification, and reciprocal-hyperbolic domain-head simplification embedded
 in a symbolic fourth-degree expression, directed-infinity `atan2` domain-head
@@ -130,6 +130,10 @@ construction-versus-simplification boundary. The final matrix has 62 rows,
 added. The `domain_acosh_branch` cold and warm rows are enforced because the
 native principal-branch rewrite is faster than SymPy: the recorded ratios were
 0.017x and 0.058x. The final matrix has 64 rows, 58 enforced rows, and zero
+unwaived violations before the negative-square-root rows are added. The
+`domain_sqrt_negative_square` cold and warm rows are enforced because the
+native principal-root rewrite is faster than SymPy: the recorded ratios were
+0.029x and 0.062x. The final matrix has 66 rows, 60 enforced rows, and zero
 unwaived violations.
 
 Run it from a built checkout with:
@@ -237,7 +241,7 @@ separately waived cold power-constructor diagnostics were 1.53× for `x**0`
 and 1.51× for `x**1`; `domain_log_zero` was 5.07× cold and 3.43× warm;
 `domain_log_negative` was 0.005× cold and 0.029× warm; `domain_atanh_pole`
 was 5.34× cold and 4.15× warm; `domain_acosh_branch` was 0.017× cold and
-0.058× warm.
+0.058× warm; `domain_sqrt_negative_square` was 0.029× cold and 0.062× warm.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
 text validation, FLINT reconstruction, the exact operation, canonical
