@@ -63,6 +63,24 @@ Wolfram notebooks, scripts, and outputs remain excluded by `LEGAL.md`.
 
 ## Current harness
 
+`benchmark/harnesses/bench_sympy.py` compares the declared `fortsym.sympy`
+subset with SymPy 1.14.0. It measures cold end-to-end construction plus
+operation and warm core operation separately for expansion, differentiation,
+simplification, and factorization. Every workload passes through a SymPy
+correctness check before timing. The JSON report includes the individual
+samples, median, min/max, native-to-SymPy ratio, Python and platform metadata,
+and the timing parameters. Run it from a built checkout with:
+
+```text
+FORTSYM_LIBRARY=build/lib/libfortsym.so PYTHONPATH=python \
+  python3 benchmark/harnesses/bench_sympy.py \
+  --output benchmark/results/sympy-1.14.0.json
+```
+
+The harness reports ratios and does not yet fail when native work is slower.
+That policy belongs to the Phase 0 performance gate after stable workloads and
+machine metadata have been reviewed.
+
 `fo exec bench_native` writes CSV rows for warm, batched end-to-end native and
 SymEngine simplify, differentiation, and expansion calls. Each row includes a
 correctness result. This initial harness measures conversion and result
