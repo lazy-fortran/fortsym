@@ -39,6 +39,7 @@ module fortsym_complexdom
     use fortsym_arena, only: NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
         NK_BIG_REAL, NK_ALGEBRAIC
+    use fortsym_cache, only: expr_pair_cache_t
     use fortsym_expr, only: expr_t, num, algebraic_expr, i_expr, is_valid, &
         sin, cos, sinh, cosh, exp, sqrt, atan2, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
@@ -74,16 +75,30 @@ contains
     !> the sub-expression that stopped the split.
     recursive subroutine complex_split(e, facts, re, im, ok, why)
         type(expr_t),               intent(in)  :: e
-        type(assumption_context_t), intent(in)  :: facts
+        type(assumption_context_t), target, intent(in)  :: facts
         type(expr_t),               intent(out) :: re, im
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
+        type(expr_pair_cache_t), pointer :: cache => null()
+        integer :: cached_re, cached_im
 
         ok = .false.
         why = ""
         if (.not. is_valid(e)) then
             why = "invalid expression has no real and imaginary parts"
             return
+        end if
+        if (allocated(facts%complex_cache)) then
+            cache => facts%complex_cache
+            if (cache%lookup(e%id, e%a%size(), e%a%generation_value(), &
+                cached_re, cached_im)) then
+                re = e
+                im = e
+                re%id = cached_re
+                im%id = cached_im
+                ok = .true.
+                return
+            end if
         end if
         if (expansion_terms(e) > MAX_TERMS) then
             why = "the rectangular expansion of this expression would have "// &
@@ -114,6 +129,10 @@ contains
         case default
             why = "no complex rule for this node kind"
         end select
+        if (ok .and. associated(cache)) then
+            call cache%store(e%id, e%a%size(), e%a%generation_value(), &
+                re%id, im%id)
+        end if
     end subroutine complex_split
 
     !> pi and e are real, i is the imaginary unit. Any other named constant is
@@ -176,7 +195,7 @@ contains
     !> The single most dangerous case in the module, and therefore the shortest.
     subroutine split_symbol(e, facts, re, im, ok, why)
         type(expr_t),               intent(in)  :: e
-        type(assumption_context_t), intent(in)  :: facts
+        type(assumption_context_t), target, intent(in)  :: facts
         type(expr_t),               intent(out) :: re, im
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
@@ -197,7 +216,7 @@ contains
     !> Splitting is additive, so the parts of a sum are the sums of the parts.
     recursive subroutine split_sum(e, facts, re, im, ok, why)
         type(expr_t),               intent(in)  :: e
-        type(assumption_context_t), intent(in)  :: facts
+        type(assumption_context_t), target, intent(in)  :: facts
         type(expr_t),               intent(out) :: re, im
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
@@ -221,7 +240,7 @@ contains
     !> expanded symbolically so the identity being used stays visible.
     recursive subroutine split_product(e, facts, re, im, ok, why)
         type(expr_t),               intent(in)  :: e
-        type(assumption_context_t), intent(in)  :: facts
+        type(assumption_context_t), target, intent(in)  :: facts
         type(expr_t),               intent(out) :: re, im
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
@@ -248,7 +267,7 @@ contains
     !> reporting the wrong sheet.
     recursive subroutine split_power(e, facts, re, im, ok, why)
         type(expr_t),               intent(in)  :: e
-        type(assumption_context_t), intent(in)  :: facts
+        type(assumption_context_t), target, intent(in)  :: facts
         type(expr_t),               intent(out) :: re, im
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
@@ -324,7 +343,7 @@ contains
     !> including Log and Sqrt, is refused.
     recursive subroutine split_function(e, facts, re, im, ok, why)
         type(expr_t),               intent(in)  :: e
-        type(assumption_context_t), intent(in)  :: facts
+        type(assumption_context_t), target, intent(in)  :: facts
         type(expr_t),               intent(out) :: re, im
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
@@ -372,7 +391,7 @@ contains
     !> Re[e] as a real expression, or a refusal.
     subroutine re_part(e, facts, out, ok, why)
         type(expr_t),               intent(in)  :: e
-        type(assumption_context_t), intent(in)  :: facts
+        type(assumption_context_t), target, intent(in)  :: facts
         type(expr_t),               intent(out) :: out
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
@@ -386,7 +405,7 @@ contains
     !> Im[e] as a real expression, or a refusal.
     subroutine im_part(e, facts, out, ok, why)
         type(expr_t),               intent(in)  :: e
-        type(assumption_context_t), intent(in)  :: facts
+        type(assumption_context_t), target, intent(in)  :: facts
         type(expr_t),               intent(out) :: out
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
@@ -416,7 +435,7 @@ contains
     !> that `conjugate(e)` handles.
     recursive subroutine conjugate(e, facts, out, ok, why)
         type(expr_t),               intent(in)  :: e
-        type(assumption_context_t), intent(in)  :: facts
+        type(assumption_context_t), target, intent(in)  :: facts
         type(expr_t),               intent(out) :: out
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
@@ -523,7 +542,7 @@ contains
     !> real.
     subroutine abs_of(e, facts, out, ok, why)
         type(expr_t),               intent(in)  :: e
-        type(assumption_context_t), intent(in)  :: facts
+        type(assumption_context_t), target, intent(in)  :: facts
         type(expr_t),               intent(out) :: out
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
@@ -548,7 +567,7 @@ contains
     !> what can be decided, not everything that is true.
     subroutine arg_of(e, facts, out, ok, why)
         type(expr_t),               intent(in)  :: e
-        type(assumption_context_t), intent(in)  :: facts
+        type(assumption_context_t), target, intent(in)  :: facts
         type(expr_t),               intent(out) :: out
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
@@ -575,7 +594,7 @@ contains
     !> that the real and imaginary parts are separated.
     subroutine complex_expand(e, facts, out, ok, why)
         type(expr_t),               intent(in)  :: e
-        type(assumption_context_t), intent(in)  :: facts
+        type(assumption_context_t), target, intent(in)  :: facts
         type(expr_t),               intent(out) :: out
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why

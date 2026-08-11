@@ -13,7 +13,7 @@
     {
       "from": "algebra",
       "to": "core",
-      "uses": 29
+      "uses": 30
     },
     {
       "from": "algebra",
@@ -324,6 +324,7 @@
     {
       "dependencies": [
         "fortsym_arena",
+        "fortsym_cache",
         "fortsym_expr",
         "fortsym_string"
       ],
@@ -354,6 +355,12 @@
       "name": "fortsym_backend",
       "owner": "codegen",
       "path": "src/codegen/fortsym_backend.f90"
+    },
+    {
+      "dependencies": [],
+      "name": "fortsym_cache",
+      "owner": "core",
+      "path": "src/core/fortsym_cache.f90"
     },
     {
       "dependencies": [],
@@ -388,6 +395,7 @@
         "fortsym_algebraic",
         "fortsym_arena",
         "fortsym_assume",
+        "fortsym_cache",
         "fortsym_engine",
         "fortsym_engine_native",
         "fortsym_expr",
@@ -1014,11 +1022,11 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 301,
+    "internal_edges": 303,
     "module_file_mismatches": 0,
-    "module_units": 63,
-    "modules": 63,
-    "source_units": 64,
+    "module_units": 64,
+    "modules": 64,
+    "source_units": 65,
     "unknown_internal_dependencies": 0
   },
   "violations": {

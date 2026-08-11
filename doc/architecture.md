@@ -39,7 +39,7 @@ The structural module audit is reproducible with:
 python3 scripts/audit_module_architecture.py doc/module-architecture.json
 ```
 
-At the current revision it covers 63 Fortran modules and 301 internal `use`
+At the current revision it covers 64 Fortran modules and 303 internal `use`
 edges. It requires one named module per source owner, matching filenames,
 known internal dependencies, an acyclic module graph, and no implementation
 module importing the convenience facade. The generated report records the

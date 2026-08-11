@@ -30,6 +30,9 @@ target_link_libraries(bench_native PRIVATE fortsym)
 add_executable(bench_algebraic bench_algebraic.f90)
 target_link_libraries(bench_algebraic PRIVATE fortsym)
 
+add_executable(bench_complexdom bench_complexdom.f90)
+target_link_libraries(bench_complexdom PRIVATE fortsym)
+
 add_executable(fortsym_wl_to_f90 fortsym_wl_to_f90.f90)
 target_link_libraries(fortsym_wl_to_f90 PRIVATE fortsym)
 
