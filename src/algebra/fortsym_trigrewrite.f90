@@ -761,6 +761,34 @@ contains
                 ep = exp(u) - exp(num(e%a, -1)*u)
                 em = exp(u) + exp(num(e%a, -1)*u)
                 r = ep/em
+            case ("csc")
+                ep = to_exp_node(sin(u), ok, why)
+                if (.not. ok) return
+                r = num(e%a, 1)/ep
+            case ("sec")
+                ep = to_exp_node(cos(u), ok, why)
+                if (.not. ok) return
+                r = num(e%a, 1)/ep
+            case ("cot")
+                ep = to_exp_node(cos(u), ok, why)
+                if (.not. ok) return
+                em = to_exp_node(sin(u), ok, why)
+                if (.not. ok) return
+                r = ep/em
+            case ("csch")
+                ep = to_exp_node(sinh(u), ok, why)
+                if (.not. ok) return
+                r = num(e%a, 1)/ep
+            case ("sech")
+                ep = to_exp_node(cosh(u), ok, why)
+                if (.not. ok) return
+                r = num(e%a, 1)/ep
+            case ("coth")
+                ep = to_exp_node(cosh(u), ok, why)
+                if (.not. ok) return
+                em = to_exp_node(sinh(u), ok, why)
+                if (.not. ok) return
+                r = ep/em
             case default
                 r = func(head, parts)
             end select
