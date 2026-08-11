@@ -180,6 +180,10 @@ linear-argument rules. Reciprocal circular and hyperbolic heads (`csc`, `sec`,
 identities before the exponential normal form; the native oracle covers all
 six cancellations. Their pole conditions remain implicit in the identity,
 so this slice does not claim a domain-free simplification at the poles.
+The same six reciprocal heads now have direct chain-rule derivatives in both
+the ordinary differentiator and contracted forward mode; finite-difference
+checks cover each circular and hyperbolic rule, and the product tests include
+all six heads in their independent Jacobian/contraction consistency oracle.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.

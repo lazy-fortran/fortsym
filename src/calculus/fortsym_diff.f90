@@ -242,6 +242,12 @@ contains
         case ("sinh");  d = cosh(x)*dx
         case ("cosh");  d = sinh(x)*dx
         case ("tanh");  d = dx/cosh(x)**2
+        case ("csc");   d = -cos(x)/sin(x)**2*dx
+        case ("sec");   d = sin(x)/cos(x)**2*dx
+        case ("cot");   d = -dx/sin(x)**2
+        case ("csch");  d = -cosh(x)/sinh(x)**2*dx
+        case ("sech");  d = -sinh(x)/cosh(x)**2*dx
+        case ("coth");  d = -dx/sinh(x)**2
         case ("asinh"); d = dx/sqrt(x**2 + 1)
         case ("acosh"); d = dx/sqrt(x**2 - 1)
         case ("atanh"); d = dx/(1 - x**2)

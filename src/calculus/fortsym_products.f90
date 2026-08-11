@@ -208,6 +208,12 @@ contains
         case ("sinh");  tangent = cosh(x)*dx
         case ("cosh");  tangent = sinh(x)*dx
         case ("tanh");  tangent = dx/cosh(x)**2
+        case ("csc");   tangent = -cos(x)/sin(x)**2*dx
+        case ("sec");   tangent = sin(x)/cos(x)**2*dx
+        case ("cot");   tangent = -dx/sin(x)**2
+        case ("csch");  tangent = -cosh(x)/sinh(x)**2*dx
+        case ("sech");  tangent = -sinh(x)/cosh(x)**2*dx
+        case ("coth");  tangent = -dx/sinh(x)**2
         case ("asinh"); tangent = dx/sqrt(x**2 + 1)
         case ("acosh"); tangent = dx/sqrt(x**2 - 1)
         case ("atanh"); tangent = dx/(1 - x**2)

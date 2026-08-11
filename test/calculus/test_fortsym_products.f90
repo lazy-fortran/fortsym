@@ -15,7 +15,7 @@ program test_fortsym_products
     ! rules are checked against the tangent system they are supposed to satisfy.
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, num, operator(+), operator(-), &
+    use fortsym_expr, only: expr_t, sym, num, func, operator(+), operator(-), &
         operator(*), operator(/), operator(**), sin, cos, exp, log
     use fortsym_diff, only: diff
     use fortsym_subs, only: subs
@@ -74,10 +74,23 @@ contains
         u(2) = sym(arena, "u2")
         u(3) = sym(arena, "u3")
 
-        f(1) = sin(v(1)*v(2)) + v(3)**2
+        f(1) = sin(v(1)*v(2)) + v(3)**2 + &
+            unary_function("csc", v(1)) + unary_function("csch", v(1))
         f(2) = exp(v(1))*v(2) - v(3)
-        f(3) = v(1)**3 + cos(v(2)*v(3))
+        f(3) = v(1)**3 + cos(v(2)*v(3)) + &
+            unary_function("sec", v(2)) + unary_function("cot", v(2)) + &
+            unary_function("sech", v(3)) + unary_function("coth", v(3))
     end subroutine build_problem
+
+    function unary_function(name, argument) result(e)
+        character(*), intent(in) :: name
+        type(expr_t), intent(in) :: argument
+        type(expr_t) :: e
+        type(expr_t) :: arguments(1)
+
+        arguments(1) = argument
+        e = func(name, arguments)
+    end function unary_function
 
     !> The contracted forward product must agree with contracting the matrix
     !> afterwards. Same value, but the contracted route never forms the matrix.
