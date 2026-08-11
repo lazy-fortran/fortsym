@@ -257,6 +257,25 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(str(sp.expand_complex(sp.oo)), str(sp.oo))
         self.assertEqual(str(sp.expand_complex(sp.zoo)), str(sp.nan))
         self.assertEqual(str(sp.expand_complex(sp.nan)), str(sp.nan))
+        sentinel_cases = {
+            "re": ((sp.oo, "oo"), (-sp.oo, "-oo"),
+                   (sp.zoo, "nan"), (sp.nan, "nan")),
+            "im": ((sp.oo, "0"), (-sp.oo, "0"),
+                   (sp.zoo, "nan"), (sp.nan, "nan")),
+            "Abs": ((sp.oo, "oo"), (-sp.oo, "oo"),
+                    (sp.zoo, "oo"), (sp.nan, "nan")),
+            "arg": ((sp.oo, "0"), (-sp.oo, "pi"),
+                    (sp.zoo, "nan"), (sp.nan, "nan")),
+            "conjugate": ((sp.oo, "oo"), (-sp.oo, "-oo"),
+                          (sp.zoo, "conjugate(zoo)"), (sp.nan, "nan")),
+            "expand_complex": ((sp.oo, "oo"), (-sp.oo, "-oo"),
+                                (sp.zoo, "nan"), (sp.nan, "nan")),
+        }
+        for name, cases in sentinel_cases.items():
+            function = getattr(sp, name)
+            for value, expected in cases:
+                with self.subTest(function=name, value=str(value)):
+                    self.assertEqual(str(function(value)), expected)
         with self.assertRaises(sp.UnsupportedOperationError):
             sp.expand_complex(sp.Symbol("expand_complex_unknown"))
         with self.assertRaises(sp.UnsupportedOperationError):

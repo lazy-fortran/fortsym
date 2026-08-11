@@ -72,6 +72,13 @@ int main(void)
     fortsym_expr *expanded_infinity = NULL;
     fortsym_expr *expanded_complex_infinity = NULL;
     fortsym_expr *expanded_undefined = NULL;
+    fortsym_expr *sentinel_re = NULL;
+    fortsym_expr *sentinel_nan_re = NULL;
+    fortsym_expr *sentinel_im = NULL;
+    fortsym_expr *sentinel_abs = NULL;
+    fortsym_expr *sentinel_arg = NULL;
+    fortsym_expr *sentinel_conjugate = NULL;
+    fortsym_expr *negative_infinity = NULL;
     fortsym_expr *periodic = NULL;
     fortsym_expr *periodic_simplified = NULL;
     fortsym_expr *special = NULL;
@@ -252,6 +259,27 @@ int main(void)
                                        sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(expanded_undefined, "nan");
+    status = fortsym_complex_operation(arena, infinity, "re", &sentinel_re,
+                                       message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(sentinel_re, "oo");
+    status = fortsym_complex_operation(arena, infinity, "im", &sentinel_im,
+                                       message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(sentinel_im, "0");
+    status = fortsym_complex_operation(arena, complex_infinity, "abs",
+                                       &sentinel_abs, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(sentinel_abs, "oo");
+    status = fortsym_complex_operation(arena, complex_infinity, "conjugate",
+                                       &sentinel_conjugate, message,
+                                       sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(sentinel_conjugate, "conjugate(zoo)");
+    status = fortsym_complex_operation(arena, undefined, "re", &sentinel_nan_re,
+                                       message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(sentinel_nan_re, "nan");
     root_argument[0] = complex_infinity;
     status = fortsym_function(arena, "sin", root_argument, 1, &periodic,
                               message, sizeof message);
@@ -290,6 +318,13 @@ int main(void)
     assert(status == FORTSYM_OK && verdict == FORTSYM_ZERO_TRUE);
     status = fortsym_int(arena, -1, &minus_one, message, sizeof message);
     assert(status == FORTSYM_OK);
+    status = fortsym_multiply(arena, minus_one, infinity, &negative_infinity,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_complex_operation(arena, negative_infinity, "arg",
+                                       &sentinel_arg, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(sentinel_arg, "pi");
     status = fortsym_complex_operation(arena, minus_one, "arg", &argument,
                                        message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -342,6 +377,13 @@ int main(void)
     fortsym_expr_free(expanded_undefined);
     fortsym_expr_free(expanded_complex_infinity);
     fortsym_expr_free(expanded_infinity);
+    fortsym_expr_free(sentinel_arg);
+    fortsym_expr_free(negative_infinity);
+    fortsym_expr_free(sentinel_conjugate);
+    fortsym_expr_free(sentinel_abs);
+    fortsym_expr_free(sentinel_im);
+    fortsym_expr_free(sentinel_re);
+    fortsym_expr_free(sentinel_nan_re);
     fortsym_expr_free(periodic_simplified);
     fortsym_expr_free(periodic);
     fortsym_expr_free(special_simplified);

@@ -78,7 +78,7 @@ id = "complex-domain-functions"
 affected = ["re", "im", "Abs", "expand_complex", "conjugate", "arg"]
 parity = "partial"
 sympy = "SymPy evaluates real and imaginary projections, rectangular complex expansion, conjugation, modulus, and principal argument with broad assumptions, rewrites, branch, and algebraic-number support."
-fortsym = "The adapter routes re, im, Abs, expand_complex, conjugate, and arg through the native fortsym_complexdom owner where the supported domain is decidable. Supported exact, algebraic, real-assumption, elementary, principal-branch, and direct oo/zoo/nan sentinel cases are evaluated; unknown reality, unsupported branches, and Arg at decidable zero return UnsupportedOperationError, while Abs retains its unevaluated fallback."
+fortsym = "The adapter routes re, im, Abs, expand_complex, conjugate, and arg through the native fortsym_complexdom owner where the supported domain is decidable. Supported exact, algebraic, real-assumption, elementary, principal-branch, and direct oo/-oo/zoo/nan sentinel cases are evaluated; conjugate(zoo) remains an applied head, while unknown reality, unsupported branches, and Arg at decidable zero return UnsupportedOperationError, and Abs retains its unevaluated fallback."
 difference = "The supported expression fragment and printer coverage are narrower than SymPy's complete complex-domain protocol; refusals are explicit rather than guessed."
 
 [[semantic]]

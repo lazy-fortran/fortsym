@@ -169,9 +169,9 @@ The SymPy differential harness also includes `domain_complex`, `domain_abs`,
 and `domain_expand_complex` workloads for the public complex-domain adapters.
 They compare exact and real-assumption expressions in both cold end-to-end and
 warm cached-core scopes, and the parity gate rejects an unwaived native slowdown.
-The same differential suite covers the direct `oo`/`zoo`/`nan` boundaries for
-`expand_complex`; those sentinel cases are correctness boundaries rather than
-separate timing rows.
+The same differential suite covers the direct `oo`/`-oo`/`zoo`/`nan` boundaries
+for all six complex-domain operations; those sentinel cases are correctness
+boundaries rather than separate timing rows.
 
 Pinned result CSV files and their TOML environment records live under
 `benchmark/results`. A record with uncontrolled affinity or governor is

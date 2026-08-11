@@ -48,7 +48,7 @@ module fortsym_complexdom
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
         NK_BIG_REAL, NK_ALGEBRAIC
     use fortsym_cache, only: expr_cache_t, expr_pair_cache_t
-    use fortsym_expr, only: expr_t, num, algebraic_expr, i_expr, nan_expr, is_valid, &
+    use fortsym_expr, only: expr_t, num, const, func, algebraic_expr, i_expr, nan_expr, is_valid, &
         sin, cos, tan, sinh, cosh, tanh, exp, log, sqrt, atan2, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_algebraic, only: algebraic_re, algebraic_im, algebraic_conjugate
@@ -523,6 +523,137 @@ contains
         ok = .true.
     end subroutine split_sqrt
 
+    !> Apply the direct domain-sentinel rules shared by the complex-domain
+    !> projections.  A sentinel has no finite rectangular parts, so it must
+    !> be handled by the operation that has a defined boundary rather than by
+    !> `complex_split`.  The classifier also recognises the canonical
+    !> `-oo` product and the unsimplified `0 - oo` shape produced by the C ABI.
+    subroutine domain_sentinel_projection(e, operation, out, handled, ok, why)
+        type(expr_t),               intent(in)  :: e
+        character(*),               intent(in)  :: operation
+        type(expr_t),               intent(out) :: out
+        logical,                    intent(out) :: handled
+        logical,                    intent(out) :: ok
+        character(:), allocatable,  intent(out) :: why
+        character(:), allocatable :: sentinel
+        logical :: negative
+        type(expr_t) :: arguments(1)
+
+        handled = .false.
+        ok = .false.
+        why = ""
+        if (.not. is_valid(e)) return
+        call identify_domain_sentinel(e, sentinel, negative)
+        if (.not. allocated(sentinel)) return
+
+        handled = .true.
+        select case (operation)
+        case ("re")
+            select case (sentinel)
+            case ("oo")
+                out = signed_infinity(e, negative)
+            case ("zoo", "nan")
+                out = nan_expr(e%a)
+            end select
+        case ("im")
+            select case (sentinel)
+            case ("oo")
+                out = zero(e)
+            case ("zoo", "nan")
+                out = nan_expr(e%a)
+            end select
+        case ("abs")
+            select case (sentinel)
+            case ("oo", "zoo")
+                out = const(e%a, "oo")
+            case ("nan")
+                out = nan_expr(e%a)
+            end select
+        case ("arg")
+            select case (sentinel)
+            case ("oo")
+                if (negative) then
+                    out = const(e%a, "pi")
+                else
+                    out = zero(e)
+                end if
+            case ("zoo", "nan")
+                out = nan_expr(e%a)
+            end select
+        case ("conjugate")
+            select case (sentinel)
+            case ("oo")
+                out = signed_infinity(e, negative)
+            case ("nan")
+                out = nan_expr(e%a)
+            case ("zoo")
+                arguments(1) = e
+                out = func("conjugate", arguments)
+            end select
+        case ("expand_complex")
+            select case (sentinel)
+            case ("oo")
+                out = signed_infinity(e, negative)
+            case ("zoo", "nan")
+                out = nan_expr(e%a)
+            end select
+        case default
+            handled = .false.
+            return
+        end select
+        ok = .true.
+    end subroutine domain_sentinel_projection
+
+    function signed_infinity(e, negative) result(out)
+        type(expr_t), intent(in) :: e
+        logical, intent(in) :: negative
+        type(expr_t) :: out, infinity
+
+        infinity = const(e%a, "oo")
+        if (negative) then
+            out = num(e%a, -1_int64)*infinity
+        else
+            out = infinity
+        end if
+    end function signed_infinity
+
+    !> Identify a positive or negative infinity, complex infinity, or NaN
+    !> without asking the native simplifier to invent finite complex parts.
+    recursive subroutine identify_domain_sentinel(e, sentinel, negative)
+        type(expr_t),               intent(in)  :: e
+        character(:), allocatable, intent(out) :: sentinel
+        logical,                    intent(out) :: negative
+        type(expr_t) :: factor, other
+
+        negative = .false.
+        if (.not. is_valid(e)) return
+        select case (e%kind())
+        case (NK_CONST)
+            select case (chars(e%name()))
+            case ("oo", "zoo", "nan")
+                sentinel = chars(e%name())
+            end select
+        case (NK_ADD)
+            if (e%nargs() /= 2) return
+            if (structurally_zero(e%arg(1))) then
+                call identify_domain_sentinel(e%arg(2), sentinel, negative)
+            else if (structurally_zero(e%arg(2))) then
+                call identify_domain_sentinel(e%arg(1), sentinel, negative)
+            end if
+        case (NK_MUL)
+            if (e%nargs() /= 2) return
+            factor = e%arg(1)
+            other = e%arg(2)
+            if (is_minus_one(factor)) then
+                call identify_domain_sentinel(other, sentinel, negative)
+                negative = .not. negative
+            else if (is_minus_one(other)) then
+                call identify_domain_sentinel(factor, sentinel, negative)
+                negative = .not. negative
+            end if
+        end select
+    end subroutine identify_domain_sentinel
+
     !> Re[e] as a real expression, or a refusal.
     subroutine re_part(e, facts, out, ok, why)
         type(expr_t),               intent(in)  :: e
@@ -531,7 +662,10 @@ contains
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
         type(expr_t) :: re, im
+        logical :: handled
 
+        call domain_sentinel_projection(e, "re", out, handled, ok, why)
+        if (handled) return
         call complex_split(e, facts, re, im, ok, why)
         if (.not. ok) return
         out = re
@@ -545,7 +679,10 @@ contains
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
         type(expr_t) :: re, im
+        logical :: handled
 
+        call domain_sentinel_projection(e, "im", out, handled, ok, why)
+        if (handled) return
         call complex_split(e, facts, re, im, ok, why)
         if (.not. ok) return
         out = im
@@ -580,6 +717,7 @@ contains
         type(expr_cache_t), pointer :: cache => null()
         character(:), allocatable :: name
         integer :: k, cached_id
+        logical :: handled
 
         ok = .false.
         why = ""
@@ -587,6 +725,9 @@ contains
             why = "invalid expression has no conjugate"
             return
         end if
+
+        call domain_sentinel_projection(e, "conjugate", out, handled, ok, why)
+        if (handled) return
 
         if (allocated(facts%conjugate_cache)) then
             cache => facts%conjugate_cache
@@ -706,7 +847,10 @@ contains
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
         type(expr_t) :: re, im
+        logical :: handled
 
+        call domain_sentinel_projection(e, "abs", out, handled, ok, why)
+        if (handled) return
         call complex_split(e, facts, re, im, ok, why)
         if (.not. ok) return
         out = sqrt(re*re + im*im)
@@ -731,7 +875,10 @@ contains
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
         type(expr_t) :: re, im
+        logical :: handled
 
+        call domain_sentinel_projection(e, "arg", out, handled, ok, why)
+        if (handled) return
         if (provably_zero(e)) then
             ok = .false.
             why = "Arg is undefined at zero"
@@ -758,23 +905,10 @@ contains
         logical,                    intent(out) :: ok
         character(:), allocatable,  intent(out) :: why
         type(expr_t) :: re, im
-        character(:), allocatable :: name
+        logical :: handled
 
-        if (e%kind() == NK_CONST) then
-            name = chars(e%name())
-            select case (name)
-            case ("oo", "nan")
-                out = e
-                ok = .true.
-                why = ""
-                return
-            case ("zoo")
-                out = nan_expr(e%a)
-                ok = .true.
-                why = ""
-                return
-            end select
-        end if
+        call domain_sentinel_projection(e, "expand_complex", out, handled, ok, why)
+        if (handled) return
 
         call complex_split(e, facts, re, im, ok, why)
         if (.not. ok) return

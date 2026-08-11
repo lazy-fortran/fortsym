@@ -209,6 +209,31 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(expected=str(expected)):
                 self.assertEqual(str(actual), str(expected))
 
+        sentinel_cases = []
+        for oracle_function, native_function in (
+            (oracle.re, native.re), (oracle.im, native.im),
+            (oracle.Abs, native.Abs), (oracle.arg, native.arg),
+            (oracle.conjugate, native.conjugate),
+            (oracle.expand_complex, native.expand_complex),
+        ):
+            for oracle_value, native_value in (
+                (oracle.oo, native.oo), (-oracle.oo, -native.oo),
+                (oracle.zoo, native.zoo), (oracle.nan, native.nan),
+            ):
+                sentinel_cases.append((
+                    oracle_function(oracle_value),
+                    native_function(native_value),
+                ))
+        for expected, actual in sentinel_cases:
+            with self.subTest(expected=str(expected)):
+                expected_parsed = oracle.sympify(
+                    str(expected), locals=self.locals
+                )
+                actual_parsed = oracle.sympify(
+                    str(actual), locals=self.locals
+                )
+                self.assertEqual(actual_parsed, expected_parsed)
+
         expected_identity = oracle.simplify(oracle.conjugate(oracle.I) + oracle.I)
         actual_identity = native.simplify(native.conjugate(native.I) + native.I)
         self.assertEqual(expected_identity, oracle.Integer(0))

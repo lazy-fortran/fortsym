@@ -30,7 +30,7 @@ does not import SymPy. Unsupported names raise
 | `Q.real`, `Q.zero`, `Q.positive`, `Q.nonnegative`, `Q.nonzero`, `Q.negative`, `Q.nonpositive`, `ask`, `assuming`, `And` | nested, reversible assumption queries and transactional compound scopes backed by the native arena context; bounded relational facts are accepted in scopes |
 | `Add`, `Mul`, `Pow`, `Function` | native operator construction; `isinstance` checks use native node kinds |
 | `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`, `csch`, `sech`, `coth`, `erf`, `erfc`, `gamma`, `loggamma`, `factorial`, `besselj`, `besseli`, `legendre`, `asinh`, `acosh`, `atanh`, `exp`, `log`, `sqrt`, `Abs`, `sign`, `floor`, `ceiling` | native applied-function nodes; direct sentinel rules for the declared heads match SymPy where the result is representable, including `sin(zoo)`, `cos(zoo)`, and `tan(zoo)` becoming `nan`, while accumulation-bound and pole-sensitive cases remain explicit refusals |
-| `re`, `im`, `Abs`, `expand_complex`, `conjugate`, `arg` | native complex-domain projections, rectangular expansion, modulus, and principal argument; supported exact and assumption-resolved cases are evaluated, while unknown reality, unresolved branches, and decidable zero arguments for `arg` raise `UnsupportedOperationError` |
+| `re`, `im`, `Abs`, `expand_complex`, `conjugate`, `arg` | native complex-domain projections, rectangular expansion, modulus, and principal argument; direct `oo`/`-oo`/`zoo`/`nan` sentinel boundaries match SymPy, while unknown reality, unresolved branches, and decidable zero arguments for `arg` raise `UnsupportedOperationError` |
 | `diff`, `Derivative` | native differentiation, including repeated variables; `evaluate=False` retains a typed wrapper with `.doit()` |
 | `subs`, `expand` | native substitution and expansion |
 | `Subs` | typed wrapper with `.doit()` for explicit `(old, new)` pairs |
@@ -64,9 +64,12 @@ Their immutable results are cached per assumption epoch; adding or removing
 assumptions invalidates the cache. `arg` returns the principal branch when its
 supported rectangular split is decidable. `expand_complex` uses that split for
 the supported exact and assumption-resolved fragment and matches the direct
-`oo`/`zoo`/`nan` sentinel boundaries (`zoo` becomes `nan`). `Abs` uses the same
-owner for exact, algebraic, and assumption-resolved complex expressions, while
-unknown reality keeps SymPy's unevaluated `abs(...)` fallback.
+`oo`/`-oo`/`zoo`/`nan` sentinel boundaries (`zoo` becomes `nan`). The same
+owner returns `re(oo)=oo`, `im(oo)=0`, `arg(-oo)=pi`, `Abs(zoo)=oo`, and the
+corresponding `nan` projections; `conjugate(zoo)` remains an applied head.
+`Abs` uses the same owner for exact, algebraic, and assumption-resolved complex
+expressions, while unknown reality keeps SymPy's unevaluated `abs(...)`
+fallback.
 
 The compatibility layer guarantees native structural equality only for
 operations listed as construction or transformation above. Unsupported
