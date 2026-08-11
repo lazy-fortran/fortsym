@@ -24,11 +24,11 @@ decision = "Keep the short native constructors. Keep func_in distinct because it
 id = "elementary-functions"
 audit_concepts = ["elementary-functions"]
 canonical_native = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", "besselj", "legendrep", "legendreq"]
-current_native = ["sin_expr", "cos_expr", "tan_expr", "asin_expr", "acos_expr", "atan_expr", "atan2_expr", "sinh_expr", "cosh_expr", "tanh_expr", "asinh_expr", "acosh_expr", "atanh_expr", "exp_expr", "log_expr", "sqrt_expr", "abs_expr", "erf_expr", "erfc_expr", "gamma_expr", "besselj_expr", "legendrep_expr", "legendreq_expr"]
-transition_aliases = ["sin_expr", "cos_expr", "tan_expr", "asin_expr", "acos_expr", "atan_expr", "atan2_expr", "sinh_expr", "cosh_expr", "tanh_expr", "asinh_expr", "acosh_expr", "atanh_expr", "exp_expr", "log_expr", "sqrt_expr", "abs_expr", "erf_expr", "erfc_expr", "gamma_expr", "besselj_expr", "legendrep_expr", "legendreq_expr"]
+current_native = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", "besselj", "legendrep", "legendreq"]
+transition_aliases = []
 python_facade = []
 sympy_adapter = ["sin", "cos", "tan", "exp", "log", "sqrt", "Abs"]
-decision = "Make the intrinsic spellings canonical in the native facade so it mirrors fortsym_expr. Keep the _expr spellings only as transition aliases during the pre-alpha migration. The adapter maps abs to SymPy Abs."
+decision = "Use the intrinsic spellings in the native facade so it mirrors fortsym_expr. The old _expr spellings are removed rather than retained as a second vocabulary. The adapter maps abs to SymPy Abs."
 
 [[family]]
 id = "constants"
@@ -54,11 +54,11 @@ decision = "partial constructs an unevaluated first-order node. diff owns the ev
 id = "contexts-and-handles"
 audit_concepts = ["arena-and-expression"]
 canonical_native = ["arena_t", "expr_t", "default_arena", "reset"]
-current_native = ["arena_t", "expr_t", "fortsym_default_arena", "fortsym_reset"]
-transition_aliases = ["fortsym_default_arena", "fortsym_reset"]
+current_native = ["arena_t", "expr_t", "default_arena", "reset"]
+transition_aliases = []
 python_facade = ["Arena", "Expr"]
 sympy_adapter = ["Arena", "Expr"]
-decision = "Keep arena_t and expr_t as type names. Remove the redundant fortsym_ prefix from convenience procedures because use fortsym already supplies the namespace. Keep explicit arenas and the easy default state with one syntax."
+decision = "Keep arena_t and expr_t as type names. Use default_arena and reset in the convenience facade because use fortsym already supplies the namespace. Keep explicit arenas and the easy default state with one syntax."
 
 [[family]]
 id = "transformations"

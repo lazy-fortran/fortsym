@@ -88,8 +88,8 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "real-construction",
             "Create a real expression.",
             ["real_expr", "real_text_expr"], ["Float"], ["Float"], ["Float"],
-            "The native facade exposes value and text constructors with an _expr suffix. The adapter has one SymPy-compatible Float constructor.",
-            "Choose a consistent native pair and keep Float as an adapter alias.",
+            "The native facade keeps _expr on value and text constructors because the suffix distinguishes expression handles from intrinsic scalar values. The adapter has one SymPy-compatible Float constructor.",
+            "Retain the disambiguating native pair and keep Float as an adapter alias.",
         ),
         concept(
             "function-construction",
@@ -101,16 +101,14 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         concept(
             "elementary-functions",
             "Create an elementary applied function.",
-            ["sin_expr", "cos_expr", "tan_expr", "asin_expr", "acos_expr", "atan_expr",
-             "atan2_expr", "sinh_expr", "cosh_expr", "tanh_expr", "asinh_expr",
-             "acosh_expr", "atanh_expr", "exp_expr", "log_expr", "sqrt_expr", "abs_expr",
-             "erf_expr", "erfc_expr", "gamma_expr", "besselj_expr", "legendrep_expr",
-             "legendreq_expr"],
+            ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh",
+             "tanh", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "abs", "erf",
+             "erfc", "gamma", "besselj", "legendrep", "legendreq"],
             [],
             ["sin", "cos", "tan", "exp", "log", "sqrt", "Abs"],
             ["sin", "cos", "tan", "exp", "log", "sqrt", "Abs"],
-            "The Fortran facade adds _expr to names that collide with intrinsics. The Python adapter uses SymPy spellings and currently covers a smaller head set.",
-            "Audit the suffix policy as one family. Do not rename one elementary function in isolation.",
+            "The Fortran facade now uses the same intrinsic spellings as fortsym_expr. The Python adapter uses SymPy spellings and currently covers a smaller head set.",
+            "Keep the elementary functions as one native family and do not reintroduce per-function aliases.",
         ),
         concept(
             "constants",
@@ -130,9 +128,9 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         concept(
             "arena-and-expression",
             "Own expression storage and expression handles.",
-            ["arena_t", "expr_t", "fortsym_default_arena", "fortsym_reset"],
+            ["arena_t", "expr_t", "default_arena", "reset"],
             ["Arena", "Expr"], ["Arena", "Expr"], ["Expr"],
-            "Fortran types and Python handle classes are distinct language bindings. The default-state functions have no direct SymPy root equivalent.",
+            "Fortran types and Python handle classes are distinct language bindings. The default-state functions have no direct SymPy root equivalent, and the native facade uses short names because its module already supplies the namespace.",
             "Keep one responsibility per owner and document default versus explicit state once.",
         ),
         concept(
@@ -245,7 +243,7 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "fortran_facade": "short native names are audited as the canonical candidates",
             "python_facade": "fortsym's native Python binding is audited separately from the SymPy spelling adapter",
             "sympy_adapter": "fortsym.sympy uses SymPy names where compatibility requires them",
-            "selection": "This report records findings. The next roadmap item selects canonical names and aliases.",
+            "selection": "This report records the selected native vocabulary and the deliberate Python compatibility boundary.",
         },
         "sources": {
             "classification": "doc/sympy-api-classification.json",

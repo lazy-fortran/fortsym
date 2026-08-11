@@ -50,9 +50,9 @@ type(expr_t) :: x, y, e
 
 x = "x"
 y = "y"
-e = sin_expr(x*y)**2 + cos_expr(x*y)
+e = sin(x*y)**2 + cos(x*y)
 
-call check_zero("pythagorean", sin_expr(x)**2 + cos_expr(x)**2 - 1)
+call check_zero("pythagorean", sin(x)**2 + cos(x)**2 - 1)
 call emit_kernel("dedx", diff(e, x), file="src/generated/dedx.f90")
 ```
 
