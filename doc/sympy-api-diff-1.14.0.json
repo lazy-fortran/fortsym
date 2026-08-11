@@ -1,0 +1,51 @@
+{
+  "base_version": "1.14.0",
+  "baseline": "doc/sympy-api-baseline-1.14.0.json",
+  "candidate": "doc/sympy-api-inventory.json",
+  "candidate_version": "1.14.0",
+  "changes": {
+    "classes": {
+      "added": [],
+      "changed": [],
+      "counts": {
+        "added": 0,
+        "changed": 0,
+        "removed": 0
+      },
+      "removed": []
+    },
+    "module_exports": {
+      "added": [],
+      "changed": [],
+      "counts": {
+        "added": 0,
+        "changed": 0,
+        "removed": 0
+      },
+      "removed": []
+    },
+    "modules": {
+      "added": [],
+      "changed": [],
+      "counts": {
+        "added": 0,
+        "changed": 0,
+        "removed": 0
+      },
+      "removed": []
+    },
+    "root_exports": {
+      "added": [],
+      "changed": [],
+      "counts": {
+        "added": 0,
+        "changed": 0,
+        "removed": 0
+      },
+      "removed": []
+    }
+  },
+  "clean": true,
+  "package": "sympy",
+  "schema_version": 1
+}
