@@ -333,6 +333,38 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(expected=str(expected)):
                 self.assertEqual(str(native.simplify(actual)), str(expected))
 
+    def test_inverse_domain_heads_match_oracle(self):
+        cases = [
+            (oracle.asin(oracle.oo), native.asin(native.oo)),
+            (oracle.asin(-oracle.oo), native.asin(-native.oo)),
+            (oracle.asin(oracle.zoo), native.asin(native.zoo)),
+            (oracle.acos(oracle.oo), native.acos(native.oo)),
+            (oracle.acos(-oracle.oo), native.acos(-native.oo)),
+            (oracle.acos(oracle.zoo), native.acos(native.zoo)),
+            (oracle.atan(oracle.oo), native.atan(native.oo)),
+            (oracle.atan(-oracle.oo), native.atan(-native.oo)),
+            (oracle.asinh(oracle.oo), native.asinh(native.oo)),
+            (oracle.asinh(-oracle.oo), native.asinh(-native.oo)),
+            (oracle.asinh(oracle.zoo), native.asinh(native.zoo)),
+            (oracle.acosh(oracle.oo), native.acosh(native.oo)),
+            (oracle.acosh(-oracle.oo), native.acosh(-native.oo)),
+            (oracle.acosh(oracle.zoo), native.acosh(native.zoo)),
+            (oracle.atanh(oracle.oo), native.atanh(native.oo)),
+            (oracle.atanh(-oracle.oo), native.atanh(-native.oo)),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                actual_parsed = oracle.sympify(
+                    str(native.simplify(actual)), locals=self.locals
+                )
+                self.assertEqual(actual_parsed, expected)
+        for function in (oracle.atan, oracle.atanh):
+            with self.subTest(function=function.__name__):
+                expected = function(oracle.zoo)
+                self.assertNotIsInstance(expected, oracle.Function)
+                actual = getattr(native, function.__name__)(native.zoo)
+                self.assertIsInstance(native.simplify(actual), native.Function)
+
     def test_expand_cache_matches_oracle_and_invalidates_on_assumptions(self):
         oracle_x = oracle.Symbol("differential_expand_cache_x")
         native_x = native.Symbol("differential_expand_cache_x")

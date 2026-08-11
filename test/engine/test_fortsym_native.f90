@@ -54,6 +54,7 @@ program test_fortsym_native
     call test_directed_domain_rules()
     call test_directed_domain_functions()
     call test_directed_domain_heads()
+    call test_directed_inverse_heads()
     call test_noninteger_domain_powers()
     call test_verdicts()
     call test_overflow_preservation()
@@ -1053,6 +1054,65 @@ contains
         r = engine%simplify(tanh(complex_infinity))
         call check("tanh(zoo) is nan", r%value == nan_expr(arena))
     end subroutine test_directed_domain_heads
+
+    subroutine test_directed_inverse_heads()
+        type(engine_result_t) :: r
+        type(expr_t) :: infinity, complex_infinity, negative_infinity
+        type(expr_t) :: half_pi, negative_half_pi
+        type(expr_t) :: imaginary_half_pi, negative_imaginary_half_pi
+
+        infinity = oo_expr(arena)
+        complex_infinity = zoo_expr(arena)
+        negative_infinity = -infinity
+        half_pi = rat(arena, 1_int64, 2_int64)*pi_expr(arena)
+        negative_half_pi = rat(arena, -1_int64, 2_int64)*pi_expr(arena)
+        imaginary_half_pi = i_expr(arena)*half_pi
+        negative_imaginary_half_pi = rat(arena, -1_int64, 2_int64)* &
+            i_expr(arena)*pi_expr(arena)
+
+        r = engine%simplify(asin(infinity))
+        call check("asin(oo) is negative i oo", &
+            r%value == -i_expr(arena)*infinity)
+        r = engine%simplify(asin(negative_infinity))
+        call check("asin(-oo) is i oo", r%value == i_expr(arena)*infinity)
+        r = engine%simplify(asin(complex_infinity))
+        call check("asin(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(acos(infinity))
+        call check("acos(oo) is i oo", r%value == i_expr(arena)*infinity)
+        r = engine%simplify(acos(negative_infinity))
+        call check("acos(-oo) is negative i oo", &
+            r%value == -i_expr(arena)*infinity)
+        r = engine%simplify(acos(complex_infinity))
+        call check("acos(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(atan(infinity))
+        call check("atan(oo) is pi over two", r%value == half_pi)
+        r = engine%simplify(atan(negative_infinity))
+        call check("atan(-oo) is negative pi over two", &
+            r%value == negative_half_pi)
+        r = engine%simplify(atan(complex_infinity))
+        call check("atan(zoo) remains an applied head", r%value%kind() == NK_FUNC)
+        r = engine%simplify(asinh(infinity))
+        call check("asinh(oo) is oo", r%value == infinity)
+        r = engine%simplify(asinh(negative_infinity))
+        call check("asinh(-oo) is negative oo", r%value == negative_infinity)
+        r = engine%simplify(asinh(complex_infinity))
+        call check("asinh(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(acosh(infinity))
+        call check("acosh(oo) is oo", r%value == infinity)
+        r = engine%simplify(acosh(negative_infinity))
+        call check("acosh(-oo) is oo", r%value == infinity)
+        r = engine%simplify(acosh(complex_infinity))
+        call check("acosh(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(atanh(infinity))
+        call check("atanh(oo) is negative i pi over two", &
+            r%value == negative_imaginary_half_pi)
+        r = engine%simplify(atanh(negative_infinity))
+        call check("atanh(-oo) is i pi over two", &
+            r%value == imaginary_half_pi)
+        r = engine%simplify(atanh(complex_infinity))
+        call check("atanh(zoo) remains an applied head", &
+            r%value%kind() == NK_FUNC)
+    end subroutine test_directed_inverse_heads
 
     subroutine test_noninteger_domain_powers()
         type(engine_result_t) :: r

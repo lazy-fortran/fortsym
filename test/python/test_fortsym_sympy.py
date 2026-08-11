@@ -213,6 +213,31 @@ class SympySubsetTest(unittest.TestCase):
             with self.subTest(expression=str(expression)):
                 self.assertEqual(sp.simplify(expression), expected)
 
+    def test_inverse_domain_heads(self):
+        cases = [
+            (sp.asin(sp.oo), sp.Integer(-1) * sp.I * sp.oo),
+            (sp.asin(-sp.oo), sp.I * sp.oo),
+            (sp.asin(sp.zoo), sp.zoo),
+            (sp.acos(sp.oo), sp.I * sp.oo),
+            (sp.acos(-sp.oo), sp.Integer(-1) * sp.I * sp.oo),
+            (sp.acos(sp.zoo), sp.zoo),
+            (sp.atan(sp.oo), sp.Rational(1, 2) * sp.pi),
+            (sp.atan(-sp.oo), sp.Rational(-1, 2) * sp.pi),
+            (sp.asinh(sp.oo), sp.oo),
+            (sp.asinh(-sp.oo), sp.Integer(-1) * sp.oo),
+            (sp.asinh(sp.zoo), sp.zoo),
+            (sp.acosh(sp.oo), sp.oo),
+            (sp.acosh(-sp.oo), sp.oo),
+            (sp.acosh(sp.zoo), sp.zoo),
+            (sp.atanh(sp.oo), sp.Rational(-1, 2) * sp.I * sp.pi),
+            (sp.atanh(-sp.oo), sp.Rational(1, 2) * sp.I * sp.pi),
+        ]
+        for expression, expected in cases:
+            with self.subTest(expression=str(expression)):
+                self.assertEqual(sp.simplify(expression), expected)
+        self.assertIsInstance(sp.simplify(sp.atan(sp.zoo)), sp.Function)
+        self.assertIsInstance(sp.simplify(sp.atanh(sp.zoo)), sp.Function)
+
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")
         cases = [

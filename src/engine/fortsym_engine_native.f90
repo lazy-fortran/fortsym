@@ -4555,6 +4555,27 @@ contains
         id = a%mul(pair)
     end function imaginary_oo_node
 
+    function signed_half_pi_node(a, direction) result(id)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: direction
+        integer :: id, half_pi
+
+        half_pi = mul_pair(a, a%rat(1_int64, 2_int64), a%const("pi"))
+        if (direction >= 0) then
+            id = half_pi
+        else
+            id = mul_pair(a, a%int(-1_int64), half_pi)
+        end if
+    end function signed_half_pi_node
+
+    function imaginary_half_pi_node(a, direction) result(id)
+        type(arena_t), intent(inout) :: a
+        integer,       intent(in)    :: direction
+        integer :: id
+
+        id = mul_pair(a, a%const("i"), signed_half_pi_node(a, direction))
+    end function imaginary_half_pi_node
+
     subroutine simplify_domain_function(a, name, args, out, applied)
         type(arena_t), intent(inout) :: a
         character(*),  intent(in)    :: name
@@ -4637,6 +4658,42 @@ contains
             else
                 out = a%int(1_int64)
             end if
+        case ("asin")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = a%const("zoo")
+            else
+                out = imaginary_oo_node(a, -direction)
+            end if
+        case ("acos")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = a%const("zoo")
+            else
+                out = imaginary_oo_node(a, direction)
+            end if
+        case ("atan")
+            if (domain == DOMAIN_ZOO) return
+            applied = .true.
+            out = signed_half_pi_node(a, direction)
+        case ("asinh")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = a%const("zoo")
+            else
+                out = signed_oo_node(a, direction)
+            end if
+        case ("acosh")
+            applied = .true.
+            if (domain == DOMAIN_ZOO) then
+                out = a%const("zoo")
+            else
+                out = a%const("oo")
+            end if
+        case ("atanh")
+            if (domain == DOMAIN_ZOO) return
+            applied = .true.
+            out = imaginary_half_pi_node(a, -direction)
         end select
     end subroutine simplify_domain_function
 

@@ -350,9 +350,15 @@ def _named_function(name):
 sin = _named_function("sin")
 cos = _named_function("cos")
 tan = _named_function("tan")
+asin = _named_function("asin")
+acos = _named_function("acos")
+atan = _named_function("atan")
 sinh = _named_function("sinh")
 cosh = _named_function("cosh")
 tanh = _named_function("tanh")
+asinh = _named_function("asinh")
+acosh = _named_function("acosh")
+atanh = _named_function("atanh")
 exp = _named_function("exp")
 log = _named_function("log")
 sqrt = _named_function("sqrt")
@@ -431,8 +437,9 @@ __all__ = [
     "InconsistentAssumptions",
     "Symbol", "symbols", "sympify", "Integer", "Rational", "Float",
     "Add", "Mul", "Pow", "Function", "Derivative", "Subs", "sin", "cos",
-    "tan", "sinh", "cosh", "tanh", "exp", "log", "sqrt", "Abs", "sign",
-    "floor", "ceiling", "diff", "subs", "expand",
+    "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh", "asinh",
+    "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign", "floor",
+    "ceiling", "diff", "subs", "expand",
     "simplify", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
     "integrate", "limit", "series", "solve", "Matrix", "pi", "E", "I",
