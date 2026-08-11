@@ -686,7 +686,8 @@ subsequent native plotting slice adds independent per-dataset
 `Joined -> {True, False}` coverage for `ListPlot` and `ListLinePlot`; the
 focused plotting suite passes, while the broader plotting family remains open.
 The highest-impact work remains the plotting family, `Solve` beyond
-scalar linear cases, polynomial heads, and `DSolve`/`NDSolve`.
+scalar linear cases, polynomial heads, and `NDSolve`; the bounded symbolic
+`DSolve` slice is now covered below.
 
 ### The oracle ceiling (#47)
 
@@ -768,7 +769,7 @@ orders the work, and it has repeatedly disagreed with intuition:
 | definite and multiple `Integrate` | ~123 |
 | `N` beyond the bounded 17--512 digit path | refresh the refusal count |
 | polynomial heads (`Coefficient`, `Together`, `Factor`, …) | ~60 |
-| `DSolve` / `NDSolve` | 45 |
+| `NDSolve` (the bounded symbolic `DSolve` slice is covered below) | 45 |
 
 Two findings worth keeping:
 
@@ -997,6 +998,18 @@ printer lowers `Piecewise`, `If`, and `Boole` to typed, ordered `merge`
 expressions. The independent compiler/run oracle covers branch interiors,
 boundaries, and the default branch. General condition solving and derivatives
 at discontinuity boundaries remain outside this fragment.
+
+Issue #43 is complete for the bounded first-order linear `DSolve` fragment.
+`fortsym_ode` normalizes one equation to `y' = a(x) y + q(x)`, constructs an
+integrating-factor solution, and returns the Wolfram nested
+`List[List[Rule[...]]]` shape. One value initial condition is supported. A
+direct exponential particular solution is also available when its
+non-resonance denominator is decidably nonzero. The returned function is
+substituted into the original derivative-and-function nodes and its residual
+must zero-test before the result is exposed; the initial condition receives
+the same independent check in the regression. Nonlinear, higher-order,
+multi-equation, separable, resonant-parameter, and numerical (`NDSolve`)
+forms remain named refusals/UNKNOWN rather than guessed solutions.
 
 ### M13 — Codegen completion (#41, #42)
 

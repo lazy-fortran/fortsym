@@ -17,6 +17,7 @@ module fortsym
         backend_evidence_t, backend_result_t, backend_status_name, &
         serialize_expression, deserialize_expression, assess_identity, &
         assess_equivalence, evidence_json, emit_backend_kernel
+    use fortsym_ode, only: solve_ode
     use fortsym_expr, only: sin_expr => sin, cos_expr => cos, tan_expr => tan, &
         asin_expr => asin, acos_expr => acos, atan_expr => atan, &
         atan2_expr => atan2, sinh_expr => sinh, cosh_expr => cosh, &
@@ -40,6 +41,7 @@ module fortsym
         backend_result_t, backend_status_name, serialize_expression, &
         deserialize_expression, assess_identity, assess_equivalence, &
         evidence_json, emit_backend_kernel
+    public :: solve_ode
     public :: operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), operator(/=)
     public :: sin_expr, cos_expr, tan_expr, asin_expr, acos_expr, atan_expr, &
