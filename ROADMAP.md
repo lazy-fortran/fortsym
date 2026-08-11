@@ -109,7 +109,8 @@ Every checklist item requires all of the following:
 
 ## Phase 0 — freeze the reference and inventory the surface
 
-- [ ] Freeze the SymPy 1.14.0 compatibility profile.
+- [x] Freeze the SymPy 1.14.0 compatibility profile in
+  [`doc/upstream-baselines.toml`](doc/upstream-baselines.toml#L36-L44).
 - [ ] Generate an inventory of public SymPy modules, functions, classes,
   methods, signatures, options, exceptions, and documented return types.
 - [ ] Classify each item as `native`, `facade`, `python-adapter`, `external`,
