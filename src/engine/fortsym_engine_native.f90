@@ -1968,11 +1968,8 @@ contains
         if (exponent == 2_int64 .and. a%kind_of(base) == NK_FUNC) then
             if (chars(a%name_of(base)) == "sqrt") then
                 if (a%nargs_of(base) == 1) then
-                    call exact_value(a, a%arg_of(base, 1), nested, den, exact)
-                    if (exact .and. nested >= 0_int64) then
-                        out = a%arg_of(base, 1)
-                        return
-                    end if
+                    out = a%arg_of(base, 1)
+                    return
                 end if
             end if
         end if

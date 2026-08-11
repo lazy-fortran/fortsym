@@ -186,6 +186,9 @@ positive/nonnegative values return `x`, negative/nonpositive values return
 It also reduces `log(exp(x))` when `x` is real and `exp(log(x))` when `x` is
 nonzero. Without the required fact, these compositions remain unevaluated so
 branch-sensitive identities are never guessed.
+Under the principal-square-root convention, `sqrt(x)**2` reduces to `x` for
+symbolic `x` without an additional assumption; this is distinct from the
+branch-sensitive `sqrt(x**2)` rewrite above.
 `simplify`, `refine`, `expand`, `factor`, `diff`, and `zero_test`
 accept the optional `assumptions=` context. `refine` is the named entry point
 for applying these supported facts; it shares guarded rewrite ownership with

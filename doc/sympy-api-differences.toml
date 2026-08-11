@@ -118,7 +118,7 @@ id = "simplification"
 affected = ["simplify"]
 parity = "partial"
 sympy = "SymPy simplify is a broad heuristic transformation that may select different normal forms."
-fortsym = "Native simplify applies guarded, resource-bounded rewrites, including real/nonzero-guarded log/exp compositions, and returns the original or an unevaluated form when it cannot prove a transformation."
+fortsym = "Native simplify applies guarded, resource-bounded rewrites, including principal-square-root powers and real/nonzero-guarded log/exp compositions, and returns the original or an unevaluated form when it cannot prove a transformation."
 difference = "Normal-form choice, rewrite coverage, assumptions, and resource-limit outcomes are not identical."
 
 [[semantic]]

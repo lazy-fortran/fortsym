@@ -97,10 +97,14 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
     composition_name = f"{label}_composition_{suffix}"
     oracle_composition = oracle.Symbol(composition_name, real=True)
     native_composition = native.Symbol(composition_name, real=True)
+    sqrt_power_name = f"{label}_sqrt_power_{suffix}"
+    oracle_sqrt_power = oracle.Symbol(sqrt_power_name)
+    native_sqrt_power = native.Symbol(sqrt_power_name)
     names = {
         name_x: oracle_x,
         name_y: oracle_y,
         composition_name: oracle_composition,
+        sqrt_power_name: oracle_sqrt_power,
         "abs": oracle.Abs,
     }
 
@@ -131,6 +135,15 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
                 evaluate=False,
             ),
             native.log(native.exp(native_composition)),
+            names,
+        ),
+        "sqrt_power": (
+            oracle.Pow(
+                oracle.sqrt(oracle_sqrt_power, evaluate=False),
+                2,
+                evaluate=False,
+            ),
+            native.sqrt(native_sqrt_power)**2,
             names,
         ),
         "relation": (
@@ -183,6 +196,13 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
             )
         else:
             expression = engine.log(engine.exp(x))
+    elif operation == "sqrt_power":
+        if engine is oracle:
+            expression = engine.Pow(
+                engine.sqrt(x, evaluate=False), 2, evaluate=False
+            )
+        else:
+            expression = engine.sqrt(x)**2
     elif operation == "relation":
         expression = engine.Gt(x, 1)
     elif operation == "compound":
@@ -208,7 +228,7 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation == "simplify":
             expected = oracle.simplify(oracle_expression)
             actual = native.simplify(native_expression)
-        elif operation == "composition":
+        elif operation in ("composition", "sqrt_power"):
             expected = oracle.simplify(oracle_expression)
             actual = native.simplify(native_expression)
         elif operation == "assumption_query":
@@ -291,7 +311,7 @@ def benchmark_workload(
                 native_call = lambda: native.refine(
                     native_expression, native.Q.negative(native_x)
                 )
-            elif operation == "composition":
+            elif operation in ("composition", "sqrt_power"):
                 oracle_call = lambda: oracle.simplify(oracle_expression)
                 native_call = lambda: native.simplify(native_expression)
             elif operation == "relation":
@@ -322,7 +342,7 @@ def benchmark_workload(
                     return engine.ask(expression)
                 if operation == "refine":
                     return engine.refine(expression, engine.Q.negative(variable))
-                if operation == "composition":
+                if operation in ("composition", "sqrt_power"):
                     return engine.simplify(expression)
                 if operation == "relation":
                     return engine.Gt(variable, 1)
@@ -381,7 +401,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "composition", "relation", "compound", "factor",
+        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "relation", "compound", "factor",
         "assumption_query"
     ):
         for scope in ("cold_end_to_end", "warm_core"):

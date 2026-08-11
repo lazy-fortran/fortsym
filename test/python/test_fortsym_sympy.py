@@ -83,6 +83,11 @@ class SympySubsetTest(unittest.TestCase):
             str(sp.exp(sp.log(unknown_log))),
         )
 
+    def test_principal_sqrt_power_is_exact(self):
+        x = sp.Symbol("principal_sqrt_power")
+        raw = sp.sqrt(x)**2
+        self.assertEqual(sp.simplify(raw), x)
+
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")
         cases = [
