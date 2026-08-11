@@ -4,6 +4,7 @@ module fortsym
     use fortsym_arena, only: arena_t, node_kind_name, &
         NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, NK_POW, &
         NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
+    use fortsym_string, only: chars
     use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, &
         real_text_expr, const, func, func_in, partial, pi_expr, e_expr, &
         i_expr, sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, &
@@ -11,9 +12,12 @@ module fortsym
         gamma, besselj, legendrep, legendreq, &
         is_valid, same_arena, operator(+), operator(-), operator(*), &
         operator(/), operator(**), operator(==), operator(/=)
+    use fortsym_subs, only: subs_impl => subs
     use fortsym_numeric, only: numeric_value, numeric_text, &
         numeric_precision_text, numeric_complex_text, &
         numeric_complex_text_t, numeric_callable_t
+    use fortsym_engine, only: engine_result_t
+    use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_backend, only: BACKEND_PROTOCOL_VERSION, EXPRESSION_SCHEMA, &
         BACKEND_PROVED, BACKEND_DISPROVED, BACKEND_UNKNOWN, &
         backend_evidence_t, backend_result_t, backend_status_name, &
@@ -28,6 +32,7 @@ module fortsym
         NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
     public :: expr_t, sym, num, rat, exact, real_expr, real_text_expr, const, &
         func, func_in, partial, pi_expr, e_expr, i_expr, is_valid, same_arena
+    public :: subs, diff, simplify, expand, factor
     public :: numeric_value, numeric_text, numeric_precision_text, &
         numeric_complex_text, numeric_complex_text_t, numeric_callable_t
     public :: BACKEND_PROTOCOL_VERSION, EXPRESSION_SCHEMA, BACKEND_PROVED, &
@@ -69,6 +74,124 @@ contains
         default_ready = .false.
     end subroutine reset
 
+    !> Replace one expression structurally. The optional status arguments use
+    !> the same convention as the native transformations below: a failed
+    !> operation returns an invalid expression and explains why when requested.
+    function subs(expression, old, new, ok, why) result(out)
+        type(expr_t), intent(in) :: expression, old, new
+        logical, intent(out), optional :: ok
+        character(:), allocatable, intent(out), optional :: why
+        type(expr_t) :: out
+
+        out = expr_t()
+        if (.not. is_valid(expression)) then
+            call report_failure(ok, why, "subs: invalid expression")
+            return
+        end if
+        if (.not. is_valid(old) .or. .not. is_valid(new)) then
+            call report_failure(ok, why, "subs: invalid replacement")
+            return
+        end if
+        if (.not. same_arena(expression, old) .or. &
+            .not. same_arena(expression, new)) then
+            call report_failure(ok, why, "subs: expressions belong to different arenas")
+            return
+        end if
+
+        out = subs_impl(expression, old, new)
+        if (.not. is_valid(out)) then
+            call report_failure(ok, why, "subs: substitution failed")
+        else
+            call report_success(ok, why)
+        end if
+    end function subs
+
+    !> Differentiate and simplify through the native engine in the expression's
+    !> arena. The low-level fortsym_diff module remains available when callers
+    !> specifically need the unsimplified derivative DAG.
+    function diff(expression, variable, ok, why) result(out)
+        type(expr_t), intent(in) :: expression, variable
+        logical, intent(out), optional :: ok
+        character(:), allocatable, intent(out), optional :: why
+        type(expr_t) :: out
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: result
+
+        out = expr_t()
+        if (.not. is_valid(expression) .or. .not. is_valid(variable)) then
+            call report_failure(ok, why, "diff: invalid expression")
+            return
+        end if
+        if (.not. same_arena(expression, variable)) then
+            call report_failure(ok, why, "diff: expressions belong to different arenas")
+            return
+        end if
+
+        engine = make_native_engine(expression%a)
+        result = engine%diff(expression, variable)
+        out = expression_from_engine(result, "diff", ok, why)
+    end function diff
+
+    !> Simplify an expression with the native engine in its owning arena.
+    function simplify(expression, ok, why) result(out)
+        type(expr_t), intent(in) :: expression
+        logical, intent(out), optional :: ok
+        character(:), allocatable, intent(out), optional :: why
+        type(expr_t) :: out
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: result
+
+        out = expr_t()
+        if (.not. is_valid(expression)) then
+            call report_failure(ok, why, "simplify: invalid expression")
+            return
+        end if
+
+        engine = make_native_engine(expression%a)
+        result = engine%simplify(expression)
+        out = expression_from_engine(result, "simplify", ok, why)
+    end function simplify
+
+    !> Expand an expression with the native engine in its owning arena.
+    function expand(expression, ok, why) result(out)
+        type(expr_t), intent(in) :: expression
+        logical, intent(out), optional :: ok
+        character(:), allocatable, intent(out), optional :: why
+        type(expr_t) :: out
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: result
+
+        out = expr_t()
+        if (.not. is_valid(expression)) then
+            call report_failure(ok, why, "expand: invalid expression")
+            return
+        end if
+
+        engine = make_native_engine(expression%a)
+        result = engine%expand(expression)
+        out = expression_from_engine(result, "expand", ok, why)
+    end function expand
+
+    !> Factor an expression with the native engine in its owning arena.
+    function factor(expression, ok, why) result(out)
+        type(expr_t), intent(in) :: expression
+        logical, intent(out), optional :: ok
+        character(:), allocatable, intent(out), optional :: why
+        type(expr_t) :: out
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: result
+
+        out = expr_t()
+        if (.not. is_valid(expression)) then
+            call report_failure(ok, why, "factor: invalid expression")
+            return
+        end if
+
+        engine = make_native_engine(expression%a)
+        result = engine%factor(expression)
+        out = expression_from_engine(result, "factor", ok, why)
+    end function factor
+
     !> Assigning text creates one symbol in the default arena. Text is never
     !> parsed as an expression.
     subroutine assign_character(lhs, rhs)
@@ -77,6 +200,43 @@ contains
         call ensure_default()
         lhs = sym(default_store, trim(rhs))
     end subroutine assign_character
+
+    function expression_from_engine(result, operation, ok, why) result(out)
+        type(engine_result_t), intent(in) :: result
+        character(*), intent(in) :: operation
+        logical, intent(out), optional :: ok
+        character(:), allocatable, intent(out), optional :: why
+        type(expr_t) :: out
+        character(:), allocatable :: message
+
+        out = expr_t()
+        if (result%ok .and. is_valid(result%value)) then
+            out = result%value
+            call report_success(ok, why)
+            return
+        end if
+
+        message = chars(result%message)
+        if (len(message) == 0) message = operation//": operation failed"
+        call report_failure(ok, why, message)
+    end function expression_from_engine
+
+    subroutine report_success(ok, why)
+        logical, intent(out), optional :: ok
+        character(:), allocatable, intent(out), optional :: why
+
+        if (present(ok)) ok = .true.
+        if (present(why)) why = ""
+    end subroutine report_success
+
+    subroutine report_failure(ok, why, message)
+        logical, intent(out), optional :: ok
+        character(:), allocatable, intent(out), optional :: why
+        character(*), intent(in) :: message
+
+        if (present(ok)) ok = .false.
+        if (present(why)) why = message
+    end subroutine report_failure
 
     !> Read up to eight whitespace- or comma-separated symbol names into scalar
     !> outputs. A missing output or an extra name sets ok=.false.; every output

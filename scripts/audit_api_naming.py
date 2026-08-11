@@ -121,9 +121,9 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         concept(
             "differentiation",
             "Differentiate an expression.",
-            ["partial"], ["diff"], ["diff", "Derivative"], ["diff", "Derivative"],
-            "partial is the native low-level operation. diff is the Python convenience spelling, while Derivative also represents unevaluated work.",
-            "Separate operation from unevaluated result type and use one owner for each.",
+            ["partial", "diff"], ["diff"], ["diff", "Derivative"], ["diff", "Derivative"],
+            "partial constructs an explicit unevaluated node; the easy facade's diff uses the native evaluated operation. The Python layer keeps SymPy's diff and Derivative boundary.",
+            "Keep partial and diff in the calculus owner, with the facade forwarding evaluated differentiation consistently.",
         ),
         concept(
             "arena-and-expression",
@@ -136,16 +136,16 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         concept(
             "substitution",
             "Replace expressions.",
-            [], ["subs"], ["subs", "Subs"], ["Expr", "Subs"],
-            "The native Fortran facade does not currently export substitution from fortsym, while the Python layers expose an operation and a typed wrapper.",
-            "Resolve the native facade owner before adding aliases.",
+            ["subs"], ["subs"], ["subs", "Subs"], ["Expr", "Subs"],
+            "The native facade forwards structural substitution from its single owning module and reports invalid handles through the common optional status outputs.",
+            "Keep structural substitution in fortsym_subs and expose only the concise native subs entry point from the facade.",
         ),
         concept(
             "transformation-functions",
             "Transform an expression algebraically.",
-            [], ["factor"], ["expand", "simplify", "factor"], ["expand", "simplify", "factor"],
-            "The Python adapter exposes the current native transformation subset. The Fortran convenience facade exposes lower-level constructors but not these names as a single family.",
-            "Choose a canonical native transformation module and expose it consistently.",
+            ["expand", "simplify", "factor"], ["factor"], ["expand", "simplify", "factor"], ["expand", "simplify", "factor"],
+            "The Python adapter exposes the native transformation subset. The Fortran convenience facade now forwards all three operations to the native engine with one optional status convention.",
+            "Keep one native engine owner and expose the concise transformation names from the easy facade.",
         ),
         concept(
             "identity-and-validity",

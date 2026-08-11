@@ -185,11 +185,12 @@
       ]
     },
     {
-      "action": "Separate operation from unevaluated result type and use one owner for each.",
+      "action": "Keep partial and diff in the calculus owner, with the facade forwarding evaluated differentiation consistently.",
       "description": "Differentiate an expression.",
-      "finding": "partial is the native low-level operation. diff is the Python convenience spelling, while Derivative also represents unevaluated work.",
+      "finding": "partial constructs an explicit unevaluated node; the easy facade's diff uses the native evaluated operation. The Python layer keeps SymPy's diff and Derivative boundary.",
       "fortran_facade": [
-        "partial"
+        "partial",
+        "diff"
       ],
       "id": "differentiation",
       "python_facade": [
@@ -228,10 +229,12 @@
       ]
     },
     {
-      "action": "Resolve the native facade owner before adding aliases.",
+      "action": "Keep structural substitution in fortsym_subs and expose only the concise native subs entry point from the facade.",
       "description": "Replace expressions.",
-      "finding": "The native Fortran facade does not currently export substitution from fortsym, while the Python layers expose an operation and a typed wrapper.",
-      "fortran_facade": [],
+      "finding": "The native facade forwards structural substitution from its single owning module and reports invalid handles through the common optional status outputs.",
+      "fortran_facade": [
+        "subs"
+      ],
       "id": "substitution",
       "python_facade": [
         "subs"
@@ -246,10 +249,14 @@
       ]
     },
     {
-      "action": "Choose a canonical native transformation module and expose it consistently.",
+      "action": "Keep one native engine owner and expose the concise transformation names from the easy facade.",
       "description": "Transform an expression algebraically.",
-      "finding": "The Python adapter exposes the current native transformation subset. The Fortran convenience facade exposes lower-level constructors but not these names as a single family.",
-      "fortran_facade": [],
+      "finding": "The Python adapter exposes the native transformation subset. The Fortran convenience facade now forwards all three operations to the native engine with one optional status convention.",
+      "fortran_facade": [
+        "expand",
+        "simplify",
+        "factor"
+      ],
       "id": "transformation-functions",
       "python_facade": [
         "factor"
@@ -634,6 +641,12 @@
       },
       {
         "concepts": [
+          "differentiation"
+        ],
+        "name": "diff"
+      },
+      {
+        "concepts": [
           "constants"
         ],
         "name": "e_expr"
@@ -676,9 +689,21 @@
       },
       {
         "concepts": [
+          "transformation-functions"
+        ],
+        "name": "expand"
+      },
+      {
+        "concepts": [
           "arena-and-expression"
         ],
         "name": "expr_t"
+      },
+      {
+        "concepts": [
+          "transformation-functions"
+        ],
+        "name": "factor"
       },
       {
         "concepts": [
@@ -868,6 +893,12 @@
       },
       {
         "concepts": [
+          "transformation-functions"
+        ],
+        "name": "simplify"
+      },
+      {
+        "concepts": [
           "elementary-functions"
         ],
         "name": "sin"
@@ -889,6 +920,12 @@
           "elementary-functions"
         ],
         "name": "sqrt"
+      },
+      {
+        "concepts": [
+          "substitution"
+        ],
+        "name": "subs"
       },
       {
         "concepts": [
@@ -990,7 +1027,7 @@
   "summary": {
     "assigned_names": 104,
     "concept_groups": 20,
-    "fortran_facade_exports": 85,
+    "fortran_facade_exports": 90,
     "python_facade_exports": 12,
     "sympy_adapter_exports": 41,
     "unmapped_fortran_exports": 0

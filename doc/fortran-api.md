@@ -68,3 +68,25 @@ Expressions built with an explicit arena can use every operator and expression
 function exported by `fortsym`. Expressions combined by an operator must belong
 to the same arena. The default and explicit forms can be mixed when the
 explicit constructor receives `default_arena()`.
+
+## Core operations
+
+The easy facade uses the same short names as the owning modules:
+
+```fortran
+f = (x + 1) * (x + 2)
+g = subs(f, x, y, ok, why)
+d = diff(f, x, ok, why)
+s = simplify(f, ok, why)
+e = expand(f, ok, why)
+p = factor(f, ok, why)
+```
+
+`diff` is the evaluated native derivative. The `fortsym_diff` module remains
+available for the deliberately unsimplified derivative DAG. `subs` is structural and
+simultaneous for its one replacement pair. `simplify`, `expand`, and `factor`
+use the native engine in the expression's arena. All five functions return an
+`expr_t`. On refusal they return an invalid handle, set `ok` false when it is
+present, and put a diagnostic in the allocatable `why` when it is present.
+Successful calls set `ok` true and clear `why`. Callers that omit the optional
+outputs can still detect failure with `is_valid`.

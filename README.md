@@ -46,18 +46,19 @@ repository has an existing `.wl` derivation corpus to read.
 
 ```fortran
 use fortsym
-type(expr_t) :: x, y, e
+type(expr_t) :: x, y, e, d
 
 x = "x"
 y = "y"
 e = sin(x*y)**2 + cos(x*y)
 
-call check_zero("pythagorean", sin(x)**2 + cos(x)**2 - 1)
-call emit_kernel("dedx", diff(e, x), file="src/generated/dedx.f90")
+d = diff(e, x)
 ```
 
 The convenience layer, default-arena lifetime rules, and the explicit-arena
-API are described in [`doc/fortran-api.md`](doc/fortran-api.md).
+API are described in [`doc/fortran-api.md`](doc/fortran-api.md). Verification
+and code generation have dedicated modules because they have their own result
+and output contracts.
 
 ## Why
 
