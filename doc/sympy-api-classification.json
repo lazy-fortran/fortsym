@@ -3131,6 +3131,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym.numeric_real_text_t",
+        "module": "fortsym",
+        "name": "numeric_real_text_t",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym.numeric_complex_text",
         "module": "fortsym",
         "name": "numeric_complex_text",
@@ -6552,6 +6563,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_numeric.numeric_real_text_t",
+        "module": "fortsym_numeric",
+        "name": "numeric_real_text_t",
+        "owner": "src/verify/fortsym_numeric.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_numeric.numeric_complex_text",
         "module": "fortsym_numeric",
         "name": "numeric_complex_text",
@@ -6800,12 +6821,12 @@
     "classification_counts": {
       "delegated": 1683,
       "external": 10,
-      "facade": 129,
-      "native": 2254,
+      "facade": 130,
+      "native": 2256,
       "python-adapter": 1639,
       "refused": 26155
     },
-    "fortran_public_exports": 659,
+    "fortran_public_exports": 661,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

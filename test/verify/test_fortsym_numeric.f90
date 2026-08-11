@@ -14,8 +14,8 @@ program test_fortsym_numeric
         operator(+), operator(-), operator(*), &
         operator(/), operator(**)
     use fortsym_numeric, only: numeric_value, numeric_text, &
-        numeric_precision_text, numeric_complex_text, numeric_complex_text_t, &
-        numeric_callable_t
+        numeric_precision_text, numeric_real_text_t, numeric_complex_text, &
+        numeric_complex_text_t, numeric_callable_t
     implicit none
 
     integer, parameter :: dp = real64
@@ -258,6 +258,7 @@ contains
 
     subroutine test_requested_precision()
         type(expr_t) :: e
+        type(numeric_real_text_t) :: result
         character(:), allocatable :: text, why
         logical :: good
 
@@ -268,10 +269,18 @@ contains
             len_trim(text) > 30 .and. &
             index(text, "3.14159265358979323846") == 1)
 
+        call numeric_precision_text(e, 40, result, good, why)
+        call ok("typed requested precision returns a decimal", good)
+        call ok("typed result records requested precision", &
+            result%digits == 40 .and. len_trim(result%text) > 30)
+
         e = sym(arena, "open")
         call numeric_precision_text(e, 30, text, good, why)
         call ok("requested precision refuses free symbols", .not. good)
         call ok("precision refusal names the symbol", index(why, "open") > 0)
+        call numeric_precision_text(e, 30, result, good, why)
+        call ok("typed precision refusal clears metadata", &
+            .not. good .and. result%digits == 0 .and. len(result%text) == 0)
     end subroutine test_requested_precision
 
     subroutine test_complex_precision()
