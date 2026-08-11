@@ -100,6 +100,14 @@ This is runner and coverage evidence only, not a parity claim: the full
 open. The benchmark command intentionally returns a nonzero status when
 declared differences or oracle disagreements are present.
 
+A same-process diagnostic based on fortsym revision `2235cca` on 2026-08-11
+timed 1,000 alternating `sinh` and `cosh` rectangular splits on the native
+Fortran path at 7.078 ms, versus
+3.779 ms for `sympy.expand_complex` on the same symbolic form with SymPy
+1.14.0. The native path was therefore 1.87x slower in this repeated scope;
+this result is not a release baseline, and complex-domain cache/core
+performance work remains open rather than being presented as parity.
+
 `fo exec bench_native` writes CSV rows for warm, batched end-to-end native and
 SymEngine simplify, differentiation, and expansion calls. Each row includes a
 correctness result. This initial harness measures conversion and result

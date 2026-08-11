@@ -259,6 +259,10 @@ Every checklist item requires all of the following:
     - [ ] Extend algebraic values through full native simplification, then
       complete the remaining complex-domain operations, higher-degree
       conversion, and complex code generation.
+      - [x] Extend rectangular complex splitting to the entire `sinh` and
+        `cosh` heads. The independent complex evaluator verifies the addition
+        identities and the real-valued parts; branch-sensitive heads remain
+        explicit refusals.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
@@ -437,6 +441,9 @@ Every checklist item requires all of the following:
   resource-limit fuzzing.
 - [ ] Compare cold-start, warm-cache, conversion, core-operation, memory, and
   expression-growth metrics against SymPy.
+  - [ ] Add a pinned complex-domain split benchmark and close its performance
+    gap; the 2026-08-11 diagnostic recorded native `sinh`/`cosh` splitting at
+    1.87x the SymPy 1.14.0 timing in a repeated scope.
   - [x] Retain one native engine and its memoization caches per C-ABI arena;
     synchronize scoped assumptions before each call so warm native workloads
     do not discard their cache state.

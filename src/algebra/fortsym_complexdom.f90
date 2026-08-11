@@ -319,9 +319,9 @@ contains
         ok = .true.
     end subroutine split_power
 
-    !> Exp, Sin and Cos only. All three are entire, so the addition formulas
-    !> hold everywhere and no branch is involved. Every other head, including
-    !> Log and Sqrt, is refused.
+    !> Exp, Sin, Cos, Sinh, and Cosh only. All five are entire, so the addition
+    !> formulas hold everywhere and no branch is involved. Every other head,
+    !> including Log and Sqrt, is refused.
     recursive subroutine split_function(e, facts, re, im, ok, why)
         type(expr_t),               intent(in)  :: e
         type(assumption_context_t), intent(in)  :: facts
@@ -339,10 +339,10 @@ contains
             return
         end if
         select case (name)
-        case ("exp", "sin", "cos")
+        case ("exp", "sin", "cos", "sinh", "cosh")
         case default
             why = "no complex rule for head "//name// &
-                " (only exp, sin and cos are split)"
+                " (only exp, sin, cos, sinh, and cosh are split)"
             return
         end select
 
@@ -359,6 +359,12 @@ contains
         case ("cos")
             re = cos(a)*cosh(b)
             im = -(sin(a)*sinh(b))
+        case ("sinh")
+            re = sinh(a)*cos(b)
+            im = cosh(a)*sin(b)
+        case ("cosh")
+            re = cosh(a)*cos(b)
+            im = sinh(a)*sin(b)
         end select
         ok = .true.
     end subroutine split_function
