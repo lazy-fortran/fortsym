@@ -26,9 +26,10 @@ module fortsym_complexdom
     !     branch-cut question this module cannot answer and refuses.
     !   * Exp, Sin, Cos, Sinh, and Cosh of an already-split argument, via the
     !     addition formulas. These five are entire, so no branch enters.
-    !   * Tanh of an already-split argument, via its rectangular quotient. The
-    !     denominator remains in the result, and an identically zero denominator
-    !     is refused rather than turned into a claimed value at a pole.
+    !   * Tan and Tanh of an already-split argument, via their rectangular
+    !     quotients. Their denominators remain in the result, and an identically
+    !     zero denominator is refused rather than turned into a claimed value at
+    !     a pole.
     !   * Log, Sqrt, Arg-like heads and everything else are refused rather than
     !     given a principal-branch answer the caller did not ask for.
     !
@@ -44,7 +45,7 @@ module fortsym_complexdom
         NK_BIG_REAL, NK_ALGEBRAIC
     use fortsym_cache, only: expr_pair_cache_t
     use fortsym_expr, only: expr_t, num, algebraic_expr, i_expr, is_valid, &
-        sin, cos, sinh, cosh, tanh, exp, sqrt, atan2, &
+        sin, cos, tan, sinh, cosh, tanh, exp, sqrt, atan2, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_algebraic, only: algebraic_re, algebraic_im, algebraic_conjugate
     use fortsym_assume, only: assumption_context_t, FACT_REAL
@@ -341,11 +342,11 @@ contains
         ok = .true.
     end subroutine split_power
 
-    !> Exp, Sin, Cos, Sinh, Cosh, and Tanh. The first five are entire and use
-    !> their addition formulas. Tanh uses a rectangular quotient and refuses an
-    !> identically zero denominator; the denominator remains visible for a
-    !> possible pointwise pole. Every other head, including Log and Sqrt, is
-    !> refused.
+    !> Exp, Sin, Cos, Sinh, Cosh, Tan, and Tanh. The first five are entire and
+    !> use their addition formulas. Tan and Tanh use rectangular quotients and
+    !> refuse an identically zero denominator; the denominator remains visible
+    !> for a possible pointwise pole. Every other head, including Log and Sqrt,
+    !> is refused.
     recursive subroutine split_function(e, facts, re, im, ok, why)
         type(expr_t),               intent(in)  :: e
         type(assumption_context_t), target, intent(in)  :: facts
@@ -363,10 +364,10 @@ contains
             return
         end if
         select case (name)
-        case ("exp", "sin", "cos", "sinh", "cosh", "tanh")
+        case ("exp", "sin", "cos", "sinh", "cosh", "tan", "tanh")
         case default
             why = "no complex rule for head "//name// &
-                " (only exp, sin, cos, sinh, cosh, and tanh are split)"
+                " (only exp, sin, cos, sinh, cosh, tan, and tanh are split)"
             return
         end select
 
@@ -389,23 +390,26 @@ contains
         case ("cosh")
             re = cosh(a)*cos(b)
             im = sinh(a)*sin(b)
-        case ("tanh")
-            call split_tanh(a, b, re, im, ok, why)
+        case ("tan", "tanh")
+            call split_tangent_function(name, a, b, re, im, ok, why)
             return
         end select
         ok = .true.
     end subroutine split_function
 
-    !> Split tanh(a + i*b) for real a and b. SymPy's `expand_complex` uses the
-    !> equivalent form
+    !> Split tan(a + i*b) or tanh(a + i*b) for real a and b. SymPy's
+    !> `expand_complex` uses the equivalent forms
     !>
-    !>   sinh(a)*cosh(a) / (cos(b)**2 + sinh(a)**2)
-    !>   + i*sin(b)*cos(b) / (cos(b)**2 + sinh(a)**2).
+    !>   tan:  sin(a)*cos(a) / (cos(a)**2 + sinh(b)**2)
+    !>       + i*sinh(b)*cosh(b) / (cos(a)**2 + sinh(b)**2)
+    !>   tanh: sinh(a)*cosh(a) / (cos(b)**2 + sinh(a)**2)
+    !>       + i*sin(b)*cos(b) / (cos(b)**2 + sinh(a)**2).
     !>
-    !> The denominator is zero exactly at tanh's poles. A denominator proved
-    !> identically zero is refused; otherwise it is kept in the result so a
-    !> caller does not lose the pointwise singularity.
-    subroutine split_tanh(a, b, re, im, ok, why)
+    !> Each denominator is zero exactly at the corresponding function's poles.
+    !> A denominator proved identically zero is refused; otherwise it is kept in
+    !> the result so a caller does not lose the pointwise singularity.
+    subroutine split_tangent_function(name, a, b, re, im, ok, why)
+        character(*),               intent(in)  :: name
         type(expr_t),              intent(in)  :: a, b
         type(expr_t),              intent(out) :: re, im
         logical,                   intent(out) :: ok
@@ -414,22 +418,39 @@ contains
 
         ok = .false.
         why = ""
-        ! A nonzero real part makes the sum of squares nonzero, so the
-        ! expensive engine proof is only needed on the zero-real-part path.
-        ! `structurally_zero` is sufficient here because `a` was produced by
-        ! the splitter and already carries its exact zero structure.
-        if (structurally_zero(a)) then
-            if (provably_zero(cos(b))) then
-                why = "tanh is undefined: its rectangular denominator is "// &
-                    "identically zero"
-                return
+        select case (name)
+        case ("tan")
+            ! A nonzero imaginary part makes the sum of squares nonzero, so
+            ! the expensive engine proof is only needed on the zero-imaginary
+            ! path.
+            if (structurally_zero(b)) then
+                if (provably_zero(cos(a))) then
+                    why = "tan is undefined: its rectangular denominator is "// &
+                        "identically zero"
+                    return
+                end if
             end if
-        end if
-        den = cos(b)*cos(b) + sinh(a)*sinh(a)
-        re = sinh(a)*cosh(a)/den
-        im = sin(b)*cos(b)/den
+            den = cos(a)*cos(a) + sinh(b)*sinh(b)
+            re = sin(a)*cos(a)/den
+            im = sinh(b)*cosh(b)/den
+        case ("tanh")
+            ! The corresponding cheap path for tanh is a zero real part.
+            if (structurally_zero(a)) then
+                if (provably_zero(cos(b))) then
+                    why = "tanh is undefined: its rectangular denominator is "// &
+                        "identically zero"
+                    return
+                end if
+            end if
+            den = cos(b)*cos(b) + sinh(a)*sinh(a)
+            re = sinh(a)*cosh(a)/den
+            im = sin(b)*cos(b)/den
+        case default
+            why = "no rectangular quotient for head "//name
+            return
+        end select
         ok = .true.
-    end subroutine split_tanh
+    end subroutine split_tangent_function
 
     !> Re[e] as a real expression, or a refusal.
     subroutine re_part(e, facts, out, ok, why)

@@ -98,10 +98,10 @@ exact. Structural conjugation commutes with the supported heads `exp`, `sin`,
 `cos`, `sinh`, `cosh`, and `tanh` wherever they are defined. Rectangular
 splitting also covers the entire heads `exp`, `sin`, `cos`,
 `sinh`, and `cosh` through their addition identities. `tanh` is also split
-through its rectangular quotient; an identically zero denominator is refused,
-while a nontrivial denominator remains in the result to preserve pointwise
-poles. The same branch and reality refusals apply to other unsupported
-expressions.
+through its rectangular quotient, and `tan` through the corresponding
+meromorphic quotient; an identically zero denominator is refused, while a
+nontrivial denominator remains in the result to preserve pointwise poles. The
+same branch and reality refusals apply to other unsupported expressions.
 
 `real_text_expr` retains a bounded finite decimal literal as `NK_BIG_REAL`.
 The arena validates its decimal syntax and preserves the original digits rather

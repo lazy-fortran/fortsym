@@ -268,6 +268,9 @@ Every checklist item requires all of the following:
         independent complex evaluation, and matched cold/warm benchmark rows.
       - [x] Extend structural conjugation to `sinh`, `cosh`, and `tanh`; the
         independent complex evaluator checks all three against `conjg`.
+      - [x] Add shared rectangular quotient handling for `tan`, including an
+        exact pole refusal, independent complex evaluation, and matched
+        benchmark rows.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
