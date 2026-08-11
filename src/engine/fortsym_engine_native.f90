@@ -9,7 +9,7 @@ module fortsym_engine_native
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, &
-        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_SYM, NK_BIG_INT, NK_BIG_RAT
     use fortsym_expr, only: expr_t, num, operator(+), operator(-), operator(*), &
         operator(/), operator(**)
     use fortsym_exact, only: exact_add, exact_mul, exact_pow
@@ -1162,6 +1162,15 @@ contains
         if (size(args) == 0) return
 
         select case (name)
+        case ("Piecewise")
+            out = simplify_piecewise(a, args)
+        case ("If")
+            call simplify_if(a, args, out)
+        case ("Boole")
+            call simplify_boole(a, args, out)
+        case ("Less", "LessEqual", "Greater", "GreaterEqual", "Equal", &
+                "Unequal")
+            call simplify_condition(a, name, args, out)
         case ("sin", "tan", "sinh", "tanh", "asin", "atan", "asinh")
             if (is_zero_id(a, args(1))) out = a%int(0_int64)
             if (name == "sin") then
@@ -1204,6 +1213,168 @@ contains
             end if
         end select
     end function simplify_function
+
+    function simplify_piecewise(a, args) result(out)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: args(:)
+        integer :: out
+        integer, allocatable :: kept(:), output(:)
+        integer :: branches_id, pair_id, k, nkept, default_id
+        logical :: decided, truth, have_unknown
+
+        out = a%func("Piecewise", args)
+        if (size(args) < 1) return
+        branches_id = args(1)
+        if (a%kind_of(branches_id) /= NK_FUNC) return
+        if (chars(a%name_of(branches_id)) /= "List") return
+
+        allocate (kept(a%nargs_of(branches_id)))
+        nkept = 0
+        have_unknown = .false.
+        do k = 1, a%nargs_of(branches_id)
+            pair_id = a%arg_of(branches_id, k)
+            if (a%kind_of(pair_id) /= NK_FUNC) return
+            if (chars(a%name_of(pair_id)) /= "List") return
+            if (a%nargs_of(pair_id) /= 2) return
+            call simplify_condition_value(a, a%arg_of(pair_id, 2), decided, truth)
+            if (decided) then
+                if (truth) then
+                    if (.not. have_unknown) then
+                        out = a%arg_of(pair_id, 1)
+                        return
+                    end if
+                    nkept = nkept + 1
+                    kept(nkept) = pair_id
+                    exit
+                end if
+                cycle
+            end if
+            have_unknown = .true.
+            nkept = nkept + 1
+            kept(nkept) = pair_id
+        end do
+
+        if (.not. have_unknown) then
+            if (size(args) >= 2) then
+                out = args(2)
+            else
+                out = a%int(0_int64)
+            end if
+            return
+        end if
+
+        if (size(args) >= 2) then
+            default_id = args(2)
+        else
+            default_id = a%int(0_int64)
+        end if
+        allocate (output(nkept + 1))
+        if (nkept > 0) output(1:nkept) = kept(1:nkept)
+        output(nkept + 1) = default_id
+        out = a%func("Piecewise", output)
+    end function simplify_piecewise
+
+    subroutine simplify_if(a, args, out)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: args(:)
+        integer, intent(out) :: out
+        logical :: decided, truth
+
+        out = a%func("If", args)
+        if (size(args) /= 3) return
+        call simplify_condition_value(a, args(1), decided, truth)
+        if (.not. decided) return
+        if (truth) then
+            out = args(2)
+        else
+            out = args(3)
+        end if
+    end subroutine simplify_if
+
+    subroutine simplify_boole(a, args, out)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: args(:)
+        integer, intent(out) :: out
+        logical :: decided, truth
+
+        out = a%func("Boole", args)
+        if (size(args) /= 1) return
+        call simplify_condition_value(a, args(1), decided, truth)
+        if (.not. decided) return
+        if (truth) then
+            out = a%int(1_int64)
+        else
+            out = a%int(0_int64)
+        end if
+    end subroutine simplify_boole
+
+    subroutine simplify_condition(a, name, args, out)
+        type(arena_t), intent(inout) :: a
+        character(*), intent(in) :: name
+        integer, intent(in) :: args(:)
+        integer, intent(out) :: out
+        logical :: decided, truth
+
+        out = a%func(name, args)
+        if (size(args) /= 2) return
+        call simplify_condition_value(a, a%func(name, args), decided, truth)
+        if (.not. decided) return
+        if (truth) then
+            out = a%sym("True")
+        else
+            out = a%sym("False")
+        end if
+    end subroutine simplify_condition
+
+    subroutine simplify_condition_value(a, id, decided, truth)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical, intent(out) :: decided, truth
+        character(:), allocatable :: name
+        integer(int64) :: n1, d1, n2, d2, left, right
+        logical :: exact1, exact2, product_ok
+
+        decided = .false.
+        truth = .false.
+        if (a%kind_of(id) == NK_SYM) then
+            name = chars(a%name_of(id))
+            if (name == "True") then
+                decided = .true.
+                truth = .true.
+            else if (name == "False") then
+                decided = .true.
+            end if
+            return
+        end if
+        if (a%kind_of(id) /= NK_FUNC) return
+        name = chars(a%name_of(id))
+        if (a%nargs_of(id) /= 2) return
+        call exact_value(a, a%arg_of(id, 1), n1, d1, exact1)
+        if (.not. exact1) return
+        call exact_value(a, a%arg_of(id, 2), n2, d2, exact2)
+        if (.not. exact2) return
+        call checked_mul(n1, d2, left, product_ok)
+        if (.not. product_ok) return
+        call checked_mul(n2, d1, right, product_ok)
+        if (.not. product_ok) return
+        select case (name)
+        case ("Less")
+            truth = left < right
+        case ("LessEqual")
+            truth = left <= right
+        case ("Greater")
+            truth = left > right
+        case ("GreaterEqual")
+            truth = left >= right
+        case ("Equal")
+            truth = left == right
+        case ("Unequal")
+            truth = left /= right
+        case default
+            return
+        end select
+        decided = .true.
+    end subroutine simplify_condition_value
 
     !> Recognise n*pi without approximating pi. Only an integer coefficient is
     !> accepted, so a symbolic or fractional multiple cannot be simplified by

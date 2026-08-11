@@ -10,7 +10,7 @@ program test_fortsym_kernel
     ! itself is the requirement.
     use, intrinsic :: iso_fortran_env, only: real32, real64
     use fortsym_string, only: str, str_t, chars
-    use fortsym_arena, only: arena_t
+    use fortsym_arena, only: arena_t, NK_FUNC
     use fortsym_expr
     use fortsym_parse, only: parse_expr
     use fortsym_diff, only: partial_derivative
@@ -69,6 +69,7 @@ program test_fortsym_kernel
     call test_snippet_mode()
     call test_generated_kernel_compiles_and_agrees()
     call test_applied_function_bindings()
+    call test_piecewise_kernel_compiles_and_agrees()
 
     if (nfail == 0) then
         print *, "test_fortsym_kernel: all checks passed"
@@ -1615,6 +1616,124 @@ contains
             call ok("bound applied-function snippet matches finite differences", stat == 0)
         end if
     end subroutine test_applied_function_bindings
+
+    !> Piecewise emission is checked at both sides of every branch boundary
+    !> against the direct definition, including the first-true branch rule.
+    subroutine test_piecewise_kernel_compiles_and_agrees()
+        type(arena_t), target :: a
+        type(expr_t) :: x, zero, one, minus_one, branch_list, pair1, pair2
+        type(expr_t) :: condition1, condition2, piecewise, roots(1)
+        type(expr_t) :: pair_args(2), condition_args(2), branch_args(2)
+        type(expr_t) :: piecewise_args(2), closed_branch_args(1)
+        type(expr_t) :: closed_piecewise_args(2), closed_condition, closed_pair
+        type(expr_t) :: closed_branch, closed_piecewise
+        type(expr_t) :: if_args(3), boole_args(1), if_expression, boole_expression
+        type(kernel_spec_t) :: spec
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: simplified, derivative
+        character(:), allocatable :: code
+        integer :: unit, ios, stat
+        logical :: good
+
+        call a%init()
+        x = sym(a, "x")
+        zero = num(a, 0)
+        one = num(a, 1)
+        minus_one = num(a, -1)
+        pair_args(1) = minus_one
+        condition_args(1) = x
+        condition_args(2) = zero
+        condition1 = func("Less", condition_args)
+        pair_args(2) = condition1
+        pair1 = func("List", pair_args)
+        pair_args(1) = x*x
+        condition_args(2) = one
+        condition2 = func("LessEqual", condition_args)
+        pair_args(2) = condition2
+        pair2 = func("List", pair_args)
+        branch_args(1) = pair1
+        branch_args(2) = pair2
+        branch_list = func("List", branch_args)
+        piecewise_args(1) = branch_list
+        piecewise_args(2) = num(a, 2)
+        piecewise = func("Piecewise", piecewise_args)
+        roots(1) = piecewise
+
+        condition_args(1) = zero
+        condition_args(2) = one
+        closed_condition = func("Less", condition_args)
+        pair_args(1) = minus_one
+        pair_args(2) = closed_condition
+        closed_pair = func("List", pair_args)
+        closed_branch_args(1) = closed_pair
+        closed_branch = func("List", closed_branch_args)
+        closed_piecewise_args(1) = closed_branch
+        closed_piecewise_args(2) = num(a, 2)
+        closed_piecewise = func("Piecewise", closed_piecewise_args)
+        engine = make_native_engine(a)
+        simplified = engine%simplify(closed_piecewise)
+        call ok("native piecewise simplification discharges exact branch", &
+            simplified%ok .and. simplified%value == minus_one)
+        derivative = engine%diff(piecewise, x)
+        call ok("piecewise differentiation preserves branches", derivative%ok .and. &
+            derivative%value%kind() == NK_FUNC .and. &
+            chars(derivative%value%name()) == "Piecewise")
+
+        spec = spec_for("piecewise_kernel", X_ARGS, R_OUT)
+        spec%cse_level = CSE_NONE
+        code = chars(emit_kernel(roots, spec, good))
+        call ok("symbolic piecewise is representable", good)
+        call ok("piecewise emits ordered merge branches", &
+            index(code, "merge(") > 0 .and. index(code, "x < 0") > 0 .and. &
+            index(code, "x <= 1") > 0)
+
+        if_args(1) = condition1
+        if_args(2) = x*x
+        if_args(3) = num(a, 2)
+        if_expression = func("If", if_args)
+        roots(1) = if_expression
+        code = chars(emit_kernel(roots, spec, good))
+        call ok("symbolic If emits a merge", good .and. index(code, "merge(") > 0)
+        boole_args(1) = condition1
+        boole_expression = func("Boole", boole_args)
+        roots(1) = boole_expression
+        code = chars(emit_kernel(roots, spec, good))
+        call ok("symbolic Boole emits a typed merge", good .and. &
+            index(code, "merge(1.0_dp, 0.0_dp") > 0)
+        roots(1) = piecewise
+        code = chars(emit_kernel(roots, spec, good))
+
+        open (newunit=unit, file="/tmp/fortsym_piecewise_kernel.f90", &
+            status="replace", action="write", iostat=ios)
+        call ok("piecewise fixture opens", ios == 0)
+        if (ios /= 0) return
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_piecewise"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(dp) :: x, r"
+        write (unit, "(a)") "  x = -2.0_dp; call piecewise_kernel(x, r)"
+        write (unit, "(a)") "  if (abs(r + 1.0_dp) > 1.0e-14_dp) error stop 1"
+        write (unit, "(a)") "  x = 0.0_dp; call piecewise_kernel(x, r)"
+        write (unit, "(a)") "  if (abs(r) > 1.0e-14_dp) error stop 1"
+        write (unit, "(a)") "  x = 1.0_dp; call piecewise_kernel(x, r)"
+        write (unit, "(a)") "  if (abs(r - 1.0_dp) > 1.0e-14_dp) error stop 1"
+        write (unit, "(a)") "  x = 2.0_dp; call piecewise_kernel(x, r)"
+        write (unit, "(a)") "  if (abs(r - 2.0_dp) > 1.0e-14_dp) error stop 1"
+        write (unit, "(a)") "end program drive_piecewise"
+        close (unit)
+
+        call execute_command_line( &
+            "gfortran -o /tmp/fortsym_piecewise_kernel "// &
+            "/tmp/fortsym_piecewise_kernel.f90 > /tmp/fortsym_piecewise_kernel.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("piecewise kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_piecewise_kernel", &
+                wait=.true., exitstat=stat)
+            call ok("piecewise kernel matches direct branch oracle", stat == 0)
+        end if
+    end subroutine test_piecewise_kernel_compiles_and_agrees
 
     integer function count_substring(text, needle) result(count)
         character(*), intent(in) :: text, needle

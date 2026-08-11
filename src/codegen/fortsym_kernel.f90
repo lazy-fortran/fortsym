@@ -996,6 +996,10 @@ contains
         end if
 
         raw_name = chars(original_arena%name_of(id))
+        if (raw_name == "True" .or. raw_name == "False") then
+            ok = .true.
+            return
+        end if
         found = .false.
         do j = 1, size(args)
             if (.not. symbol_matches_argument_exact(raw_name, chars(args(j)))) cycle

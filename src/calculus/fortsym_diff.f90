@@ -18,8 +18,8 @@ module fortsym_diff
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
     use fortsym_expr, only: expr_t, sym, num, func, partial, is_valid, &
         besselj, legendrep, legendreq, &
-                            operator(+), operator(-), operator(*), operator(/), operator(**), &
-            operator(==), sin, cos, tan, exp, log, sqrt, abs, sinh, cosh, tanh
+        operator(+), operator(-), operator(*), operator(/), operator(**), &
+        operator(==), sin, cos, tan, exp, log, sqrt, abs, sinh, cosh, tanh
     implicit none
     private
 
@@ -126,7 +126,7 @@ contains
         type(expr_t), intent(in) :: e, v
         type(expr_t)             :: d
         type(expr_t) :: x, dx, y, dy, denom, term
-        type(expr_t) :: one_arg(1), two_args(2)
+        type(expr_t) :: one_arg(1), two_args(2), three_args(3)
         type(expr_t), allocatable :: list_args(:)
         type(arena_t), pointer :: a
         character(:), allocatable :: name
@@ -146,6 +146,22 @@ contains
                 list_args(k) = diff(e%arg(k), v)
             end do
             d = func("List", list_args)
+            return
+        end if
+
+        ! Piecewise differentiation is branchwise. Conditions are preserved,
+        ! while the derivative at a branch boundary remains the caller's
+        ! responsibility because the ordinary derivative need not exist there.
+        if (name == "Piecewise") then
+            d = diff_piecewise(e, v)
+            return
+        end if
+
+        if (name == "If" .and. e%nargs() == 3) then
+            three_args(1) = e%arg(1)
+            three_args(2) = diff(e%arg(2), v)
+            three_args(3) = diff(e%arg(3), v)
+            d = func("If", three_args)
             return
         end if
 
@@ -262,6 +278,56 @@ contains
             end do
         end select
     end function diff_function
+
+    recursive function diff_piecewise(e, v) result(d)
+        type(expr_t), intent(in) :: e, v
+        type(expr_t) :: d
+        type(expr_t), allocatable :: output(:)
+        type(expr_t) :: pair_args(2), pair, branches, default_value, first
+        integer :: k, nbranches
+
+        if (e%nargs() < 1) then
+            d = e
+            return
+        end if
+        first = e%arg(1)
+        if (first%kind() /= NK_FUNC) then
+            d = e
+            return
+        end if
+        if (chars(first%name()) /= "List") then
+            d = e
+            return
+        end if
+        branches = first
+        nbranches = branches%nargs()
+        allocate (output(nbranches + 1))
+        do k = 1, nbranches
+            pair = branches%arg(k)
+            if (pair%kind() /= NK_FUNC) then
+                d = e
+                return
+            end if
+            if (chars(pair%name()) /= "List") then
+                d = e
+                return
+            end if
+            if (pair%nargs() /= 2) then
+                d = e
+                return
+            end if
+            pair_args(1) = diff(pair%arg(1), v)
+            pair_args(2) = pair%arg(2)
+            output(k) = func("List", pair_args)
+        end do
+        if (e%nargs() >= 2) then
+            default_value = e%arg(2)
+            output(nbranches + 1) = diff(default_value, v)
+        else
+            output(nbranches + 1) = num(e%a, 0)
+        end if
+        d = func("Piecewise", output)
+    end function diff_piecewise
 
     !> Symbolic partial derivative of an applied function.
     !>

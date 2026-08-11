@@ -268,6 +268,21 @@ contains
             end if
             return
         case (NK_FUNC)
+            if (chars(a%name_of(id)) == "Piecewise") then
+                if (present(array_names) .and. present(bindings)) then
+                    ok = fortran_piecewise_node_representable(a, id, visited, &
+                        array_names, bindings)
+                else if (present(array_names)) then
+                    ok = fortran_piecewise_node_representable(a, id, visited, &
+                        array_names=array_names)
+                else if (present(bindings)) then
+                    ok = fortran_piecewise_node_representable(a, id, visited, &
+                        bindings=bindings)
+                else
+                    ok = fortran_piecewise_node_representable(a, id, visited)
+                end if
+                return
+            end if
             if (present(array_names) .and. present(bindings)) then
                 ok = fortran_function_node_representable(a, id, array_names, bindings)
             else if (present(array_names)) then
@@ -359,6 +374,22 @@ contains
             if (ok) ok = ieee_is_finite(projected)
             return
         case (NK_FUNC)
+            if (chars(a%name_of(id)) == "Piecewise") then
+                if (present(array_names) .and. present(bindings)) then
+                    ok = fortran_piecewise_node_representable_kind(a, id, visited, &
+                        real_kind, array_names, bindings)
+                else if (present(array_names)) then
+                    ok = fortran_piecewise_node_representable_kind(a, id, visited, &
+                        real_kind, array_names=array_names)
+                else if (present(bindings)) then
+                    ok = fortran_piecewise_node_representable_kind(a, id, visited, &
+                        real_kind, bindings=bindings)
+                else
+                    ok = fortran_piecewise_node_representable_kind(a, id, visited, &
+                        real_kind)
+                end if
+                return
+            end if
             if (present(array_names) .and. present(bindings)) then
                 ok = fortran_function_node_representable(a, id, array_names, bindings)
             else if (present(array_names)) then
@@ -388,6 +419,121 @@ contains
         end do
     end function fortran_node_representable_kind
 
+    recursive logical function fortran_piecewise_node_representable(a, id, &
+            visited, array_names, bindings) result(ok)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical, intent(inout) :: visited(:)
+        type(str_t), intent(in), optional :: array_names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
+        integer :: k, branches_id, pair_id
+
+        ok = .false.
+        if (a%nargs_of(id) < 1) return
+        branches_id = a%arg_of(id, 1)
+        if (a%kind_of(branches_id) /= NK_FUNC) return
+        if (chars(a%name_of(branches_id)) /= "List") return
+        do k = 1, a%nargs_of(branches_id)
+            pair_id = a%arg_of(branches_id, k)
+            if (a%kind_of(pair_id) /= NK_FUNC) return
+            if (chars(a%name_of(pair_id)) /= "List" .or. &
+                a%nargs_of(pair_id) /= 2) return
+            if (present(array_names) .and. present(bindings)) then
+                if (.not. fortran_node_representable(a, a%arg_of(pair_id, 1), &
+                    visited, array_names, bindings)) return
+                if (.not. fortran_node_representable(a, a%arg_of(pair_id, 2), &
+                    visited, array_names, bindings)) return
+            else if (present(array_names)) then
+                if (.not. fortran_node_representable(a, a%arg_of(pair_id, 1), &
+                    visited, array_names)) return
+                if (.not. fortran_node_representable(a, a%arg_of(pair_id, 2), &
+                    visited, array_names)) return
+            else if (present(bindings)) then
+                if (.not. fortran_node_representable(a, a%arg_of(pair_id, 1), &
+                    visited, bindings=bindings)) return
+                if (.not. fortran_node_representable(a, a%arg_of(pair_id, 2), &
+                    visited, bindings=bindings)) return
+            else
+                if (.not. fortran_node_representable(a, a%arg_of(pair_id, 1), &
+                    visited)) return
+                if (.not. fortran_node_representable(a, a%arg_of(pair_id, 2), &
+                    visited)) return
+            end if
+        end do
+        if (a%nargs_of(id) < 2) then
+            ok = .true.
+        else if (present(array_names) .and. present(bindings)) then
+            ok = fortran_node_representable(a, a%arg_of(id, 2), visited, &
+                array_names, bindings)
+        else if (present(array_names)) then
+            ok = fortran_node_representable(a, a%arg_of(id, 2), visited, &
+                array_names)
+        else if (present(bindings)) then
+            ok = fortran_node_representable(a, a%arg_of(id, 2), visited, &
+                bindings=bindings)
+        else
+            ok = fortran_node_representable(a, a%arg_of(id, 2), visited)
+        end if
+    end function fortran_piecewise_node_representable
+
+    recursive logical function fortran_piecewise_node_representable_kind(a, id, &
+            visited, real_kind, array_names, bindings) result(ok)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id, real_kind
+        logical, intent(inout) :: visited(:)
+        type(str_t), intent(in), optional :: array_names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
+        integer :: k, branches_id, pair_id
+
+        ok = .false.
+        if (a%nargs_of(id) < 1) return
+        branches_id = a%arg_of(id, 1)
+        if (a%kind_of(branches_id) /= NK_FUNC) return
+        if (chars(a%name_of(branches_id)) /= "List") return
+        do k = 1, a%nargs_of(branches_id)
+            pair_id = a%arg_of(branches_id, k)
+            if (a%kind_of(pair_id) /= NK_FUNC) return
+            if (chars(a%name_of(pair_id)) /= "List" .or. &
+                a%nargs_of(pair_id) /= 2) return
+            if (present(array_names) .and. present(bindings)) then
+                if (.not. fortran_node_representable_kind(a, a%arg_of(pair_id, 1), &
+                    visited, real_kind, array_names, bindings)) return
+                if (.not. fortran_node_representable_kind(a, a%arg_of(pair_id, 2), &
+                    visited, real_kind, array_names, bindings)) return
+            else if (present(array_names)) then
+                if (.not. fortran_node_representable_kind(a, a%arg_of(pair_id, 1), &
+                    visited, real_kind, array_names)) return
+                if (.not. fortran_node_representable_kind(a, a%arg_of(pair_id, 2), &
+                    visited, real_kind, array_names)) return
+            else if (present(bindings)) then
+                if (.not. fortran_node_representable_kind(a, a%arg_of(pair_id, 1), &
+                    visited, real_kind, bindings=bindings)) return
+                if (.not. fortran_node_representable_kind(a, a%arg_of(pair_id, 2), &
+                    visited, real_kind, bindings=bindings)) return
+            else
+                if (.not. fortran_node_representable_kind(a, a%arg_of(pair_id, 1), &
+                    visited, real_kind)) return
+                if (.not. fortran_node_representable_kind(a, a%arg_of(pair_id, 2), &
+                    visited, real_kind)) return
+            end if
+        end do
+        if (a%nargs_of(id) < 2) then
+            ok = .true.
+        else if (present(array_names) .and. present(bindings)) then
+            ok = fortran_node_representable_kind(a, a%arg_of(id, 2), visited, &
+                real_kind, array_names, bindings)
+        else if (present(array_names)) then
+            ok = fortran_node_representable_kind(a, a%arg_of(id, 2), visited, &
+                real_kind, array_names)
+        else if (present(bindings)) then
+            ok = fortran_node_representable_kind(a, a%arg_of(id, 2), visited, &
+                real_kind, bindings=bindings)
+        else
+            ok = fortran_node_representable_kind(a, a%arg_of(id, 2), visited, &
+                real_kind)
+        end if
+    end function fortran_piecewise_node_representable_kind
+
     logical function fortran_function_node_representable(a, id, array_names, bindings) result(ok)
         type(arena_t), intent(in) :: a
         integer, intent(in) :: id
@@ -397,6 +543,18 @@ contains
         integer :: order, k
 
         name = chars(a%name_of(id))
+        if (fortran_condition_function(name)) then
+            ok = fortran_condition_arity_ok(name, a%nargs_of(id))
+            return
+        end if
+        if (name == "If") then
+            ok = a%nargs_of(id) == 3
+            return
+        end if
+        if (name == "Boole") then
+            ok = a%nargs_of(id) == 1
+            return
+        end if
         if (present(bindings)) then
             do k = 1, size(bindings)
                 if (binding_matches(a, id, bindings(k))) then
@@ -477,6 +635,31 @@ contains
         is_derivative = .true.
     end function derivative_order
 
+    pure logical function fortran_condition_function(name) result(ok)
+        character(*), intent(in) :: name
+
+        select case (name)
+        case ("Less", "LessEqual", "Greater", "GreaterEqual", "Equal", &
+                "Unequal", "And", "Or", "Not")
+            ok = .true.
+        case default
+            ok = .false.
+        end select
+    end function fortran_condition_function
+
+    pure logical function fortran_condition_arity_ok(name, n) result(ok)
+        character(*), intent(in) :: name
+        integer, intent(in) :: n
+
+        if (name == "And" .or. name == "Or") then
+            ok = n >= 2
+        else if (name == "Not") then
+            ok = n == 1
+        else
+            ok = n == 2
+        end if
+    end function fortran_condition_arity_ok
+
     !> Index of `id` in the substitution table, or 0.
     pure function subst_slot(id, ids) result(k)
         integer, intent(in) :: id, ids(:)
@@ -524,7 +707,18 @@ contains
         case (NK_REAL)
             call emit_real(b, a, id, d, context)
         case (NK_SYM)
-            call b%append(chars(a%name_of(id)))
+            if (d%id == DIA_FORTRAN) then
+                select case (chars(a%name_of(id)))
+                case ("True")
+                    call b%append(".true.")
+                case ("False")
+                    call b%append(".false.")
+                case default
+                    call b%append(chars(a%name_of(id)))
+                end select
+            else
+                call b%append(chars(a%name_of(id)))
+            end if
         case (NK_CONST)
             call emit_constant(b, a, id, d)
         case (NK_ADD)
@@ -1333,6 +1527,20 @@ contains
         type(kernel_binding_t), intent(in), optional :: bindings(:)
         integer :: k
 
+        if (d%id == DIA_FORTRAN) then
+            select case (chars(a%name_of(id)))
+            case ("Piecewise")
+                call emit_piecewise(b, a, id, d, ids, names, bindings)
+                return
+            case ("If")
+                call emit_merge(b, a, a%arg_of(id, 2), a%arg_of(id, 3), &
+                    a%arg_of(id, 1), d, ids, names, bindings)
+                return
+            case ("Boole")
+                call emit_boole(b, a, id, d, ids, names, bindings)
+                return
+            end select
+        end if
         if (d%id == DIA_FORTRAN .and. present(bindings)) then
             do k = 1, size(bindings)
                 if (binding_matches(a, id, bindings(k))) then
@@ -1383,6 +1591,163 @@ contains
             call b%append(")")
         end if
     end subroutine emit_function
+
+    recursive subroutine emit_piecewise(b, a, id, d, ids, names, bindings)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        type(dialect_t), intent(in) :: d
+        integer, intent(in) :: ids(:)
+        type(str_t), intent(in) :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
+        integer :: default_id
+
+        default_id = 0
+        if (a%nargs_of(id) >= 2) default_id = a%arg_of(id, 2)
+        call emit_piecewise_value(b, a, a%arg_of(id, 1), 1, default_id, d, &
+            ids, names, bindings)
+    end subroutine emit_piecewise
+
+    recursive subroutine emit_piecewise_value(b, a, branches_id, branch_index, &
+            default_id, d, ids, names, bindings)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: branches_id, branch_index, default_id
+        type(dialect_t), intent(in) :: d
+        integer, intent(in) :: ids(:)
+        type(str_t), intent(in) :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
+        integer :: pair_id
+
+        if (branch_index > a%nargs_of(branches_id)) then
+            if (default_id > 0) then
+                call emit_piecewise_operand(b, a, default_id, d, ids, names, bindings)
+            else
+                call b%append("0")
+                call b%append(chars(d%int_real_suffix))
+            end if
+            return
+        end if
+
+        pair_id = a%arg_of(branches_id, branch_index)
+        call b%append("merge(")
+        call emit_piecewise_operand(b, a, a%arg_of(pair_id, 1), d, ids, names, bindings)
+        call b%append(", ")
+        call emit_piecewise_value(b, a, branches_id, branch_index + 1, default_id, &
+            d, ids, names, bindings)
+        call b%append(", ")
+        call emit_condition(b, a, a%arg_of(pair_id, 2), d, ids, names, bindings)
+        call b%append(")")
+    end subroutine emit_piecewise_value
+
+    recursive subroutine emit_piecewise_operand(b, a, id, d, ids, names, bindings)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        type(dialect_t), intent(in) :: d
+        integer, intent(in) :: ids(:)
+        type(str_t), intent(in) :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
+
+        if (d%id == DIA_FORTRAN .and. a%kind_of(id) == NK_INT) then
+            call emit_integer(b, a, id, d, PREC_ADD)
+            call b%append(chars(d%int_real_suffix))
+        else
+            call emit(b, a, id, d, PREC_ADD, ids, names, bindings)
+        end if
+    end subroutine emit_piecewise_operand
+
+    recursive subroutine emit_merge(b, a, yes_id, no_id, condition_id, d, ids, &
+            names, bindings)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: yes_id, no_id, condition_id
+        type(dialect_t), intent(in) :: d
+        integer, intent(in) :: ids(:)
+        type(str_t), intent(in) :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
+
+        call b%append("merge(")
+        call emit_piecewise_operand(b, a, yes_id, d, ids, names, bindings)
+        call b%append(", ")
+        call emit_piecewise_operand(b, a, no_id, d, ids, names, bindings)
+        call b%append(", ")
+        call emit_condition(b, a, condition_id, d, ids, names, bindings)
+        call b%append(")")
+    end subroutine emit_merge
+
+    recursive subroutine emit_boole(b, a, id, d, ids, names, bindings)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        type(dialect_t), intent(in) :: d
+        integer, intent(in) :: ids(:)
+        type(str_t), intent(in) :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
+
+        call b%append("merge(1")
+        call b%append(chars(d%int_real_suffix))
+        call b%append(", 0")
+        call b%append(chars(d%int_real_suffix))
+        call b%append(", ")
+        call emit_condition(b, a, a%arg_of(id, 1), d, ids, names, bindings)
+        call b%append(")")
+    end subroutine emit_boole
+
+    recursive subroutine emit_condition(b, a, id, d, ids, names, bindings)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        type(dialect_t), intent(in) :: d
+        integer, intent(in) :: ids(:)
+        type(str_t), intent(in) :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
+        character(:), allocatable :: name
+        character(*), parameter :: relation_names(6) = [character(12) :: &
+            "Less", "LessEqual", "Greater", "GreaterEqual", "Equal", "Unequal"]
+        character(*), parameter :: relation_ops(6) = [character(3) :: &
+            "<", "<=", ">", ">=", "==", "/="]
+        integer :: k, relation
+
+        if (a%kind_of(id) /= NK_FUNC) then
+            call emit(b, a, id, d, PREC_ATOM, ids, names, bindings)
+            return
+        end if
+        name = chars(a%name_of(id))
+        relation = 0
+        do k = 1, size(relation_names)
+            if (name == relation_names(k)) then
+                relation = k
+                exit
+            end if
+        end do
+        if (relation > 0) then
+            call b%append("(")
+            call emit(b, a, a%arg_of(id, 1), d, PREC_ADD, ids, names, bindings)
+            call b%append(" "//trim(relation_ops(relation))//" ")
+            call emit(b, a, a%arg_of(id, 2), d, PREC_ADD, ids, names, bindings)
+            call b%append(")")
+        else if (name == "Not") then
+            call b%append("(.not. ")
+            call emit_condition(b, a, a%arg_of(id, 1), d, ids, names, bindings)
+            call b%append(")")
+        else if (name == "And" .or. name == "Or") then
+            call b%append("(")
+            do k = 1, a%nargs_of(id)
+                if (k > 1) then
+                    if (name == "And") then
+                        call b%append(" .and. ")
+                    else
+                        call b%append(" .or. ")
+                    end if
+                end if
+                call emit_condition(b, a, a%arg_of(id, k), d, ids, names, bindings)
+            end do
+            call b%append(")")
+        else
+            call emit(b, a, id, d, PREC_ATOM, ids, names, bindings)
+        end if
+    end subroutine emit_condition
 
     recursive subroutine emit_binding(b, a, id, d, ids, names, binding, bindings)
         type(strbuf_t), intent(inout) :: b
