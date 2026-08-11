@@ -11,6 +11,7 @@ program test_fortsym_roundtrip
     ! literal and rationals as typed quotients, both of which are deliberately
     ! lossy. Its output is checked separately, against what a compiler must see.
     use, intrinsic :: iso_fortran_env, only: int64, real64
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_negative
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_MUL, NK_FUNC, NK_ALGEBRAIC
     use fortsym_expr
@@ -30,6 +31,7 @@ program test_fortsym_roundtrip
     call test_algebraic_roundtrip()
     call test_dialect_spellings()
     call test_infinity_sentinel()
+    call test_signed_zero()
     call test_fortran_emission()
     call test_parse_errors()
 
@@ -442,6 +444,34 @@ contains
             parsed == undefined)
     end subroutine test_infinity_sentinel
 
+    subroutine test_signed_zero()
+        type(arena_t), target :: a
+        type(expr_t) :: positive_zero, negative_zero, parsed
+        character(:), allocatable :: text, message
+        logical :: good
+
+        call a%init()
+        positive_zero = real_expr(a, 0.0_dp)
+        negative_zero = real_expr(a, -0.0_dp)
+        call ok("positive and negative zero remain distinct nodes", &
+            positive_zero /= negative_zero)
+        call ok("positive zero keeps its IEEE sign", &
+            .not. ieee_is_negative(positive_zero%real_value()))
+        call ok("negative zero keeps its IEEE sign", &
+            ieee_is_negative(negative_zero%real_value()))
+
+        text = print_text(negative_zero)
+        call eq_text("native negative zero spelling", text, &
+            "-0.0000000000000000E+000")
+        parsed = parse_expr_in(a, text, dialect(DIA_NATIVE), good, message)
+        call ok("native negative zero parses", good)
+        if (good) then
+            call ok("parsed negative zero retains its node", parsed == negative_zero)
+            call ok("parsed negative zero keeps its IEEE sign", &
+                ieee_is_negative(parsed%real_value()))
+        end if
+    end subroutine test_signed_zero
+
     !> Fortran emission is deliberately not round-trippable, so it is checked
     !> against what a compiler must be given.
     subroutine test_fortran_emission()
@@ -500,6 +530,10 @@ contains
         text = chars(print_expr_in(nan_expr(a), d, good))
         call ok("undefined value is refused by finite Fortran emission", &
             .not. good .and. len(text) == 0)
+
+        text = chars(print_expr_in(real_expr(a, -0.0_dp), d, good))
+        call ok("finite Fortran emission preserves negative zero", good .and. &
+            index(text, "-0.0000000000000000E+000_dp") > 0)
     end subroutine test_fortran_emission
 
     !> Malformed input must be reported, never accepted and never fatal: this

@@ -46,8 +46,8 @@ id = "real-precision"
 affected = ["Float"]
 parity = "partial"
 sympy = "Float carries arbitrary precision and precision-aware decimal semantics."
-fortsym = "Float converts to a native double through the C ABI and therefore has fixed machine precision."
-difference = "Precision metadata and arbitrary-precision real evaluation are not yet equivalent."
+fortsym = "Float converts to a native double through the C ABI and therefore has fixed machine precision; its native literal boundary also retains IEEE negative zero."
+difference = "Precision metadata and arbitrary-precision real evaluation are not yet equivalent. SymPy 1.14.0 canonicalizes Float(-0.0) to 0.0, while fortsym preserves the IEEE sign bit for code-generation correctness."
 
 [[semantic]]
 id = "named-constants"

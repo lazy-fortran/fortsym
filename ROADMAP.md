@@ -290,8 +290,13 @@ Every checklist item requires all of the following:
     Wolfram-dialect parsing/printing preserve complex infinity and undefined
     values, the Python adapter matches SymPy's `zoo`/`nan` spellings, and
     finite real Fortran kernel emission refuses both values.
-  - [ ] Preserve signed zero and add operation-specific arithmetic and
-    directed-domain rules for `oo`, `zoo`, and `nan`.
+  - [x] Preserve IEEE signed zero through `NK_REAL` construction, interning,
+    native parsing/printing, Fortran emission, and the Python adapter. The
+    independent IEEE checks keep `+0.0` and `-0.0` distinct; SymPy 1.14.0
+    canonicalizes its own `Float(-0.0)` to `0.0`, which is recorded as an
+    adapter semantic extension rather than silently treated as parity.
+  - [ ] Add operation-specific arithmetic and directed-domain rules for `oo`,
+    `zoo`, and `nan`.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
 - [ ] Preserve exactness through every constructor, operator, and adapter.
 

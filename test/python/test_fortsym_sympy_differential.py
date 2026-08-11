@@ -188,6 +188,11 @@ class SympyDifferentialTest(unittest.TestCase):
                 self.assertEqual(str(getattr(native, name)), str(getattr(oracle, name)))
                 self.assertEqual(getattr(native, name).name, name)
 
+    def test_signed_zero_documents_native_ieee_extension(self):
+        self.assertEqual(str(oracle.Float(-0.0)), "0.0")
+        self.assertEqual(str(native.Float(-0.0)), "-0.0000000000000000E+000")
+        self.assertNotEqual(native.Float(-0.0), native.Float(0.0))
+
     def test_expand_cache_matches_oracle_and_invalidates_on_assumptions(self):
         oracle_x = oracle.Symbol("differential_expand_cache_x")
         native_x = native.Symbol("differential_expand_cache_x")
