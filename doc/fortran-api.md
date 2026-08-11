@@ -55,6 +55,19 @@ call symbols("mu sigma best xi", mu, sigma, best, xi, ok=good)
 `good` is false when an output has no corresponding name or when extra names
 remain. The output without a name is an invalid `expr_t`.
 
+`num` and `rat` construct compact exact integers and rationals. `exact` accepts
+an arbitrary-size integer or rational string and canonicalizes it in the same
+arena:
+
+```fortran
+huge = exact(default_arena(), "9223372036854775808", ok=good)
+half = exact(default_arena(), "6/-8", ok=good)
+```
+
+The exact integer and rational fragment preserves canonical values through
+construction and native arithmetic. Requested-precision real evaluation and
+exact complex or algebraic values remain separate roadmap items.
+
 ## Explicit arenas
 
 An explicit arena remains the first-class API for independent problems and

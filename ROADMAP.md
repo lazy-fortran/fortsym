@@ -210,6 +210,12 @@ Every checklist item requires all of the following:
 - [ ] Complete canonical hashing, ordering, equality, traversal, matching,
   replacement, and controlled evaluation.
 - [ ] Complete exact integer/rational/real/complex and algebraic domains.
+  - [x] Preserve arbitrary-size integer and rational construction and native
+    arithmetic in the current scalar fragment. `num`, `rat`, and `exact` share
+    canonical arena nodes, with SymPy differential coverage for large values
+    and rational normalization.
+  - [ ] Add precision-aware real values and exact complex/algebraic values to
+    arena expressions and native operations.
 - [ ] Integrate algebraic values into arena expressions, printers, conversion,
   simplification, and code generation.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
