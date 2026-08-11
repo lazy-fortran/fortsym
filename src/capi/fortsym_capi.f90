@@ -718,6 +718,14 @@ module fortsym_capi
             integer(c_size_t)                  :: n
         end function fsym_algebraic_normalize
 
+        function fsym_algebraic_get_d(value, result_value) &
+                bind(c, name="fsym_algebraic_get_d") result(ok)
+            import :: c_char, c_double, c_int
+            character(kind=c_char), intent(in) :: value(*)
+            real(c_double), intent(out) :: result_value
+            integer(c_int) :: ok
+        end function fsym_algebraic_get_d
+
         function fsym_algebraic_symengine_supported(value) &
                 bind(c, name="fsym_algebraic_symengine_supported") result(ok)
             import :: c_char, c_int

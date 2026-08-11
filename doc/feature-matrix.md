@@ -15,7 +15,7 @@ it.
 | Hash-consed scalar expression DAG | stable structural order | conversion | conversion | persist a versioned cross-process structural digest |
 | Arbitrary-precision integers and rationals | native scalar arithmetic yes | yes | yes | requested-precision real and complex evaluation |
 | Real literals and real evaluation | yes, with sampled MPFR ULP bounds | yes | partial | rigorous intervals and arbitrary-precision operations |
-| Complex and algebraic domains | bounded `qqbar` atoms, scalar folding, exact `Re`/`Im`, conjugation, and lossless text IO | exact Gaussian-rational conversion; higher-degree atoms refused | partial | full algebraic conversion and code generation |
+| Complex and algebraic domains | bounded `qqbar` atoms, scalar folding, exact `Re`/`Im`, conjugation, lossless text IO, and checked real binary64 kernel projection | exact Gaussian-rational conversion; higher-degree atoms refused | partial | full expression promotion, higher-degree conversion, and complex code generation |
 | Applied functions and Bessel `J` | yes | opaque Bessel head | partial | broader special-function rules |
 | Parse, print, and Fortran dialect | deterministic | yes | yes | versioned serialization format |
 | Structural and simultaneous substitution | yes | conversion | conversion | rule-based applied-function substitution |

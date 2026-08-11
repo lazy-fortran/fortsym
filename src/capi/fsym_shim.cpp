@@ -29,6 +29,7 @@
 #include <symengine/visitor.h>
 
 #include <flint/flint.h>
+#include <flint/arb.h>
 #include <flint/fmpq.h>
 #include <flint/fmpz_poly.h>
 #include <flint/qqbar.h>
@@ -133,6 +134,18 @@ public:
     MpfrValue &operator=(const MpfrValue &) = delete;
 
     mpfr_t value;
+};
+
+class ArbValue
+{
+public:
+    ArbValue() { arb_init(value); }
+    ~ArbValue() { arb_clear(value); }
+
+    ArbValue(const ArbValue &) = delete;
+    ArbValue &operator=(const ArbValue &) = delete;
+
+    arb_t value;
 };
 
 class FmpzValue
@@ -954,6 +967,43 @@ size_t fsym_algebraic_normalize(const char *value)
         return hold_algebraic(parsed.value);
     } catch (...) {
         g_algebraic_buffer.clear();
+        return 0;
+    }
+}
+
+int fsym_algebraic_get_d(const char *value, double *result)
+{
+    try {
+        QqbarValue input;
+        QqbarValue real_part;
+        if (result == nullptr || !parse_algebraic(input, value)
+            || !qqbar_is_real(input.value)) {
+            return 0;
+        }
+        if (qqbar_is_zero(input.value)) {
+            *result = 0.0;
+            return 1;
+        }
+
+        qqbar_re(real_part.value, input.value);
+        for (slong precision = 256; precision <= 2048; precision *= 2) {
+            ArbValue enclosure;
+            qqbar_get_arb(enclosure.value, real_part.value, precision);
+            if (!arb_can_round_mpfr(enclosure.value, 53, MPFR_RNDN)) {
+                continue;
+            }
+            const double projected
+                = arf_get_d(arb_midref(enclosure.value), ARF_RND_NEAR);
+            if (!std::isfinite(projected)
+                || (projected != 0.0
+                    && std::fpclassify(projected) == FP_SUBNORMAL)) {
+                return 0;
+            }
+            *result = projected;
+            return 1;
+        }
+        return 0;
+    } catch (...) {
         return 0;
     }
 }

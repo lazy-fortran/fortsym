@@ -4,13 +4,14 @@ module fortsym_algebraic
     ! The public value is a lossless qqbar1 string containing the primitive
     ! minimal polynomial and the root's index in FLINT's canonical conjugate
     ! order. No qqbar object or allocation crosses the C boundary.
-    use, intrinsic :: iso_c_binding, only: c_char, c_int, c_int64_t, &
+    use, intrinsic :: iso_c_binding, only: c_char, c_double, c_int, c_int64_t, &
         c_null_char, c_size_t
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: str_t, str
     use fortsym_capi, only: FSYM_ALGEBRAIC_ADD, FSYM_ALGEBRAIC_SUB, &
         FSYM_ALGEBRAIC_MUL, FSYM_ALGEBRAIC_DIV, FSYM_ALGEBRAIC_CONJ, &
-        FSYM_ALGEBRAIC_SQRT, fsym_algebraic_normalize, fsym_algebraic_i, &
+        FSYM_ALGEBRAIC_SQRT, fsym_algebraic_normalize, fsym_algebraic_get_d, &
+        fsym_algebraic_i, &
         fsym_algebraic_from_re_im, fsym_algebraic_binary, &
         fsym_algebraic_re, fsym_algebraic_im, fsym_algebraic_unary, &
         fsym_algebraic_pow_si, fsym_algebraic_signs, fsym_algebraic_fetch
@@ -18,6 +19,7 @@ module fortsym_algebraic
     private
 
     public :: algebraic_normalize, algebraic_i, algebraic_from_re_im
+    public :: algebraic_to_real
     public :: algebraic_re, algebraic_im
     public :: algebraic_add, algebraic_sub, algebraic_mul, algebraic_div
     public :: algebraic_conjugate, algebraic_sqrt, algebraic_pow
@@ -47,6 +49,17 @@ contains
         type(str_t)          :: value
         value = fetch_algebraic(fsym_algebraic_i(), ok)
     end function algebraic_i
+
+    function algebraic_to_real(input, ok) result(value)
+        character(*), intent(in) :: input
+        logical, intent(out) :: ok
+        real(c_double) :: value
+
+        value = 0.0_c_double
+        ok = valid_input(input)
+        if (.not. ok) return
+        ok = fsym_algebraic_get_d(c_string(input), value) /= 0_c_int
+    end function algebraic_to_real
 
     function algebraic_from_re_im(real_part, imag_part, ok) result(value)
         character(*), intent(in) :: real_part, imag_part
