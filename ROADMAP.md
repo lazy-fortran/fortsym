@@ -53,7 +53,7 @@ Every public concept has one owner:
 |---|---|
 | expression identity, literals, functions | `fortsym_arena`, `fortsym_expr` |
 | default state and short facade | `fortsym` |
-| assumptions and predicates | `fortsym_assume` |
+| assumptions and predicates | `fortsym_assume` and `fortsym_relation` |
 | substitution | `fortsym_subs` |
 | polynomial/rational algebra | `fortsym_poly` and focused algebra modules |
 | calculus | `fortsym_diff`, series, limits, integration, transforms |
@@ -286,8 +286,11 @@ Every checklist item requires all of the following:
   - [x] Add native and Python `refine` for the supported Q-fact fragment by
     routing one or more supported facts through the native guarded simplifier;
     keep scopes reversible and refuse unsupported assumption forms.
-  - [ ] Add SymPy-compatible relational constructors and bounded lower-bound
-    ingestion with explicit domain and arena validation.
+  - [x] Add SymPy-compatible relational constructors and bounded lower-bound
+    ingestion with explicit domain and arena validation. The supported native
+    fragment accepts exact positive or zero lower bounds and `Unequal(..., 0)`;
+    unsupported upper bounds, negative lower bounds, and foreign arenas refuse
+    explicitly.
   - [ ] Add compound inference and conflict diagnostics without guessing from
     contradictory or unsupported facts.
 - [ ] Complete safe elementary simplification: powers, logarithms, radicals,

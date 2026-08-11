@@ -147,8 +147,8 @@ explicit-arena variant or a second calling syntax.
 
 The facade provides value-style assumption contexts for isolated derivations.
 `make_assumption_context` creates an empty context for an arena, and
-`with_assumption` returns a copied context with one supported fact. The parent
-is unchanged, so sibling contexts can be used independently:
+`with_assumption` returns a copied context with one supported fact or relation.
+The parent is unchanged, so sibling contexts can be used independently:
 
 ```fortran
 type(assumption_context_t) :: base, positive_x, nonnegative_y
@@ -159,6 +159,21 @@ positive_x = with_assumption(base, positive(x), good)
 nonnegative_y = with_assumption(base, nonnegative(y), good)
 result = simplify(sqrt(x**2), assumptions=positive_x)
 ```
+
+The same value-style constructor accepts a bounded relational expression from
+the facade. Positive and nonnegative facts are derived from exact positive or
+zero lower bounds:
+
+```fortran
+relation_context = with_assumption(base, greater(x, num(a, 1)), good)
+result = refine(sqrt(x**2), assumptions=relation_context)
+```
+
+`equal`, `unequal`, `less`, `less_equal`, `greater`, and `greater_equal` keep
+the native relation vocabulary in snake_case. Only lower bounds that imply a
+supported sign fact, plus `unequal(expression, 0)`, are ingested currently;
+unsupported upper or negative lower bounds and foreign-arena relations are
+refused.
 
 The supported constructors are `real_valued`, `positive`, `nonnegative`, and
 `nonzero`. `simplify`, `refine`, `expand`, `factor`, `diff`, and `zero_test`

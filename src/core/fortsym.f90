@@ -12,6 +12,8 @@ module fortsym
         gamma, besselj, legendrep, legendreq, &
         is_valid, same_arena, operator(+), operator(-), operator(*), &
         operator(/), operator(**), operator(==), operator(/=)
+    use fortsym_relation, only: equal, unequal, less, less_equal, greater, &
+        greater_equal
     use fortsym_subs, only: subs_impl => subs
     use fortsym_assume, only: assumption_context_t, &
         make_assumption_context, with_assumption, positive, nonnegative, &
@@ -37,7 +39,8 @@ module fortsym
         NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL, NK_ALGEBRAIC
     public :: expr_t, sym, num, rat, exact, real_expr, real_text_expr, &
         algebraic_expr, const, &
-        func, func_in, partial, pi_expr, e_expr, i_expr, is_valid, same_arena
+        func, func_in, partial, equal, unequal, less, less_equal, greater, &
+        greater_equal, pi_expr, e_expr, i_expr, is_valid, same_arena
     public :: assumption_context_t, make_assumption_context, with_assumption, &
         positive, nonnegative, nonzero, real_valued
     public :: str, chars

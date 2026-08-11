@@ -51,6 +51,15 @@ enum fortsym_assumption_fact {
     FORTSYM_FACT_NONZERO = 8
 };
 
+enum fortsym_relation_kind {
+    FORTSYM_RELATION_EQUAL = 1,
+    FORTSYM_RELATION_UNEQUAL = 2,
+    FORTSYM_RELATION_LESS = 3,
+    FORTSYM_RELATION_LESS_EQUAL = 4,
+    FORTSYM_RELATION_GREATER = 5,
+    FORTSYM_RELATION_GREATER_EQUAL = 6
+};
+
 enum fortsym_verdict {
     FORTSYM_ZERO_UNKNOWN = 0,
     FORTSYM_ZERO_TRUE = 1,
@@ -75,6 +84,9 @@ int fortsym_symbol(fortsym_arena *arena, const char *name, fortsym_expr **out,
                    char *message, size_t capacity);
 int fortsym_assume(fortsym_arena *arena, const fortsym_expr *expression,
                    int fact, char *message, size_t capacity);
+int fortsym_assume_relation(fortsym_arena *arena,
+                            const fortsym_expr *relation, char *message,
+                            size_t capacity);
 int fortsym_assumption_push(fortsym_arena *arena, char *message,
                             size_t capacity);
 int fortsym_assumption_pop(fortsym_arena *arena, char *message,
@@ -105,6 +117,9 @@ int fortsym_add_many(fortsym_arena *arena, const fortsym_expr *const args[],
                      size_t capacity);
 int fortsym_function(fortsym_arena *arena, const char *name,
                      const fortsym_expr *const args[], size_t count,
+                     fortsym_expr **out, char *message, size_t capacity);
+int fortsym_relation(fortsym_arena *arena, const fortsym_expr *left,
+                     const fortsym_expr *right, int relation_kind,
                      fortsym_expr **out, char *message, size_t capacity);
 
 int fortsym_substitute(fortsym_arena *arena, const fortsym_expr *expression,

@@ -66,6 +66,18 @@ class SympyDifferentialTest(unittest.TestCase):
         }
 
     @staticmethod
+    def relation_cases(api):
+        x = api.Symbol("relation_x")
+        return {
+            "equal": api.Eq(x, 1),
+            "unequal": api.Ne(x, 1),
+            "greater": api.Gt(x, 1),
+            "greater_equal": api.Ge(x, 1),
+            "less": api.Lt(x, 1),
+            "less_equal": api.Le(x, 1),
+        }
+
+    @staticmethod
     def assumption_cases(api):
         cases = {}
         for assumption in ("real", "nonnegative", "positive"):
@@ -101,6 +113,13 @@ class SympyDifferentialTest(unittest.TestCase):
         for label, expected in oracle_cases.items():
             with self.subTest(label=label):
                 self.assert_equivalent(label, expected, native_cases[label])
+
+    def test_relational_constructor_spellings(self):
+        oracle_cases = self.relation_cases(oracle)
+        native_cases = self.relation_cases(native)
+        for label, expected in oracle_cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(str(native_cases[label]), str(expected))
 
     def test_assumption_condition_results(self):
         oracle_cases = self.assumption_cases(oracle)

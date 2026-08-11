@@ -71,6 +71,16 @@ sympy_adapter = ["subs", "Subs", "expand", "simplify", "refine", "factor"]
 decision = "Expose the native operations under the same short names from one facade owner. Keep refine as the named assumption-aware entry point while the native simplifier owns guarded rewrites. Keep Subs as an adapter-only typed wrapper and keep options/refusals in the Python boundary."
 
 [[family]]
+id = "relations"
+audit_concepts = ["relational-constructors"]
+canonical_native = ["equal", "unequal", "less", "less_equal", "greater", "greater_equal"]
+current_native = ["equal", "unequal", "less", "less_equal", "greater", "greater_equal"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = ["Eq", "Ne", "Gt", "Ge", "Lt", "Le"]
+decision = "Keep relational constructors snake_case in the Fortran facade. Preserve SymPy's Eq/Ne/Gt/Ge/Lt/Le spellings only in the compatibility adapter; relation heads such as Greater remain private serialized node names."
+
+[[family]]
 id = "predicates"
 audit_concepts = ["identity-and-validity", "three-valued-query"]
 canonical_native = ["is_valid", "same_arena", "zero_test", "assumption_has", "VERDICT_UNKNOWN", "VERDICT_TRUE", "VERDICT_FALSE", "verdict_name"]

@@ -25,6 +25,14 @@ _FACT_REAL = 1
 _FACT_POSITIVE = 2
 _FACT_NONNEGATIVE = 4
 _FACT_NONZERO = 8
+_RELATIONS = {
+    "Equal": ("==", 1),
+    "Unequal": ("!=", 2),
+    "Less": ("<", 3),
+    "LessEqual": ("<=", 4),
+    "Greater": (">", 5),
+    "GreaterEqual": (">=", 6),
+}
 
 
 class FortSymError(RuntimeError):
@@ -126,6 +134,11 @@ def _configure(lib):
         [_CVOID, ctypes.c_char_p, ctypes.POINTER(_CVOID), _SIZE,
          ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.relation = declare(
+        "fortsym_relation", ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, ctypes.c_int, ctypes.POINTER(_CVOID),
+         _CHAR_PTR, _SIZE],
+    )
     lib.substitute = declare(
         "fortsym_substitute",
         ctypes.c_int,
@@ -160,6 +173,10 @@ def _configure(lib):
         "fortsym_assume",
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.c_int, _CHAR_PTR, _SIZE],
+    )
+    lib.assume_relation = declare(
+        "fortsym_assume_relation", ctypes.c_int,
+        [_CVOID, _CVOID, _CHAR_PTR, _SIZE],
     )
     lib.assumption_push = declare(
         "fortsym_assumption_push", ctypes.c_int, [_CVOID, _CHAR_PTR, _SIZE]
@@ -266,6 +283,7 @@ class Arena:
     def __init__(self):
         self._lib = _load_library()
         self._handle = _CVOID()
+        self._integer_cache = {}
         message = _message()
         status = self._lib.arena_new(ctypes.byref(self._handle), message, len(message))
         if status:
@@ -273,6 +291,9 @@ class Arena:
 
     def close(self):
         if self._handle is not None:
+            for expression in self._integer_cache.values():
+                expression.close()
+            self._integer_cache.clear()
             self._lib.arena_free(self._handle)
             self._handle = None
 
@@ -336,6 +357,15 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message), "assume")
 
+    def assume_relation(self, relation: "Expr"):
+        relation = self._check(relation)
+        message = _message()
+        status = self._lib.assume_relation(
+            self._require(), relation._handle, message, len(message)
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "assume_relation")
+
     def _assumption_push(self):
         message = _message()
         status = self._lib.assumption_push(
@@ -367,6 +397,24 @@ class Arena:
             raise FortSymError(status, _decode(message), "function")
         return Expr(self, output)
 
+    def relation(self, left: "Expr", right: "Expr", name: str):
+        left = self._check(left)
+        right, temporary = self._coerce(right)
+        try:
+            output = _CVOID()
+            message = _message()
+            status = self._lib.relation(
+                self._require(), left._handle, right._handle,
+                _RELATIONS[name][1], ctypes.byref(output), message,
+                len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), "relation")
+            return Expr(self, output)
+        finally:
+            if temporary is not None:
+                temporary.close()
+
     def _coerce(self, value):
         if isinstance(value, Expr):
             return self._check(value), None
@@ -374,6 +422,12 @@ class Arena:
             expression = self.rational(value.numerator, value.denominator)
             return expression, expression
         if isinstance(value, int):
+            if -10 <= value <= 10:
+                expression = self._integer_cache.get(value)
+                if expression is None:
+                    expression = self.integer(value)
+                    self._integer_cache[value] = expression
+                return expression, None
             expression = self.integer(value)
             return expression, expression
         if isinstance(value, float):
@@ -441,6 +495,14 @@ class Expr:
     def __pow__(self, other): return self._binary(self._lib.power, other)
     def __rpow__(self, other): return self._reverse_binary(self._lib.power, other)
     def __neg__(self): return self._reverse_binary(self._lib.subtract, 0)
+
+    def _relation(self, name, other):
+        return self._arena.relation(self, other, name)
+
+    def __lt__(self, other): return self._relation("Less", other)
+    def __le__(self, other): return self._relation("LessEqual", other)
+    def __gt__(self, other): return self._relation("Greater", other)
+    def __ge__(self, other): return self._relation("GreaterEqual", other)
 
     @property
     def args(self):
@@ -592,7 +654,26 @@ class Expr:
                 return _pretty_expanded(text)
             return text
 
-    def __str__(self): return self._text(self._lib.expr_text)
+    def __str__(self):
+        if self.kind == 9:
+            head = getattr(self, "_sympy_head", None)
+            if head is not None and self.arity == 2:
+                left, right = self.args
+                try:
+                    return f"{head}({left}, {right})"
+                finally:
+                    left.close()
+                    right.close()
+            relation = _RELATIONS.get(self.name)
+            operator = None if relation is None else relation[0]
+            if operator is not None and self.arity == 2:
+                left, right = self.args
+                try:
+                    return f"{left} {operator} {right}"
+                finally:
+                    left.close()
+                    right.close()
+        return self._text(self._lib.expr_text)
     def __repr__(self): return str(self)
     @property
     def name(self): return self._text(self._lib.expr_name)
@@ -656,13 +737,19 @@ class _AssumptionScope:
 
     def __enter__(self):
         for fact in self._facts:
-            if not isinstance(fact, _Assumption):
-                raise TypeError("assuming expects Q facts")
-            self._arena._check(fact.expression)
+            if isinstance(fact, _Assumption):
+                self._arena._check(fact.expression)
+            elif isinstance(fact, Expr):
+                self._arena._check(fact)
+            else:
+                raise TypeError("assuming expects Q facts or relations")
         self._arena._assumption_push()
         try:
             for fact in self._facts:
-                self._arena.assume(fact.expression, fact.fact)
+                if isinstance(fact, _Assumption):
+                    self._arena.assume(fact.expression, fact.fact)
+                else:
+                    self._arena.assume_relation(fact)
         except BaseException:
             self._arena._assumption_pop()
             raise

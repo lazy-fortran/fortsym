@@ -43,6 +43,11 @@ module fortsym_assume
         procedure :: clone => context_clone
     end type assumption_context_t
 
+    interface with_assumption
+        module procedure with_fact_assumption
+        module procedure with_relation_assumption
+    end interface with_assumption
+
 contains
 
     subroutine init_assumption_context(context, home)
@@ -66,7 +71,7 @@ contains
         call init_assumption_context(context, home)
     end function make_assumption_context
 
-    function with_assumption(parent, assumption, ok) result(child)
+    function with_fact_assumption(parent, assumption, ok) result(child)
         type(assumption_context_t), intent(in) :: parent
         type(assumption_t), intent(in) :: assumption
         logical, intent(out), optional :: ok
@@ -79,7 +84,26 @@ contains
         if (valid) valid = associated(assumption%expression%a, parent%home)
         if (valid) call assume(child, assumption)
         if (present(ok)) ok = valid
-    end function with_assumption
+    end function with_fact_assumption
+
+    function with_relation_assumption(parent, relation, ok) result(child)
+        type(assumption_context_t), intent(in) :: parent
+        type(expr_t), intent(in) :: relation
+        logical, intent(out), optional :: ok
+        type(assumption_context_t) :: child
+        character(:), allocatable :: why
+        logical :: valid, relation_ok
+
+        call clone_assumption_context(child, parent)
+        valid = associated(parent%home)
+        if (valid) valid = is_valid(relation)
+        if (valid) valid = associated(relation%a, parent%home)
+        if (valid) then
+            call record_relation(child, relation, relation_ok, why)
+            valid = relation_ok
+        end if
+        if (present(ok)) ok = valid
+    end function with_relation_assumption
 
     subroutine record_assumption(context, expression, facts)
         type(assumption_context_t), intent(inout) :: context
@@ -406,6 +430,9 @@ contains
                 call record_assumption(context, expression, FACT_POSITIVE)
             else if (n == 0_int64) then
                 call record_assumption(context, expression, FACT_NONNEGATIVE)
+            else
+                why = "lower bound does not imply a supported sign fact"
+                return
             end if
             ok = .true.
         end if

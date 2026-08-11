@@ -300,6 +300,37 @@
       ]
     },
     {
+      "action": "Keep one relation recorder in fortsym_assume; expose compatibility spellings only at the Python adapter boundary and refuse unsupported relation inference explicitly.",
+      "description": "Construct symbolic equality and ordering relations.",
+      "finding": "The Fortran facade keeps relation constructors snake_case. The Python adapter preserves SymPy's constructor spellings and maps comparison operators to the same native relation nodes.",
+      "fortran_facade": [
+        "equal",
+        "unequal",
+        "less",
+        "less_equal",
+        "greater",
+        "greater_equal"
+      ],
+      "id": "relational-constructors",
+      "python_facade": [],
+      "sympy_adapter": [
+        "Eq",
+        "Ne",
+        "Gt",
+        "Ge",
+        "Lt",
+        "Le"
+      ],
+      "sympy_reference": [
+        "Eq",
+        "Ne",
+        "Gt",
+        "Ge",
+        "Lt",
+        "Le"
+      ]
+    },
+    {
       "action": "Keep them out of the SymPy adapter unless a defined SymPy behavior exists.",
       "description": "Inspect handle validity and arena ownership.",
       "finding": "These are native safety predicates with no Python compatibility spelling.",
@@ -765,6 +796,12 @@
       },
       {
         "concepts": [
+          "relational-constructors"
+        ],
+        "name": "equal"
+      },
+      {
+        "concepts": [
           "elementary-functions"
         ],
         "name": "erf"
@@ -831,6 +868,18 @@
       },
       {
         "concepts": [
+          "relational-constructors"
+        ],
+        "name": "greater"
+      },
+      {
+        "concepts": [
+          "relational-constructors"
+        ],
+        "name": "greater_equal"
+      },
+      {
+        "concepts": [
           "constants"
         ],
         "name": "i_expr"
@@ -856,6 +905,18 @@
           "elementary-functions"
         ],
         "name": "legendreq"
+      },
+      {
+        "concepts": [
+          "relational-constructors"
+        ],
+        "name": "less"
+      },
+      {
+        "concepts": [
+          "relational-constructors"
+        ],
+        "name": "less_equal"
       },
       {
         "concepts": [
@@ -1101,6 +1162,12 @@
       },
       {
         "concepts": [
+          "relational-constructors"
+        ],
+        "name": "unequal"
+      },
+      {
+        "concepts": [
           "three-valued-query"
         ],
         "name": "verdict_name"
@@ -1138,14 +1205,20 @@
       "Arena",
       "Derivative",
       "E",
+      "Eq",
       "Expr",
       "Float",
       "FortSymError",
       "Function",
+      "Ge",
+      "Gt",
       "I",
       "Integer",
+      "Le",
+      "Lt",
       "Matrix",
       "Mul",
+      "Ne",
       "Pow",
       "Q",
       "Rational",
@@ -1195,11 +1268,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 118,
-    "concept_groups": 23,
-    "fortran_facade_exports": 112,
+    "assigned_names": 130,
+    "concept_groups": 24,
+    "fortran_facade_exports": 118,
     "python_facade_exports": 12,
-    "sympy_adapter_exports": 45,
+    "sympy_adapter_exports": 51,
     "unmapped_fortran_exports": 11
   },
   "sympy_version": "1.14.0",

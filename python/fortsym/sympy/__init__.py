@@ -95,8 +95,57 @@ def ask(proposition):
     return proposition.expression._assumption_fact(proposition.fact)
 
 
+class _AdapterAssumptionScope:
+    def __init__(self, facts):
+        self._scope = _default().assuming(*facts)
+
+    def __enter__(self):
+        try:
+            return self._scope.__enter__()
+        except FortSymError as error:
+            if error.status == 5:
+                raise UnsupportedOperationError(str(error)) from error
+            raise
+
+    def __exit__(self, *arguments):
+        return self._scope.__exit__(*arguments)
+
+
 def assuming(*facts):
-    return _default().assuming(*facts)
+    return _AdapterAssumptionScope(facts)
+
+
+def _relational(name, left, right):
+    relation = sympify(left)._relation(name, right)
+    if name == "Equal":
+        relation._sympy_head = "Eq"
+    elif name == "Unequal":
+        relation._sympy_head = "Ne"
+    return relation
+
+
+def Eq(left, right):
+    return _relational("Equal", left, right)
+
+
+def Ne(left, right):
+    return _relational("Unequal", left, right)
+
+
+def Gt(left, right):
+    return _relational("Greater", left, right)
+
+
+def Ge(left, right):
+    return _relational("GreaterEqual", left, right)
+
+
+def Lt(left, right):
+    return _relational("Less", left, right)
+
+
+def Le(left, right):
+    return _relational("LessEqual", left, right)
 
 
 def refine(expression, assumptions=None):
@@ -105,11 +154,13 @@ def refine(expression, assumptions=None):
         return expression.simplify()
     if isinstance(assumptions, _Assumption):
         facts = (assumptions,)
+    elif isinstance(assumptions, Expr):
+        facts = (assumptions,)
     elif isinstance(assumptions, (tuple, list)):
         facts = tuple(assumptions)
     else:
         raise UnsupportedOperationError("refine assumptions")
-    with _default().assuming(*facts):
+    with assuming(*facts):
         return expression.simplify()
 
 
@@ -333,7 +384,8 @@ __all__ = [
     "Symbol", "symbols", "sympify", "Integer", "Rational", "Float",
     "Add", "Mul", "Pow", "Function", "Derivative", "Subs", "sin", "cos",
     "tan", "exp", "log", "sqrt", "Abs", "diff", "subs", "expand",
-    "simplify", "factor", "refine", "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
+    "simplify", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le",
+    "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
     "integrate", "limit", "series", "solve", "Matrix", "pi", "E", "I",
     "oo",
 ]

@@ -8,6 +8,7 @@ program test_fortsym_convenience
     type(arena_t), target :: explicit_arena, concurrent_arena
     type(arena_t), pointer :: default_storage
     type(assumption_context_t) :: base_context, positive_context, nonnegative_context
+    type(assumption_context_t) :: relation_context
     type(assumption_context_t) :: foreign_context
     type(expr_t) :: x, mu, sigma, best, xi, literal
     type(expr_t) :: bulk_mu, bulk_sigma, bulk_best, bulk_xi
@@ -15,7 +16,7 @@ program test_fortsym_convenience
     type(expr_t) :: concurrent_mu
     type(expr_t) :: explicit_expression, default_expression, mixed
     type(expr_t) :: sine, substituted, derivative, simplified, expanded, factored
-    type(expr_t) :: huge_integer, exact_fraction
+    type(expr_t) :: huge_integer, exact_fraction, relation
     type(expr_t) :: stale
     type(engine_result_t) :: result
     logical :: good, exact_good, context_ok
@@ -129,6 +130,19 @@ program test_fortsym_convenience
     result = refine(sqrt(explicit_mu**2), positive_context)
     call check("facade refine uses an explicit context", &
         result%ok .and. result%value == explicit_mu, failures)
+    relation = greater(explicit_mu, num(explicit_arena, 1_int64))
+    relation_context = with_assumption(base_context, relation, context_ok)
+    call check("value-style context accepts a bounded lower relation", &
+        context_ok, failures)
+    result = refine(sqrt(explicit_mu**2), relation_context)
+    call check("bounded lower relation refines through the facade", &
+        result%ok .and. result%value == explicit_mu, failures)
+    relation = greater(explicit_mu, num(explicit_arena, -1_int64))
+    relation_context = with_assumption(base_context, relation, context_ok)
+    call check("unsupported lower relation is refused", .not. context_ok, failures)
+    relation = greater(concurrent_mu, num(concurrent_arena, 0_int64))
+    relation_context = with_assumption(base_context, relation, context_ok)
+    call check("foreign relation is refused", .not. context_ok, failures)
     nonnegative_context = with_assumption(base_context, &
         nonnegative(explicit_sigma), context_ok)
     call check("second derived context accepts same-arena fact", context_ok, failures)
