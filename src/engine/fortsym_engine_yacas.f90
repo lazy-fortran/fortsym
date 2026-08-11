@@ -42,6 +42,7 @@ module fortsym_engine_yacas
         type(c_ptr)            :: handle = c_null_ptr
     contains
         procedure :: simplify => yc_simplify
+        procedure :: factor => yc_factor
         procedure :: integrate => yc_integrate
         procedure :: shutdown => yc_shutdown
     end type yacas_engine_t
@@ -248,6 +249,27 @@ contains
         r%seconds = wall_seconds() - t0
         if (.not. r%ok) r%value = e
     end function yc_simplify
+
+    function yc_factor(self, e, limit) result(r)
+        class(yacas_engine_t), intent(inout) :: self
+        type(expr_t),           intent(in)    :: e
+        type(resource_limit_t), intent(in), optional :: limit
+        type(engine_result_t)                :: r
+        character(:), allocatable :: text
+        real(dp) :: t0
+
+        r%value = e
+        if (.not. self%available) then
+            r%message = str("yacas: not available")
+            return
+        end if
+
+        t0 = wall_seconds()
+        text = chars(print_expr_in(e, dialect(DIA_YACAS)))
+        r%ok = evaluate(self, "Factor("//text//");", r)
+        r%seconds = wall_seconds() - t0
+        if (.not. r%ok) r%value = e
+    end function yc_factor
 
     !> Symbolic integration, which no other linked engine here provides.
     function yc_integrate(self, e, v) result(r)
