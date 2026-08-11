@@ -139,8 +139,11 @@ Every checklist item requires all of the following:
   [`test/python/test_fortsym_sympy_differential.py`](test/python/test_fortsym_sympy_differential.py),
   registered as `test_fortsym_sympy_differential` in
   [`test/CMakeLists.txt`](test/CMakeLists.txt).
-- [ ] Add a common benchmark harness with cold-start, warm-cache, end-to-end,
-  and core-operation measurements.
+- [x] Add a common benchmark harness with cold-start, warm-cache, end-to-end,
+  and core-operation measurements in
+  [`benchmark/harnesses/bench_sympy.py`](benchmark/harnesses/bench_sympy.py),
+  with the measurement contract documented in
+  [`doc/benchmarks.md`](doc/benchmarks.md).
 - [ ] Make the benchmark report fail when a supported native workload is slower
   than the SymPy baseline without an explicit waiver.
 
