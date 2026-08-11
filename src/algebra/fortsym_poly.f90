@@ -2662,6 +2662,7 @@ contains
 
         e%a => a
         e%id = id
+        e%generation = a%generation_value()
     end function id_expr
 
     subroutine rat_to_expr(a, r, e)

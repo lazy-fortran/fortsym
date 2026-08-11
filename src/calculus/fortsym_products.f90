@@ -258,6 +258,7 @@ contains
 
         e%a => bar%a
         e%id = id
+        e%generation = bar%generation
         select case (a%kind_of(id))
         case (NK_ADD)
             do i = 1, e%nargs()

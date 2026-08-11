@@ -1257,6 +1257,7 @@ contains
             factors(target) = r%id
             r%a => a
             r%id = a%mul(factors)
+            r%generation = a%generation_value()
             return
         case default
             r = -e

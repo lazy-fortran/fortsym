@@ -500,6 +500,7 @@ contains
             if (size(children) > 0) then
                 base_expression%a => a
                 base_expression%id = children(1)
+                base_expression%generation = a%generation_value()
                 if (chars(a%name_of(id)) == "abs") then
                     if (context%has(base_expression, FACT_POSITIVE)) out = children(1)
                 end if

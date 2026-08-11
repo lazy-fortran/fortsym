@@ -38,10 +38,12 @@ module fortsym_expr
     integer, parameter :: dp = real64
 
     !> A node in a particular arena. A default-initialised expr_t is invalid;
-    !> is_valid distinguishes it from a real expression.
+    !> is_valid distinguishes it from a real expression. The generation keeps
+    !> handles from a cleared arena invalid after node indices are reused.
     type :: expr_t
         type(arena_t), pointer :: a => null()
         integer                :: id = 0
+        integer(int64)         :: generation = 0_int64
     contains
         procedure :: kind => expr_kind
         procedure :: nargs => expr_nargs
@@ -131,6 +133,7 @@ contains
         type(expr_t)                         :: e
         e%a => a
         e%id = a%sym(name)
+        e%generation = a%generation_value()
     end function sym
 
     function num_from_int32(a, value) result(e)
@@ -139,6 +142,7 @@ contains
         type(expr_t)                         :: e
         e%a => a
         e%id = a%int(int(value, int64))
+        e%generation = a%generation_value()
     end function num_from_int32
 
     function num_from_int64(a, value) result(e)
@@ -147,6 +151,7 @@ contains
         type(expr_t)                         :: e
         e%a => a
         e%id = a%int(value)
+        e%generation = a%generation_value()
     end function num_from_int64
 
     !> An exact rational. Kept exact rather than converted to a real, because a
@@ -158,6 +163,7 @@ contains
         type(expr_t)                         :: e
         e%a => a
         e%id = a%rat(numer, denom)
+        e%generation = a%generation_value()
     end function rat
 
     !> Arbitrary-precision exact integer or rational. The
@@ -176,6 +182,7 @@ contains
         if (.not. valid) return
         e%a => a
         e%id = id
+        e%generation = a%generation_value()
     end function exact
 
     function real_expr(a, value) result(e)
@@ -184,6 +191,7 @@ contains
         type(expr_t)                         :: e
         e%a => a
         e%id = a%real(value)
+        e%generation = a%generation_value()
     end function real_expr
 
     function real_text_expr(a, value, ok) result(e)
@@ -193,6 +201,7 @@ contains
         type(expr_t)                         :: e
         e%a => a
         e%id = a%real_text(value, ok)
+        e%generation = a%generation_value()
         if (.not. ok) nullify(e%a)
     end function real_text_expr
 
@@ -202,6 +211,7 @@ contains
         type(expr_t)                         :: e
         e%a => a
         e%id = a%const(name)
+        e%generation = a%generation_value()
     end function const
 
     function pi_expr(a) result(e)
@@ -238,6 +248,7 @@ contains
         end do
         e%a => fargs(1)%a
         e%id = fargs(1)%a%func(name, ids)
+        e%generation = fargs(1)%generation
     end function func
 
     !> Application with no arguments, such as the empty list {}.
@@ -253,6 +264,7 @@ contains
 
         e%a => a
         e%id = a%func(name, ids)
+        e%generation = a%generation_value()
     end function func_in
 
     ! ---------------------------------------------------------- predicates --
@@ -260,7 +272,10 @@ contains
     pure function is_valid(e) result(yes)
         type(expr_t), intent(in) :: e
         logical                  :: yes
-        yes = associated(e%a) .and. e%id > 0
+        yes = .false.
+        if (.not. associated(e%a)) return
+        if (e%id <= 0 .or. e%id > e%a%size()) return
+        yes = e%generation == e%a%generation_value()
     end function is_valid
 
     !> Two expressions can only be combined when they live in the same arena;
@@ -291,6 +306,7 @@ contains
         type(expr_t)              :: e
         e%a => self%a
         e%id = self%a%arg_of(self%id, k)
+        e%generation = self%generation
     end function expr_arg
 
     function expr_name(self) result(s)
@@ -347,7 +363,8 @@ contains
     pure function eq_ee(x, y) result(yes)
         type(expr_t), intent(in) :: x, y
         logical                  :: yes
-        yes = same_arena(x, y) .and. x%id == y%id
+        yes = is_valid(x) .and. is_valid(y) .and. same_arena(x, y) .and. &
+            x%id == y%id
     end function eq_ee
 
     pure function ne_ee(x, y) result(yes)
@@ -364,6 +381,7 @@ contains
         pair(2) = y%id
         e%a => x%a
         e%id = x%a%add(pair)
+        e%generation = x%generation
     end function add_ee
 
     function plus_e(x) result(e)
@@ -389,6 +407,7 @@ contains
         pair(2) = x%id
         e%a => x%a
         e%id = x%a%mul(pair)
+        e%generation = x%generation
     end function neg_e
 
     function mul_ee(x, y) result(e)
@@ -399,6 +418,7 @@ contains
         pair(2) = y%id
         e%a => x%a
         e%id = x%a%mul(pair)
+        e%generation = x%generation
     end function mul_ee
 
     !> Division is multiplication by a reciprocal power, for the same reason
@@ -412,6 +432,7 @@ contains
         pair(2) = inv
         e%a => x%a
         e%id = x%a%mul(pair)
+        e%generation = x%generation
     end function div_ee
 
     function pow_ee(x, y) result(e)
@@ -419,6 +440,7 @@ contains
         type(expr_t)             :: e
         e%a => x%a
         e%id = x%a%pow(x%id, y%id)
+        e%generation = x%generation
     end function pow_ee
 
     ! Mixed-type forms, so a literal can appear on either side of an operator
@@ -431,6 +453,7 @@ contains
         type(expr_t)                         :: e
         e%a => a
         e%id = a%int(int(v, int64))
+        e%generation = a%generation_value()
     end function lift_int
 
     function lift_real(a, v) result(e)
@@ -439,6 +462,7 @@ contains
         type(expr_t)                         :: e
         e%a => a
         e%id = a%real(v)
+        e%generation = a%generation_value()
     end function lift_real
 
     function add_ei(x, v) result(e)
@@ -577,6 +601,7 @@ contains
         one(1) = x%id
         e%a => x%a
         e%id = x%a%func(name, one)
+        e%generation = x%generation
     end function apply1
 
     function fn_sin(x) result(e)
@@ -626,6 +651,7 @@ contains
         pair(2) = x%id
         e%a => y%a
         e%id = y%a%func("atan2", pair)
+        e%generation = y%generation
     end function fn_atan2
 
     function fn_sinh(x) result(e)

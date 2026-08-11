@@ -42,6 +42,7 @@ contains
         allocate (memo(e%a%size()), source=0)
         r%a => e%a
         r%id = substitute_node(e%id, e, old, new, memo)
+        r%generation = e%generation
     end function subs_many
 
     recursive function substitute_node(id, root, old, new, memo) result(result_id)

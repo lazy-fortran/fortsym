@@ -784,6 +784,7 @@ contains
         end if
         e%a => p%arena%value
         e%id = p%id
+        e%generation = e%a%generation_value()
         if (.not. is_valid(e)) then
             nullify(e%a)
             call put_error(message, capacity, FORTSYM_INVALID_HANDLE)

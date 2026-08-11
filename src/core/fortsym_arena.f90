@@ -80,6 +80,9 @@ module fortsym_arena
     type :: arena_t
         type(node_t), allocatable :: nodes(:)
         integer                   :: n_nodes = 0
+        !> Incremented whenever the node store is cleared. Expression handles
+        !> retain this value so a reset cannot make an old node index look live.
+        integer(int64)             :: generation = 0_int64
         !> Flattened child indices; a node owns args(first_arg : first_arg+n_args-1).
         integer,      allocatable :: args(:)
         integer                   :: n_args = 0
@@ -93,6 +96,7 @@ module fortsym_arena
         procedure :: init => arena_init
         procedure :: clear => arena_clear
         procedure :: size => arena_size
+        procedure :: generation_value => arena_generation
 
         procedure :: int => arena_int
         procedure :: rat => arena_rat
@@ -159,6 +163,7 @@ contains
 
     subroutine arena_clear(self)
         class(arena_t), intent(inout) :: self
+        self%generation = self%generation + 1_int64
         if (allocated(self%nodes)) deallocate (self%nodes)
         if (allocated(self%args)) deallocate (self%args)
         if (allocated(self%names)) deallocate (self%names)
@@ -176,6 +181,12 @@ contains
         integer                    :: n
         n = self%n_nodes
     end function arena_size
+
+    pure function arena_generation(self) result(generation)
+        class(arena_t), intent(in) :: self
+        integer(int64)              :: generation
+        generation = self%generation
+    end function arena_generation
 
     !> Ensure the arena is usable even if the caller forgot to call init. A CAS
     !> is used interactively often enough that failing on a missing init would
