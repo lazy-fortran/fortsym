@@ -711,6 +711,14 @@ contains
             (-1 + i_expr(arena))/sqrt(num(arena, 2)))
         call check("Euler three-eighth-turn constant is decided zero", &
             r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(i_expr(arena)*pi_expr(arena)/3) - &
+            (1 + i_expr(arena)*sqrt(num(arena, 3)))/2)
+        call check("Euler sixth-turn constant is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(exp(i_expr(arena)*pi_expr(arena)/6) - &
+            (sqrt(num(arena, 3)) + i_expr(arena))/2)
+        call check("Euler twelfth-turn constant is decided zero", &
+            r%verdict == VERDICT_TRUE)
         r = engine%zero_test(exp(i_expr(arena)*pi_expr(arena)/4) - i_expr(arena))
         call check("other fractional periodic constants remain unknown", &
             r%verdict == VERDICT_UNKNOWN)

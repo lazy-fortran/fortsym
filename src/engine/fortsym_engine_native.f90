@@ -883,13 +883,13 @@ contains
         logical, intent(inout)                :: saw_exponential, decidable
         logical, intent(inout)                :: formal_exponential
         integer                                :: out, k, child, base, exponent
-        integer                                :: root_inverse
         integer(int64)                         :: power, denominator
         logical                                :: exact
         character(:), allocatable              :: name
         integer :: one(1)
         integer(int64) :: pi_multiple, pi_denominator
-        logical :: pi_multiple_ok
+        integer :: periodic_value
+        logical :: pi_multiple_ok, periodic_ok
 
         if (done(id)) then
             out = memo(id)
@@ -943,47 +943,13 @@ contains
                         formal_exponential = .false.
                     call rational_i_pi_multiple(a, child, pi_multiple, &
                         pi_denominator, pi_multiple_ok)
-                    if (pi_multiple_ok .and. pi_denominator == 1_int64) then
-                        if (modulo(pi_multiple, 2_int64) == 0_int64) then
-                            out = a%int(1_int64)
-                        else
-                            out = a%int(-1_int64)
-                        end if
-                    else if (pi_multiple_ok .and. &
-                            pi_denominator == 2_int64) then
-                        select case (modulo(pi_multiple, 4_int64))
-                        case (0)
-                            out = a%int(1_int64)
-                        case (1)
-                            out = a%const("i")
-                        case (2)
-                            out = a%int(-1_int64)
-                        case default
-                            out = mul_pair(a, a%int(-1_int64), a%const("i"))
-                        end select
-                    else if (pi_multiple_ok .and. &
-                            pi_denominator == 4_int64) then
-                        one(1) = a%int(2_int64)
-                        root_inverse = simplify_power(a, a%func("sqrt", one), &
-                            a%int(-1_int64))
-                        select case (modulo(pi_multiple, 8_int64))
-                        case (1)
-                            base = add_pair(a, a%int(1_int64), a%const("i"))
-                            out = mul_pair(a, base, root_inverse)
-                        case (3)
-                            base = add_pair(a, a%int(-1_int64), a%const("i"))
-                            out = mul_pair(a, base, root_inverse)
-                        case (5)
-                            base = add_pair(a, a%int(-1_int64), &
-                                mul_pair(a, a%int(-1_int64), a%const("i")))
-                            out = mul_pair(a, base, root_inverse)
-                        case (7)
-                            base = add_pair(a, a%int(1_int64), &
-                                mul_pair(a, a%int(-1_int64), a%const("i")))
-                            out = mul_pair(a, base, root_inverse)
-                        case default
-                            out = normalise_exp_argument(a, child)
-                        end select
+                    periodic_ok = .false.
+                    if (pi_multiple_ok) then
+                        periodic_value = exact_periodic_constant(a, pi_multiple, &
+                            pi_denominator, periodic_ok)
+                    end if
+                    if (periodic_ok) then
+                        out = periodic_value
                     else
                         out = normalise_exp_argument(a, child)
                     end if
@@ -2177,6 +2143,106 @@ contains
         end do
         ok = saw_i .and. saw_pi
     end subroutine rational_i_pi_multiple
+
+    !> Construct the small exact root-of-unity fragment represented by the
+    !> native scalar vocabulary. The denominator is the reduced multiple of pi.
+    function exact_periodic_constant(a, numerator, denominator, ok) result(out)
+        type(arena_t), target, intent(inout) :: a
+        integer(int64), intent(in)    :: numerator, denominator
+        integer                       :: out
+        logical, intent(out)          :: ok
+        integer :: one(1), root, half, half_root, imaginary
+        integer :: root_inverse, real_part, imaginary_part
+
+        out = a%int(0_int64)
+        ok = .false.
+        one(1) = a%int(2_int64)
+        half = a%rat(1_int64, 2_int64)
+
+        select case (denominator)
+        case (1_int64)
+            if (modulo(numerator, 2_int64) == 0_int64) then
+                out = a%int(1_int64)
+            else
+                out = a%int(-1_int64)
+            end if
+            ok = .true.
+        case (2_int64)
+            select case (modulo(numerator, 4_int64))
+            case (0)
+                out = a%int(1_int64)
+            case (1)
+                out = a%const("i")
+            case (2)
+                out = a%int(-1_int64)
+            case default
+                out = mul_pair(a, a%int(-1_int64), a%const("i"))
+            end select
+            ok = .true.
+        case (4_int64)
+            root = a%func("sqrt", one)
+            root_inverse = simplify_power(a, root, a%int(-1_int64))
+            select case (modulo(numerator, 8_int64))
+            case (1)
+                real_part = a%int(1_int64)
+                imaginary_part = a%const("i")
+            case (3)
+                real_part = a%int(-1_int64)
+                imaginary_part = a%const("i")
+            case (5)
+                real_part = a%int(-1_int64)
+                imaginary_part = mul_pair(a, a%int(-1_int64), a%const("i"))
+            case (7)
+                real_part = a%int(1_int64)
+                imaginary_part = mul_pair(a, a%int(-1_int64), a%const("i"))
+            case default
+                return
+            end select
+            out = mul_pair(a, add_pair(a, real_part, imaginary_part), &
+                root_inverse)
+            ok = .true.
+        case (3_int64)
+            one(1) = a%int(3_int64)
+            root = a%func("sqrt", one)
+            half_root = mul_pair(a, root, half)
+            imaginary = mul_pair(a, a%const("i"), half_root)
+            select case (modulo(numerator, 6_int64))
+            case (1)
+                out = add_pair(a, half, imaginary)
+            case (2)
+                out = add_pair(a, a%rat(-1_int64, 2_int64), imaginary)
+            case (4)
+                out = add_pair(a, a%rat(-1_int64, 2_int64), &
+                    mul_pair(a, a%int(-1_int64), imaginary))
+            case (5)
+                out = add_pair(a, half, mul_pair(a, a%int(-1_int64), imaginary))
+            case default
+                return
+            end select
+            ok = .true.
+        case (6_int64)
+            one(1) = a%int(3_int64)
+            root = a%func("sqrt", one)
+            half_root = mul_pair(a, root, half)
+            imaginary = mul_pair(a, a%const("i"), half)
+            select case (modulo(numerator, 12_int64))
+            case (1)
+                out = add_pair(a, half_root, imaginary)
+            case (5)
+                out = add_pair(a, mul_pair(a, a%int(-1_int64), half_root), &
+                    imaginary)
+            case (7)
+                out = add_pair(a, mul_pair(a, a%int(-1_int64), half_root), &
+                    mul_pair(a, a%int(-1_int64), imaginary))
+            case (11)
+                out = add_pair(a, half_root, &
+                    mul_pair(a, a%int(-1_int64), imaginary))
+            case default
+                return
+            end select
+            ok = .true.
+        end select
+    end function exact_periodic_constant
 
     recursive function expand_id(a, id, memo, done, limit) result(out)
         type(arena_t), intent(inout) :: a

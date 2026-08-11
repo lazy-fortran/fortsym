@@ -149,8 +149,8 @@ refusal.
 The native exponential zero fragment now also decides exact Euler constants
 `exp(i*n*pi)` for integer `n` and the exact half-integer turns
 `exp(±i*pi/2)`/`exp(3*i*pi/2)`, while other fractional multiples and unsupported
-periodic forms remain `UNKNOWN`; the eighth-turn roots through `3*i*pi/4` are
-represented exactly with `sqrt(2)`. This removes another bounded periodic-constant
+periodic forms remain `UNKNOWN`; selected eighth-, sixth-, and twelfth-turn
+roots are represented exactly with `sqrt(2)` and `sqrt(3)`. This removes another bounded periodic-constant
 case from the external exponential oracle without claiming general complex
 transcendental simplification. It also rewrites exact integer powers of
 logarithms inside exponentials, including `exp(log(x))`, `exp(2*log(x))`, and
