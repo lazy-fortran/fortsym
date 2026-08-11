@@ -113,6 +113,16 @@ not approximate special functions or infer analytic continuation, asymptotic,
 or branch-sensitive identities; those inputs remain symbolic until an
 independent numeric backend is available.
 
+The numeric boundary has two precision-preserving paths. `numeric_precision_text`
+returns a closed real expression through the bounded MPFR evaluator as decimal
+text, while `numeric_complex_text` first proves a supported rectangular split
+and evaluates its real and imaginary expressions independently. Neither path
+silently projects the requested precision through real64. `numeric_callable_t`
+stores an ordered symbol list and exposes checked real64 point evaluation plus
+the precision-text form for a downstream fortnum algorithm. It refuses free
+symbols, non-finite points, branch-sensitive or unknown heads, and does not
+implement quadrature, root finding, interpolation, or rigorous Arb balls.
+
 Fortran kernel emission uses the dialect's declared function map rather than
 passing symbolic heads through as identifiers. Standard intrinsics cover
 `erf`, `erfc`, `gamma`, `log_gamma`, `bessel_jn`, and `bessel_yn`; the default

@@ -58,6 +58,7 @@ fortsym_add_test(test_fortsym_wl_f90 codegen/test_fortsym_wl_f90.f90)
 # --- verification ---
 fortsym_add_test(test_fortsym_accuracy verify/test_fortsym_accuracy.f90)
 fortsym_add_test(test_fortsym_check verify/test_fortsym_check.f90)
+fortsym_add_test(test_fortsym_numeric verify/test_fortsym_numeric.f90)
 fortsym_add_test(test_fortsym_exact_padding core/test_fortsym_exact_padding.f90)
 fortsym_add_test(test_fortsym_quadratic core/test_fortsym_quadratic.f90)
 fortsym_add_test(test_fortsym_quadratic_linalg algebra/test_fortsym_quadratic_linalg.f90)

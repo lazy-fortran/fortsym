@@ -151,6 +151,15 @@ small positive-integer Gamma values, `Gamma(1/2)`, and integer-order `J` and
 cover the zero-order boundary. General special-function evaluation, analytic
 continuation, asymptotics, and series remain outside this decision procedure.
 
+Issue #37 (arbitrary-precision numerics) is complete as of 2026-08-11 for the
+bounded expression-evaluation bridge: closed real expressions can return
+MPFR-backed decimal text through 512 requested digits, supported closed
+arithmetic/entire complex expressions return independent rectangular decimal
+components, and `numeric_callable_t` exposes ordered real64 point evaluation
+to a fortnum-style numerical algorithm. Free symbols, non-finite points,
+branch-sensitive or unsupported heads, rigorous Arb enclosures, and the
+quadrature/root/interpolation algorithms themselves remain explicit boundaries.
+
 Issue #31 (native integration) is complete as of 2026-08-11 for the bounded
 exact fragment: native integration now sends exact rational inputs through
 partial fractions before applying its verified elementary rules. Distinct and
@@ -902,6 +911,13 @@ refusals rather than approximate or unconditional answers.
 - Eigenvalues via characteristic polynomial through M8.
 
 ### M10 — Numerics and the fortnum boundary (#37) · 686 sites
+
+Issue #37 is complete for the bounded expression-evaluation bridge above.
+`numeric_precision_text` retains MPFR decimal results instead of projecting
+them through real64, `numeric_complex_text` evaluates the supported rectangular
+fragment componentwise, and `numeric_callable_t` gives fortnum-style callers a
+validated ordered point-evaluation interface. Arb ball enclosures and numeric
+algorithms remain fortnum-side work and are not duplicated here.
 
 Requested-precision real and complex evaluation, `NIntegrate`, `FindRoot`,
 `Interpolation`, `Fit`.

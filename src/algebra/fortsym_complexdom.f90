@@ -36,8 +36,9 @@ module fortsym_complexdom
     ! matters.
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: chars
-    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
-        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
+    use fortsym_arena, only: NK_INT, NK_RAT, NK_REAL, NK_SYM, &
+        NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
+        NK_BIG_REAL
     use fortsym_expr, only: expr_t, num, i_expr, is_valid, &
         sin, cos, sinh, cosh, exp, sqrt, atan2, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
@@ -85,13 +86,13 @@ contains
         end if
         if (expansion_terms(e) > MAX_TERMS) then
             why = "the rectangular expansion of this expression would have "// &
-                  "more than 4096 terms, which is past what this module "// &
-                  "will build"
+                "more than 4096 terms, which is past what this module "// &
+                "will build"
             return
         end if
 
         select case (e%kind())
-        case (NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, NK_BIG_RAT)
+        case (NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL)
             re = e
             im = zero(e)
             ok = .true.
@@ -151,8 +152,8 @@ contains
         why = ""
         if (.not. facts%has(e, FACT_REAL)) then
             why = "symbol "//chars(e%name())//" has unknown reality: "// &
-                  "Re and Im depend on it, so assume real_valued("// &
-                  chars(e%name())//") or expect a refusal"
+                "Re and Im depend on it, so assume real_valued("// &
+                chars(e%name())//") or expect a refusal"
             return
         end if
         re = e
@@ -226,14 +227,14 @@ contains
         expo = e%arg(2)
         if (expo%kind() /= NK_INT) then
             why = "non-integer exponent: the value depends on a branch of "// &
-                  "the logarithm that this module does not choose"
+                "the logarithm that this module does not choose"
             return
         end if
 
         n = expo%int_value()
         if (n == 0_int64) then
             why = "exponent 0: z**0 is 1 only away from z = 0, which is "// &
-                  "not decided here"
+                "not decided here"
             return
         end if
         if (abs(n) > MAX_POWER) then
@@ -244,7 +245,7 @@ contains
         base = e%arg(1)
         if (provably_zero(base)) then
             why = "the base of this negative power is identically "// &
-                  "zero, so the expression has no value anywhere"
+                "zero, so the expression has no value anywhere"
             return
         end if
         call complex_split(base, facts, base_re, base_im, ok, why)
@@ -272,7 +273,7 @@ contains
                 if (provably_zero(base_im)) then
                     ok = .false.
                     why = "the base of this negative power is identically "// &
-                          "zero, so the expression has no value anywhere"
+                        "zero, so the expression has no value anywhere"
                     return
                 end if
             end if
@@ -308,7 +309,7 @@ contains
         case ("exp", "sin", "cos")
         case default
             why = "no complex rule for head "//name// &
-                  " (only exp, sin and cos are split)"
+                " (only exp, sin and cos are split)"
             return
         end select
 
@@ -392,7 +393,7 @@ contains
         end if
 
         select case (e%kind())
-        case (NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, NK_BIG_RAT)
+        case (NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL)
             out = e
             ok = .true.
         case (NK_CONST)
@@ -406,12 +407,12 @@ contains
                 ok = .true.
             case default
                 why = "constant "//name//" is not known to be real, so its "// &
-                      "conjugate is not itself"
+                    "conjugate is not itself"
             end select
         case (NK_SYM)
             if (.not. facts%has(e, FACT_REAL)) then
                 why = "symbol "//chars(e%name())//" has unknown reality: "// &
-                      "its conjugate is not itself"
+                    "its conjugate is not itself"
                 return
             end if
             out = e
@@ -433,7 +434,7 @@ contains
             expo = e%arg(2)
             if (expo%kind() /= NK_INT) then
                 why = "non-integer exponent: conjugation does not commute "// &
-                      "with a power whose branch is unresolved"
+                    "with a power whose branch is unresolved"
                 return
             end if
             call conjugate(e%arg(1), facts, part, ok, why)
@@ -450,7 +451,7 @@ contains
             case ("exp", "sin", "cos")
             case default
                 why = "no conjugation rule for head "//name// &
-                      " (only exp, sin and cos commute here)"
+                    " (only exp, sin and cos commute here)"
                 return
             end select
             call conjugate(e%arg(1), facts, part, ok, why)
