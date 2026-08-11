@@ -1898,6 +1898,9 @@ contains
         case ("log")
             call exact_log_value(a, args(1), trig_constant, trig_constant_ok)
             if (trig_constant_ok) out = trig_constant
+        case ("log10")
+            call exact_log10_value(a, args(1), trig_constant, trig_constant_ok)
+            if (trig_constant_ok) out = trig_constant
         case ("atan2")
             call exact_atan2_value(a, args, trig_constant, trig_constant_ok)
             if (trig_constant_ok) out = trig_constant
@@ -2345,6 +2348,48 @@ contains
             end if
         end if
     end subroutine exact_log_value
+
+    subroutine exact_log10_value(a, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer(int64) :: numerator, denominator
+        integer(int64) :: numerator_power, denominator_power
+        logical :: exact, numerator_ok, denominator_ok
+        integer :: one_arg(1)
+
+        one_arg(1) = id
+        out = a%func("log10", one_arg)
+        ok = .false.
+        call exact_value(a, id, numerator, denominator, exact)
+        if (.not. exact) return
+        call power_of_ten_exponent(numerator, numerator_power, numerator_ok)
+        if (.not. numerator_ok) return
+        call power_of_ten_exponent(denominator, denominator_power, &
+            denominator_ok)
+        if (.not. denominator_ok) return
+        out = a%int(numerator_power - denominator_power)
+        ok = .true.
+    end subroutine exact_log10_value
+
+    subroutine power_of_ten_exponent(value, exponent, ok)
+        integer(int64), intent(in) :: value
+        integer(int64), intent(out) :: exponent
+        logical, intent(out) :: ok
+        integer(int64) :: remaining
+
+        remaining = value
+        exponent = 0_int64
+        ok = .false.
+        if (remaining < 1_int64) return
+        do while (remaining > 1_int64)
+            if (modulo(remaining, 10_int64) /= 0_int64) return
+            remaining = remaining/10_int64
+            exponent = exponent + 1_int64
+        end do
+        ok = .true.
+    end subroutine power_of_ten_exponent
 
     subroutine exact_loggamma_value(a, id, out, ok)
         type(arena_t), intent(inout) :: a

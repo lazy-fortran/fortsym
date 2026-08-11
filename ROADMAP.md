@@ -220,6 +220,8 @@ The native special-function fragment now also evaluates `loggamma` at positive
 integer and half-integer arguments, retaining poles and unsupported inputs.
 The half-integer branch uses the checked factorial formula through the bounded
 positive range, rather than handing those values back to an external engine.
+The native exact intrinsic fragment also recognizes rational powers of ten in
+`log10`, while non-powers and nonpositive arguments remain opaque.
 The native simplifier now also evaluates the exact principal inverse-function
 constants `asin(±1)`, `acos(0, ±1)`, and `atan(±1)`, plus `acosh(1)` and
 `atanh(0)`; symbolic and out-of-fragment inverse functions remain untouched.
