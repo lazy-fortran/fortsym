@@ -208,6 +208,47 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(expected=str(expected)):
                 self.assertEqual(str(native.simplify(actual)), str(expected))
 
+    def test_directed_domain_rules_match_oracle(self):
+        oracle_x = oracle.Symbol("domain_rule_x")
+        native_x = native.Symbol("domain_rule_x")
+        cases = [
+            (oracle.oo + 3, native.oo + 3),
+            (oracle.oo + (-oracle.oo), native.oo + (-native.oo)),
+            (oracle.oo * 0, native.oo * 0),
+            (oracle.oo * 2, native.oo * 2),
+            (oracle.oo * -2, native.oo * -2),
+            (oracle.oo**0, native.oo**0),
+            (oracle.oo**2, native.oo**2),
+            (oracle.oo**-2, native.oo**-2),
+            ((-oracle.oo)**2, (-native.oo)**2),
+            ((-oracle.oo)**3, (-native.oo)**3),
+            (oracle.zoo + 1, native.zoo + 1),
+            (oracle.zoo + oracle.zoo, native.zoo + native.zoo),
+            (oracle.zoo + oracle.oo, native.zoo + native.oo),
+            (oracle.zoo * 0, native.zoo * 0),
+            (oracle.zoo * 2, native.zoo * 2),
+            (oracle.zoo * oracle.oo, native.zoo * native.oo),
+            (oracle.zoo**0, native.zoo**0),
+            (oracle.zoo**2, native.zoo**2),
+            (oracle.zoo**-2, native.zoo**-2),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                self.assertEqual(str(native.simplify(actual)), str(expected))
+        for label, expected, actual in [
+            ("symbolic oo product", oracle.oo * oracle_x,
+             native.simplify(native.oo * native_x)),
+            ("symbolic zoo product", oracle.zoo * oracle_x,
+             native.simplify(native.zoo * native_x)),
+        ]:
+            with self.subTest(label=label):
+                expected_text = str(expected)
+                actual_text = str(actual)
+                self.assertEqual(
+                    oracle.sympify(actual_text, locals=self.locals),
+                    oracle.sympify(expected_text, locals=self.locals),
+                )
+
     def test_expand_cache_matches_oracle_and_invalidates_on_assumptions(self):
         oracle_x = oracle.Symbol("differential_expand_cache_x")
         native_x = native.Symbol("differential_expand_cache_x")
