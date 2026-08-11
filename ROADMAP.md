@@ -414,6 +414,15 @@ Every checklist item requires all of the following:
     same implementation. The immutable Python result is cached; its warm-core
     benchmark row is enforced, while the one-node cold call is recorded as a
     conversion-dominated diagnostic rather than a native algorithm claim.
+  - [x] Add the exact-domain `Expr.is_algebraic` predicate through the same
+    native predicate owner. Exact integer, rational, and FLINT algebraic atoms,
+    `I`, exact rational powers such as `sqrt(2)`, and the native algebraic
+    assumption closure return `True`; proven transcendental constants and
+    supported transcendental heads return `False`, while machine reals and
+    unresolved symbols remain `None`. The Fortran facade, C ABI, Python
+    adapter, `algebraic=True`, differential cases, and warm benchmark row all
+    use one implementation; SymPy's separate `Q.algebraic` handler remains a
+    later compatibility step rather than an adapter-only approximation.
 - [ ] Support local contexts, global convenience assumptions, scoped context
   managers in Python, and immutable explicit contexts in Fortran.
   - [x] Add nested native context push/pop with exception-safe Python
@@ -596,12 +605,12 @@ Every checklist item requires all of the following:
     expression owner. The cache preserves the raw low-level `Expr.diff` and
     C-ABI contract; the SymPy adapter now matches SymPy's repeated-derivative
     reuse and is faster in both matched cold and warm scopes.
-  - [x] Run the enforced 51-workload cold/warm parity matrix with a fresh
+  - [x] Run the enforced 52-workload cold/warm parity matrix with a fresh
     native C-ABI arena per workload; every declared workload, including
-    differentiation, rational/integer assumptions, and the warm numeric
-    predicate query, is at or below the SymPy 1.14.0 median in the recorded
-    run. The cold numeric-predicate call remains a documented ABI-crossing
-    diagnostic.
+    differentiation, rational/integer assumptions, and the warm numeric and
+    algebraic predicate queries, is at or below the SymPy 1.14.0 median in the
+    recorded run. The cold predicate calls remain documented ABI-crossing
+    diagnostics.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

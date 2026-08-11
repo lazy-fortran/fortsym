@@ -53,6 +53,7 @@ enum fortsym_assumption_fact {
     FORTSYM_FACT_NONZERO = 8,
     FORTSYM_FACT_INTEGER = 16,
     FORTSYM_FACT_RATIONAL = 512,
+    FORTSYM_FACT_ALGEBRAIC = 1024,
     FORTSYM_FACT_ZERO = 64,
     FORTSYM_FACT_NEGATIVE = 128,
     FORTSYM_FACT_NONPOSITIVE = 256
@@ -158,6 +159,9 @@ int fortsym_expr_kind(const fortsym_expr *expression, int *kind,
  * numeric-only compound expressions, and zero for symbolic or Boolean ones. */
 int fortsym_expr_is_number(const fortsym_expr *expression, int *number,
                            char *message, size_t capacity);
+/* `verdict` uses enum fortsym_verdict: FORTSYM_ZERO_TRUE, FALSE, or UNKNOWN. */
+int fortsym_expr_is_algebraic(const fortsym_expr *expression, int *verdict,
+                              char *message, size_t capacity);
 int fortsym_expr_arity(const fortsym_expr *expression, size_t *arity,
                        char *message, size_t capacity);
 int fortsym_expr_argument(const fortsym_expr *expression, size_t index,

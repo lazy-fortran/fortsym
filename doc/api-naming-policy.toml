@@ -92,13 +92,13 @@ decision = "Keep relational constructors snake_case in the Fortran facade. Prese
 
 [[family]]
 id = "predicates"
-audit_concepts = ["identity-and-validity", "three-valued-query", "numeric-predicate"]
-canonical_native = ["is_valid", "same_arena", "is_number", "zero_test", "assumption_has", "VERDICT_UNKNOWN", "VERDICT_TRUE", "VERDICT_FALSE", "verdict_name"]
-current_native = ["is_valid", "same_arena", "is_number", "zero_test", "assumption_has", "VERDICT_UNKNOWN", "VERDICT_TRUE", "VERDICT_FALSE", "verdict_name"]
+audit_concepts = ["identity-and-validity", "three-valued-query", "numeric-predicate", "algebraic-predicate"]
+canonical_native = ["is_valid", "same_arena", "is_number", "is_algebraic", "zero_test", "assumption_has", "VERDICT_UNKNOWN", "VERDICT_TRUE", "VERDICT_FALSE", "verdict_name"]
+current_native = ["is_valid", "same_arena", "is_number", "is_algebraic", "zero_test", "assumption_has", "VERDICT_UNKNOWN", "VERDICT_TRUE", "VERDICT_FALSE", "verdict_name"]
 transition_aliases = []
 python_facade = []
-sympy_adapter = ["Expr.is_number", "Expr.is_rational", "Expr.is_integer", "Expr.is_zero", "Expr.is_nonzero", "Expr.is_real", "Expr.is_positive", "Expr.is_nonnegative", "Expr.is_negative", "Expr.is_nonpositive"]
-decision = "Keep structural and safety predicates in one predicate vocabulary. Expose is_number as the native numeric-expression query, zero_test as the native three-valued query, and assumption_has as the native fact query; the SymPy adapter maps them to the standard Expr predicate properties. Keep check_zero, check_identity, and probe_zero in the testing owner."
+sympy_adapter = ["Expr.is_number", "Expr.is_algebraic", "Expr.is_rational", "Expr.is_integer", "Expr.is_zero", "Expr.is_nonzero", "Expr.is_real", "Expr.is_positive", "Expr.is_nonnegative", "Expr.is_negative", "Expr.is_nonpositive"]
+decision = "Keep structural and safety predicates in one predicate vocabulary. Expose is_number and is_algebraic as native expression queries, zero_test as the native three-valued query, and assumption_has as the native fact query; the SymPy adapter maps them to the standard Expr predicate properties. Keep SymPy's separate Q.algebraic handler for a later compatibility step, and keep check_zero, check_identity, and probe_zero in the testing owner."
 
 [[family]]
 id = "results-and-status"

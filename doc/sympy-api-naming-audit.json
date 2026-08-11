@@ -463,6 +463,18 @@
       "sympy_reference": []
     },
     {
+      "action": "Keep exact-domain classification in fortsym_predicates and do not duplicate it in the C ABI or Python adapter. Add Q.algebraic only after its distinct SymPy handler semantics are covered.",
+      "description": "Ask whether an expression is algebraic.",
+      "finding": "The native predicate owner classifies the supported exact algebraic fragment once; the Python adapter preserves SymPy's tri-state Expr.is_algebraic spelling.",
+      "fortran_facade": [
+        "is_algebraic"
+      ],
+      "id": "algebraic-predicate",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    },
+    {
       "action": "Reuse one result type across facade operations and zero queries instead of adding operation-specific status vocabularies.",
       "description": "Return one common result for native expression operations.",
       "finding": "The easy facade and native engine share engine_result_t for expression values, success, verdicts, timings, and diagnostics.",
@@ -791,6 +803,10 @@
         "name": "algebraic_expr"
       },
       {
+        "concepts": [],
+        "name": "algebraic_valued"
+      },
+      {
         "concepts": [
           "arena-and-expression"
         ],
@@ -1059,6 +1075,12 @@
           "assumption-queries"
         ],
         "name": "integer_valued"
+      },
+      {
+        "concepts": [
+          "algebraic-predicate"
+        ],
+        "name": "is_algebraic"
       },
       {
         "concepts": [
@@ -1549,13 +1571,15 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 172,
-    "concept_groups": 28,
-    "fortran_facade_exports": 134,
+    "assigned_names": 173,
+    "concept_groups": 29,
+    "fortran_facade_exports": 136,
     "python_facade_exports": 12,
     "sympy_adapter_exports": 84,
-    "unmapped_fortran_exports": 0
+    "unmapped_fortran_exports": 1
   },
   "sympy_version": "1.14.0",
-  "unmapped_fortran_exports": []
+  "unmapped_fortran_exports": [
+    "algebraic_valued"
+  ]
 }

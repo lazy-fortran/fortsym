@@ -14,13 +14,12 @@ module fortsym
         operator(/), operator(**), operator(==), operator(/=)
     use fortsym_relation, only: equal, unequal, less, less_equal, greater, &
         greater_equal
-    use fortsym_predicates, only: is_number
+    use fortsym_predicates, only: is_number, is_algebraic
     use fortsym_subs, only: subs_impl => subs
     use fortsym_assume, only: assumption_context_t, &
         make_assumption_context, with_assumption, zero, negative, nonpositive, &
         positive, nonnegative, nonzero, real_valued, rational_valued, &
-        integer_valued, &
-        positive_integer
+        integer_valued, positive_integer, algebraic_valued
     use fortsym_numeric, only: numeric_value, numeric_text, &
         numeric_precision_text, numeric_complex_text, &
         numeric_real_text_t, numeric_complex_text_t, numeric_callable_t
@@ -49,10 +48,10 @@ module fortsym
         func, func_in, partial, equal, unequal, less, less_equal, greater, &
         greater_equal, pi_expr, e_expr, i_expr, oo_expr, zoo_expr, nan_expr, &
         is_valid, same_arena
-    public :: is_number
+    public :: is_number, is_algebraic
     public :: assumption_context_t, make_assumption_context, with_assumption, &
         zero, negative, nonpositive, positive, nonnegative, nonzero, real_valued, &
-        rational_valued, integer_valued, positive_integer
+        rational_valued, integer_valued, positive_integer, algebraic_valued
     public :: str, chars
     public :: subs, diff, simplify, refine, expand, factor
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand

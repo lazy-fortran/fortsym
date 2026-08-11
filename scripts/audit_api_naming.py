@@ -203,6 +203,13 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "Keep numeric-expression classification in fortsym_predicates and do not duplicate it in the C ABI or Python adapter.",
         ),
         concept(
+            "algebraic-predicate",
+            "Ask whether an expression is algebraic.",
+            ["is_algebraic"], [], [], [],
+            "The native predicate owner classifies the supported exact algebraic fragment once; the Python adapter preserves SymPy's tri-state Expr.is_algebraic spelling.",
+            "Keep exact-domain classification in fortsym_predicates and do not duplicate it in the C ABI or Python adapter. Add Q.algebraic only after its distinct SymPy handler semantics are covered.",
+        ),
+        concept(
             "operation-results",
             "Return one common result for native expression operations.",
             ["engine_result_t"], [], [], [],

@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 11). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 12). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, and differentiation. The native library retains an
 arena while any expression handle refers to it; callers may therefore release
@@ -20,9 +20,18 @@ relations return zero. The query is owned by `fortsym_predicates:is_number` in
 the native predicate module and does not duplicate classification in the ABI
 or Python adapter.
 
+`fortsym_expr_is_algebraic` reports the exact-domain query using the same
+three-valued `enum fortsym_verdict` as `fortsym_zero_test`: exact integers,
+rationals, FLINT algebraic atoms, and supported exact algebraic compounds
+return `FORTSYM_ZERO_TRUE`; proven transcendental values return
+`FORTSYM_ZERO_FALSE`; and unresolved values return `FORTSYM_ZERO_UNKNOWN`.
+The classification is owned by `fortsym_predicates:is_algebraic` and is not
+reimplemented in the ABI or Python adapter. `FORTSYM_FACT_ALGEBRAIC` is also
+accepted by the assumption APIs and closes over the native exact-domain facts.
+
 `fortsym_assumption_has` reports whether the arena proves one of the supported
-facts (`real`, `zero`, `negative`, `nonpositive`, `positive`, `nonnegative`, or
-`nonzero`) for an expression. Its `known` output is one for a proven fact and
+facts (`real`, `zero`, `negative`, `nonpositive`, `positive`, `nonnegative`,
+`nonzero`, or `algebraic`) for an expression. Its `known` output is one for a proven fact and
 zero for an unknown fact; absence is not a proof of the opposite predicate.
 
 `FORTSYM_CONFLICT` reports contradictory assumptions. Compound relation

@@ -1845,6 +1845,17 @@
       },
       {
         "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_expr_is_algebraic",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_expr_is_algebraic",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
           "native"
         ],
         "id": "fortsym_backend.BACKEND_PROTOCOL_VERSION",
@@ -3240,6 +3251,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym.is_algebraic",
+        "module": "fortsym",
+        "name": "is_algebraic",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym.assumption_context_t",
         "module": "fortsym",
         "name": "assumption_context_t",
@@ -3375,6 +3397,17 @@
         "id": "fortsym.positive_integer",
         "module": "fortsym",
         "name": "positive_integer",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.algebraic_valued",
+        "module": "fortsym",
+        "name": "algebraic_valued",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -4671,6 +4704,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_assume.algebraic_valued",
+        "module": "fortsym_assume",
+        "name": "algebraic_valued",
+        "owner": "src/core/fortsym_assume.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_assume.record_relation",
         "module": "fortsym_assume",
         "name": "record_relation",
@@ -4841,6 +4884,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_assume.FACT_ALGEBRAIC",
+        "module": "fortsym_assume",
+        "name": "FACT_ALGEBRAIC",
+        "owner": "src/core/fortsym_assume.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_assume_api.assumption_context_t",
         "module": "fortsym_assume_api",
         "name": "assumption_context_t",
@@ -4994,6 +5047,16 @@
         "id": "fortsym_assume_api.FACT_RATIONAL",
         "module": "fortsym_assume_api",
         "name": "FACT_RATIONAL",
+        "owner": "src/core/fortsym_assume_api.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_assume_api.FACT_ALGEBRAIC",
+        "module": "fortsym_assume_api",
+        "name": "FACT_ALGEBRAIC",
         "owner": "src/core/fortsym_assume_api.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -5614,6 +5677,16 @@
         "id": "fortsym_predicates.is_number",
         "module": "fortsym_predicates",
         "name": "is_number",
+        "owner": "src/core/fortsym_predicates.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_predicates.is_algebraic",
+        "module": "fortsym_predicates",
+        "name": "is_algebraic",
         "owner": "src/core/fortsym_predicates.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -7689,12 +7762,12 @@
     "classification_counts": {
       "delegated": 2481,
       "external": 10,
-      "facade": 175,
-      "native": 3132,
+      "facade": 178,
+      "native": 3139,
       "python-adapter": 2437,
       "refused": 25357
     },
-    "fortran_public_exports": 739,
+    "fortran_public_exports": 746,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

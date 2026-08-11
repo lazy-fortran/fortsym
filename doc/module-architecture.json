@@ -57,13 +57,18 @@
     },
     {
       "from": "capi",
+      "to": "algebra",
+      "uses": 1
+    },
+    {
+      "from": "capi",
       "to": "calculus",
       "uses": 1
     },
     {
       "from": "capi",
       "to": "core",
-      "uses": 4
+      "uses": 5
     },
     {
       "from": "capi",
@@ -107,6 +112,11 @@
     },
     {
       "from": "core",
+      "to": "algebra",
+      "uses": 1
+    },
+    {
+      "from": "core",
       "to": "calculus",
       "uses": 1
     },
@@ -123,12 +133,12 @@
     {
       "from": "core",
       "to": "engine",
-      "uses": 2
+      "uses": 3
     },
     {
       "from": "core",
       "to": "util",
-      "uses": 8
+      "uses": 9
     },
     {
       "from": "core",
@@ -272,12 +282,14 @@
         "fortsym_arena",
         "fortsym_assume",
         "fortsym_backend",
+        "fortsym_complexdom",
         "fortsym_engine",
         "fortsym_engine_native",
         "fortsym_expr",
         "fortsym_kernel",
         "fortsym_numeric",
         "fortsym_ode",
+        "fortsym_predicates",
         "fortsym_relation",
         "fortsym_string",
         "fortsym_subs"
@@ -772,6 +784,18 @@
     },
     {
       "dependencies": [
+        "fortsym_arena",
+        "fortsym_assume",
+        "fortsym_engine",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_predicates",
+      "owner": "core",
+      "path": "src/core/fortsym_predicates.f90"
+    },
+    {
+      "dependencies": [
         "fortsym_algebraic",
         "fortsym_arena",
         "fortsym_dialect",
@@ -807,10 +831,12 @@
       "dependencies": [
         "fortsym_arena",
         "fortsym_assume_api",
+        "fortsym_complexdom",
         "fortsym_diff",
         "fortsym_engine",
         "fortsym_engine_native",
         "fortsym_expr",
+        "fortsym_predicates",
         "fortsym_print",
         "fortsym_string",
         "fortsym_subs"
@@ -1022,11 +1048,11 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 303,
+    "internal_edges": 312,
     "module_file_mismatches": 0,
-    "module_units": 64,
-    "modules": 64,
-    "source_units": 65,
+    "module_units": 65,
+    "modules": 65,
+    "source_units": 66,
     "unknown_internal_dependencies": 0
   },
   "violations": {
