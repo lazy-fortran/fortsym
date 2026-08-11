@@ -31,18 +31,18 @@ module fortsym_integrate
     !   * squares of sin and cos with a linear argument, via the double-angle
     !     identities;
     !   * an exponential with a constant base and a linear exponent;
-    !   * 1/q and 1/sqrt(q) for a quadratic q with numeric coefficients, in the
-    !     arctangent and arcsine cases respectively.
+    !   * exact rational functions after partial-fraction decomposition, for
+    !     the factors whose resulting terms have an implemented primitive;
+    !     this includes repeated linear factors and irreducible quadratics in
+    !     the arctangent case.
     !
     ! What is refused, and why:
     !
-    !   * general rational functions. Hermite reduction (Bronstein, Symbolic
-    !     Integration I, 2005, ch. 2) needs polynomial gcd, squarefree
-    !     decomposition and a resultant-based logarithmic part; none of that
-    !     exists here, and half of Hermite is worse than none of it, so a
-    !     denominator that is not linear or a recognised quadratic is refused
-    !     rather than approached with partial fractions that would silently
-    !     drop the non-elementary part.
+    !   * rational functions whose exact Apart result still contains a
+    !     numerator/denominator shape outside the rule set. Hermite reduction
+    !     (Bronstein, Symbolic Integration I, 2005, ch. 2) and the general
+    !     Rothstein--Trager logarithmic part remain outside this bounded
+    !     fragment; the verifier refuses rather than dropping a term.
     !   * products of two non-exponential factors that both depend on the
     !     variable. There is no integration by parts and no substitution beyond
     !     the linear one.
@@ -68,6 +68,7 @@ module fortsym_integrate
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE, VERDICT_FALSE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_eval, only: binding_t, eval_expr, collect_free_symbols
+    use fortsym_poly, only: poly_apart
     implicit none
     private
 
@@ -106,10 +107,10 @@ contains
         character(:), allocatable, intent(out)   :: why
         type(expr_t)                             :: f
         type(native_engine_t) :: eng
-        type(expr_t) :: integrand, candidate
+        type(expr_t) :: integrand, candidate, apart_form
         type(engine_result_t) :: expanded
-        character(:), allocatable :: reason
-        logical :: found, good
+        character(:), allocatable :: reason, apart_reason
+        logical :: found, good, apart_ok
 
         ok = .false.
         why = ""
@@ -138,6 +139,13 @@ contains
         ! kind, and an unsimplified 2*(3*x**1) is a shape none of them match
         ! even though 6*x is.
         integrand = simplified(eng, e)
+        ! Put exact rational functions into partial fractions before the
+        ! ordinary rules see them. This is deliberately a best-effort bridge:
+        ! non-rational and unsupported rational shapes retain the original
+        ! expression and are refused by the verifier-backed rule set below.
+        call poly_apart(a, integrand, var, .true., apart_form, apart_ok, &
+            apart_reason)
+        if (apart_ok) integrand = simplified(eng, apart_form)
         ! Distribute bounded polynomial products before dispatching rules. The
         ! verifier still checks the final candidate, while the expansion
         ! exposes terms such as r*(r**2 + c) to the existing power rules.

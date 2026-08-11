@@ -47,6 +47,7 @@ program test_fortsym_integrate
     call test_elementary_functions()
     call test_linear_substitution()
     call test_atan_and_asin()
+    call test_partial_fractions()
     call test_symbolic_constant_factor()
     call test_negative_log_arguments()
     call test_log_dynamic_range()
@@ -239,6 +240,18 @@ contains
             1/sqrt(4 - x**2), 0.0_dp, 1.5_dp)
     end subroutine test_atan_and_asin
 
+    subroutine test_partial_fractions()
+        ! Apart is an algebraic transformation; Simpson is the independent
+        ! oracle for the resulting antiderivative. The first case has two
+        ! distinct real poles, and the second exercises a repeated factor.
+        call check_against_quadrature("int 1/(x**2-1) dx", 1/(x**2 - 1), &
+            0.0_dp, 0.8_dp)
+        call check_against_quadrature("int 1/(x-2)**2 dx", 1/(x - 2)**2, &
+            0.0_dp, 1.0_dp)
+        call check_against_quadrature("int (x+1)/(x**2-1) dx", &
+            (x + 1)/(x**2 - 1), 0.0_dp, 0.8_dp)
+    end subroutine test_partial_fractions
+
     !> A symbol other than the integration variable is a constant. y is bound
     !> to 2.5 on both sides of the comparison, so a factor of y that went
     !> missing shows up as a factor-of-2.5 discrepancy.
@@ -387,9 +400,9 @@ contains
         call refuses("int x*sin(x) dx", x*sin(x), "parts")
         ! Needs a general substitution.
         call refuses("int sin(x**2) dx", sin(x**2), "not linear")
-        ! Rational function with a real pole: partial fractions, not
-        ! implemented, so refused rather than half-done.
-        call refuses("int 1/(x**2-1) dx", 1/(x**2 - 1), "discriminant")
+        ! A rational term whose exact partial fractions still need a rule is
+        ! refused rather than being returned half-integrated.
+        call refuses("int 1/(x**2+1)**2 dx", 1/(x**2 + 1)**2, "quadratic")
         ! Symbolic exponent: -1 and everything else have different shapes.
         call refuses("int x**n dx", x**n, "symbolic exponent")
         ! Symbolic slope: y could be zero, and the symbolic check could not
