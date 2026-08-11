@@ -6,7 +6,7 @@ program test_fortsym_convenience
 
     type(arena_t), target :: explicit_arena
     type(arena_t), pointer :: default_storage
-    type(expr_t) :: mu, sigma, best, xi, literal
+    type(expr_t) :: x, mu, sigma, best, xi, literal
     type(expr_t) :: bulk_mu, bulk_sigma, bulk_best, bulk_xi
     type(expr_t) :: explicit_mu, explicit_sigma, explicit_best, explicit_xi
     type(expr_t) :: explicit_expression, default_expression, mixed
@@ -25,6 +25,7 @@ program test_fortsym_convenience
     explicit_expression = (explicit_best - explicit_xi - explicit_mu)/explicit_sigma
 
     call reset()
+    x = "x"
     mu = "mu"
     sigma = "sigma"
     best = "best"
@@ -32,7 +33,7 @@ program test_fortsym_convenience
     default_expression = (best - xi - mu)/sigma
 
     call check("character assignment creates a symbol", &
-        mu%kind() == NK_SYM, failures)
+        x%kind() == NK_SYM .and. chars(print_expr(x)) == "x", failures)
     literal = "x+y"
     call check("character assignment does not parse", &
         literal%kind() == NK_SYM, failures)
