@@ -427,6 +427,10 @@ Every checklist item requires all of the following:
 ## Phase 11 — performance, correctness, and release closure
 
 - [ ] Run the complete SymPy differential corpus for every supported module.
+  - [x] Run a bounded four-script SymPy, Mathics, and native corpus slice:
+    189 bindings produced 136 agreements, 33 declared differences, 10
+    oracle disagreements, and 12 oracle-missing cases, with no timeouts or
+    execution errors. The complete 384-script corpus remains open.
 - [ ] Run independent mathematical and numerical oracle suites for every
   algorithmic family.
 - [ ] Add branch-cut, singularity, domain, precision, malformed-input, and

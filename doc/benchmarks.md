@@ -85,6 +85,21 @@ is required for a known exception, and the waiver is recorded in the JSON
 report. The current default command is diagnostic. CI or a release benchmark
 uses `--enforce-parity` after selecting a pinned machine baseline.
 
+### Focused Wolfram corpus audit
+
+On 2026-08-11, fortsym revision `8ea637a` was checked against the public
+`fortsym-bench` revision `16985bcb` using SymPy, Mathics, and the native
+`fortsym-wl` backend. The bounded slice covered four scripts
+(`math6-1y.wl`, `math8y.wl`, `math10y.wl`, and `math11y.wl`), 189 bindings,
+and a 60-second per-binding timeout. It produced 136 agreements, 33 declared
+differences, 10 oracle disagreements, and 12 oracle-missing cases. There were
+no timeouts, backend errors, unsupported bindings, or translation failures.
+
+This is runner and coverage evidence only, not a parity claim: the full
+384-script corpus, independent oracle review, and performance gating remain
+open. The benchmark command intentionally returns a nonzero status when
+declared differences or oracle disagreements are present.
+
 `fo exec bench_native` writes CSV rows for warm, batched end-to-end native and
 SymEngine simplify, differentiation, and expansion calls. Each row includes a
 correctness result. This initial harness measures conversion and result
