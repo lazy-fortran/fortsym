@@ -117,6 +117,14 @@ Every checklist item requires all of the following:
   [`scripts/inventory_sympy_api.py`](scripts/inventory_sympy_api.py), recorded
   for SymPy 1.14.0 in [`doc/sympy-api-inventory.json`](doc/sympy-api-inventory.json).
   Inherited methods are resolved through the recorded class hierarchy.
+- [x] Classify every inventoried symbol and every Fortran public declaration
+  with the consistent multi-layer ownership policy in
+  [`scripts/classify_sympy_api.py`](scripts/classify_sympy_api.py) and
+  [`doc/sympy-api-classification.json`](doc/sympy-api-classification.json).
+  A supported compatibility name is recorded as `python-adapter`,
+  `delegated`, and `native` together; explicit or out-of-subset names are
+  `refused`, while native facades and external engines retain their own
+  `facade` and `external` layers.
 - [ ] Classify each item as `native`, `facade`, `python-adapter`, `external`,
   `delegated`, or `refused`.
 - [ ] Record semantic differences separately from implementation differences.
