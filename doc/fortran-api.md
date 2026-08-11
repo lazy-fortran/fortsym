@@ -180,6 +180,9 @@ The supported constructors are `real_valued`, `zero`, `negative`,
 `nonpositive`, `positive`, `nonnegative`, and `nonzero`. Sign facts close over
 their sound implications; nonnegative plus nonpositive infers zero, while
 contradictory facts are refused with an explanatory `ok`/diagnostic result.
+The native guarded simplifier uses these facts for `sqrt(x**2)` and `abs(x)`:
+positive/nonnegative values return `x`, negative/nonpositive values return
+`-x`, and zero returns `0`; unknown reality remains unevaluated.
 `simplify`, `refine`, `expand`, `factor`, `diff`, and `zero_test`
 accept the optional `assumptions=` context. `refine` is the named entry point
 for applying these supported facts; it shares guarded rewrite ownership with
