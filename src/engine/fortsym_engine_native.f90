@@ -1813,10 +1813,10 @@ contains
         integer                      :: out
         integer(int64) :: order, den
         integer(int64) :: factorial
-        integer(int64) :: pi_multiple
         logical :: exact
         logical :: factorial_ok
-        logical :: pi_multiple_ok
+        logical :: trig_constant_ok
+        integer :: trig_constant
         integer :: bessel_args(2), pair(2), one_arg(1)
 
         out = a%func(name, args)
@@ -1834,23 +1834,17 @@ contains
             call simplify_condition(a, name, args, out)
         case ("sin", "tan", "sinh", "tanh", "asin", "atan", "asinh")
             if (is_zero_id(a, args(1))) out = a%int(0_int64)
-            if (name == "sin") then
-                call integer_pi_multiple(a, args(1), pi_multiple, &
-                    pi_multiple_ok)
-                if (pi_multiple_ok) out = a%int(0_int64)
+            if (name == "sin" .or. name == "tan") then
+                call exact_trig_value(a, name, args(1), trig_constant, &
+                    trig_constant_ok)
+                if (trig_constant_ok) out = trig_constant
             end if
         case ("cos", "cosh", "exp")
             if (is_zero_id(a, args(1))) out = a%int(1_int64)
             if (name == "cos") then
-                call integer_pi_multiple(a, args(1), pi_multiple, &
-                    pi_multiple_ok)
-                if (pi_multiple_ok) then
-                    if (modulo(pi_multiple, 2_int64) == 0_int64) then
-                        out = a%int(1_int64)
-                    else
-                        out = a%int(-1_int64)
-                    end if
-                end if
+                call exact_trig_value(a, name, args(1), trig_constant, &
+                    trig_constant_ok)
+                if (trig_constant_ok) out = trig_constant
             end if
         case ("log")
             if (is_one_id(a, args(1))) out = a%int(0_int64)
@@ -2077,32 +2071,188 @@ contains
         decided = .true.
     end subroutine simplify_condition_value
 
-    !> Recognise n*pi without approximating pi. Only an integer coefficient is
-    !> accepted, so a symbolic or fractional multiple cannot be simplified by
-    !> this identity.
-    subroutine integer_pi_multiple(a, id, multiple, ok)
+    subroutine exact_trig_value(a, name, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        character(*), intent(in) :: name
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer(int64) :: numerator, denominator
+        integer :: sine, cosine
+        logical :: parts_ok
+
+        out = id
+        ok = .false.
+        if (name /= "sin" .and. name /= "cos" .and. name /= "tan") return
+        call rational_pi_multiple(a, id, numerator, denominator, parts_ok)
+        if (.not. parts_ok) return
+        call exact_sine_cosine(a, numerator, denominator, sine, cosine, &
+            parts_ok)
+        if (.not. parts_ok) return
+
+        select case (name)
+        case ("sin")
+            out = sine
+        case ("cos")
+            out = cosine
+        case ("tan")
+            if (is_zero_id(a, cosine)) return
+            out = mul_pair(a, sine, simplify_power(a, cosine, a%int(-1_int64)))
+        end select
+        ok = .true.
+    end subroutine exact_trig_value
+
+    subroutine exact_sine_cosine(a, numerator, denominator, sine, cosine, ok)
+        type(arena_t), intent(inout) :: a
+        integer(int64), intent(in) :: numerator, denominator
+        integer, intent(out) :: sine, cosine
+        logical, intent(out) :: ok
+        integer :: one(1), half, root2, root2_inverse, root3, half_root3
+        integer(int64) :: residue
+
+        sine = a%int(0_int64)
+        cosine = a%int(0_int64)
+        ok = .false.
+        half = a%rat(1_int64, 2_int64)
+        one(1) = a%int(2_int64)
+        root2 = a%func("sqrt", one)
+        root2_inverse = simplify_power(a, root2, a%int(-1_int64))
+        one(1) = a%int(3_int64)
+        root3 = a%func("sqrt", one)
+        half_root3 = mul_pair(a, root3, half)
+
+        select case (denominator)
+        case (1_int64)
+            residue = modulo(numerator, 2_int64)
+            if (residue == 0_int64) then
+                cosine = a%int(1_int64)
+            else
+                cosine = a%int(-1_int64)
+            end if
+        case (2_int64)
+            residue = modulo(numerator, 4_int64)
+            select case (residue)
+            case (0_int64)
+                cosine = a%int(1_int64)
+            case (1_int64)
+                sine = a%int(1_int64)
+            case (2_int64)
+                cosine = a%int(-1_int64)
+            case (3_int64)
+                sine = a%int(-1_int64)
+            end select
+        case (3_int64)
+            residue = modulo(numerator, 6_int64)
+            select case (residue)
+            case (0_int64)
+                cosine = a%int(1_int64)
+            case (1_int64)
+                sine = half_root3
+                cosine = half
+            case (2_int64)
+                sine = half_root3
+                cosine = a%rat(-1_int64, 2_int64)
+            case (3_int64)
+                cosine = a%int(-1_int64)
+            case (4_int64)
+                sine = mul_pair(a, a%int(-1_int64), half_root3)
+                cosine = a%rat(-1_int64, 2_int64)
+            case (5_int64)
+                sine = mul_pair(a, a%int(-1_int64), half_root3)
+                cosine = half
+            end select
+        case (4_int64)
+            residue = modulo(numerator, 8_int64)
+            select case (residue)
+            case (0_int64)
+                cosine = a%int(1_int64)
+            case (1_int64)
+                sine = root2_inverse
+                cosine = root2_inverse
+            case (2_int64)
+                sine = a%int(1_int64)
+            case (3_int64)
+                sine = root2_inverse
+                cosine = mul_pair(a, a%int(-1_int64), root2_inverse)
+            case (4_int64)
+                cosine = a%int(-1_int64)
+            case (5_int64)
+                sine = mul_pair(a, a%int(-1_int64), root2_inverse)
+                cosine = mul_pair(a, a%int(-1_int64), root2_inverse)
+            case (6_int64)
+                sine = a%int(-1_int64)
+            case (7_int64)
+                sine = mul_pair(a, a%int(-1_int64), root2_inverse)
+                cosine = root2_inverse
+            end select
+        case (6_int64)
+            residue = modulo(numerator, 12_int64)
+            select case (residue)
+            case (0_int64)
+                cosine = a%int(1_int64)
+            case (1_int64)
+                sine = half
+                cosine = half_root3
+            case (2_int64)
+                sine = half_root3
+                cosine = half
+            case (3_int64)
+                sine = a%int(1_int64)
+            case (4_int64)
+                sine = half_root3
+                cosine = a%rat(-1_int64, 2_int64)
+            case (5_int64)
+                sine = half
+                cosine = mul_pair(a, a%int(-1_int64), half_root3)
+            case (6_int64)
+                cosine = a%int(-1_int64)
+            case (7_int64)
+                sine = mul_pair(a, a%int(-1_int64), half)
+                cosine = mul_pair(a, a%int(-1_int64), half_root3)
+            case (8_int64)
+                sine = mul_pair(a, a%int(-1_int64), half_root3)
+                cosine = a%rat(-1_int64, 2_int64)
+            case (9_int64)
+                sine = a%int(-1_int64)
+            case (10_int64)
+                sine = mul_pair(a, a%int(-1_int64), half_root3)
+                cosine = half
+            case (11_int64)
+                sine = mul_pair(a, a%int(-1_int64), half)
+                cosine = half_root3
+            end select
+        case default
+            return
+        end select
+        ok = .true.
+    end subroutine exact_sine_cosine
+
+    !> Recognise q*pi without approximating pi. A symbolic coefficient or a
+    !> second transcendental factor is refused, so the exact root fragment
+    !> never guesses at an angle.
+    subroutine rational_pi_multiple(a, id, numerator, denominator, ok)
         type(arena_t), intent(in) :: a
         integer,       intent(in) :: id
-        integer(int64), intent(out) :: multiple
-        logical,        intent(out) :: ok
+        integer(int64), intent(out) :: numerator, denominator
+        logical, intent(out) :: ok
         integer :: k, factor
-        integer(int64) :: numerator, denominator, product
+        integer(int64) :: factor_numerator, factor_denominator
+        integer(int64) :: product_numerator, product_denominator
         logical :: exact, saw_pi, product_ok
 
-        multiple = 0_int64
+        numerator = 1_int64
+        denominator = 1_int64
         ok = .false.
         saw_pi = .false.
 
         if (a%kind_of(id) == NK_CONST) then
             if (chars(a%name_of(id)) == "pi") then
-                multiple = 1_int64
                 ok = .true.
             end if
             return
         end if
         if (a%kind_of(id) /= NK_MUL) return
 
-        multiple = 1_int64
         do k = 1, a%nargs_of(id)
             factor = a%arg_of(id, k)
             if (a%kind_of(factor) == NK_CONST) then
@@ -2115,15 +2265,18 @@ contains
                     cycle
                 end if
             end if
-            call exact_value(a, factor, numerator, denominator, exact)
+            call exact_value(a, factor, factor_numerator, factor_denominator, &
+                exact)
             if (.not. exact) return
-            if (denominator /= 1_int64) return
-            call checked_mul(multiple, numerator, product, product_ok)
+            call fraction_mul(numerator, denominator, factor_numerator, &
+                factor_denominator, product_numerator, product_denominator, &
+                product_ok)
             if (.not. product_ok) return
-            multiple = product
+            numerator = product_numerator
+            denominator = product_denominator
         end do
         ok = saw_pi
-    end subroutine integer_pi_multiple
+    end subroutine rational_pi_multiple
 
     !> Recognise i*q*pi without approximating pi. Integer and half-integer
     !> multiples are reduced exactly; other fractional multiples remain
