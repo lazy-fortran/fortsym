@@ -4582,13 +4582,39 @@ contains
         integer,       intent(in)    :: args(:)
         integer,       intent(out)   :: out
         logical,       intent(out)   :: applied
+        integer(int64) :: degree, order, denominator
         integer :: domain, direction
         integer :: y_domain, y_direction, x_domain, x_direction
+        logical :: exact_degree, exact_order
         logical :: known, contains_domain, has_zero
         logical :: y_known, y_contains_domain, y_has_zero
         logical :: x_known, x_contains_domain, x_has_zero
 
         applied = .false.
+        if (size(args) == 3) then
+            if (name /= "legendrep") return
+            call exact_value(a, args(1), degree, denominator, exact_degree)
+            if (.not. exact_degree .or. denominator /= 1_int64 .or. &
+                degree < 0_int64) return
+            call exact_value(a, args(2), order, denominator, exact_order)
+            if (.not. exact_order .or. denominator /= 1_int64 .or. &
+                order /= 0_int64) return
+            call classify_domain_id(a, args(3), domain, direction, known, &
+                contains_domain, has_zero)
+            if (.not. known .or. .not. contains_domain .or. has_zero) return
+            if (domain /= DOMAIN_OO .and. domain /= DOMAIN_ZOO) return
+            applied = .true.
+            if (degree == 0_int64) then
+                out = a%int(1_int64)
+            else if (domain == DOMAIN_ZOO) then
+                out = a%const("zoo")
+            else if (direction > 0 .or. modulo(degree, 2_int64) == 0_int64) then
+                out = a%const("oo")
+            else
+                out = signed_oo_node(a, -1)
+            end if
+            return
+        end if
         if (size(args) == 2) then
             select case (name)
             case ("atan2")

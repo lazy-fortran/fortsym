@@ -72,6 +72,7 @@ principal-square-root powers, direct domain-function simplification of
 simplification, and reciprocal-hyperbolic domain-head simplification embedded
 in a symbolic fourth-degree expression, directed-infinity `atan2` domain-head
 simplification, and Bessel infinity-domain simplification,
+Legendre infinity-domain simplification,
 and the principal
 `(-oo)**(3/2)` domain-power branch, relational
 and compound-assumption construction, factorization, and supported assumption

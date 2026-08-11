@@ -120,6 +120,10 @@ remain applied heads.
 The Bessel heads add `besselj(order, +/-oo)=0` and
 `besseli(order, oo)=oo`; negative-real `besseli` and complex-infinity cases
 remain applied heads.
+Native `legendrep(degree, order, argument)` keeps its Fortran spelling; the
+adapter's `legendre(degree, argument)` maps to order zero. Nonnegative integer
+degrees at `+/-oo` and `zoo` use the representable parity/domain rules, while
+other degrees and orders remain applied heads.
 
 The exact integer and rational fragment preserves canonical values through
 construction and native arithmetic. Exact complex or algebraic values remain a

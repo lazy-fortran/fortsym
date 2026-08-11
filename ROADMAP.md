@@ -155,7 +155,7 @@ Every checklist item requires all of the following:
   with [`scripts/audit_api_naming.py`](scripts/audit_api_naming.py) and
   [`doc/sympy-api-naming-audit.json`](doc/sympy-api-naming-audit.json).
   The audit covers all 124 `use fortsym` exports, all 12 native Python facade
-  exports, and all 78 `fortsym.sympy` adapter exports. It keeps the concise
+  exports, and all 79 `fortsym.sympy` adapter exports. It keeps the concise
   native vocabulary separate from the SymPy compatibility vocabulary and
   records the remaining canonical-name decisions for the next checklist item.
 - [x] Select canonical short names for constructors, functions, predicates,
@@ -337,6 +337,9 @@ Every checklist item requires all of the following:
   - [x] Add shared Bessel infinity rules and adapter names: `besselj(order,
     +/-oo)=0` and `besseli(order,oo)=oo`; negative-real `besseli` and
     complex-infinity cases remain explicit applied-head refusals.
+  - [x] Map SymPy's `legendre(degree, argument)` to the native `legendrep`
+    owner and add nonnegative integer degree/order-zero infinity rules;
+    symbolic, noninteger, and negative-degree cases remain refusals.
   - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
     non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.

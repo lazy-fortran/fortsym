@@ -29,7 +29,7 @@ does not import SymPy. Unsupported names raise
 | `real=True`, `zero=True`, `positive=True`, `nonnegative=True`, `nonzero=True`, `negative=True`, `nonpositive=True` | native arena facts; sign facts close to real/nonzero/zero implications and contradictory combinations raise `InconsistentAssumptions` |
 | `Q.real`, `Q.zero`, `Q.positive`, `Q.nonnegative`, `Q.nonzero`, `Q.negative`, `Q.nonpositive`, `ask`, `assuming`, `And` | nested, reversible assumption queries and transactional compound scopes backed by the native arena context; bounded relational facts are accepted in scopes |
 | `Add`, `Mul`, `Pow`, `Function` | native operator construction; `isinstance` checks use native node kinds |
-| `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`, `csch`, `sech`, `coth`, `erf`, `erfc`, `gamma`, `loggamma`, `factorial`, `besselj`, `besseli`, `asinh`, `acosh`, `atanh`, `exp`, `log`, `sqrt`, `Abs`, `sign`, `floor`, `ceiling` | native applied-function nodes; direct sentinel rules for the declared heads match SymPy where the result is representable, while accumulation-bound and pole-sensitive cases remain explicit refusals |
+| `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinh`, `cosh`, `tanh`, `csch`, `sech`, `coth`, `erf`, `erfc`, `gamma`, `loggamma`, `factorial`, `besselj`, `besseli`, `legendre`, `asinh`, `acosh`, `atanh`, `exp`, `log`, `sqrt`, `Abs`, `sign`, `floor`, `ceiling` | native applied-function nodes; direct sentinel rules for the declared heads match SymPy where the result is representable, while accumulation-bound and pole-sensitive cases remain explicit refusals |
 | `diff`, `Derivative` | native differentiation, including repeated variables; `evaluate=False` retains a typed wrapper with `.doit()` |
 | `subs`, `expand` | native substitution and expansion |
 | `Subs` | typed wrapper with `.doit()` for explicit `(old, new)` pairs |
@@ -44,6 +44,10 @@ For the Bessel heads, `besselj(order, +/-oo)` is zero and
 `besseli(order, oo)` is positive infinity; negative-real `besseli` and complex
 infinity remain applied heads because their result depends on unresolved order
 or direction.
+`legendre(degree, argument)` is the SymPy spelling for the native
+`legendrep(degree, 0, argument)` owner. Its infinity rules cover nonnegative
+integer degrees and order zero; symbolic, noninteger, and negative-degree cases
+remain applied heads.
 
 The compatibility layer guarantees native structural equality only for
 operations listed as construction or transformation above. Unsupported

@@ -453,6 +453,27 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(actual=str(actual)):
                 self.assertIsInstance(native.simplify(actual), native.Function)
 
+    def test_legendre_domain_heads_match_oracle(self):
+        cases = [
+            (oracle.legendre(2, oracle.oo), native.legendre(2, native.oo)),
+            (oracle.legendre(1, -oracle.oo),
+             native.legendre(1, -native.oo)),
+            (oracle.legendre(2, -oracle.oo),
+             native.legendre(2, -native.oo)),
+            (oracle.legendre(0, oracle.zoo),
+             native.legendre(0, native.zoo)),
+            (oracle.legendre(2, oracle.zoo),
+             native.legendre(2, native.zoo)),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                actual_parsed = oracle.sympify(
+                    str(native.simplify(actual)), locals=self.locals
+                )
+                self.assertEqual(actual_parsed, expected)
+        actual = native.legendre(native.Rational(1, 2), native.oo)
+        self.assertIsInstance(native.simplify(actual), native.Function)
+
     def test_gamma_domain_heads_match_oracle(self):
         cases = [
             (oracle.gamma(oracle.oo), native.gamma(native.oo)),
