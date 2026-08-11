@@ -721,10 +721,25 @@ contains
         r = engine%zero_test(sinh(x + y) - sinh(x)*cosh(y) - cosh(x)*sinh(y))
         call check("hyperbolic sine addition identity is decided zero", &
             r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(cosh(x)**2 - sinh(x)**2 - 1)
+        call check("hyperbolic Pythagorean identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(tanh(x + y) - (tanh(x) + tanh(y))/ &
+            (1 + tanh(x)*tanh(y)))
+        call check("hyperbolic tangent addition identity is decided zero", &
+            r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(tanh(x + y) - (tanh(x) + tanh(y))/ &
+            (1 - tanh(x)*tanh(y)))
+        call check("wrong hyperbolic tangent addition sign is rejected", &
+            r%verdict == VERDICT_FALSE)
         r = engine%zero_test(tan(x + y) - (tan(x) + tan(y))/ &
             (1 - tan(x)*tan(y)))
         call check("tangent addition identity is decided zero", &
             r%verdict == VERDICT_TRUE)
+        r = engine%zero_test(tan(x + y) - (tan(x) + tan(y))/ &
+            (1 + tan(x)*tan(y)))
+        call check("complex tangent boundary remains unknown", &
+            r%verdict == VERDICT_UNKNOWN)
         r = engine%zero_test(sin(x) + cos(x))
         call check("unproved trigonometric nonidentity remains unknown", &
             r%verdict == VERDICT_UNKNOWN)
