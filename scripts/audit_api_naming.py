@@ -207,7 +207,7 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "Ask whether an expression is algebraic.",
             ["is_algebraic"], [], [], [],
             "The native predicate owner classifies the supported exact algebraic fragment once; the Python adapter preserves SymPy's tri-state Expr.is_algebraic spelling.",
-            "Keep exact-domain classification in fortsym_predicates and do not duplicate it in the C ABI or Python adapter. Add Q.algebraic only after its distinct SymPy handler semantics are covered.",
+            "Keep exact-domain classification in fortsym_predicates and do not duplicate it in the C ABI or Python adapter. Keep Q.algebraic dispatcher-only adjustments at the compatibility edge.",
         ),
         concept(
             "operation-results",

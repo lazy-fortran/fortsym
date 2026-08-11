@@ -463,7 +463,7 @@
       "sympy_reference": []
     },
     {
-      "action": "Keep exact-domain classification in fortsym_predicates and do not duplicate it in the C ABI or Python adapter. Add Q.algebraic only after its distinct SymPy handler semantics are covered.",
+      "action": "Keep exact-domain classification in fortsym_predicates and do not duplicate it in the C ABI or Python adapter. Keep Q.algebraic dispatcher-only adjustments at the compatibility edge.",
       "description": "Ask whether an expression is algebraic.",
       "finding": "The native predicate owner classifies the supported exact algebraic fragment once; the Python adapter preserves SymPy's tri-state Expr.is_algebraic spelling.",
       "fortran_facade": [

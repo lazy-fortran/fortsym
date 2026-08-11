@@ -65,6 +65,12 @@ _ASSUMPTION_FACTS = {
     "nonzero": 8,
 }
 
+_ALGEBRAIC_FACTS = _FACT_ALGEBRAIC | _FACT_INTEGER | _FACT_RATIONAL
+_Q_ALGEBRAIC_UNDECIDED_HEADS = frozenset({
+    "gamma", "loggamma", "factorial", "besselj", "besseli",
+    "legendrep", "legendreq",
+})
+
 
 def _apply_assumptions(expression, assumptions):
     pending = []
@@ -106,6 +112,7 @@ class _AssumptionPredicate:
 class _AssumptionQueries:
     integer = _AssumptionPredicate("integer", _FACT_INTEGER)
     rational = _AssumptionPredicate("rational", _FACT_RATIONAL)
+    algebraic = _AssumptionPredicate("algebraic", _FACT_ALGEBRAIC)
     real = _AssumptionPredicate("real", 1)
     zero = _AssumptionPredicate("zero", 64)
     negative = _AssumptionPredicate("negative", 128)
@@ -118,6 +125,46 @@ class _AssumptionQueries:
 Q = _AssumptionQueries()
 
 
+def _ask_algebraic(expression):
+    """Match SymPy's Q.algebraic dispatch over the native result.
+
+    The native predicate owns the mathematical classification. These small
+    adapter checks preserve SymPy 1.14's dispatcher boundary: constructor
+    assumptions on symbols do not register a Q handler, while local Q facts
+    do; unsupported function heads remain undecided.
+    """
+    kind = expression.kind
+    if kind in (3, 12):
+        return True
+    if kind == 4 and expression._known_facts & _ALGEBRAIC_FACTS:
+        return None
+    if kind != 9:
+        return expression.is_algebraic
+
+    head = expression.name
+    arguments = expression.args
+    try:
+        if head == "sqrt":
+            for argument in arguments:
+                if (argument.kind == 4 and
+                        argument._known_facts & _ALGEBRAIC_FACTS):
+                    return None
+        value = expression.is_algebraic
+        if value is not False:
+            return value
+        for argument in arguments:
+            if argument.kind == 4:
+                return None
+            if argument.is_algebraic is False:
+                return None
+        if head in _Q_ALGEBRAIC_UNDECIDED_HEADS:
+            return None
+        return value
+    finally:
+        for argument in arguments:
+            argument.close()
+
+
 def ask(proposition):
     if not isinstance(proposition, _Assumption):
         raise TypeError("ask expects a Q fact")
@@ -125,6 +172,8 @@ def ask(proposition):
         return proposition.expression.is_integer
     if proposition.fact == _FACT_RATIONAL:
         return proposition.expression.is_rational
+    if proposition.fact == _FACT_ALGEBRAIC:
+        return _ask_algebraic(proposition.expression)
     return proposition.expression._assumption_fact(proposition.fact)
 
 
