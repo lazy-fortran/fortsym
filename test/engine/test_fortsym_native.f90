@@ -789,6 +789,18 @@ contains
         r = engine%simplify(abs(x))
         call check("native simplify preserves symbolic absolute value", &
             r%value%kind() == NK_FUNC)
+        r = engine%simplify(unary_function("sign", rat(arena, -2_int64, 3_int64)))
+        call check("native simplify evaluates exact rational sign", &
+            r%value == num(arena, -1_int64))
+        r = engine%simplify(unary_function("floor", rat(arena, -7_int64, 3_int64)))
+        call check("native simplify evaluates exact rational floor", &
+            r%value == num(arena, -3_int64))
+        r = engine%simplify(unary_function("ceiling", rat(arena, -7_int64, 3_int64)))
+        call check("native simplify evaluates exact rational ceiling", &
+            r%value == num(arena, -2_int64))
+        r = engine%simplify(unary_function("floor", x))
+        call check("native simplify preserves symbolic floor", &
+            r%value%kind() == NK_FUNC)
         r = engine%zero_test(exp(log(x)) - x)
         call check("exponential logarithm identity is decided zero", &
             r%verdict == VERDICT_TRUE)

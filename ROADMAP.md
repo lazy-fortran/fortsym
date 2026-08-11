@@ -197,6 +197,8 @@ and symbolic branch-sensitive roots remain untouched.
 Exact rational absolute values now canonicalize to nonnegative integers or
 rationals as well, while symbolic absolute values and the unrepresentable
 minimum signed integer retain their conservative forms.
+Exact rational `sign`, `floor`, and `ceiling` values now canonicalize directly,
+including negative nonintegral quotients; symbolic rounding remains opaque.
 The bounded limit polynomial helper also updates coefficient lists in place,
 removing its array-temporary warnings without changing its refusal or numeric
 limit behavior.
