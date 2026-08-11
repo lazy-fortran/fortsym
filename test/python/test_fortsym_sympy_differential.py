@@ -152,6 +152,24 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(assumption=assumption):
                 self.assert_equivalent(assumption, expected, native_cases[assumption])
 
+    def test_guarded_log_exp_matches_oracle(self):
+        def cases(api):
+            real = api.Symbol("differential_log_real", real=True)
+            nonzero = api.Symbol("differential_log_nonzero", nonzero=True)
+            unknown = api.Symbol("differential_log_unknown")
+            return {
+                "log_exp_real": api.simplify(api.log(api.exp(real))),
+                "exp_log_nonzero": api.simplify(api.exp(api.log(nonzero))),
+                "unknown_log_exp": api.simplify(api.log(api.exp(unknown))),
+                "unknown_exp_log": api.simplify(api.exp(api.log(unknown))),
+            }
+
+        oracle_cases = cases(oracle)
+        native_cases = cases(native)
+        for label, expected in oracle_cases.items():
+            with self.subTest(label=label):
+                self.assert_equivalent(label, expected, native_cases[label])
+
     def test_three_valued_zero_predicates(self):
         oracle_cases = self.predicate_cases(oracle)
         native_cases = self.predicate_cases(native)

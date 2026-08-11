@@ -69,6 +69,20 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(sp.simplify(sp.sqrt(zero**2)), sp.Integer(0))
         self.assertEqual(sp.simplify(sp.Abs(zero)), sp.Integer(0))
 
+        log_real = sp.Symbol("guarded_log_real", real=True)
+        log_nonzero = sp.Symbol("guarded_log_nonzero", nonzero=True)
+        unknown_log = sp.Symbol("guarded_log_unknown")
+        self.assertEqual(sp.simplify(sp.log(sp.exp(log_real))), log_real)
+        self.assertEqual(sp.simplify(sp.exp(sp.log(log_nonzero))), log_nonzero)
+        self.assertEqual(
+            str(sp.simplify(sp.log(sp.exp(unknown_log)))),
+            str(sp.log(sp.exp(unknown_log))),
+        )
+        self.assertEqual(
+            str(sp.simplify(sp.exp(sp.log(unknown_log)))),
+            str(sp.exp(sp.log(unknown_log))),
+        )
+
     def test_three_valued_zero_predicates(self):
         x = sp.Symbol("predicate_x")
         cases = [

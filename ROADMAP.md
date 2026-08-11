@@ -301,6 +301,8 @@ Every checklist item requires all of the following:
   - [x] Use the canonical `negative`, `nonpositive`, and `zero` facts in the
     existing guarded `sqrt` and `abs` rewrites. Negative and nonpositive real
     values become `-x`; zero becomes `0`; unknown reality remains unevaluated.
+  - [x] Add domain-guarded `log(exp(x))` for real `x` and `exp(log(x))` for
+    nonzero `x`; unsupported domain cases remain unevaluated.
 - [ ] Match SymPy branch conventions while preserving fortsym's refusal of
   unsafe identities.
 - [ ] Implement the general simplification families: `powsimp`, `powdenest`,

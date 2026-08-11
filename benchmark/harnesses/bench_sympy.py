@@ -94,7 +94,15 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
     oracle_y = oracle.Symbol(name_y)
     native_x = native.Symbol(name_x)
     native_y = native.Symbol(name_y)
-    names = {name_x: oracle_x, name_y: oracle_y, "abs": oracle.Abs}
+    composition_name = f"{label}_composition_{suffix}"
+    oracle_composition = oracle.Symbol(composition_name, real=True)
+    native_composition = native.Symbol(composition_name, real=True)
+    names = {
+        name_x: oracle_x,
+        name_y: oracle_y,
+        composition_name: oracle_composition,
+        "abs": oracle.Abs,
+    }
 
     expressions = {
         "expand": (
@@ -115,6 +123,14 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
         "refine": (
             oracle.sqrt(oracle_x**2),
             native.sqrt(native_x**2),
+            names,
+        ),
+        "composition": (
+            oracle.log(
+                oracle.exp(oracle_composition, evaluate=False),
+                evaluate=False,
+            ),
+            native.log(native.exp(native_composition)),
             names,
         ),
         "relation": (
@@ -142,7 +158,10 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
 
 
 def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any]:
-    x = engine.Symbol(f"{operation}_x_{suffix}")
+    if operation == "composition":
+        x = engine.Symbol(f"{operation}_x_{suffix}", real=True)
+    else:
+        x = engine.Symbol(f"{operation}_x_{suffix}")
     if operation == "expand":
         y = engine.Symbol(f"{operation}_y_{suffix}")
         expression = (x + y + 1) ** 4
@@ -157,6 +176,13 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.Q.positive(x)
     elif operation == "refine":
         expression = engine.sqrt(x**2)
+    elif operation == "composition":
+        if engine is oracle:
+            expression = engine.log(
+                engine.exp(x, evaluate=False), evaluate=False
+            )
+        else:
+            expression = engine.log(engine.exp(x))
     elif operation == "relation":
         expression = engine.Gt(x, 1)
     elif operation == "compound":
@@ -180,6 +206,9 @@ def correctness_cases() -> list[dict[str, Any]]:
             expected = oracle.diff(oracle_expression, names[f"check_x_fixed"])
             actual = native.diff(native_expression, native.Symbol("check_x_fixed"))
         elif operation == "simplify":
+            expected = oracle.simplify(oracle_expression)
+            actual = native.simplify(native_expression)
+        elif operation == "composition":
             expected = oracle.simplify(oracle_expression)
             actual = native.simplify(native_expression)
         elif operation == "assumption_query":
@@ -262,6 +291,9 @@ def benchmark_workload(
                 native_call = lambda: native.refine(
                     native_expression, native.Q.negative(native_x)
                 )
+            elif operation == "composition":
+                oracle_call = lambda: oracle.simplify(oracle_expression)
+                native_call = lambda: native.simplify(native_expression)
             elif operation == "relation":
                 oracle_x = oracle.Symbol("relation_x_warm")
                 native_x = native.Symbol("relation_x_warm")
@@ -290,6 +322,8 @@ def benchmark_workload(
                     return engine.ask(expression)
                 if operation == "refine":
                     return engine.refine(expression, engine.Q.negative(variable))
+                if operation == "composition":
+                    return engine.simplify(expression)
                 if operation == "relation":
                     return engine.Gt(variable, 1)
                 if operation == "compound":
@@ -347,7 +381,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "relation", "compound", "factor",
+        "expand", "differentiate", "simplify", "refine", "composition", "relation", "compound", "factor",
         "assumption_query"
     ):
         for scope in ("cold_end_to_end", "warm_core"):

@@ -22,12 +22,12 @@ it.
 | Differentiation | yes | yes | Yacas concrete method | memoization and domain-sensitive rules |
 | Multivariate symbolic partials | yes | opaque | opaque | function assumptions and rewrite rules |
 | JVP, VJP, gradient, and HVP | yes | verification | verification | consumer conformance corpus |
-| Simplification | partial | partial | partial | broader guarded elementary rewrites and polynomial normal form |
+| Simplification | partial: guarded `sqrt`/`abs` and real/nonzero-guarded `log`/`exp` compositions | partial | partial | broader guarded elementary rewrites and polynomial normal form |
 | Expansion | bounded multinomial | yes | Yacas concrete method | sparse polynomial expansion without the 100,000-term fast-path bound |
 | Zero decision | partial, with C/Python three-valued `is_zero` and `is_nonzero` | partial | weak simplify test | broader predicate inference and polynomial certificates |
 | Polynomial GCD and rational cancellation | no | partial, univariate | partial | multivariate domains |
 | Factor, apart, and together | no | no public operation | Yacas factor only | typed engine operations |
-| Assumptions and conditions | sign/zero facts, compound `And` ingestion, bounded relational sign facts, nested C/Python scopes, immutable Fortran contexts, `Q`/`ask` queries, `refine`, signed/zero guarded `sqrt` and `abs`, three-valued predicate properties, and conflict diagnostics | no public context | no public context | broader predicate inference and returned conditions |
+| Assumptions and conditions | sign/zero facts, compound `And` ingestion, bounded relational sign facts, nested C/Python scopes, immutable Fortran contexts, `Q`/`ask` queries, `refine`, signed/zero guarded `sqrt` and `abs`, real/nonzero-guarded `log`/`exp` composition, three-valued predicate properties, and conflict diagnostics | no public context | no public context | broader predicate inference and returned conditions |
 | Series and coefficient extraction | Taylor | C shim only | no public operation | Laurent series and singular points |
 | Linear and polynomial solve | scalar linear | no public operation | Yacas concrete method | univariate polynomial roots |
 | Integration | no | no generic operation | Yacas concrete method | rational integration first |
