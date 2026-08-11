@@ -56,6 +56,7 @@ program test_fortsym_diff
 
     call test_multivariate_partials()
     call test_legendre_derivative()
+    call test_reciprocal_derivatives()
 
     if (nfail /= 0) error stop 1
     print *, "test_fortsym_diff: all checks passed"
@@ -134,6 +135,58 @@ contains
         call check("Legendre Q derivative agrees with closed form", &
             abs(symbolic_value - numeric_value) < 1.0e-9_dp)
     end subroutine test_legendre_derivative
+
+    subroutine test_reciprocal_derivatives()
+        call check_reciprocal_derivative("csc")
+        call check_reciprocal_derivative("sec")
+        call check_reciprocal_derivative("cot")
+        call check_reciprocal_derivative("csch")
+        call check_reciprocal_derivative("sech")
+        call check_reciprocal_derivative("coth")
+    end subroutine test_reciprocal_derivatives
+
+    subroutine check_reciprocal_derivative(name)
+        character(*), intent(in) :: name
+        type(expr_t) :: argument, original, derivative
+        real(dp) :: left, right, reciprocal_step
+
+        reciprocal_step = 1.0e-6_dp
+        argument = 2*x + 0.3_dp
+        original = unary_function(name, argument)
+        derivative = diff(original, x)
+        symbolic_value = eval_expr(derivative, bindings, defined)
+        left = reciprocal_value(name, 2*(point - reciprocal_step) + 0.3_dp)
+        right = reciprocal_value(name, 2*(point + reciprocal_step) + 0.3_dp)
+        numeric_value = (right - left)/(2*reciprocal_step)
+        call check(name//" derivative is numerically defined", defined)
+        call check(name//" derivative agrees with finite difference", &
+            abs(symbolic_value - numeric_value) < 1.0e-8_dp)
+    end subroutine check_reciprocal_derivative
+
+    function unary_function(name, argument) result(e)
+        character(*), intent(in) :: name
+        type(expr_t), intent(in) :: argument
+        type(expr_t) :: e
+        type(expr_t) :: arguments(1)
+
+        arguments(1) = argument
+        e = func(name, arguments)
+    end function unary_function
+
+    pure function reciprocal_value(name, value) result(y)
+        character(*), intent(in) :: name
+        real(dp), intent(in) :: value
+        real(dp) :: y
+
+        select case (name)
+        case ("csc");  y = 1.0_dp/sin(value)
+        case ("sec");  y = 1.0_dp/cos(value)
+        case ("cot");  y = cos(value)/sin(value)
+        case ("csch"); y = 1.0_dp/sinh(value)
+        case ("sech"); y = 1.0_dp/cosh(value)
+        case ("coth"); y = cosh(value)/sinh(value)
+        end select
+    end function reciprocal_value
 
     pure function q1_closed(value) result(q1_value)
         real(dp), intent(in) :: value
