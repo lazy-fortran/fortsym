@@ -6,6 +6,7 @@ module fortsym_assume_api
     use fortsym_assume, only: assumption_context_t, &
         init_impl => init_assumption_context, record_impl => record_assumption, &
         relation_impl => record_relation, &
+        has_impl => assumption_has, &
         FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, &
         FACT_INTEGER, FACT_POSITIVE_INTEGER
     implicit none
@@ -13,6 +14,7 @@ module fortsym_assume_api
 
     public :: assumption_context_t, init_assumption_context, &
         record_assumption, record_relation, clone_assumption_context
+    public :: assumption_has
     public :: FACT_REAL, FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, &
         FACT_INTEGER, FACT_POSITIVE_INTEGER
 
@@ -48,5 +50,14 @@ contains
 
         child = parent
     end subroutine clone_assumption_context
+
+    subroutine assumption_has(context, expression, fact, known)
+        type(assumption_context_t), intent(in) :: context
+        type(expr_t),                intent(in) :: expression
+        integer,                     intent(in) :: fact
+        logical,                     intent(out) :: known
+
+        call has_impl(context, expression, fact, known)
+    end subroutine assumption_has
 
 end module fortsym_assume_api

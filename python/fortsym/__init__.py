@@ -21,6 +21,10 @@ _CVOID = ctypes.c_void_p
 _CHAR_PTR = ctypes.POINTER(ctypes.c_char)
 _SIZE = ctypes.c_size_t
 _I64 = ctypes.c_int64
+_FACT_REAL = 1
+_FACT_POSITIVE = 2
+_FACT_NONNEGATIVE = 4
+_FACT_NONZERO = 8
 
 
 class FortSymError(RuntimeError):
@@ -156,6 +160,12 @@ def _configure(lib):
         "fortsym_assume",
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.c_int, _CHAR_PTR, _SIZE],
+    )
+    lib.assumption_has = declare(
+        "fortsym_assumption_has",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.c_int, ctypes.POINTER(ctypes.c_int),
+         _CHAR_PTR, _SIZE],
     )
     lib.expr_free = declare("fortsym_expr_free", None, [_CVOID])
     lib.expr_kind = declare(
@@ -464,8 +474,21 @@ class Expr:
             raise FortSymError(status, _decode(message), "zero_test")
         return verdict.value
 
+    def _assumption_fact(self, fact):
+        known = ctypes.c_int()
+        message = _message()
+        status = self._lib.assumption_has(
+            self._arena._require(), self._require(), int(fact),
+            ctypes.byref(known), message, len(message)
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "assumption_has")
+        return True if known.value else None
+
     @property
     def is_zero(self):
+        if self._assumption_fact(_FACT_NONZERO) is True:
+            return False
         verdict = self._zero_verdict()
         if verdict == 1:
             return True
@@ -484,8 +507,22 @@ class Expr:
 
     @property
     def is_nonzero(self):
+        if self._assumption_fact(_FACT_NONZERO) is True:
+            return True
         zero = self.is_zero
         return None if zero is None else not zero
+
+    @property
+    def is_real(self):
+        return self._assumption_fact(_FACT_REAL)
+
+    @property
+    def is_positive(self):
+        return self._assumption_fact(_FACT_POSITIVE)
+
+    @property
+    def is_nonnegative(self):
+        return self._assumption_fact(_FACT_NONNEGATIVE)
 
     @property
     def kind(self):

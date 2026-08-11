@@ -10,7 +10,7 @@ program test_fortsym_native
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_ADD, NK_FUNC
     use fortsym_expr
-    use fortsym_assume, only: assumption_context_t, assume, positive, &
+    use fortsym_assume, only: assumption_context_t, assume, positive, nonzero, &
         record_relation, clone_assumption_context, FACT_POSITIVE, FACT_REAL, &
         FACT_INTEGER
     use fortsym_eval, only: binding_t, eval_expr
@@ -655,7 +655,7 @@ contains
     subroutine test_assumptions()
         type(native_engine_t) :: assumed_engine
         type(engine_result_t) :: r
-        type(expr_t) :: u
+        type(expr_t) :: u, z
 
         r = engine%zero_test(sqrt(x**2) - x)
         call check("sqrt(x^2)-x is unknown without a domain", &
@@ -669,6 +669,10 @@ contains
             r%verdict == VERDICT_TRUE)
         r = assumed_engine%zero_test(abs(x) - x)
         call check("positive x permits abs(x)=x", r%verdict == VERDICT_TRUE)
+
+        z = sym(arena, "z")
+        call assume(assumptions, nonzero(z))
+        call check("nonzero z implies real z", assumptions%has(z, FACT_REAL))
 
         u = x**2 + 1
         call assume(assumptions, positive(u))

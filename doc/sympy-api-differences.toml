@@ -19,11 +19,11 @@ difference = "Assumption inference and symbols() input and output forms are inte
 
 [[semantic]]
 id = "three-valued-predicates"
-affected = ["Expr", "is_zero", "is_nonzero"]
+affected = ["Expr", "is_zero", "is_nonzero", "is_real", "is_positive", "is_nonnegative"]
 parity = "partial"
 sympy = "SymPy exposes assumption-aware three-valued is_zero and is_nonzero properties on expressions."
-fortsym = "The adapter uses the native zero_test verdict plus a scalar-result guard to return True, False, or None for is_zero and is_nonzero."
-difference = "Only the native zero decision fragment is covered; the broader SymPy assumption vocabulary and inference rules remain incomplete."
+fortsym = "The adapter uses the native zero_test and assumption_has queries plus a scalar-result guard to return True, False, or None for the declared predicate properties."
+difference = "Only the four native assumption facts and the native zero decision fragment are covered; the broader SymPy assumption vocabulary and inference rules remain incomplete."
 
 [[semantic]]
 id = "exact-number-construction"
