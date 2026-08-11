@@ -192,14 +192,15 @@ runtime search path before loading the native library. The CUDA emitter probe
 uses a minimal host toolchain environment and exits cleanly when no device is
 available, while still compiling the generated CUDA source when `nvcc` exists.
 
-Issue #59 (Wolfram coverage against existing material) is in progress as of
-2026-08-10. The first real flux-pumping derivation measured 30 evaluated and
-20 explicitly refused top-level bindings. Bounded function-valued rules,
-canonical `Pattern[name, Blank[]]` matching, and real-valued `Table` ranges
-now raise the same run to 40 evaluated and 10 refused bindings, or 80%
-reachable coverage. The binding names and refusal diagnostics are recorded in
-`doc/wolfram-coverage-39.md`; the next gaps are definite integration and the
-numeric plotting path.
+Issue #59 (Wolfram coverage against existing material) is complete as of
+2026-08-11. The real flux-pumping derivation now measures 40 evaluated and 10
+explicitly refused top-level bindings, or 80% reachable coverage. Bounded
+function-valued rules, canonical `Pattern[name, Blank[]]` matching, and
+real-valued `Table` ranges were the evidence-led gap closures. The exact run
+was rerun successfully, the Wolfram frontend regression test passes, and the
+binding names and refusal diagnostics are recorded in
+`doc/wolfram-coverage-39.md`. Definite integration and numeric plotting remain
+named refusals for separate follow-up work.
 
 ## Performance contract
 
