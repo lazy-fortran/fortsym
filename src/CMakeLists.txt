@@ -40,6 +40,7 @@ target_sources(fortsym PRIVATE
     algebra/fortsym_linalg.f90
     algebra/fortsym_complexdom.f90
     algebra/fortsym_integrate.f90
+    algebra/fortsym_limits.f90
     algebra/fortsym_matrix.f90
     algebra/fortsym_poly.f90
     algebra/fortsym_polysolve.f90

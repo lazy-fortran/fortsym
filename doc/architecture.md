@@ -89,6 +89,12 @@ for symbols and refuses branch-sensitive or unknown-reality cases; the complex
 test oracle evaluates the original expression independently rather than
 reconstructing the expected parts from the splitter.
 
+The native limit layer proves continuity substitutions, bounded L'Hopital
+steps, polynomial degree ratios at infinity, and a restricted single-monomial
+growth ordering. It checks a full two-sided finite neighborhood before
+returning a value; one-sided behavior, poles, oscillation, and undecidable
+growth are explicit `UNKNOWN`/refusal outcomes.
+
 Fortran kernel emission uses the dialect's declared function map rather than
 passing symbolic heads through as identifiers. Standard intrinsics cover
 `erf`, `erfc`, `gamma`, `log_gamma`, `bessel_jn`, and `bessel_yn`; the default
