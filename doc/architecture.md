@@ -102,9 +102,13 @@ numeric ODEs remain explicit refusals.
 
 Complex-domain operations use one rectangular splitter for `Re`, `Im`,
 conjugation, `Arg`, `Abs`, and `ComplexExpand`. It requires explicit real facts
-for symbols and refuses branch-sensitive or unknown-reality cases; the complex
-test oracle evaluates the original expression independently rather than
-reconstructing the expected parts from the splitter.
+for symbols and refuses branch-sensitive or unknown-reality cases. Exact
+algebraic atoms are accepted when FLINT proves they are purely real or purely
+imaginary, and exact algebraic conjugation delegates to the same bridge. A
+mixed algebraic rectangular projection is refused until exact qqbar real and
+imaginary extraction is available. The complex test oracle evaluates the
+original expression independently rather than reconstructing the expected
+parts from the splitter.
 
 The native limit layer proves continuity substitutions, bounded L'Hopital
 steps, polynomial degree ratios at infinity, and a restricted single-monomial
