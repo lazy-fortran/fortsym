@@ -186,7 +186,10 @@ Every checklist item requires all of the following:
   lifetime explicit and tested. The contract covers reset before first use,
   repeated reset, generation-protected handle invalidation after index reuse,
   and the process-local single-threaded lifetime of the default arena.
-- [ ] Add the same procedures to explicit-arena usage without a second syntax.
+- [x] Add the same procedures to explicit-arena usage without a second syntax.
+  The facade dispatches from each `expr_t` owner, and the convenience test
+  exercises substitution, differentiation, simplification, expansion, and
+  factorisation in an independent explicit arena.
 - [ ] Define the one public three-valued query API and move assertion helpers
   behind a testing-oriented module.
 - [ ] Add consistent result/status types instead of operation-specific status
