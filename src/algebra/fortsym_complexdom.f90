@@ -43,7 +43,7 @@ module fortsym_complexdom
     use fortsym_arena, only: NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
         NK_BIG_REAL, NK_ALGEBRAIC
-    use fortsym_cache, only: expr_pair_cache_t
+    use fortsym_cache, only: expr_cache_t, expr_pair_cache_t
     use fortsym_expr, only: expr_t, num, algebraic_expr, i_expr, is_valid, &
         sin, cos, tan, sinh, cosh, tanh, exp, sqrt, atan2, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
@@ -506,14 +506,26 @@ contains
         character(:), allocatable,  intent(out) :: why
         type(expr_t) :: part, expo
         type(str_t) :: conjugated_text
+        type(expr_cache_t), pointer :: cache => null()
         character(:), allocatable :: name
-        integer :: k
+        integer :: k, cached_id
 
         ok = .false.
         why = ""
         if (.not. is_valid(e)) then
             why = "invalid expression has no conjugate"
             return
+        end if
+
+        if (allocated(facts%conjugate_cache)) then
+            cache => facts%conjugate_cache
+            if (cache%lookup(e%id, e%a%size(), e%a%generation_value(), &
+                cached_id)) then
+                out = e
+                out%id = cached_id
+                ok = .true.
+                return
+            end if
         end if
 
         select case (e%kind())
@@ -580,10 +592,10 @@ contains
                 return
             end if
             select case (name)
-            case ("exp", "sin", "cos", "sinh", "cosh", "tanh")
+            case ("exp", "sin", "cos", "sinh", "cosh", "tan", "tanh")
             case default
                 why = "no conjugation rule for head "//name// &
-                    " (only exp, sin, cos, sinh, cosh, and tanh commute here)"
+                    " (only exp, sin, cos, sinh, cosh, tan, and tanh commute here)"
                 return
             end select
             call conjugate(e%arg(1), facts, part, ok, why)
@@ -599,6 +611,8 @@ contains
                 out = sinh(part)
             case ("cosh")
                 out = cosh(part)
+            case ("tan")
+                out = tan(part)
             case ("tanh")
                 out = tanh(part)
             end select
@@ -606,6 +620,9 @@ contains
         case default
             why = "no conjugation rule for this node kind"
         end select
+        if (ok .and. associated(cache)) then
+            call cache%store(e%id, e%a%size(), e%a%generation_value(), out%id)
+        end if
     end subroutine conjugate
 
     !> |e| as sqrt(Re^2 + Im^2). Nonnegative and real by construction, and

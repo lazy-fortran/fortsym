@@ -130,6 +130,7 @@ contains
         case (10); e = func_one("sinh", z)
         case (11); e = func_one("cosh", z)
         case (12); e = func_one("tanh", z)
+        case (13); e = func_one("tan", z)
         case default
             ! nprobe() and this list are separate constants; an index outside
             ! the list must stop the run rather than hand back an expr_t that
@@ -139,7 +140,7 @@ contains
     end function probe
 
     integer function nprobe()
-        nprobe = 12
+        nprobe = 13
     end function nprobe
 
     !> Re[e] + i Im[e] must be e, numerically, at every sample point.
@@ -666,6 +667,7 @@ contains
     subroutine test_cache_is_context_local()
         type(assumption_context_t) :: empty_facts
         type(expr_t) :: first_re, first_im, second_re, second_im
+        type(expr_t) :: tangent, first_conjugate, second_conjugate
         logical :: good
         character(:), allocatable :: why
 
@@ -681,6 +683,18 @@ contains
         call empty_facts%init(arena)
         call complex_split(z, empty_facts, second_re, second_im, good, why)
         call ok("complex split cache does not cross contexts", .not. good)
+
+        tangent = func_one("tan", z)
+        call conjugate(tangent, facts, first_conjugate, good, why)
+        call ok("conjugate cache source succeeds", good)
+        if (good) then
+            call conjugate(tangent, facts, second_conjugate, good, why)
+            call ok("cached conjugate succeeds", good)
+            if (good) call ok("cached conjugate preserves the value", &
+                abs(at(second_conjugate, 1) - conjg(at(tangent, 1))) < TOL)
+        end if
+        call conjugate(tangent, empty_facts, second_conjugate, good, why)
+        call ok("conjugate cache does not cross contexts", .not. good)
     end subroutine test_cache_is_context_local
 
     ! ----------------------------------------------------- the oracle --

@@ -21,6 +21,8 @@ program bench_complexdom
     call benchmark_scope("warm", "tan_split")
     call benchmark_scope("cold", "tanh_split")
     call benchmark_scope("warm", "tanh_split")
+    call benchmark_scope("cold", "conjugate_tan")
+    call benchmark_scope("warm", "conjugate_tan")
     call benchmark_scope("cold", "conjugate_tanh")
     call benchmark_scope("warm", "conjugate_tanh")
 
@@ -65,7 +67,10 @@ contains
 
         started = wall_seconds()
         do i = 1, ITERATIONS
-            if (scope == "cold") call facts%complex_cache%clear()
+            if (scope == "cold") then
+                call facts%complex_cache%clear()
+                call facts%conjugate_cache%clear()
+            end if
             call run_workload(workload, i, facts, sinh_input, cosh_input, &
                 tan_input, tanh_input, re, im, ok, why)
             correct = correct .and. ok
@@ -97,6 +102,9 @@ contains
             call complex_split(tanh_input, facts, first, second, ok, why)
         case ("tan_split")
             call complex_split(tan_input, facts, first, second, ok, why)
+        case ("conjugate_tan")
+            call conjugate(tan_input, facts, first, ok, why)
+            second = first
         case ("conjugate_tanh")
             call conjugate(tanh_input, facts, first, ok, why)
             second = first
