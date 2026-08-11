@@ -90,7 +90,9 @@ including the representable `besseli(nan, -oo)` result; these are correctness
 cases rather than standalone timing rows for the same reason. The same report
 checks the high-degree `legendre(3, oo) = nan` boundary and the supported
 negative-integer identity cases. It also checks symbolic and integer
-`besseli(order, -oo)` phase boundaries.
+`besseli(order, -oo)` phase boundaries, normalized positive rational phases of
+`(-oo)**(p/q)`, and the zero result for negative rational exponents. These are
+correctness boundaries rather than standalone timing rows.
 
 Run it from a built checkout with:
 

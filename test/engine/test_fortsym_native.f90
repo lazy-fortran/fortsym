@@ -8,7 +8,7 @@ program test_fortsym_native
     !   * the resource-limit case asserts preservation, never a partial result.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str, chars
-    use fortsym_arena, only: arena_t, NK_ADD, NK_FUNC, NK_POW
+    use fortsym_arena, only: arena_t, NK_ADD, NK_FUNC
     use fortsym_expr
     use fortsym_assume, only: assumption_context_t, assume, zero, negative, &
         nonpositive, positive, nonnegative, nonzero, real_valued, &
@@ -1372,6 +1372,7 @@ contains
     subroutine test_noninteger_domain_powers()
         type(engine_result_t) :: r
         type(expr_t) :: infinity, complex_infinity, undefined, negative_infinity
+        type(expr_t) :: phase
 
         infinity = oo_expr(arena)
         complex_infinity = zoo_expr(arena)
@@ -1405,9 +1406,18 @@ contains
         r = engine%simplify(negative_infinity**rat(arena, 5_int64, 2_int64))
         call check("negative oo five-halves power is i*oo", &
             r%value == i_expr(arena)*infinity)
+        phase = num(arena, -1_int64)**rat(arena, 1_int64, 3_int64)
+        r = engine%simplify(negative_infinity**rat(arena, 1_int64, 3_int64))
+        call check("negative oo one-third power keeps the principal phase", &
+            r%value == infinity*phase)
+        phase = num(arena, -1_int64)**rat(arena, 2_int64, 3_int64)
         r = engine%simplify(negative_infinity**rat(arena, 2_int64, 3_int64))
-        call check("unsupported negative oo rational branch remains a power", &
-            r%value%kind() == NK_POW)
+        call check("negative oo two-thirds power keeps the principal phase", &
+            r%value == infinity*phase)
+        phase = num(arena, -1_int64)**rat(arena, 1_int64, 3_int64)
+        r = engine%simplify(negative_infinity**rat(arena, 4_int64, 3_int64))
+        call check("negative oo four-thirds power normalizes its sign", &
+            r%value == (-infinity)*phase)
         r = engine%simplify(undefined**rat(arena, 1_int64, 2_int64))
         call check("nan to a noninteger power is nan", r%value == undefined)
     end subroutine test_noninteger_domain_powers

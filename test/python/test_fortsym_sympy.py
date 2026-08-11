@@ -302,9 +302,16 @@ class SympySubsetTest(unittest.TestCase):
         for expression, expected in cases:
             with self.subTest(expression=str(expression)):
                 self.assertEqual(sp.simplify(expression), expected)
-        refused = sp.simplify((-sp.oo)**sp.Rational(2, 3))
-        self.assertIsInstance(refused, sp.Pow)
-        self.assertNotEqual(refused, sp.oo)
+        phase_cases = [
+            (sp.Rational(1, 3), "oo*(-1)**(1/3)"),
+            (sp.Rational(2, 3), "oo*(-1)**(2/3)"),
+            (sp.Rational(4, 3), "-oo*(-1)**(1/3)"),
+        ]
+        for exponent, expected in phase_cases:
+            with self.subTest(exponent=str(exponent)):
+                self.assertEqual(
+                    str(sp.simplify((-sp.oo)**exponent)), expected
+                )
 
     def test_direct_domain_heads(self):
         cases = [

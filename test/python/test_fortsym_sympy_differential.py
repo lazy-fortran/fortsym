@@ -402,6 +402,14 @@ class SympyDifferentialTest(unittest.TestCase):
              native.zoo**native.Rational(4, 3)),
             (oracle.zoo**oracle.Rational(-1, 2),
              native.zoo**native.Rational(-1, 2)),
+            ((-oracle.oo)**oracle.Rational(1, 3),
+             (-native.oo)**native.Rational(1, 3)),
+            ((-oracle.oo)**oracle.Rational(2, 3),
+             (-native.oo)**native.Rational(2, 3)),
+            ((-oracle.oo)**oracle.Rational(4, 3),
+             (-native.oo)**native.Rational(4, 3)),
+            ((-oracle.oo)**oracle.Rational(-1, 3),
+             (-native.oo)**native.Rational(-1, 3)),
         ]
         for expected, actual in cases:
             with self.subTest(expected=str(expected)):
@@ -418,11 +426,6 @@ class SympyDifferentialTest(unittest.TestCase):
                 oracle.sympify(actual_text, locals=self.locals),
                 oracle.sympify(expected_text, locals=self.locals),
             )
-        refused = native.simplify(
-            (-native.oo)**native.Rational(2, 3)
-        )
-        self.assertIsInstance(refused, native.Pow)
-        self.assertNotEqual(str(refused), "oo")
 
     def test_direct_domain_heads_match_oracle(self):
         cases = [

@@ -328,7 +328,11 @@ Every checklist item requires all of the following:
   - [x] Add the safe compact-rational power fragment: positive and negative
     rational powers of `oo`/`zoo` follow SymPy, and `(-oo)` powers with an odd
     half-integer exponent produce the principal `+/-i*oo` phase. Other
-    branch-sensitive rational powers remain explicit powers.
+    unsupported branch-sensitive rational powers remain explicit powers.
+  - [x] Extend the `-oo` rational-power boundary to positive non-half
+    exponents with SymPy's normalized principal phase,
+    `(-oo)**(p/q) = oo*(-1)**(p/q)` up to the corresponding real sign;
+    negative rational exponents remain `0`.
   - [x] Add direct domain rules for `sign`, `floor`, `ceiling`, `sinh`,
     `cosh`, and `tanh`, and expose those canonical names through the Python
     facade. Known sentinel results match SymPy 1.14.0; `sign(zoo)` remains
