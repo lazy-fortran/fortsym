@@ -240,9 +240,13 @@ Every checklist item requires all of the following:
       `fortsym_complexdom` handles exact real, pure-imaginary, and mixed atoms
       in `re_part` and `im_part` through FLINT's exact qqbar projections, and
       delegates exact algebraic conjugation to FLINT.
+    - [x] Add lossless parser/printer round trips for canonical `qqbar1`
+      atoms in the native and backend text dialects. The parser keeps the
+      payload opaque, then delegates validation and canonicalization to the
+      FLINT-backed arena constructor.
     - [ ] Extend algebraic values through full native simplification, then
-      complete the remaining complex-domain operations, parsing, conversion,
-      and code generation.
+      complete the remaining complex-domain operations, conversion, and code
+      generation.
 - [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
   undefined results.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
