@@ -168,8 +168,7 @@
         "atanh",
         "exp",
         "log",
-        "sqrt",
-        "Abs"
+        "sqrt"
       ],
       "sympy_reference": [
         "sin",
@@ -198,17 +197,17 @@
         "atanh",
         "exp",
         "log",
-        "sqrt",
-        "Abs"
+        "sqrt"
       ]
     },
     {
       "action": "Keep complex-domain algebra in one owner. Do not add native re/im aliases or duplicate projection logic in the adapters; translate only the SymPy spellings at the boundary.",
-      "description": "Project supported expressions into real, imaginary, conjugate, or principal-argument form.",
-      "finding": "The native facade keeps explicit snake_case names that describe the operation and its expression-valued result. The Python adapter uses SymPy's short compatibility names and routes all four operations to fortsym_complexdom.",
+      "description": "Project supported expressions into real, imaginary, modulus, conjugate, or principal-argument form.",
+      "finding": "The native facade keeps explicit snake_case names that describe the operation and its expression-valued result. The Python adapter uses SymPy's compatibility names and routes the supported complex-domain work to fortsym_complexdom, falling back to an unevaluated Abs head when reality is unknown.",
       "fortran_facade": [
         "re_part",
         "im_part",
+        "abs_of",
         "conjugate",
         "arg_of"
       ],
@@ -217,12 +216,14 @@
       "sympy_adapter": [
         "re",
         "im",
+        "Abs",
         "conjugate",
         "arg"
       ],
       "sympy_reference": [
         "re",
         "im",
+        "Abs",
         "conjugate",
         "arg"
       ]
@@ -746,6 +747,12 @@
           "elementary-functions"
         ],
         "name": "abs"
+      },
+      {
+        "concepts": [
+          "complex-domain-functions"
+        ],
+        "name": "abs_of"
       },
       {
         "concepts": [
@@ -1493,9 +1500,9 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 165,
+    "assigned_names": 166,
     "concept_groups": 27,
-    "fortran_facade_exports": 128,
+    "fortran_facade_exports": 129,
     "python_facade_exports": 12,
     "sympy_adapter_exports": 83,
     "unmapped_fortran_exports": 0

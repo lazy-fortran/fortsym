@@ -26,7 +26,7 @@ module fortsym
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
-        complex_arg_of => arg_of
+        complex_arg_of => arg_of, complex_abs_of => abs_of
     use fortsym_kernel, only: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     use fortsym_backend, only: BACKEND_PROTOCOL_VERSION, EXPRESSION_SCHEMA, &
         BACKEND_PROVED, BACKEND_DISPROVED, BACKEND_UNKNOWN, &
@@ -49,7 +49,7 @@ module fortsym
         zero, negative, nonpositive, positive, nonnegative, nonzero, real_valued
     public :: str, chars
     public :: subs, diff, simplify, refine, expand, factor
-    public :: re_part, im_part, conjugate, arg_of
+    public :: re_part, im_part, conjugate, arg_of, abs_of
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE, verdict_name
@@ -308,6 +308,8 @@ contains
             call complex_conjugate(expression, facts, value, ok, why)
         case (4)
             call complex_arg_of(expression, facts, value, ok, why)
+        case (5)
+            call complex_abs_of(expression, facts, value, ok, why)
         case default
             call report_failure(result, "complex operation: invalid operation")
             return
@@ -317,7 +319,9 @@ contains
             return
         end if
 
-        if (operation == 4) then
+        ! The branch-aware results need the native simplifier for canonical
+        ! principal-argument and modulus forms.
+        if (operation == 4 .or. operation == 5) then
             engine = make_native_engine(expression%a, facts)
             result = engine%simplify(value)
         else
@@ -363,6 +367,15 @@ contains
 
         result = complex_operation(expression, assumptions, 4)
     end function arg_of
+
+    !> Return the modulus under the supported complex-domain rules.
+    function abs_of(expression, assumptions) result(result)
+        type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
+        type(engine_result_t) :: result
+
+        result = complex_operation(expression, assumptions, 5)
+    end function abs_of
 
     !> Assigning text creates one symbol in the default arena. Text is never
     !> parsed as an expression.

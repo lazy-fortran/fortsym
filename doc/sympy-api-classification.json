@@ -3459,6 +3459,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym.abs_of",
+        "module": "fortsym",
+        "name": "abs_of",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym.kernel_spec_t",
         "module": "fortsym",
         "name": "kernel_spec_t",
@@ -7571,12 +7582,12 @@
     "classification_counts": {
       "delegated": 2472,
       "external": 10,
-      "facade": 168,
-      "native": 3112,
+      "facade": 169,
+      "native": 3113,
       "python-adapter": 2428,
       "refused": 25366
     },
-    "fortran_public_exports": 728,
+    "fortran_public_exports": 729,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

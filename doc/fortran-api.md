@@ -152,8 +152,8 @@ named refusal. `print_expr` displays the canonical payload, and the
 native/backend text parsers accept it as one opaque lossless token; it is not a
 Fortran source literal.
 
-The lower-level `fortsym_complexdom` module provides `re_part`, `im_part`, and
-`conjugate` with an explicit assumption context. Algebraic atoms are accepted
+The lower-level `fortsym_complexdom` module provides `re_part`, `im_part`,
+`abs_of`, and `conjugate` with an explicit assumption context. Algebraic atoms are accepted
 there through FLINT's exact real and imaginary projections, and conjugation is
 exact. Structural conjugation commutes with the supported heads `exp`, `sin`,
 `cos`, `sinh`, `cosh`, `tan`, and `tanh` wherever they are defined. Rectangular
@@ -167,10 +167,10 @@ remains in the result to preserve pointwise poles. The same branch and reality
 refusals apply to other unsupported expressions.
 
 The main `fortsym` facade exposes the same owner as `re_part`, `im_part`,
-`conjugate`, and `arg_of`, each returning the common `engine_result_t`. The
+`abs_of`, `conjugate`, and `arg_of`, each returning the common `engine_result_t`. The
 facade creates a local assumption context when none is supplied, while an
 explicit context must belong to the expression's arena. The C ABI and
-`fortsym.sympy` adapter provide the corresponding `re`/`im`/`conjugate`/`arg`
+`fortsym.sympy` adapter provide the corresponding `re`/`im`/`Abs`/`conjugate`/`arg`
 boundary and preserve the complex-domain refusal diagnostics.
 
 `real_text_expr` retains a bounded finite decimal literal as `NK_BIG_REAL`.

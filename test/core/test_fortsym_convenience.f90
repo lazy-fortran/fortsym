@@ -109,6 +109,14 @@ program test_fortsym_convenience
     result = arg_of(num(default_storage, -1_int64))
     call check("facade exposes the principal argument", &
         result%ok .and. result%value == pi_expr(default_storage), failures)
+    result = abs_of(i_expr(default_storage))
+    call check("facade exposes the complex modulus", &
+        result%ok .and. result%value == num(default_storage, 1_int64), failures)
+    result = abs_of(num(default_storage, 2_int64) + i_expr(default_storage))
+    call check("complex modulus keeps exact rectangular values", &
+        result%ok .and. result%value == sqrt(num(default_storage, 5_int64)), failures)
+    result = abs_of(mu)
+    call check("native complex modulus refuses unknown reality", .not. result%ok, failures)
     result = re_part(mu)
     call check("facade refuses unknown complex reality", .not. result%ok, failures)
     result = subs(explicit_mu + explicit_sigma, explicit_mu, explicit_sigma)
