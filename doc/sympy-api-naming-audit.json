@@ -288,6 +288,22 @@
       ]
     },
     {
+      "action": "Keep zero_test as the only user-facing zero query and reuse the engine verdict constants rather than adding check_* sisters.",
+      "description": "Ask whether an expression is zero without guessing.",
+      "finding": "The native facade has one zero query with TRUE, FALSE, and UNKNOWN outcomes. Assertion and numeric-probe helpers remain in fortsym_check.",
+      "fortran_facade": [
+        "zero_test",
+        "VERDICT_UNKNOWN",
+        "VERDICT_TRUE",
+        "VERDICT_FALSE",
+        "verdict_name"
+      ],
+      "id": "three-valued-query",
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
+    },
+    {
       "action": "Keep them in a numeric module with one naming family.",
       "description": "Evaluate or inspect numeric values.",
       "finding": "These are fortsym-specific inspection and callback concepts, not SymPy root aliases.",
@@ -512,6 +528,24 @@
           "node-kinds"
         ],
         "name": "NK_SYM"
+      },
+      {
+        "concepts": [
+          "three-valued-query"
+        ],
+        "name": "VERDICT_FALSE"
+      },
+      {
+        "concepts": [
+          "three-valued-query"
+        ],
+        "name": "VERDICT_TRUE"
+      },
+      {
+        "concepts": [
+          "three-valued-query"
+        ],
+        "name": "VERDICT_UNKNOWN"
       },
       {
         "concepts": [
@@ -950,6 +984,18 @@
           "elementary-functions"
         ],
         "name": "tanh"
+      },
+      {
+        "concepts": [
+          "three-valued-query"
+        ],
+        "name": "verdict_name"
+      },
+      {
+        "concepts": [
+          "three-valued-query"
+        ],
+        "name": "zero_test"
       }
     ],
     "python_facade": [
@@ -1025,9 +1071,9 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 104,
-    "concept_groups": 20,
-    "fortran_facade_exports": 90,
+    "assigned_names": 109,
+    "concept_groups": 21,
+    "fortran_facade_exports": 95,
     "python_facade_exports": 12,
     "sympy_adapter_exports": 41,
     "unmapped_fortran_exports": 0

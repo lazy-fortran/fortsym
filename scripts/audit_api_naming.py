@@ -155,6 +155,14 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "Keep them out of the SymPy adapter unless a defined SymPy behavior exists.",
         ),
         concept(
+            "three-valued-query",
+            "Ask whether an expression is zero without guessing.",
+            ["zero_test", "VERDICT_UNKNOWN", "VERDICT_TRUE", "VERDICT_FALSE", "verdict_name"],
+            [], [], [],
+            "The native facade has one zero query with TRUE, FALSE, and UNKNOWN outcomes. Assertion and numeric-probe helpers remain in fortsym_check.",
+            "Keep zero_test as the only user-facing zero query and reuse the engine verdict constants rather than adding check_* sisters.",
+        ),
+        concept(
             "numeric-inspection",
             "Evaluate or inspect numeric values.",
             ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_complex_text",

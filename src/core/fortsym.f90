@@ -16,7 +16,8 @@ module fortsym
     use fortsym_numeric, only: numeric_value, numeric_text, &
         numeric_precision_text, numeric_complex_text, &
         numeric_complex_text_t, numeric_callable_t
-    use fortsym_engine, only: engine_result_t
+    use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
+        VERDICT_FALSE, verdict_name
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_backend, only: BACKEND_PROTOCOL_VERSION, EXPRESSION_SCHEMA, &
         BACKEND_PROVED, BACKEND_DISPROVED, BACKEND_UNKNOWN, &
@@ -33,6 +34,7 @@ module fortsym
     public :: expr_t, sym, num, rat, exact, real_expr, real_text_expr, const, &
         func, func_in, partial, pi_expr, e_expr, i_expr, is_valid, same_arena
     public :: subs, diff, simplify, expand, factor
+    public :: zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, verdict_name
     public :: numeric_value, numeric_text, numeric_precision_text, &
         numeric_complex_text, numeric_complex_text_t, numeric_callable_t
     public :: BACKEND_PROTOCOL_VERSION, EXPRESSION_SCHEMA, BACKEND_PROVED, &
@@ -191,6 +193,22 @@ contains
         result = engine%factor(expression)
         out = expression_from_engine(result, "factor", ok, why)
     end function factor
+
+    !> Return the native three-valued zero verdict for an expression.
+    !> VERDICT_TRUE means proved zero, VERDICT_FALSE means proved nonzero, and
+    !> VERDICT_UNKNOWN means the native engine declined to decide.
+    function zero_test(expression) result(verdict)
+        type(expr_t), intent(in) :: expression
+        integer :: verdict
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: result
+
+        verdict = VERDICT_UNKNOWN
+        if (.not. is_valid(expression)) return
+        engine = make_native_engine(expression%a)
+        result = engine%zero_test(expression)
+        verdict = result%verdict
+    end function zero_test
 
     !> Assigning text creates one symbol in the default arena. Text is never
     !> parsed as an expression.

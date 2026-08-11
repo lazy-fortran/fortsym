@@ -97,3 +97,12 @@ use the native engine in the expression's arena. All five functions return an
 present, and put a diagnostic in the allocatable `why` when it is present.
 Successful calls set `ok` true and clear `why`. Callers that omit the optional
 outputs can still detect failure with `is_valid`.
+
+## Zero query
+
+`zero_test(expression)` is the one symbolic zero query in the easy facade. It
+returns `VERDICT_TRUE` for a proved zero, `VERDICT_FALSE` for a proved nonzero
+expression, and `VERDICT_UNKNOWN` when the native engine declines to decide.
+`verdict_name` renders those outcomes as `ZERO`, `NONZERO`, and `UNKNOWN`.
+`fortsym_check` contains the assertion helpers and numeric probe. They are test
+utilities, not additional symbolic predicates.

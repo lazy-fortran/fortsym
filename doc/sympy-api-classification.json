@@ -3032,6 +3032,61 @@
           "facade",
           "native"
         ],
+        "id": "fortsym.zero_test",
+        "module": "fortsym",
+        "name": "zero_test",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.VERDICT_UNKNOWN",
+        "module": "fortsym",
+        "name": "VERDICT_UNKNOWN",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.VERDICT_TRUE",
+        "module": "fortsym",
+        "name": "VERDICT_TRUE",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.VERDICT_FALSE",
+        "module": "fortsym",
+        "name": "VERDICT_FALSE",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.verdict_name",
+        "module": "fortsym",
+        "name": "verdict_name",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym.numeric_value",
         "module": "fortsym",
         "name": "numeric_value",
@@ -6734,12 +6789,12 @@
     "classification_counts": {
       "delegated": 1683,
       "external": 10,
-      "facade": 123,
-      "native": 2248,
+      "facade": 128,
+      "native": 2253,
       "python-adapter": 1639,
       "refused": 26155
     },
-    "fortran_public_exports": 653,
+    "fortran_public_exports": 658,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

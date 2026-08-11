@@ -42,8 +42,8 @@ whole public API.
   state for concurrency, isolation, and library embedding.
 - `fortsym_check` is a test/assertion module, not the symbolic user API.
   `check_zero`, `check_identity`, and `probe_zero` must not multiply the public
-  symbolic naming surface. The user-facing query will converge on one
-  three-valued predicate operation corresponding to SymPy's `ask(Q.zero(...))`.
+  symbolic naming surface. The user-facing query is `zero_test`, with the
+  existing `VERDICT_TRUE`, `VERDICT_FALSE`, and `VERDICT_UNKNOWN` outcomes.
 
 ### Architecture
 
@@ -190,8 +190,10 @@ Every checklist item requires all of the following:
   The facade dispatches from each `expr_t` owner, and the convenience test
   exercises substitution, differentiation, simplification, expansion, and
   factorisation in an independent explicit arena.
-- [ ] Define the one public three-valued query API and move assertion helpers
-  behind a testing-oriented module.
+- [x] Define the one public three-valued query API and move assertion helpers
+  behind a testing-oriented module. `fortsym` exports `zero_test` and the
+  shared verdict vocabulary. `fortsym_check` owns `check_zero`,
+  `check_identity`, and `probe_zero`.
 - [ ] Add consistent result/status types instead of operation-specific status
   vocabularies.
 - [ ] Test single-threaded facade use, explicit concurrent arenas, and
