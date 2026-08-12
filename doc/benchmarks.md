@@ -322,11 +322,13 @@ covers the same workloads.
 
 The subsequent binary add/multiply fast paths removed the remaining small-arity
 heap work while retaining the general collector for flattened or domain-sensitive
-cases. In the paired 2026-08-12 rerun, native cold medians were 7.28 microseconds
-for `simplify_collect`, 8.64 microseconds for `differentiate_power`, and 0.355 ms
-for `expand_power`; warm medians were 0.121, 0.106, and 0.116 microseconds.
-Every native and SymEngine row passed its behavioral check. These are still local
-SymEngine diagnostics, not a matched SymPy parity claim.
+cases. They now also return binary zero/one identities before interning a
+composite node. In the paired 2026-08-12 rerun, native cold medians were 7.46
+microseconds for `simplify_collect`, 7.90 microseconds for
+`differentiate_power`, and 0.360 ms for `expand_power`; warm medians were
+0.121, 0.101, and 0.117 microseconds. Every native and SymEngine row passed its
+behavioral check. These are still local SymEngine diagnostics, not a matched
+SymPy parity claim.
 
 `fo exec bench_complexdom` writes the `complexdom_v1` native rows used for the
 complex-domain cache comparison. Its cold scope clears the assumption-context
