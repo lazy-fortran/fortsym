@@ -142,6 +142,24 @@ work; fixed-three-dimensional native pullback transport is available through
 `upper`, `lower`, and weight-one `density` tensor views. Its components come
 from the native curl, covariant magnetic, and density operations.
 
+For an analytic Boozer-coordinate representation, keep the flux functions in
+the covariant angular components and raise them with the displayed metric:
+
+```python
+psi, theta, phi = sp.symbols("psi theta phi")
+h, I, G = sp.symbols("h I G")
+chart = sp.Chart((psi, theta, phi), (psi, theta, phi))
+metric = chart.metric_owner(((1, 0, 0), (0, h**2, 0), (0, 0, h**2)))
+B_cov = (0, I, G)                 # I(psi), G(psi): surface constants
+B_up = (0, I/h**2, G/h**2)
+volume = (h**2, 0, 0, 0, 0, 0, 0, 0)  # h**2 dpsi wedge dtheta wedge dphi
+flux_two_form = (G, -I, 0)        # i_B(volume), in (psi-theta, psi-phi, theta-phi)
+```
+
+The native Fortran example and the SymPy-oracle test check the metric form,
+the angular derivatives of `B_cov`, the raised components, zero divergence,
+and this flux two-form.
+
 `ChartMap` transforms components between two charts. Its `forward` tuple maps
 source coordinates to target coordinates and its `inverse` tuple maps back.
 Upper tensor slots use the forward Jacobian, lower slots use the inverse

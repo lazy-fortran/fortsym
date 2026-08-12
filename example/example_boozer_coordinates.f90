@@ -20,8 +20,11 @@ program example_boozer_coordinates
     type(expr_t) :: psi, theta, phi, h0, epsilon, h
     type(expr_t) :: i_flux, g_flux
     type(expr_t) :: metric_components(DIM, DIM), b_covariant_values(DIM)
+    type(expr_t) :: b_contravariant_values(DIM), volume_density
+    type(expr_t) :: grad_psi(DIM), b_dot_grad_psi
     integer :: indices_empty(0)
     type(tensor_t) :: b_covariant, b_contravariant, divergence_value
+    type(form_t) :: metric_volume_value, volume_value, flux_form, closed_form
     type(engine_result_t) :: checked
     integer :: indices(1)
 
@@ -55,12 +58,31 @@ program example_boozer_coordinates
     b_covariant_values = num(arena, 0)
     b_covariant_values(2) = i_flux
     b_covariant_values(3) = g_flux
+    b_contravariant_values(1) = num(arena, 0)
+    b_contravariant_values(2) = i_flux/h**2
+    b_contravariant_values(3) = g_flux/h**2
     b_covariant = tensor_covector(boozer_chart, b_covariant_values)
     b_contravariant = raise(metric_owner, b_covariant, 1)
     divergence_value = covariant_divergence(metric_owner, b_contravariant)
+    metric_volume_value = volume_form(metric_owner)
+    ! The analytic fixture is on the positive regular branch h > 0, so use
+    ! that branch explicitly for the displayed oriented volume form. The
+    ! metric-owned volume remains the branch-safe sqrt(abs(det(g))) result.
+    volume_value = form_three(boozer_chart, h**2)
+    flux_form = interior(boozer_chart, b_contravariant_values, volume_value)
+    closed_form = d(boozer_chart, flux_form)
+    volume_density = metric_sqrtg(metric_owner)
+    grad_psi = metric_grad(metric_owner, psi)
+    b_dot_grad_psi = b_contravariant_values(1)*grad_psi(1) + &
+        b_contravariant_values(2)*grad_psi(2) + &
+        b_contravariant_values(3)*grad_psi(3)
 
     call assert_zero(metric_det(metric_owner) - h**4, &
         "Boozer metric determinant")
+    call assert_zero(volume_density**2 - abs(metric_det(metric_owner)), &
+        "Boozer positive metric volume density")
+    call assert_zero(form_component(metric_volume_value, 7)**2 - &
+        abs(metric_det(metric_owner)), "Boozer oriented volume form")
     checked = diff(b_covariant_values(2), theta)
     call assert_zero_result(checked, &
         "B_theta is independent of theta")
@@ -85,6 +107,14 @@ program example_boozer_coordinates
         "raised B^phi")
     call assert_zero(tensor_component(divergence_value, indices_empty), &
         "div B = 0")
+    call assert_zero(b_dot_grad_psi, "B dot grad(psi) = 0")
+    call assert_zero(form_component(flux_form, 3) - g_flux, &
+        "i_B(Omega) psi-theta component")
+    call assert_zero(form_component(flux_form, 5) + i_flux, &
+        "i_B(Omega) psi-phi component")
+    call assert_zero(form_component(flux_form, 6), &
+        "i_B(Omega) theta-phi component")
+    call assert_zero(form_component(closed_form, 7), "d(i_B(Omega)) = 0")
 
     print '(a)', "Boozer coordinates (analytic representation)"
     print '(a)', "  B_psi = 0"
@@ -92,8 +122,10 @@ program example_boozer_coordinates
         ", B_phi = ", chars(print_expr(g_flux))
     print '(a)', "  B_theta and B_phi depend only on psi (flux functions)"
     print '(a,a)', "  g_ij = diag(1, h^2, h^2), h = ", chars(print_expr(h))
-    print '(a)', "  sqrt(g) = h^2; B^theta = B_theta/h^2; B^phi = B_phi/h^2"
-    print '(a)', "  div(B) = 0"
+    print '(a)', "  sqrt(g) = h^2; Omega = h^2 dpsi wedge dtheta wedge dphi"
+    print '(a)', "  B^theta = B_theta/h^2; B^phi = B_phi/h^2"
+    print '(a)', "  i_B(Omega) = B_phi dpsi wedge dtheta - B_theta dpsi wedge dphi"
+    print '(a)', "  B dot grad(psi) = 0; div(B) = 0; d(i_B(Omega)) = 0"
 
 contains
 
