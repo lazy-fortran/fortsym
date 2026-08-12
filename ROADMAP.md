@@ -1175,6 +1175,9 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Add `volume_form(metric_t, orientation)` alongside the chart overload.
   The metric owner supplies positive `sqrtg`, while its stored orientation or
   an explicit override supplies the sign; native checks compare both paths.
+- [x] Package magnetic `B^i`, `B_i`, and `sqrtg B^i` in one typed
+  `magnetic_field_t` view. The established component operators remain the
+  single derivation owner; the wrapper only adds variance and density metadata.
 - [x] Add the independent `fortsym_chart_map` owner for bidirectional
   coordinate transitions. It transforms scalar, vector, covector, mixed
   tensor, density, and differential-form components into target coordinates

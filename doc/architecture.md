@@ -140,7 +140,9 @@ the map-derived metric and operators, `fortsym_chart_map` owns bidirectional
 coordinate transitions and form pullbacks, `fortsym_magnetic` owns variance and
 density views,
 `fortsym_tensor` owns typed components, `fortsym_form` owns exterior algebra,
-and `fortsym_connection` owns covariant/curvature views. The Python `Chart`,
+and `fortsym_connection` owns covariant/curvature views. `fortsym_magnetic`
+also packages its `B^i`, `B_i`, and vector-density views as typed tensors
+without duplicating their component derivation. The Python `Chart`,
 `ChartMap`, `Tensor`, and `Form` classes only transport handles and metadata
 through the C ABI.
 
