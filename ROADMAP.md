@@ -902,10 +902,13 @@ The first-class object model is staged around these metadata owners:
   the explicit `+w*T*partial_i(X^i)` term for a weight-`w` tensor density.
   The Fortran `lie`/`lie_derivative` facade, C ABI 54, Python `Tensor.lie`, and
   independent scalar/vector/covector/density checks all share this owner.
-- [ ] `connection_t` stores the connection coefficients and its convention.
-  `levi_civita(metric)` is a constructor with torsion zero and metric
-  compatibility. A supplied affine connection can have torsion or
-  nonmetricity and must remain usable by the same covariant calculus.
+- [x] `connection_t` stores the connection coefficients and its convention.
+  `connection_from_chart` and `connection_from_metric` construct the
+  torsion-free, metric-compatible owner; `connection_create` accepts a
+  supplied affine connection with torsion or nonmetricity. Typed torsion,
+  nonmetricity, covariant differentiation, and divergence share the native
+  slot/density kernel, with C ABI 55, Python/SymPy access, and independent
+  component oracles.
 - [ ] `tensor_t` and `form_t` retain the owner metadata through all views.
   A form is an antisymmetric covariant tensor with a degree, and a density is
   a tensor with an explicit integer weight. `form_t` and `tensor_t` share
@@ -1381,9 +1384,12 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   derivative slot, applies every slot's Christoffel term, and honors density
   weight. Metric compatibility and an independent nonlinear nonorthogonal
   chart check are required gates.
-- [ ] Implement torsion, nonmetricity, geodesic solving, and named
-  Riemann-sign conventions. Support both Riemannian and pseudo-Riemannian
-  connections without coupling them to magnetic physics.
+- [x] Implement the first fixed-three-dimensional torsion/nonmetricity owner
+  for supplied affine connections, including independent covariant derivative
+  and divergence checks.
+- [ ] Add geodesic solving, named Riemann-sign conventions, and a
+  pseudo-Riemannian sign corpus without coupling connections to magnetic
+  physics.
 - [x] Implement the first fixed-three-dimensional curvature views:
   Christoffel, Riemann, Ricci, scalar curvature, and Einstein tensors, with a
   named Riemann convention and independent flat-chart identities. Full

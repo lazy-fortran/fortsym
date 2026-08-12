@@ -71,7 +71,12 @@ module fortsym
         INDEX_TANGENT, INDEX_COTANGENT, INDEX_SPACETIME, INDEX_INTERNAL, &
         INDEX_USER
     use fortsym_connection, only: covariant_diff, covariant_derivative, &
-        covariant_divergence, geodesic_residual, christoffel_tensor, riemann_tensor, &
+        covariant_divergence, connection_t, connection_create, connection_from_chart, &
+        connection_from_metric, connection_valid, connection_arena, &
+        connection_same_arena, connection_coordinates, connection_christoffel, &
+        connection_convention, &
+        CONNECTION_STANDARD, torsion, nonmetricity, geodesic_residual, &
+        christoffel_tensor, riemann_tensor, &
         first_bianchi_residual, second_bianchi_residual, ricci_tensor, scalar_curvature, &
         einstein_tensor
     use fortsym_magnetic, only: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
@@ -226,6 +231,10 @@ module fortsym
         same_index_space, compatible_indices, INDEX_TANGENT, &
         INDEX_COTANGENT, INDEX_SPACETIME, INDEX_INTERNAL, INDEX_USER, &
         covariant_diff, covariant_derivative, covariant_divergence, &
+        connection_t, connection_create, connection_from_chart, connection_from_metric, &
+        connection_valid, connection_arena, connection_same_arena, &
+        connection_coordinates, connection_christoffel, connection_convention, &
+        CONNECTION_STANDARD, torsion, nonmetricity, &
         geodesic_residual, &
         christoffel_tensor, riemann_tensor, first_bianchi_residual, &
         second_bianchi_residual, &

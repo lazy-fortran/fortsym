@@ -21,7 +21,7 @@ module fortsym_connection
     use fortsym_diff, only: diff
     use fortsym_subs, only: subs
     use fortsym_expr, only: expr_t, num, is_valid, same_arena, operator(+), operator(-), &
-        operator(*), operator(/)
+        operator(*), operator(/), operator(/=)
     use fortsym_tensor, only: tensor_t, MAX_RANK, UPPER, LOWER_VARIANCE, &
         tensor_from_components, tensor_from_matrix, tensor_from_arena, tensor_component, &
         tensor_rank, tensor_variance, tensor_density_weight, tensor_valid, &
@@ -30,26 +30,52 @@ module fortsym_connection
     private
 
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
+    integer, parameter, public :: CONNECTION_STANDARD = 1
 
+    type :: connection_t
+        private
+        type(arena_t), pointer :: a => null()
+        type(expr_t) :: coordinate(DIM)
+        type(expr_t) :: component(DIM, DIM, DIM)
+        integer :: convention = CONNECTION_STANDARD
+        logical :: valid = .false.
+    end type connection_t
+
+    public :: connection_t, connection_create, connection_from_chart, &
+        connection_from_metric, connection_valid, connection_arena, &
+        connection_same_arena, connection_coordinates, connection_christoffel, &
+        connection_convention
     public :: covariant_diff, covariant_derivative, covariant_divergence
+    public :: torsion, nonmetricity
     public :: geodesic_residual
     public :: christoffel_tensor, riemann_tensor, first_bianchi_residual, &
         second_bianchi_residual, ricci_tensor
     public :: scalar_curvature, einstein_tensor
 
+    interface torsion
+        module procedure torsion_connection
+    end interface torsion
+
+    interface nonmetricity
+        module procedure nonmetricity_connection_metric
+    end interface nonmetricity
+
     interface covariant_diff
         module procedure covariant_diff_chart
         module procedure covariant_diff_metric
+        module procedure covariant_diff_connection
     end interface covariant_diff
 
     interface covariant_derivative
         module procedure covariant_derivative_chart
         module procedure covariant_derivative_metric
+        module procedure covariant_derivative_connection
     end interface covariant_derivative
 
     interface covariant_divergence
         module procedure covariant_divergence_chart
         module procedure covariant_divergence_metric
+        module procedure covariant_divergence_connection
     end interface covariant_divergence
 
     interface geodesic_residual
@@ -93,6 +119,193 @@ module fortsym_connection
     end interface einstein_tensor
 
 contains
+
+    !> Construct an affine connection Gamma^a_bc in explicit coordinates.
+    !>
+    !> The standard convention is the same one used by the existing curvature
+    !> owners: R^a_bcd = d_c Gamma^a_db - d_d Gamma^a_cb + ....  The
+    !> convention is stored even though only this convention is accepted yet;
+    !> this keeps sign choices explicit at the owner boundary.
+    function connection_create(components, coordinates, convention) result(result)
+        type(expr_t), intent(in) :: components(DIM, DIM, DIM), coordinates(DIM)
+        integer, optional, intent(in) :: convention
+        type(connection_t) :: result
+        integer :: aindex, b, cindex, k
+
+        if (.not. is_valid(components(1, 1, 1))) return
+        result%a => components(1, 1, 1)%a
+        do aindex = 1, DIM
+            do b = 1, DIM
+                do cindex = 1, DIM
+                    if (.not. is_valid(components(aindex, b, cindex))) return
+                    if (.not. associated(components(aindex, b, cindex)%a, result%a)) return
+                end do
+            end do
+        end do
+        do k = 1, DIM
+            if (.not. is_valid(coordinates(k))) return
+            if (.not. associated(coordinates(k)%a, result%a)) return
+        end do
+
+        result%convention = CONNECTION_STANDARD
+        if (present(convention)) result%convention = convention
+        if (result%convention /= CONNECTION_STANDARD) return
+        result%component = components
+        result%coordinate = coordinates
+        result%valid = .true.
+    end function connection_create
+
+    !> Construct the Levi-Civita connection induced by a chart.
+    function connection_from_chart(c) result(result)
+        type(chart_t), intent(in) :: c
+        type(connection_t) :: result
+        type(expr_t) :: gamma(DIM, DIM, DIM)
+
+        if (.not. associated(c%a)) return
+        gamma = chart_christoffel(c)
+        result = connection_create(gamma, c%u)
+    end function connection_from_chart
+
+    !> Construct the coordinate Levi-Civita connection induced by a metric.
+    function connection_from_metric(g) result(result)
+        type(metric_t), intent(in) :: g
+        type(connection_t) :: result
+        type(expr_t) :: coordinates(DIM), gamma(DIM, DIM, DIM)
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        coordinates = metric_coordinates(g)
+        gamma = metric_christoffel_components(g)
+        result = connection_create(gamma, coordinates)
+    end function connection_from_metric
+
+    function connection_valid(connection) result(valid)
+        type(connection_t), intent(in) :: connection
+        logical :: valid
+
+        valid = connection%valid
+        if (.not. valid) return
+        if (.not. associated(connection%a)) then
+            valid = .false.
+            return
+        end if
+        if (connection%convention /= CONNECTION_STANDARD) valid = .false.
+    end function connection_valid
+
+    function connection_arena(connection) result(a)
+        type(connection_t), intent(in) :: connection
+        type(arena_t), pointer :: a
+
+        nullify(a)
+        if (.not. connection_valid(connection)) return
+        a => connection%a
+    end function connection_arena
+
+    function connection_same_arena(connection, a) result(same)
+        type(connection_t), intent(in) :: connection
+        type(arena_t), pointer, intent(in) :: a
+        logical :: same
+
+        same = .false.
+        if (.not. connection_valid(connection)) return
+        same = associated(connection%a, a)
+    end function connection_same_arena
+
+    function connection_coordinates(connection) result(coordinates)
+        type(connection_t), intent(in) :: connection
+        type(expr_t) :: coordinates(DIM)
+
+        if (.not. connection_valid(connection)) return
+        coordinates = connection%coordinate
+    end function connection_coordinates
+
+    function connection_christoffel(connection) result(components)
+        type(connection_t), intent(in) :: connection
+        type(expr_t) :: components(DIM, DIM, DIM)
+
+        if (.not. connection_valid(connection)) return
+        components = connection%component
+    end function connection_christoffel
+
+    function connection_convention(connection) result(convention)
+        type(connection_t), intent(in) :: connection
+        integer :: convention
+
+        convention = 0
+        if (.not. connection_valid(connection)) return
+        convention = connection%convention
+    end function connection_convention
+
+    !> T^a_bc = Gamma^a_bc - Gamma^a_cb.
+    function torsion_connection(connection) result(result)
+        type(connection_t), intent(in) :: connection
+        type(tensor_t) :: result
+        type(expr_t) :: values(0:MAX_COMPONENTS - 1)
+        integer :: variances(MAX_RANK), indices(MAX_RANK)
+        integer :: aindex, b, cindex
+
+        if (.not. connection_valid(connection)) return
+        variances = 0
+        variances(1) = UPPER
+        variances(2) = LOWER_VARIANCE
+        variances(3) = LOWER_VARIANCE
+        do aindex = 1, DIM
+            do b = 1, DIM
+                do cindex = 1, DIM
+                    indices(1) = aindex
+                    indices(2) = b
+                    indices(3) = cindex
+                    values(encode_index(indices, 3)) = &
+                        connection%component(aindex, b, cindex) - &
+                        connection%component(aindex, cindex, b)
+                end do
+            end do
+        end do
+        result = tensor_from_arena(connection%a, 3, values, variances)
+    end function torsion_connection
+
+    !> Q_ijk = -nabla_k g_ij, with the derivative slot last.
+    function nonmetricity_connection_metric(connection, g) result(result)
+        type(connection_t), intent(in) :: connection
+        type(metric_t), intent(in) :: g
+        type(tensor_t) :: result
+        type(expr_t) :: metric(DIM, DIM), coordinates(DIM), metric_coordinates_value(DIM)
+        type(expr_t) :: values(0:MAX_COMPONENTS - 1), value
+        integer :: variances(MAX_RANK), indices(MAX_RANK)
+        integer :: i, j, k, m
+
+        if (.not. connection_valid(connection)) return
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        if (.not. metric_same_arena(g, connection%a)) return
+        metric_coordinates_value = metric_coordinates(g)
+        do k = 1, DIM
+            if (metric_coordinates_value(k) /= connection%coordinate(k)) return
+        end do
+
+        metric = owner_metric_covariant(g)
+        coordinates = connection%coordinate
+        variances = 0
+        variances(1) = LOWER_VARIANCE
+        variances(2) = LOWER_VARIANCE
+        variances(3) = LOWER_VARIANCE
+        do i = 1, DIM
+            do j = 1, DIM
+                do k = 1, DIM
+                    value = -diff(metric(i, j), coordinates(k))
+                    do m = 1, DIM
+                        value = value + connection%component(m, k, i)*metric(m, j) + &
+                            connection%component(m, k, j)*metric(i, m)
+                    end do
+                    indices(1) = i
+                    indices(2) = j
+                    indices(3) = k
+                    values(encode_index(indices, 3)) = value
+                end do
+            end do
+        end do
+        result = tensor_from_arena(connection%a, 3, values, variances)
+    end function nonmetricity_connection_metric
 
     !> Coordinate geodesic residual x''^a + Gamma^a_bc x'^b x'^c.
     !>
@@ -206,6 +419,19 @@ contains
             gamma, tensor_value)
     end function covariant_diff_metric
 
+    !> Full covariant derivative using a supplied affine connection.
+    function covariant_diff_connection(connection, tensor_value) result(result)
+        type(connection_t), intent(in) :: connection
+        type(tensor_t), intent(in) :: tensor_value
+        type(tensor_t) :: result
+
+        if (.not. connection_valid(connection)) return
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. associated(tensor_value%a, connection%a)) return
+        result = covariant_diff_components(connection%a, connection%coordinate, &
+            connection%component, tensor_value)
+    end function covariant_diff_connection
+
     !> Descriptive alias for callers who prefer the full operation name.
     function covariant_derivative_chart(c, tensor_value) result(result)
         type(chart_t), intent(in) :: c
@@ -223,6 +449,15 @@ contains
 
         result = covariant_diff_metric(g, tensor_value)
     end function covariant_derivative_metric
+
+    !> Readable alias for the supplied-connection covariant derivative.
+    function covariant_derivative_connection(connection, tensor_value) result(result)
+        type(connection_t), intent(in) :: connection
+        type(tensor_t), intent(in) :: tensor_value
+        type(tensor_t) :: result
+
+        result = covariant_diff_connection(connection, tensor_value)
+    end function covariant_derivative_connection
 
     !> Contract the first contravariant slot with the appended derivative
     !> slot. This is the physicists' divergence convention for a typed tensor.
@@ -257,6 +492,23 @@ contains
         differentiated = covariant_diff_metric(g, tensor_value)
         result = contract_slots(differentiated, 1, rank + 1)
     end function covariant_divergence_metric
+
+    !> Metric-free first-slot divergence for a supplied affine connection.
+    function covariant_divergence_connection(connection, tensor_value) result(result)
+        type(connection_t), intent(in) :: connection
+        type(tensor_t), intent(in) :: tensor_value
+        type(tensor_t) :: result, differentiated
+        integer :: rank
+
+        if (.not. connection_valid(connection)) return
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. associated(tensor_value%a, connection%a)) return
+        rank = tensor_rank(tensor_value)
+        if (rank < 1) return
+        if (tensor_variance(tensor_value, 1) /= UPPER) return
+        differentiated = covariant_diff_connection(connection, tensor_value)
+        result = contract_slots(differentiated, 1, rank + 1)
+    end function covariant_divergence_connection
 
     function covariant_diff_components(a, coordinates, gamma, tensor_value) &
             result(result)

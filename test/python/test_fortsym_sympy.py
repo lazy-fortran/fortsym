@@ -122,6 +122,70 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_supplied_connection_matches_independent_sympy_formula(self):
+        x, y, z = sp.symbols("connection_x connection_y connection_z")
+        chart = sp.Chart((x, y, z), (x, y, z))
+        gamma = [[[0, 0, 0] for _ in range(3)] for _ in range(3)]
+        gamma[0][0][1] = x
+        gamma[0][1][0] = 2*y
+        connection = chart.connection(gamma)
+        metric = chart.metric_owner(((1, 0, 0), (0, 1, 0), (0, 0, 1)))
+        vector = chart.vector((x, y, z))
+
+        ox, oy, oz = oracle.symbols(
+            "connection_x connection_y connection_z"
+        )
+        coordinates = (ox, oy, oz)
+        oracle_gamma = [[[0 for _ in range(3)] for _ in range(3)]
+                        for _ in range(3)]
+        oracle_gamma[0][0][1] = ox
+        oracle_gamma[0][1][0] = 2*oy
+        oracle_vector = (ox, oy, oz)
+        expected_torsion = tuple(
+            oracle_gamma[a][b][c] - oracle_gamma[a][c][b]
+            for c in range(3) for b in range(3) for a in range(3)
+        )
+        actual_torsion = tuple(
+            oracle.sympify(str(value.simplify()))
+            for value in connection.torsion()
+        )
+        self.assertEqual(actual_torsion, tuple(expected_torsion))
+
+        expected_nonmetricity = []
+        for k in range(3):
+            for j in range(3):
+                for i in range(3):
+                    expected_nonmetricity.append(sum(
+                        oracle_gamma[m][k][i] * (1 if m == j else 0)
+                        + oracle_gamma[m][k][j] * (1 if i == m else 0)
+                        for m in range(3)
+                    ))
+        actual_nonmetricity = tuple(
+            oracle.sympify(str(value.simplify()))
+            for value in connection.nonmetricity(metric)
+        )
+        self.assertEqual(actual_nonmetricity, tuple(expected_nonmetricity))
+
+        expected_derivative = []
+        for k in range(3):
+            for i in range(3):
+                expected_derivative.append(
+                    oracle.diff(oracle_vector[i], coordinates[k]) + sum(
+                        oracle_gamma[i][k][m] * oracle_vector[m]
+                        for m in range(3)
+                    )
+                )
+        actual_derivative = tuple(
+            oracle.sympify(str(value.simplify()))
+            for value in connection.covariant_diff(vector)
+        )
+        self.assertEqual(actual_derivative, tuple(expected_derivative))
+        self.assertEqual(
+            oracle.sympify(str(connection.covariant_divergence(vector).component().simplify())),
+            sum(expected_derivative[3*i + i] for i in range(3)),
+        )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_tensor_index_labels_contract_through_native_owner(self):
         x, y, z = sp.symbols("index_x index_y index_z")
         chart = sp.Chart((x, y, z), (x, y, z))

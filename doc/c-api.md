@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 54). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 55). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -29,6 +29,12 @@ by right slots and preserves the summed density weight.
 weight-zero contravariant vector tensor. It preserves the input tensor's
 variance and density weight; density weight `w` contributes the explicit
 `+w*T*partial_i(X^i)` term.
+The supplied-connection operations accept `Gamma^a_bc` in the same
+first-slot-fastest order: `fortsym_chart_connection_torsion` returns
+`T^a_bc = Gamma^a_bc - Gamma^a_cb`,
+`fortsym_chart_connection_nonmetricity` returns
+`Q_ijk = -nabla_k g_ij`, and the two covariant operations use the supplied
+coefficients for arbitrary typed tensors and preserve their density metadata.
 `fortsym_chart_covariant_divergence` contracts the first contravariant tensor
 slot with the derivative slot and preserves the remaining slot metadata.
 `fortsym_chart_first_bianchi_residual` returns the native rank-four residual

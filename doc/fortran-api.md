@@ -290,8 +290,8 @@ vector density it reduces to `div_density`, namely
 The current fixed-three-dimensional subset also provides typed Christoffel,
 geodesic residuals, Ricci, and Einstein tensors. Its convention is
 `R^a_bcd = d_c Gamma^a_db - d_d Gamma^a_cb + Gamma^a_cm Gamma^m_db -`
-`Gamma^a_dm Gamma^m_cb`; pseudo-Riemannian sign-corpus coverage, torsion, and
-geodesic solving remain roadmap work.
+`Gamma^a_dm Gamma^m_cb`; pseudo-Riemannian sign-corpus coverage and geodesic
+solving remain roadmap work.
 `first_bianchi_residual` returns the rank-four residual
 `R^a_bcd + R^a_cdb + R^a_dbc`; it is zero for the torsion-free metric
 connection and is exposed as a residual rather than a hidden Boolean.
@@ -304,6 +304,18 @@ Python/SymPy facade.
 the parameterized curve into the connection. The current owner is fixed to
 three-dimensional charts; geodesic solving and variational mechanics remain
 separate roadmap work.
+
+`connection_t` is the explicit affine-connection owner. Construct the
+coordinate Levi-Civita owner with `connection_from_chart(chart)` or
+`connection_from_metric(metric)`, or supply `Gamma^a_bc` directly with
+`connection_create(components, coordinates)`. `torsion(connection)` returns
+`T^a_bc = Gamma^a_bc - Gamma^a_cb`; `nonmetricity(connection, metric)` returns
+`Q_ijk = -nabla_k g_ij`, with the derivative slot last to match
+`covariant_diff`. The connection overloads of `covariant_diff`,
+`covariant_derivative`, and `covariant_divergence` use exactly the same typed
+slot and density kernel as the chart and metric owners. The current native
+convention is `CONNECTION_STANDARD`; named alternate Riemann conventions and
+geodesic solving remain separate roadmap work.
 
 The dimension-aware `spacetime_metric_t` owner provides the matching
 relativity operations `spacetime_metric_flat`, `spacetime_metric_sharp`,

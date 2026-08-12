@@ -80,6 +80,12 @@ the parameterized geodesic equation.
 `Chart.geodesic_residual(curve, parameter)` provides the matching three-
 component chart-owner operation and substitutes the curve into the chart
 connection before evaluating it.
+`Chart.connection(coefficients=None)` creates the chart Levi-Civita connection
+or a supplied `Gamma^a_bc` owner. `Connection.torsion()`,
+`Connection.nonmetricity(metric)`, `Connection.covariant_diff(tensor)`, and
+`Connection.covariant_divergence(tensor)` all route through the same native
+connection owner; `Tensor.covariant_diff(connection)` and
+`Tensor.covariant_divergence(connection)` are matching convenience spellings.
 `SpacetimeForm.interior(vector)` and `.lie(vector)` provide contraction and
 the Cartan Lie derivative, with `interior_product` and `lie_derivative` as
 matching aliases. `.laplace_de_rham()` composes the same native `d` and

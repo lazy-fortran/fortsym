@@ -161,6 +161,27 @@ def _matrix4_values(matrix):
     raise ValueError("spacetime metric requires a 4x4 matrix")
 
 
+def _tensor3_values(tensor):
+    """Return a rank-three tensor in first-slot-fastest native order."""
+    values = tuple(tensor)
+    if len(values) == 3:
+        try:
+            planes = tuple(tuple(tuple(row) for row in plane) for plane in values)
+        except TypeError:
+            planes = ()
+        if (len(planes) == 3 and all(len(plane) == 3 for plane in planes)
+                and all(len(row) == 3 for plane in planes for row in plane)):
+            return tuple(
+                planes[third][second][first]
+                for third in range(3)
+                for second in range(3)
+                for first in range(3)
+            )
+    if len(values) == 27:
+        return values
+    raise ValueError("connection coefficients require a 3x3x3 array")
+
+
 class FortSymError(RuntimeError):
     """A native operation failed with a status returned by the C ABI."""
 
@@ -757,6 +778,32 @@ def _configure(lib):
          ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int), ctypes.c_int,
          ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int), ctypes.c_int,
          ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    lib.chart_connection_torsion = declare(
+        "fortsym_chart_connection_torsion", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    lib.chart_connection_nonmetricity = declare(
+        "fortsym_chart_connection_nonmetricity", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    connection_tensor_arguments = [
+        _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+        ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _SIZE,
+        ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+        ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+    ]
+    lib.chart_connection_covariant_diff = declare(
+        "fortsym_chart_connection_covariant_diff", ctypes.c_int,
+        connection_tensor_arguments,
+    )
+    lib.chart_connection_covariant_divergence = declare(
+        "fortsym_chart_connection_covariant_divergence", ctypes.c_int,
+        connection_tensor_arguments,
     )
     lib.chart_scalar_curvature = declare(
         "fortsym_chart_scalar_curvature",
@@ -2080,6 +2127,68 @@ class Arena:
             raise FortSymError(status, _decode(message), "tensor_lie")
         return tuple(Expr(self, output[index]) for index in range(len(output)))
 
+    def _chart_connection_torsion(self, connection):
+        coordinate_handles, position_handles = self._chart_inputs(
+            connection.chart.coordinates, connection.chart.position
+        )
+        values = (_CVOID * 27)(
+            *[self._check(value)._handle for value in connection.components]
+        )
+        output = (_CVOID * 27)()
+        message = _message()
+        status = self._lib.chart_connection_torsion(
+            self._require(), coordinate_handles, position_handles, values, output,
+            message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "connection_torsion")
+        return tuple(Expr(self, output[index]) for index in range(27))
+
+    def _chart_connection_nonmetricity(self, connection, metric):
+        coordinate_handles, position_handles = self._chart_inputs(
+            connection.chart.coordinates, connection.chart.position
+        )
+        connection_values = (_CVOID * 27)(
+            *[self._check(value)._handle for value in connection.components]
+        )
+        metric_values = (_CVOID * 9)(
+            *[self._check(value)._handle for value in metric.components]
+        )
+        signature = (ctypes.c_int * 3)(*metric.signature)
+        output = (_CVOID * 27)()
+        message = _message()
+        status = self._lib.chart_connection_nonmetricity(
+            self._require(), coordinate_handles, position_handles,
+            connection_values, metric_values, signature, metric.orientation, output,
+            message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "connection_nonmetricity")
+        return tuple(Expr(self, output[index]) for index in range(27))
+
+    def _chart_connection_tensor(self, operation, connection, tensor, output_rank):
+        coordinate_handles, position_handles = self._chart_inputs(
+            connection.chart.coordinates, connection.chart.position
+        )
+        connection_values = (_CVOID * 27)(
+            *[self._check(value)._handle for value in connection.components]
+        )
+        values = (_CVOID * len(tensor.components))(
+            *[self._check(value)._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output_count = 3 ** int(output_rank)
+        output = (_CVOID * output_count)()
+        message = _message()
+        status = operation(
+            self._require(), coordinate_handles, position_handles,
+            connection_values, values, tensor.rank, variance,
+            tensor.density_weight, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), operation.__name__)
+        return tuple(Expr(self, output[index]) for index in range(output_count))
+
     def _chart_scalar(self, operation, coordinates, position):
         coordinate_handles, position_handles = self._chart_inputs(
             coordinates, position
@@ -2654,6 +2763,10 @@ class Chart:
     def metric_owner(self, components, signature=(1, 1, 1), orientation=1):
         """Create a native metric owner for this chart's expression arena."""
         return Metric(self, components, signature, orientation)
+
+    def connection(self, coefficients=None):
+        """Create the chart Levi-Civita or a supplied affine connection."""
+        return Connection(self, coefficients)
 
     def b_fourier(self, potential, mode):
         return self._arena._chart_many(
@@ -3534,13 +3647,21 @@ class Tensor:
         """Contract two opposite-variance slots using the short native name."""
         return self.contract(first, second)
 
-    def covariant_diff(self):
-        return self.chart.covariant_diff(self)
+    def covariant_diff(self, connection=None):
+        if connection is None:
+            return self.chart.covariant_diff(self)
+        if not isinstance(connection, Connection) or connection.chart is not self.chart:
+            raise ValueError("covariant_diff expects a connection from this chart")
+        return connection.covariant_diff(self)
 
     covariant_derivative = covariant_diff
 
-    def covariant_divergence(self):
-        return self.chart.covariant_divergence(self)
+    def covariant_divergence(self, connection=None):
+        if connection is None:
+            return self.chart.covariant_divergence(self)
+        if not isinstance(connection, Connection) or connection.chart is not self.chart:
+            raise ValueError("covariant_divergence expects a connection from this chart")
+        return connection.covariant_divergence(self)
 
     divergence = covariant_divergence
 
@@ -3604,6 +3725,97 @@ class Tensor:
         if self._owned:
             for component in self.components:
                 component.close()
+        for temporary in self._temporaries:
+            temporary.close()
+        self._temporaries = ()
+        self.components = ()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+class Connection:
+    """A native supplied affine connection ``Gamma^a_bc`` on a chart."""
+
+    def __init__(self, chart, coefficients=None):
+        if not isinstance(chart, Chart):
+            raise TypeError("Connection requires a fortsym Chart")
+        self.chart = chart
+        self._arena = chart._arena
+        self._source = None
+        if coefficients is None:
+            self._source = chart.christoffel()
+            values = self._source.components
+        elif isinstance(coefficients, Tensor):
+            if coefficients.chart is not chart or coefficients.rank != 3:
+                raise ValueError("connection coefficients must be a rank-three chart tensor")
+            values = coefficients.components
+            self._source = coefficients
+        else:
+            values = _tensor3_values(coefficients)
+        values = _tensor3_values(values)
+        component_values = []
+        temporaries = []
+        for value in values:
+            coerced, temporary = self._arena._coerce(value)
+            component_values.append(coerced)
+            if temporary is not None:
+                temporaries.append(temporary)
+        self.components = tuple(component_values)
+        self._temporaries = tuple(temporaries)
+
+    def christoffel(self):
+        """Return the stored coefficients as a typed ``(1,2)`` tensor view."""
+        return Tensor(
+            self.chart, self.components, (1, -1, -1), _owned=False
+        )
+
+    coefficients = christoffel
+
+    def torsion(self):
+        components = self._arena._chart_connection_torsion(self)
+        return Tensor(self.chart, components, (1, -1, -1), _owned=True)
+
+    def nonmetricity(self, metric):
+        if not isinstance(metric, Metric) or metric.chart is not self.chart:
+            raise ValueError("nonmetricity requires a metric on this chart")
+        components = self._arena._chart_connection_nonmetricity(self, metric)
+        return Tensor(self.chart, components, (-1, -1, -1), _owned=True)
+
+    def covariant_diff(self, tensor):
+        if not isinstance(tensor, Tensor) or tensor.chart is not self.chart:
+            raise ValueError("covariant_diff expects a tensor from this chart")
+        components = self._arena._chart_connection_tensor(
+            self._arena._lib.chart_connection_covariant_diff, self, tensor,
+            tensor.rank + 1,
+        )
+        return Tensor(
+            self.chart, components, tensor.variance + (-1,),
+            tensor.density_weight, _owned=True,
+        )
+
+    covariant_derivative = covariant_diff
+
+    def covariant_divergence(self, tensor):
+        if not isinstance(tensor, Tensor) or tensor.chart is not self.chart:
+            raise ValueError("covariant_divergence expects a tensor from this chart")
+        if tensor.rank < 1 or tensor.variance[0] != 1:
+            raise ValueError("covariant_divergence requires a contravariant first slot")
+        components = self._arena._chart_connection_tensor(
+            self._arena._lib.chart_connection_covariant_divergence,
+            self, tensor, tensor.rank - 1,
+        )
+        return Tensor(
+            self.chart, components, tensor.variance[1:],
+            tensor.density_weight, _owned=True,
+        )
+
+    divergence = covariant_divergence
+
+    def close(self):
         for temporary in self._temporaries:
             temporary.close()
         self._temporaries = ()
@@ -4519,7 +4731,7 @@ def trace(tensor: Tensor, first, second): return tensor.trace(first, second)
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM",

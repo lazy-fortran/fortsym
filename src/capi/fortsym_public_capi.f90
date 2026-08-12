@@ -63,6 +63,7 @@ module fortsym_public_capi
         symmetrize_tensor => symmetrize, antisymmetrize_tensor => antisymmetrize
     use fortsym_tensor, only: tensor_lie_derivative
     use fortsym_connection, only: covariant_diff, covariant_divergence, &
+        connection_t, connection_create, connection_valid, torsion, nonmetricity, &
         geodesic_residual, christoffel_tensor, &
         riemann_tensor, first_bianchi_residual, second_bianchi_residual, &
         ricci_tensor, &
@@ -157,6 +158,10 @@ module fortsym_public_capi
         fortsym_chart_tensor_contract, fortsym_chart_tensor_product, &
         fortsym_chart_tensor_symmetrize, &
         fortsym_chart_tensor_lie, &
+        fortsym_chart_connection_torsion, &
+        fortsym_chart_connection_nonmetricity, &
+        fortsym_chart_connection_covariant_diff, &
+        fortsym_chart_connection_covariant_divergence, &
         fortsym_chart_riemann, fortsym_chart_first_bianchi_residual, &
         fortsym_chart_second_bianchi_residual, fortsym_chart_geodesic_residual, &
         fortsym_chart_ricci, &
@@ -195,7 +200,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 54_c_int
+        v = 55_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1570,6 +1575,122 @@ contains
         end if
         call make_tensor_array(a, value, int(rank), out, status, message, capacity)
     end function fortsym_chart_tensor_lie
+
+    function fortsym_chart_connection_torsion(raw, coordinates, position, &
+            components, out, message, capacity) bind(c, &
+            name="fortsym_chart_connection_torsion") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(connection_t) :: connection
+        type(tensor_t) :: value
+
+        call get_chart_connection_input(raw, coordinates, position, components, &
+            chart, a, connection, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = torsion(connection)
+        call make_tensor_array(a, value, 3, out, status, message, capacity)
+    end function fortsym_chart_connection_torsion
+
+    function fortsym_chart_connection_nonmetricity(raw, coordinates, position, &
+            components, metric_components, signature, orientation, out, message, &
+            capacity) bind(c, name="fortsym_chart_connection_nonmetricity") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, &
+            metric_components, signature, out
+        integer(c_int), value :: orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(connection_t) :: connection
+        type(metric_t) :: metric
+        type(expr_t) :: metric_values(DIM, DIM), coordinate_values(DIM)
+        integer :: metric_signature_values(DIM)
+        type(tensor_t) :: value
+
+        call get_chart_connection_input(raw, coordinates, position, components, &
+            chart, a, connection, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_metric_input(raw, metric_components, signature, orientation, a, &
+            metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        metric_values = metric_covariant(metric)
+        metric_signature_values = metric_signature(metric)
+        coordinate_values = chart%u
+        metric = metric_create(metric_values, metric_signature_values, &
+            metric_orientation(metric), coordinate_values)
+        if (.not. metric_valid(metric)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = nonmetricity(connection, metric)
+        call make_tensor_array(a, value, 3, out, status, message, capacity)
+    end function fortsym_chart_connection_nonmetricity
+
+    function fortsym_chart_connection_covariant_diff(raw, coordinates, position, &
+            connection_components, components, rank, variance, density_weight, &
+            out, message, capacity) bind(c, &
+            name="fortsym_chart_connection_covariant_diff") result(status)
+        type(c_ptr), value :: raw, coordinates, position, connection_components, &
+            components, variance, out
+        integer(c_size_t), value :: rank
+        integer(c_int), value :: density_weight
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(connection_t) :: connection
+        type(tensor_t) :: input, value
+
+        call get_chart_connection_input(raw, coordinates, position, &
+            connection_components, chart, a, connection, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        call get_chart_tensor_for_chart(chart, a, components, rank, variance, &
+            density_weight, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = covariant_diff(connection, input)
+        call make_tensor_array(a, value, int(rank) + 1, out, status, message, &
+            capacity)
+    end function fortsym_chart_connection_covariant_diff
+
+    function fortsym_chart_connection_covariant_divergence(raw, coordinates, &
+            position, connection_components, components, rank, variance, &
+            density_weight, out, message, capacity) bind(c, &
+            name="fortsym_chart_connection_covariant_divergence") result(status)
+        type(c_ptr), value :: raw, coordinates, position, connection_components, &
+            components, variance, out
+        integer(c_size_t), value :: rank
+        integer(c_int), value :: density_weight
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(connection_t) :: connection
+        type(tensor_t) :: input, value
+
+        if (rank < 1_c_size_t) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call get_chart_connection_input(raw, coordinates, position, &
+            connection_components, chart, a, connection, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        call get_chart_tensor_for_chart(chart, a, components, rank, variance, &
+            density_weight, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = covariant_divergence(connection, input)
+        call make_tensor_array(a, value, int(rank) - 1, out, status, message, &
+            capacity)
+    end function fortsym_chart_connection_covariant_divergence
 
     function fortsym_chart_riemann(raw, coordinates, position, out, message, &
             capacity) bind(c, name="fortsym_chart_riemann") result(status)
@@ -3861,6 +3982,53 @@ contains
         end do
         chart = chart_create(a%value, u, x)
     end subroutine get_chart_inputs
+
+    subroutine get_chart_connection_input(raw, coordinates, position, components, &
+            chart, a, connection, status, message, capacity)
+        type(c_ptr), value :: raw, coordinates, position, components
+        type(chart_t), intent(out) :: chart
+        type(arena_owner_t), pointer :: a
+        type(connection_t), intent(out) :: connection
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(c_ptr), pointer :: component_values(:)
+        type(expr_owner_t), pointer :: owner
+        type(expr_t) :: values(DIM, DIM, DIM)
+        integer :: aindex, b, cindex, flat, shape(1)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. c_associated(components)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape(1) = DIM*DIM*DIM
+        call c_f_pointer(components, component_values, shape)
+        flat = 0
+        do cindex = 1, DIM
+            do b = 1, DIM
+                do aindex = 1, DIM
+                    flat = flat + 1
+                    call get_expr(component_values(flat), owner, &
+                        values(aindex, b, cindex), status, message, capacity)
+                    if (status /= FORTSYM_OK) return
+                    if (.not. associated(owner%arena, a)) then
+                        call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                        return
+                    end if
+                end do
+            end do
+        end do
+        connection = connection_create(values, chart%u)
+        if (.not. connection_valid(connection)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end subroutine get_chart_connection_input
 
     subroutine get_metric_input(raw, components, signature, orientation, a, &
             metric, status, message, capacity)
