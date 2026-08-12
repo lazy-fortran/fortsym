@@ -85,7 +85,11 @@ module fortsym
         christoffel_tensor, riemann_tensor, &
         first_bianchi_residual, second_bianchi_residual, ricci_tensor, scalar_curvature, &
         einstein_tensor
-    use fortsym_magnetic, only: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
+    use fortsym_magnetic, only: magnetic_field_t, magnetic_field, magnetic_upper, &
+        magnetic_lower, magnetic_density, magnetic_chart_t, magnetic_chart, &
+        magnetic_chart_valid, magnetic_chart_surface, magnetic_chart_field, &
+        magnetic_chart_upper, magnetic_chart_lower, magnetic_chart_density, &
+        magnetic_chart_average, b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
         b_fourier_density, j_fourier, flux_surface_t, flux_surface, &
         flux_surface_valid, flux_surface_label, flux_surface_measure, &
         flux_surface_average
@@ -192,7 +196,10 @@ module fortsym
         chart_map_t, &
         chart_map_create, compose_maps, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form, &
-        pullback, b_con, &
+        pullback, magnetic_field_t, magnetic_field, magnetic_upper, magnetic_lower, &
+        magnetic_density, magnetic_chart_t, magnetic_chart, magnetic_chart_valid, &
+        magnetic_chart_surface, magnetic_chart_field, magnetic_chart_upper, &
+        magnetic_chart_lower, magnetic_chart_density, magnetic_chart_average, b_con, &
         b_cov, b_density, h_cov, h_con, b_fourier, b_fourier_density, j_fourier, &
         flux_surface_t, flux_surface, flux_surface_valid, flux_surface_label, &
         flux_surface_measure, flux_surface_average, &

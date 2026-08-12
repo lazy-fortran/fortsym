@@ -92,6 +92,25 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(oracle.sympify(str(actual.simplify())), expected)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_magnetic_chart_matches_sympy_curl(self):
+        psi, theta, phi = sp.symbols("magnetic_psi magnetic_theta magnetic_phi")
+        chart = sp.Chart((psi, theta, phi), (psi, theta, phi))
+        owner = chart.magnetic_chart((0, psi, 0), label_index=1)
+        self.assertIsInstance(owner, sp.MagneticChart)
+        actual = tuple(oracle.sympify(str(value.simplify())) for value in owner.upper)
+        o_psi, o_theta, o_phi = oracle.symbols(
+            "magnetic_psi magnetic_theta magnetic_phi"
+        )
+        potential = (0, o_psi, 0)
+        expected = (
+            oracle.diff(potential[2], o_theta) - oracle.diff(potential[1], o_phi),
+            oracle.diff(potential[0], o_phi) - oracle.diff(potential[2], o_psi),
+            oracle.diff(potential[1], o_psi) - oracle.diff(potential[0], o_theta),
+        )
+        self.assertEqual(actual, expected)
+        self.assertEqual(oracle.sympify(str(owner.divergence().simplify())), 0)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_tensor_lie_derivative_matches_independent_sympy_formula(self):
         x, y, z = sp.symbols("lie_x lie_y lie_z")
         chart = sp.Chart((x, y, z), (x, y, z))

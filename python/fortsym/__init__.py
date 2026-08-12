@@ -2666,6 +2666,10 @@ class Chart:
         """Describe ``coordinate[label_index]=constant`` as a flux surface."""
         return FluxSurface(self, label_index)
 
+    def magnetic_chart(self, potential, label_index=1):
+        """Bundle this chart, a potential, and its typed magnetic views."""
+        return MagneticChart(self, potential, label_index)
+
     def jacobian(self):
         """Return the signed determinant of the chart Jacobian."""
         return self._arena._chart_jacobian(self.coordinates, self.position)
@@ -2990,6 +2994,52 @@ class FluxSurface:
             self.chart.coordinates, self.chart.position, self.label_index,
             scalar,
         )
+
+
+class MagneticChart:
+    """Typed magnetic-coordinate facade over one native chart owner."""
+
+    def __init__(self, chart, potential, label_index=1):
+        if not isinstance(chart, Chart):
+            raise TypeError("MagneticChart requires a fortsym Chart")
+        self.chart = chart
+        self.surface = chart.flux_surface(label_index)
+        self.field = chart.magnetic_field(potential)
+
+    @property
+    def label(self):
+        return self.surface.label
+
+    @property
+    def upper(self):
+        return self.field.upper
+
+    @property
+    def lower(self):
+        return self.field.lower
+
+    @property
+    def density(self):
+        return self.field.density
+
+    def measure(self):
+        return self.surface.measure()
+
+    def average(self, scalar):
+        return self.surface.average(scalar)
+
+    def divergence(self):
+        """Return the chart divergence of the contravariant B view."""
+        return self.chart.divergence(self.upper)
+
+    def field_line_derivative(self, scalar):
+        return self.field.field_line_derivative(scalar)
+
+    def h_cov(self, reluctivity):
+        return self.field.h_cov(reluctivity)
+
+    def h_con(self, reluctivity):
+        return self.field.h_con(reluctivity)
 
 
 class MagneticField:
@@ -4968,7 +5018,7 @@ def trace(tensor: Tensor, first, second): return tensor.trace(first, second)
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "FluxSurface", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "ChartMap", "FluxSurface", "MagneticChart", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",

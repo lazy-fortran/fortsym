@@ -16,7 +16,10 @@ program test_fortsym_magnetic
         b_fourier_density, j_fourier, magnetic_field_t, magnetic_field, &
         magnetic_upper, magnetic_lower, magnetic_density, flux_surface_t, &
         flux_surface, flux_surface_valid, flux_surface_label, &
-        flux_surface_measure, flux_surface_average
+        flux_surface_measure, flux_surface_average, magnetic_chart_t, &
+        magnetic_chart, magnetic_chart_valid, magnetic_chart_surface, &
+        magnetic_chart_field, magnetic_chart_upper, magnetic_chart_lower, &
+        magnetic_chart_density, magnetic_chart_average
     use fortsym_tensor, only: tensor_t, tensor_component, tensor_variance, &
         tensor_density_weight, tensor_valid
     implicit none
@@ -35,6 +38,10 @@ program test_fortsym_magnetic
     type(expr_t) :: residual, det_metric, volume, signed_jacobian, average
     type(magnetic_field_t) :: typed_field
     type(flux_surface_t) :: flux_surface_owner
+    type(magnetic_chart_t) :: magnetic_chart_owner
+    type(flux_surface_t) :: magnetic_surface_owner
+    type(magnetic_field_t) :: magnetic_field_owner
+    type(tensor_t) :: magnetic_up_owner, magnetic_down_owner, magnetic_density_owner
     type(tensor_t) :: typed_up, typed_down, typed_density
     integer :: tensor_index(1)
     type(engine_result_t) :: reduced
@@ -119,6 +126,39 @@ program test_fortsym_magnetic
         tensor_component(typed_down, tensor_index) - b_down(1))
     call check_identity(suite, engine, "typed B density component", &
         tensor_component(typed_density, tensor_index) - b_den(1))
+
+    magnetic_chart_owner = magnetic_chart(shear, potential, 1)
+    if (.not. magnetic_chart_valid(magnetic_chart_owner)) then
+        error stop "magnetic chart owner is invalid"
+    end if
+    magnetic_surface_owner = magnetic_chart_surface(magnetic_chart_owner)
+    magnetic_field_owner = magnetic_chart_field(magnetic_chart_owner)
+    magnetic_up_owner = magnetic_chart_upper(magnetic_chart_owner)
+    magnetic_down_owner = magnetic_chart_lower(magnetic_chart_owner)
+    magnetic_density_owner = magnetic_chart_density(magnetic_chart_owner)
+    if (.not. flux_surface_valid(magnetic_surface_owner)) then
+        error stop "magnetic chart surface is invalid"
+    end if
+    if (.not. tensor_valid(magnetic_up_owner)) error stop "magnetic B^i view invalid"
+    if (.not. tensor_valid(magnetic_down_owner)) error stop "magnetic B_i view invalid"
+    if (.not. tensor_valid(magnetic_density_owner)) then
+        error stop "magnetic density view invalid"
+    end if
+    if (.not. tensor_valid(magnetic_upper(magnetic_field_owner))) then
+        error stop "magnetic field bundle invalid"
+    end if
+    call check_identity(suite, engine, "magnetic chart label", &
+        flux_surface_label(magnetic_surface_owner) - u(1))
+    call check_identity(suite, engine, "magnetic chart B^1 view", &
+        tensor_component(magnetic_up_owner, tensor_index) - b_up(1))
+    call magnetic_chart_average(magnetic_chart_owner, &
+        1 + sin(u(2)) + cos(u(3)), average, average_ok, average_reason)
+    if (.not. average_ok) then
+        write (*, '(a)') "FAIL magnetic chart average: "//average_reason
+        error stop 1
+    end if
+    call check_identity(suite, engine, "magnetic chart periodic average", &
+        average - 1)
 
     call check_identity(suite, engine, "B^1 from covariant potential", b_up(1) - 1)
     call check_identity(suite, engine, "B^2 from covariant potential", b_up(2) - u(2))

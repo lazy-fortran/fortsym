@@ -64,6 +64,11 @@ surface measure separate from the signed chart Jacobian and oriented volume.
 the induced measure over the two remaining coordinates on `[0,2*pi]` and
 raises `FortSymError` when its verified exact-integral subset cannot establish
 the numerator or normalization.
+`Chart.magnetic_chart(potential, label_index=1)` returns a `MagneticChart`
+facade bundling that surface with the native `MagneticField` views. Its
+`.upper`, `.lower`, and `.density` properties retain the `B^i`, `B_i`, and
+weight-one `sqrtg B^i` metadata; `.divergence()`, `.field_line_derivative()`,
+and `.average()` delegate to the same chart and field owners.
 `Chart.h_cov(reluctivity, vector)` applies `H_i = nu_ij B^j`, and
 `Chart.h_con(covariant)` raises `H_i` with the chart metric.
 `MagneticField.h_cov()` and `.h_con()` provide typed covariant and

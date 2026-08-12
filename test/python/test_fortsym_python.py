@@ -129,6 +129,23 @@ class NativePackageTest(unittest.TestCase):
                 arena.function("cos", (phi,))
             self.assertEqual(surface.average(scalar).simplify(), 1)
 
+    def test_native_magnetic_chart_owner(self):
+        with fortsym.Arena() as arena:
+            psi, theta, phi = [arena.symbol(name)
+                               for name in ("magnetic_psi", "magnetic_theta",
+                                            "magnetic_phi")]
+            zero = arena.integer(0)
+            chart = fortsym.Chart((psi, theta, phi), (psi, theta, phi))
+            owner = chart.magnetic_chart((zero, psi, zero), label_index=1)
+            self.assertIsInstance(owner, fortsym.MagneticChart)
+            self.assertEqual(owner.label, psi)
+            self.assertEqual(owner.upper.variance, (1,))
+            self.assertEqual(owner.lower.variance, (-1,))
+            self.assertEqual(owner.density.density_weight, 1)
+            self.assertEqual(owner.upper[2].simplify(), 1)
+            self.assertEqual(owner.divergence().simplify(), 0)
+            self.assertEqual(owner.field_line_derivative(psi).simplify(), 0)
+
     def test_native_tensor_and_connection_frontend(self):
         with fortsym.Arena() as arena:
             z, r, phi = [arena.symbol(name)
