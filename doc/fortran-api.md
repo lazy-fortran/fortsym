@@ -132,7 +132,8 @@ value = tensor_component(scalar, none)
 `contract` requires opposite variance and removes the two selected slots;
 `trace` is its named alias. The current native subset is rank four or less in
 three-dimensional charts. Symmetry declarations, arbitrary dimensions, and
-Python tensor transport remain roadmap work.
+full Python tensor parity remain roadmap work; the fixed-rank Python transport
+is documented in `python/README.md`.
 
 ## Connections and curvature
 

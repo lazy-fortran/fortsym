@@ -22,6 +22,15 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(sp.simplify(sp.diff(sp.exp(x*y), x)), y*sp.exp(x*y))
         self.assertEqual(sp.subs((x + 1) ** 2, {x: 2}), 9)
 
+    def test_geometry_classes_are_reexported(self):
+        x, y, z = sp.symbols("geometry_x geometry_y geometry_z")
+        chart = sp.Chart((x, y, z), (x, y, z))
+        metric = chart.metric()
+        self.assertIsInstance(metric, sp.Tensor)
+        self.assertEqual(metric.variance, (-1, -1))
+        self.assertEqual(metric[0, 0].simplify(), 1)
+        self.assertEqual(chart.scalar_curvature().simplify(), 0)
+
     def test_simultaneous_substitution(self):
         x, y = sp.symbols("simultaneous_x simultaneous_y")
         self.assertEqual(

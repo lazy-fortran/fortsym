@@ -90,6 +90,38 @@ class NativePackageTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 fortsym.Chart((z, r), (r, z))
 
+    def test_native_tensor_and_connection_frontend(self):
+        with fortsym.Arena() as arena:
+            z, r, phi = [arena.symbol(name)
+                         for name in ("Z", "R", "phi")]
+            chart = fortsym.Chart((z, r, phi), (z, z*r, phi))
+
+            metric = chart.metric_covariant()
+            self.assertEqual((metric.rank, metric.variance), (2, (-1, -1)))
+            self.assertEqual(metric[0, 0].simplify(), (r**2 + 1).simplify())
+
+            christoffel = chart.christoffel()
+            self.assertEqual(
+                christoffel[1, 0, 1].simplify(),
+                (1/z).simplify(),
+            )
+
+            # The temporary scalar tensor borrows r; destroying it must not
+            # invalidate the chart coordinates used by later operations.
+            gradient = chart.scalar(r).covariant_diff()
+            self.assertEqual(gradient.variance, (-1,))
+            self.assertEqual(gradient[1].simplify(), 1)
+
+            metric_derivative = metric.covariant_diff()
+            self.assertEqual(metric_derivative.rank, 3)
+            self.assertEqual(metric_derivative[0, 1, 1].simplify(), 0)
+
+            cartesian = fortsym.Chart(
+                (z, r, phi), (z, r, phi)
+            )
+            self.assertEqual(cartesian.scalar_curvature().simplify(), 0)
+            self.assertEqual(cartesian.riemann()[0, 0, 0, 0].simplify(), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

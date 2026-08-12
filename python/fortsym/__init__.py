@@ -185,6 +185,31 @@ def _configure(lib):
             "chart_" + name,
             declare("fortsym_chart_" + name, ctypes.c_int, arguments),
         )
+    for name in ("metric_covariant", "metric_contravariant", "christoffel",
+                 "riemann", "ricci", "einstein"):
+        setattr(
+            lib,
+            "chart_" + name,
+            declare(
+                "fortsym_chart_" + name,
+                ctypes.c_int,
+                [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+                 ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+            ),
+        )
+    lib.chart_covariant_diff = declare(
+        "fortsym_chart_covariant_diff",
+        ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+         ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    lib.chart_scalar_curvature = declare(
+        "fortsym_chart_scalar_curvature",
+        ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.expand = declare(
         "fortsym_expand",
         ctypes.c_int,
@@ -504,6 +529,51 @@ class Arena:
             raise FortSymError(status, _decode(message), name)
         return tuple(Expr(self, output[index]) for index in range(3))
 
+    def _chart_tensor(self, operation, coordinates, position, rank):
+        coordinate_handles, position_handles = self._chart_inputs(
+            coordinates, position
+        )
+        count = 3 ** rank
+        output = (_CVOID * count)()
+        message = _message()
+        status = operation(
+            self._require(), coordinate_handles, position_handles, output,
+            message, len(message)
+        )
+        if status:
+            name = operation.__name__.removeprefix("fortsym_chart_")
+            raise FortSymError(status, _decode(message), name)
+        return tuple(Expr(self, output[index]) for index in range(count))
+
+    def _chart_covariant_diff(self, chart, tensor):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        component_values = [self._check(value) for value in tensor.components]
+        component_handles = (_CVOID * len(component_values))(
+            *[value._handle for value in component_values]
+        )
+        variance_values = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output_count = 3 ** (tensor.rank + 1)
+        output = (_CVOID * output_count)()
+        message = _message()
+        status = self._lib.chart_covariant_diff(
+            self._require(), coordinate_handles, position_handles,
+            component_handles, tensor.rank, variance_values,
+            tensor.density_weight, output, message, len(message)
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "covariant_diff")
+        return tuple(Expr(self, output[index]) for index in range(output_count))
+
+    def _chart_scalar(self, operation, coordinates, position):
+        coordinate_handles, position_handles = self._chart_inputs(
+            coordinates, position
+        )
+        return self._result(
+            operation, self._require(), coordinate_handles, position_handles,
+        )
+
     def _chart_inputs(self, coordinates, position):
         coordinates = tuple(self._check(value) for value in coordinates)
         position = tuple(self._check(value) for value in position)
@@ -571,8 +641,9 @@ class Arena:
 class Chart:
     """A native three-dimensional coordinate chart.
 
-    The object is only a Python lifetime and spelling facade. Metric, volume,
-    variance, and Fourier operations execute in the native Fortran owner.
+    The object is a Python lifetime and spelling facade. Metric, tensor,
+    connection, volume, and Fourier operations execute in native Fortran
+    owners.
     """
 
     def __init__(self, coordinates, position):
@@ -585,6 +656,72 @@ class Chart:
 
     def sqrtg(self):
         return self._arena._chart_sqrtg(self.coordinates, self.position)
+
+    def tensor(self, components, variance=(), density_weight=0):
+        return Tensor(self, components, variance, density_weight)
+
+    def scalar(self, value, density_weight=0):
+        return self.tensor((value,), (), density_weight)
+
+    def metric(self, variance="covariant"):
+        if variance in ("covariant", "lower", -1):
+            return self.metric_covariant()
+        if variance in ("contravariant", "upper", 1):
+            return self.metric_contravariant()
+        raise ValueError("metric variance must be covariant or contravariant")
+
+    def metric_covariant(self):
+        return self._tensor_result(
+            self._arena._lib.chart_metric_covariant, 2, (-1, -1)
+        )
+
+    def metric_contravariant(self):
+        return self._tensor_result(
+            self._arena._lib.chart_metric_contravariant, 2, (1, 1)
+        )
+
+    def christoffel(self):
+        return self._tensor_result(
+            self._arena._lib.chart_christoffel, 3, (1, -1, -1)
+        )
+
+    def covariant_diff(self, tensor):
+        if not isinstance(tensor, Tensor) or tensor.chart is not self:
+            raise ValueError("covariant_diff expects a tensor from this chart")
+        components = self._arena._chart_covariant_diff(self, tensor)
+        return Tensor(
+            self, components, tensor.variance + (-1,), tensor.density_weight,
+            _owned=True,
+        )
+
+    covariant_derivative = covariant_diff
+
+    def riemann(self):
+        return self._tensor_result(
+            self._arena._lib.chart_riemann, 4, (1, -1, -1, -1)
+        )
+
+    def ricci(self):
+        return self._tensor_result(
+            self._arena._lib.chart_ricci, 2, (-1, -1)
+        )
+
+    def scalar_curvature(self):
+        return self._arena._chart_scalar(
+            self._arena._lib.chart_scalar_curvature,
+            self.coordinates, self.position,
+        )
+
+    def einstein(self):
+        return self._tensor_result(
+            self._arena._lib.chart_einstein, 2, (-1, -1)
+        )
+
+    def _tensor_result(self, operation, rank, variance, density_weight=0):
+        components = self._arena._chart_tensor(
+            operation, self.coordinates, self.position, rank
+        )
+        return Tensor(self, components, variance, density_weight, _owned=True)
 
     def b_cov(self, vector):
         return self._arena._chart_many(
@@ -603,6 +740,94 @@ class Chart:
             self._arena._lib.chart_b_fourier_density,
             self.coordinates, self.position, potential, mode,
         )
+
+
+class Tensor:
+    """A chart-bound native tensor view with explicit slot metadata.
+
+    Components are flat in first-slot-fastest order, as in the Fortran tensor
+    owner. Python component indices are zero-based and may be supplied through
+    ``tensor[i, j]`` or ``tensor.component(i, j)``.
+    """
+
+    def __init__(self, chart, components, variance=(), density_weight=0,
+                 _owned=False):
+        if not isinstance(chart, Chart):
+            raise TypeError("Tensor requires a fortsym Chart")
+        self.chart = chart
+        self._arena = chart._arena
+        self.variance = tuple(int(value) for value in variance)
+        self.rank = len(self.variance)
+        if self.rank > 4:
+            raise ValueError("native tensors support rank at most four")
+        expected = 3 ** self.rank
+        values = tuple(components)
+        if len(values) != expected:
+            raise ValueError(
+                f"rank {self.rank} tensor requires {expected} components"
+            )
+        if any(value not in (-1, 1) for value in self.variance):
+            raise ValueError("tensor variance entries must be -1 or 1")
+        component_values = []
+        temporaries = []
+        for value in values:
+            coerced, temporary = self._arena._coerce(value)
+            component_values.append(coerced)
+            if temporary is not None:
+                temporaries.append(temporary)
+        self.components = tuple(component_values)
+        self._temporaries = tuple(temporaries)
+        self.density_weight = int(density_weight)
+        self._owned = bool(_owned)
+
+    def component(self, *indices):
+        if len(indices) != self.rank:
+            raise IndexError("tensor index rank does not match")
+        flat = 0
+        scale = 1
+        for index in indices:
+            index = int(index)
+            if index < 0 or index >= 3:
+                raise IndexError("tensor index is outside the chart dimension")
+            flat += index * scale
+            scale *= 3
+        value = self.components[flat]
+        # A component is a borrowed view of the tensor-owned handle. Keep the
+        # owner alive for expressions obtained from a temporary Tensor, e.g.
+        # ``chart.riemann()[0, 0, 0, 0].simplify()``.
+        value._tensor_owner = self
+        return value
+
+    def __getitem__(self, indices):
+        if not isinstance(indices, tuple):
+            indices = (indices,)
+        return self.component(*indices)
+
+    def __len__(self):
+        return len(self.components)
+
+    def __iter__(self):
+        return iter(self.components)
+
+    def covariant_diff(self):
+        return self.chart.covariant_diff(self)
+
+    covariant_derivative = covariant_diff
+
+    def close(self):
+        if self._owned:
+            for component in self.components:
+                component.close()
+        for temporary in self._temporaries:
+            temporary.close()
+        self._temporaries = ()
+        self.components = ()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
 
 class Expr:
@@ -1331,7 +1556,7 @@ def free_symbols(expression: Expr): return expression.free_symbols
 
 
 __all__ = [
-    "Arena", "Chart", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "Tensor", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count",
     "free_symbols",
 ]

@@ -21,10 +21,12 @@ condition are refused by the C ABI.
 ## Native geometry facade
 
 `fortsym.Chart` is a small transport facade over the native Fortran chart and
-magnetic owners. It accepts three coordinate expressions and their Cartesian
-position map, then exposes `sqrtg()`, `b_fourier()`, `b_fourier_density()`, and
-`b_cov()`. The same class is re-exported as `fortsym.sympy.Chart`; it does not
-reimplement geometry in Python.
+magnetic, tensor, and connection owners. It accepts three coordinate
+expressions and their Cartesian position map, then exposes `sqrtg()`, metric
+and curvature views, covariant differentiation, `b_fourier()`,
+`b_fourier_density()`, and `b_cov()`. The same classes are re-exported as
+`fortsym.sympy.Chart` and `fortsym.sympy.Tensor`; they do not reimplement
+geometry in Python.
 
 ```python
 import fortsym.sympy as sp
@@ -39,9 +41,21 @@ A2 = sp.Function("A2")(Z, R)
 A = (A1, A2, sp.Integer(0))
 B_up = chart.b_fourier(A, n)
 B_density = chart.b_fourier_density(A, n)
+g = chart.metric_covariant()
+dg = g.covariant_diff()
+R = chart.riemann()
+scalar_R = chart.scalar_curvature()
 ```
 
-The geometry API currently covers the first magnetic-paper subset. The
+`Tensor` components use first-slot-fastest order and zero-based Python indices;
+`variance` is a tuple of `1` (upper) and `-1` (lower), and `density_weight`
+is explicit. `chart.metric()`, `chart.christoffel()`, `chart.ricci()`, and
+`chart.einstein()` return the corresponding native tensor views. `Tensor` and
+`Chart` are transport/lifetime facades: formulas and metadata validation stay
+in the native Fortran owners.
+
+The geometry API currently covers the first magnetic-paper and fixed-rank
+connection subsets. The
 Wolfram/Python source-script translator and full three-frontend differential
 comparison remain roadmap work.
 

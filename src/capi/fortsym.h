@@ -74,6 +74,13 @@ enum fortsym_verdict {
     FORTSYM_ZERO_FALSE = 2
 };
 
+enum fortsym_tensor_variance {
+    FORTSYM_LOWER_VARIANCE = -1,
+    FORTSYM_UPPER_VARIANCE = 1
+};
+
+enum { FORTSYM_GEOMETRY_DIMENSION = 3, FORTSYM_TENSOR_MAX_RANK = 4 };
+
 int fortsym_abi_version(void);
 
 int fortsym_arena_new(fortsym_arena **out, char *message, size_t capacity);
@@ -153,8 +160,8 @@ int fortsym_factor(fortsym_arena *arena, const fortsym_expr *expression,
 /* Coordinate and magnetic operations use three expressions for both the
  * coordinate symbols and their Cartesian position map. The dimension
  * argument is retained in the ABI so callers can validate the fixed native
- * chart dimension explicitly. Each magnetic result array has three owned
- * expression handles and must be released element by element. */
+ * chart dimension explicitly. Each result array has owned expression handles
+ * and must be released element by element. */
 int fortsym_chart_sqrtg(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], size_t dimension, fortsym_expr **out,
@@ -172,6 +179,42 @@ int fortsym_chart_b_fourier_density(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *potential[],
     const fortsym_expr *mode, fortsym_expr *out[], char *message,
+    size_t capacity);
+/* Geometry tensor arrays use first-slot-fastest order, matching the native
+ * `tensor_component` convention. The caller supplies an output array with
+ * `3**rank` slots and releases each returned handle with fortsym_expr_free. */
+int fortsym_chart_metric_covariant(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_chart_metric_contravariant(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_chart_christoffel(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_chart_covariant_diff(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    size_t rank, const int variance[], int density_weight,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_riemann(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_chart_ricci(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_chart_scalar_curvature(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], fortsym_expr **out, char *message,
+    size_t capacity);
+int fortsym_chart_einstein(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], fortsym_expr *out[], char *message,
     size_t capacity);
 int fortsym_zero_test(fortsym_arena *arena, const fortsym_expr *expression,
                       int *verdict, char *message, size_t capacity);
