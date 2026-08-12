@@ -26,7 +26,7 @@ module fortsym_chart
     public :: chart_t, chart_create
     public :: covariant_basis, reciprocal_basis
     public :: metric_covariant, metric_contravariant, sqrtg
-    public :: jacobian, christoffel
+    public :: jacobian, surface_measure, christoffel
     public :: grad, divergence, div_density, field_line_derivative, curl, &
         curl_density, laplacian
     public :: mms_source
@@ -196,6 +196,23 @@ contains
         end select
     end subroutine others
 
+    pure subroutine tangent_indices(normal_index, first, second)
+        integer, intent(in) :: normal_index
+        integer, intent(out) :: first, second
+
+        select case (normal_index)
+        case (1)
+            first = 2
+            second = 3
+        case (2)
+            first = 1
+            second = 3
+        case default
+            first = 1
+            second = 2
+        end select
+    end subroutine tangent_indices
+
     !> Jacobian determinant of the chart: det of the basis matrix e(k,i).
     !>
     !> Taken from the basis rather than as sqrt(det g), because the basis form
@@ -209,6 +226,40 @@ contains
         e = covariant_basis(c)
         j = det3(e)
     end function jacobian
+
+    !> Positive induced measure on the coordinate surface u(normal_index)=const.
+    !>
+    !> The tangent vectors are differentiated directly so this operation does
+    !> not materialize a metric or basis array. The chart is an embedding into
+    !> Euclidean three-space, so the induced two-metric is positive on a
+    !> regular patch and its square-root is the surface density.
+    function surface_measure(c, normal_index) result(value)
+        type(chart_t), intent(in) :: c
+        integer, intent(in) :: normal_index
+        type(expr_t) :: value
+        type(expr_t) :: tangent_a1, tangent_a2, tangent_a3
+        type(expr_t) :: tangent_b1, tangent_b2, tangent_b3
+        type(expr_t) :: aa, ab, bb, minor
+        integer :: a, b
+
+        if (.not. associated(c%a)) return
+        if (normal_index < 1 .or. normal_index > DIM) return
+        call tangent_indices(normal_index, a, b)
+        tangent_a1 = diff(c%x(1), c%u(a))
+        tangent_a2 = diff(c%x(2), c%u(a))
+        tangent_a3 = diff(c%x(3), c%u(a))
+        tangent_b1 = diff(c%x(1), c%u(b))
+        tangent_b2 = diff(c%x(2), c%u(b))
+        tangent_b3 = diff(c%x(3), c%u(b))
+        aa = tangent_a1*tangent_a1 + tangent_a2*tangent_a2 + &
+            tangent_a3*tangent_a3
+        ab = tangent_a1*tangent_b1 + tangent_a2*tangent_b2 + &
+            tangent_a3*tangent_b3
+        bb = tangent_b1*tangent_b1 + tangent_b2*tangent_b2 + &
+            tangent_b3*tangent_b3
+        minor = aa*bb - ab*ab
+        value = sqrt(minor)
+    end function surface_measure
 
     !> Christoffel symbols of the second kind, Gamma^k_ij, as gamma(k,i,j).
     !>

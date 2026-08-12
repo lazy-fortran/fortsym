@@ -12,6 +12,7 @@ program test_fortsym_metric
     use fortsym_chart, only: DIM, chart_t, chart_create
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
         metric_covariant, metric_contravariant, metric_det, metric_sqrtg, &
+        metric_surface_measure, &
         metric_signature, metric_orientation, metric_valid, metric_grad, &
         metric_divergence, metric_laplacian, metric_inner
     use fortsym_volume, only: metric_volume_density, levi_civita_symbol, &
@@ -44,6 +45,8 @@ program test_fortsym_metric
     if (metric_orientation(euclidean) /= 1) error stop "default orientation failed"
     call check_identity(suite, engine, "chart metric has unit positive sqrtg", &
         metric_sqrtg(euclidean) - 1)
+    call check_identity(suite, engine, "coordinate surface measure is positive", &
+        metric_surface_measure(euclidean, 1) - 1)
     call check_identity(suite, engine, "metric volume density is positive", &
         metric_volume_density(euclidean) - 1)
     if (levi_civita_symbol(1, 2, 3) /= 1 .or. &
@@ -75,6 +78,8 @@ program test_fortsym_metric
     call check_identity(suite, engine, "sqrtg uses absolute determinant", root - 1)
     call check_identity(suite, engine, "Lorentzian volume density is positive", &
         metric_volume_density(lorentzian) - 1)
+    call check_identity(suite, engine, "Lorentzian surface measure is positive", &
+        metric_surface_measure(lorentzian, 1) - 1)
     epsilon_lower = metric_levi_civita(lorentzian, -1)
     epsilon_upper = metric_levi_civita(lorentzian, 1)
     call check_identity(suite, engine, "oriented covariant Levi-Civita tensor", &

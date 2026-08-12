@@ -893,6 +893,10 @@ The first-class object model is staged around these metadata owners:
   `volume_form(metric, orientation)` may change sign, while `sqrtg(metric)`
   never absorbs orientation. `epsilon` constructors distinguish the symbol,
   the tensor, and the tensor density.
+- [x] Add positive coordinate-surface measures for chart-induced and explicit
+  metrics. The native kernels compute the induced two-metric minor directly,
+  without array temporaries; C ABI 53 and both Python facades keep this
+  measure separate from signed `J`, positive `sqrtg`, and oriented volume.
 - [ ] `connection_t` stores the connection coefficients and its convention.
   `levi_civita(metric)` is a constructor with torsion zero and metric
   compatibility. A supplied affine connection can have torsion or
@@ -1519,6 +1523,9 @@ without an explicit volume factor.
   convention `H_i = nu_ij B^j` and metric raising `H^i = g^ij H_j`.
 - [x] Add the generic field-line derivative `B^i partial_i f` through the
   chart owner, C ABI 52, Python facade, and flux-surface identity test.
+- [x] Add coordinate-surface measures as the foundation for flux-surface
+  integrals and FEM boundary terms; positive measures remain distinct from
+  magnetic vector densities and oriented volume forms.
 - [ ] Add magnetic surfaces, flux-surface averages, and Jacobian-weighted
   divergence.
 - [x] Provide metric contraction for `B**2` through the shared `metric_inner`

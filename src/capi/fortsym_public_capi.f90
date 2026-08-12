@@ -19,7 +19,7 @@ module fortsym_public_capi
     use fortsym_diff, only: diff
     use fortsym_chart, only: chart_t, chart_create, DIM, sqrtg, jacobian, &
         covariant_basis, reciprocal_basis, grad, divergence, div_density, &
-        field_line_derivative, &
+        surface_measure, field_line_derivative, &
         curl, curl_density, laplacian
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form
@@ -33,7 +33,8 @@ module fortsym_public_capi
         TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_metric, only: metric_t, metric_create, metric_valid, &
         metric_covariant, metric_contravariant, metric_sqrtg, metric_signature, &
-        metric_orientation, metric_inner, metric_grad, metric_divergence, &
+        metric_surface_measure, metric_orientation, metric_inner, &
+        metric_grad, metric_divergence, &
         metric_laplacian
     use fortsym_volume, only: metric_volume_density, metric_levi_civita
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
@@ -128,7 +129,8 @@ module fortsym_public_capi
     public :: fortsym_substitute, fortsym_substitute_many, fortsym_differentiate, &
         fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor
-    public :: fortsym_chart_sqrtg, fortsym_chart_jacobian, &
+    public :: fortsym_chart_sqrtg, fortsym_chart_surface_measure, &
+        fortsym_chart_jacobian, &
         fortsym_chart_covariant_basis, fortsym_chart_reciprocal_basis, &
         fortsym_chart_grad, fortsym_chart_divergence, fortsym_chart_div_density, &
         fortsym_chart_field_line_derivative, &
@@ -141,7 +143,8 @@ module fortsym_public_capi
         fortsym_chart_b_fourier, fortsym_chart_b_fourier_density, &
         fortsym_chart_j_fourier, fortsym_chart_fourier_weak_form, &
         fortsym_chart_current_compatibility, &
-        fortsym_metric_sqrtg, fortsym_metric_contravariant, &
+        fortsym_metric_sqrtg, fortsym_metric_surface_measure, &
+        fortsym_metric_contravariant, &
         fortsym_metric_inner, &
         fortsym_metric_grad, fortsym_metric_divergence, fortsym_metric_laplacian, &
         fortsym_metric_volume_density, fortsym_metric_levi_civita, &
@@ -190,7 +193,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 52_c_int
+        v = 53_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -846,6 +849,30 @@ contains
         value = sqrtg(chart)
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_chart_sqrtg
+
+    function fortsym_chart_surface_measure(raw, coordinates, position, &
+            normal_index, out, message, capacity) bind(c, &
+            name="fortsym_chart_surface_measure") result(status)
+        type(c_ptr), value :: raw, coordinates, position, out
+        integer(c_int), value :: normal_index
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: value
+
+        call begin_output(out, message, capacity)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (normal_index < 1_c_int .or. normal_index > int(DIM, c_int)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = surface_measure(chart, int(normal_index))
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_chart_surface_measure
 
     function fortsym_chart_jacobian(raw, coordinates, position, dimension, out, &
             message, capacity) bind(c, name="fortsym_chart_jacobian") result(status)
@@ -2421,6 +2448,30 @@ contains
         value = metric_volume_density(metric)
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_metric_volume_density
+
+    function fortsym_metric_surface_measure(raw, components, signature, &
+            orientation, normal_index, out, message, capacity) bind(c, &
+            name="fortsym_metric_surface_measure") result(status)
+        type(c_ptr), value :: raw, components, signature, out
+        integer(c_int), value :: orientation, normal_index
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(metric_t) :: metric
+        type(expr_t) :: value
+
+        call begin_output(out, message, capacity)
+        call get_metric_input(raw, components, signature, orientation, a, metric, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (normal_index < 1_c_int .or. normal_index > int(DIM, c_int)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = metric_surface_measure(metric, int(normal_index))
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_metric_surface_measure
 
     function fortsym_metric_levi_civita(raw, components, signature, orientation, &
             variance, out, message, capacity) bind(c, &

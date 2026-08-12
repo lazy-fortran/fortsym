@@ -69,6 +69,9 @@ accept either an integer mode or an expression mode, so a paper derivation can
 use a literal mode while a symbolic check keeps `n` in the expression tree.
 `magnetic_field_t` packages `B^i`, `B_i`, and `sqrtg B^i` as typed tensor
 views with variance and density weight retained across the three representations.
+The chart operation `surface_measure(chart, normal_index)` returns the positive
+induced measure on `u(normal_index)=constant`; `metric_surface_measure` is the
+same operation for an explicit metric and uses `sqrt(abs(det(g_surface)))`.
 The generic chart operation `field_line_derivative(chart, vector, scalar)`
 returns `vector(i) * d(scalar)/du(i)` and is also the magnetic `B dot grad`
 operation.
