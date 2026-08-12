@@ -1411,6 +1411,41 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_paper_fourier_zero_and_transverse_reductions_match_sympy(self):
+        x1, x2, x3 = sp.symbols("reduction_x1 reduction_x2 reduction_x3")
+        nu33 = sp.Symbol("reduction_nu33")
+        chart = sp.Chart((x1, x2, x3), (x1, x2, x3))
+        reluctivity = ((2, 3, 0), (5, 7, 0), (0, 0, nu33))
+        potential = (x1*x2, x1**2, sp.Integer(0))
+
+        zero_mode = chart.j_fourier(reluctivity, potential, 0)
+        full_curl_curl = chart.curl(
+            chart.h_cov(reluctivity, chart.curl(potential))
+        )
+        for actual_value, expected_value in zip(zero_mode, full_curl_curl):
+            actual = oracle.sympify(
+                str(actual_value.simplify()), locals={"i": oracle.I}
+            )
+            expected = oracle.sympify(
+                str(expected_value.simplify()), locals={"i": oracle.I}
+            )
+            self.assertEqual(oracle.simplify(actual - expected), 0)
+
+        transverse = chart.j_fourier(reluctivity, potential, 2)
+        expected_transverse = (
+            4*(7*x1*x2 - 5*x1**2),
+            4*(-3*x1*x2 + 2*x1**2) - nu33,
+        )
+        for index, expected_value in enumerate(expected_transverse):
+            actual = oracle.sympify(
+                str(transverse[index].simplify()), locals={"i": oracle.I}
+            )
+            expected = oracle.sympify(
+                str(expected_value), locals={"i": oracle.I}
+            )
+            self.assertEqual(oracle.simplify(actual - expected), 0)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_diffgeom_names_use_native_owner_and_match_oracle(self):
         from sympy.diffgeom import (
             CoordSystem as OracleCoordSystem,

@@ -1804,14 +1804,17 @@ between the two-dimensional gradient, scalar curl, and divergence.
   preserves scalar nodal versus two-dimensional edge spaces, normal versus
   tangential boundary traces, and the mode-dependent transverse mass block.
   Source assembly and generated source terms remain open.
-- [ ] Add independent checks for the paper identities, including the de Rham
-  diagram, `n = 0` reduction to the full three-dimensional curl-curl form,
-  `n != 0` transverse reduction, tensor transformation round trips, and
-  boundary/singularity behavior at the cylindrical axis.
-- [ ] Add Fortran and Python examples that derive the formulas in the same
-  order as the paper, then emit compact Fortran kernels for selected Fourier
-  modes. The generated kernel must preserve density components and avoid
-  array temporaries.
+- [x] Add independent native and SymPy checks for the paper's `n = 0`
+  reduction to the full three-dimensional curl-curl form and its `n != 0`
+  transverse reduction, including the block constitutive coefficients and
+  Fourier current compatibility. The de Rham diagram, tensor transformation
+  round trips, and boundary/singularity behavior at the cylindrical axis
+  remain open.
+- [ ] Add standalone Fortran and Python examples that derive the formulas in
+  the same order as the paper, then emit compact Fortran kernels for selected
+  Fourier modes. The existing `paper_magnetic_native` program and Python
+  oracle test cover the first component/reduction slice; generated kernels
+  must preserve density components and avoid array temporaries.
 - [x] Add a native `paper_magnetic` example that is readable without the
   source scripts: declare `Z`, `R`, `phi`, `n`, `A`, and `g`, construct
   `sqrtg`, `B%up`, `B%down`, and the Fourier curl, and assert the paper's
