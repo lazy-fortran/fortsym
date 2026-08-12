@@ -211,6 +211,21 @@ def _configure(lib):
          ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
          ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    tensor_metric_arguments = [
+        _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+        ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+        ctypes.c_int, _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+    ]
+    for name in ("raise", "lower"):
+        setattr(
+            lib,
+            "chart_tensor_" + name,
+            declare(
+                "fortsym_chart_tensor_" + name,
+                ctypes.c_int,
+                tensor_metric_arguments,
+            ),
+        )
     lib.chart_scalar_curvature = declare(
         "fortsym_chart_scalar_curvature",
         ctypes.c_int,
@@ -639,6 +654,27 @@ class Arena:
             raise FortSymError(status, _decode(message), "covariant_diff")
         return tuple(Expr(self, output[index]) for index in range(output_count))
 
+    def _chart_tensor_metric(self, operation, chart, tensor, slot):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        component_values = [self._check(value) for value in tensor.components]
+        component_handles = (_CVOID * len(component_values))(
+            *[value._handle for value in component_values]
+        )
+        variance_values = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output_count = 3 ** tensor.rank
+        output = (_CVOID * output_count)()
+        message = _message()
+        status = operation(
+            self._require(), coordinate_handles, position_handles,
+            component_handles, tensor.rank, variance_values,
+            tensor.density_weight, slot + 1, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), operation.__name__)
+        return tuple(Expr(self, output[index]) for index in range(output_count))
+
     def _chart_scalar(self, operation, coordinates, position):
         coordinate_handles, position_handles = self._chart_inputs(
             coordinates, position
@@ -1012,6 +1048,42 @@ class Tensor:
         return self.chart.covariant_diff(self)
 
     covariant_derivative = covariant_diff
+
+    def raise_(self, slot=0):
+        """Raise one covariant slot with this tensor's chart metric."""
+        if self.rank == 0:
+            raise ValueError("cannot raise a slot on a scalar tensor")
+        slot = int(slot)
+        if slot < 0 or slot >= self.rank:
+            raise IndexError("tensor slot is outside the tensor rank")
+        if self.variance[slot] != -1:
+            raise ValueError("raise_ requires a covariant slot")
+        components = self._arena._chart_tensor_metric(
+            self._arena._lib.chart_tensor_raise, self.chart, self, slot
+        )
+        variance = list(self.variance)
+        variance[slot] = 1
+        return Tensor(
+            self.chart, components, variance, self.density_weight, _owned=True
+        )
+
+    def lower(self, slot=0):
+        """Lower one contravariant slot with this tensor's chart metric."""
+        if self.rank == 0:
+            raise ValueError("cannot lower a slot on a scalar tensor")
+        slot = int(slot)
+        if slot < 0 or slot >= self.rank:
+            raise IndexError("tensor slot is outside the tensor rank")
+        if self.variance[slot] != 1:
+            raise ValueError("lower requires a contravariant slot")
+        components = self._arena._chart_tensor_metric(
+            self._arena._lib.chart_tensor_lower, self.chart, self, slot
+        )
+        variance = list(self.variance)
+        variance[slot] = -1
+        return Tensor(
+            self.chart, components, variance, self.density_weight, _owned=True
+        )
 
     def close(self):
         if self._owned:

@@ -76,6 +76,26 @@ class SympySubsetTest(unittest.TestCase):
             oracle.eye(3),
         )
 
+        vector = chart.tensor((1, 2, 3), variance=(1,))
+        lowered = vector.lower()
+        expected_lowered = expected_covariant.T * expected_covariant * oracle.Matrix(
+            (1, 2, 3)
+        )
+        actual_lowered = oracle.Matrix(tuple(
+            oracle.sympify(str(lowered[index].simplify()))
+            for index in range(3)
+        ))
+        self.assertEqual(lowered.variance, (-1,))
+        self.assertEqual(actual_lowered, expected_lowered)
+        self.assertEqual(lowered.raise_().variance, (1,))
+        self.assertEqual(
+            oracle.Matrix(tuple(
+                oracle.sympify(str(lowered.raise_()[index].simplify()))
+                for index in range(3)
+            )),
+            oracle.Matrix((1, 2, 3)),
+        )
+
         left_handed = sp.Chart((u, v, w), (-u, v, w))
         self.assertEqual(left_handed.jacobian().simplify(), -1)
         self.assertEqual(left_handed.sqrtg().simplify(), 1)
