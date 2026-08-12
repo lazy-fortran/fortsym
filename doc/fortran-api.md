@@ -69,6 +69,9 @@ accept either an integer mode or an expression mode, so a paper derivation can
 use a literal mode while a symbolic check keeps `n` in the expression tree.
 `magnetic_field_t` packages `B^i`, `B_i`, and `sqrtg B^i` as typed tensor
 views with variance and density weight retained across the three representations.
+The generic chart operation `field_line_derivative(chart, vector, scalar)`
+returns `vector(i) * d(scalar)/du(i)` and is also the magnetic `B dot grad`
+operation.
 `h_cov(chart, reluctivity, B_con)` applies the explicit constitutive convention
 `H_i = nu_ij B^j`; `h_con(chart, H_cov)` raises that covector with `g^ij`.
 The two operations are intentionally separate, so anisotropic material data

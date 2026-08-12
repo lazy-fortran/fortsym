@@ -47,6 +47,8 @@ program example_magnetic_flux_coordinates
     call assert_zero(b(2)*volume_density + 1, &
         "A=psi dphi gives B^theta=-1/J")
     call assert_zero(divergence(flux_chart, b), "div B = 0")
+    call assert_zero(field_line_derivative(flux_chart, b, psi), &
+        "B dot grad(psi) = 0")
     call assert_zero(h_lower(1) - b_lower(1), "H_i = g_ij B^j, component 1")
     call assert_zero(h_lower(2) - b_lower(2), "H_i = g_ij B^j, component 2")
     call assert_zero(h_lower(3) - b_lower(3), "H_i = g_ij B^j, component 3")

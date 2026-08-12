@@ -19,6 +19,7 @@ module fortsym_public_capi
     use fortsym_diff, only: diff
     use fortsym_chart, only: chart_t, chart_create, DIM, sqrtg, jacobian, &
         covariant_basis, reciprocal_basis, grad, divergence, div_density, &
+        field_line_derivative, &
         curl, curl_density, laplacian
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form
@@ -130,6 +131,7 @@ module fortsym_public_capi
     public :: fortsym_chart_sqrtg, fortsym_chart_jacobian, &
         fortsym_chart_covariant_basis, fortsym_chart_reciprocal_basis, &
         fortsym_chart_grad, fortsym_chart_divergence, fortsym_chart_div_density, &
+        fortsym_chart_field_line_derivative, &
         fortsym_chart_curl, fortsym_chart_curl_density, &
         fortsym_chart_laplacian, &
         fortsym_chart_map_jacobian, fortsym_chart_map_inverse_jacobian, &
@@ -188,7 +190,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 51_c_int
+        v = 52_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -923,6 +925,29 @@ contains
         value = div_density(chart, input)
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_chart_div_density
+
+    function fortsym_chart_field_line_derivative(raw, coordinates, position, &
+            vector, scalar, out, message, capacity) bind(c, &
+            name="fortsym_chart_field_line_derivative") result(status)
+        type(c_ptr), value :: raw, coordinates, position, vector, scalar, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: vector_value(DIM), scalar_value, value
+
+        call begin_output(out, message, capacity)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_vector_input(a, vector, vector_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_scalar_input(a, scalar, scalar_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = field_line_derivative(chart, vector_value, scalar_value)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_chart_field_line_derivative
 
     function fortsym_chart_curl(raw, coordinates, position, covector, out, &
             message, capacity) bind(c, name="fortsym_chart_curl") result(status)
