@@ -17,8 +17,11 @@ program test_fortsym_connection
     use fortsym_tensor, only: tensor_t, tensor_scalar, tensor_component, &
         tensor_rank, tensor_variance, tensor_valid, metric_covariant_tensor, &
         UPPER, LOWER_VARIANCE, MAX_RANK, tensor_vector, density
-    use fortsym_connection, only: covariant_diff, covariant_divergence, &
-        geodesic_residual, christoffel_tensor, &
+    use fortsym_connection, only: connection_t, connection_create, &
+        connection_from_chart, connection_from_metric, connection_valid, &
+        connection_convention, CONNECTION_STANDARD, covariant_diff, &
+        covariant_divergence, torsion, nonmetricity, geodesic_residual, &
+        christoffel_tensor, &
         riemann_tensor, first_bianchi_residual, ricci_tensor, &
         second_bianchi_residual, scalar_curvature, einstein_tensor
     implicit none
@@ -32,6 +35,8 @@ program test_fortsym_connection
     type(metric_t) :: metric_owner
     type(metric_t) :: cylindrical_metric
     type(metric_t) :: curved_metric
+    type(metric_t) :: cartesian_metric
+    type(connection_t) :: chart_connection, metric_connection, supplied_connection
     type(expr_t) :: u(DIM), position(DIM), scalar_value
     type(expr_t) :: gamma(DIM, DIM, DIM), expected
     type(tensor_t) :: scalar, gradient, metric, metric_derivative
@@ -44,8 +49,13 @@ program test_fortsym_connection
     type(tensor_t) :: bianchi, metric_bianchi, second_bianchi
     type(tensor_t) :: metric_second_bianchi, curved_riemann, curved_bianchi
     type(tensor_t) :: curved_second_bianchi
+    type(tensor_t) :: chart_torsion, metric_torsion, supplied_torsion
+    type(tensor_t) :: chart_nonmetricity, metric_nonmetricity
+    type(tensor_t) :: supplied_nonmetricity, supplied_derivative, supplied_divergence
     type(expr_t) :: metric_scalar
     type(expr_t) :: curved_components(DIM, DIM)
+    type(expr_t) :: cartesian_components(DIM, DIM)
+    type(expr_t) :: supplied_gamma(DIM, DIM, DIM), supplied_vector(DIM)
     type(expr_t) :: cylindrical_u(DIM), cylindrical_position(DIM)
     type(expr_t) :: geodesic_curve(DIM), geodesic_parameter
     type(expr_t) :: geodesic_value(DIM), metric_geodesic_value(DIM)
@@ -146,6 +156,63 @@ program test_fortsym_connection
     metric_einstein = einstein_tensor(metric_owner)
     call check_tensor_zero(suite, engine, native, metric_einstein, &
         "metric-owner Einstein tensor is zero")
+
+    chart_connection = connection_from_chart(polynomial)
+    metric_connection = connection_from_metric(metric_owner)
+    if (.not. connection_valid(chart_connection)) error stop "chart connection invalid"
+    if (.not. connection_valid(metric_connection)) error stop "metric connection invalid"
+    if (connection_convention(chart_connection) /= CONNECTION_STANDARD) then
+        error stop "connection convention failed"
+    end if
+    chart_torsion = torsion(chart_connection)
+    metric_torsion = torsion(metric_connection)
+    indices(1) = 1
+    indices(2) = 1
+    indices(3) = 2
+    call check_identity(suite, engine, "chart connection torsion is zero", &
+        tensor_component(chart_torsion, indices(1:3)))
+    call check_identity(suite, engine, "metric connection torsion is zero", &
+        tensor_component(metric_torsion, indices(1:3)))
+    chart_nonmetricity = nonmetricity(chart_connection, metric_owner)
+    metric_nonmetricity = nonmetricity(metric_connection, metric_owner)
+    call check_identity(suite, engine, "chart connection nonmetricity is zero", &
+        tensor_component(chart_nonmetricity, indices(1:3)))
+    call check_identity(suite, engine, "metric connection nonmetricity is zero", &
+        tensor_component(metric_nonmetricity, indices(1:3)))
+
+    cartesian_components = num(arena, 0)
+    cartesian_components(1, 1) = num(arena, 1)
+    cartesian_components(2, 2) = num(arena, 1)
+    cartesian_components(3, 3) = num(arena, 1)
+    cartesian_metric = metric_create(cartesian_components, orientation=1, &
+        coordinates=u)
+    supplied_gamma = num(arena, 0)
+    supplied_gamma(1, 1, 2) = u(1)
+    supplied_gamma(1, 2, 1) = 2*u(2)
+    supplied_connection = connection_create(supplied_gamma, u)
+    if (.not. connection_valid(supplied_connection)) then
+        error stop "supplied connection invalid"
+    end if
+    supplied_torsion = torsion(supplied_connection)
+    indices(1) = 1
+    indices(2) = 1
+    indices(3) = 2
+    call check_identity(suite, engine, "supplied torsion T^1_12", &
+        tensor_component(supplied_torsion, indices(1:3)) - (u(1) - 2*u(2)))
+    supplied_nonmetricity = nonmetricity(supplied_connection, cartesian_metric)
+    call check_identity(suite, engine, "supplied Q_112 = 4*R", &
+        tensor_component(supplied_nonmetricity, indices(1:3)) - 4*u(2))
+    supplied_vector = u
+    supplied_derivative = covariant_diff(supplied_connection, &
+        tensor_vector(polynomial, supplied_vector))
+    indices(1) = 1
+    indices(2) = 2
+    call check_identity(suite, engine, "supplied nabla_2 V^1", &
+        tensor_component(supplied_derivative, indices(1:2)) - 2*u(1)*u(2))
+    supplied_divergence = covariant_divergence(supplied_connection, &
+        tensor_vector(polynomial, supplied_vector))
+    call check_identity(suite, engine, "supplied divergence", &
+        tensor_component(supplied_divergence, indices(1:0)) - (3 + u(1)*u(2)))
 
     cylindrical = make_cylindrical_chart()
     cylindrical_metric = metric_from_chart(cylindrical)

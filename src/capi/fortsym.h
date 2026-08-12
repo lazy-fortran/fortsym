@@ -531,6 +531,28 @@ int fortsym_chart_tensor_lie(
     size_t vector_rank, const int vector_variance[], int vector_density_weight,
     const fortsym_expr *components[], size_t rank, const int variance[],
     int density_weight, fortsym_expr *out[], char *message, size_t capacity);
+/* Supplied affine connection coefficients use Gamma^a_bc and the same
+ * first-slot-fastest order as tensor arrays. Torsion and nonmetricity return
+ * rank-three arrays with variance (+1,-1,-1) and (-1,-1,-1), respectively. */
+int fortsym_chart_connection_torsion(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *connection[],
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_connection_nonmetricity(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *connection[],
+    const fortsym_expr *metric[], const int signature[], int orientation,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_connection_covariant_diff(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *connection[],
+    const fortsym_expr *components[], size_t rank, const int variance[],
+    int density_weight, fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_connection_covariant_divergence(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *connection[],
+    const fortsym_expr *components[], size_t rank, const int variance[],
+    int density_weight, fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_chart_riemann(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], fortsym_expr *out[], char *message,
