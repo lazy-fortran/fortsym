@@ -303,6 +303,15 @@ binary powers. Correctness stayed true for every benchmark row. Cold native
 small implementation-level gains on this workload; larger expansion cases and
 the complete SymPy performance gate remain open.
 
+The latest native run also keeps binary arena operands on the stack and skips
+denominator scans for expressions with no negative powers. All benchmark rows
+remained correct. Its cold native medians were 16.27 microseconds for
+`simplify_collect`, 23.53 microseconds for `differentiate_power`, and 1.563 ms
+for `expand_power`. Against the same run's SymEngine medians, the ratios were
+1.10x, 1.35x, and 1.26x. Warm native medians were 0.215, 0.178, and 0.210
+microseconds. These rows remain diagnostics until the matched SymPy corpus
+covers the same workloads.
+
 `fo exec bench_complexdom` writes the `complexdom_v1` native rows used for the
 complex-domain cache comparison. Its cold scope clears the assumption-context
 pair and single-result caches before each split or conjugation call; its warm
