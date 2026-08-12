@@ -62,6 +62,67 @@ INDEX_INTERNAL = 4
 INDEX_USER = 5
 
 
+class Orientation:
+    """A signed orientation declaration shared by metric and form views."""
+
+    __slots__ = ("value",)
+
+    def __init__(self, value):
+        value = int(value)
+        if value not in (-1, 1):
+            raise ValueError("orientation must be 1 or -1")
+        self.value = value
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return f"Orientation({self.value})"
+
+
+class Signature:
+    """A finite nondegenerate metric-signature declaration."""
+
+    __slots__ = ("values",)
+
+    def __init__(self, values):
+        values = tuple(int(value) for value in values)
+        if not 1 <= len(values) <= 16 or any(value not in (-1, 1)
+                                             for value in values):
+            raise ValueError("signature entries must be +/-1 and dimension 1..16")
+        self.values = values
+
+    @property
+    def dimension(self):
+        return len(self.values)
+
+    @property
+    def positive_count(self):
+        return self.values.count(1)
+
+    @property
+    def negative_count(self):
+        return self.values.count(-1)
+
+    @property
+    def is_lorentzian(self):
+        return self.dimension >= 2 and 1 in (
+            self.positive_count, self.negative_count
+        )
+
+    def __len__(self):
+        return len(self.values)
+
+    def __iter__(self):
+        return iter(self.values)
+
+    def __getitem__(self, index):
+        return self.values[index]
+
+    def __repr__(self):
+        return f"Signature({self.values!r})"
+
+
 def _index_variance(value):
     if value in (1, "upper", "up", "contravariant"):
         return 1
@@ -2899,6 +2960,10 @@ class Metric:
     def __init__(self, chart, components, signature=(1, 1, 1), orientation=1):
         if not isinstance(chart, Chart):
             raise TypeError("Metric requires a fortsym Chart")
+        if isinstance(signature, Signature):
+            signature = signature.values
+        if isinstance(orientation, Orientation):
+            orientation = orientation.value
         if len(signature) != 3 or any(int(value) not in (-1, 1)
                                       for value in signature):
             raise ValueError("metric signature requires three entries of +/-1")
@@ -2918,6 +2983,14 @@ class Metric:
         self._temporaries = tuple(temporaries)
         self.signature = tuple(int(value) for value in signature)
         self.orientation = int(orientation)
+
+    @property
+    def signature_type(self):
+        return Signature(self.signature)
+
+    @property
+    def orientation_type(self):
+        return Orientation(self.orientation)
 
     def sqrtg(self):
         return self._arena._metric_sqrtg(self)
@@ -3060,6 +3133,10 @@ class SpacetimeMetric:
             raise ValueError("spacetime metrics require four coordinates")
         if self.dimension < 1 or self.dimension > SPACETIME_DIM:
             raise ValueError("spacetime dimension must be between one and four")
+        if isinstance(signature, Signature):
+            signature = signature.values
+        if isinstance(orientation, Orientation):
+            orientation = orientation.value
         if len(signature) != SPACETIME_DIM or any(
                 int(value) not in (-1, 1) for value in signature):
             raise ValueError("spacetime signature requires four +/-1 entries")
@@ -3080,6 +3157,14 @@ class SpacetimeMetric:
         self._temporaries = tuple(temporaries)
         self.signature = tuple(int(value) for value in signature)
         self.orientation = int(orientation)
+
+    @property
+    def signature_type(self):
+        return Signature(self.signature)
+
+    @property
+    def orientation_type(self):
+        return Orientation(self.orientation)
 
     def sqrtg(self):
         return self._arena._spacetime_scalar(
@@ -4820,7 +4905,7 @@ def trace(tensor: Tensor, first, second): return tensor.trace(first, second)
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",

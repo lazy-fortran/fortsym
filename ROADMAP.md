@@ -858,8 +858,9 @@ The first-class object model is staged around these metadata owners:
   `patch_t`, including dimension, parent, open-domain, boundary, and
   simply-connected metadata. The Python diffgeom names carry the same flags;
   topology is never inferred from coordinate expressions.
-- [ ] `metric_t` stores a nondegenerate component tensor, signature
-  `(n_plus, n_minus, n_zero)`, orientation compatibility, and its inverse.
+- [x] `metric_t` stores a nondegenerate component tensor and shared typed
+  `signature_t`/`orientation_t` declarations, with signature `(n_plus,
+  n_minus, n_zero)`, orientation compatibility, and its inverse.
   `metric_from_chart` is a convenience constructor, not a second metric
   representation. Euclidean and Lorentzian metrics use the same tensor and
   Hodge owners.
@@ -890,10 +891,11 @@ The first-class object model is staged around these metadata owners:
   second Bianchi identity now has the corresponding rank-five derivative
   representation and independent flat/non-flat checks; arbitrary dimensions
   and supplied non-Levi-Civita connections remain open.
-- [ ] `orientation_t` and the positive volume density are separate metadata.
-  `volume_form(metric, orientation)` may change sign, while `sqrtg(metric)`
-  never absorbs orientation. `epsilon` constructors distinguish the symbol,
-  the tensor, and the tensor density.
+- [x] Add the shared `fortsym_geometry_metadata` owner for typed
+  `orientation_t` and `signature_t` declarations. Metric construction accepts
+  these types through `metric_create_metadata`, while `sqrtg` remains positive
+  and oriented volume forms remain signed. The integer C ABI and Python tuple
+  properties remain compatible views of the same metadata.
 - [x] Add positive coordinate-surface measures for chart-induced and explicit
   metrics. The native kernels compute the induced two-metric minor directly,
   without array temporaries; C ABI 53 and both Python facades keep this

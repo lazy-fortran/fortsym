@@ -8,6 +8,21 @@ import fortsym
 
 
 class NativePackageTest(unittest.TestCase):
+    def test_typed_geometry_metadata_facade(self):
+        signature = fortsym.Signature((-1, 1, 1))
+        orientation = fortsym.Orientation(-1)
+        self.assertTrue(signature.is_lorentzian)
+        self.assertEqual((signature.positive_count, signature.negative_count), (2, 1))
+        self.assertEqual(int(orientation), -1)
+        with fortsym.Arena() as arena:
+            x, y, z = [arena.symbol(name) for name in ("meta_x", "meta_y", "meta_z")]
+            metric = fortsym.Chart((x, y, z), (x, y, z)).metric_owner(
+                ((-1, 0, 0), (0, 1, 0), (0, 0, 1)),
+                signature=signature, orientation=orientation,
+            )
+            self.assertEqual(metric.signature_type.values, (-1, 1, 1))
+            self.assertEqual(metric.orientation_type.value, -1)
+
     def test_native_construction_and_transformations(self):
         with fortsym.Arena() as arena:
             x = arena.symbol("x")

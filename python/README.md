@@ -48,6 +48,11 @@ three-component contravariant vector. `Metric.inner(left, right)` contracts
 contravariant components with the metric, and `Metric.norm_squared(vector)`
 is its self-contraction convenience for quantities such as `B**2`; both use
 the same native nonorthogonal-metric path.
+`Signature(values)` and `Orientation(sign)` are typed declarations accepted by
+`Metric` and `SpacetimeMetric`. Their `dimension`, signed counts, and
+`is_lorentzian` properties are available directly; `signature_type` and
+`orientation_type` return typed views while the existing tuple/int properties
+remain compatible.
 `Chart.field_line_derivative(vector, scalar)` returns the directional derivative
 `vector[i] * diff(scalar, coordinate[i])`. A `MagneticField` exposes the same
 operation as `field.field_line_derivative(scalar)` using its typed `B^i` view.

@@ -12,6 +12,7 @@ from itertools import count
 
 from .. import (
     Arena, Chart, ChartMap, MagneticField, FourierWeakForm, Metric, Connection,
+    Orientation, Signature,
     SpacetimeMetric, SpacetimeForm, SpacetimeTensor, Tensor, IndexType, Index,
     Form, Expr,
     FortSymError, FOURIER_INVALID, FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE,
@@ -1250,7 +1251,7 @@ nan = _default().constant("nan")
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "TensorIndexType", "TensorIndex", "Form", "Expr", "FortSymError", "UnsupportedOperationError",
+    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "Connection", "Orientation", "Signature", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "TensorIndexType", "TensorIndex", "Form", "Expr", "FortSymError", "UnsupportedOperationError",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
