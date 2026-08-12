@@ -38,9 +38,10 @@ module fortsym
         serialize_expression, deserialize_expression, assess_identity, &
         assess_equivalence, evidence_json, emit_backend_kernel
     use fortsym_ode, only: solve_ode
-    use fortsym_chart, only: DIM, chart_t, chart_create, chart_create_on_patch, &
+    use fortsym_chart, only: DIM, chart_t, coords, chart_create, chart_create_on_patch, &
         chart_valid, chart_has_patch, chart_patch, covariant_basis, &
-        reciprocal_basis, metric_covariant, metric_contravariant, sqrtg, &
+        reciprocal_basis, chart_metric_covariant => metric_covariant, &
+        chart_metric_contravariant => metric_contravariant, sqrtg, &
         surface_measure, field_line_derivative, &
         jacobian, christoffel, chart_grad => grad, &
         chart_divergence => divergence, curl, chart_laplacian => laplacian
@@ -113,6 +114,7 @@ module fortsym
         FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, SPACE_EDGE, TRACE_NONE, &
         TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
+        metric_components => metric_covariant, metric_inverse => metric_contravariant, &
         metric_det, metric_sqrtg, &
         metric_surface_measure, metric_inner, &
         metric_signature, metric_orientation, metric_valid, metric_arena, &
@@ -160,6 +162,29 @@ module fortsym
         procedure :: chart_grad
         procedure :: metric_grad
     end interface grad
+
+    ! The default-state geometry vocabulary is deliberately short. The
+    ! explicit owner names remain available when callers need to select an
+    ! arena or a lower-level implementation directly.
+    interface make_chart
+        procedure :: chart_default
+        procedure :: chart_create
+    end interface make_chart
+
+    interface make_metric
+        procedure :: metric_from_chart
+        procedure :: metric_create
+    end interface make_metric
+
+    interface metric_covariant
+        procedure :: chart_metric_covariant
+        procedure :: metric_components
+    end interface metric_covariant
+
+    interface metric_contravariant
+        procedure :: chart_metric_contravariant
+        procedure :: metric_inverse
+    end interface metric_contravariant
 
     interface divergence
         procedure :: chart_divergence
@@ -209,7 +234,7 @@ module fortsym
         deserialize_expression, assess_identity, assess_equivalence, &
         evidence_json, emit_backend_kernel
     public :: solve_ode
-    public :: DIM, chart_t, chart_create, chart_create_on_patch, chart_valid, &
+    public :: DIM, chart_t, coords, make_chart, chart_create, chart_create_on_patch, chart_valid, &
         chart_has_patch, chart_patch, covariant_basis, reciprocal_basis, &
         metric_covariant, metric_contravariant, sqrtg, surface_measure, jacobian, &
         christoffel, grad, divergence, field_line_derivative, curl, laplacian, &
@@ -236,7 +261,7 @@ module fortsym
         fourier_constitutive_valid, fourier_weak_form_valid, FOURIER_INVALID, &
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, &
         SPACE_EDGE, TRACE_NONE, TRACE_NORMAL, TRACE_TANGENTIAL, &
-        metric_t, metric_create, metric_from_chart, metric_det, metric_sqrtg, &
+        metric_t, make_metric, metric_create, metric_from_chart, metric_det, metric_sqrtg, &
         metric_surface_measure, metric_inner, &
         metric_grad, metric_divergence, metric_laplacian, &
         metric_volume_density, levi_civita_symbol, metric_levi_civita, &
@@ -321,6 +346,14 @@ module fortsym
     end interface assignment(=)
 
 contains
+
+    !> Default-state chart constructor: `c = make_chart(u, position)`.
+    function chart_default(u, position) result(c)
+        type(expr_t), intent(in) :: u(DIM), position(DIM)
+        type(chart_t) :: c
+
+        c = chart_create(default_arena(), u, position)
+    end function chart_default
 
     !> Return the process-local arena used by character assignment and symbols.
     !> It is single-threaded state. Callers that need concurrency should create

@@ -41,13 +41,11 @@ program example_boozer_coordinates
     i_flux = sym(arena, "I0") + sym(arena, "I1")*psi
     g_flux = sym(arena, "G0") + sym(arena, "G1")*psi
 
-    coordinates(1) = psi
-    coordinates(2) = theta
-    coordinates(3) = phi
+    coordinates = coords(psi, theta, phi)
     ! The coordinate-aware metric owner needs coordinates; position is only
     ! a harmless identity chart here, not a Cartesian equilibrium embedding.
     position = coordinates
-    boozer_chart = chart_create(arena, coordinates, position)
+    boozer_chart = make_chart(coordinates, position)
     flux_owner = flux_coordinates(boozer_chart, 1, FLUX_BOOZER)
     if (.not. flux_coordinate_valid(flux_owner)) then
         error stop "Boozer flux-coordinate owner invalid"
@@ -57,7 +55,7 @@ program example_boozer_coordinates
     metric_components(1, 1) = num(arena, 1)
     metric_components(2, 2) = h**2
     metric_components(3, 3) = h**2
-    metric_owner = metric_create(metric_components, orientation=1, &
+    metric_owner = make_metric(metric_components, orientation=1, &
         coordinates=coordinates)
     if (.not. metric_valid(metric_owner)) error stop "Boozer metric invalid"
 

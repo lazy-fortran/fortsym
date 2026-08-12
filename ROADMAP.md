@@ -1307,6 +1307,11 @@ conversion only. They do not maintain a second geometry implementation.
   exposes the selected SymPy names such as `CoordSystem`, `TensorIndexType`,
   `TensorIndex`, `TensorHead`, `TensorProduct`, `WedgeProduct`, and
   `Differential`, with one conversion path to the native objects.
+- [x] Add the first concise default-state geometry constructors without a
+  second owner: `coords(x, y, z)`, `make_chart(u, position)`, and
+  `make_metric(c)` reuse the existing chart and metric modules. The `make_`
+  prefix avoids colliding with natural local variables named `chart` or
+  `metric`; explicit-arena overloads remain available.
 - [ ] Define the supported tensor-density convention, including the sign and
   absolute-value behavior of Jacobians, and test composition of two coordinate
   changes. `sqrtg` carries orientation separately from the positive metric

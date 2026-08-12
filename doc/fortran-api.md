@@ -7,6 +7,14 @@ the generic interfaces accept expression handles while the language's intrinsic
 names remain the natural spelling for native symbolic expressions.
 The lower-level `fortsym_expr` and `fortsym_arena` modules remain available.
 
+The default facade also provides concise geometry constructors that reuse the
+same native owners: `u = coords(x, y, z)`, `c = make_chart(u, position)`, and
+`g = make_metric(c)`. The `make_` prefix is intentional: exporting generic
+names `chart` or `metric` would prevent ordinary Fortran programs from using
+those natural names for local variables. Explicit arenas and the lower-level
+`chart_create` and `metric_create` names remain available for isolated or
+concurrent work.
+
 `fortsym_domain` owns topology declarations separately from coordinate and
 metric calculus. `manifold_create(name, dimension, has_boundary,
 simply_connected)` and `patch_create(manifold, name, open_domain, has_boundary,

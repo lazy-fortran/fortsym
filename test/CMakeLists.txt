@@ -93,6 +93,7 @@ fortsym_add_test(test_fortsym_registry calculus/test_fortsym_registry.f90)
 fortsym_add_test(test_fortsym_relativity calculus/test_fortsym_relativity.f90)
 fortsym_add_test(test_fortsym_spacetime_form calculus/test_fortsym_spacetime_form.f90)
 fortsym_add_test(test_fortsym_toroidal calculus/test_fortsym_toroidal.f90)
+fortsym_add_test(test_fortsym_easy_geometry calculus/test_fortsym_easy_geometry.f90)
 
 # --- reading Fortran back ---
 fortsym_add_test(test_fortsym_fparse parse_fortran/test_fortsym_fparse.f90)
