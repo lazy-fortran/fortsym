@@ -363,6 +363,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.asin(native_i),
             names,
         ),
+        "domain_acos_imaginary": (
+            oracle.acos(oracle.I),
+            native.acos(native_i),
+            names,
+        ),
         "domain_sqrt_negative_square": (
             oracle.sqrt(-4),
             native.sqrt(-4),
@@ -540,6 +545,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.acosh(imaginary_unit(engine))
     elif operation == "domain_asin_imaginary":
         expression = engine.asin(imaginary_unit(engine))
+    elif operation == "domain_acos_imaginary":
+        expression = engine.acos(imaginary_unit(engine))
     elif operation == "domain_sqrt_negative_square":
         expression = engine.sqrt(-4)
     elif operation == "domain_asinh_imaginary":
@@ -762,7 +769,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                 "domain_atanh_imaginary",
                 "domain_atan_imaginary",
                 "domain_acosh_branch", "domain_acosh_imaginary",
-                "domain_asin_imaginary", "domain_sqrt_negative_square",
+                "domain_asin_imaginary", "domain_acos_imaginary",
+                "domain_sqrt_negative_square",
                 "domain_asinh_imaginary",
                 "domain_inverse",
                 "domain_reciprocal", "domain_error_function", "domain_gamma",
@@ -817,7 +825,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                         "domain_atanh_pole", "domain_atanh_imaginary",
                         "domain_atan_imaginary",
                         "domain_acosh_branch", "domain_acosh_imaginary",
-                        "domain_asin_imaginary", "domain_sqrt_negative_square",
+                        "domain_asin_imaginary", "domain_acos_imaginary",
+                        "domain_sqrt_negative_square",
                         "domain_asinh_imaginary",
                         "domain_inverse",
                         "domain_reciprocal",
@@ -890,7 +899,8 @@ def benchmark_workload(
                     "domain_atanh_pole", "domain_atanh_imaginary",
                     "domain_atan_imaginary",
                     "domain_acosh_branch", "domain_acosh_imaginary",
-                    "domain_asin_imaginary", "domain_sqrt_negative_square",
+                    "domain_asin_imaginary", "domain_acos_imaginary",
+                    "domain_sqrt_negative_square",
                     "domain_asinh_imaginary",
                     "domain_inverse",
                     "domain_reciprocal", "domain_error_function", "domain_gamma",
@@ -944,7 +954,8 @@ def benchmark_workload(
                     "domain_atanh_pole", "domain_atanh_imaginary",
                     "domain_atan_imaginary",
                     "domain_acosh_branch", "domain_acosh_imaginary",
-                    "domain_asin_imaginary", "domain_sqrt_negative_square",
+                    "domain_asin_imaginary", "domain_acos_imaginary",
+                    "domain_sqrt_negative_square",
                     "domain_asinh_imaginary",
                     "domain_inverse",
                         "domain_reciprocal", "domain_error_function", "domain_gamma",
@@ -1010,7 +1021,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
+        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):
         if operation in _PREDICATE_OPERATIONS:

@@ -1367,6 +1367,12 @@ contains
             r%value == -i_expr(arena)*infinity)
         r = engine%simplify(acos(complex_infinity))
         call check("acos(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(acos(i_expr(arena)))
+        call check("acos(i) is pi over two minus i log(1 + sqrt(2))", &
+            r%value == half_pi - imaginary_log_one_plus_sqrt_two)
+        r = engine%simplify(acos(-i_expr(arena)))
+        call check("acos(-i) is pi over two plus i log(1 + sqrt(2))", &
+            r%value == half_pi + imaginary_log_one_plus_sqrt_two)
         r = engine%simplify(atan(infinity))
         call check("atan(oo) is pi over two", r%value == half_pi)
         r = engine%simplify(atan(negative_infinity))
