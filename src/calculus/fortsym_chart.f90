@@ -27,7 +27,7 @@ module fortsym_chart
     public :: covariant_basis, reciprocal_basis
     public :: metric_covariant, metric_contravariant, sqrtg
     public :: jacobian, christoffel
-    public :: grad, divergence, curl, laplacian
+    public :: grad, divergence, div_density, curl, curl_density, laplacian
     public :: mms_source
 
     integer, parameter :: dp = real64
@@ -278,6 +278,23 @@ contains
         d = d/j
     end function divergence
 
+    !> Divergence of a contravariant vector density of weight +1:
+    !>
+    !>   div_density D = d_i D^i
+    !>
+    !> This is the density-valued operator used by the differential-form and
+    !> finite-element formulations. It deliberately has no metric or Jacobian
+    !> factor; callers that hold an ordinary vector use divergence instead.
+    function div_density(c, v) result(d)
+        type(chart_t), intent(in) :: c
+        type(expr_t),  intent(in) :: v(DIM)
+        type(expr_t)              :: d
+
+        d = diff(v(1), c%u(1))
+        d = d + diff(v(2), c%u(2))
+        d = d + diff(v(3), c%u(3))
+    end function div_density
+
     !> Curl of a covariant vector field, returning contravariant components:
     !>
     !>   (curl w)^i = (1/J) eps^ijk d_j w_k
@@ -296,6 +313,24 @@ contains
         r(2) = (diff(w(1), c%u(3)) - diff(w(3), c%u(1)))/j
         r(3) = (diff(w(2), c%u(1)) - diff(w(1), c%u(2)))/j
     end function curl
+
+    !> Curl of a covariant vector field as a contravariant vector density:
+    !>
+    !>   (curl_density w)^1 = d_2 w_3 - d_3 w_2
+    !>   (curl_density w)^2 = d_3 w_1 - d_1 w_3
+    !>   (curl_density w)^3 = d_1 w_2 - d_2 w_1
+    !>
+    !> This is the metric-free density form of curl. For a regular chart it is
+    !> exactly jacobian(c)*curl(c,w), with the chart orientation retained.
+    function curl_density(c, w) result(r)
+        type(chart_t), intent(in) :: c
+        type(expr_t),  intent(in) :: w(DIM)
+        type(expr_t)              :: r(DIM)
+
+        r(1) = diff(w(3), c%u(2)) - diff(w(2), c%u(3))
+        r(2) = diff(w(1), c%u(3)) - diff(w(3), c%u(1))
+        r(3) = diff(w(2), c%u(1)) - diff(w(1), c%u(2))
+    end function curl_density
 
     !> Laplace-Beltrami operator: div grad.
     function laplacian(c, f) result(l)

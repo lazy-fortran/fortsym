@@ -40,6 +40,7 @@ program test_fortsym_chart_slow
     call test_metric_inverse()
     call test_determinant_relation()
     call test_christoffel_symmetry()
+    call test_density_operators()
     call test_curl_of_grad_vanishes()
     call test_div_of_curl_vanishes()
     call test_laplacian_on_cartesian()
@@ -168,6 +169,35 @@ contains
             end do
         end do
     end subroutine test_christoffel_symmetry
+
+    !> Differential-form curl and divergence operate directly on densities:
+    !> curl_density(w) is the alternating derivative numerator and
+    !> div_density(D) is the plain coordinate divergence of D^i.
+    subroutine test_density_operators()
+        type(expr_t) :: w(DIM), dfield(DIM), c(DIM), expected(DIM), d
+        type(expr_t) :: r, th, ph
+
+        r = sym(arena, "r")
+        th = sym(arena, "th")
+        ph = sym(arena, "ph")
+
+        w(1) = r*th
+        w(2) = th**2
+        w(3) = r*ph
+        c = curl_density(torus, w)
+        expected(1) = diff(w(3), th) - diff(w(2), ph)
+        expected(2) = diff(w(1), ph) - diff(w(3), r)
+        expected(3) = diff(w(2), r) - diff(w(1), th)
+        call check_zero(s, eng, "curl density component 1", c(1) - expected(1))
+        call check_zero(s, eng, "curl density component 2", c(2) - expected(2))
+        call check_zero(s, eng, "curl density component 3", c(3) - expected(3))
+
+        dfield(1) = r**2
+        dfield(2) = r*th
+        dfield(3) = sin(ph)
+        d = div_density(torus, dfield)
+        call check_zero(s, eng, "density divergence", d - (2*r + th))
+    end subroutine test_density_operators
 
     !> curl grad f = 0, for any f and any chart. Catches a missing Jacobian
     !> weight or a swapped index in curl.

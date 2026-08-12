@@ -110,6 +110,11 @@ The first native differential-form layer is three-dimensional and uses the
 coordinate coframe. `form_scalar`, `form_one`, `form_two`, and `form_three`
 construct typed forms; `d`, `wedge`, `star`, `interior`, and `lie` operate on
 them. `flat` and `sharp` are the metric-owned one-form/vector conversions.
+`curl_density` returns the contravariant weight-one density associated with a
+covector, and `div_density` is its componentwise scalar-density divergence.
+They are the natural coordinate operations for differential forms and the
+Fourier finite-element formulation; `curl` and `divergence` remain the
+ordinary vector-valued operations.
 `form_zero(chart, 4)` names the explicit zero extension returned by `d` of a
 three-form; it is preserved by native form operations and chart-map transport.
 The magnetic two-form is therefore a derived identity, not a second magnetic

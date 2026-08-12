@@ -202,8 +202,18 @@ def _configure(lib):
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
          ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_div_density = declare(
+        "fortsym_chart_div_density", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.chart_curl = declare(
         "fortsym_chart_curl", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    lib.chart_curl_density = declare(
+        "fortsym_chart_curl_density", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
          ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
@@ -1235,9 +1245,21 @@ class Chart:
 
     div = divergence
 
+    def div_density(self, vector_density):
+        return self._arena._chart_vector_scalar(
+            self._arena._lib.chart_div_density,
+            self.coordinates, self.position, vector_density,
+        )
+
     def curl(self, covector):
         return self._arena._chart_vector_array(
             self._arena._lib.chart_curl, self.coordinates, self.position, covector
+        )
+
+    def curl_density(self, covector):
+        return self._arena._chart_vector_array(
+            self._arena._lib.chart_curl_density,
+            self.coordinates, self.position, covector,
         )
 
     def laplacian(self, scalar):
