@@ -20,6 +20,7 @@ module fortsym_tensor
 
     public :: tensor_t, tensor, tensor_scalar, tensor_vector, tensor_covector
     public :: tensor_from_components, tensor_from_matrix
+    public :: tensor_from_storage
     public :: tensor_component, tensor_rank, tensor_variance
     public :: tensor_density_weight, tensor_valid, tensor_same_arena, density
     public :: vector, covector, raise, lower
@@ -139,6 +140,39 @@ contains
             result%component(k - 1) = values(k)
         end do
     end function tensor_from_components
+
+    !> Construct from the fixed native component store without passing an
+    !> array section across a module boundary. This is the ownership-safe path
+    !> for generated tensor transformations and keeps the component buffer
+    !> explicit for compilers that warn about hidden temporaries.
+    function tensor_from_storage(c, rank, values, variance, density_weight) &
+            result(result)
+        type(chart_t), intent(in) :: c
+        integer, intent(in) :: rank
+        type(expr_t), intent(in) :: values(0:MAX_COMPONENTS - 1)
+        integer, intent(in) :: variance(MAX_RANK)
+        integer, optional, intent(in) :: density_weight
+        type(tensor_t) :: result
+        integer :: metadata(MAX_RANK), weight, k, count
+
+        if (.not. associated(c%a)) return
+        if (rank < 0 .or. rank > MAX_RANK) return
+        count = component_count(rank)
+        metadata = 0
+        do k = 1, rank
+            if (variance(k) /= UPPER .and. variance(k) /= LOWER_VARIANCE) return
+            metadata(k) = variance(k)
+        end do
+        do k = 0, count - 1
+            if (.not. is_valid(values(k))) return
+            if (.not. associated(values(k)%a, c%a)) return
+        end do
+        weight = optional_weight(density_weight)
+        result = zero_tensor(c%a, rank, metadata, weight)
+        do k = 0, count - 1
+            result%component(k) = values(k)
+        end do
+    end function tensor_from_storage
 
     !> Rank-two constructor with ordinary Fortran matrix indexing.
     function tensor_from_matrix(c, values, first_variance, second_variance, &

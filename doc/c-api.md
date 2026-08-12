@@ -1,12 +1,13 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 23). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 24). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
 signed Jacobian, covariant/reciprocal basis transport, tensor slot
 raise/lower, density metadata changes, oriented metric volume forms, and
-chart-owned vector calculus. The native library retains an
+chart-owned vector calculus, and bidirectional chart-map tensor transport.
+The native library retains an
 arena while any expression handle refers to it; callers may therefore release
 the arena before releasing its expressions.
 

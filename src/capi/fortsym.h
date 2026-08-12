@@ -202,6 +202,25 @@ int fortsym_chart_laplacian(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *scalar,
     fortsym_expr **out, char *message, size_t capacity);
+int fortsym_chart_map_jacobian(
+    fortsym_arena *arena, const fortsym_expr *source_coordinates[],
+    const fortsym_expr *source_position[], const fortsym_expr *target_coordinates[],
+    const fortsym_expr *target_position[], const fortsym_expr *forward[],
+    const fortsym_expr *inverse[], fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_chart_map_inverse_jacobian(
+    fortsym_arena *arena, const fortsym_expr *source_coordinates[],
+    const fortsym_expr *source_position[], const fortsym_expr *target_coordinates[],
+    const fortsym_expr *target_position[], const fortsym_expr *forward[],
+    const fortsym_expr *inverse[], fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_chart_map_tensor(
+    fortsym_arena *arena, const fortsym_expr *source_coordinates[],
+    const fortsym_expr *source_position[], const fortsym_expr *target_coordinates[],
+    const fortsym_expr *target_position[], const fortsym_expr *forward[],
+    const fortsym_expr *inverse[], const fortsym_expr *components[], size_t rank,
+    const int variance[], int density_weight, fortsym_expr *out[],
+    char *message, size_t capacity);
 int fortsym_chart_b_cov(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *vector[],

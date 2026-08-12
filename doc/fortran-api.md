@@ -85,6 +85,18 @@ B = b_fourier(chart, A, n)
 The convenience facade and the lower-level modules call the same owners; they
 do not maintain separate metric, variance, or density representations.
 
+`fortsym_chart_map` owns bidirectional coordinate transitions. Supply target
+coordinates as functions of source coordinates and the inverse map explicitly.
+The tensor transform applies `K` to upper slots, `L` to lower slots, preserves
+the density weight, and returns components expressed in the target coordinates.
+
+```fortran
+use fortsym_chart_map, only: chart_map_t, chart_map_create, transform_tensor
+type(chart_map_t) :: transition
+transition = chart_map_create(source, target, target_in_source, source_in_target)
+target_tensor = transform_tensor(transition, source_tensor)
+```
+
 The first native differential-form layer is three-dimensional and uses the
 coordinate coframe. `form_scalar`, `form_one`, `form_two`, and `form_three`
 construct typed forms; `d`, `wedge`, `star`, `interior`, and `lie` operate on

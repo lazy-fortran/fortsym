@@ -196,6 +196,33 @@ def _configure(lib):
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CVOID,
          ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    chart_map_matrix_arguments = [
+        _CVOID,
+        ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+        ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+        ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+        ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+    ]
+    for name in ("map_jacobian", "map_inverse_jacobian"):
+        setattr(
+            lib,
+            "chart_" + name,
+            declare(
+                "fortsym_chart_" + name, ctypes.c_int,
+                chart_map_matrix_arguments,
+            ),
+        )
+    lib.chart_map_tensor = declare(
+        "fortsym_chart_map_tensor", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+            ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     for name in ("b_cov", "b_fourier", "b_fourier_density"):
         arguments = [
             _CVOID,
@@ -927,6 +954,54 @@ class Arena:
         )
         return coordinate_handles, position_handles
 
+    def _chart_map_inputs(self, chart_map):
+        source_coordinates, source_position = self._chart_inputs(
+            chart_map.source.coordinates, chart_map.source.position
+        )
+        target_coordinates, target_position = self._chart_inputs(
+            chart_map.target.coordinates, chart_map.target.position
+        )
+        forward = (_CVOID * 3)(
+            *[self._check(value)._handle for value in chart_map.forward]
+        )
+        inverse = (_CVOID * 3)(
+            *[self._check(value)._handle for value in chart_map.inverse]
+        )
+        return (
+            source_coordinates, source_position, target_coordinates,
+            target_position, forward, inverse,
+        )
+
+    def _chart_map_matrix(self, operation, chart_map):
+        arguments = self._chart_map_inputs(chart_map)
+        output = (_CVOID * 9)()
+        message = _message()
+        status = operation(
+            self._require(), *arguments, output, message, len(message)
+        )
+        if status:
+            raise FortSymError(status, _decode(message), operation.__name__)
+        return tuple(Expr(self, output[index]) for index in range(9))
+
+    def _chart_map_tensor(self, chart_map, tensor):
+        arguments = self._chart_map_inputs(chart_map)
+        component_values = [self._check(value) for value in tensor.components]
+        component_handles = (_CVOID * len(component_values))(
+            *[value._handle for value in component_values]
+        )
+        variance_values = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output_count = 3 ** tensor.rank
+        output = (_CVOID * output_count)()
+        message = _message()
+        status = self._lib.chart_map_tensor(
+            self._require(), *arguments, component_handles, tensor.rank,
+            variance_values, tensor.density_weight, output, message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "map_tensor")
+        return tuple(Expr(self, output[index]) for index in range(output_count))
+
     def relation(self, left: "Expr", right: "Expr", name: str):
         left = self._check(left)
         right, temporary = self._coerce(right)
@@ -1153,6 +1228,49 @@ class Chart:
             self._arena._lib.chart_b_fourier_density,
             self.coordinates, self.position, potential, mode,
         )
+
+
+class ChartMap:
+    """A bidirectional coordinate transition owned by the native chart layer.
+
+    ``forward`` gives target coordinates as functions of source coordinates.
+    ``inverse`` gives source coordinates as functions of target coordinates.
+    Tensor components are returned in the target coordinate symbols.
+    """
+
+    def __init__(self, source, target, forward, inverse):
+        if not isinstance(source, Chart) or not isinstance(target, Chart):
+            raise TypeError("ChartMap requires source and target Chart objects")
+        if source._arena is not target._arena:
+            raise ValueError("ChartMap source and target must share an arena")
+        self.source = source
+        self.target = target
+        self._arena = source._arena
+        self.forward = tuple(self._arena._check(value) for value in forward)
+        self.inverse = tuple(self._arena._check(value) for value in inverse)
+        if len(self.forward) != 3 or len(self.inverse) != 3:
+            raise ValueError("ChartMap requires three forward and inverse coordinates")
+
+    def jacobian(self):
+        return self._arena._chart_map_matrix(
+            self._arena._lib.chart_map_jacobian, self
+        )
+
+    def inverse_jacobian(self):
+        return self._arena._chart_map_matrix(
+            self._arena._lib.chart_map_inverse_jacobian, self
+        )
+
+    def transform(self, tensor):
+        if not isinstance(tensor, Tensor) or tensor.chart is not self.source:
+            raise ValueError("ChartMap.transform expects a tensor from its source chart")
+        components = self._arena._chart_map_tensor(self, tensor)
+        return Tensor(
+            self.target, components, tensor.variance, tensor.density_weight,
+            _owned=True,
+        )
+
+    pushforward = transform
 
 
 class Tensor:
@@ -2179,7 +2297,7 @@ def free_symbols(expression: Expr): return expression.free_symbols
 
 
 __all__ = [
-    "Arena", "Chart", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "ChartMap", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count",
     "free_symbols",
 ]
