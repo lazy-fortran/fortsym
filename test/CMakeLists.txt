@@ -94,6 +94,11 @@ add_executable(test_fortsym_capi capi/test_fortsym_capi.c)
 target_link_libraries(test_fortsym_capi PRIVATE fortsym)
 target_include_directories(test_fortsym_capi PRIVATE ${PROJECT_SOURCE_DIR}/src/capi)
 add_test(NAME test_fortsym_capi COMMAND test_fortsym_capi)
+add_executable(test_fortsym_spacetime_form_capi capi/test_fortsym_spacetime_form_capi.c)
+target_include_directories(test_fortsym_spacetime_form_capi PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/capi)
+target_link_libraries(test_fortsym_spacetime_form_capi PRIVATE fortsym)
+add_test(NAME test_fortsym_spacetime_form_capi COMMAND test_fortsym_spacetime_form_capi)
 add_executable(test_fortsym_header_cpp capi/test_fortsym_header.cpp)
 target_include_directories(test_fortsym_header_cpp PRIVATE
     ${PROJECT_SOURCE_DIR}/src/capi)

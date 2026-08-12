@@ -75,7 +75,8 @@ module fortsym
         spacetime_metric_create, spacetime_metric_covariant, &
         spacetime_metric_contravariant, spacetime_metric_det, &
         spacetime_metric_sqrtg, spacetime_metric_signature, &
-        spacetime_metric_orientation, spacetime_metric_valid, &
+        spacetime_metric_orientation, spacetime_metric_dimension, &
+        spacetime_metric_valid, &
         spacetime_metric_arena, spacetime_metric_coordinates, &
         spacetime_metric_has_coordinates, spacetime_christoffel, &
         spacetime_riemann, spacetime_ricci, spacetime_scalar_curvature, &

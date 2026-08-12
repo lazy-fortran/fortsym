@@ -30,7 +30,8 @@ module fortsym_relativity
     public :: spacetime_metric_create, spacetime_metric_covariant
     public :: spacetime_metric_contravariant, spacetime_metric_det
     public :: spacetime_metric_sqrtg, spacetime_metric_signature
-    public :: spacetime_metric_orientation, spacetime_metric_valid
+    public :: spacetime_metric_orientation, spacetime_metric_dimension
+    public :: spacetime_metric_valid
     public :: spacetime_metric_arena, spacetime_metric_coordinates
     public :: spacetime_metric_has_coordinates
     public :: spacetime_christoffel, spacetime_riemann, spacetime_ricci
@@ -90,9 +91,18 @@ contains
         type(spacetime_metric_t), intent(in) :: g
         type(expr_t) :: value(SPACETIME_DIM, SPACETIME_DIM)
         type(expr_t) :: determinant
+        type(expr_t) :: one
         integer :: i, j
 
         if (.not. spacetime_metric_valid(g)) return
+        if (is_diagonal_metric(g)) then
+            one = num(g%a, 1)
+            value = num(g%a, 0)
+            do i = 1, g%dimension
+                value(i, i) = one/g%component(i, i)
+            end do
+            return
+        end if
         determinant = spacetime_metric_det(g)
         do i = 1, g%dimension
             do j = 1, g%dimension
@@ -107,23 +117,27 @@ contains
         integer :: i
 
         if (.not. spacetime_metric_valid(g)) return
-        select case (g%dimension)
-        case (1)
-            value = g%component(1, 1)
-        case (2)
-            value = g%component(1, 1)*g%component(2, 2) - &
-                g%component(1, 2)*g%component(2, 1)
-        case (3)
-            value = determinant3(g%component)
-        case (4)
-            value = g%component(1, 1)*cofactor(g, 1, 1) + &
-                g%component(1, 2)*cofactor(g, 1, 2) + &
-                g%component(1, 3)*cofactor(g, 1, 3) + &
-                g%component(1, 4)*cofactor(g, 1, 4)
-        end select
-        do i = g%dimension + 1, SPACETIME_DIM
-            value = value + num(g%a, 0)*g%component(i, i)
-        end do
+        if (is_diagonal_metric(g)) then
+            value = num(g%a, 1)
+            do i = 1, g%dimension
+                value = value*g%component(i, i)
+            end do
+        else
+            select case (g%dimension)
+            case (1)
+                value = g%component(1, 1)
+            case (2)
+                value = g%component(1, 1)*g%component(2, 2) - &
+                    g%component(1, 2)*g%component(2, 1)
+            case (3)
+                value = determinant3(g%component)
+            case (4)
+                value = g%component(1, 1)*cofactor(g, 1, 1) + &
+                    g%component(1, 2)*cofactor(g, 1, 2) + &
+                    g%component(1, 3)*cofactor(g, 1, 3) + &
+                    g%component(1, 4)*cofactor(g, 1, 4)
+            end select
+        end if
     end function spacetime_metric_det
 
     function spacetime_metric_sqrtg(g) result(value)
@@ -141,6 +155,14 @@ contains
         value = 0
         if (spacetime_metric_valid(g)) value = g%signature
     end function spacetime_metric_signature
+
+    function spacetime_metric_dimension(g) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        integer :: value
+
+        value = 0
+        if (spacetime_metric_valid(g)) value = g%dimension
+    end function spacetime_metric_dimension
 
     function spacetime_metric_orientation(g) result(value)
         type(spacetime_metric_t), intent(in) :: g
@@ -380,5 +402,23 @@ contains
             end do
         end do
     end function all_components_zero
+
+    function is_diagonal_metric(g) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        logical :: value
+        type(expr_t) :: zero
+        integer :: i, j
+
+        value = .false.
+        if (.not. spacetime_metric_valid(g)) return
+        zero = num(g%a, 0)
+        value = .true.
+        do i = 1, g%dimension
+            do j = 1, g%dimension
+                if (i == j) cycle
+                if (.not. (g%component(i, j) == zero)) value = .false.
+            end do
+        end do
+    end function is_diagonal_metric
 
 end module fortsym_relativity

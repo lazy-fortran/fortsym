@@ -1269,8 +1269,12 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   coordinate-aware `d`, Lorentzian/Riemannian metric `star`, and the native
   `codifferential` path. The owner proves `d(d(A)) = 0`, graded antisymmetry,
   and the signature-dependent Hodge involution on the Minkowski baseline.
-  ABI 33 and both Python facades transport `d`, `wedge`, and `star`; pullback,
+  ABI 34 and both Python facades transport `d`, `wedge`, and `star`; pullback,
   contraction, Lie derivative, arbitrary dimension, and topology remain open.
+- [x] Transport the native spacetime codifferential through ABI 34 and the
+  Python facades as `codifferential()` with the concise `codiff()` alias. Its
+  Minkowski one-form result is checked against the direct signed divergence
+  formula; Laplace--de Rham and source equations remain open.
 - [ ] Implement codifferential, Laplace-de Rham, and the conversion between
   vectors and one-forms using `flat` and `sharp`. The fixed-three-dimensional
   Hodge owner now accepts an explicit metric signature and orientation through

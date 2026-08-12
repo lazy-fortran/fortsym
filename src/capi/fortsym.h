@@ -334,6 +334,11 @@ int fortsym_spacetime_form_star(
     const fortsym_expr *coordinates[], const int signature[], int orientation,
     const fortsym_expr *input[], size_t degree, fortsym_expr *out[],
     char *message, size_t capacity);
+int fortsym_spacetime_form_codifferential(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *input[], size_t degree, fortsym_expr *out[],
+    char *message, size_t capacity);
 /* Geometry tensor arrays use first-slot-fastest order, matching the native
  * `tensor_component` convention. The caller supplies an output array with
  * `3**rank` slots and releases each returned handle with fortsym_expr_free. */
