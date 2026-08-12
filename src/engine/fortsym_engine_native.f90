@@ -1847,6 +1847,63 @@ contains
         call simplify_domain_add(a, operands, out, exact)
         if (exact) return
 
+        ! Binary additions are the dominant shape produced by the public
+        ! operators. Resolve the only binary rewrite that needs coefficient
+        ! extraction without building the general live/filtered work arrays;
+        ! larger sums retain the full like-term collector below.
+        if (size(operands) == 2) then
+            pair(1) = operands(1)
+            pair(2) = operands(2)
+            flat = a%add(pair)
+            if (a%kind_of(flat) /= NK_ADD) then
+                out = flat
+                return
+            end if
+            if (a%nargs_of(flat) == 2) then
+                if (is_zero_id(a, operands(1))) then
+                    out = operands(2)
+                    return
+                end if
+                if (is_zero_id(a, operands(2))) then
+                    out = operands(1)
+                    return
+                end if
+                call split_coefficient(a, operands(1), base, coefficient, exact)
+                exact2 = .false.
+                if (exact) then
+                    call split_coefficient(a, operands(2), base2, coefficient2, exact2)
+                end if
+                if (exact) then
+                    if (exact2) then
+                        if (base == base2) then
+                            call coefficient_add(a, coefficient, coefficient2, &
+                                sum_coefficient, combined)
+                            if (combined) then
+                                if (coefficient_is_zero(sum_coefficient)) then
+                                    out = a%int(0_int64)
+                                else
+                                    term = coefficient_node(a, sum_coefficient)
+                                    if (base /= 0) then
+                                        if (coefficient_is_one(sum_coefficient)) then
+                                            term = base
+                                        else
+                                            pair(1) = term
+                                            pair(2) = base
+                                            term = a%mul(pair)
+                                        end if
+                                    end if
+                                    out = term
+                                end if
+                                return
+                            end if
+                        end if
+                    end if
+                end if
+                out = flat
+                return
+            end if
+        end if
+
         ! Preserve a composite term long enough to cancel its explicit
         ! negative. Flattening u + (-u) first would splice u's children into
         ! the outer sum and hide that the two operands are opposites.
@@ -2133,9 +2190,11 @@ contains
         integer, allocatable :: factors(:), bases(:), result(:)
         integer(int64), allocatable :: exponents(:)
         type(exact_coefficient_t) :: numeric_product, factor_coefficient, product
-        integer(int64) :: exponent, sum_exp
-        integer :: flat, i, j, count, base
+        integer(int64) :: exponent, sum_exp, combined_exp
+        integer :: flat, i, j, count, base, base2
+        integer :: pair(2)
         logical :: exact, product_ok, combined, power_factor
+        logical :: factors_one, factors_two
 
         if (has_nan_operand(a, operands)) then
             out = nan_node(a)
@@ -2143,6 +2202,90 @@ contains
         end if
         call simplify_domain_mul(a, operands, out, product_ok)
         if (product_ok) return
+
+        ! Keep the common binary product on the stack. The general collector
+        ! below handles arbitrary arity and repeated powers, but its factor,
+        ! base, exponent, and result arrays are unnecessary for this shape.
+        if (size(operands) == 2) then
+            pair(1) = operands(1)
+            pair(2) = operands(2)
+            flat = a%mul(pair)
+            if (a%kind_of(flat) /= NK_MUL) then
+                out = flat
+                return
+            end if
+            if (a%nargs_of(flat) == 2) then
+                factors_one = is_exact_scalar_kind(a%kind_of(a%arg_of(flat, 1)))
+                factors_two = is_exact_scalar_kind(a%kind_of(a%arg_of(flat, 2)))
+                if (factors_one .or. factors_two) then
+                    numeric_product = coefficient_one()
+                    if (factors_one) then
+                        call coefficient_from_node(a, a%arg_of(flat, 1), &
+                            factor_coefficient, product_ok)
+                        if (.not. product_ok) then
+                            out = flat
+                            return
+                        end if
+                        numeric_product = factor_coefficient
+                    end if
+                    if (factors_two) then
+                        call coefficient_from_node(a, a%arg_of(flat, 2), &
+                            factor_coefficient, product_ok)
+                        if (.not. product_ok) then
+                            out = flat
+                            return
+                        end if
+                        call coefficient_mul(a, numeric_product, factor_coefficient, &
+                            product, product_ok)
+                        if (.not. product_ok) then
+                            out = flat
+                            return
+                        end if
+                        numeric_product = product
+                    end if
+                    if (coefficient_is_zero(numeric_product)) then
+                        out = a%int(0_int64)
+                    else if (factors_one .and. factors_two) then
+                        out = coefficient_node(a, numeric_product)
+                    else
+                        if (factors_one) then
+                            base = a%arg_of(flat, 2)
+                        else
+                            base = a%arg_of(flat, 1)
+                        end if
+                        if (coefficient_is_one(numeric_product)) then
+                            out = base
+                        else
+                            pair(1) = coefficient_node(a, numeric_product)
+                            pair(2) = base
+                            out = a%mul(pair)
+                        end if
+                    end if
+                    return
+                end if
+                call integer_power_factor(a, a%arg_of(flat, 1), base, exponent, &
+                    power_factor)
+                call integer_power_factor(a, a%arg_of(flat, 2), base2, sum_exp, &
+                    combined)
+                if (combined .and. base == base2) then
+                    call checked_add(exponent, sum_exp, combined_exp, exact)
+                    if (exact) then
+                        if (combined_exp == 0_int64) then
+                            out = a%int(1_int64)
+                        else
+                            out = a%pow(base, a%int(combined_exp))
+                        end if
+                        return
+                    end if
+                end if
+                if (a%arg_of(flat, 1) == a%arg_of(flat, 2)) then
+                    out = a%pow(a%arg_of(flat, 1), a%int(2_int64))
+                    return
+                end if
+                out = flat
+                return
+            end if
+        end if
 
         flat = a%mul(operands)
         if (a%kind_of(flat) /= NK_MUL) then

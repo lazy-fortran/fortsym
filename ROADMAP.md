@@ -1710,10 +1710,9 @@ without an explicit volume factor.
   Boozer: `B^label` plus the four angular derivatives, exposed by the native
   owner, C ABI 61, and both Python facades with independent Fortran, C, and
   SymPy-oracle checks.
-- [ ] Complete Clebsch, Hamada, equilibrium-surface construction, symbolic
-  consistency/refusal checks, equilibrium-surface construction, and
-  current/Jacobian identities. Do not encode a particular equilibrium solver in
-  this toolkit.
+- [ ] Complete Clebsch and the remaining Hamada/equilibrium-surface
+  construction, symbolic consistency/refusal checks, and current/Jacobian
+  identities. Do not encode a particular equilibrium solver in this toolkit.
 - [ ] Add the common plasma identities `B dot grad(psi) = 0`, the reciprocal
   basis relations, `B = B^i e_i = B_i e^i`, `div(B) = 0`, and the magnetic
   differential equation in both component and form notation.
@@ -2173,6 +2172,11 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     benchmark remained correct and measured 1.10x, 1.35x, and 1.26x native /
     SymEngine for cold simplify, differentiation, and expansion on its current
     diagnostic workload. Matched SymPy coverage remains open.
+  - [x] Add allocation-free binary add/multiply fast paths while preserving
+    flattened and domain-sensitive fallbacks. The 2026-08-12 rerun remained
+    correct and measured 7.28 microseconds for cold simplify, 8.64 microseconds
+    for cold differentiation, and 0.12/0.11 microseconds for the corresponding
+    warm calls; the broader SymPy corpus gate remains open.
 - [x] Cache immutable explicit metric determinant, inverse, and positive
   `sqrtg` views in the native `metric_t` owner. Repeated gradient, divergence,
   Laplace--Beltrami, Hodge, and raise/lower calls reuse the same expression
