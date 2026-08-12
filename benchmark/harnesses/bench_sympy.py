@@ -120,11 +120,19 @@ def compound_equivalent(expected: Any, actual: Any) -> bool:
 def match_equivalent(expected: Any, actual: Any) -> bool:
     if expected is None or actual is None:
         return expected is actual
-    return {
-        str(key): str(value) for key, value in expected.items()
-    } == {
-        str(key): str(value) for key, value in actual.items()
-    }
+    expected_values = {str(key): value for key, value in expected.items()}
+    actual_values = {str(key): value for key, value in actual.items()}
+    if expected_values.keys() != actual_values.keys():
+        return False
+    for key in expected_values:
+        try:
+            expected_value = oracle.sympify(str(expected_values[key]))
+            actual_value = oracle.sympify(str(actual_values[key]))
+            if oracle.simplify(actual_value - expected_value) != 0:
+                return False
+        except (TypeError, ValueError, SyntaxError):
+            return False
+    return True
 
 
 def measure(function: Callable[[], Any], warmup: int, repetitions: int, batch: int) -> dict[str, Any]:
@@ -338,6 +346,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
         "match_wild": (
             oracle_x + 1,
             native_x + 1,
+            names,
+        ),
+        "match_wild_remainder": (
+            oracle_x + oracle_y,
+            native_x + native_y,
             names,
         ),
         "differentiate": (
@@ -649,6 +662,10 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
     elif operation == "match_wild":
         expression = x + 1
         variable = engine.Wild(f"{operation}_a")
+    elif operation == "match_wild_remainder":
+        y = engine.Symbol(f"{operation}_y_{suffix}")
+        expression = x + y
+        variable = x + engine.Wild(f"{operation}_a")
     elif operation == "differentiate":
         y = engine.Symbol(f"{operation}_y_{suffix}")
         expression = engine.exp(x * y)
@@ -954,6 +971,13 @@ def correctness_cases() -> list[dict[str, Any]]:
             native_pattern = native.Wild("match_wild_a") + 1
             expected = oracle_expression.match(oracle_pattern)
             actual = native_expression.match(native_pattern)
+        elif operation == "match_wild_remainder":
+            oracle_x = names["check_x_fixed"]
+            native_x = native.Symbol("check_x_fixed")
+            oracle_pattern = oracle_x + oracle.Wild("match_wild_remainder_a")
+            native_pattern = native_x + native.Wild("match_wild_remainder_a")
+            expected = oracle_expression.match(oracle_pattern)
+            actual = native_expression.match(native_pattern)
         elif operation == "differentiate":
             expected = oracle.diff(oracle_expression, names[f"check_x_fixed"])
             actual = native.diff(native_expression, native.Symbol("check_x_fixed"))
@@ -1028,7 +1052,7 @@ def correctness_cases() -> list[dict[str, Any]]:
             "operation": operation,
             "correct": (
                 match_equivalent(expected, actual)
-                if operation in ("match", "match_wild")
+                if operation in ("match", "match_wild", "match_wild_remainder")
                 else expected == actual
                 if (operation in ("count_ops", "free_symbols") or
                         operation in _ASSUMPTION_OPERATIONS or
@@ -1156,6 +1180,17 @@ def benchmark_workload(
                 native_pattern = native.Wild("match_wild_a")
                 oracle_call = lambda: oracle_expression.match(oracle_pattern)
                 native_call = lambda: native_expression.match(native_pattern)
+            elif operation == "match_wild_remainder":
+                oracle_x = oracle.Symbol("match_wild_remainder_x_warm")
+                native_x = native.Symbol("match_wild_remainder_x_warm")
+                oracle_pattern = oracle_x + oracle.Wild(
+                    "match_wild_remainder_a"
+                )
+                native_pattern = native_x + native.Wild(
+                    "match_wild_remainder_a"
+                )
+                oracle_call = lambda: oracle_expression.match(oracle_pattern)
+                native_call = lambda: native_expression.match(native_pattern)
             elif operation == "simplify":
                 oracle_call = lambda: oracle.simplify(oracle_expression)
                 native_call = lambda: native.simplify(native_expression)
@@ -1261,7 +1296,7 @@ def benchmark_workload(
                     return expression.replace(old, replacement)
                 if operation == "match":
                     return expression.match(variable)
-                if operation == "match_wild":
+                if operation in ("match_wild", "match_wild_remainder"):
                     return expression.match(variable)
                 if operation in _PREDICATE_OPERATIONS:
                     return predicate_value(expression, operation)
@@ -1354,7 +1389,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
+        "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):
         if operation in _PREDICATE_OPERATIONS:

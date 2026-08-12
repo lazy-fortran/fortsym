@@ -740,12 +740,11 @@ class Expr:
                 new_temporary.close()
 
     def match(self, pattern, old=False):
-        """Return an empty binding for an exact, non-wildcard match.
+        """Return exact or bounded compatibility-layer wildcard bindings.
 
-        Wildcard pattern construction is owned by the compatibility layer's
-        future pattern vocabulary.  Until that vocabulary exists, this method
-        deliberately implements only SymPy's exact structural boundary.
-        ``old`` has no effect when no wildcard is present.
+        The native handle owns exact structural matching; the adapter owns
+        direct, fixed-shape, and bounded root-level commutative Wild rules.
+        ``old`` has no effect in this supported fragment.
         """
         direct_matcher = getattr(pattern, "_wildcard_matcher", None)
         if direct_matcher is not None and not isinstance(pattern, Expr):

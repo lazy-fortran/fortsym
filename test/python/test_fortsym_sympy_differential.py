@@ -396,10 +396,23 @@ class SympyDifferentialTest(unittest.TestCase):
                 )
 
     def test_wildcard_match_matches_oracle(self):
-        def normalized(result):
-            if result is None:
-                return None
-            return {str(key): str(value) for key, value in result.items()}
+        def equivalent(expected, actual):
+            if expected is None or actual is None:
+                return expected is actual
+            expected_values = {
+                str(key): value for key, value in expected.items()
+            }
+            actual_values = {
+                str(key): value for key, value in actual.items()
+            }
+            if expected_values.keys() != actual_values.keys():
+                return False
+            for key in expected_values:
+                expected_value = oracle.sympify(str(expected_values[key]))
+                actual_value = oracle.sympify(str(actual_values[key]))
+                if oracle.simplify(actual_value - expected_value) != 0:
+                    return False
+            return True
 
         def cases(api):
             x, y = api.symbols("wild_x wild_y")
@@ -413,6 +426,13 @@ class SympyDifferentialTest(unittest.TestCase):
             return [
                 (x, a),
                 (x + 1, a + 1),
+                (x + y, x + a),
+                (2*x, x*a),
+                (x*y, x*a),
+                (x, x + a),
+                (x + y, a + a),
+                (x + y, 2*a),
+                (x*y, x + a),
                 (f(x + y), f(a + b)),
                 (x, api.Wild("not_x", exclude=(x,))),
                 (api.Integer(2), integer),
@@ -426,9 +446,11 @@ class SympyDifferentialTest(unittest.TestCase):
                         zip(oracle_cases, native_cases)
                     ):
             with self.subTest(index=index):
-                self.assertEqual(
-                    normalized(native_expression.match(native_pattern)),
-                    normalized(oracle_expression.match(oracle_pattern)),
+                self.assertTrue(
+                    equivalent(
+                        oracle_expression.match(oracle_pattern),
+                        native_expression.match(native_pattern),
+                    )
                 )
 
     def test_free_symbols_matches_oracle(self):

@@ -567,8 +567,11 @@ Every checklist item requires all of the following:
       validation without adding a second replacement traversal.
     - [x] Add the adapter-only `Wild` vocabulary and structural wildcard
       matching for direct wildcards and fixed-shape expression slots, including
-      SymPy-compatible `exclude` and `properties` filters. Commutative
-      remainder partitioning and other broad matcher rules remain open.
+      SymPy-compatible `exclude` and `properties` filters.
+    - [x] Add bounded single-Wild additive and multiplicative remainder
+      matching at expression roots, including repeated-Wild scalar remainders;
+      multi-Wild commutative partitioning and broader recursive matcher rules
+      remain open.
 
 ## Phase 4 — polynomial and rational algebra
 
@@ -820,6 +823,10 @@ Every checklist item requires all of the following:
   - [x] Add exact non-wildcard `replace` correctness and performance coverage.
     The 114-row matrix measured native/SymPy ratios of 0.716x cold and 0.029x
     warm, with zero correctness failures and zero unwaived violations.
+  - [x] Add bounded single-Wild commutative remainder correctness and
+    performance coverage. The 116-row matrix measured native/SymPy ratios of
+    0.799x cold and 0.017x warm, with 100 correctness cases, zero correctness
+    failures, and zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.
