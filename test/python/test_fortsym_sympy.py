@@ -145,6 +145,92 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_boozer_flux_functions_and_metric_form_match_sympy(self):
+        psi, theta, phi = sp.symbols("boozer_psi boozer_theta boozer_phi")
+        h0, epsilon = sp.symbols("boozer_h0 boozer_epsilon")
+        i0, i1, g0, g1 = sp.symbols(
+            "boozer_I0 boozer_I1 boozer_G0 boozer_G1"
+        )
+        h = h0*(1 + epsilon*sp.cos(theta))
+        i_flux = i0 + i1*psi
+        g_flux = g0 + g1*psi
+        chart = sp.Chart((psi, theta, phi), (psi, theta, phi))
+        metric = chart.metric_owner(
+            ((1, 0, 0), (0, h**2, 0), (0, 0, h**2)),
+        )
+        inverse = metric.contravariant()
+
+        oracle_psi, oracle_theta, oracle_phi = oracle.symbols(
+            "boozer_psi boozer_theta boozer_phi"
+        )
+        oracle_h0, oracle_epsilon = oracle.symbols(
+            "boozer_h0 boozer_epsilon"
+        )
+        oracle_i0, oracle_i1, oracle_g0, oracle_g1 = oracle.symbols(
+            "boozer_I0 boozer_I1 boozer_G0 boozer_G1"
+        )
+        oracle_h = oracle_h0*(1 + oracle_epsilon*oracle.cos(oracle_theta))
+        expected_metric = oracle.diag(1, oracle_h**2, oracle_h**2)
+        actual_metric = oracle.Matrix(3, 3, lambda row, column: oracle.sympify(
+            str(metric.components[row + 3*column].simplify())
+        ))
+        self.assertEqual(actual_metric, expected_metric)
+        expected_inverse = expected_metric.inv()
+        actual_inverse = oracle.Matrix(3, 3, lambda row, column: oracle.sympify(
+            str(inverse[row, column].simplify())
+        ))
+        for row in range(3):
+            for column in range(3):
+                self.assertEqual(
+                    oracle.simplify(
+                        actual_inverse[row, column] - expected_inverse[row, column]
+                    ),
+                    0,
+                )
+        actual_volume_squared = oracle.sympify(
+            str(metric.volume_density().simplify())
+        )**2
+        self.assertEqual(
+            oracle.simplify(
+                actual_volume_squared - oracle.Abs(expected_metric.det())
+            ),
+            0,
+        )
+
+        expected_i = oracle_i0 + oracle_i1*oracle_psi
+        expected_g = oracle_g0 + oracle_g1*oracle_psi
+        actual_i = sp.diff(i_flux, theta).simplify()
+        actual_g = sp.diff(g_flux, theta).simplify()
+        self.assertEqual(
+            oracle.sympify(str(actual_i)), oracle.diff(expected_i, oracle_theta)
+        )
+        self.assertEqual(
+            oracle.sympify(str(actual_g)), oracle.diff(expected_g, oracle_theta)
+        )
+        self.assertEqual(
+            oracle.sympify(str(sp.diff(i_flux, phi).simplify())),
+            oracle.diff(expected_i, oracle_phi),
+        )
+        self.assertEqual(
+            oracle.sympify(str(sp.diff(g_flux, phi).simplify())),
+            oracle.diff(expected_g, oracle_phi),
+        )
+        expected_upper = oracle.Matrix((
+            0, expected_i/oracle_h**2, expected_g/oracle_h**2,
+        ))
+        actual_upper = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify()))
+            for value in (sp.Integer(0), i_flux/h**2, g_flux/h**2)
+        ))
+        self.assertEqual(actual_upper, expected_upper)
+        expected_flux_two_form = oracle.Matrix((expected_g, -expected_i, 0))
+        actual_flux_two_form = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify()))
+            for value in (g_flux, -i_flux, sp.Integer(0))
+        ))
+        self.assertEqual(actual_flux_two_form, expected_flux_two_form)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_spacetime_metric_forms_and_wave_operator_match_sympy(self):
         t, x, y, z = sp.symbols("spacetime_t spacetime_x spacetime_y spacetime_z")
         coordinates = (t, x, y, z)

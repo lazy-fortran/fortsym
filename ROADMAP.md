@@ -976,9 +976,12 @@ beta = i_B(Omega)
 
 The native example must separate the representation identity from the
 equilibrium problem: it may use an analytic metric fixture, but must also
-provide a later chart-based path for a supplied equilibrium map. Tests check
-angular derivatives of `B_theta` and `B_phi`, the current/flux normalization
-when selected, the raised field, `B dot grad(psi) = 0`, and `d(beta) = 0`.
+provide a later chart-based path for a supplied equilibrium map. The current
+analytic fixture and its independent native/Python checks cover the metric
+form, angular derivatives of `B_theta` and `B_phi`, the raised field, zero
+divergence, `B dot grad(psi) = 0`, `beta = i_B(Omega)`, and `d(beta) = 0`.
+The chart-based supplied-equilibrium path and current/flux normalization when
+selected remain the next Boozer-specific extensions.
 Left- and right-handed charts are separate cases; no sign is hidden in
 `sqrtg`. This contract is grounded in the Boozer sections of D'haeseleer et
 al. and the local flux-coordinate notes, not in the name of a variable.

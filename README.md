@@ -167,7 +167,8 @@ toroidal surfaces labelled by `psi`, verifies `B^psi = 0`, and checks
 `example_boozer_coordinates` shows the analytic Boozer representation: the
 covariant angular components `B_theta = I(psi)` and `B_phi = G(psi)` are flux
 functions, while the metric and raised components carry the coordinate volume
-factor.
+factor. It also prints the diagonal metric, the oriented volume form, and
+`i_B(Omega) = B_phi dpsi wedge dtheta - B_theta dpsi wedge dphi`.
 
 **Read Fortran back.** Point it at a source file and a variable name and it
 returns the symbolic expression that file computes, so a hand-written kernel can
