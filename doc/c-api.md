@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 31). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 32). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -30,6 +30,9 @@ coefficient, and 2x2 transverse mass block as native expression handles.
 The metric owner is also available through `fortsym_metric_sqrtg` and
 `fortsym_metric_contravariant`; `fortsym_chart_form_star_metric` applies the
 same native Hodge owner to an explicitly supplied signature and orientation.
+The dimension-aware relativity owner is transported by the
+`fortsym_spacetime_*` calls for inverse metric, Christoffel, Riemann, Ricci,
+scalar curvature, and Einstein tensors.
 The native library retains an
 arena while any expression handle refers to it; callers may therefore release
 the arena before releasing its expressions.

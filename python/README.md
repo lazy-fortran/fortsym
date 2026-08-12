@@ -37,6 +37,10 @@ the Python layer does not recalculate the constitutive reduction.
 metric owner. `Metric.sqrtg()`, `Metric.contravariant()`, and
 `Form.star(metric)` use that owner, so Lorentzian signatures and orientation
 remain explicit instead of being inferred from a chart.
+`SpacetimeMetric` is the dimension-aware four-coordinate facade for the
+relativity owner. It exposes `sqrtg()`, inverse metric, Christoffel, Riemann,
+Ricci, scalar curvature, and Einstein views using the same native expression
+arena and first-slot-fastest indexing.
 `Chart.one_form()`, `two_form()`, and
 `three_form()` construct native `Form` objects. Forms expose the fixed
 three-dimensional basis-mask components plus `d()`, `wedge()`, `star()`,

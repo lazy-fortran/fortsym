@@ -52,6 +52,7 @@ SPACE_EDGE = 2
 TRACE_NONE = 0
 TRACE_NORMAL = 1
 TRACE_TANGENTIAL = 2
+SPACETIME_DIM = 4
 
 
 def _matrix3_values(matrix):
@@ -68,6 +69,22 @@ def _matrix3_values(matrix):
     if len(values) == 9:
         return values
     raise ValueError("j_fourier reluctivity requires a 3x3 matrix")
+
+
+def _matrix4_values(matrix):
+    """Return a 4x4 matrix in the native first-slot-fastest order."""
+    values = tuple(matrix)
+    if len(values) == 4:
+        try:
+            rows = tuple(tuple(row) for row in values)
+        except TypeError:
+            rows = ()
+        if len(rows) == 4 and all(len(row) == 4 for row in rows):
+            return tuple(rows[row][column] for column in range(4)
+                         for row in range(4))
+    if len(values) == 16:
+        return values
+    raise ValueError("spacetime metric requires a 4x4 matrix")
 
 
 class FortSymError(RuntimeError):
@@ -352,6 +369,26 @@ def _configure(lib):
             _SIZE,
         ],
     )
+    spacetime_arguments = [
+        _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+        ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+        ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+    ]
+    for name in (
+        "spacetime_metric_contravariant", "spacetime_christoffel",
+        "spacetime_riemann", "spacetime_ricci", "spacetime_einstein",
+    ):
+        setattr(
+            lib, name, declare("fortsym_" + name, ctypes.c_int,
+                               spacetime_arguments),
+        )
+    for name in ("spacetime_metric_sqrtg", "spacetime_scalar_curvature"):
+        setattr(
+            lib, name, declare(
+                "fortsym_" + name, ctypes.c_int,
+                spacetime_arguments[:-3] + [ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+            ),
+        )
     for name in ("covariant_basis", "reciprocal_basis", "metric_covariant",
                  "metric_contravariant", "christoffel",
                  "riemann", "ricci", "einstein"):
@@ -1029,6 +1066,40 @@ class Arena:
             raise FortSymError(status, _decode(message), "metric_hodge_star")
         return tuple(Expr(self, output[index]) for index in range(8))
 
+    def _spacetime_inputs(self, metric):
+        components = (_CVOID * (SPACETIME_DIM * SPACETIME_DIM))(
+            *[value._handle for value in metric.components]
+        )
+        coordinates = (_CVOID * SPACETIME_DIM)(
+            *[value._handle for value in metric.coordinates]
+        )
+        signature = (ctypes.c_int * SPACETIME_DIM)(*metric.signature)
+        return components, coordinates, signature
+
+    def _spacetime_array(self, operation, metric, count):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        output = (_CVOID * count)()
+        message = _message()
+        status = operation(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), operation.__name__)
+        return tuple(Expr(self, output[index]) for index in range(count))
+
+    def _spacetime_scalar(self, operation, metric):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        output = _CVOID()
+        message = _message()
+        status = operation(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, ctypes.byref(output), message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), operation.__name__)
+        return Expr(self, output)
+
     def _chart_tensor(self, operation, coordinates, position, rank):
         coordinate_handles, position_handles = self._chart_inputs(
             coordinates, position
@@ -1660,6 +1731,157 @@ class Metric:
     def close(self):
         for temporary in self._temporaries:
             temporary.close()
+        self._temporaries = ()
+        self.components = ()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+class SpacetimeTensor:
+    """A small native-backed tensor view for the dimension-aware owner."""
+
+    def __init__(self, arena, components, shape):
+        self._arena = arena
+        self.components = tuple(components)
+        self.shape = tuple(int(value) for value in shape)
+        expected = SPACETIME_DIM ** len(self.shape)
+        if len(self.components) != expected:
+            raise ValueError("spacetime tensor component count is inconsistent")
+
+    def component(self, *indices):
+        if len(indices) != len(self.shape):
+            raise IndexError("spacetime tensor rank does not match")
+        flat = 0
+        scale = 1
+        for index in indices:
+            index = int(index)
+            if index < 0 or index >= SPACETIME_DIM:
+                raise IndexError("spacetime tensor index is outside dimension four")
+            flat += index * scale
+            scale *= SPACETIME_DIM
+        value = self.components[flat]
+        value._spacetime_owner = self
+        return value
+
+    def __getitem__(self, indices):
+        if not isinstance(indices, tuple):
+            indices = (indices,)
+        return self.component(*indices)
+
+    def __len__(self):
+        return len(self.components)
+
+    def __iter__(self):
+        for value in self.components:
+            value._spacetime_owner = self
+            yield value
+
+    def close(self):
+        for value in self.components:
+            value.close()
+        self.components = ()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+class SpacetimeMetric:
+    """Dimension-aware native metric owner, currently dimensions one through four."""
+
+    def __init__(self, coordinates, components, dimension=4,
+                 signature=(-1, 1, 1, 1), orientation=1):
+        self.coordinates = tuple(coordinates)
+        self.dimension = int(dimension)
+        if len(self.coordinates) != SPACETIME_DIM:
+            raise ValueError("spacetime metrics require four coordinates")
+        if self.dimension < 1 or self.dimension > SPACETIME_DIM:
+            raise ValueError("spacetime dimension must be between one and four")
+        if len(signature) != SPACETIME_DIM or any(
+                int(value) not in (-1, 1) for value in signature):
+            raise ValueError("spacetime signature requires four +/-1 entries")
+        if int(orientation) not in (-1, 1):
+            raise ValueError("spacetime orientation must be 1 or -1")
+        self._arena = self.coordinates[0]._arena
+        self.coordinates = tuple(self._arena._check(value)
+                                 for value in self.coordinates)
+        values = _matrix4_values(components)
+        component_values = []
+        temporaries = []
+        for value in values:
+            coerced, temporary = self._arena._coerce(value)
+            component_values.append(coerced)
+            if temporary is not None:
+                temporaries.append(temporary)
+        self.components = tuple(component_values)
+        self._temporaries = tuple(temporaries)
+        self.signature = tuple(int(value) for value in signature)
+        self.orientation = int(orientation)
+
+    def sqrtg(self):
+        return self._arena._spacetime_scalar(
+            self._arena._lib.spacetime_metric_sqrtg, self
+        )
+
+    def contravariant(self):
+        return SpacetimeTensor(
+            self._arena,
+            self._arena._spacetime_array(
+                self._arena._lib.spacetime_metric_contravariant, self, 16
+            ),
+            (4, 4),
+        )
+
+    def christoffel(self):
+        return SpacetimeTensor(
+            self._arena,
+            self._arena._spacetime_array(
+                self._arena._lib.spacetime_christoffel, self, 64
+            ),
+            (4, 4, 4),
+        )
+
+    def riemann(self):
+        return SpacetimeTensor(
+            self._arena,
+            self._arena._spacetime_array(
+                self._arena._lib.spacetime_riemann, self, 256
+            ),
+            (4, 4, 4, 4),
+        )
+
+    def ricci(self):
+        return SpacetimeTensor(
+            self._arena,
+            self._arena._spacetime_array(
+                self._arena._lib.spacetime_ricci, self, 16
+            ),
+            (4, 4),
+        )
+
+    def scalar_curvature(self):
+        return self._arena._spacetime_scalar(
+            self._arena._lib.spacetime_scalar_curvature, self
+        )
+
+    def einstein(self):
+        return SpacetimeTensor(
+            self._arena,
+            self._arena._spacetime_array(
+                self._arena._lib.spacetime_einstein, self, 16
+            ),
+            (4, 4),
+        )
+
+    def close(self):
+        for value in self._temporaries:
+            value.close()
         self._temporaries = ()
         self.components = ()
 
@@ -2807,8 +3029,9 @@ def free_symbols(expression: Expr): return expression.free_symbols
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "SpacetimeMetric", "SpacetimeTensor", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
+    "SPACETIME_DIM",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count",
     "free_symbols",
 ]

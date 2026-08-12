@@ -1453,6 +1453,17 @@ between the two-dimensional gradient, scalar curl, and divergence.
 - [ ] Add electromagnetic forms, a magnetic two-form, and a gauge-equivalent
   vector-potential example. Compare the form and tensor/vector outputs in both
   frontends.
+- [x] Add the first dimension-aware four-dimensional pseudo-Riemannian owner:
+  explicit coordinates, signature, positive `sqrt(abs(det(g)))`, inverse
+  metric, Christoffel symbols, Riemann, Ricci, scalar curvature, and Einstein
+  tensors. Verify spherical Minkowski flatness and selected nonzero connection
+  coefficients natively. Geodesics, 2D parity, curved invariants, and frontend
+  transport remain open.
+- [x] Transport that four-dimensional owner through the ABI and both Python
+  facades, including inverse metric, Christoffel, Riemann, Ricci, scalar, and
+  Einstein views. The Python result trees are differentially checked against
+  independently assembled SymPy Christoffel expressions; full frontend corpus
+  generation and Wolfram translation remain open.
 - [ ] Publish short Fortran, Python, and Wolfram examples for every completed
   derivation. Each example must show construction, simplification, a named
   identity check, and code generation where applicable.

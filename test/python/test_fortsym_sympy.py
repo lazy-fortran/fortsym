@@ -57,6 +57,61 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_spherical_minkowski_relativity_owner_matches_sympy(self):
+        t, r, theta, phi = sp.symbols("rel_t rel_r rel_theta rel_phi")
+        metric = sp.SpacetimeMetric(
+            (t, r, theta, phi),
+            ((-1, 0, 0, 0), (0, 1, 0, 0),
+             (0, 0, r**2, 0), (0, 0, 0, r**2*sp.sin(theta)**2)),
+            signature=(-1, 1, 1, 1),
+        )
+        inverse = metric.contravariant()
+        self.assertEqual(inverse[0, 0].simplify(), -1)
+        self.assertEqual((inverse[2, 2] - 1/r**2).simplify(), 0)
+        christoffel = metric.christoffel()
+        self.assertEqual((christoffel[1, 2, 2] + r).simplify(), 0)
+        self.assertEqual(
+            (christoffel[3, 2, 3] - sp.cos(theta)/sp.sin(theta)).simplify(),
+            0,
+        )
+        ox, or_, ot, op = oracle.symbols("rel_t rel_r rel_theta rel_phi")
+        oracle_metric = oracle.diag(
+            -1, 1, or_**2, or_**2*oracle.sin(ot)**2
+        )
+        oracle_coordinates = (ox, or_, ot, op)
+        oracle_inverse = oracle_metric.inv()
+
+        def oracle_gamma(a, b, c):
+            return oracle.simplify(sum(
+                oracle_inverse[a, ell] * (
+                    oracle.diff(oracle_metric[ell, c], oracle_coordinates[b])
+                    + oracle.diff(oracle_metric[ell, b], oracle_coordinates[c])
+                    - oracle.diff(oracle_metric[b, c], oracle_coordinates[ell])
+                ) / 2
+                for ell in range(4)
+            ))
+
+        expected_gamma_rtt = oracle_gamma(1, 2, 2)
+        expected_gamma_phitp = oracle_gamma(3, 2, 3)
+        self.assertEqual(
+            oracle.simplify(
+                oracle.sympify(str(christoffel[1, 2, 2].simplify()))
+                - expected_gamma_rtt
+            ),
+            0,
+        )
+        self.assertEqual(
+            oracle.simplify(
+                oracle.sympify(str(christoffel[3, 2, 3].simplify()))
+                - expected_gamma_phitp
+            ),
+            0,
+        )
+        self.assertEqual(metric.scalar_curvature().simplify(), 0)
+        self.assertEqual(metric.ricci()[0, 0].simplify(), 0)
+        self.assertEqual(metric.einstein()[3, 3].simplify(), 0)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_chart_jacobian_and_dual_basis_match_sympy(self):
         u, v, w = sp.symbols("basis_u basis_v basis_w")
         chart = sp.Chart((u, v, w), (u + v, 2*v + w, w))

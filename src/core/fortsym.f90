@@ -71,6 +71,15 @@ module fortsym
         metric_det, metric_sqrtg, &
         metric_signature, metric_orientation, metric_valid, metric_arena, &
         metric_same_arena, metric_coordinates, metric_has_coordinates
+    use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
+        spacetime_metric_create, spacetime_metric_covariant, &
+        spacetime_metric_contravariant, spacetime_metric_det, &
+        spacetime_metric_sqrtg, spacetime_metric_signature, &
+        spacetime_metric_orientation, spacetime_metric_valid, &
+        spacetime_metric_arena, spacetime_metric_coordinates, &
+        spacetime_metric_has_coordinates, spacetime_christoffel, &
+        spacetime_riemann, spacetime_ricci, spacetime_scalar_curvature, &
+        spacetime_einstein
     implicit none
     private
 
@@ -116,6 +125,14 @@ module fortsym
         metric_t, metric_create, metric_from_chart, metric_det, metric_sqrtg, &
         metric_orientation, metric_valid, metric_arena, metric_same_arena, &
         metric_coordinates, metric_has_coordinates, &
+        SPACETIME_DIM, spacetime_metric_t, spacetime_metric_create, &
+        spacetime_metric_covariant, spacetime_metric_contravariant, &
+        spacetime_metric_det, spacetime_metric_sqrtg, &
+        spacetime_metric_signature, spacetime_metric_orientation, &
+        spacetime_metric_valid, spacetime_metric_arena, &
+        spacetime_metric_coordinates, spacetime_metric_has_coordinates, &
+        spacetime_christoffel, spacetime_riemann, spacetime_ricci, &
+        spacetime_scalar_curvature, spacetime_einstein, &
         form_t, form, form_scalar, form_one, form_two, &
         form_three, form_component, form_degree, form_valid, add_forms, &
         subtract_forms, negate_form, wedge, d, &
