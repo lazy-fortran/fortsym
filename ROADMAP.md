@@ -858,6 +858,10 @@ The first-class object model is staged around these metadata owners:
   `patch_t`, including dimension, parent, open-domain, boundary, and
   simply-connected metadata. The Python diffgeom names carry the same flags;
   topology is never inferred from coordinate expressions.
+- [x] Attach explicit patch metadata to the fixed-three-dimensional
+  `chart_t` owner with `chart_create_on_patch`, `chart_has_patch`, and
+  `chart_patch`; the Python `Chart(..., patch=...)` and `CoordSystem` paths
+  retain the same declaration without changing chart algebra.
 - [x] `metric_t` stores a nondegenerate component tensor and shared typed
   `signature_t`/`orientation_t` declarations, with signature `(n_plus,
   n_minus, n_zero)`, orientation compatibility, and its inverse.

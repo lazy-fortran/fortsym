@@ -33,6 +33,10 @@ trace; `n!=0` selects a two-component edge form with the transformed
 transverse mass block and a tangential boundary trace. The returned
 `FourierWeakForm` contains native expression handles and integer metadata;
 the Python layer does not recalculate the constitutive reduction.
+Pass a `fortsym.sympy.Patch` as `Chart(..., patch=patch)` when the chart is
+declared on a coordinate patch; `Chart.has_patch` and `Chart.patch` retain that
+metadata without inferring topology from expressions. `CoordSystem(name,
+patch)` attaches the same patch to its native chart.
 `Chart.metric_owner(g, signature, orientation)` creates an explicit native
 metric owner. `Metric.sqrtg()`, `Metric.contravariant()`, and
 `Form.star(metric)` use that owner, so Lorentzian signatures and orientation

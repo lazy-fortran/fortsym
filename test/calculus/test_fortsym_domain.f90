@@ -3,10 +3,17 @@ program test_fortsym_domain
     ! invalid dimensions/names are refused, while patch facts are explicit and
     ! never inferred from a coordinate expression.
     use fortsym_domain
+    use fortsym_arena, only: arena_t
+    use fortsym_expr, only: expr_t, sym
+    use fortsym_chart, only: DIM, chart_t, chart_create_on_patch, chart_valid, &
+        chart_has_patch, chart_patch
     implicit none
 
     type(manifold_t) :: manifold, same, other, invalid
     type(patch_t) :: patch, closed_patch, invalid_patch
+    type(arena_t), target :: arena
+    type(expr_t) :: coordinates(DIM), position(DIM)
+    type(chart_t) :: chart
 
     manifold = manifold_create("M", 4, has_boundary=.false., &
         simply_connected=.true.)
@@ -43,6 +50,18 @@ program test_fortsym_domain
         error stop "patch boundary flag failed"
     end if
     if (patch_valid(invalid_patch)) error stop "invalid patch accepted"
+
+    call arena%init()
+    manifold = manifold_create("M3", DIM, simply_connected=.true.)
+    patch = patch_create(manifold, "U3", simply_connected=.true.)
+    coordinates = [sym(arena, "u1"), sym(arena, "u2"), sym(arena, "u3")]
+    position = coordinates
+    chart = chart_create_on_patch(arena, patch, coordinates, position)
+    if (.not. chart_valid(chart)) error stop "patched chart rejected"
+    if (.not. chart_has_patch(chart)) error stop "chart patch metadata lost"
+    if (.not. same_patch_parent(chart_patch(chart), manifold)) then
+        error stop "chart patch parent lost"
+    end if
 
     print *, "test_fortsym_domain: all checks passed"
 end program test_fortsym_domain

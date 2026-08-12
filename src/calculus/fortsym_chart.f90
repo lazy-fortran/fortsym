@@ -17,13 +17,15 @@ module fortsym_chart
     ! g^ik g_kj = delta, det g = J**2, curl grad = 0, div curl = 0.
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, num, &
+    use fortsym_domain, only: patch_t, patch_valid, patch_dimension
+    use fortsym_expr, only: expr_t, num, is_valid, &
         operator(+), operator(-), operator(*), operator(/), operator(**), sqrt
     use fortsym_diff, only: diff
     implicit none
     private
 
-    public :: chart_t, chart_create
+    public :: chart_t, chart_create, chart_create_on_patch, chart_valid
+    public :: chart_has_patch, chart_patch
     public :: covariant_basis, reciprocal_basis
     public :: metric_covariant, metric_contravariant, sqrtg
     public :: jacobian, surface_measure, christoffel
@@ -43,6 +45,8 @@ module fortsym_chart
         type(expr_t) :: u(DIM)
         !> Cartesian position as a function of the coordinates, x(1..3).
         type(expr_t) :: x(DIM)
+        type(patch_t) :: patch
+        logical :: has_patch = .false.
     end type chart_t
 
 contains
@@ -56,6 +60,67 @@ contains
         c%u = u
         c%x = x
     end function chart_create
+
+    !> Build a chart explicitly owned by a declared coordinate patch.
+    !>
+    !> Topology is metadata, never inferred from the coordinate expressions.
+    !> The patch dimension must match the fixed chart dimension.
+    function chart_create_on_patch(a, patch, u, x) result(c)
+        type(arena_t), target, intent(inout) :: a
+        type(patch_t), intent(in) :: patch
+        type(expr_t), intent(in) :: u(DIM), x(DIM)
+        type(chart_t) :: c
+
+        if (.not. patch_valid(patch)) return
+        if (patch_dimension(patch) /= DIM) return
+        c = chart_create(a, u, x)
+        if (.not. chart_valid(c)) then
+            c = chart_t()
+            return
+        end if
+        c%patch = patch
+        c%has_patch = .true.
+    end function chart_create_on_patch
+
+    !> Validate the chart handles and, when present, its patch metadata.
+    function chart_valid(c) result(valid)
+        type(chart_t), intent(in) :: c
+        logical :: valid
+        integer :: i
+
+        valid = associated(c%a)
+        if (.not. valid) return
+        do i = 1, DIM
+            if (.not. is_valid(c%u(i))) return
+            if (.not. associated(c%u(i)%a, c%a)) return
+            if (.not. is_valid(c%x(i))) return
+            if (.not. associated(c%x(i)%a, c%a)) return
+        end do
+        if (c%has_patch) then
+            if (.not. patch_valid(c%patch)) return
+            if (patch_dimension(c%patch) /= DIM) return
+        end if
+        valid = .true.
+    end function chart_valid
+
+    !> Whether a valid chart carries an explicit patch declaration.
+    function chart_has_patch(c) result(has_patch)
+        type(chart_t), intent(in) :: c
+        logical :: has_patch
+
+        has_patch = chart_valid(c)
+        if (.not. has_patch) return
+        has_patch = c%has_patch
+    end function chart_has_patch
+
+    !> Return the chart's declared patch, or an invalid value when unbound.
+    function chart_patch(c) result(patch)
+        type(chart_t), intent(in) :: c
+        type(patch_t) :: patch
+
+        if (.not. chart_has_patch(c)) return
+        patch = c%patch
+    end function chart_patch
 
     !> Covariant basis vectors e_i = dx/du^i, as e(component, index).
     function covariant_basis(c) result(e)

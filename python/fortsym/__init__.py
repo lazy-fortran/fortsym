@@ -2645,13 +2645,23 @@ class Chart:
     owners.
     """
 
-    def __init__(self, coordinates, position):
+    def __init__(self, coordinates, position, patch=None):
         self.coordinates = tuple(coordinates)
         self.position = tuple(position)
         if len(self.coordinates) != 3 or len(self.position) != 3:
             raise ValueError("fortsym charts require three coordinates and positions")
+        if patch is not None:
+            manifold = getattr(patch, "manifold", None)
+            dimension = getattr(manifold, "dim", None)
+            if dimension != 3:
+                raise ValueError("chart patch must belong to a three-dimensional manifold")
+        self.patch = patch
         self._arena = self.coordinates[0]._arena
         self._arena._chart_inputs(self.coordinates, self.position)
+
+    @property
+    def has_patch(self):
+        return self.patch is not None
 
     def sqrtg(self):
         return self._arena._chart_sqrtg(self.coordinates, self.position)
