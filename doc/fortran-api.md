@@ -318,6 +318,8 @@ splitting still refuse the pole rather than claiming a finite value.
 Exact negative real arguments use the principal logarithm branch: for example,
 `simplify(log(-2))` returns `log(2) + i*pi`, while unsupported non-exact branch
 cases remain unevaluated.
+The exact imaginary points follow the same principal branch:
+`simplify(log(i))` returns `i*pi/2` and `simplify(log(-i))` returns `-i*pi/2`.
 Under the principal-square-root convention, `sqrt(x)**2` reduces to `x` for
 symbolic `x` without an additional assumption; this is distinct from the
 branch-sensitive `sqrt(x**2)` rewrite above.

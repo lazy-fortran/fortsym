@@ -69,7 +69,8 @@ operation and warm core operation separately for expansion, differentiation,
 simplification, signed refinement, real/nonzero-guarded `log`/`exp` composition,
 principal-square-root powers, direct domain-function simplification of
 `sqrt(-oo)`, exact negative perfect-square roots, exact `asinh(±i)` branch
-points, exact `log(0)`, exact negative-real `log`, exact `atanh(1)`/`atanh(-1)`, and exact `acosh(0)`/`acosh(-1)`, gamma-family domain-head
+points, exact `log(0)`, exact negative-real `log`, exact `log(±i)` branch
+points, exact `atanh(1)`/`atanh(-1)`, and exact `acosh(0)`/`acosh(-1)`, gamma-family domain-head
 simplification, inverse domain-head
 simplification, and reciprocal-hyperbolic domain-head simplification embedded
 in a symbolic fourth-degree expression, directed-infinity `atan2` domain-head
@@ -123,21 +124,25 @@ explicitly waived for the same construction-versus-simplification boundary.
 The `domain_log_negative` cold and warm rows are enforced because the native
 principal-branch rewrite is substantially faster than SymPy: the recorded
 ratios were 0.005x and 0.029x. The expanded matrix therefore has 60 rows, 56
-enforced rows, and zero unwaived violations before the pole diagnostic is
-added. The `domain_atanh_pole` cold and warm rows are explicit one-node ABI
+enforced rows, and zero unwaived violations before the imaginary-log row is
+added. The `domain_log_imaginary` cold and warm rows are enforced because the
+native principal-branch rewrite is substantially faster than SymPy: the
+recorded ratios were 0.016x and 0.053x. The expanded matrix therefore has 62
+rows, 58 enforced rows, and zero unwaived violations before the pole diagnostic
+is added. The `domain_atanh_pole` cold and warm rows are explicit one-node ABI
 diagnostics, measured at 5.34x and 4.15x SymPy; they are waived for the same
-construction-versus-simplification boundary. The final matrix has 62 rows,
-56 enforced rows, and zero unwaived violations before the `acosh` rows are
+construction-versus-simplification boundary. The final matrix has 64 rows,
+58 enforced rows, and zero unwaived violations before the `acosh` rows are
 added. The `domain_acosh_branch` cold and warm rows are enforced because the
 native principal-branch rewrite is faster than SymPy: the recorded ratios were
-0.017x and 0.058x. The final matrix has 64 rows, 58 enforced rows, and zero
+0.017x and 0.058x. The final matrix has 66 rows, 60 enforced rows, and zero
 unwaived violations before the negative-square-root rows are added. The
 `domain_sqrt_negative_square` cold and warm rows are enforced because the
 native principal-root rewrite is faster than SymPy: the recorded ratios were
-0.029x and 0.062x. The final matrix has 66 rows, 60 enforced rows, and zero
+0.029x and 0.062x. The final matrix has 68 rows, 62 enforced rows, and zero
 unwaived violations. The `domain_asinh_imaginary` cold and warm rows are
 enforced because the native exact branch rewrite is faster than SymPy: the
-recorded ratios were 0.018x and 0.051x. The final matrix has 68 rows, 62
+recorded ratios were 0.018x and 0.051x. The final matrix has 70 rows, 64
 enforced rows, and zero unwaived violations.
 
 Run it from a built checkout with:
@@ -236,14 +241,15 @@ result for the same expression until the arena's assumption epoch changes, and
 reuses simplified derivatives for repeated `(expression, variable)` calls.
 The matched differentiation diagnostic after that cache was added measured
 native/SymPy ratios of about 0.14 cold and 0.06 warm; the remaining full-suite
-54-workload enforced parity run also passed with zero correctness failures and
-zero parity violations; the warm predicate and algebraic-assumption rows were
+70-workload parity run also passed with zero correctness failures and zero
+parity violations; the warm predicate and algebraic-assumption rows were
 all at or below the SymPy 1.14.0 median in the recorded run on 2026-08-12.
 The warm `number_predicate` and `algebraic_predicate` ratios were 0.32× and
 0.75×; `algebraic_assumption_query` was 0.02× warm and 0.12× cold. The
 separately waived cold power-constructor diagnostics were 1.53× for `x**0`
 and 1.51× for `x**1`; `domain_log_zero` was 5.07× cold and 3.43× warm;
-`domain_log_negative` was 0.005× cold and 0.029× warm; `domain_atanh_pole`
+`domain_log_negative` was 0.005× cold and 0.029× warm; `domain_log_imaginary`
+was 0.016× cold and 0.053× warm; `domain_atanh_pole`
 was 5.34× cold and 4.15× warm; `domain_acosh_branch` was 0.017× cold and
 0.058× warm; `domain_sqrt_negative_square` was 0.029× cold and 0.062× warm.
 
