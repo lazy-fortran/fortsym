@@ -1137,11 +1137,12 @@ conversion only. They do not maintain a second geometry implementation.
   `signature_t`, and publish one module graph and naming audit. The source
   synthesis and executable derivation contracts are documented here; the
   native metadata owners remain open.
-- [ ] **7A.0a Physicist/mathematician notation gate.** Add executable notation
-  and refusal tests for `B^i` versus `B_i`, `sqrtg B^i` versus `B^i`, `Omega`
-  versus `sqrtg`, and `beta = i_B(Omega)`. Include a left-handed chart, a
-  Lorentzian metric, and a form-only calculation so metric-dependent and
-  metric-free operations cannot be confused.
+- [x] **7A.0a Physicist/mathematician notation gate.** The registered
+  `test_fortsym_notation` acceptance test distinguishes `B^i` from `B_i`,
+  `sqrtg B^i` from `B^i`, and an oriented `Omega` from positive `sqrtg`.
+  It covers a left-handed chart, a Lorentzian metric, metric-free form
+  calculus, and refusal of density-weighted or non-antisymmetric conversion.
+  The magnetic test separately proves `beta = i_B(Omega)`.
 - [ ] **7A.1 Charts and volume.** Split map/basis ownership from metric
   ownership, generalize `chart_t` to explicit dimensions, and expose
   Jacobian, reciprocal basis, metric, inverse metric, signed `J`, positive
