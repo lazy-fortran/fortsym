@@ -31,6 +31,7 @@ int main(void)
     fortsym_expr *geodesic_output[4] = {0};
     fortsym_expr *interior_output[16] = {0};
     fortsym_expr *lie_output[16] = {0};
+    fortsym_expr *laplace_output[16] = {0};
 
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -110,6 +111,17 @@ int main(void)
                              sizeof message) == FORTSYM_OK);
     assert(verdict == FORTSYM_ZERO_TRUE);
 
+    for (mask = 0; mask < 16; ++mask)
+        input[mask] = zero;
+    input[0] = t;
+    status = fortsym_spacetime_form_laplace_de_rham(
+        arena, metric, 4, coordinates, signature, 1, input, 0,
+        laplace_output, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    assert(fortsym_zero_test(arena, laplace_output[0], &verdict, message,
+                             sizeof message) == FORTSYM_OK);
+    assert(verdict == FORTSYM_ZERO_TRUE);
+
     fortsym_expr_free(check);
     fortsym_expr_free(interior_check);
     fortsym_expr_free(lie_check);
@@ -120,6 +132,7 @@ int main(void)
     for (mask = 0; mask < 16; ++mask) {
         fortsym_expr_free(interior_output[mask]);
         fortsym_expr_free(lie_output[mask]);
+        fortsym_expr_free(laplace_output[mask]);
     }
     fortsym_expr_free(two);
     fortsym_expr_free(minus_one);

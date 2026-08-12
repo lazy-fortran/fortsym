@@ -137,6 +137,8 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(
             (radial.codiff()[0] - radial.codifferential()[0]).simplify(), 0
         )
+        scalar_form = metric.scalar_form(t**2 + x**2 + y**2 + z**2)
+        self.assertEqual((scalar_form.laplace_de_rham()[0] + 4).simplify(), 0)
 
         two_form = metric.two_form((1, 2, 3, 4, 5, 6))
         double_star = two_form.star().star()

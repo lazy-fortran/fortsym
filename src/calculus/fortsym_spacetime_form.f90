@@ -28,7 +28,7 @@ module fortsym_spacetime_form
     public :: spacetime_exterior_diff, spacetime_hodge, spacetime_star
     public :: spacetime_codifferential, spacetime_interior
     public :: spacetime_interior_product, spacetime_lie
-    public :: spacetime_lie_derivative
+    public :: spacetime_lie_derivative, spacetime_laplace_de_rham
 
 contains
 
@@ -389,6 +389,33 @@ contains
 
         value = spacetime_lie(g, vector, form)
     end function spacetime_lie_derivative
+
+    function spacetime_laplace_de_rham(g, form) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        type(spacetime_form_t), intent(in) :: form
+        type(spacetime_form_t) :: value, first, second, derivative, contraction
+        integer :: i
+
+        if (.not. spacetime_metric_valid(g)) return
+        if (.not. spacetime_form_valid(form)) return
+        if (.not. associated(form%a, spacetime_metric_arena(g))) return
+        first = zero_form_arena(form%a, form%degree)
+        if (form%degree > 0) then
+            contraction = spacetime_codifferential(g, form)
+            first = spacetime_exterior_diff(g, contraction)
+        end if
+        second = zero_form_arena(form%a, form%degree)
+        if (form%degree < SPACETIME_DIM) then
+            derivative = spacetime_exterior_diff(g, form)
+            second = spacetime_codifferential(g, derivative)
+        end if
+        if (.not. spacetime_form_valid(first)) return
+        if (.not. spacetime_form_valid(second)) return
+        value = zero_form_arena(form%a, form%degree)
+        do i = 0, 2**SPACETIME_DIM - 1
+            value%component(i) = first%component(i) + second%component(i)
+        end do
+    end function spacetime_laplace_de_rham
 
     function codifferential_one_form(g, form) result(value)
         type(spacetime_metric_t), intent(in) :: g

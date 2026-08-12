@@ -10,7 +10,8 @@ program test_fortsym_spacetime_form
     use fortsym_spacetime_form, only: spacetime_form_t, spacetime_form_one, &
         spacetime_form_two, spacetime_form_component, spacetime_d, &
         spacetime_wedge, spacetime_hodge, spacetime_form_four, &
-        spacetime_codifferential, spacetime_interior, spacetime_lie
+        spacetime_form_scalar, spacetime_codifferential, spacetime_interior, &
+        spacetime_lie, spacetime_laplace_de_rham
     implicit none
 
     type(arena_t), target :: arena
@@ -22,6 +23,7 @@ program test_fortsym_spacetime_form
     type(expr_t) :: two_components(6), residual
     type(spacetime_form_t) :: potential, field, closed, hodge, hodge_hodge, codiff
     type(spacetime_form_t) :: contraction, lie_field, cartan
+    type(spacetime_form_t) :: scalar_form, laplace
     integer :: signature(SPACETIME_DIM), mask
 
     call arena%init()
@@ -73,6 +75,11 @@ program test_fortsym_spacetime_form
     codiff = spacetime_codifferential(metric, potential)
     call check_identity(suite, engine, "codifferential of radial one-form", &
         spacetime_form_component(codiff, 0) + 2)
+
+    scalar_form = spacetime_form_scalar(u(1)**2 + u(2)**2 + u(3)**2 + u(4)**2)
+    laplace = spacetime_laplace_de_rham(metric, scalar_form)
+    call check_identity(suite, engine, "Lorentzian scalar Laplace-de Rham", &
+        spacetime_form_component(laplace, 0) + 4)
 
     two_components(1) = num(arena, 1)
     two_components(2) = num(arena, 2)

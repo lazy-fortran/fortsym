@@ -42,7 +42,8 @@ module fortsym_public_capi
         spacetime_form_two, spacetime_form_three, spacetime_form_four, &
         spacetime_form_component, spacetime_form_valid, spacetime_d, &
         spacetime_wedge, spacetime_hodge, spacetime_codifferential
-    use fortsym_spacetime_form, only: spacetime_interior, spacetime_lie
+    use fortsym_spacetime_form, only: spacetime_interior, spacetime_lie, &
+        spacetime_laplace_de_rham
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_from_storage, tensor_component, tensor_valid, metric_covariant_tensor, &
         metric_contravariant_tensor, density_tensor => density, &
@@ -143,7 +144,8 @@ module fortsym_public_capi
         fortsym_spacetime_geodesic_residual, &
         fortsym_spacetime_form_d, fortsym_spacetime_form_wedge, &
         fortsym_spacetime_form_star, fortsym_spacetime_form_codifferential, &
-        fortsym_spacetime_form_interior, fortsym_spacetime_form_lie
+        fortsym_spacetime_form_interior, fortsym_spacetime_form_lie, &
+        fortsym_spacetime_form_laplace_de_rham
     public :: fortsym_complex_operation
     public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
@@ -158,7 +160,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 36_c_int
+        v = 37_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -2418,6 +2420,30 @@ contains
         value = spacetime_lie(metric, vector_value, input_value)
         call make_spacetime_form_array(a, value, out, status, message, capacity)
     end function fortsym_spacetime_form_lie
+
+    function fortsym_spacetime_form_laplace_de_rham(raw, components, dimension, &
+            coordinates, signature, orientation, input, degree, out, message, &
+            capacity) bind(c, name="fortsym_spacetime_form_laplace_de_rham") &
+            result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, input, out
+        integer(c_int), value :: dimension, orientation
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_form_t) :: input_value, value
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, input, degree, input_value, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_laplace_de_rham(metric, input_value)
+        call make_spacetime_form_array(a, value, out, status, message, capacity)
+    end function fortsym_spacetime_form_laplace_de_rham
 
     function fortsym_expand(raw, expression_raw, out, message, capacity) &
             bind(c, name="fortsym_expand") result(status)
