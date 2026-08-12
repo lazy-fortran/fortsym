@@ -9,12 +9,13 @@ program example_spacetime_tensor_calculus
     type(arena_t), pointer :: arena
     type(spacetime_metric_t) :: metric
     type(spacetime_tensor_t) :: v_upper, v_lower, roundtrip, density_value
+    type(spacetime_tensor_t) :: dyad, norm
     type(expr_t) :: coordinates(SPACETIME_DIM)
     type(expr_t) :: components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: vector_values(SPACETIME_DIM), volume_factor
-    type(expr_t) :: lower_display, density_display
+    type(expr_t) :: lower_display, density_display, norm_display
     type(engine_result_t) :: checked
-    integer :: signature(SPACETIME_DIM), i
+    integer :: signature(SPACETIME_DIM), empty(0), i
 
     call reset()
     arena => default_arena()
@@ -47,12 +48,18 @@ program example_spacetime_tensor_calculus
     checked = simplify(spacetime_tensor_component(density_value, [1]))
     if (.not. checked%ok) error stop "failed to simplify density component"
     density_display = checked%value
+    dyad = spacetime_tensor_product(v_upper, v_lower)
+    norm = spacetime_tensor_contract(dyad, 1, 2)
+    checked = simplify(spacetime_tensor_component(norm, empty))
+    if (.not. checked%ok) error stop "failed to simplify tensor contraction"
+    norm_display = checked%value
 
     print '(a)', "runtime-dimension tensor calculus"
     print '(a,a)', "  V^1 = ", chars(print_expr(spacetime_tensor_component(v_upper, [1])))
     print '(a,a)', "  V_1 = ", chars(print_expr(lower_display))
     print '(a,a)', "  sqrtg V^1 = ", &
         chars(print_expr(density_display))
+    print '(a,a)', "  V^i V_i = ", chars(print_expr(norm_display))
     print '(a,i0)', "  density weight = ", &
         spacetime_tensor_density_weight(density_value)
 

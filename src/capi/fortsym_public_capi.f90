@@ -65,7 +65,10 @@ module fortsym_public_capi
         spacetime_tensor_dimension, spacetime_tensor_component_flat, &
         spacetime_tensor_raise_native => spacetime_tensor_raise, &
         spacetime_tensor_lower_native => spacetime_tensor_lower, &
-        spacetime_tensor_density_factor_native => spacetime_tensor_density_factor
+        spacetime_tensor_density_factor_native => spacetime_tensor_density_factor, &
+        spacetime_tensor_permute_native => spacetime_tensor_permute, &
+        spacetime_tensor_contract_native => spacetime_tensor_contract, &
+        spacetime_tensor_product_native => spacetime_tensor_product
     use fortsym_maxwell, only: maxwell_field_strength, maxwell_gauge_transform, &
         maxwell_residual
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
@@ -207,6 +210,8 @@ module fortsym_public_capi
         fortsym_spacetime_metric_divergence, fortsym_spacetime_metric_laplacian, &
         fortsym_spacetime_tensor_raise, fortsym_spacetime_tensor_lower, &
         fortsym_spacetime_tensor_density_factor, &
+        fortsym_spacetime_tensor_permute, fortsym_spacetime_tensor_contract, &
+        fortsym_spacetime_tensor_product, &
         fortsym_spacetime_christoffel, &
         fortsym_spacetime_riemann, fortsym_spacetime_ricci, &
         fortsym_spacetime_scalar_curvature, fortsym_spacetime_einstein, &
@@ -231,7 +236,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 61_c_int
+        v = 62_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -3530,6 +3535,134 @@ contains
         call make_spacetime_tensor_array(a, value, int(rank), out, status, message, &
             capacity)
     end function fortsym_spacetime_tensor_density_factor
+
+    function fortsym_spacetime_tensor_permute(raw, components, dimension, &
+            coordinates, signature, orientation, input, rank, variance, &
+            density_weight, order, out, message, capacity) bind(c, &
+            name="fortsym_spacetime_tensor_permute") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, input
+        type(c_ptr), value :: variance, order, out
+        integer(c_int), value :: dimension, orientation, density_weight
+        integer(c_size_t), value :: rank
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_tensor_t) :: input_value, value
+        integer(c_int), pointer :: order_values(:)
+        integer :: order_fortran(SPACETIME_TENSOR_MAX_RANK)
+        integer :: shape(1), k
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_tensor_input(metric, a, input, rank, variance, &
+            density_weight, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (rank == 0_c_size_t) then
+            call make_spacetime_tensor_array(a, input_value, 0, out, status, &
+                message, capacity)
+            return
+        end if
+        if (.not. c_associated(order)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape(1) = int(rank)
+        call c_f_pointer(order, order_values, shape)
+        order_fortran = 0
+        do k = 1, int(rank)
+            order_fortran(k) = int(order_values(k))
+        end do
+        value = spacetime_tensor_permute_native(input_value, &
+            order_fortran(1:int(rank)))
+        if (.not. spacetime_tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call make_spacetime_tensor_array(a, value, int(rank), out, status, &
+            message, capacity)
+    end function fortsym_spacetime_tensor_permute
+
+    function fortsym_spacetime_tensor_contract(raw, components, dimension, &
+            coordinates, signature, orientation, input, rank, variance, &
+            density_weight, first_slot, second_slot, out, message, capacity) &
+            bind(c, name="fortsym_spacetime_tensor_contract") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, input
+        type(c_ptr), value :: variance, out
+        integer(c_int), value :: dimension, orientation, density_weight
+        integer(c_size_t), value :: rank, first_slot, second_slot
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_tensor_t) :: input_value, value
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_tensor_input(metric, a, input, rank, variance, &
+            density_weight, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (rank < 2_c_size_t .or. first_slot < 1_c_size_t .or. &
+            first_slot > rank .or. second_slot < 1_c_size_t .or. &
+            second_slot > rank .or. first_slot == second_slot) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = spacetime_tensor_contract_native(input_value, int(first_slot), &
+            int(second_slot))
+        if (.not. spacetime_tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call make_spacetime_tensor_array(a, value, int(rank) - 2, out, status, &
+            message, capacity)
+    end function fortsym_spacetime_tensor_contract
+
+    function fortsym_spacetime_tensor_product(raw, components, dimension, &
+            coordinates, signature, orientation, left, left_rank, left_variance, &
+            left_density_weight, right, right_rank, right_variance, &
+            right_density_weight, out, message, capacity) bind(c, &
+            name="fortsym_spacetime_tensor_product") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, left, right
+        type(c_ptr), value :: left_variance, right_variance, out
+        integer(c_int), value :: dimension, orientation
+        integer(c_int), value :: left_density_weight, right_density_weight
+        integer(c_size_t), value :: left_rank, right_rank
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_tensor_t) :: left_value, right_value, value
+        integer :: output_rank
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_tensor_input(metric, a, left, left_rank, left_variance, &
+            left_density_weight, left_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_tensor_input(metric, a, right, right_rank, &
+            right_variance, right_density_weight, right_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        if (left_rank + right_rank > int(SPACETIME_TENSOR_MAX_RANK, c_size_t)) then
+            call fail(status, message, capacity, FORTSYM_RESOURCE_LIMIT)
+            return
+        end if
+        value = spacetime_tensor_product_native(left_value, right_value)
+        if (.not. spacetime_tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        output_rank = int(left_rank + right_rank)
+        call make_spacetime_tensor_array(a, value, output_rank, out, status, &
+            message, capacity)
+    end function fortsym_spacetime_tensor_product
 
     function fortsym_spacetime_christoffel(raw, components, dimension, &
             coordinates, signature, orientation, out, message, capacity) bind(c, &

@@ -137,7 +137,8 @@ def tensorproduct(*args):
         raise TypeError("tensorproduct requires at least one tensor")
     result = args[0]
     for value in args[1:]:
-        if not isinstance(result, Tensor) or not isinstance(value, Tensor):
+        if not isinstance(result, (Tensor, SpacetimeTensor)) or not isinstance(
+                value, type(result)):
             return TensorProduct(*args)
         result = _tensor_product(result, value)
     return result
@@ -154,6 +155,13 @@ def tensorcontraction(tensor, *pairs):
             raise ValueError("tensorcontraction pairs must contain two slots")
         result = _contract(result, pair[0], pair[1])
     return result
+
+
+def tensorpermute(tensor, order):
+    """SymPy spelling for native tensor slot permutation."""
+    if not isinstance(tensor, (Tensor, SpacetimeTensor)):
+        raise TypeError("tensorpermute expects a typed tensor")
+    return tensor.permute(order)
 
 
 def _combine_owned(values, operation, owned):
@@ -1323,6 +1331,6 @@ __all__ = [
     "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
     "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
-    "integrate", "limit", "series", "solve", "Matrix", "tensorproduct", "tensorcontraction", "pi", "E", "I",
+    "integrate", "limit", "series", "solve", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
     "oo", "zoo", "nan",
 ]

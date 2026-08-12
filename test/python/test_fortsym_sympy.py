@@ -728,6 +728,26 @@ class SympySubsetTest(unittest.TestCase):
                   for index in (0, 1)),
             tuple(oracle.sqrt(oracle_metric.det()) * oracle_vector),
         )
+        product = sp.tensorproduct(upper, lower)
+        expected_product = oracle_vector * expected_lower.T
+        self.assertEqual(
+            oracle.Matrix(tuple(
+                oracle.sympify(str(product[i, j].simplify()))
+                for i in range(2) for j in range(2)
+            )).reshape(2, 2), expected_product,
+        )
+        contracted = sp.tensorcontraction(product, (0, 1))
+        self.assertEqual(
+            oracle.sympify(str(contracted[()].simplify())),
+            (oracle_vector.T * expected_lower)[0],
+        )
+        permuted = sp.tensorpermute(product, (1, 0))
+        self.assertEqual(
+            tuple(oracle.sympify(str(permuted[i, j].simplify()))
+                  for i, j in ((0, 1), (1, 0))),
+            tuple(oracle.sympify(str(product[j, i].simplify()))
+                  for i, j in ((0, 1), (1, 0))),
+        )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_metric_volume_and_levi_civita_match_sympy(self):

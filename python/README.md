@@ -107,6 +107,9 @@ for a compact 2D example.
 tensors. `SpacetimeMetric.vector()`/`.covector()` create explicit component
 views, and `SpacetimeTensor.raise_()`/`.lower()` plus `.density(factor)` keep
 variance and density weight visible instead of inferring them from names.
+`SpacetimeTensor.product()`, `.contract()`, `.trace()`, and `.permute()` use
+the same native runtime-dimension tensor owner; slot variance and summed
+density weight remain explicit in the returned view.
 `SpacetimeMetric.flat(vector)` lowers a vector into a native one-form and
 `SpacetimeMetric.sharp(one_form)` raises it back; the returned vector carries
 upper variance metadata. `grad(scalar)` returns a contravariant metric
@@ -155,7 +158,8 @@ through the same native owner; left slots precede right slots and density
 weights add.
 The native `Tensor.trace()`/`trace()` spellings and compatibility
 `tensorcontraction(tensor, (i, j))` all use the same checked contraction owner;
-`fortsym.sympy.tensorproduct` is the SymPy spelling for the native product.
+`fortsym.sympy.tensorproduct` is the SymPy spelling for the native product for
+both chart tensors and runtime spacetime tensors.
 `IndexType(name, dimension, category)` and `IndexType.index(slot, variance,
 label, dummy)` provide checked, zero-based named slots; `Tensor.contract(i, j)`
 accepts those labels and validates their space, variance, and dummy name before
