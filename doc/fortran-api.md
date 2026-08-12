@@ -73,7 +73,9 @@ views with variance and density weight retained across the three representations
 `flux_surface_t` in a `magnetic_chart_t` owner. `magnetic_chart_upper`,
 `magnetic_chart_lower`, and `magnetic_chart_density` return the existing typed
 views without a second component store; `magnetic_chart_average` delegates to
-the verified surface-average owner.
+the verified surface-average owner. `magnetic_chart_potential_form` returns
+`A = A_i du^i` and `magnetic_chart_flux_form` returns `beta = d(A)`; the latter
+is a degree-two form whose exterior derivative is the native closedness check.
 The chart operation `surface_measure(chart, normal_index)` returns the positive
 induced measure on `u(normal_index)=constant`; `metric_surface_measure` is the
 same operation for an explicit metric and uses `sqrt(abs(det(g_surface)))`.

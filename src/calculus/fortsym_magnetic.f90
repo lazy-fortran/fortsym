@@ -15,6 +15,7 @@ module fortsym_magnetic
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, i_expr, num, pi_expr, is_valid, &
         operator(+), operator(-), operator(*), operator(/)
+    use fortsym_form, only: form_t, form_one, exterior_diff
     use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, density, &
         tensor_valid
     implicit none
@@ -25,6 +26,7 @@ module fortsym_magnetic
     public :: magnetic_chart_t, magnetic_chart, magnetic_chart_valid, &
         magnetic_chart_surface, magnetic_chart_field, magnetic_chart_upper, &
         magnetic_chart_lower, magnetic_chart_density, magnetic_chart_average
+    public :: magnetic_chart_potential_form, magnetic_chart_flux_form
     public :: flux_surface_t, flux_surface, flux_surface_valid, &
         flux_surface_label, flux_surface_measure, flux_surface_average
     public :: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
@@ -60,6 +62,7 @@ module fortsym_magnetic
         type(chart_t) :: chart
         type(flux_surface_t) :: surface
         type(magnetic_field_t) :: field
+        type(expr_t) :: potential(DIM)
         logical :: valid = .false.
     end type magnetic_chart_t
 
@@ -89,6 +92,11 @@ contains
         if (present(label_index)) selected_label = label_index
         owner%chart = c
         owner%surface = flux_surface(c, selected_label)
+        do selected_label = 1, DIM
+            if (.not. is_valid(potential(selected_label))) return
+            if (.not. associated(potential(selected_label)%a, c%a)) return
+        end do
+        owner%potential = potential
         owner%field = magnetic_field(c, potential)
         owner%valid = flux_surface_valid(owner%surface)
         if (.not. owner%valid) return
@@ -159,6 +167,28 @@ contains
         if (.not. magnetic_chart_valid(owner)) return
         value = magnetic_density(owner%field)
     end function magnetic_chart_density
+
+    !> Return the covariant potential A = A_i du^i stored by the owner.
+    function magnetic_chart_potential_form(owner) result(value)
+        type(magnetic_chart_t), intent(in) :: owner
+        type(form_t) :: value
+
+        if (.not. magnetic_chart_valid(owner)) return
+        value = form_one(owner%chart, owner%potential)
+    end function magnetic_chart_potential_form
+
+    !> Return the magnetic flux two-form beta = d(A).
+    !>
+    !> The field views and the form view are derived from the same stored
+    !> potential; this is not a second magnetic-field representation.
+    function magnetic_chart_flux_form(owner) result(value)
+        type(magnetic_chart_t), intent(in) :: owner
+        type(form_t) :: value
+
+        if (.not. magnetic_chart_valid(owner)) return
+        value = exterior_diff(owner%chart, &
+            magnetic_chart_potential_form(owner))
+    end function magnetic_chart_flux_form
 
     !> Average a scalar on the owner's coordinate flux surface.
     subroutine magnetic_chart_average(owner, scalar, value, ok, why, period_one, &

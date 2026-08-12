@@ -89,7 +89,8 @@ module fortsym
         magnetic_lower, magnetic_density, magnetic_chart_t, magnetic_chart, &
         magnetic_chart_valid, magnetic_chart_surface, magnetic_chart_field, &
         magnetic_chart_upper, magnetic_chart_lower, magnetic_chart_density, &
-        magnetic_chart_average, b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
+        magnetic_chart_average, magnetic_chart_potential_form, &
+        magnetic_chart_flux_form, b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
         b_fourier_density, j_fourier, flux_surface_t, flux_surface, &
         flux_surface_valid, flux_surface_label, flux_surface_measure, &
         flux_surface_average
@@ -200,6 +201,7 @@ module fortsym
         magnetic_density, magnetic_chart_t, magnetic_chart, magnetic_chart_valid, &
         magnetic_chart_surface, magnetic_chart_field, magnetic_chart_upper, &
         magnetic_chart_lower, magnetic_chart_density, magnetic_chart_average, b_con, &
+        magnetic_chart_potential_form, magnetic_chart_flux_form, &
         b_cov, b_density, h_cov, h_con, b_fourier, b_fourier_density, j_fourier, &
         flux_surface_t, flux_surface, flux_surface_valid, flux_surface_label, &
         flux_surface_measure, flux_surface_average, &

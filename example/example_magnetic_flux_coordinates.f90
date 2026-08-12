@@ -9,6 +9,7 @@ program example_magnetic_flux_coordinates
 
     type(arena_t), pointer :: arena
     type(chart_t) :: flux_chart
+    type(magnetic_chart_t) :: magnetic_owner
     type(expr_t) :: coordinates(DIM), position(DIM), potential(DIM)
     type(expr_t) :: psi, theta, phi, major_radius, minor_radius
     type(expr_t) :: radial, b(DIM), b_lower(DIM), volume_density, expected
@@ -35,6 +36,10 @@ program example_magnetic_flux_coordinates
 
     potential = num(arena, 0)
     potential(3) = psi
+    magnetic_owner = magnetic_chart(flux_chart, potential, 1)
+    if (.not. magnetic_chart_valid(magnetic_owner)) then
+        error stop "magnetic chart owner invalid"
+    end if
     b = b_con(flux_chart, potential)
     b_lower = b_cov(flux_chart, b)
     reluctivity = metric_covariant(flux_chart)
@@ -56,8 +61,8 @@ program example_magnetic_flux_coordinates
     call assert_zero(h_upper(2) - b(2), "H^i raises back to B^i, component 2")
     call assert_zero(h_upper(3) - b(3), "H^i raises back to B^i, component 3")
 
-    potential_form = form_one(flux_chart, potential)
-    flux_form = d(flux_chart, potential_form)
+    potential_form = magnetic_chart_potential_form(magnetic_owner)
+    flux_form = magnetic_chart_flux_form(magnetic_owner)
     closed_form = d(flux_chart, flux_form)
     do mask = 0, 2**DIM - 1
         if (mask == 3 .or. mask == 5 .or. mask == 6 .or. mask == 7) then
