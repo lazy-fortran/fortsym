@@ -661,9 +661,11 @@ The geometry toolkit combines four views that are often taught separately:
    Field Structure* (Springer, 1991), supplies the physicist's coordinate-first
    language: tangent and reciprocal bases, covariant and contravariant
    components, metric coefficients, Jacobians, tensor transformations, and
-   divergence. The local reference is the copy in the shared documents; the
-   bibliographic record and publisher link are kept in
-   [`doc/provenance.md`](doc/provenance.md).
+   divergence. Chapters 2--3 are the notation bridge, Chapters 5--8 develop
+   Clebsch, straight-field-line, Boozer, and Hamada systems, and Chapters
+   13--14 make component transformations and divergence explicit. The local
+   reference is the copy in the shared documents; the bibliographic record and
+   publisher link are kept in [`doc/provenance.md`](doc/provenance.md).
 2. Carroll's free [Lecture Notes on General Relativity](https://arxiv.org/abs/gr-qc/9712019)
    supplies the relativity progression: manifold, chart, tangent and dual
    spaces, tensor densities, volume forms, connections, geodesics, curvature,
@@ -686,6 +688,49 @@ kernels, and explicit densities only at operations whose natural codomain is a
 density. Every conversion between those views is a named owner operation.
 The API must never infer a metric, orientation, density weight, or index space
 from a variable name such as `B`, `sqrtg`, or `nu`.
+
+#### The physicist--mathematician bridge
+
+The same field must be readable in both traditions without silently changing
+what it means:
+
+| Physics notation | Coordinate-free/native object | Required interpretation |
+|---|---|---|
+| `e_i = partial_i r` | Tangent basis of `T M` | Lower coordinate label identifies the basis direction; it is not a covector. |
+| `e^i = grad(u^i)` | Reciprocal basis of `T M` | `e^i dot e_j = delta^i_j`; the upper label records the dual basis. |
+| `B = B^i e_i` | Vector field | `B^i` are contravariant components and determine field-line slopes. |
+| `B = B_i e^i` | Metric-dual covector `B_flat` | `B_i = g_ij B^j`; these are not a second physical field. |
+| `B_i du^i` | One-form / degree-one form | The coefficients are lower components and transform covariantly without a metric. |
+| `sqrtg B^i` | Weight-`+1` vector density | It is the natural divergence numerator, not an unmarked vector. |
+| `Omega` | Oriented top form | `Omega = sign(J) sqrt(abs(det(g))) du^1 wedge ...`; orientation is separate from `sqrtg`. |
+| `beta = i_B(Omega)` | Magnetic flux two-form | This is the metric/orientation-aware bridge from `B^i` to differential forms. |
+
+For a flux-surface label `psi`, a magnetic field tangent to the surfaces has
+`B^psi = 0`. In Boozer coordinates the covariant angular components are
+surface constants, conventionally written `B_theta = I(psi)` and
+`B_phi = G(psi)` (normalization and signs depend on the toroidal/poloidal
+orientation). The contravariant components still carry the field-line
+geometry and the Jacobian. In an axisymmetric interpretation these covariant
+components encode enclosed toroidal and poloidal currents. The implementation
+must therefore keep `B^i`, `B_i`, `sqrtg B^i`, `beta`, `J`, and `Omega` as
+distinct typed views, with explicit transformations and no name-based
+coercion.
+
+Forms add the mathematician's invariant layer:
+
+```text
+alpha = (1/k!) alpha_i1...ik du^i1 wedge ... wedge du^ik
+d(alpha)                  # metric-free exterior derivative
+i_X(alpha)                # contraction with a vector field
+L_X(alpha) = i_X(d(alpha)) + d(i_X(alpha))
+star(alpha)               # metric, signature, and orientation required
+```
+
+Consequently `d`, wedge, pullback, contraction, and Lie derivative belong to
+the form/geometry owners, while `flat`, `sharp`, Hodge star, codifferential,
+and metric volume operations belong to metric-aware owners. A component result
+is accepted only when its variance, density weight, signature, orientation, and
+index space survive the round trip to the invariant representation.
 
 The existing Wolfram scripts and their generated Python translations are
 requirements for this work. The native Fortran implementation, the
@@ -908,6 +953,27 @@ The form check is:
 This is the smallest example that catches a transposed reciprocal basis, a
 missing `sqrtg`, a signed-density mistake, and a wrong Fourier sign.
 
+#### Boozer flux coordinates and current-linked covariant components
+
+Use `u = (psi, theta, phi)` on nested magnetic surfaces. The minimum
+representation contract is:
+
+```text
+B^psi = 0
+B_theta = I(psi),       B_phi = G(psi)
+sqrtg B^theta = iota(psi),  sqrtg B^phi = 1       # chosen normalization
+beta = i_B(Omega)
+```
+
+The native example must separate the representation identity from the
+equilibrium problem: it may use an analytic metric fixture, but must also
+provide a later chart-based path for a supplied equilibrium map. Tests check
+angular derivatives of `B_theta` and `B_phi`, the current/flux normalization
+when selected, the raised field, `B dot grad(psi) = 0`, and `d(beta) = 0`.
+Left- and right-handed charts are separate cases; no sign is hidden in
+`sqrtg`. This contract is grounded in the Boozer sections of D'haeseleer et
+al. and the local flux-coordinate notes, not in the name of a variable.
+
 #### Density transformation and divergence
 
 For `K^i_j = partial(u'^i)/partial(u^j)`, a weight-`+1` contravariant density
@@ -1023,6 +1089,11 @@ conversion only. They do not maintain a second geometry implementation.
   `signature_t`, and publish one module graph and naming audit. The source
   synthesis and executable derivation contracts are documented here; the
   native metadata owners remain open.
+- [ ] **7A.0a Physicist/mathematician notation gate.** Add executable notation
+  and refusal tests for `B^i` versus `B_i`, `sqrtg B^i` versus `B^i`, `Omega`
+  versus `sqrtg`, and `beta = i_B(Omega)`. Include a left-handed chart, a
+  Lorentzian metric, and a form-only calculation so metric-dependent and
+  metric-free operations cannot be confused.
 - [ ] **7A.1 Charts and volume.** Split map/basis ownership from metric
   ownership, generalize `chart_t` to explicit dimensions, and expose
   Jacobian, reciprocal basis, metric, inverse metric, signed `J`, positive
