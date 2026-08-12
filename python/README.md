@@ -36,7 +36,10 @@ the Python layer does not recalculate the constitutive reduction.
 `Chart.metric_owner(g, signature, orientation)` creates an explicit native
 metric owner. `Metric.sqrtg()`, `Metric.contravariant()`, and
 `Form.star(metric)` use that owner, so Lorentzian signatures and orientation
-remain explicit instead of being inferred from a chart.
+remain explicit instead of being inferred from a chart. `Metric.volume_density()`
+returns positive `sqrt(abs(det(g)))`, and `Metric.levi_civita()` returns the
+oriented covariant tensor by default or the contravariant tensor when passed
+`"contravariant"`; neither operation hides orientation in `sqrtg()`.
 `SpacetimeMetric` is the dimension-aware four-coordinate facade for the
 relativity owner. It exposes `sqrtg()`, inverse metric, Christoffel, Riemann,
 Ricci, scalar curvature, and Einstein views using the same native expression

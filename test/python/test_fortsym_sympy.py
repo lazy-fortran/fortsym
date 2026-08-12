@@ -57,6 +57,35 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_metric_volume_and_levi_civita_match_sympy(self):
+        x, y, z = sp.symbols("volume_x volume_y volume_z")
+        chart = sp.Chart((x, y, z), (x, y, z))
+        metric = chart.metric_owner(
+            ((1, 0, 0), (0, 4, 0), (0, 0, 9)),
+            orientation=-1,
+        )
+        oracle_metric = oracle.diag(1, 4, 9)
+        expected_volume = oracle.sqrt(oracle_metric.det())
+        self.assertEqual(
+            oracle.sympify(str(metric.volume_density().simplify())),
+            expected_volume,
+        )
+        lower = metric.levi_civita()
+        upper = metric.levi_civita("contravariant")
+        self.assertEqual(lower.variance, (-1, -1, -1))
+        self.assertEqual(upper.variance, (1, 1, 1))
+        self.assertEqual(
+            oracle.sympify(str(lower[0, 1, 2].simplify())), -expected_volume
+        )
+        self.assertEqual(
+            oracle.sympify(str(lower[0, 2, 1].simplify())), expected_volume
+        )
+        expected_upper = -expected_volume / oracle_metric.det()
+        self.assertEqual(
+            oracle.sympify(str(upper[0, 1, 2].simplify())), expected_upper
+        )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_spherical_minkowski_relativity_owner_matches_sympy(self):
         t, r, theta, phi = sp.symbols("rel_t rel_r rel_theta rel_phi")
         metric = sp.SpacetimeMetric(

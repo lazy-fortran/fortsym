@@ -281,6 +281,16 @@ int fortsym_metric_sqrtg(
     fortsym_arena *arena, const fortsym_expr *components[],
     const int signature[], int orientation, fortsym_expr **out,
     char *message, size_t capacity);
+int fortsym_metric_volume_density(
+    fortsym_arena *arena, const fortsym_expr *components[],
+    const int signature[], int orientation, fortsym_expr **out,
+    char *message, size_t capacity);
+/* `variance` is -1 for the covariant and +1 for the contravariant
+ * Levi-Civita tensor. Output uses first-slot-fastest order and has 27 slots. */
+int fortsym_metric_levi_civita(
+    fortsym_arena *arena, const fortsym_expr *components[],
+    const int signature[], int orientation, int variance, fortsym_expr *out[],
+    char *message, size_t capacity);
 int fortsym_metric_contravariant(
     fortsym_arena *arena, const fortsym_expr *components[],
     const int signature[], int orientation, fortsym_expr *out[],

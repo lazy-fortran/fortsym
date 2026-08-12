@@ -1187,6 +1187,13 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Add `volume_form(metric_t, orientation)` alongside the chart overload.
   The metric owner supplies positive `sqrtg`, while its stored orientation or
   an explicit override supplies the sign; native checks compare both paths.
+- [x] Add the fixed-three-dimensional metric volume owner: `volume_density`
+  returns positive `sqrt(abs(det(g)))`, while `levi_civita_symbol` and
+  `metric_levi_civita(metric, variance)` keep raw symbol, oriented covariant
+  tensor, and oriented contravariant tensor conventions explicit. Native, C,
+  Python, and SymPy differential checks cover Euclidean and Lorentzian
+  signatures; general-dimensional and separate density-tensor constructors
+  remain open.
 - [x] Package magnetic `B^i`, `B_i`, and `sqrtg B^i` in one typed
   `magnetic_field_t` view. The established component operators remain the
   single derivation owner; the wrapper only adds variance and density metadata.
@@ -1269,17 +1276,17 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   coordinate-aware `d`, Lorentzian/Riemannian metric `star`, and the native
   `codifferential` path. The owner proves `d(d(A)) = 0`, graded antisymmetry,
   and the signature-dependent Hodge involution on the Minkowski baseline.
-  ABI 34 and both Python facades transport `d`, `wedge`, and `star`; pullback,
-  contraction, Lie derivative, arbitrary dimension, and topology remain open.
-- [x] Transport the native spacetime codifferential through ABI 34 and the
-  Python facades as `codifferential()` with the concise `codiff()` alias. Its
-  Minkowski one-form result is checked against the direct signed divergence
-  formula; Laplace--de Rham and source equations remain open.
-- [ ] Implement codifferential, Laplace-de Rham, and the conversion between
-  vectors and one-forms using `flat` and `sharp`. The fixed-three-dimensional
-  Hodge owner now accepts an explicit metric signature and orientation through
-  both Fortran and Python; higher-degree and arbitrary-dimensional forms remain
-  open.
+  The current ABI and both Python facades transport `d`, `wedge`, and `star`;
+  pullback, arbitrary dimension, and topology remain open.
+- [x] Transport the native spacetime codifferential, contraction, Cartan Lie
+  derivative, and Laplace--de Rham composition through the current ABI and
+  Python facades. Their Minkowski identities are checked against direct signed
+  divergence and wave-operator formulas; arbitrary-dimensional forms and
+  source equations remain open.
+- [ ] Generalize codifferential, Laplace-de Rham, and the conversion between
+  vectors and one-forms using `flat` and `sharp` beyond the implemented
+  fixed-three-dimensional and dimension-aware spacetime owners. Higher-degree
+  arbitrary-dimensional forms remain open.
 - [ ] Prove and test the structural identities `d(d(alpha)) = 0`, the graded
   Leibniz rule, pullback composition, Cartan's identity, and the appropriate
   signed `star(star(alpha))` rule in each supported signature.
@@ -1426,9 +1433,11 @@ between the two-dimensional gradient, scalar curl, and divergence.
   `d/du3 = i*n` reduction, C ABI, Python facade, and independent SymPy and
   native identities. The paper's block reduction is now a specialization of
   this operator.
-- [ ] Add the Levi-Civita density as a reusable owner. The constitutive
-  transformation `nubar_t = -E_t nu_t E_t` and the zero/nonzero mode branch
-  reduction are implemented natively; density ownership remains open.
+- [x] Add the reusable fixed-three-dimensional Levi-Civita symbol/tensor and
+  positive volume-density owner. The constitutive transformation
+  `nubar_t = -E_t nu_t E_t` and the zero/nonzero mode branch reduction are
+  implemented natively; the reduced two-dimensional Levi-Civita density and
+  its FEM assembly ownership remain open.
 - [x] Generate the paper's scalar longitudinal and transverse weak-form
   coefficient blocks from the native constitutive owner. The descriptor
   preserves scalar nodal versus two-dimensional edge spaces, normal versus
@@ -1484,20 +1493,20 @@ between the two-dimensional gradient, scalar curl, and divergence.
   Einstein views. The Python result trees are differentially checked against
   independently assembled SymPy Christoffel expressions; full frontend corpus
   generation and Wolfram translation remain open.
-- [x] Transport the first dimension-aware spacetime-form owner through ABI 35
-  and both Python facades. The native owner remains the single implementation;
+- [x] Transport the first dimension-aware spacetime-form owner through the
+  current ABI and both Python facades. The native owner remains the single implementation;
   the Python test independently checks a component of `d(A)`, `d(d(A))`, the
   Lorentzian Hodge sign, and wedge antisymmetry.
-- [x] Add a parameterized geodesic residual owner and ABI 35/Python transport:
+- [x] Add a parameterized geodesic residual owner and current-ABI/Python transport:
   `x''^a + Gamma^a_bc x'^b x'^c`, with explicit substitution of the curve
   into the metric connection. Spherical-coordinate residual checks now cover
   nonzero Christoffel dependence; geodesic solving and variational mechanics
   remain open.
-- [x] Extend the four-dimensional form owner through ABI 36 with contraction
-  and Cartan Lie derivative. Independent tests compare `L_X(alpha)` with
+- [x] Extend the four-dimensional form owner with contraction and Cartan Lie
+  derivative. Independent tests compare `L_X(alpha)` with
   `i_X(d(alpha)) + d(i_X(alpha))`; arbitrary-dimensional pullback and topology
   remain open.
-- [x] Add the first native Laplace--de Rham owner through ABI 37. The flat
+- [x] Add the first native Laplace--de Rham owner through the current ABI. The flat
   Lorentzian scalar case is checked against the signed wave-operator formula;
   higher-degree curved-space simplification and boundary/topology metadata
   remain open.

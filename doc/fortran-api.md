@@ -71,12 +71,17 @@ always pass the signature and orientation when they are physically meaningful.
 `metric_contravariant` retain the metric's own signature.
 `volume_form(metric_owner)` uses the stored orientation, while
 `volume_form(metric_owner, sign)` makes an explicit oriented view.
+The `fortsym_volume` owner adds `metric_volume_density` for the positive
+volume density, `levi_civita_symbol(i,j,k)` for the raw alternating symbol,
+and `metric_levi_civita(metric_owner, variance)` for the oriented covariant
+(`variance=-1`) or contravariant (`variance=1`) tensor.
 
 ```fortran
 use fortsym_chart, only: DIM
 use fortsym_expr, only: expr_t
 use fortsym_metric, only: metric_t, metric_create, metric_sqrtg, &
     metric_contravariant
+use fortsym_volume, only: metric_volume_density, metric_levi_civita
 type(metric_t) :: spacetime_metric
 type(expr_t) :: g(DIM, DIM), sqrtg_value, g_inverse(DIM, DIM)
 spacetime_metric = metric_create(g, [-1, 1, 1], -1)

@@ -353,6 +353,21 @@ def _configure(lib):
             ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    lib.metric_volume_density = declare(
+        "fortsym_metric_volume_density", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int),
+            ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.metric_levi_civita = declare(
+        "fortsym_metric_levi_civita", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int),
+            ctypes.c_int, ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR,
+            _SIZE,
+        ],
+    )
     lib.metric_contravariant = declare(
         "fortsym_metric_contravariant", ctypes.c_int,
         [
@@ -1102,6 +1117,34 @@ class Arena:
             raise FortSymError(status, _decode(message), "metric_sqrtg")
         return Expr(self, output)
 
+    def _metric_volume_density(self, metric):
+        components, signature = self._metric_inputs(metric)
+        output = _CVOID()
+        message = _message()
+        status = self._lib.metric_volume_density(
+            self._require(), components, signature, metric.orientation,
+            ctypes.byref(output), message, len(message),
+        )
+        if status:
+            raise FortSymError(
+                status, _decode(message), "metric_volume_density"
+            )
+        return Expr(self, output)
+
+    def _metric_levi_civita(self, metric, variance):
+        components, signature = self._metric_inputs(metric)
+        output = (_CVOID * 27)()
+        message = _message()
+        status = self._lib.metric_levi_civita(
+            self._require(), components, signature, metric.orientation,
+            int(variance), output, message, len(message),
+        )
+        if status:
+            raise FortSymError(
+                status, _decode(message), "metric_levi_civita"
+            )
+        return tuple(Expr(self, output[index]) for index in range(27))
+
     def _metric_contravariant(self, metric):
         components, signature = self._metric_inputs(metric)
         output = (_CVOID * 9)()
@@ -1846,6 +1889,21 @@ class Metric:
 
     def sqrtg(self):
         return self._arena._metric_sqrtg(self)
+
+    def volume_density(self):
+        return self._arena._metric_volume_density(self)
+
+    def levi_civita(self, variance="covariant"):
+        if variance in ("covariant", "lower", -1):
+            value = -1
+        elif variance in ("contravariant", "upper", 1):
+            value = 1
+        else:
+            raise ValueError(
+                "Levi-Civita variance must be covariant or contravariant"
+            )
+        components = self._arena._metric_levi_civita(self, value)
+        return Tensor(self.chart, components, (value, value, value), _owned=True)
 
     def contravariant(self):
         components = self._arena._metric_contravariant(self)
