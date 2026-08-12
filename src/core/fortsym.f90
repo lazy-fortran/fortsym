@@ -60,7 +60,7 @@ module fortsym
         christoffel_tensor, riemann_tensor, ricci_tensor, scalar_curvature, &
         einstein_tensor
     use fortsym_magnetic, only: b_con, b_cov, b_density, b_fourier, &
-        b_fourier_density
+        b_fourier_density, j_fourier
     implicit none
     private
 
@@ -97,8 +97,8 @@ module fortsym
         grad, divergence, curl, laplacian, chart_map_t, chart_map_create, compose_maps, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form, &
         pullback, b_con, &
-        b_cov, b_density, b_fourier, &
-        b_fourier_density, form_t, form, form_scalar, form_one, form_two, &
+        b_cov, b_density, b_fourier, b_fourier_density, j_fourier, &
+        form_t, form, form_scalar, form_one, form_two, &
         form_three, form_component, form_degree, form_valid, add_forms, &
         subtract_forms, negate_form, wedge, d, &
         exterior_diff, star, hodge_star, interior, interior_product, lie, &

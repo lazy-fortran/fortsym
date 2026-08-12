@@ -10,12 +10,12 @@ module fortsym_magnetic
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_chart, only: chart_t, DIM, curl, metric_covariant, sqrtg
     use fortsym_diff, only: diff
-    use fortsym_expr, only: expr_t, i_expr, num, operator(+), operator(-), &
-        operator(*), operator(/)
+    use fortsym_expr, only: expr_t, i_expr, num, is_valid, operator(+), &
+        operator(-), operator(*), operator(/)
     implicit none
     private
 
-    public :: b_con, b_cov, b_density, b_fourier, b_fourier_density
+    public :: b_con, b_cov, b_density, b_fourier, b_fourier_density, j_fourier
 
     interface b_fourier
         module procedure b_fourier_integer, b_fourier_expression
@@ -24,6 +24,10 @@ module fortsym_magnetic
     interface b_fourier_density
         module procedure b_fourier_density_integer, b_fourier_density_expression
     end interface b_fourier_density
+
+    interface j_fourier
+        module procedure j_fourier_integer, j_fourier_expression
+    end interface j_fourier
 
 contains
 
@@ -156,5 +160,76 @@ contains
         value(3) = diff(potential(2), c%u(1)) - &
             diff(potential(1), c%u(2))
     end function b_fourier_density_from_factor
+
+    !> Fourier-mode current from a covariant potential and reluctivity.
+    !>
+    !> This is the paper's curl-curl owner. The potential and reluctivity are
+    !> mode amplitudes in (u1,u2); d/du3 is replaced by i*n. The operator is
+    !> deliberately written as two curls around the supplied 3x3 reluctivity,
+    !> so the block-diagonal Eq. (40--42) reduction is a specialization rather
+    !> than a second implementation.
+    function j_fourier_integer(c, reluctivity, potential, mode) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: reluctivity(DIM, DIM), potential(DIM)
+        integer, intent(in) :: mode
+        type(expr_t) :: value(DIM)
+        type(expr_t) :: mode_derivative
+
+        mode_derivative = i_expr(c%a)*num(c%a, int(mode, int64))
+        value = j_fourier_from_factor(c, reluctivity, potential, mode_derivative)
+    end function j_fourier_integer
+
+    function j_fourier_expression(c, reluctivity, potential, mode) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: reluctivity(DIM, DIM), potential(DIM), mode
+        type(expr_t) :: value(DIM)
+        type(expr_t) :: mode_derivative
+
+        mode_derivative = i_expr(c%a)*mode
+        value = j_fourier_from_factor(c, reluctivity, potential, mode_derivative)
+    end function j_fourier_expression
+
+    function j_fourier_from_factor(c, reluctivity, potential, mode_derivative) &
+            result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: reluctivity(DIM, DIM), potential(DIM)
+        type(expr_t), intent(in) :: mode_derivative
+        type(expr_t) :: value(DIM)
+        type(expr_t) :: magnetic(DIM), field(DIM)
+        integer :: i, j
+
+        do i = 1, DIM
+            value(i) = expr_t()
+        end do
+        if (.not. associated(c%a)) return
+        do i = 1, DIM
+            if (.not. is_valid(potential(i))) return
+            if (.not. associated(potential(i)%a, c%a)) return
+            do j = 1, DIM
+                if (.not. is_valid(reluctivity(i, j))) return
+                if (.not. associated(reluctivity(i, j)%a, c%a)) return
+            end do
+        end do
+        if (.not. is_valid(mode_derivative)) return
+        if (.not. associated(mode_derivative%a, c%a)) return
+
+        magnetic(1) = diff(potential(3), c%u(2)) - &
+            mode_derivative*potential(2)
+        magnetic(2) = mode_derivative*potential(1) - &
+            diff(potential(3), c%u(1))
+        magnetic(3) = diff(potential(2), c%u(1)) - &
+            diff(potential(1), c%u(2))
+
+        do i = 1, DIM
+            field(i) = reluctivity(i, 1)*magnetic(1)
+            do j = 2, DIM
+                field(i) = field(i) + reluctivity(i, j)*magnetic(j)
+            end do
+        end do
+
+        value(1) = diff(field(3), c%u(2)) - mode_derivative*field(2)
+        value(2) = mode_derivative*field(1) - diff(field(3), c%u(1))
+        value(3) = diff(field(2), c%u(1)) - diff(field(1), c%u(2))
+    end function j_fourier_from_factor
 
 end module fortsym_magnetic

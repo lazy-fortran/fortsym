@@ -249,6 +249,11 @@ int fortsym_chart_b_fourier_density(
     const fortsym_expr *position[], const fortsym_expr *potential[],
     const fortsym_expr *mode, fortsym_expr *out[], char *message,
     size_t capacity);
+int fortsym_chart_j_fourier(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *reluctivity[],
+    const fortsym_expr *potential[], const fortsym_expr *mode,
+    fortsym_expr *out[], char *message, size_t capacity);
 /* Geometry tensor arrays use first-slot-fastest order, matching the native
  * `tensor_component` convention. The caller supplies an output array with
  * `3**rank` slots and releases each returned handle with fortsym_expr_free. */

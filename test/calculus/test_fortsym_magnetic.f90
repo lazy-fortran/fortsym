@@ -7,11 +7,12 @@ program test_fortsym_magnetic
     use fortsym_expr, only: expr_t, sym, num, i_expr, operator(+), &
         operator(-), operator(*), operator(**)
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
+    use fortsym_engine, only: engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create, covariant_basis, &
         reciprocal_basis, metric_covariant, jacobian, sqrtg
     use fortsym_magnetic, only: b_con, b_cov, b_density, b_fourier, &
-        b_fourier_density
+        b_fourier_density, j_fourier
     implicit none
 
     type(arena_t), target :: arena
@@ -23,7 +24,9 @@ program test_fortsym_magnetic
     type(expr_t) :: potential(DIM), b_up(DIM), b_down(DIM), b_den(DIM)
     type(expr_t) :: fourier_potential(DIM), fourier_up(DIM), fourier_den(DIM)
     type(expr_t) :: fourier_integer(DIM), mode
+    type(expr_t) :: reluctivity(DIM, DIM), current(DIM)
     type(expr_t) :: residual, det_metric, volume, signed_jacobian
+    type(engine_result_t) :: reduced
     integer :: i, j
     character(len=64) :: label
 
@@ -103,6 +106,32 @@ program test_fortsym_magnetic
     fourier_integer = b_fourier(shear, fourier_potential, 2)
     call check_identity(suite, engine, "integer Fourier mode overload", &
         fourier_integer(1) + 2*i_expr(arena)*u(1)**2)
+
+    ! Generic Fourier curl-curl: J = curl(nu curl(A)), with d/du3 = i*n.
+    ! The off-diagonal transverse entries make the constitutive contraction
+    ! observable rather than testing only the paper's diagonal special case.
+    do i = 1, DIM
+        do j = 1, DIM
+            reluctivity(i, j) = num(arena, 0)
+        end do
+    end do
+    reluctivity(1, 1) = num(arena, 2)
+    reluctivity(1, 2) = num(arena, 3)
+    reluctivity(2, 1) = num(arena, 5)
+    reluctivity(2, 2) = num(arena, 7)
+    reluctivity(3, 3) = num(arena, 11)
+    current = j_fourier(shear, reluctivity, fourier_potential, mode)
+    call check_identity(suite, engine, "Fourier current J^1", current(1) - &
+        mode**2*(7*u(1)*u(2) - 5*u(1)**2))
+    residual = current(2) - (mode**2*(-3*u(1)*u(2) + 2*u(1)**2) - 11)
+    reduced = engine%simplify(residual)
+    if (reduced%ok) then
+        call check_identity(suite, engine, "Fourier current J^2", reduced%value)
+    else
+        call check_identity(suite, engine, "Fourier current J^2", residual)
+    end if
+    call check_identity(suite, engine, "Fourier current J^3", current(3) - &
+        i_expr(arena)*mode*(-13*u(1) + 7*u(2)))
 
     if (suite%failed /= 0) then
         print *, "test_fortsym_magnetic: ", suite%failed, " check(s) FAILED"

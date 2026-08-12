@@ -44,6 +44,22 @@ _RELATIONS = {
 }
 
 
+def _matrix3_values(matrix):
+    """Return a 3x3 matrix in the native first-slot-fastest order."""
+    values = tuple(matrix)
+    if len(values) == 3:
+        try:
+            rows = tuple(tuple(row) for row in values)
+        except TypeError:
+            rows = ()
+        if len(rows) == 3 and all(len(row) == 3 for row in rows):
+            return tuple(rows[row][column] for column in range(3)
+                         for row in range(3))
+    if len(values) == 9:
+        return values
+    raise ValueError("j_fourier reluctivity requires a 3x3 matrix")
+
+
 class FortSymError(RuntimeError):
     """A native operation failed with a status returned by the C ABI."""
 
@@ -262,6 +278,15 @@ def _configure(lib):
             "chart_" + name,
             declare("fortsym_chart_" + name, ctypes.c_int, arguments),
         )
+    lib.chart_j_fourier = declare(
+        "fortsym_chart_j_fourier", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CVOID,
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     for name in ("covariant_basis", "reciprocal_basis", "metric_covariant",
                  "metric_contravariant", "christoffel",
                  "riemann", "ricci", "einstein"):
@@ -772,6 +797,51 @@ class Arena:
         if status:
             name = operation.__name__.removeprefix("fortsym_chart_")
             raise FortSymError(status, _decode(message), name)
+        return tuple(Expr(self, output[index]) for index in range(3))
+
+    def _chart_j_fourier(self, chart, reluctivity, potential, mode):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporary_values = []
+        try:
+            reluctivity_values = []
+            for value in reluctivity:
+                value, temporary = self._coerce(value)
+                reluctivity_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            potential_values = []
+            for value in potential:
+                value, temporary = self._coerce(value)
+                potential_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            if len(reluctivity_values) != 9:
+                raise ValueError("j_fourier reluctivity requires a 3x3 matrix")
+            if len(potential_values) != 3:
+                raise ValueError("j_fourier potential requires three components")
+            reluctivity_handles = (_CVOID * 9)(
+                *[value._handle for value in reluctivity_values]
+            )
+            potential_handles = (_CVOID * 3)(
+                *[value._handle for value in potential_values]
+            )
+            mode, temporary = self._coerce(mode)
+            if temporary is not None:
+                temporary_values.append(temporary)
+            output = (_CVOID * 3)()
+            message = _message()
+            status = self._lib.chart_j_fourier(
+                self._require(), coordinate_handles, position_handles,
+                reluctivity_handles, potential_handles, mode._handle,
+                output, message, len(message),
+            )
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
+        if status:
+            raise FortSymError(status, _decode(message), "j_fourier")
         return tuple(Expr(self, output[index]) for index in range(3))
 
     def _chart_tensor(self, operation, coordinates, position, rank):
@@ -1303,6 +1373,12 @@ class Chart:
         return self._arena._chart_many(
             self._arena._lib.chart_b_fourier_density,
             self.coordinates, self.position, potential, mode,
+        )
+
+    def j_fourier(self, reluctivity, potential, mode):
+        reluctivity = _matrix3_values(reluctivity)
+        return self._arena._chart_j_fourier(
+            self, reluctivity, potential, mode,
         )
 
 

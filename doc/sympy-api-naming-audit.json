@@ -1317,6 +1317,10 @@
       },
       {
         "concepts": [],
+        "name": "j_fourier"
+      },
+      {
+        "concepts": [],
         "name": "jacobian"
       },
       {
@@ -2025,10 +2029,10 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 224,
+    "fortran_facade_exports": 225,
     "python_facade_exports": 19,
     "sympy_adapter_exports": 128,
-    "unmapped_fortran_exports": 86
+    "unmapped_fortran_exports": 87
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -2076,6 +2080,7 @@
     "interior",
     "interior_product",
     "inverse_jacobian",
+    "j_fourier",
     "jacobian",
     "laplacian",
     "lie",

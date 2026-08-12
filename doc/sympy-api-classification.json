@@ -1782,6 +1782,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_magnetic.j_fourier",
+        "module": "fortsym_magnetic",
+        "name": "j_fourier",
+        "owner": "src/calculus/fortsym_magnetic.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_ode.solve_ode",
         "module": "fortsym_ode",
         "name": "solve_ode",
@@ -2640,6 +2650,17 @@
         "id": "fortsym_public_capi.fortsym_chart_b_fourier_density",
         "module": "fortsym_public_capi",
         "name": "fortsym_chart_b_fourier_density",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_j_fourier",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_j_fourier",
         "owner": "src/capi/fortsym_public_capi.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -5462,6 +5483,17 @@
         "id": "fortsym.b_fourier_density",
         "module": "fortsym",
         "name": "b_fourier_density",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.j_fourier",
+        "module": "fortsym",
+        "name": "j_fourier",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -9938,12 +9970,12 @@
     "classification_counts": {
       "delegated": 2529,
       "external": 10,
-      "facade": 308,
-      "native": 3390,
+      "facade": 310,
+      "native": 3393,
       "python-adapter": 2485,
       "refused": 25309
     },
-    "fortran_public_exports": 949,
+    "fortran_public_exports": 952,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
