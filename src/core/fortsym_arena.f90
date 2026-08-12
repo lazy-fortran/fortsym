@@ -671,7 +671,22 @@ contains
         class(arena_t), intent(inout) :: self
         integer,        intent(in)    :: operands(:)
         integer                       :: idx
+        integer                       :: pair(2)
         integer, allocatable :: flat(:)
+
+        ! Binary arithmetic is the dominant construction path.  When neither
+        ! operand is already an addition, flattening cannot change the list,
+        ! so keep the pair on the stack and avoid two heap allocations.
+        if (size(operands) == 2) then
+            if (self%nodes(operands(1))%kind /= NK_ADD .and. &
+                self%nodes(operands(2))%kind /= NK_ADD) then
+                pair = operands
+                call sort_pair(self, pair)
+                idx = intern(self, NK_ADD, 0_int64, 1_int64, 0.0_dp, 0, pair)
+                return
+            end if
+        end if
+
         call flatten(self, operands, NK_ADD, flat)
         if (size(flat) == 1) then
             idx = flat(1)
@@ -685,7 +700,19 @@ contains
         class(arena_t), intent(inout) :: self
         integer,        intent(in)    :: operands(:)
         integer                       :: idx
+        integer                       :: pair(2)
         integer, allocatable :: flat(:)
+
+        if (size(operands) == 2) then
+            if (self%nodes(operands(1))%kind /= NK_MUL .and. &
+                self%nodes(operands(2))%kind /= NK_MUL) then
+                pair = operands
+                call sort_pair(self, pair)
+                idx = intern(self, NK_MUL, 0_int64, 1_int64, 0.0_dp, 0, pair)
+                return
+            end if
+        end if
+
         call flatten(self, operands, NK_MUL, flat)
         if (size(flat) == 1) then
             idx = flat(1)
@@ -726,6 +753,17 @@ contains
             end if
         end do
     end subroutine flatten
+
+    pure subroutine sort_pair(self, values)
+        class(arena_t), intent(in) :: self
+        integer, intent(inout) :: values(2)
+        integer :: swap
+
+        if (compare_nodes(self, values(1), values(2)) <= 0) return
+        swap = values(1)
+        values(1) = values(2)
+        values(2) = swap
+    end subroutine sort_pair
 
     !> Bottom-up merge sort by stable structure. Expansion can feed this up to
     !> the documented term bound, so quadratic insertion sorting is not safe.

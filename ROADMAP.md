@@ -2073,6 +2073,12 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     performance coverage. The 118-row matrix measured native/SymPy ratios of
     0.459x cold and 0.0050x warm, with 101 correctness cases, zero correctness
     failures, and zero unwaived violations.
+  - [x] Remove avoidable cold-path work from the native engine: binary arena
+    construction uses fixed stack pairs, and denominator-free simplification
+    skips polynomial cancellation and denominator scans. The focused native
+    benchmark remained correct and measured 1.10x, 1.35x, and 1.26x native /
+    SymEngine for cold simplify, differentiation, and expansion on its current
+    diagnostic workload. Matched SymPy coverage remains open.
 - [x] Cache immutable explicit metric determinant, inverse, and positive
   `sqrtg` views in the native `metric_t` owner. Repeated gradient, divergence,
   Laplace--Beltrami, Hodge, and raise/lower calls reuse the same expression

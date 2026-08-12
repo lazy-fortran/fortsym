@@ -115,6 +115,8 @@ contains
         logical :: applied
         logical :: cancel_ok
         logical :: algebraic_ok
+        logical :: possible_denominator
+        logical :: original_denominator
         character(:), allocatable :: reason
         character(:), allocatable :: cancel_reason
         type(expr_t) :: simplified_expr, cancelled
@@ -145,6 +147,8 @@ contains
         if (present(limit)) active_limit = limit
         active_limit%visited_nodes = 0_int64
         active_limit%exceeded_kind = 0
+        possible_denominator = .false.
+        original_denominator = .false.
         if (.not. associated(e%a, self%home)) then
             r%message = str("native: expression belongs to a different arena")
             r%seconds = wall_seconds() - started
@@ -207,6 +211,8 @@ contains
                 return
             end if
         end if
+        possible_denominator = contains_negative_power(e%a, simplified_id)
+        original_denominator = contains_negative_power(e%a, e%id)
         ! Polynomial cancellation is a native candidate, not a replacement
         ! for the bounded recursive simplifier.  Keep it out of limited calls
         ! until it accepts the caller's resource budget, and only retain a
@@ -216,23 +222,26 @@ contains
                 e%kind() == NK_POW) then
                 simplified_expr = e
                 simplified_expr%id = simplified_id
-                call poly_cancel(e%a, simplified_expr, cancelled, cancel_ok, &
-                    cancel_reason)
-                if (cancel_ok) then
-                    call reset_workspace(self%simplify_memo, &
-                        self%simplify_stamp, self%simplify_epoch, e%a%size())
-                    cancelled%id = simplify_id(e%a, cancelled%id, &
-                        self%simplify_memo, self%simplify_stamp, &
-                        self%simplify_epoch, active_limit)
-                    if (cancelled%node_count() < &
-                        simplified_expr%node_count()) then
-                        simplified_id = cancelled%id
+                if (possible_denominator) then
+                    call poly_cancel(e%a, simplified_expr, cancelled, cancel_ok, &
+                        cancel_reason)
+                    if (cancel_ok) then
+                        call reset_workspace(self%simplify_memo, &
+                            self%simplify_stamp, self%simplify_epoch, e%a%size())
+                        cancelled%id = simplify_id(e%a, cancelled%id, &
+                            self%simplify_memo, self%simplify_stamp, &
+                            self%simplify_epoch, active_limit)
+                        if (cancelled%node_count() < &
+                            simplified_expr%node_count()) then
+                            simplified_id = cancelled%id
+                        end if
                     end if
                 end if
                 ! Factoring is currently a polynomial candidate only.  Do not
                 ! fold rational functions back into products: callers such as
                 ! integration deliberately expose those products to Apart.
-                if (.not. has_symbolic_denominator(e%a, simplified_id)) then
+                if (.not. possible_denominator .or. &
+                    .not. has_symbolic_denominator(e%a, simplified_id)) then
                     simplified_expr = e
                     simplified_expr%id = simplified_id
                     call poly_factor(e%a, simplified_expr, cancelled, &
@@ -253,7 +262,7 @@ contains
         end if
         r%value%id = simplified_id
         r%ok = .true.
-        call set_simplify_condition(e, simplified_id, r)
+        if (original_denominator) call set_simplify_condition(e, simplified_id, r)
         if (.not. associated(self%assumptions)) then
             if (r%conditional) then
                 self%simplify_cache(e%id) = -simplified_id
@@ -4746,6 +4755,35 @@ contains
             exact = .false.
         end select
     end subroutine exact_value
+
+    recursive function contains_negative_power(a, id) result(found)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical :: found
+        integer(int64) :: exponent, denominator
+        integer :: k
+        logical :: exact
+
+        found = .false.
+        if (a%kind_of(id) == NK_POW) then
+            call exact_value(a, a%arg_of(id, 2), exponent, denominator, exact)
+            if (exact) then
+                if (denominator == 1_int64 .and. exponent < 0_int64) then
+                    found = .true.
+                    return
+                end if
+            end if
+        end if
+        select case (a%kind_of(id))
+        case (NK_ADD, NK_MUL, NK_FUNC, NK_POW)
+            do k = 1, a%nargs_of(id)
+                if (contains_negative_power(a, a%arg_of(id, k))) then
+                    found = .true.
+                    return
+                end if
+            end do
+        end select
+    end function contains_negative_power
 
     function has_symbolic_denominator(a, id) result(found)
         type(arena_t), intent(in) :: a
