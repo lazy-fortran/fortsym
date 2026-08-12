@@ -420,6 +420,19 @@ int fortsym_chart_tensor_density(
     size_t rank, const int variance[], int density_weight,
     int new_density_weight, fortsym_expr *out[], char *message,
     size_t capacity);
+int fortsym_chart_tensor_permute(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    size_t rank, const int variance[], int density_weight, const int order[],
+    fortsym_expr *out[], char *message, size_t capacity);
+/* `antisymmetric` is zero for symmetrization and nonzero for
+ * antisymmetrization. Slots are one-based, matching the native Fortran API. */
+int fortsym_chart_tensor_symmetrize(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    size_t rank, const int variance[], int density_weight, size_t first_slot,
+    size_t second_slot, int antisymmetric, fortsym_expr *out[],
+    char *message, size_t capacity);
 int fortsym_chart_riemann(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], fortsym_expr *out[], char *message,

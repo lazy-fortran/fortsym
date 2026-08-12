@@ -265,6 +265,25 @@ class SympySubsetTest(unittest.TestCase):
             )),
             oracle.Matrix((1, 2, 3)),
         )
+        matrix_values = tuple(range(1, 10))
+        matrix = chart.tensor(matrix_values, variance=(1, 1))
+        transposed = matrix.permute((1, 0))
+        self.assertEqual(transposed.variance, (1, 1))
+        self.assertEqual(
+            oracle.Matrix(3, 3, lambda row, column: oracle.sympify(
+                str(transposed[row, column].simplify())
+            )),
+            oracle.Matrix(3, 3, lambda row, column:
+                          matrix_values[column + 3*row]),
+        )
+        symmetric = matrix.symmetrize(0, 1)
+        antisymmetric = matrix.antisymmetrize(0, 1)
+        self.assertEqual(
+            oracle.sympify(str(symmetric[0, 1].simplify())), 3
+        )
+        self.assertEqual(
+            oracle.sympify(str(antisymmetric[0, 1].simplify())), 1
+        )
         density = vector.density(1)
         self.assertEqual(density.variance, (1,))
         self.assertEqual(density.density_weight, 1)

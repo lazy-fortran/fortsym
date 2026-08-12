@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 39). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 40). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -12,6 +12,9 @@ The chart calculus distinguishes ordinary vectors from weight-one vector densiti
 covector, while `fortsym_chart_div_density` differentiates a contravariant density
 componentwise. The existing `fortsym_chart_curl` and `fortsym_chart_divergence`
 remain the ordinary vector operations.
+`fortsym_chart_tensor_permute` reorders typed tensor slots, and
+`fortsym_chart_tensor_symmetrize` projects two slots to their symmetric or
+antisymmetric part while preserving variance and density metadata.
 `fortsym_chart_b_density` exposes the native `sqrtg B^i` magnetic view alongside
 `fortsym_chart_b_cov`; both consume the same native magnetic owner.
 The form boundary also accepts the explicit degree-four zero extension produced

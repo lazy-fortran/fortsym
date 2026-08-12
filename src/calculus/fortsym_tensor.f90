@@ -12,7 +12,9 @@ module fortsym_tensor
     use fortsym_metric, only: metric_t, metric_valid, metric_same_arena, &
         metric_arena, owner_metric_covariant => metric_covariant, &
         owner_metric_contravariant => metric_contravariant
-    use fortsym_expr, only: expr_t, num, is_valid, operator(+), operator(*)
+    use fortsym_expr, only: expr_t, num, is_valid, operator(+), operator(-), &
+        operator(*), &
+        operator(/)
     implicit none
     private
 
@@ -28,6 +30,7 @@ module fortsym_tensor
     public :: tensor_density_weight, tensor_valid, tensor_same_arena, density
     public :: vector, covector, raise, lower
     public :: tensor_product, contract, trace
+    public :: permute, symmetrize, antisymmetrize
     public :: metric_covariant_tensor, metric_contravariant_tensor
 
     type :: tensor_t
@@ -471,6 +474,51 @@ contains
         result = contract(tensor_value, first, second)
     end function trace
 
+    !> Reorder tensor slots. `order(k)` gives the old slot at new slot k.
+    function permute(tensor_value, order) result(result)
+        type(tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: order(:)
+        type(tensor_t) :: result
+        integer :: metadata(MAX_RANK), output_indices(MAX_RANK)
+        integer :: source_indices(MAX_RANK), slot, output_index, source_index
+
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. valid_permutation(order, tensor_value%rank)) return
+        metadata = 0
+        do slot = 1, tensor_value%rank
+            metadata(slot) = tensor_value%variance(order(slot))
+        end do
+        result = zero_tensor(tensor_value%a, tensor_value%rank, metadata, &
+            tensor_value%density_weight)
+        do output_index = 0, component_count(tensor_value%rank) - 1
+            call decode_index(output_index, tensor_value%rank, output_indices)
+            source_indices = 1
+            do slot = 1, tensor_value%rank
+                source_indices(order(slot)) = output_indices(slot)
+            end do
+            source_index = encode_index(source_indices, tensor_value%rank)
+            result%component(output_index) = tensor_value%component(source_index)
+        end do
+    end function permute
+
+    !> Symmetrize two slots with equal variance, preserving density weight.
+    function symmetrize(tensor_value, first, second) result(result)
+        type(tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: first, second
+        type(tensor_t) :: result
+
+        result = symmetrize_pair(tensor_value, first, second, .false.)
+    end function symmetrize
+
+    !> Antisymmetrize two slots with equal variance, preserving density weight.
+    function antisymmetrize(tensor_value, first, second) result(result)
+        type(tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: first, second
+        type(tensor_t) :: result
+
+        result = symmetrize_pair(tensor_value, first, second, .true.)
+    end function antisymmetrize
+
     function metric_covariant_tensor_chart(c) result(result)
         type(chart_t), intent(in) :: c
         type(tensor_t) :: result
@@ -581,6 +629,35 @@ contains
         end do
     end function lower_components
 
+    function symmetrize_pair(tensor_value, first, second, alternating) result(result)
+        type(tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: first, second
+        logical, intent(in) :: alternating
+        type(tensor_t) :: result
+        integer :: indices(MAX_RANK), swapped(MAX_RANK), output_index
+        type(expr_t) :: value
+
+        if (.not. tensor_valid(tensor_value)) return
+        if (first < 1 .or. first > tensor_value%rank) return
+        if (second < 1 .or. second > tensor_value%rank) return
+        if (first == second) return
+        if (tensor_value%variance(first) /= tensor_value%variance(second)) return
+        result = zero_tensor(tensor_value%a, tensor_value%rank, &
+            tensor_value%variance, tensor_value%density_weight)
+        do output_index = 0, component_count(tensor_value%rank) - 1
+            call decode_index(output_index, tensor_value%rank, indices)
+            swapped = indices
+            swapped(first) = indices(second)
+            swapped(second) = indices(first)
+            value = tensor_value%component(encode_index(indices, tensor_value%rank)) + &
+                tensor_value%component(encode_index(swapped, tensor_value%rank))
+            if (alternating) value = tensor_value%component(encode_index(indices, &
+                tensor_value%rank)) - tensor_value%component(encode_index(swapped, &
+                tensor_value%rank))
+            result%component(output_index) = value/num(tensor_value%a, 2)
+        end do
+    end function symmetrize_pair
+
     function zero_tensor(a, rank, metadata, weight) result(result)
         type(arena_t), pointer, intent(in) :: a
         integer, intent(in) :: rank, metadata(MAX_RANK), weight
@@ -633,6 +710,27 @@ contains
 
         valid = value == UPPER .or. value == LOWER_VARIANCE
     end function valid_variance
+
+    pure function valid_permutation(order, rank) result(valid)
+        integer, intent(in) :: order(:), rank
+        logical :: valid
+        integer :: i, j
+
+        valid = size(order) == rank
+        if (.not. valid) return
+        do i = 1, rank
+            if (order(i) < 1 .or. order(i) > rank) then
+                valid = .false.
+                return
+            end if
+            do j = i + 1, rank
+                if (order(i) == order(j)) then
+                    valid = .false.
+                    return
+                end if
+            end do
+        end do
+    end function valid_permutation
 
     pure function optional_weight(value) result(weight)
         integer, optional, intent(in) :: value
