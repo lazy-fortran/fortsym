@@ -24,7 +24,8 @@ module fortsym_chart
     private
 
     public :: chart_t, chart_create
-    public :: covariant_basis, metric_covariant, metric_contravariant
+    public :: covariant_basis, reciprocal_basis
+    public :: metric_covariant, metric_contravariant, sqrtg
     public :: jacobian, christoffel
     public :: grad, divergence, curl, laplacian
     public :: mms_source
@@ -66,6 +67,41 @@ contains
             end do
         end do
     end function covariant_basis
+
+    !> Reciprocal basis e^i, defined by e^i . e_j = delta^i_j.
+    !>
+    !> The cross-product form is the three-dimensional inverse of the basis
+    !> matrix. It keeps the orientation explicit and avoids a symbolic matrix
+    !> inversion or a temporary rank-two linear-system object.
+    function reciprocal_basis(c) result(e)
+        type(chart_t), intent(in) :: c
+        type(expr_t)              :: e(DIM, DIM)
+        type(expr_t) :: covariant(DIM, DIM), j
+
+        covariant = covariant_basis(c)
+        j = det3(covariant)
+
+        e(1, 1) = (covariant(2, 2)*covariant(3, 3) - &
+            covariant(3, 2)*covariant(2, 3))/j
+        e(2, 1) = (covariant(3, 2)*covariant(1, 3) - &
+            covariant(1, 2)*covariant(3, 3))/j
+        e(3, 1) = (covariant(1, 2)*covariant(2, 3) - &
+            covariant(2, 2)*covariant(1, 3))/j
+
+        e(1, 2) = (covariant(2, 3)*covariant(3, 1) - &
+            covariant(3, 3)*covariant(2, 1))/j
+        e(2, 2) = (covariant(3, 3)*covariant(1, 1) - &
+            covariant(1, 3)*covariant(3, 1))/j
+        e(3, 2) = (covariant(1, 3)*covariant(2, 1) - &
+            covariant(2, 3)*covariant(1, 1))/j
+
+        e(1, 3) = (covariant(2, 1)*covariant(3, 2) - &
+            covariant(3, 1)*covariant(2, 2))/j
+        e(2, 3) = (covariant(3, 1)*covariant(1, 2) - &
+            covariant(1, 1)*covariant(3, 2))/j
+        e(3, 3) = (covariant(1, 1)*covariant(2, 2) - &
+            covariant(2, 1)*covariant(1, 2))/j
+    end function reciprocal_basis
 
     !> Covariant metric g_ij = e_i . e_j.
     function metric_covariant(c) result(g)
@@ -119,6 +155,21 @@ contains
             end do
         end do
     end function metric_contravariant
+
+    !> Positive metric volume factor sqrt(det(g_ij)).
+    !>
+    !> The signed chart Jacobian remains available through jacobian(c). For an
+    !> orientation-preserving Euclidean chart the two agree. Keeping both
+    !> operations separate prevents orientation from disappearing accidentally
+    !> in magnetic-density and differential-form calculations.
+    function sqrtg(c) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t)              :: value
+        type(expr_t)              :: g(DIM, DIM)
+
+        g = metric_covariant(c)
+        value = sqrt(det3(g))
+    end function sqrtg
 
     !> Signed cofactor C_ij of a 3x3 matrix.
     function cofactor(m, i, j) result(cf)

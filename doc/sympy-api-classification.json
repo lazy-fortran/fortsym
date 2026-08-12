@@ -1148,6 +1148,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_chart.reciprocal_basis",
+        "module": "fortsym_chart",
+        "name": "reciprocal_basis",
+        "owner": "src/calculus/fortsym_chart.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_chart.metric_covariant",
         "module": "fortsym_chart",
         "name": "metric_covariant",
@@ -1161,6 +1171,16 @@
         "id": "fortsym_chart.metric_contravariant",
         "module": "fortsym_chart",
         "name": "metric_contravariant",
+        "owner": "src/calculus/fortsym_chart.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_chart.sqrtg",
+        "module": "fortsym_chart",
+        "name": "sqrtg",
         "owner": "src/calculus/fortsym_chart.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -1262,6 +1282,56 @@
         "module": "fortsym_diff",
         "name": "partial_derivative",
         "owner": "src/calculus/fortsym_diff.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_magnetic.b_con",
+        "module": "fortsym_magnetic",
+        "name": "b_con",
+        "owner": "src/calculus/fortsym_magnetic.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_magnetic.b_cov",
+        "module": "fortsym_magnetic",
+        "name": "b_cov",
+        "owner": "src/calculus/fortsym_magnetic.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_magnetic.b_density",
+        "module": "fortsym_magnetic",
+        "name": "b_density",
+        "owner": "src/calculus/fortsym_magnetic.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_magnetic.b_fourier",
+        "module": "fortsym_magnetic",
+        "name": "b_fourier",
+        "owner": "src/calculus/fortsym_magnetic.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_magnetic.b_fourier_density",
+        "module": "fortsym_magnetic",
+        "name": "b_fourier_density",
+        "owner": "src/calculus/fortsym_magnetic.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
       {
@@ -3971,6 +4041,204 @@
         "id": "fortsym.solve_ode",
         "module": "fortsym",
         "name": "solve_ode",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.chart_t",
+        "module": "fortsym",
+        "name": "chart_t",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.chart_create",
+        "module": "fortsym",
+        "name": "chart_create",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.covariant_basis",
+        "module": "fortsym",
+        "name": "covariant_basis",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.reciprocal_basis",
+        "module": "fortsym",
+        "name": "reciprocal_basis",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.metric_covariant",
+        "module": "fortsym",
+        "name": "metric_covariant",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.metric_contravariant",
+        "module": "fortsym",
+        "name": "metric_contravariant",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.sqrtg",
+        "module": "fortsym",
+        "name": "sqrtg",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.jacobian",
+        "module": "fortsym",
+        "name": "jacobian",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.christoffel",
+        "module": "fortsym",
+        "name": "christoffel",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.grad",
+        "module": "fortsym",
+        "name": "grad",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.divergence",
+        "module": "fortsym",
+        "name": "divergence",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.curl",
+        "module": "fortsym",
+        "name": "curl",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.laplacian",
+        "module": "fortsym",
+        "name": "laplacian",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.b_con",
+        "module": "fortsym",
+        "name": "b_con",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.b_cov",
+        "module": "fortsym",
+        "name": "b_cov",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.b_density",
+        "module": "fortsym",
+        "name": "b_density",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.b_fourier",
+        "module": "fortsym",
+        "name": "b_fourier",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.b_fourier_density",
+        "module": "fortsym",
+        "name": "b_fourier_density",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -7820,12 +8088,12 @@
     "classification_counts": {
       "delegated": 2529,
       "external": 10,
-      "facade": 184,
-      "native": 3192,
+      "facade": 202,
+      "native": 3217,
       "python-adapter": 2485,
       "refused": 25309
     },
-    "fortran_public_exports": 751,
+    "fortran_public_exports": 776,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

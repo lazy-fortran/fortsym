@@ -23,6 +23,7 @@ it.
 | Operation counting | SymPy-compatible non-visual tree count | conversion | conversion | visual operation expression and CSE |
 | Differentiation | yes | yes | Yacas concrete method | memoization and domain-sensitive rules |
 | Multivariate symbolic partials | yes | opaque | opaque | function assumptions and rewrite rules |
+| Coordinate charts, reciprocal bases, metrics, `sqrtg`, magnetic components, and Fourier modes | native first subset: charts, signed Jacobian, reciprocal basis, metric, `B^i`, `B_i`, `sqrtg B^i`, and symmetry-mode curl | conversion/oracle path | partial | differential forms, tensor variance and density types, flux-coordinate descriptors, and paper weak forms |
 | JVP, VJP, gradient, and HVP | yes | verification | verification | consumer conformance corpus |
 | Simplification | partial: principal-square-root powers, guarded `sqrt`/`abs`, exact negative perfect-square roots, exact real unit-circle `asin`/`acos` values, exact real tangent `atan` values, exact real `asinh(±1)` values, exact `asin(±i)`, `acos(±i)`, and `asinh(±i)` branch points, exact `log(0)=zoo` with sentinel propagation, principal-branch exact negative real and imaginary logs, exact `atan(±i)` and `atanh(1)`/`atanh(-1)` poles plus `atanh(±i)` branch points, exact `acosh(0)`/`acosh(-1)` and `acosh(±i)` branch points, finite gamma-family poles, exact factorial values through `factorial(1000)`, and real/nonzero-guarded `log`/`exp` compositions | partial | partial | broader guarded elementary rewrites and polynomial normal form |
 | Expansion | bounded multinomial | yes | Yacas concrete method | sparse polynomial expansion without the 100,000-term fast-path bound |
@@ -60,7 +61,7 @@ toolchain has been exercised:
 | Path | Toolchain | Evidence | Result |
 |---|---|---|---|
 | Native gate | `fo`, GNU Fortran 16.1.1 | full static, build, test, and lint stages | passed |
-| CMake/CTest | GNU Fortran/C/C++ 16.1.1, system SymEngine 0.14.0 | fresh Debug configure, build, and 50-test CTest run | 50 passed; optional SymPy CTest skipped |
+| CMake/CTest | GNU Fortran/C/C++ 16.1.1, system SymEngine 0.14.0 | fresh Debug configure, build, and 51-test CTest run | 51 passed; optional SymPy CTest skipped |
 | Code generation | CMake codegen targets | kernel, IR, backend, WL, and simple-kernel tests | passed |
 | CUDA generation | `nvcc` 13.3.73, RTX 5060 Ti, driver 610.57.04 | CUDA emitter CTest plus independent generated `.cu` compilation | passed |
 | NVIDIA Fortran | `nvfortran` 26.5-0 | independent compilation of a generated Fortran kernel | passed |

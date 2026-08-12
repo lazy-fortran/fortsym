@@ -852,10 +852,13 @@ without an explicit volume factor.
 
 - [ ] Add `magnetic_chart` and flux-surface metadata without coupling the
   generic chart or tensor modules to a particular equilibrium code.
-- [ ] Implement `B_cov`, `B_con`, `B_density`, `H_cov`, and `H_con` conversions,
-  metric contraction for `B**2`, field-line derivatives, magnetic surfaces,
-  flux-surface averages, and Jacobian-weighted divergence. The spelling is
-  concise in Fortran and maps to clear SymPy names in Python.
+- [x] Implement the first native magnetic views: `B_cov`, `B_con`,
+  `B_density`, reciprocal bases, `sqrtg`, and the Fourier-mode curl and density
+  used by `paper_magnetic`. The spelling is concise in Fortran and maps to
+  clear SymPy names in Python.
+- [ ] Add `H_cov` and `H_con` conversions, metric contraction for `B**2`,
+  field-line derivatives, magnetic surfaces, flux-surface averages, and
+  Jacobian-weighted divergence.
 - [ ] Support Clebsch, straight-field-line, Boozer, and Hamada coordinate
   descriptors as data and verified identities. Start with symbolic relations
   and refusal on inconsistent or singular input. Do not encode a particular
@@ -917,10 +920,12 @@ between the two-dimensional gradient, scalar curl, and divergence.
   and produce a manifest that points from each source assignment to its
   owning native module. Translation is complete only when the native result
   passes semantic comparison and an independent identity check.
-- [ ] Implement the metric block, `sqrtg`, reciprocal basis, `B_i`, `B^i`,
-  vector-density components, Levi-Civita density, constitutive tensor
-  transformation, Fourier mode derivative, and zero/nonzero mode curl-curl
-  reduction as reusable toolkit operations rather than script-specific code.
+- [x] Implement the reusable first subset of the metric block, `sqrtg`,
+  reciprocal basis, `B_i`, `B^i`, vector-density components, and the Fourier
+  mode derivative as native toolkit operations rather than script-specific
+  code.
+- [ ] Add the Levi-Civita density, constitutive tensor transformation, and
+  zero/nonzero mode curl-curl reduction as reusable toolkit operations.
 - [ ] Generate the paper's scalar longitudinal and transverse weak forms and
   source terms from those operations. Preserve the distinction between nodal
   scalar elements and two-dimensional edge elements in the generated metadata.
