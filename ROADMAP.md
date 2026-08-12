@@ -807,7 +807,8 @@ The first-class object model is staged around these metadata owners:
 - [x] Add the fixed-three-dimensional metric-owner subset: explicit component
   storage, signature and orientation metadata, inverse, determinant, and
   positive `sqrtg`, with independent Euclidean and Lorentzian checks. Full
-  nondegeneracy proofs and Hodge/connection integration remain open.
+  symbolic nondegeneracy proofs remain open; structurally all-zero metrics are
+  refused at construction.
 - [x] Preserve an explicit coordinate tuple in chart-induced metrics and let
   `christoffel_tensor(metric_t)` derive the same connection as the chart path.
   A supplied metric without coordinates is refused for derivative-based

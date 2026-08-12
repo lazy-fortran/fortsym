@@ -10,7 +10,7 @@ module fortsym_metric
         chart_metric_covariant => metric_covariant
     use fortsym_expr, only: expr_t, num, is_valid, &
         operator(+), operator(-), operator(*), operator(/), &
-        expr_abs => abs, sqrt
+        operator(==), expr_abs => abs, sqrt
     implicit none
     private
 
@@ -74,6 +74,7 @@ contains
             result%has_coordinates = .true.
         end if
         result%valid = .true.
+        if (.not. metric_valid(result)) result%valid = .false.
     end function metric_create
 
     !> Materialize the metric induced by a chart with explicit metadata.
@@ -182,6 +183,9 @@ contains
                 if (.not. associated(g%component(i, j)%a, g%a)) valid = .false.
             end do
         end do
+        if (valid) then
+            if (all_components_zero(g)) valid = .false.
+        end if
     end function metric_valid
 
     !> Return the owning arena without exposing metric component storage.
@@ -241,5 +245,20 @@ contains
         case default; first = 1; second = 2
         end select
     end subroutine other_indices
+
+    function all_components_zero(g) result(zero)
+        type(metric_t), intent(in) :: g
+        logical :: zero
+        type(expr_t) :: value
+        integer :: i, j
+
+        zero = .true.
+        value = num(g%a, 0)
+        do i = 1, DIM
+            do j = 1, DIM
+                if (.not. (g%component(i, j) == value)) zero = .false.
+            end do
+        end do
+    end function all_components_zero
 
 end module fortsym_metric

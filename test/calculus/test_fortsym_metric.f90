@@ -17,7 +17,7 @@ program test_fortsym_metric
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
     type(chart_t) :: cartesian
-    type(metric_t) :: euclidean, lorentzian, invalid
+    type(metric_t) :: euclidean, lorentzian, invalid, degenerate
     type(expr_t) :: components(DIM, DIM), covariant(DIM, DIM)
     type(expr_t) :: inverse(DIM, DIM), product, determinant, root
     integer :: signature(DIM), returned_signature(DIM)
@@ -68,6 +68,10 @@ program test_fortsym_metric
     signature(1) = 0
     invalid = metric_create(components, signature, -1)
     if (metric_valid(invalid)) error stop "invalid signature was accepted"
+
+    components = num(arena, 0)
+    degenerate = metric_create(components, [1, 1, 1], 1)
+    if (metric_valid(degenerate)) error stop "degenerate metric was accepted"
 
     if (suite%failed /= 0) then
         print *, "test_fortsym_metric: ", suite%failed, " check(s) FAILED"
