@@ -53,7 +53,8 @@ module fortsym
         tensor_covector, tensor_from_components, tensor_from_matrix, &
         tensor_component, tensor_rank, tensor_variance, &
         tensor_density_weight, tensor_valid, tensor_same_arena, density, vector, covector, &
-        raise, lower, tensor_product, contract, trace, &
+        raise, lower, tensor_product, contract, trace, permute, symmetrize, &
+        antisymmetrize, &
         metric_covariant_tensor, metric_contravariant_tensor, UPPER, LOWER_VARIANCE, &
         MAX_RANK
     use fortsym_connection, only: covariant_diff, covariant_derivative, &
@@ -166,7 +167,8 @@ module fortsym
         tensor_scalar, tensor_vector, tensor_covector, tensor_from_components, &
         tensor_from_matrix, tensor_component, tensor_rank, tensor_variance, &
         tensor_density_weight, tensor_valid, tensor_same_arena, density, vector, covector, raise, &
-        lower, tensor_product, contract, trace, metric_covariant_tensor, &
+        lower, tensor_product, contract, trace, permute, symmetrize, &
+        antisymmetrize, metric_covariant_tensor, &
         metric_contravariant_tensor, UPPER, LOWER_VARIANCE, MAX_RANK, &
         covariant_diff, covariant_derivative, christoffel_tensor, &
         riemann_tensor, ricci_tensor, scalar_curvature, einstein_tensor

@@ -57,6 +57,8 @@ the parameterized geodesic equation.
 the Cartan Lie derivative, with `interior_product` and `lie_derivative` as
 matching aliases. `.laplace_de_rham()` composes the same native `d` and
 codifferential owners.
+`Tensor.permute()`, `symmetrize()`, and `antisymmetrize()` perform native
+slot operations using zero-based Python slot numbers.
 `Chart.one_form()`, `two_form()`, and
 `three_form()` construct native `Form` objects. Forms expose the fixed
 three-dimensional basis-mask components plus `d()`, `wedge()`, `star()`,

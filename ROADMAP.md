@@ -1237,8 +1237,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Implement the first fixed-rank subset: component construction and
   extraction, tensor products, opposite-variance contraction, and trace, with
   independent nonorthogonal-chart checks. Components use a documented
-  first-slot-fastest ordering; permutation, symmetry, and dummy-index
-  canonicalization remain open.
+  first-slot-fastest ordering.
+- [x] Add fixed-rank slot permutation plus two-slot symmetrization and
+  antisymmetrization through the native owner, C ABI, Python facade, and
+  independent Fortran/SymPy checks. Named index spaces, arbitrary-rank
+  symmetry declarations, and dummy-index canonicalization remain open.
 - [ ] Implement covariant differentiation of arbitrary tensor valence,
   including the correct Christoffel term for every upper and lower slot. The
   existing `christoffel` operation becomes a special case of the connection

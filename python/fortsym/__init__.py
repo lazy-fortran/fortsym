@@ -535,6 +535,20 @@ def _configure(lib):
          ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
          ctypes.c_int, ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_tensor_permute = declare(
+        "fortsym_chart_tensor_permute", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+         ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(_CVOID),
+         _CHAR_PTR, _SIZE],
+    )
+    lib.chart_tensor_symmetrize = declare(
+        "fortsym_chart_tensor_symmetrize", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+         ctypes.c_int, _SIZE, _SIZE, ctypes.c_int, ctypes.POINTER(_CVOID),
+         _CHAR_PTR, _SIZE],
+    )
     lib.chart_scalar_curvature = declare(
         "fortsym_chart_scalar_curvature",
         ctypes.c_int,
@@ -1420,6 +1434,47 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message), "tensor_density")
         return tuple(Expr(self, output[index]) for index in range(output_count))
+
+    def _chart_tensor_permute(self, chart, tensor, order):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        values = (_CVOID * len(tensor.components))(
+            *[self._check(value)._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        order_values = (ctypes.c_int * tensor.rank)(
+            *[int(value) + 1 for value in order]
+        )
+        output = (_CVOID * len(tensor.components))()
+        message = _message()
+        status = self._lib.chart_tensor_permute(
+            self._require(), coordinate_handles, position_handles, values,
+            tensor.rank, variance, tensor.density_weight, order_values, output,
+            message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "tensor_permute")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
+    def _chart_tensor_symmetrize(self, chart, tensor, first, second, antisymmetric):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        values = (_CVOID * len(tensor.components))(
+            *[self._check(value)._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output = (_CVOID * len(tensor.components))()
+        message = _message()
+        status = self._lib.chart_tensor_symmetrize(
+            self._require(), coordinate_handles, position_handles, values,
+            tensor.rank, variance, tensor.density_weight, first + 1, second + 1,
+            int(antisymmetric), output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "tensor_symmetrize")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
 
     def _chart_scalar(self, operation, coordinates, position):
         coordinate_handles, position_handles = self._chart_inputs(
@@ -2564,6 +2619,41 @@ class Tensor:
         for component in self.components:
             component._tensor_owner = self
             yield component
+
+    def permute(self, order):
+        """Return this tensor with slots reordered by zero-based slot order."""
+        order = tuple(int(value) for value in order)
+        if len(order) != self.rank or set(order) != set(range(self.rank)):
+            raise ValueError("tensor permutation must contain every slot once")
+        components = self._arena._chart_tensor_permute(self.chart, self, order)
+        variance = tuple(self.variance[index] for index in order)
+        return Tensor(
+            self.chart, components, variance, self.density_weight, _owned=True
+        )
+
+    def symmetrize(self, first, second):
+        """Average two same-variance slots using zero-based slot numbers."""
+        first, second = int(first), int(second)
+        if first < 0 or first >= self.rank or second < 0 or second >= self.rank:
+            raise IndexError("tensor symmetry slot is outside the tensor rank")
+        components = self._arena._chart_tensor_symmetrize(
+            self.chart, self, first, second, False
+        )
+        return Tensor(
+            self.chart, components, self.variance, self.density_weight, _owned=True
+        )
+
+    def antisymmetrize(self, first, second):
+        """Take the alternating part of two same-variance slots."""
+        first, second = int(first), int(second)
+        if first < 0 or first >= self.rank or second < 0 or second >= self.rank:
+            raise IndexError("tensor antisymmetry slot is outside the tensor rank")
+        components = self._arena._chart_tensor_symmetrize(
+            self.chart, self, first, second, True
+        )
+        return Tensor(
+            self.chart, components, self.variance, self.density_weight, _owned=True
+        )
 
     def covariant_diff(self):
         return self.chart.covariant_diff(self)

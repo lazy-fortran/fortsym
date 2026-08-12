@@ -13,7 +13,8 @@ program test_fortsym_tensor
     use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, &
         tensor_from_components, tensor_component, tensor_rank, tensor_variance, &
         tensor_density_weight, tensor_valid, density, raise, lower, &
-        tensor_product, contract, trace, metric_covariant_tensor, UPPER, LOWER_VARIANCE
+        tensor_product, contract, trace, permute, symmetrize, antisymmetrize, &
+        metric_covariant_tensor, UPPER, LOWER_VARIANCE
     implicit none
 
     type(arena_t), target :: arena
@@ -22,9 +23,10 @@ program test_fortsym_tensor
     type(chart_t) :: shear
     type(metric_t) :: metric_owner
     type(expr_t) :: u(DIM), position(DIM), values(DIM), expected
-    type(expr_t) :: components(27)
+    type(expr_t) :: components(27), matrix_components(9)
     type(tensor_t) :: vup, vcov, vdown, roundtrip, weighted, outer, dot
     type(tensor_t) :: metric_down, mixed, rank_three
+    type(tensor_t) :: permuted, matrix, symmetric, antisymmetric
     integer :: indices(4), empty(0), rank_three_variance(3), i, j, k
 
     call arena%init()
@@ -113,6 +115,28 @@ program test_fortsym_tensor
         rank_three_variance, 0)
     if (tensor_rank(rank_three) /= 3) error stop "rank metadata failed"
     if (.not. tensor_valid(rank_three)) error stop "tensor validity failed"
+
+    permuted = permute(rank_three, [2, 1, 3])
+    call check_slot_variances(suite, permuted, UPPER, UPPER, &
+        "permuted tensor slot variance metadata")
+    indices(1) = 1
+    indices(2) = 2
+    indices(3) = 3
+    call check_identity(suite, engine, "tensor permutation", &
+        tensor_component(permuted, indices(1:3)) - 20)
+
+    do i = 1, 9
+        matrix_components(i) = num(arena, i)
+    end do
+    matrix = tensor_from_components(shear, 2, matrix_components, [UPPER, UPPER])
+    symmetric = symmetrize(matrix, 1, 2)
+    antisymmetric = antisymmetrize(matrix, 1, 2)
+    indices(1) = 1
+    indices(2) = 2
+    call check_identity(suite, engine, "tensor symmetrization", &
+        tensor_component(symmetric, indices(1:2)) - 3)
+    call check_identity(suite, engine, "tensor antisymmetrization", &
+        tensor_component(antisymmetric, indices(1:2)) - 1)
 
     if (suite%failed /= 0) then
         print *, "test_fortsym_tensor: ", suite%failed, " check(s) FAILED"
