@@ -9,6 +9,7 @@ program test_fortsym_form
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create
+    use fortsym_metric, only: metric_t, metric_from_chart
     use fortsym_magnetic, only: b_con
     use fortsym_form, only: form_t, form, form_one, form_zero, &
         form_component, form_degree, wedge, d, star, interior, lie, flat, &
@@ -19,6 +20,7 @@ program test_fortsym_form
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
     type(chart_t) :: shear
+    type(metric_t) :: metric_owner
     type(expr_t) :: u(DIM), position(DIM), vector(DIM), potential(DIM)
     type(expr_t) :: scalar, expected, left, right
     type(expr_t) :: raised(DIM)
@@ -32,6 +34,7 @@ program test_fortsym_form
     call arena%init()
     engine = make_symengine_engine(arena)
     shear = make_shear_chart()
+    metric_owner = metric_from_chart(shear, orientation=-1)
     call suite_begin(suite, "differential forms")
 
     u(1) = sym(arena, "u1")
@@ -103,6 +106,12 @@ program test_fortsym_form
         form_component(volume, 7) - form_component(volume_form(shear), 7))
     call check_identity(suite, engine, "reversed volume form orientation", &
         form_component(reversed_volume, 7) + form_component(volume, 7))
+    call check_identity(suite, engine, "metric volume uses stored orientation", &
+        form_component(volume_form(metric_owner), 7) + &
+        form_component(volume, 7))
+    call check_identity(suite, engine, "metric volume orientation override", &
+        form_component(volume_form(metric_owner, 1), 7) - &
+        form_component(volume, 7))
     flux = interior(shear, vector, volume)
     derivative = d(shear, one_form)
     do mask = 3, 6

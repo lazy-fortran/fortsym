@@ -1172,6 +1172,9 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   `div_density` through the same native, C, and Python owners. Their tests use
   independently constructed symbolic alternating and componentwise
   derivatives; ordinary `curl` and `divergence` retain their vector semantics.
+- [x] Add `volume_form(metric_t, orientation)` alongside the chart overload.
+  The metric owner supplies positive `sqrtg`, while its stored orientation or
+  an explicit override supplies the sign; native checks compare both paths.
 - [x] Add the independent `fortsym_chart_map` owner for bidirectional
   coordinate transitions. It transforms scalar, vector, covector, mixed
   tensor, density, and differential-form components into target coordinates
