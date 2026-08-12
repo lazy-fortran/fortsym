@@ -13,11 +13,15 @@ module fortsym_connection
     !             + Gamma^a_cm Gamma^m_db - Gamma^a_dm Gamma^m_cb.
     use fortsym_chart, only: chart_t, DIM, &
         chart_christoffel => christoffel, metric_covariant, metric_contravariant
+    use fortsym_metric, only: metric_t, metric_valid, metric_has_coordinates, &
+        metric_arena, metric_coordinates, &
+        owner_metric_covariant => metric_covariant, &
+        owner_metric_contravariant => metric_contravariant
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, num, operator(+), operator(-), &
         operator(*), operator(/)
     use fortsym_tensor, only: tensor_t, MAX_RANK, UPPER, LOWER_VARIANCE, &
-        tensor_from_components, tensor_from_matrix, tensor_component, &
+        tensor_from_components, tensor_from_matrix, tensor_from_arena, tensor_component, &
         tensor_rank, tensor_variance, tensor_density_weight, tensor_valid, &
         tensor_same_arena
     implicit none
@@ -28,6 +32,11 @@ module fortsym_connection
     public :: covariant_diff, covariant_derivative
     public :: christoffel_tensor, riemann_tensor, ricci_tensor
     public :: scalar_curvature, einstein_tensor
+
+    interface christoffel_tensor
+        module procedure christoffel_tensor_chart
+        module procedure christoffel_tensor_metric
+    end interface christoffel_tensor
 
 contains
 
@@ -107,7 +116,7 @@ contains
     end function covariant_derivative
 
     !> Christoffel symbols as Gamma^a_bc with explicit slot variance.
-    function christoffel_tensor(c) result(result)
+    function christoffel_tensor_chart(c) result(result)
         type(chart_t), intent(in) :: c
         type(tensor_t) :: result
         type(expr_t) :: gamma(DIM, DIM, DIM), values(MAX_COMPONENTS)
@@ -132,7 +141,51 @@ contains
         end do
         result = tensor_from_components(c, 3, values(1:component_count(3)), &
             variances(1:3))
-    end function christoffel_tensor
+    end function christoffel_tensor_chart
+
+    !> Christoffel tensor for a supplied metric with explicit coordinates.
+    !>
+    !> A metric without coordinates remains useful for algebraic operations,
+    !> but connection construction refuses it instead of guessing derivative
+    !> variables from free-symbol order.
+    function christoffel_tensor_metric(g) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t) :: result
+        type(expr_t) :: metric(DIM, DIM), inverse(DIM, DIM)
+        type(expr_t) :: coordinates(DIM), gamma(DIM, DIM, DIM)
+        type(expr_t) :: term
+        type(expr_t) :: values(0:MAX_COMPONENTS - 1)
+        integer :: variances(MAX_RANK), indices(MAX_RANK), k, i, j, l
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        metric = owner_metric_covariant(g)
+        inverse = owner_metric_contravariant(g)
+        coordinates = metric_coordinates(g)
+        do k = 1, DIM
+            do i = 1, DIM
+                do j = 1, DIM
+                    gamma(k, i, j) = num(metric_arena(g), 0)
+                    do l = 1, DIM
+                        term = diff(metric(l, j), coordinates(i)) + &
+                            diff(metric(l, i), coordinates(j)) - &
+                            diff(metric(i, j), coordinates(l))
+                        gamma(k, i, j) = gamma(k, i, j) + &
+                            inverse(k, l)*term/2
+                    end do
+                    indices(1) = k
+                    indices(2) = i
+                    indices(3) = j
+                    values(encode_index(indices, 3)) = gamma(k, i, j)
+                end do
+            end do
+        end do
+        variances = 0
+        variances(1) = UPPER
+        variances(2) = LOWER_VARIANCE
+        variances(3) = LOWER_VARIANCE
+        result = tensor_from_arena(metric_arena(g), 3, values, variances)
+    end function christoffel_tensor_metric
 
     !> Riemann tensor R^a_bcd in the convention declared above.
     function riemann_tensor(c) result(result)

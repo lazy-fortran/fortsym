@@ -18,14 +18,17 @@ module fortsym_metric
     public :: metric_covariant, metric_contravariant, metric_det, metric_sqrtg
     public :: metric_signature, metric_orientation, metric_valid
     public :: metric_arena, metric_same_arena
+    public :: metric_coordinates, metric_has_coordinates
 
     type :: metric_t
         private
         type(arena_t), pointer :: a => null()
         type(expr_t) :: component(DIM, DIM)
+        type(expr_t) :: coordinate(DIM)
         integer :: signature(DIM) = 0
         integer :: orientation = 0
         logical :: valid = .false.
+        logical :: has_coordinates = .false.
     end type metric_t
 
 contains
@@ -36,10 +39,12 @@ contains
     !> constructor checks arena ownership and metadata, but cannot prove that
     !> a symbolic determinant is nonzero; such a proof remains an engine-level
     !> obligation at the operation that needs the inverse.
-    function metric_create(components, signature, orientation) result(result)
+    function metric_create(components, signature, orientation, coordinates) &
+            result(result)
         type(expr_t), intent(in) :: components(DIM, DIM)
         integer, optional, intent(in) :: signature(DIM)
         integer, optional, intent(in) :: orientation
+        type(expr_t), optional, intent(in) :: coordinates(DIM)
         type(metric_t) :: result
         integer :: i, j
 
@@ -60,6 +65,14 @@ contains
         if (abs(result%orientation) /= 1) return
 
         result%component = components
+        if (present(coordinates)) then
+            do i = 1, DIM
+                if (.not. is_valid(coordinates(i))) return
+                if (.not. associated(coordinates(i)%a, result%a)) return
+            end do
+            result%coordinate = coordinates
+            result%has_coordinates = .true.
+        end if
         result%valid = .true.
     end function metric_create
 
@@ -72,7 +85,7 @@ contains
         type(expr_t) :: components(DIM, DIM)
 
         components = chart_metric_covariant(c)
-        result = metric_create(components, signature, orientation)
+        result = metric_create(components, signature, orientation, c%u)
     end function metric_from_chart
 
     !> Covariant metric components g_ij.
@@ -187,6 +200,23 @@ contains
 
         same = metric_valid(g) .and. associated(g%a, a)
     end function metric_same_arena
+
+    !> Return the coordinates with respect to which metric derivatives are read.
+    function metric_coordinates(g) result(coordinates)
+        type(metric_t), intent(in) :: g
+        type(expr_t) :: coordinates(DIM)
+
+        if (.not. metric_has_coordinates(g)) return
+        coordinates = g%coordinate
+    end function metric_coordinates
+
+    !> Whether the metric carries an explicit coordinate tuple.
+    function metric_has_coordinates(g) result(has_coordinates)
+        type(metric_t), intent(in) :: g
+        logical :: has_coordinates
+
+        has_coordinates = metric_valid(g) .and. g%has_coordinates
+    end function metric_has_coordinates
 
     function cofactor(g, i, j) result(value)
         type(metric_t), intent(in) :: g

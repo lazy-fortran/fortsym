@@ -11,6 +11,7 @@ program test_fortsym_connection
         make_symengine_engine
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_chart, only: DIM, chart_t, chart_create, christoffel, jacobian
+    use fortsym_metric, only: metric_t, metric_from_chart
     use fortsym_tensor, only: tensor_t, tensor_scalar, tensor_component, &
         tensor_rank, tensor_variance, tensor_valid, metric_covariant_tensor, &
         UPPER, LOWER_VARIANCE
@@ -23,10 +24,12 @@ program test_fortsym_connection
     type(native_engine_t) :: native
     type(suite_t) :: suite
     type(chart_t) :: polynomial
+    type(metric_t) :: metric_owner
     type(expr_t) :: u(DIM), position(DIM), scalar_value
     type(expr_t) :: gamma(DIM, DIM, DIM), expected
     type(tensor_t) :: scalar, gradient, metric, metric_derivative
     type(tensor_t) :: density_value, density_derivative, gamma_value
+    type(tensor_t) :: metric_gamma_value
     type(tensor_t) :: riemann, ricci, einstein
     integer :: indices(4)
 
@@ -34,11 +37,16 @@ program test_fortsym_connection
     engine = make_symengine_engine(arena)
     native = make_native_engine(arena)
     polynomial = make_polynomial_chart()
+    metric_owner = metric_from_chart(polynomial)
     call suite_begin(suite, "metric connection and curvature")
 
     gamma = christoffel(polynomial)
     gamma_value = christoffel_tensor(polynomial)
+    metric_gamma_value = christoffel_tensor(metric_owner)
     if (.not. tensor_valid(gamma_value)) error stop "Christoffel tensor invalid"
+    if (.not. tensor_valid(metric_gamma_value)) then
+        error stop "metric-owner Christoffel tensor invalid"
+    end if
     if (tensor_rank(gamma_value) /= 3) error stop "Christoffel rank failed"
     if (tensor_variance(gamma_value, 1) /= UPPER) then
         error stop "Christoffel upper slot failed"
@@ -57,6 +65,9 @@ program test_fortsym_connection
     indices(3) = 2
     call check_identity(suite, engine, "Gamma^v_uv = 1/u", &
         tensor_component(gamma_value, indices(1:3)) - 1/u(1))
+    call check_identity(suite, engine, "metric-owner Christoffel matches chart", &
+        tensor_component(metric_gamma_value, indices(1:3)) - &
+        tensor_component(gamma_value, indices(1:3)))
 
     scalar_value = u(2)
     scalar = tensor_scalar(scalar_value)

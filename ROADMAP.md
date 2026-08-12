@@ -808,6 +808,10 @@ The first-class object model is staged around these metadata owners:
   storage, signature and orientation metadata, inverse, determinant, and
   positive `sqrtg`, with independent Euclidean and Lorentzian checks. Full
   nondegeneracy proofs and Hodge/connection integration remain open.
+- [x] Preserve an explicit coordinate tuple in chart-induced metrics and let
+  `christoffel_tensor(metric_t)` derive the same connection as the chart path.
+  A supplied metric without coordinates is refused for derivative-based
+  connection construction rather than inferring variables from free symbols.
 - [ ] `orientation_t` and the positive volume density are separate metadata.
   `volume_form(metric, orientation)` may change sign, while `sqrtg(metric)`
   never absorbs orientation. `epsilon` constructors distinguish the symbol,
