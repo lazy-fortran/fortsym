@@ -1110,9 +1110,11 @@ Every derivation case must specify its chart, metric signature, orientation,
 assumptions, source representation, target representation, invariant checks,
 and independent oracle. The minimum case set is:
 
-- [ ] Cartesian, cylindrical, and spherical coordinates, including reciprocal
+- [x] Cartesian, cylindrical, and spherical coordinates, including reciprocal
   bases, `sqrtg`, Christoffel symbols, gradient, divergence, curl, and scalar
-  Laplacian.
+  Laplacian. The executable cylindrical Fourier example keeps `sqrtg B^i`
+  branch-free, while the spherical and chart tests cover the metric and
+  vector-calculus identities.
 - [ ] A nonorthogonal torus or flux chart with off-diagonal metric terms,
   including signed Jacobian, raise/lower, density transformation, and a
   round-trip coordinate change.

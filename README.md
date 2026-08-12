@@ -137,6 +137,9 @@ Albert--Bíró--Lainer Fourier reduction: `b_fourier` accepts either an integer
 mode or a symbolic `n`, while `b_cov` and `b_fourier_density` keep covariant,
 contravariant, and density components distinct. The Wolfram runner accepts the
 companion `paper_magnetic.wl` assignments through the same expression arena.
+`example_cylindrical_fourier` is the compact executable derivation in the
+paper's `(Z, R, phi)` ordering. It checks the branch-free density components
+`sqrt(g) B^Z`, `sqrt(g) B^R`, and `sqrt(g) B^phi` directly.
 The Python `fortsym.Chart` facade exposes the same native operations; it is
 also re-exported from `fortsym.sympy` without importing SymPy.
 
