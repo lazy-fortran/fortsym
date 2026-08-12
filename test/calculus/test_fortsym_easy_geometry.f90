@@ -57,6 +57,15 @@ program test_fortsym_easy_geometry
         end do
     end do
 
+    ! The chart type exposes its source handles for low-level callers. A
+    ! mutation therefore has to invalidate the cached geometric views rather
+    ! than silently returning the old metric.
+    cylindrical%x(1) = radius + z
+    chart_metric = make_metric(cylindrical)
+    covariant = metric_covariant(chart_metric)
+    call check_identity(suite, engine, "edited chart invalidates metric cache", &
+        covariant(1, 1) - (1 + sin(phi)**2))
+
     ! Explicit construction remains the same vocabulary with an explicit
     ! arena, and make_metric(array, ...) remains the supplied-metric owner.
     call explicit_arena%init()

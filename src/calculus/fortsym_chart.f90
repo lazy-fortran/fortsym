@@ -47,6 +47,24 @@ module fortsym_chart
         type(expr_t) :: x(DIM)
         type(patch_t) :: patch
         logical :: has_patch = .false.
+        ! Cache immutable coordinate views after construction. The source
+        ! handles are retained so direct component edits cannot return stale
+        ! data.
+        type(expr_t) :: covariant_cache(DIM, DIM)
+        type(expr_t) :: reciprocal_cache(DIM, DIM)
+        type(expr_t) :: metric_cache(DIM, DIM)
+        type(expr_t) :: inverse_metric_cache(DIM, DIM)
+        type(expr_t) :: jacobian_cache
+        type(expr_t) :: sqrtg_cache
+        type(expr_t) :: cache_u(DIM)
+        type(expr_t) :: cache_x(DIM)
+        logical :: cache_inputs_ready = .false.
+        logical :: covariant_cache_ready = .false.
+        logical :: reciprocal_cache_ready = .false.
+        logical :: metric_cache_ready = .false.
+        logical :: inverse_metric_cache_ready = .false.
+        logical :: jacobian_cache_ready = .false.
+        logical :: sqrtg_cache_ready = .false.
     end type chart_t
 
 contains
@@ -78,6 +96,7 @@ contains
         c%a => a
         c%u = u
         c%x = x
+        if (chart_valid(c)) call fill_chart_cache(c)
     end function chart_create
 
     !> Build a chart explicitly owned by a declared coordinate patch.
@@ -146,6 +165,12 @@ contains
         type(chart_t), intent(in) :: c
         type(expr_t)              :: e(DIM, DIM)
         integer :: i, k
+        if (chart_cache_matches(c)) then
+            if (c%covariant_cache_ready) then
+                e = c%covariant_cache
+                return
+            end if
+        end if
         do i = 1, DIM
             do k = 1, DIM
                 e(k, i) = diff(c%x(k), c%u(i))
@@ -162,6 +187,12 @@ contains
         type(chart_t), intent(in) :: c
         type(expr_t)              :: e(DIM, DIM)
         type(expr_t) :: covariant(DIM, DIM), j
+        if (chart_cache_matches(c)) then
+            if (c%reciprocal_cache_ready) then
+                e = c%reciprocal_cache
+                return
+            end if
+        end if
 
         covariant = covariant_basis(c)
         j = det3(covariant)
@@ -194,6 +225,12 @@ contains
         type(expr_t)              :: g(DIM, DIM)
         type(expr_t) :: e(DIM, DIM)
         integer :: i, j, k
+        if (chart_cache_matches(c)) then
+            if (c%metric_cache_ready) then
+                g = c%metric_cache
+                return
+            end if
+        end if
 
         e = covariant_basis(c)
         do i = 1, DIM
@@ -228,6 +265,12 @@ contains
         type(expr_t)              :: ginv(DIM, DIM)
         type(expr_t) :: g(DIM, DIM), d
         integer :: i, j
+        if (chart_cache_matches(c)) then
+            if (c%inverse_metric_cache_ready) then
+                ginv = c%inverse_metric_cache
+                return
+            end if
+        end if
 
         g = metric_covariant(c)
         d = det3(g)
@@ -251,6 +294,12 @@ contains
         type(chart_t), intent(in) :: c
         type(expr_t)              :: value
         type(expr_t)              :: j
+        if (chart_cache_matches(c)) then
+            if (c%sqrtg_cache_ready) then
+                value = c%sqrtg_cache
+                return
+            end if
+        end if
 
         ! For an induced Euclidean chart det(g) = J**2. Reusing the signed
         ! determinant avoids rebuilding the full metric solely to obtain its
@@ -310,9 +359,87 @@ contains
         type(chart_t), intent(in) :: c
         type(expr_t)              :: j
         type(expr_t) :: e(DIM, DIM)
+        if (chart_cache_matches(c)) then
+            if (c%jacobian_cache_ready) then
+                j = c%jacobian_cache
+                return
+            end if
+        end if
         e = covariant_basis(c)
         j = det3(e)
     end function jacobian
+
+    !> Populate the expensive coordinate views once at chart construction.
+    !> Dependency order lets later views reuse earlier cached handles.
+    subroutine fill_chart_cache(c)
+        type(chart_t), intent(inout) :: c
+        type(expr_t) :: view(DIM, DIM)
+
+        c%cache_u = c%u
+        c%cache_x = c%x
+        c%cache_inputs_ready = .true.
+        view = covariant_basis(c)
+        c%covariant_cache = view
+        c%covariant_cache_ready = .true.
+        view = reciprocal_basis(c)
+        c%reciprocal_cache = view
+        c%reciprocal_cache_ready = .true.
+        view = metric_covariant(c)
+        c%metric_cache = view
+        c%metric_cache_ready = .true.
+        view = metric_contravariant(c)
+        c%inverse_metric_cache = view
+        c%inverse_metric_cache_ready = .true.
+        c%jacobian_cache = jacobian(c)
+        c%jacobian_cache_ready = .true.
+        c%sqrtg_cache = sqrtg(c)
+        c%sqrtg_cache_ready = .true.
+    end subroutine fill_chart_cache
+
+    !> Check that a cache still describes the chart's current handles.
+    !> Guards are separate because Fortran does not guarantee short circuiting.
+    function chart_cache_matches(c) result(matches)
+        type(chart_t), intent(in) :: c
+        logical :: matches
+        integer :: i
+
+        matches = c%cache_inputs_ready
+        if (.not. matches) return
+        do i = 1, DIM
+            if (.not. is_valid(c%cache_u(i))) then
+                matches = .false.
+                return
+            end if
+            if (.not. is_valid(c%cache_x(i))) then
+                matches = .false.
+                return
+            end if
+            if (.not. is_valid(c%u(i))) then
+                matches = .false.
+                return
+            end if
+            if (.not. is_valid(c%x(i))) then
+                matches = .false.
+                return
+            end if
+            if (c%cache_u(i)%id /= c%u(i)%id) then
+                matches = .false.
+                return
+            end if
+            if (c%cache_x(i)%id /= c%x(i)%id) then
+                matches = .false.
+                return
+            end if
+            if (c%cache_u(i)%generation /= c%u(i)%generation) then
+                matches = .false.
+                return
+            end if
+            if (c%cache_x(i)%generation /= c%x(i)%generation) then
+                matches = .false.
+                return
+            end if
+        end do
+    end function chart_cache_matches
 
     !> Positive induced measure on the coordinate surface u(normal_index)=const.
     !>

@@ -35,6 +35,14 @@ The current council table is diagnostic timing. It mixes single calls,
 subprocess startup, and in-process operations without environment metadata, so
 it is not evidence for performance parity.
 
+The native `bench_chart_geometry` workload repeats basis, reciprocal-basis,
+metric, inverse-metric, signed-Jacobian, and positive-`sqrtg` requests on one
+immutable cylindrical chart. It is a geometry-cache diagnostic: the chart
+owner materializes coordinate-derived views once and reuses them, while cache
+keys are checked against the source expression handles so direct low-level
+edits cannot return stale results. It is not a SymPy parity row until an
+equivalent SymPy chart workload and machine metadata are recorded.
+
 ## Protocol
 
 Pin dependency revisions and record the complete build command. Use fixed CPU

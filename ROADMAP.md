@@ -2172,6 +2172,11 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
   `sqrtg` views in the native `metric_t` owner. Repeated gradient, divergence,
   Laplace--Beltrami, Hodge, and raise/lower calls reuse the same expression
   handles instead of rebuilding the metric algebra.
+- [x] Cache chart covariant/reciprocal bases, induced metric/inverse, signed
+  Jacobian, and positive `sqrtg` views at construction, with source-handle
+  validation for low-level chart edits. The native `bench_chart_geometry`
+  diagnostic measured 0.70 microseconds per six-view bundle in the current
+  optimized build; matched SymPy geometry timing remains open.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.
