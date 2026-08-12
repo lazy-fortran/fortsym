@@ -1257,7 +1257,10 @@ class Expr:
     def __radd__(self, other): return self._reverse_binary(self._lib.add, other)
     def __sub__(self, other): return self._binary(self._lib.subtract, other)
     def __rsub__(self, other): return self._reverse_binary(self._lib.subtract, other)
-    def __mul__(self, other): return self._binary(self._lib.multiply, other)
+    def __mul__(self, other):
+        if getattr(other, "_fortsym_form_field", False):
+            return NotImplemented
+        return self._binary(self._lib.multiply, other)
     def __rmul__(self, other): return self._reverse_binary(self._lib.multiply, other)
     def __truediv__(self, other): return self._binary(self._lib.divide, other)
     def __rtruediv__(self, other): return self._reverse_binary(self._lib.divide, other)

@@ -342,6 +342,8 @@ class CoordSystem:
 class _FormField:
     """Private wrapper for a native form field expression."""
 
+    _fortsym_form_field = True
+
     def __init__(self, form, label=None, owners=()):
         if not isinstance(form, Form):
             raise TypeError("form field requires a native Form")
@@ -364,6 +366,11 @@ class _FormField:
 
     def doit(self):
         return self
+
+    def d(self):
+        return _FormField(self.form.d())
+
+    exterior_diff = d
 
     def _other(self, other):
         if not isinstance(other, _FormField):
