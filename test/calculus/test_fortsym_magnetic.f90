@@ -11,7 +11,7 @@ program test_fortsym_magnetic
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create, covariant_basis, &
         reciprocal_basis, metric_covariant, jacobian, sqrtg
-    use fortsym_magnetic, only: b_con, b_cov, b_density, b_fourier, &
+    use fortsym_magnetic, only: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
         b_fourier_density, j_fourier, magnetic_field_t, magnetic_field, &
         magnetic_upper, magnetic_lower, magnetic_density
     use fortsym_tensor, only: tensor_t, tensor_component, tensor_variance, &
@@ -28,6 +28,7 @@ program test_fortsym_magnetic
     type(expr_t) :: fourier_potential(DIM), fourier_up(DIM), fourier_den(DIM)
     type(expr_t) :: fourier_integer(DIM), mode
     type(expr_t) :: reluctivity(DIM, DIM), current(DIM)
+    type(expr_t) :: h_down(DIM), h_up(DIM)
     type(expr_t) :: residual, det_metric, volume, signed_jacobian
     type(magnetic_field_t) :: typed_field
     type(tensor_t) :: typed_up, typed_down, typed_density
@@ -110,6 +111,27 @@ program test_fortsym_magnetic
         b_den(1) - b_up(1))
     call check_identity(suite, engine, "unit sqrtg preserves all B densities", &
         b_den(2) - b_up(2) + b_den(3) - b_up(3))
+
+    ! The constitutive owner uses H_i = nu_ij B^j, then raises with g^ij.
+    reluctivity = num(arena, 0)
+    reluctivity(1, 1) = num(arena, 2)
+    reluctivity(1, 2) = num(arena, 1)
+    reluctivity(2, 2) = num(arena, 3)
+    reluctivity(3, 3) = num(arena, 4)
+    h_down = h_cov(shear, reluctivity, b_up)
+    h_up = h_con(shear, h_down)
+    call check_identity(suite, engine, "H_1 constitutive map", &
+        h_down(1) - (2 + u(2)))
+    call check_identity(suite, engine, "H_2 constitutive map", &
+        h_down(2) - 3*u(2))
+    call check_identity(suite, engine, "H_3 constitutive map", &
+        h_down(3) - 4*(2*u(1) - u(3)))
+    call check_identity(suite, engine, "H^1 metric raise", &
+        h_up(1) - (4 - u(2)))
+    call check_identity(suite, engine, "H^2 metric raise", &
+        h_up(2) - (-2 + 2*u(2)))
+    call check_identity(suite, engine, "H^3 metric raise", &
+        h_up(3) - (8*u(1) - 4*u(3)))
 
     ! The paper_magnetic mode uses A_3 = 0 and replaces d/du3 by i*n.
     ! The nonorthogonal shear keeps this test sensitive to the chart path,

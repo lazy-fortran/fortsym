@@ -389,6 +389,21 @@ def _configure(lib):
             "chart_" + name,
             declare("fortsym_chart_" + name, ctypes.c_int, arguments),
         )
+    lib.chart_h_cov = declare(
+        "fortsym_chart_h_cov", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_h_con = declare(
+        "fortsym_chart_h_con", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.chart_j_fourier = declare(
         "fortsym_chart_j_fourier", ctypes.c_int,
         [
@@ -1267,9 +1282,50 @@ class Arena:
         finally:
             for temporary in temporary_values:
                 temporary.close()
+
         if status:
             raise FortSymError(status, _decode(message), "j_fourier")
         return tuple(Expr(self, output[index]) for index in range(3))
+
+    def _chart_h_cov(self, chart, reluctivity, vector):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporary_values = []
+        try:
+            reluctivity_values = []
+            for value in _matrix3_values(reluctivity):
+                value, temporary = self._coerce(value)
+                reluctivity_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            vector_values = []
+            for value in vector:
+                value, temporary = self._coerce(value)
+                vector_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            if len(vector_values) != 3:
+                raise ValueError("h_cov requires three magnetic components")
+            reluctivity_handles = (_CVOID * 9)(
+                *[value._handle for value in reluctivity_values]
+            )
+            vector_handles = (_CVOID * 3)(
+                *[value._handle for value in vector_values]
+            )
+            output = (_CVOID * 3)()
+            message = _message()
+            status = self._lib.chart_h_cov(
+                self._require(), coordinate_handles, position_handles,
+                reluctivity_handles, vector_handles, output, message,
+                len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), "h_cov")
+            return tuple(Expr(self, output[index]) for index in range(3))
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
 
     def _chart_fourier_weak_form(self, chart, reluctivity, mode):
         if not isinstance(mode, int) or isinstance(mode, bool):
@@ -2445,6 +2501,17 @@ class Chart:
             self.coordinates, self.position, vector,
         )
 
+    def h_cov(self, reluctivity, vector):
+        """Return covariant ``H_i = nu_ij*B^j`` components."""
+        return self._arena._chart_h_cov(self, reluctivity, vector)
+
+    def h_con(self, covariant):
+        """Raise covariant ``H_i`` components to ``H^i`` with the metric."""
+        return self._arena._chart_many(
+            self._arena._lib.chart_h_con,
+            self.coordinates, self.position, covariant,
+        )
+
     def magnetic_field(self, potential):
         """Return typed ``B^i``, ``B_i``, and ``sqrtg B^i`` views."""
         upper = self.curl(potential)
@@ -2493,6 +2560,17 @@ class MagneticField:
         self.upper = Tensor(chart, upper, (1,))
         self.lower = Tensor(chart, lower, (-1,))
         self.density = Tensor(chart, density, (1,), 1)
+
+    def h_cov(self, reluctivity):
+        """Return covariant field intensity from this field's ``B^i``."""
+        components = self.chart.h_cov(reluctivity, self.upper)
+        return Tensor(self.chart, components, (-1,), _owned=True)
+
+    def h_con(self, reluctivity):
+        """Return contravariant field intensity from this field's ``B^i``."""
+        covariant = self.h_cov(reluctivity)
+        components = self.chart.h_con(covariant)
+        return Tensor(self.chart, components, (1,), _owned=True)
 
 
 class Metric:

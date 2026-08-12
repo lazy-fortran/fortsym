@@ -45,7 +45,7 @@ int main(void)
     int signature[3] = {1, 1, 1};
     int status;
 
-    assert(fortsym_abi_version() == 50);
+    assert(fortsym_abi_version() == 51);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK);
     assert(fortsym_int(arena, 0, &zero, message, sizeof message) == FORTSYM_OK);

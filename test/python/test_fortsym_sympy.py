@@ -355,6 +355,32 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(oracle.expand(actual_norm - expected_norm), 0)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_magnetic_constitutive_views_match_sympy(self):
+        u, v, w = sp.symbols("h_u h_v h_w")
+        chart = sp.Chart((u, v, w), (u + v, v, w))
+        reluctivity = ((2, 1, 0), (0, 3, 0), (0, 0, 4))
+        magnetic = (u, v, w)
+        covariant = chart.h_cov(reluctivity, magnetic)
+        contravariant = chart.h_con(covariant)
+        oracle_u, oracle_v, oracle_w = oracle.symbols("h_u h_v h_w")
+        oracle_b = oracle.Matrix((oracle_u, oracle_v, oracle_w))
+        oracle_nu = oracle.Matrix(reluctivity)
+        oracle_metric = oracle.Matrix(((1, 1, 0), (1, 2, 0), (0, 0, 1)))
+        expected_covariant = oracle_nu * oracle_b
+        expected_contravariant = oracle_metric.inv() * expected_covariant
+        actual_covariant = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify())) for value in covariant
+        ))
+        actual_contravariant = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify())) for value in contravariant
+        ))
+        self.assertEqual(actual_covariant, expected_covariant)
+        self.assertEqual(actual_contravariant, expected_contravariant)
+        field = chart.magnetic_field((v*w, u**2, u*v))
+        self.assertEqual(field.h_cov(reluctivity).variance, (-1,))
+        self.assertEqual(field.h_con(reluctivity).variance, (1,))
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_spherical_minkowski_relativity_owner_matches_sympy(self):
         t, r, theta, phi = sp.symbols("rel_t rel_r rel_theta rel_phi")
         metric = sp.SpacetimeMetric(
