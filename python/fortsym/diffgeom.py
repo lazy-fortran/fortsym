@@ -49,13 +49,13 @@ def _vector_components(vector, system):
 class Manifold:
     """Metadata owner for the fixed three-dimensional diffgeom subset."""
 
-    def __init__(self, name, dim, **kwargs):
-        if kwargs:
-            raise NotImplementedError("manifold options")
+    def __init__(self, name, dim, boundary=False, simply_connected=False):
         if int(dim) != 3:
             raise NotImplementedError("native diffgeom currently requires dimension three")
         self.name = str(name)
         self.dim = 3
+        self.boundary = bool(boundary)
+        self.simply_connected = bool(simply_connected)
 
     def __repr__(self):
         return self.name
@@ -66,13 +66,15 @@ class Manifold:
 class Patch:
     """Metadata owner for one coordinate patch."""
 
-    def __init__(self, name, manifold, **kwargs):
-        if kwargs:
-            raise NotImplementedError("patch options")
+    def __init__(self, name, manifold, open_domain=True, boundary=False,
+                 simply_connected=False):
         if not isinstance(manifold, Manifold):
             raise TypeError("patch requires a Manifold")
         self.name = str(name)
         self.manifold = manifold
+        self.open_domain = bool(open_domain)
+        self.boundary = bool(boundary)
+        self.simply_connected = bool(simply_connected)
 
     def __repr__(self):
         return self.name

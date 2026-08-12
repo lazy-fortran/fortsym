@@ -585,6 +585,15 @@ class SympySubsetTest(unittest.TestCase):
 
         native_manifold = sp.Manifold("native_M", 3)
         native_patch = sp.Patch("native_P", native_manifold)
+        declared = sp.Manifold("declared_M", 3, simply_connected=True)
+        declared_patch = sp.Patch(
+            "declared_P", declared, open_domain=False, boundary=True,
+            simply_connected=True,
+        )
+        self.assertTrue(declared.simply_connected)
+        self.assertFalse(declared_patch.open_domain)
+        self.assertTrue(declared_patch.boundary)
+        self.assertTrue(declared_patch.simply_connected)
         native = sp.CoordSystem("native_c", native_patch)
         nx, ny, nz = native.base_scalars()
         nvx, nvy, _ = native.base_vectors()

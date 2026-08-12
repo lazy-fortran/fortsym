@@ -72,6 +72,7 @@ fortsym_add_test(test_fortsym_rk verify/test_fortsym_rk.f90)
 
 # --- differential geometry ---
 fortsym_add_test(test_fortsym_diff calculus/test_fortsym_diff.f90)
+fortsym_add_test(test_fortsym_domain calculus/test_fortsym_domain.f90)
 fortsym_add_test(test_fortsym_ode calculus/test_fortsym_ode.f90)
 fortsym_add_test(test_fortsym_chart calculus/test_fortsym_chart.f90)
 fortsym_add_test(test_fortsym_chart_map calculus/test_fortsym_chart_map.f90)
