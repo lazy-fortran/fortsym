@@ -449,6 +449,21 @@ def _configure(lib):
             ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    metric_chart_scalar_arguments = [
+        _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+        ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+        _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+    ]
+    lib.metric_grad = declare(
+        "fortsym_metric_grad", ctypes.c_int, metric_chart_scalar_arguments,
+    )
+    lib.metric_laplacian = declare(
+        "fortsym_metric_laplacian", ctypes.c_int, metric_chart_scalar_arguments,
+    )
+    lib.metric_divergence = declare(
+        "fortsym_metric_divergence", ctypes.c_int,
+        metric_chart_scalar_arguments,
+    )
     lib.chart_form_star_metric = declare(
         "fortsym_chart_form_star_metric", ctypes.c_int,
         [
@@ -1293,6 +1308,13 @@ class Arena:
         signature = (ctypes.c_int * 3)(*metric.signature)
         return component_handles, signature
 
+    def _metric_chart_inputs(self, metric):
+        coordinates, position = self._chart_inputs(
+            metric.chart.coordinates, metric.chart.position
+        )
+        components, signature = self._metric_inputs(metric)
+        return coordinates, position, components, signature
+
     def _metric_sqrtg(self, metric):
         components, signature = self._metric_inputs(metric)
         output = _CVOID()
@@ -1346,6 +1368,48 @@ class Arena:
                 status, _decode(message), "metric_contravariant"
             )
         return tuple(Expr(self, output[index]) for index in range(9))
+
+    def _metric_scalar_operation(self, operation, metric, scalar, count):
+        coordinates, position, components, signature = self._metric_chart_inputs(
+            metric
+        )
+        scalar, temporary = self._coerce(scalar)
+        try:
+            output = (_CVOID * count)() if count > 1 else _CVOID()
+            output_argument = output if count > 1 else ctypes.byref(output)
+            message = _message()
+            status = operation(
+                self._require(), coordinates, position, components, signature,
+                metric.orientation, scalar._handle, output_argument, message,
+                len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), operation.__name__)
+            if count == 1:
+                return Expr(self, output)
+            return tuple(Expr(self, output[index]) for index in range(count))
+        finally:
+            if temporary is not None:
+                temporary.close()
+
+    def _metric_vector_operation(self, operation, metric, vector):
+        coordinates, position, components, signature = self._metric_chart_inputs(
+            metric
+        )
+        values = tuple(self._check(value) for value in vector)
+        if len(values) != 3:
+            raise ValueError("metric vector operators require three components")
+        vector_handles = (_CVOID * 3)(*[value._handle for value in values])
+        output = _CVOID()
+        message = _message()
+        status = operation(
+            self._require(), coordinates, position, components, signature,
+            metric.orientation, vector_handles, ctypes.byref(output), message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), operation.__name__)
+        return Expr(self, output)
 
     def _metric_form_star(self, metric, form):
         coordinate_handles, position_handles = self._chart_inputs(
@@ -2304,6 +2368,24 @@ class Metric:
     def contravariant(self):
         components = self._arena._metric_contravariant(self)
         return Tensor(self.chart, components, (-1, -1), _owned=True)
+
+    def grad(self, scalar):
+        """Return contravariant ``g^ij*diff(scalar, coordinates[j])``."""
+        return self._arena._metric_scalar_operation(
+            self._arena._lib.metric_grad, self, scalar, 3
+        )
+
+    def divergence(self, vector):
+        """Return the metric divergence of a contravariant vector."""
+        return self._arena._metric_vector_operation(
+            self._arena._lib.metric_divergence, self, vector
+        )
+
+    def laplacian(self, scalar):
+        """Return the metric Laplace--Beltrami operator on a scalar."""
+        return self._arena._metric_scalar_operation(
+            self._arena._lib.metric_laplacian, self, scalar, 1
+        )
 
     def hodge_star(self, form):
         if not isinstance(form, Form) or form.chart is not self.chart:
