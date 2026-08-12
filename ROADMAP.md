@@ -1475,6 +1475,10 @@ between the two-dimensional gradient, scalar curl, and divergence.
   tensors. Verify spherical Minkowski flatness and selected nonzero connection
   coefficients natively. Geodesics, 2D parity, curved invariants, and frontend
   transport remain open.
+- [x] Add the first runtime-dimension parity check with a curved two-dimensional
+  metric `g = diag(1, exp(2x))`, the known scalar curvature `R = -2`, and
+  native-zero unused tensor slots. General 2D pseudo-Riemannian and curved
+  invariant coverage remains open.
 - [x] Transport that four-dimensional owner through the ABI and both Python
   facades, including inverse metric, Christoffel, Riemann, Ricci, scalar, and
   Einstein views. The Python result trees are differentially checked against

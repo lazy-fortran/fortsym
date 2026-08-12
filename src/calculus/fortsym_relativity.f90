@@ -97,9 +97,9 @@ contains
         integer :: i, j
 
         if (.not. spacetime_metric_valid(g)) return
+        value = num(g%a, 0)
         if (is_diagonal_metric(g)) then
             one = num(g%a, 1)
-            value = num(g%a, 0)
             do i = 1, g%dimension
                 value(i, i) = one/g%component(i, i)
             end do
@@ -236,6 +236,7 @@ contains
         if (.not. spacetime_metric_valid(g)) return
         if (.not. spacetime_metric_has_coordinates(g)) return
         inverse = spacetime_metric_contravariant(g)
+        value = num(g%a, 0)
         do a = 1, g%dimension
             do b = 1, g%dimension
                 do c = 1, g%dimension
@@ -264,6 +265,7 @@ contains
         if (.not. spacetime_metric_valid(g)) return
         if (.not. spacetime_metric_has_coordinates(g)) return
         gamma = spacetime_christoffel(g)
+        value = num(g%a, 0)
         do a = 1, g%dimension
             do b = 1, g%dimension
                 do c = 1, g%dimension
@@ -291,6 +293,7 @@ contains
         if (.not. spacetime_metric_valid(g)) return
         if (.not. spacetime_metric_has_coordinates(g)) return
         riemann = spacetime_riemann(g)
+        value = num(g%a, 0)
         do b = 1, g%dimension
             do d = 1, g%dimension
                 value(b, d) = num(g%a, 0)
@@ -331,6 +334,7 @@ contains
         ricci = spacetime_ricci(g)
         scalar = spacetime_scalar_curvature(g)
         half = num(g%a, 1)/num(g%a, 2)
+        value = num(g%a, 0)
         do i = 1, g%dimension
             do j = 1, g%dimension
                 value(i, j) = ricci(i, j) - half*scalar*g%component(i, j)
