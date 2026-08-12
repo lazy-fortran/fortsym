@@ -10,6 +10,7 @@ module fortsym_relativity
         operator(+), operator(-), operator(*), operator(/), operator(==), &
         expr_abs => abs, sqrt
     use fortsym_diff, only: diff
+    use fortsym_subs, only: subs
     implicit none
     private
 
@@ -36,6 +37,7 @@ module fortsym_relativity
     public :: spacetime_metric_has_coordinates
     public :: spacetime_christoffel, spacetime_riemann, spacetime_ricci
     public :: spacetime_scalar_curvature, spacetime_einstein
+    public :: spacetime_geodesic_residual
 
 contains
 
@@ -335,6 +337,52 @@ contains
             end do
         end do
     end function spacetime_einstein
+
+    function spacetime_geodesic_residual(g, curve, parameter) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: curve(SPACETIME_DIM), parameter
+        type(expr_t) :: value(SPACETIME_DIM)
+        type(expr_t) :: gamma(SPACETIME_DIM, SPACETIME_DIM, SPACETIME_DIM)
+        type(expr_t) :: velocity(SPACETIME_DIM), acceleration, term
+        integer :: a, b, c
+
+        if (.not. spacetime_metric_valid(g)) return
+        if (.not. spacetime_metric_has_coordinates(g)) return
+        if (.not. is_valid(parameter)) return
+        if (.not. same_arena(parameter, g%component(1, 1))) return
+        do a = 1, SPACETIME_DIM
+            if (.not. is_valid(curve(a))) return
+            if (.not. same_arena(curve(a), g%component(1, 1))) return
+        end do
+        gamma = spacetime_christoffel(g)
+        value = num(g%a, 0)
+        do b = 1, g%dimension
+            velocity(b) = diff(curve(b), parameter)
+        end do
+        do a = 1, g%dimension
+            acceleration = diff(diff(curve(a), parameter), parameter)
+            value(a) = acceleration
+            do b = 1, g%dimension
+                do c = 1, g%dimension
+                    term = substitute_curve(gamma(a, b, c), g, curve)
+                    value(a) = value(a) + term*velocity(b)*velocity(c)
+                end do
+            end do
+        end do
+    end function spacetime_geodesic_residual
+
+    function substitute_curve(expression, g, curve) result(value)
+        type(expr_t), intent(in) :: expression
+        type(spacetime_metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: curve(SPACETIME_DIM)
+        type(expr_t) :: value
+        integer :: i
+
+        value = expression
+        do i = 1, g%dimension
+            value = subs(value, g%coordinate(i), curve(i))
+        end do
+    end function substitute_curve
 
     function cofactor(g, row, column) result(value)
         type(spacetime_metric_t), intent(in) :: g

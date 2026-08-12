@@ -35,7 +35,8 @@ module fortsym_public_capi
         spacetime_metric_create, spacetime_metric_valid, &
         spacetime_metric_sqrtg, spacetime_metric_contravariant, &
         spacetime_christoffel, spacetime_riemann, spacetime_ricci, &
-        spacetime_scalar_curvature, spacetime_einstein
+        spacetime_scalar_curvature, spacetime_einstein, &
+        spacetime_geodesic_residual
     use fortsym_spacetime_form, only: spacetime_form_t, spacetime_form_scalar, &
         spacetime_form_one, &
         spacetime_form_two, spacetime_form_three, spacetime_form_four, &
@@ -138,6 +139,7 @@ module fortsym_public_capi
         fortsym_spacetime_metric_contravariant, fortsym_spacetime_christoffel, &
         fortsym_spacetime_riemann, fortsym_spacetime_ricci, &
         fortsym_spacetime_scalar_curvature, fortsym_spacetime_einstein, &
+        fortsym_spacetime_geodesic_residual, &
         fortsym_spacetime_form_d, fortsym_spacetime_form_wedge, &
         fortsym_spacetime_form_star, fortsym_spacetime_form_codifferential
     public :: fortsym_complex_operation
@@ -154,7 +156,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 34_c_int
+        v = 35_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -2212,6 +2214,53 @@ contains
         call make_expr_array(a, flat_values, out, SPACETIME_DIM*SPACETIME_DIM, &
             status, message, capacity)
     end function fortsym_spacetime_einstein
+
+    function fortsym_spacetime_geodesic_residual(raw, components, dimension, &
+            coordinates, signature, orientation, curve, parameter, out, message, &
+            capacity) bind(c, name="fortsym_spacetime_geodesic_residual") &
+            result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, curve
+        type(c_ptr), value :: parameter, out
+        integer(c_int), value :: dimension, orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(spacetime_metric_t) :: metric
+        type(expr_t) :: curve_value(SPACETIME_DIM), parameter_value
+        type(expr_t) :: value(SPACETIME_DIM)
+        type(c_ptr), pointer :: curve_values(:)
+        integer :: i, shape(1)
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. c_associated(curve) .or. .not. c_associated(parameter)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape(1) = SPACETIME_DIM
+        call c_f_pointer(curve, curve_values, shape)
+        do i = 1, SPACETIME_DIM
+            call get_expr(curve_values(i), owner, curve_value(i), status, &
+                message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        call get_expr(parameter, owner, parameter_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        value = spacetime_geodesic_residual(metric, curve_value, parameter_value)
+        call make_expr_array(a, value, out, SPACETIME_DIM, status, message, &
+            capacity)
+    end function fortsym_spacetime_geodesic_residual
 
     function fortsym_spacetime_form_d(raw, components, dimension, coordinates, &
             signature, orientation, input, degree, out, message, capacity) bind(c, &

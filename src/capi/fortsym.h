@@ -318,6 +318,11 @@ int fortsym_spacetime_einstein(
     fortsym_arena *arena, const fortsym_expr *components[], int dimension,
     const fortsym_expr *coordinates[], const int signature[], int orientation,
     fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_spacetime_geodesic_residual(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *curve[], const fortsym_expr *parameter,
+    fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_spacetime_form_d(
     fortsym_arena *arena, const fortsym_expr *components[], int dimension,
     const fortsym_expr *coordinates[], const int signature[], int orientation,

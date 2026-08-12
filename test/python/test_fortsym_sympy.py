@@ -111,6 +111,12 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(metric.ricci()[0, 0].simplify(), 0)
         self.assertEqual(metric.einstein()[3, 3].simplify(), 0)
 
+        parameter = sp.Symbol("geodesic_lambda")
+        curve = (parameter, 1, parameter, 0)
+        residual = metric.geodesic_residual(curve, parameter)
+        self.assertEqual((residual[1] + 1).simplify(), 0)
+        self.assertEqual(residual[0].simplify(), 0)
+
     def test_native_spacetime_forms(self):
         t, x, y, z = sp.symbols("form_t form_x form_y form_z")
         metric = sp.SpacetimeMetric(
