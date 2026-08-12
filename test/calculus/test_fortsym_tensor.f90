@@ -6,15 +6,16 @@ program test_fortsym_tensor
     use fortsym_expr, only: expr_t, sym, num, operator(+), operator(-), &
         operator(*), operator(**)
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
+    use fortsym, only: lie
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create
     use fortsym_metric, only: metric_t, metric_from_chart
-    use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, &
+    use fortsym_tensor, only: tensor_t, tensor_scalar, tensor_vector, tensor_covector, &
         tensor_from_components, tensor_component, tensor_rank, tensor_variance, &
         tensor_density_weight, tensor_valid, density, raise, lower, &
         tensor_product, contract, trace, permute, symmetrize, antisymmetrize, &
-        metric_covariant_tensor, UPPER, LOWER_VARIANCE
+        metric_covariant_tensor, tensor_lie_derivative, UPPER, LOWER_VARIANCE
     use fortsym_index, only: index_type_t, index_t, index_type, make_index, &
         index_valid, compatible_indices, INDEX_TANGENT, INDEX_INTERNAL
     implicit none
@@ -25,10 +26,13 @@ program test_fortsym_tensor
     type(chart_t) :: shear
     type(metric_t) :: metric_owner
     type(expr_t) :: u(DIM), position(DIM), values(DIM), expected
+    type(expr_t) :: vector_values(DIM), tensor_values(DIM), covector_values(DIM)
     type(expr_t) :: components(27), matrix_components(9)
     type(tensor_t) :: vup, vcov, vdown, roundtrip, weighted, outer, dot
     type(tensor_t) :: metric_down, mixed, rank_three
     type(tensor_t) :: permuted, matrix, symmetric, antisymmetric
+    type(tensor_t) :: scalar, vector_field, vector_lie, covector_field, &
+        covector_lie, density_scalar, density_lie, generic_lie
     type(index_type_t) :: tangent_space, internal_space
     type(index_t) :: upper_i, lower_i, lower_j, internal_i
     integer :: indices(4), empty(0), rank_three_variance(3), i, j, k
@@ -48,6 +52,55 @@ program test_fortsym_tensor
     vcov = tensor_covector(shear, values)
     call check_metadata(suite, vcov, 1, LOWER_VARIANCE, 0, &
         "covariant vector metadata")
+
+    vector_values = num(arena, 0)
+    vector_values(1) = u(1)
+    vector_values(2) = u(2)
+    vector_field = tensor_vector(shear, vector_values)
+    scalar = tensor_scalar(u(1)**2 + u(3))
+    scalar = tensor_lie_derivative(shear, vector_field, scalar)
+    call check_identity(suite, engine, "Lie derivative of a scalar", &
+        tensor_component(scalar, empty) - 2*u(1)**2)
+
+    tensor_values(1) = u(1)**2
+    tensor_values(2) = u(1)*u(2)
+    tensor_values(3) = u(3)
+    vector_lie = tensor_lie_derivative(shear, vector_field, &
+        tensor_vector(shear, tensor_values))
+    indices(1) = 1
+    call check_identity(suite, engine, "Lie derivative upper component 1", &
+        tensor_component(vector_lie, indices(1:1)) - u(1)**2)
+    indices(1) = 2
+    call check_identity(suite, engine, "Lie derivative upper component 2", &
+        tensor_component(vector_lie, indices(1:1)) - u(1)*u(2))
+    indices(1) = 3
+    call check_identity(suite, engine, "Lie derivative upper component 3", &
+        tensor_component(vector_lie, indices(1:1)))
+
+    covector_values(1) = u(1)*u(2)
+    covector_values(2) = u(3)
+    covector_values(3) = num(arena, 0)
+    covector_field = tensor_covector(shear, covector_values)
+    covector_lie = tensor_lie_derivative(shear, vector_field, covector_field)
+    indices(1) = 1
+    call check_identity(suite, engine, "Lie derivative lower component 1", &
+        tensor_component(covector_lie, indices(1:1)) - 3*u(1)*u(2))
+    indices(1) = 2
+    call check_identity(suite, engine, "Lie derivative lower component 2", &
+        tensor_component(covector_lie, indices(1:1)) - u(3))
+    indices(1) = 3
+    call check_identity(suite, engine, "Lie derivative lower component 3", &
+        tensor_component(covector_lie, indices(1:1)))
+
+    density_scalar = density(tensor_scalar(u(1)), 1)
+    density_lie = tensor_lie_derivative(shear, vector_field, density_scalar)
+    call check_identity(suite, engine, "Lie derivative density weight term", &
+        tensor_component(density_lie, empty) - 3*u(1))
+    call check_metadata(suite, density_lie, 0, 0, 1, &
+        "Lie derivative preserves density metadata")
+    generic_lie = lie(shear, vector_field, density_scalar)
+    call check_identity(suite, engine, "facade generic tensor Lie derivative", &
+        tensor_component(generic_lie, empty) - tensor_component(density_lie, empty))
 
     vdown = lower(shear, vup, 1)
     call check_metadata(suite, vdown, 1, LOWER_VARIANCE, 0, &

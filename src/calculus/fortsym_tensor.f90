@@ -13,6 +13,7 @@ module fortsym_tensor
     use fortsym_metric, only: metric_t, metric_valid, metric_same_arena, &
         metric_arena, owner_metric_covariant => metric_covariant, &
         owner_metric_contravariant => metric_contravariant
+    use fortsym_diff, only: diff
     use fortsym_index, only: index_t, index_valid, index_dimension, index_slot, &
         index_variance, compatible_indices
     use fortsym_expr, only: expr_t, num, is_valid, operator(+), operator(-), &
@@ -34,6 +35,7 @@ module fortsym_tensor
     public :: vector, covector, raise, lower
     public :: tensor_product, contract, contract_slots, trace
     public :: permute, symmetrize, antisymmetrize
+    public :: tensor_lie_derivative
     public :: metric_covariant_tensor, metric_contravariant_tensor
 
     type :: tensor_t
@@ -347,6 +349,80 @@ contains
         result = tensor_value
         result%density_weight = weight
     end function density
+
+    !> Coordinate Lie derivative of a typed tensor along an ordinary vector.
+    !>
+    !> For a tensor density of weight w the coordinate expression is
+    !>   (L_X T)^a..._b... = X^k d_k T^a..._b...
+    !>       - T^k... d_k X^a + T^...k d_b X^k
+    !>       + w T^a..._b... d_k X^k.
+    !> The vector is deliberately required to have zero density weight: a
+    !> density is not a vector field and silently accepting one would make
+    !> the transport law ambiguous. Components are written directly into the
+    !> fixed tensor store; no component arrays or rank-dependent temporaries
+    !> are formed in the contraction loops.
+    function tensor_lie_derivative(c, vector_value, tensor_value) result(result)
+        type(chart_t), intent(in) :: c
+        type(tensor_t), intent(in) :: vector_value, tensor_value
+        type(tensor_t) :: result
+        type(expr_t) :: base, term, divergence
+        integer :: rank, count, output_index, indices(MAX_RANK)
+        integer :: old_indices(MAX_RANK), slot, i, k, variance
+
+        if (.not. associated(c%a)) return
+        if (.not. tensor_valid(vector_value)) return
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. associated(vector_value%a, c%a)) return
+        if (.not. associated(tensor_value%a, c%a)) return
+        if (tensor_rank(vector_value) /= 1) return
+        if (tensor_variance(vector_value, 1) /= UPPER) return
+        if (tensor_density_weight(vector_value) /= 0) return
+
+        rank = tensor_rank(tensor_value)
+        count = component_count(rank)
+        result = zero_tensor(c%a, rank, tensor_value%variance, &
+            tensor_density_weight(tensor_value))
+        divergence = num(c%a, 0)
+        do k = 1, DIM
+            divergence = divergence + diff(vector_value%component(k - 1), c%u(k))
+        end do
+
+        do output_index = 0, count - 1
+            call decode_index(output_index, rank, indices)
+            if (rank == 0) then
+                base = tensor_value%component(0)
+            else
+                base = tensor_value%component(encode_index(indices, rank))
+            end if
+            term = num(c%a, 0)
+            do k = 1, DIM
+                term = term + vector_value%component(k - 1)* &
+                    diff(base, c%u(k))
+            end do
+            do slot = 1, rank
+                i = indices(slot)
+                variance = tensor_variance(tensor_value, slot)
+                do k = 1, DIM
+                    old_indices = indices
+                    old_indices(slot) = k
+                    if (variance == UPPER) then
+                        term = term - tensor_value%component( &
+                            encode_index(old_indices, rank))* &
+                            diff(vector_value%component(i - 1), c%u(k))
+                    else
+                        term = term + tensor_value%component( &
+                            encode_index(old_indices, rank))* &
+                            diff(vector_value%component(k - 1), c%u(i))
+                    end if
+                end do
+            end do
+            if (tensor_density_weight(tensor_value) /= 0) then
+                term = term + num(c%a, tensor_density_weight(tensor_value))* &
+                    base*divergence
+            end if
+            result%component(output_index) = term
+        end do
+    end function tensor_lie_derivative
 
     !> Metric raise of one selected covariant slot.
     function raise_chart(c, tensor_value, slot) result(result)

@@ -751,6 +751,13 @@ def _configure(lib):
          ctypes.c_int, _SIZE, _SIZE, ctypes.c_int, ctypes.POINTER(_CVOID),
          _CHAR_PTR, _SIZE],
     )
+    lib.chart_tensor_lie = declare(
+        "fortsym_chart_tensor_lie", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.chart_scalar_curvature = declare(
         "fortsym_chart_scalar_curvature",
         ctypes.c_int,
@@ -2049,6 +2056,30 @@ class Arena:
             raise FortSymError(status, _decode(message), "tensor_symmetrize")
         return tuple(Expr(self, output[index]) for index in range(len(output)))
 
+    def _chart_tensor_lie(self, chart, vector, tensor):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        vector_values = (_CVOID * len(vector.components))(
+            *[self._check(value)._handle for value in vector.components]
+        )
+        vector_variance = (ctypes.c_int * vector.rank)(*vector.variance)
+        values = (_CVOID * len(tensor.components))(
+            *[self._check(value)._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output = (_CVOID * len(tensor.components))()
+        message = _message()
+        status = self._lib.chart_tensor_lie(
+            self._require(), coordinate_handles, position_handles,
+            vector_values, vector.rank, vector_variance, vector.density_weight,
+            values, tensor.rank, variance, tensor.density_weight, output,
+            message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "tensor_lie")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
     def _chart_scalar(self, operation, coordinates, position):
         coordinate_handles, position_handles = self._chart_inputs(
             coordinates, position
@@ -2498,6 +2529,21 @@ class Chart:
         )
 
     covariant_derivative = covariant_diff
+
+    def lie(self, vector, tensor):
+        """Return the Lie derivative of ``tensor`` along ``vector``."""
+        if not isinstance(vector, Tensor) or vector.chart is not self:
+            raise ValueError("lie expects an ordinary vector from this chart")
+        if vector.rank != 1 or vector.variance != (1,) or vector.density_weight != 0:
+            raise ValueError("lie expects a weight-zero contravariant vector")
+        if not isinstance(tensor, Tensor) or tensor.chart is not self:
+            raise ValueError("lie expects a tensor from this chart")
+        components = self._arena._chart_tensor_lie(self, vector, tensor)
+        return Tensor(
+            self, components, tensor.variance, tensor.density_weight, _owned=True
+        )
+
+    lie_derivative = lie
 
     def riemann(self):
         return self._tensor_result(
@@ -3497,6 +3543,19 @@ class Tensor:
         return self.chart.covariant_divergence(self)
 
     divergence = covariant_divergence
+
+    def lie(self, vector):
+        """Return the Lie derivative along a weight-zero vector tensor."""
+        if not isinstance(vector, Tensor) or vector.chart is not self.chart:
+            raise ValueError("lie expects an ordinary vector from this chart")
+        if vector.rank != 1 or vector.variance != (1,) or vector.density_weight != 0:
+            raise ValueError("lie expects a weight-zero contravariant vector")
+        components = self._arena._chart_tensor_lie(self.chart, vector, self)
+        return Tensor(
+            self.chart, components, self.variance, self.density_weight, _owned=True
+        )
+
+    lie_derivative = lie
 
     def raise_(self, slot=0):
         """Raise one covariant slot with this tensor's chart metric."""
