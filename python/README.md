@@ -70,6 +70,10 @@ two-form basis; and `7` for the volume form. Full arbitrary-dimensional
 work; fixed-three-dimensional native pullback transport is available through
 `ChartMap.pullback()`.
 
+`Chart.magnetic_field(potential)` returns a `MagneticField` containing typed
+`upper`, `lower`, and weight-one `density` tensor views. Its components come
+from the native curl, covariant magnetic, and density operations.
+
 `ChartMap` transforms components between two charts. Its `forward` tuple maps
 source coordinates to target coordinates and its `inverse` tuple maps back.
 Upper tensor slots use the forward Jacobian, lower slots use the inverse

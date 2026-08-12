@@ -11,7 +11,7 @@ from fractions import Fraction
 from itertools import count
 
 from .. import (
-    Arena, Chart, ChartMap, Tensor, Form, Expr, FortSymError, _Assumption, _CONFLICT, _FACT_INTEGER,
+    Arena, Chart, ChartMap, MagneticField, Tensor, Form, Expr, FortSymError, _Assumption, _CONFLICT, _FACT_INTEGER,
     _FACT_RATIONAL, _FACT_ALGEBRAIC, _default,
 )
 from ..diffgeom import (
@@ -1211,7 +1211,7 @@ nan = _default().constant("nan")
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "Tensor", "Form", "Expr", "FortSymError", "UnsupportedOperationError",
+    "Arena", "Chart", "ChartMap", "MagneticField", "Tensor", "Form", "Expr", "FortSymError", "UnsupportedOperationError",
     "Manifold", "Patch", "CoordSystem", "CoordinateSymbol", "BaseScalarField",
     "BaseVectorField", "Differential", "WedgeProduct", "TensorProduct", "LieDerivative",
     "InconsistentAssumptions",

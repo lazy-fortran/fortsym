@@ -173,6 +173,18 @@ class SympySubsetTest(unittest.TestCase):
             for value in chart.curl_density((v*w, u**2, u*v))
         ))
         self.assertEqual(actual_curl_density, expected_curl_density)
+        field = chart.magnetic_field((v*w, u**2, u*v))
+        self.assertEqual(field.upper.variance, (1,))
+        self.assertEqual(field.lower.variance, (-1,))
+        self.assertEqual(field.density.variance, (1,))
+        self.assertEqual(field.density.density_weight, 1)
+        self.assertEqual(
+            oracle.Matrix(tuple(
+                oracle.sympify(str(value.simplify()))
+                for value in field.upper
+            )),
+            actual_curl,
+        )
         expected_laplacian = sum(
             oracle.diff(expected_covariant.det()*expected_gradient[index], coordinate)
             for index, coordinate in enumerate((oracle_u, oracle_v, oracle_w))

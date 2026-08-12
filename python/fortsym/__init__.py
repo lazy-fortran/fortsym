@@ -273,14 +273,14 @@ def _configure(lib):
             _CHAR_PTR, _SIZE,
         ],
     )
-    for name in ("b_cov", "b_fourier", "b_fourier_density"):
+    for name in ("b_cov", "b_density", "b_fourier", "b_fourier_density"):
         arguments = [
             _CVOID,
             ctypes.POINTER(_CVOID),
             ctypes.POINTER(_CVOID),
             ctypes.POINTER(_CVOID),
         ]
-        if name != "b_cov":
+        if name not in ("b_cov", "b_density"):
             arguments.append(_CVOID)
         arguments.extend([ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE])
         setattr(
@@ -1385,6 +1385,19 @@ class Chart:
             self.coordinates, self.position, vector,
         )
 
+    def b_density(self, vector):
+        return self._arena._chart_many(
+            self._arena._lib.chart_b_density,
+            self.coordinates, self.position, vector,
+        )
+
+    def magnetic_field(self, potential):
+        """Return typed ``B^i``, ``B_i``, and ``sqrtg B^i`` views."""
+        upper = self.curl(potential)
+        return MagneticField(
+            self, upper, self.b_cov(upper), self.b_density(upper)
+        )
+
     def b_fourier(self, potential, mode):
         return self._arena._chart_many(
             self._arena._lib.chart_b_fourier,
@@ -1402,6 +1415,16 @@ class Chart:
         return self._arena._chart_j_fourier(
             self, reluctivity, potential, mode,
         )
+
+
+class MagneticField:
+    """Typed magnetic views sharing one chart and native components."""
+
+    def __init__(self, chart, upper, lower, density):
+        self.chart = chart
+        self.upper = Tensor(chart, upper, (1,))
+        self.lower = Tensor(chart, lower, (-1,))
+        self.density = Tensor(chart, density, (1,), 1)
 
 
 class ChartMap:
@@ -2497,7 +2520,7 @@ def free_symbols(expression: Expr): return expression.free_symbols
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "ChartMap", "MagneticField", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count",
     "free_symbols",
 ]
