@@ -8,7 +8,7 @@ module fortsym_chart_map
     use fortsym_chart, only: chart_t, DIM
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, num, abs, is_valid, operator(+), &
-        operator(-), operator(*), operator(/), operator(**)
+        operator(-), operator(*), operator(/), operator(**), operator(==)
     use fortsym_subs, only: subs_many
     use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
         form_component, form_degree, form_valid
@@ -19,7 +19,7 @@ module fortsym_chart_map
 
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
 
-    public :: chart_map_t, chart_map_create
+    public :: chart_map_t, chart_map_create, compose_maps
     public :: map_jacobian, inverse_jacobian, transform_tensor, transform_form
 
     type :: chart_map_t
@@ -53,6 +53,25 @@ contains
         result%forward = forward
         result%inverse = inverse
     end function chart_map_create
+
+    !> Compose two transitions. `following` is applied after `first`.
+    function compose_maps(first, following) result(result)
+        type(chart_map_t), intent(in) :: first, following
+        type(chart_map_t) :: result
+        type(expr_t) :: forward(DIM), inverse(DIM)
+        integer :: k
+
+        if (.not. map_valid(first)) return
+        if (.not. map_valid(following)) return
+        if (.not. same_chart(first%target, following%source)) return
+        do k = 1, DIM
+            forward(k) = subs_many(following%forward(k), &
+                following%source%u, first%forward)
+            inverse(k) = subs_many(first%inverse(k), first%target%u, &
+                following%inverse)
+        end do
+        result = chart_map_create(first%source, following%target, forward, inverse)
+    end function compose_maps
 
     !> K(i,j) = partial(target coordinate i)/partial(source coordinate j).
     function map_jacobian(map) result(result)
@@ -231,6 +250,22 @@ contains
         end do
         valid = .true.
     end function map_valid
+
+    function same_chart(left, right) result(same)
+        type(chart_t), intent(in) :: left, right
+        logical :: same
+        integer :: k
+
+        same = .false.
+        if (.not. associated(left%a)) return
+        if (.not. associated(right%a)) return
+        if (.not. associated(left%a, right%a)) return
+        do k = 1, DIM
+            if (.not. (left%u(k) == right%u(k))) return
+            if (.not. (left%x(k) == right%x(k))) return
+        end do
+        same = .true.
+    end function same_chart
 
     function det3(matrix) result(result)
         type(expr_t), intent(in) :: matrix(DIM, DIM)

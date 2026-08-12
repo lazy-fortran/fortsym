@@ -10,8 +10,8 @@ program test_fortsym_chart_map
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create
-    use fortsym_chart_map, only: chart_map_t, chart_map_create, map_jacobian, &
-        inverse_jacobian, transform_tensor, transform_form
+    use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
+        map_jacobian, inverse_jacobian, transform_tensor, transform_form
     use fortsym, only: facade_chart_map_t => chart_map_t, &
         facade_chart_map_create => chart_map_create, &
         facade_transform_tensor => transform_tensor
@@ -24,20 +24,23 @@ program test_fortsym_chart_map
     type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
-    type(chart_t) :: source, target
-    type(chart_map_t) :: transition
+    type(chart_t) :: source, target, middle, final
+    type(chart_map_t) :: transition, second_transition, composed
     type(facade_chart_map_t) :: facade_transition
-    type(expr_t) :: source_u(DIM), target_u(DIM)
-    type(expr_t) :: source_position(DIM), target_position(DIM)
+    type(expr_t) :: source_u(DIM), target_u(DIM), final_u(DIM)
+    type(expr_t) :: source_position(DIM), target_position(DIM), final_position(DIM)
     type(expr_t) :: forward(DIM), inverse(DIM)
+    type(expr_t) :: second_forward(DIM), second_inverse(DIM)
     type(expr_t) :: jacobian(DIM, DIM), inverse_map(DIM, DIM)
+    type(expr_t) :: composed_jacobian(DIM, DIM), composed_inverse(DIM, DIM)
     type(expr_t) :: source_values(DIM), covector_values(DIM)
     type(expr_t) :: expected, composition
-    type(tensor_t) :: vector, vector_target, vector_density
+    type(tensor_t) :: vector, vector_target, vector_density, composed_vector
     type(tensor_t) :: covector, covector_target
     type(form_t) :: scalar_form, one_form, two_form, three_form
     type(form_t) :: scalar_target, one_target, two_target, three_target
-    integer :: i, j
+    type(form_t) :: sequential_form, composed_form
+    integer :: i, j, mask
 
     call arena%init()
     engine = make_symengine_engine(arena)
@@ -57,6 +60,18 @@ program test_fortsym_chart_map
     inverse(3) = target_u(3)
     transition = chart_map_create(source, target, forward, inverse)
 
+    middle = chart_create(arena, target_u, target_position)
+    final = chart_create(arena, final_u, final_position)
+    second_forward(1) = target_u(1) + target_u(2)
+    second_forward(2) = target_u(2)
+    second_forward(3) = target_u(3)
+    second_inverse(1) = final_u(1) - final_u(2)
+    second_inverse(2) = final_u(2)
+    second_inverse(3) = final_u(3)
+    second_transition = chart_map_create(middle, final, second_forward, &
+        second_inverse)
+    composed = compose_maps(transition, second_transition)
+
     call suite_begin(suite, "chart map transformations")
     jacobian = map_jacobian(transition)
     inverse_map = inverse_jacobian(transition)
@@ -66,6 +81,17 @@ program test_fortsym_chart_map
         inverse_map(1, 1) - num(arena, 1)/2)
     call check_identity(suite, engine, "inverse map L12", &
         inverse_map(1, 2) + num(arena, 1)/2)
+
+    composed_jacobian = map_jacobian(composed)
+    composed_inverse = inverse_jacobian(composed)
+    call check_identity(suite, engine, "composed map K12", &
+        composed_jacobian(1, 2) - 2)
+    call check_identity(suite, engine, "composed map L11", &
+        composed_inverse(1, 1) - num(arena, 1)/2)
+    call check_identity(suite, engine, "composed map forward", &
+        composed%forward(1) - (2*source_u(1) + 2*source_u(2)))
+    call check_identity(suite, engine, "composed map inverse", &
+        composed%inverse(1) - (final_u(1) - 2*final_u(2))/2)
 
     do i = 1, DIM
         composition = subs_many(forward(i), source_u, inverse)
@@ -140,6 +166,22 @@ program test_fortsym_chart_map
     call check_identity(suite, engine, "oriented three-form transport", &
         form_component(three_target, 7) - num(arena, 1)/2)
 
+    sequential_form = transform_form(second_transition, one_target)
+    composed_form = transform_form(composed, one_form)
+    do mask = 1, 4
+        if (mask == 3) cycle
+        call check_identity(suite, engine, "form composition", &
+            form_component(sequential_form, mask) - &
+            form_component(composed_form, mask))
+    end do
+
+    vector_target = transform_tensor(second_transition, vector_target)
+    composed_vector = transform_tensor(composed, vector)
+    do i = 0, DIM - 1
+        call check_identity(suite, engine, "tensor composition", &
+            vector_target%component(i) - composed_vector%component(i))
+    end do
+
     if (suite%failed /= 0) then
         print *, "test_fortsym_chart_map: ", suite%failed, " check(s) FAILED"
         error stop 1
@@ -156,6 +198,12 @@ contains
         target_u(1) = sym(arena, "map_p")
         target_u(2) = sym(arena, "map_q")
         target_u(3) = sym(arena, "map_s")
+        final_u(1) = sym(arena, "map_r")
+        final_u(2) = sym(arena, "map_t")
+        final_u(3) = sym(arena, "map_v")
+        final_position(1) = (final_u(1) - final_u(2))/2
+        final_position(2) = final_u(2)
+        final_position(3) = final_u(3)
     end subroutine make_symbols
 
 end program test_fortsym_chart_map

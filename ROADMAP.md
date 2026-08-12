@@ -762,7 +762,8 @@ conversion only. They do not maintain a second geometry implementation.
   cases, and publish one module graph and naming audit.
 - [ ] **7A.1 Charts and volume.** Generalize `chart_t` to explicit dimensions,
   expose Jacobian, reciprocal basis, metric, inverse metric, signed `J`,
-  `sqrtg`, volume forms, and coordinate-change composition.
+  `sqrtg`, volume forms, and coordinate-change composition. The fixed-3D
+  chart-map composition subset is implemented and independently checked.
 - [ ] **7A.2 Components and densities.** Add scalar, vector, covector, tensor,
   and density transformations, `raise`, `lower`, `flat`, `sharp`, and
   Jacobian-weighted `div`. Gate this stage with nonorthogonal and left-handed
@@ -937,8 +938,12 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   Forward and inverse coordinate maps are explicit, and results are returned
   in target coordinates.
 - [ ] Generalize coordinate transformations across supported dimensions and
-  chart-map compositions. Verify round trips and composition against
-  independently constructed Jacobian matrices.
+  chart-map validation. The fixed-three-dimensional composition subset is
+  complete; generalize dimensions and verify round trips against independently
+  constructed Jacobian matrices.
+- [x] Add native composition of two fixed-three-dimensional chart maps and
+  prove tensor and form transport composition through the Fortran facade and
+  Python/SymPy boundary.
 - [ ] Add `raise` and `lower` as metric-owned operations. They must preserve
   the underlying geometric object, update slot variance, and refuse a missing
   or singular metric instead of guessing.

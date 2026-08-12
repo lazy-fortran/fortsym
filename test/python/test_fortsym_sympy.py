@@ -233,6 +233,27 @@ class SympySubsetTest(unittest.TestCase):
             oracle.Rational(1, 2),
         )
 
+        r, t, v = sp.symbols("map_r map_t map_v")
+        final = sp.Chart((r, t, v), ((r - t)/2, t, v))
+        following = sp.ChartMap(
+            target, final, (p + q, q, s), (r - t, t, v)
+        )
+        composed = transition.compose(following)
+        composed_vector = composed.transform(source.vector((x, y, z)))
+        self.assertEqual(
+            tuple(oracle.sympify(str(value.simplify()))
+                  for value in composed_vector),
+            (oracle.Symbol("map_r"), oracle.Symbol("map_t"), oracle.Symbol("map_v")),
+        )
+        composed_one_form = composed.transform(source.one_form((x, y, z)))
+        self.assertEqual(
+            tuple(oracle.sympify(str(composed_one_form[mask].simplify()))
+                  for mask in (1, 2, 4)),
+            ((oracle.Symbol("map_r") - 2*oracle.Symbol("map_t"))/4,
+             (-oracle.Symbol("map_r") + 4*oracle.Symbol("map_t"))/2,
+             oracle.Symbol("map_v")),
+        )
+
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_diffgeom_names_use_native_owner_and_match_oracle(self):
         from sympy.diffgeom import (
