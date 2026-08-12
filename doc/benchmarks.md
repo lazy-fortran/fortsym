@@ -206,6 +206,10 @@ workload adds two correctness-checked rows; its cold and warm ratios were
 substitution workload adds two more correctness-checked rows; its cold and warm
 ratios were 0.575x and 0.276x SymPy, so both rows remain enforced. The latest
 matrix therefore has 106 rows, 90 enforced rows, and zero unwaived violations.
+The exact-node `xreplace` workload adds two more correctness-checked rows; its
+cold and warm ratios were 0.227x and 0.590x SymPy, so both rows remain
+enforced. The latest matrix therefore has 108 rows, 92 enforced rows, and zero
+unwaived violations.
 
 Run it from a built checkout with:
 
@@ -306,7 +310,7 @@ also caches up to eight identity-checked, non-cascading mapping results per
 expression and assumption epoch.
 The matched differentiation diagnostic after that cache was added measured
 native/SymPy ratios of about 0.14 cold and 0.06 warm; the remaining full-suite
-106-workload parity run also passed with zero correctness failures and zero
+108-workload parity run also passed with zero correctness failures and zero
 parity violations; the warm predicate and algebraic-assumption rows were
 all at or below the SymPy 1.14.0 median in the recorded run on 2026-08-12.
 The warm `number_predicate` and `algebraic_predicate` ratios were 0.32× and
@@ -332,7 +336,7 @@ cold/warm respectively; the waived `domain_factorial_value` rows were
 5.25×/3.25× cold/warm; the waived `domain_factorial_large` rows were
 5.57×/3.57× cold/warm; `free_symbols` was 0.236×/0.054× cold/warm;
 `subs_simultaneous` was 0.330×/0.370× cold/warm; `subs_mapping` was
-0.575×/0.276× cold/warm.
+0.575×/0.276× cold/warm; `xreplace` was 0.227×/0.590× cold/warm.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
 text validation, FLINT reconstruction, the exact operation, canonical

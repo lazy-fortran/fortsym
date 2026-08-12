@@ -145,7 +145,9 @@ the solver iteration that found the solution never enters the derivative.
 **Substitute structurally.** `subs(expression, old, new)` replaces a symbol or
 an arbitrary subexpression. `subs_many(expression, old, new)` applies all
 pairwise replacements simultaneously, so swaps and coupled governing-equation
-substitutions do not cascade through replacement expressions.
+substitutions do not cascade through replacement expressions. The
+`fortsym.sympy` compatibility layer also provides exact-node `Expr.xreplace`;
+it does not perform a final expansion.
 
 **Solve exact dense rational systems.** `solve_exact_linear_system` accepts an
 `expr_t` coefficient matrix and one or more right-hand sides. It uses

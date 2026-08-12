@@ -312,6 +312,30 @@ class SympyDifferentialTest(unittest.TestCase):
                     "unordered mapping substitution", expected, actual
                 )
 
+    def test_xreplace_matches_oracle(self):
+        def cases(api):
+            x, y, z = api.symbols(
+                "xreplace_x xreplace_y xreplace_z"
+            )
+            f = api.Function("xreplace_f")
+            return [
+                (f(x), {x: y}),
+                (x**2 + x, {x**2: y}),
+                (f(x + y), {x + y: z, y: x + y}),
+                ((x + 1)**2, {x: x + 1}),
+            ]
+
+        oracle_cases = cases(oracle)
+        native_cases = cases(native)
+        for index, ((oracle_expression, oracle_mapping),
+                    (native_expression, native_mapping)) in enumerate(
+                        zip(oracle_cases, native_cases)
+                    ):
+            with self.subTest(index=index):
+                expected = oracle_expression.xreplace(oracle_mapping)
+                actual = native_expression.xreplace(native_mapping)
+                self.assert_equivalent("xreplace", expected, actual)
+
     def test_free_symbols_matches_oracle(self):
         def names(api, expression):
             if api is oracle:

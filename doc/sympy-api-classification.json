@@ -7817,12 +7817,12 @@
   "source_inventory": "doc/sympy-api-inventory.json",
   "summary": {
     "classification_counts": {
-      "delegated": 2492,
+      "delegated": 2495,
       "external": 10,
       "facade": 184,
-      "native": 3155,
-      "python-adapter": 2448,
-      "refused": 25346
+      "native": 3158,
+      "python-adapter": 2451,
+      "refused": 25343
     },
     "fortran_public_exports": 751,
     "sympy": {
@@ -36932,12 +36932,14 @@
       {
         "class_id": "sympy.core.expr.Expr",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.core.expr.Expr.diff",
         "name": "diff",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.core.expr.Expr",
@@ -36962,12 +36964,14 @@
       {
         "class_id": "sympy.core.expr.Expr",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.core.expr.Expr.expand",
         "name": "expand",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.core.expr.Expr",
@@ -37002,12 +37006,14 @@
       {
         "class_id": "sympy.core.expr.Expr",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.core.expr.Expr.factor",
         "name": "factor",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.core.expr.Expr",

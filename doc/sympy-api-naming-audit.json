@@ -342,9 +342,9 @@
       ]
     },
     {
-      "action": "Keep structural substitution in fortsym_subs and expose only its concise single-pair and explicit paired-sequence spellings from the facade.",
+      "action": "Keep structural substitution in fortsym_subs, expose only its concise single-pair and explicit paired-sequence spellings from the native facade, and keep xreplace at the SymPy adapter boundary.",
       "description": "Replace expressions.",
-      "finding": "The native facade forwards both substitution shapes from the single owning module; the Python adapter applies SymPy's unordered mapping order and maps only the simultaneous option at the boundary.",
+      "finding": "The native facade forwards both substitution shapes from the single owning module; the Python adapter applies SymPy's unordered mapping order and maps the simultaneous and exact-node options at the boundary.",
       "fortran_facade": [
         "subs",
         "subs_many"
@@ -356,7 +356,8 @@
       ],
       "sympy_adapter": [
         "subs",
-        "Subs"
+        "Subs",
+        "xreplace"
       ],
       "sympy_reference": [
         "Expr",
@@ -1560,6 +1561,9 @@
       "acosh",
       "apart",
       "arg",
+      "args",
+      "argument",
+      "arity",
       "asin",
       "asinh",
       "ask",
@@ -1571,6 +1575,7 @@
       "besselj",
       "cancel",
       "ceiling",
+      "close",
       "collect",
       "conjugate",
       "cos",
@@ -1579,23 +1584,41 @@
       "count_ops",
       "csch",
       "diff",
+      "doit",
       "erf",
       "erfc",
+      "exact_text",
       "exp",
       "expand",
       "expand_complex",
       "factor",
       "factorial",
       "floor",
+      "free_symbols",
       "gamma",
       "im",
       "integrate",
+      "is_algebraic",
+      "is_integer",
+      "is_negative",
+      "is_nonnegative",
+      "is_nonpositive",
+      "is_nonzero",
+      "is_number",
+      "is_positive",
+      "is_rational",
+      "is_real",
+      "is_zero",
+      "kind",
       "legendre",
       "limit",
       "log",
       "loggamma",
+      "name",
       "nan",
+      "node_count",
       "oo",
+      "operation_count",
       "pi",
       "re",
       "refine",
@@ -1613,6 +1636,7 @@
       "tan",
       "tanh",
       "together",
+      "xreplace",
       "zoo"
     ]
   },
@@ -1631,11 +1655,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 177,
+    "assigned_names": 178,
     "concept_groups": 31,
     "fortran_facade_exports": 139,
     "python_facade_exports": 15,
-    "sympy_adapter_exports": 85,
+    "sympy_adapter_exports": 108,
     "unmapped_fortran_exports": 1
   },
   "sympy_version": "1.14.0",

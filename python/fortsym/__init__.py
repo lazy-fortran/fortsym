@@ -609,7 +609,7 @@ class Expr:
         finally:
             result.close()
 
-    def _subs_many(self, old, new):
+    def _subs_many_raw(self, old, new):
         if len(old) != len(new):
             raise ValueError("old and new replacement sequences differ in size")
         if not old:
@@ -643,13 +643,28 @@ class Expr:
             )
             if status:
                 raise FortSymError(status, _decode(message), "substitute_many")
-            result = Expr(self._arena, output)
-            expanded = result.expand()
-            result.close()
-            return expanded
+            return Expr(self._arena, output)
         finally:
             for temporary in temporaries:
                 temporary.close()
+
+    def _subs_many(self, old, new):
+        result = self._subs_many_raw(old, new)
+        if result is self:
+            return result
+        try:
+            return result.expand()
+        finally:
+            result.close()
+
+    def xreplace(self, substitutions):
+        if not isinstance(substitutions, dict):
+            raise TypeError("xreplace expects a mapping")
+        if not substitutions:
+            return self
+        return self._subs_many_raw(
+            tuple(substitutions), tuple(substitutions.values())
+        )
 
     def diff(self, variable):
         variable = self._arena._check(variable)
