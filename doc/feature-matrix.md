@@ -10,6 +10,10 @@ Status values are `yes`, `partial`, and `no`. `Partial` means that the public
 operation handles a stated fragment or that only one concrete backend exposes
 it.
 
+Chart topology metadata is an explicit partial capability: native fixed-3D
+charts can retain a declared `patch_t`, and the Python `Chart`/`CoordSystem`
+facades carry the matching `Patch`; topology is never inferred from expressions.
+
 | Area | Native | SymEngine backend | Other backends | Required next fragment |
 |---|---:|---:|---:|---|
 | Hash-consed scalar expression DAG | stable structural order | conversion | conversion | persist a versioned cross-process structural digest |

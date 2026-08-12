@@ -255,6 +255,9 @@ class CoordSystem:
         if chart is not None:
             if not isinstance(chart, Chart):
                 raise TypeError("chart must be a native fortsym Chart")
+            if chart.patch is not None and chart.patch is not patch:
+                raise ValueError("chart belongs to another coordinate patch")
+            chart.patch = patch
             self._chart = chart
             self._arena = chart._arena
             self._coordinates = tuple(chart.coordinates)
@@ -279,7 +282,7 @@ class CoordSystem:
             if position is None:
                 position = self._coordinates
             position = tuple(_native(value) for value in position)
-            self._chart = Chart(self._coordinates, position)
+            self._chart = Chart(self._coordinates, position, patch=self.patch)
 
         self._chart._diffgeom_system = self
         self.symbols = tuple(

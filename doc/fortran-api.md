@@ -12,8 +12,12 @@ metric calculus. `manifold_create(name, dimension, has_boundary,
 simply_connected)` and `patch_create(manifold, name, open_domain, has_boundary,
 simply_connected)` create value-semantic metadata owners; the corresponding
 queries expose the declaration without attempting to infer topology from a
-chart. The Python `fortsym.sympy.Manifold`/`Patch` compatibility names carry
-the same flags for the fixed-three-dimensional diffgeom subset.
+chart. `chart_create_on_patch(a, patch, u, x)` explicitly attaches a valid
+three-dimensional patch to a `chart_t`; `chart_has_patch`, `chart_patch`, and
+`chart_valid` expose and validate that relationship. The Python
+`fortsym.sympy.Manifold`/`Patch` compatibility names carry the same flags, and
+`Chart(..., patch=patch)`/`CoordSystem(name, patch)` retain the declaration in
+the fixed-three-dimensional diffgeom subset.
 
 Symbol names follow one rule: name the symbol as you would name the Fortran
 variable, using the spelling that the printer reads. Names such as `varphi_2`,
