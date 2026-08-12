@@ -1818,6 +1818,11 @@ between the two-dimensional gradient, scalar curl, and divergence.
     diagnostics, measured at 5.07x and 3.43x SymPy respectively in the
     recorded run; the 54 core rows remain enforced with zero unwaived
     violations.
+  - [x] Make native expansion reuse arena-sized memo workspaces and skip the
+    redundant second expand/simplify pass when the first result is already in
+    expanded form. The independent numerical expansion checks remain green;
+    the matched `expand_power` cold row fell from 1.36 ms to 0.835 ms in the
+    2026-08-12 diagnostic run (about 2.8x SymEngine and 38% less native time).
   - [x] Add the exact `log(i)`/`log(-i)` branch points to the correctness and
     performance matrix. Their cold and warm rows are enforced and measured at
     0.016x and 0.053x SymPy; the 58 substantive rows remain enforced with
