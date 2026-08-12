@@ -570,8 +570,11 @@ Every checklist item requires all of the following:
       SymPy-compatible `exclude` and `properties` filters.
     - [x] Add bounded single-Wild additive and multiplicative remainder
       matching at expression roots, including repeated-Wild scalar remainders;
-      multi-Wild commutative partitioning and broader recursive matcher rules
-      remain open.
+      broader recursive matcher rules remain open.
+    - [x] Add bounded distinct-Wild additive and multiplicative root
+      partitioning with fixed direct factors and identity bindings; weighted
+      coefficient solving and broader recursive matcher rules remain open. The
+      bounded partitioner accepts at most three distinct direct Wild nodes.
 
 ## Phase 4 — polynomial and rational algebra
 
@@ -825,7 +828,11 @@ Every checklist item requires all of the following:
     warm, with zero correctness failures and zero unwaived violations.
   - [x] Add bounded single-Wild commutative remainder correctness and
     performance coverage. The 116-row matrix measured native/SymPy ratios of
-    0.799x cold and 0.017x warm, with 100 correctness cases, zero correctness
+    0.357x cold and 0.0042x warm on a 25-term additive remainder, with 100
+    correctness cases, zero correctness failures, and zero unwaived violations.
+  - [x] Add bounded distinct-Wild commutative partition correctness and
+    performance coverage. The 118-row matrix measured native/SymPy ratios of
+    0.459x cold and 0.0050x warm, with 101 correctness cases, zero correctness
     failures, and zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.

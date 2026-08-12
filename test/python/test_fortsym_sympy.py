@@ -129,6 +129,45 @@ class SympySubsetTest(unittest.TestCase):
         })
         self.assertIsNone((x + y).match(x + integer))
 
+    def test_match_supports_bounded_commutative_partitions(self):
+        x, y, z = sp.symbols("partition_x partition_y partition_z")
+        a = sp.Wild("partition_a")
+        b = sp.Wild("partition_b")
+        c = sp.Wild("partition_c")
+        self.assertEqual((x + y).match(a + b), {a: x, b: y})
+        self.assertEqual((x + y + z).match(a + b), {
+            a: x + y, b: z,
+        })
+        self.assertEqual((x + y + z).match(x + a + b), {
+            a: y, b: z,
+        })
+        self.assertEqual((x + y + z).match(a + b + c), {
+            a: x, b: y, c: z,
+        })
+        self.assertEqual((x + y + 1).match(a + b), {
+            a: x + 1, b: y,
+        })
+        self.assertEqual((x * y).match(a * b), {a: x, b: y})
+        self.assertEqual((2*x*y).match(x*a*b), {
+            a: sp.Integer(2), b: y,
+        })
+        self.assertEqual(x.match(a + b), {
+            a: sp.Integer(0), b: x,
+        })
+        self.assertEqual(x.match(a * b), {
+            a: sp.Integer(1), b: x,
+        })
+        d = sp.Wild("partition_d")
+        self.assertIsNone((x + y).match(a + b + c + d))
+        self.assertIsNone((x * y).match(a + b))
+        self.assertEqual((x + y).match(a * b), {
+            a: sp.Integer(1), b: x + y,
+        })
+        f = sp.Function("partition_f")
+        self.assertEqual(f(x + y).match(f(a + b)), {
+            a: x, b: y,
+        })
+
     def test_refusal_and_truth_contract(self):
         self.assertFalse(bool(sp.Integer(0)))
         with self.assertRaises(TypeError):
