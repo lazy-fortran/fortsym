@@ -95,6 +95,15 @@ class SympySubsetTest(unittest.TestCase):
             )),
             oracle.Matrix((1, 2, 3)),
         )
+        density = vector.density(1)
+        self.assertEqual(density.variance, (1,))
+        self.assertEqual(density.density_weight, 1)
+        self.assertEqual(
+            tuple(density[index].simplify() for index in range(3)),
+            (1, 2, 3),
+        )
+        self.assertEqual(chart.vector((1, 2, 3)).variance, (1,))
+        self.assertEqual(chart.covector((1, 2, 3)).variance, (-1,))
 
         left_handed = sp.Chart((u, v, w), (-u, v, w))
         self.assertEqual(left_handed.jacobian().simplify(), -1)
