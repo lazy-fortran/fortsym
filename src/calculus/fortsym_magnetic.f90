@@ -8,7 +8,8 @@ module fortsym_magnetic
     ! and sqrt(g) B^i distinct without coupling the generic expression arena to
     ! a plasma equilibrium package.
     use, intrinsic :: iso_fortran_env, only: int64
-    use fortsym_chart, only: chart_t, DIM, curl, metric_covariant, sqrtg
+    use fortsym_chart, only: chart_t, DIM, curl, metric_covariant, &
+        metric_contravariant, sqrtg
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, i_expr, num, is_valid, operator(+), &
         operator(-), operator(*), operator(/)
@@ -18,7 +19,8 @@ module fortsym_magnetic
 
     public :: magnetic_field_t, magnetic_field, magnetic_upper, magnetic_lower
     public :: magnetic_density
-    public :: b_con, b_cov, b_density, b_fourier, b_fourier_density, j_fourier
+    public :: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
+        b_fourier_density, j_fourier
 
     type :: magnetic_field_t
         type(tensor_t) :: upper
@@ -126,6 +128,68 @@ contains
         value(2) = volume*contravariant(2)
         value(3) = volume*contravariant(3)
     end function b_density
+
+    !> Covariant magnetic field intensity from a reluctivity map.
+    !>
+    !> The constitutive convention is explicit and coordinate based:
+    !> H_i = nu_ij B^j.  The supplied reluctivity therefore maps a
+    !> contravariant magnetic vector to a covector; index raising is kept in
+    !> the separate h_con owner below.  This is also the convention used by
+    !> the Fourier constitutive reduction.
+    function h_cov(c, reluctivity, contravariant) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: reluctivity(DIM, DIM)
+        type(expr_t), intent(in) :: contravariant(DIM)
+        type(expr_t) :: value(DIM)
+        integer :: i, j
+
+        if (.not. associated(c%a)) return
+        do i = 1, DIM
+            if (.not. is_valid(contravariant(i))) return
+            if (.not. associated(contravariant(i)%a, c%a)) return
+            do j = 1, DIM
+                if (.not. is_valid(reluctivity(i, j))) return
+                if (.not. associated(reluctivity(i, j)%a, c%a)) return
+            end do
+        end do
+
+        value = num(c%a, 0)
+        do i = 1, DIM
+            value(i) = reluctivity(i, 1)*contravariant(1)
+            do j = 2, DIM
+                value(i) = value(i) + reluctivity(i, j)*contravariant(j)
+            end do
+        end do
+    end function h_cov
+
+    !> Contravariant magnetic field intensity H^i from covariant H_i.
+    !>
+    !> This is the metric raising operation H^i = g^ij H_j.  It deliberately
+    !> accepts H_i rather than reluctivity and B again, so constitutive
+    !> evaluation and index conversion remain composable single-responsibility
+    !> operations.
+    function h_con(c, covariant) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: covariant(DIM)
+        type(expr_t) :: value(DIM)
+        type(expr_t) :: inverse(DIM, DIM)
+        integer :: i, j
+
+        if (.not. associated(c%a)) return
+        do i = 1, DIM
+            if (.not. is_valid(covariant(i))) return
+            if (.not. associated(covariant(i)%a, c%a)) return
+        end do
+
+        inverse = metric_contravariant(c)
+        value = num(c%a, 0)
+        do i = 1, DIM
+            value(i) = inverse(i, 1)*covariant(1)
+            do j = 2, DIM
+                value(i) = value(i) + inverse(i, j)*covariant(j)
+            end do
+        end do
+    end function h_con
 
     !> Contravariant Fourier-mode curl for a symmetry coordinate u^3.
     !>

@@ -1397,7 +1397,7 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   and full connection reuse remain open.
 - [x] Extend the dimension-aware relativity owner with metric `flat`/`sharp`,
   contravariant gradient, divergence, and Laplace--Beltrami/wave operator,
-  transported through the Fortran facade, C ABI 50, and Python
+  transported through the Fortran facade, C ABI 51, and Python
   `SpacetimeMetric`. Minkowski tests cover `sharp(flat(v))`, variance metadata,
   the signed gradient, divergence, and the linear-scalar wave identity;
   curved-space and arbitrary-dimensional tensor transport remain open.
@@ -1515,8 +1515,9 @@ without an explicit volume factor.
   `B_density`, reciprocal bases, `sqrtg`, and the Fourier-mode curl and density
   used by `paper_magnetic`. The spelling is concise in Fortran and maps to
   clear SymPy names in Python.
-- [ ] Add `H_cov` and `H_con` conversions, field-line derivatives, magnetic
-  surfaces, flux-surface averages, and
+- [x] Add `H_cov` and `H_con` conversions with the explicit constitutive
+  convention `H_i = nu_ij B^j` and metric raising `H^i = g^ij H_j`.
+- [ ] Add field-line derivatives, magnetic surfaces, flux-surface averages, and
   Jacobian-weighted divergence.
 - [x] Provide metric contraction for `B**2` through the shared `metric_inner`
   owner.

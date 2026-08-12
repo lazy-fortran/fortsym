@@ -73,7 +73,7 @@ module fortsym
         covariant_divergence, geodesic_residual, christoffel_tensor, riemann_tensor, &
         first_bianchi_residual, second_bianchi_residual, ricci_tensor, scalar_curvature, &
         einstein_tensor
-    use fortsym_magnetic, only: b_con, b_cov, b_density, b_fourier, &
+    use fortsym_magnetic, only: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
         b_fourier_density, j_fourier
     use fortsym_magnetic_weak, only: fourier_constitutive, &
         fourier_constitutive_t, fourier_weak_form, fourier_weak_form_t, &
@@ -164,7 +164,7 @@ module fortsym
         grad, divergence, curl, laplacian, chart_map_t, chart_map_create, compose_maps, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form, &
         pullback, b_con, &
-        b_cov, b_density, b_fourier, b_fourier_density, j_fourier, &
+        b_cov, b_density, h_cov, h_con, b_fourier, b_fourier_density, j_fourier, &
         fourier_constitutive, fourier_constitutive_t, fourier_weak_form, &
         fourier_weak_form_t, current_compatibility, nubar, &
         fourier_constitutive_valid, fourier_weak_form_valid, FOURIER_INVALID, &

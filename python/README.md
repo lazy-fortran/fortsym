@@ -48,6 +48,10 @@ three-component contravariant vector. `Metric.inner(left, right)` contracts
 contravariant components with the metric, and `Metric.norm_squared(vector)`
 is its self-contraction convenience for quantities such as `B**2`; both use
 the same native nonorthogonal-metric path.
+`Chart.h_cov(reluctivity, vector)` applies `H_i = nu_ij B^j`, and
+`Chart.h_con(covariant)` raises `H_i` with the chart metric.
+`MagneticField.h_cov()` and `.h_con()` provide typed covariant and
+contravariant `H` views from its `B^i` view.
 `SpacetimeMetric` is the dimension-aware four-coordinate facade for the
 relativity owner. It exposes `sqrtg()`, inverse metric, Christoffel, Riemann,
 Ricci, scalar curvature, Einstein, and second-Bianchi views using the same native expression

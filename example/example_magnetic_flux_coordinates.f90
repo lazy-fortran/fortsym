@@ -11,7 +11,8 @@ program example_magnetic_flux_coordinates
     type(chart_t) :: flux_chart
     type(expr_t) :: coordinates(DIM), position(DIM), potential(DIM)
     type(expr_t) :: psi, theta, phi, major_radius, minor_radius
-    type(expr_t) :: radial, b(DIM), volume_density, expected
+    type(expr_t) :: radial, b(DIM), b_lower(DIM), volume_density, expected
+    type(expr_t) :: reluctivity(DIM, DIM), h_lower(DIM), h_upper(DIM)
     type(form_t) :: potential_form, flux_form, closed_form
     type(engine_result_t) :: checked
     integer :: mask
@@ -35,6 +36,10 @@ program example_magnetic_flux_coordinates
     potential = num(arena, 0)
     potential(3) = psi
     b = b_con(flux_chart, potential)
+    b_lower = b_cov(flux_chart, b)
+    reluctivity = metric_covariant(flux_chart)
+    h_lower = h_cov(flux_chart, reluctivity, b)
+    h_upper = h_con(flux_chart, h_lower)
     volume_density = jacobian(flux_chart)
     expected = -minor_radius**2*(major_radius + minor_radius*radial*cos(theta))/2
     call assert_zero(volume_density - expected, "toroidal flux-coordinate Jacobian")
@@ -42,6 +47,12 @@ program example_magnetic_flux_coordinates
     call assert_zero(b(2)*volume_density + 1, &
         "A=psi dphi gives B^theta=-1/J")
     call assert_zero(divergence(flux_chart, b), "div B = 0")
+    call assert_zero(h_lower(1) - b_lower(1), "H_i = g_ij B^j, component 1")
+    call assert_zero(h_lower(2) - b_lower(2), "H_i = g_ij B^j, component 2")
+    call assert_zero(h_lower(3) - b_lower(3), "H_i = g_ij B^j, component 3")
+    call assert_zero(h_upper(1) - b(1), "H^i raises back to B^i, component 1")
+    call assert_zero(h_upper(2) - b(2), "H^i raises back to B^i, component 2")
+    call assert_zero(h_upper(3) - b(3), "H^i raises back to B^i, component 3")
 
     potential_form = form_one(flux_chart, potential)
     flux_form = d(flux_chart, potential_form)
@@ -57,6 +68,7 @@ program example_magnetic_flux_coordinates
     print '(a)', "  surfaces: psi = constant, B^psi = 0"
     print '(a,a)', "  signed J = ", chars(print_expr(expected))
     print '(a)', "  A = psi dphi,  i_B(volume) = dA,  d(dA) = 0"
+    print '(a)', "  nu_ij = g_ij: H_i = B_i and H^i = B^i"
 
 contains
 

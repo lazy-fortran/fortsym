@@ -69,6 +69,10 @@ accept either an integer mode or an expression mode, so a paper derivation can
 use a literal mode while a symbolic check keeps `n` in the expression tree.
 `magnetic_field_t` packages `B^i`, `B_i`, and `sqrtg B^i` as typed tensor
 views with variance and density weight retained across the three representations.
+`h_cov(chart, reluctivity, B_con)` applies the explicit constitutive convention
+`H_i = nu_ij B^j`; `h_con(chart, H_cov)` raises that covector with `g^ij`.
+The two operations are intentionally separate, so anisotropic material data
+and metric index conversion remain independently reusable.
 The chart also owns `grad`, `divergence`, `curl`, and `laplacian`; `curl` takes
 covector components and returns contravariant components.
 

@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 50). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 51). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -34,6 +34,9 @@ chart connection before returning the residual.
 three-valued zero verdict for every coefficient of `d(form)`.
 `fortsym_chart_b_density` exposes the native `sqrtg B^i` magnetic view alongside
 `fortsym_chart_b_cov`; both consume the same native magnetic owner.
+`fortsym_chart_h_cov` applies `H_i = nu_ij B^j` to a 3x3 reluctivity and a
+contravariant magnetic vector, while `fortsym_chart_h_con` raises the resulting
+covector with the chart metric.
 The form boundary also accepts the explicit degree-four zero extension produced
 by `d` of a three-form; any degree-four input with a nonzero component is
 rejected.
