@@ -100,6 +100,8 @@ weak = chart.fourier_weak_form(
 assert weak.branch_name == "transverse"
 g = chart.metric_covariant()
 dg = g.covariant_diff()
+v_density = chart.vector((Z, R, phi), density_weight=1)
+divergence = v_density.covariant_divergence()
 R = chart.riemann()
 scalar_R = chart.scalar_curvature()
 x, y, z = sp.symbols("x y z")

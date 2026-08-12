@@ -24,13 +24,13 @@ module fortsym_connection
     use fortsym_tensor, only: tensor_t, MAX_RANK, UPPER, LOWER_VARIANCE, &
         tensor_from_components, tensor_from_matrix, tensor_from_arena, tensor_component, &
         tensor_rank, tensor_variance, tensor_density_weight, tensor_valid, &
-        tensor_same_arena
+        tensor_same_arena, contract_slots
     implicit none
     private
 
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
 
-    public :: covariant_diff, covariant_derivative
+    public :: covariant_diff, covariant_derivative, covariant_divergence
     public :: christoffel_tensor, riemann_tensor, ricci_tensor
     public :: scalar_curvature, einstein_tensor
 
@@ -43,6 +43,11 @@ module fortsym_connection
         module procedure covariant_derivative_chart
         module procedure covariant_derivative_metric
     end interface covariant_derivative
+
+    interface covariant_divergence
+        module procedure covariant_divergence_chart
+        module procedure covariant_divergence_metric
+    end interface covariant_divergence
 
     interface christoffel_tensor
         module procedure christoffel_tensor_chart
@@ -119,6 +124,40 @@ contains
 
         result = covariant_diff_metric(g, tensor_value)
     end function covariant_derivative_metric
+
+    !> Contract the first contravariant slot with the appended derivative
+    !> slot. This is the physicists' divergence convention for a typed tensor.
+    function covariant_divergence_chart(c, tensor_value) result(result)
+        type(chart_t), intent(in) :: c
+        type(tensor_t), intent(in) :: tensor_value
+        type(tensor_t) :: result, differentiated
+        integer :: rank
+
+        if (.not. associated(c%a)) return
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. tensor_same_arena(tensor_value, c)) return
+        rank = tensor_rank(tensor_value)
+        if (rank < 1) return
+        if (tensor_variance(tensor_value, 1) /= UPPER) return
+        differentiated = covariant_diff_chart(c, tensor_value)
+        result = contract_slots(differentiated, 1, rank + 1)
+    end function covariant_divergence_chart
+
+    !> Metric-owner overload of the same first-slot divergence convention.
+    function covariant_divergence_metric(g, tensor_value) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t), intent(in) :: tensor_value
+        type(tensor_t) :: result, differentiated
+        integer :: rank
+
+        if (.not. metric_same_arena(g, tensor_value%a)) return
+        if (.not. tensor_valid(tensor_value)) return
+        rank = tensor_rank(tensor_value)
+        if (rank < 1) return
+        if (tensor_variance(tensor_value, 1) /= UPPER) return
+        differentiated = covariant_diff_metric(g, tensor_value)
+        result = contract_slots(differentiated, 1, rank + 1)
+    end function covariant_divergence_metric
 
     function covariant_diff_components(a, coordinates, gamma, tensor_value) &
             result(result)

@@ -116,6 +116,14 @@ class NativePackageTest(unittest.TestCase):
             self.assertEqual(metric_derivative.rank, 3)
             self.assertEqual(metric_derivative[0, 1, 1].simplify(), 0)
 
+            density_vector = chart.vector((z, r, phi), density_weight=1)
+            density_divergence = density_vector.covariant_divergence()
+            self.assertEqual(density_divergence.rank, 0)
+            self.assertEqual(
+                density_divergence.component().simplify(),
+                chart.div_density((z, r, phi)).simplify(),
+            )
+
             cartesian = fortsym.Chart(
                 (z, r, phi), (z, r, phi)
             )

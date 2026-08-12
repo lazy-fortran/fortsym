@@ -596,6 +596,12 @@ def _configure(lib):
          ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
          ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_covariant_divergence = declare(
+        "fortsym_chart_covariant_divergence", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+         ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     tensor_metric_arguments = [
         _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
@@ -1508,6 +1514,25 @@ class Arena:
             raise FortSymError(status, _decode(message), "covariant_diff")
         return tuple(Expr(self, output[index]) for index in range(output_count))
 
+    def _chart_covariant_divergence(self, chart, tensor):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        component_handles = (_CVOID * len(tensor.components))(
+            *[self._check(value)._handle for value in tensor.components]
+        )
+        variance_values = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output = (_CVOID * (3 ** (tensor.rank - 1)))()
+        message = _message()
+        status = self._lib.chart_covariant_divergence(
+            self._require(), coordinate_handles, position_handles,
+            component_handles, tensor.rank, variance_values,
+            tensor.density_weight, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "covariant_divergence")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
     def _chart_tensor_metric(self, operation, chart, tensor, slot):
         coordinate_handles, position_handles = self._chart_inputs(
             chart.coordinates, chart.position
@@ -2034,6 +2059,17 @@ class Chart:
         components = self._arena._chart_covariant_diff(self, tensor)
         return Tensor(
             self, components, tensor.variance + (-1,), tensor.density_weight,
+            _owned=True,
+        )
+
+    def covariant_divergence(self, tensor):
+        if not isinstance(tensor, Tensor) or tensor.chart is not self:
+            raise ValueError("covariant_divergence expects a tensor from this chart")
+        if tensor.rank < 1 or tensor.variance[0] != 1:
+            raise ValueError("covariant_divergence requires a contravariant first slot")
+        components = self._arena._chart_covariant_divergence(self, tensor)
+        return Tensor(
+            self, components, tensor.variance[1:], tensor.density_weight,
             _owned=True,
         )
 
@@ -2898,6 +2934,11 @@ class Tensor:
         return self.chart.covariant_diff(self)
 
     covariant_derivative = covariant_diff
+
+    def covariant_divergence(self):
+        return self.chart.covariant_divergence(self)
+
+    divergence = covariant_divergence
 
     def raise_(self, slot=0):
         """Raise one covariant slot with this tensor's chart metric."""
