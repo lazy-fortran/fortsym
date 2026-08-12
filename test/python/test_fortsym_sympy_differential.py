@@ -336,6 +336,41 @@ class SympyDifferentialTest(unittest.TestCase):
                 actual = native_expression.xreplace(native_mapping)
                 self.assert_equivalent("xreplace", expected, actual)
 
+    def test_replace_matches_oracle(self):
+        def normalized(result):
+            if isinstance(result, tuple):
+                expression, replacements = result
+                return str(expression), {
+                    str(key): str(value)
+                    for key, value in replacements.items()
+                }
+            return str(result)
+
+        def cases(api):
+            x, y, z = api.symbols("replace_x replace_y replace_z")
+            f = api.Function("replace_f")
+            return [
+                (f(x) + x, x, y, {}),
+                (f(x) + x, x, y, {"map": True}),
+                (x + 1, x + 1, z, {"exact": False}),
+                (x + 1, z, y, {"map": True}),
+            ]
+
+        oracle_cases = cases(oracle)
+        native_cases = cases(native)
+        for index, (oracle_case, native_case) in enumerate(
+                zip(oracle_cases, native_cases)):
+            with self.subTest(index=index):
+                oracle_expression, oracle_query, oracle_value, options = oracle_case
+                native_expression, native_query, native_value, _ = native_case
+                expected = oracle_expression.replace(
+                    oracle_query, oracle_value, **options
+                )
+                actual = native_expression.replace(
+                    native_query, native_value, **options
+                )
+                self.assertEqual(normalized(actual), normalized(expected))
+
     def test_exact_match_matches_oracle(self):
         def cases(api):
             x, y = api.symbols("match_x match_y")

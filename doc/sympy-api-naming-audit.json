@@ -342,9 +342,9 @@
       ]
     },
     {
-      "action": "Keep structural substitution in fortsym_subs, expose only its concise single-pair and explicit paired-sequence spellings from the native facade, and keep xreplace, exact match, and Wild at the SymPy adapter boundary.",
+      "action": "Keep structural substitution in fortsym_subs, expose only its concise single-pair and explicit paired-sequence spellings from the native facade, and keep xreplace, replace, exact match, and Wild at the SymPy adapter boundary.",
       "description": "Replace expressions.",
-      "finding": "The native facade forwards both substitution shapes from the single owning module; the Python adapter applies SymPy's unordered mapping order and maps the simultaneous, exact-node, exact-match, and bounded-Wild boundaries.",
+      "finding": "The native facade forwards both substitution shapes from the single owning module; the Python adapter applies SymPy's unordered mapping order and maps the simultaneous, exact-node, exact-replace, exact-match, and bounded-Wild boundaries.",
       "fortran_facade": [
         "subs",
         "subs_many"
@@ -358,6 +358,7 @@
         "subs",
         "Subs",
         "xreplace",
+        "replace",
         "match",
         "Wild"
       ],
@@ -1592,6 +1593,7 @@
       "erf",
       "erfc",
       "exact_text",
+      "exclude",
       "exp",
       "expand",
       "expand_complex",
@@ -1612,6 +1614,7 @@
       "is_positive",
       "is_rational",
       "is_real",
+      "is_symbol",
       "is_zero",
       "kind",
       "legendre",
@@ -1625,8 +1628,10 @@
       "oo",
       "operation_count",
       "pi",
+      "properties",
       "re",
       "refine",
+      "replace",
       "sech",
       "series",
       "sign",
@@ -1660,11 +1665,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 180,
+    "assigned_names": 181,
     "concept_groups": 31,
     "fortran_facade_exports": 139,
     "python_facade_exports": 15,
-    "sympy_adapter_exports": 110,
+    "sympy_adapter_exports": 114,
     "unmapped_fortran_exports": 1
   },
   "sympy_version": "1.14.0",

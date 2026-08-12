@@ -313,7 +313,7 @@ also caches up to eight identity-checked, non-cascading mapping results per
 expression and assumption epoch.
 The matched differentiation diagnostic after that cache was added measured
 native/SymPy ratios of about 0.14 cold and 0.06 warm; the remaining full-suite
-112-workload parity run also passed with zero correctness failures and zero
+114-workload parity run also passed with zero correctness failures and zero
 parity violations; the warm predicate and algebraic-assumption rows were
 all at or below the SymPy 1.14.0 median in the recorded run on 2026-08-12.
 The warm `number_predicate` and `algebraic_predicate` ratios were 0.32× and
@@ -344,7 +344,10 @@ non-wildcard `match` was 0.699×/0.526× cold/warm.
 The bounded direct-`Wild` workload adds two correctness-checked rows; its cold
 and warm ratios were 0.698× and 0.503× SymPy, so both rows remain enforced. The
 latest matrix therefore has 112 rows, 96 enforced rows, and zero unwaived
-violations.
+violations. The exact non-wildcard `replace` workload adds two more
+correctness-checked rows; its cold and warm ratios were 0.716× and 0.029×
+SymPy, so both rows remain enforced. The latest matrix therefore has 114 rows,
+98 enforced rows, and zero unwaived violations.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
 text validation, FLINT reconstruction, the exact operation, canonical
