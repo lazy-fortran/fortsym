@@ -73,7 +73,7 @@ points, exact `log(0)`, exact negative-real `log`, exact `log(±i)` branch
 points, exact `atanh(1)`/`atanh(-1)`, exact `atanh(±i)` and `atan(±i)` branch
 points, exact `acosh(0)`, `acosh(-1)`, `acosh(±i)`, `asin(±i)`, and
 `acos(±i)`, exact real unit-circle `asin`/`acos` values, exact real tangent
-`atan` values, gamma-family domain-head
+`atan` values, exact real `asinh(±1)` values, gamma-family domain-head
 simplification, inverse domain-head
 simplification, and reciprocal-hyperbolic domain-head simplification embedded
 in a symbolic fourth-degree expression, directed-infinity `atan2` domain-head
@@ -165,13 +165,17 @@ zero unwaived violations before the real tangent row is added. The
 `domain_atan_special` cold and warm rows are enforced because the native exact
 branch rewrite is faster than SymPy: the recorded ratios were 0.029x and
 0.043x. The matrix has 82 rows, 76 enforced rows, and zero unwaived violations
-before the negative-square-root rows are added. The
+before the real `asinh` rows are added. The `domain_asinh_real` cold and warm
+rows are enforced because the native exact branch rewrite is faster than SymPy:
+the recorded ratios were 0.008x and 0.008x. The matrix has 84 rows, 78
+enforced rows, and zero unwaived violations before the negative-square-root rows
+are added. The
 `domain_sqrt_negative_square` cold and warm rows are enforced because the
 native principal-root rewrite is faster than SymPy: the recorded ratios were
-0.029x and 0.062x. The final matrix has 84 rows, 78 enforced rows, and zero
+0.029x and 0.062x. The final matrix has 86 rows, 80 enforced rows, and zero
 unwaived violations. The `domain_asinh_imaginary` cold and warm rows are
 enforced because the native exact branch rewrite is faster than SymPy: the
-recorded ratios were 0.018x and 0.051x. The final matrix has 86 rows, 80
+recorded ratios were 0.018x and 0.051x. The final matrix has 88 rows, 82
 enforced rows, and zero unwaived violations.
 
 Run it from a built checkout with:
@@ -270,7 +274,7 @@ result for the same expression until the arena's assumption epoch changes, and
 reuses simplified derivatives for repeated `(expression, variable)` calls.
 The matched differentiation diagnostic after that cache was added measured
 native/SymPy ratios of about 0.14 cold and 0.06 warm; the remaining full-suite
-84-workload parity run also passed with zero correctness failures and zero
+88-workload parity run also passed with zero correctness failures and zero
 parity violations; the warm predicate and algebraic-assumption rows were
 all at or below the SymPy 1.14.0 median in the recorded run on 2026-08-12.
 The warm `number_predicate` and `algebraic_predicate` ratios were 0.32× and
@@ -288,6 +292,7 @@ was 5.34× cold and 4.15× warm; `domain_atanh_imaginary` was 0.014× cold and
 `domain_asin_special` was 0.020× cold and 0.044× warm;
 `domain_acos_special` was 0.020× cold and 0.044× warm;
 `domain_atan_special` was 0.029× cold and 0.043× warm;
+`domain_asinh_real` was 0.008× cold and 0.008× warm;
 `domain_sqrt_negative_square` was 0.029× cold and 0.062× warm.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including

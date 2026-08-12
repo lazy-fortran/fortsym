@@ -566,6 +566,8 @@ class SympyDifferentialTest(unittest.TestCase):
              native.atan(1 / native.sqrt(3))),
             (oracle.atan(-1 / oracle.sqrt(3)),
              native.atan(-1 / native.sqrt(3))),
+            (oracle.asinh(1), native.asinh(1)),
+            (oracle.asinh(-1), native.asinh(-1)),
             (oracle.sqrt(-1), native.sqrt(-1)),
             (oracle.sqrt(-4), native.sqrt(-4)),
             (oracle.sqrt(oracle.Rational(-4, 9)),

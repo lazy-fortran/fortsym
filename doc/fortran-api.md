@@ -135,6 +135,8 @@ The exact principal real unit-circle values are also canonicalized:
 principal angles from `pi/6` through `5*pi/6`.
 The exact real tangent values `atan(±sqrt(3))` and `atan(±1/sqrt(3))` return
 signed `pi/3` and `pi/6`; other exact tangent arguments remain unevaluated.
+The exact real inverse-hyperbolic values `asinh(1)` and `asinh(-1)` are
+canonicalized to `log(sqrt(2) + 1)` and `-log(sqrt(2) + 1)`.
 The exact imaginary branch points `asinh(i)` and `asinh(-i)` are canonicalized
 to `i*pi/2` and `-i*pi/2`; broader complex inverse branches remain unevaluated.
 The reciprocal-hyperbolic heads `csch`, `sech`, and `coth` likewise have
