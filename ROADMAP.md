@@ -1546,8 +1546,11 @@ convention. These are separate typed objects even when a plasma code stores
 only the density because the density is the quantity that differentiates
 without an explicit volume factor.
 
-- [ ] Add `magnetic_chart` and flux-surface metadata without coupling the
-  generic chart or tensor modules to a particular equilibrium code.
+- [x] Add `magnetic_chart_t` and flux-surface metadata without coupling the
+  generic chart or tensor modules to a particular equilibrium code. The owner
+  packages the existing `magnetic_field_t` views and delegates averages to the
+  typed `flux_surface_t` owner; the C ABI remains unchanged because its chart
+  operations already consume the same underlying views.
 - [x] Implement the first native magnetic views: `B_cov`, `B_con`,
   `B_density`, reciprocal bases, `sqrtg`, and the Fourier-mode curl and density
   used by `paper_magnetic`. The spelling is concise in Fortran and maps to

@@ -15,12 +15,16 @@ module fortsym_magnetic
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, i_expr, num, pi_expr, is_valid, &
         operator(+), operator(-), operator(*), operator(/)
-    use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, density
+    use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, density, &
+        tensor_valid
     implicit none
     private
 
     public :: magnetic_field_t, magnetic_field, magnetic_upper, magnetic_lower
     public :: magnetic_density
+    public :: magnetic_chart_t, magnetic_chart, magnetic_chart_valid, &
+        magnetic_chart_surface, magnetic_chart_field, magnetic_chart_upper, &
+        magnetic_chart_lower, magnetic_chart_density, magnetic_chart_average
     public :: flux_surface_t, flux_surface, flux_surface_valid, &
         flux_surface_label, flux_surface_measure, flux_surface_average
     public :: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
@@ -46,6 +50,19 @@ module fortsym_magnetic
         logical :: valid = .false.
     end type flux_surface_t
 
+    !> A physicist-facing magnetic coordinate toolkit owner.
+    !>
+    !> The chart and flux-surface metadata remain separate owners; the field
+    !> views are the existing magnetic_field_t representations. This wrapper
+    !> only packages them so a caller cannot accidentally lose the surface
+    !> label while moving between B^i, B_i, and sqrt(g) B^i.
+    type :: magnetic_chart_t
+        type(chart_t) :: chart
+        type(flux_surface_t) :: surface
+        type(magnetic_field_t) :: field
+        logical :: valid = .false.
+    end type magnetic_chart_t
+
     interface b_fourier
         module procedure b_fourier_integer, b_fourier_expression
     end interface b_fourier
@@ -59,6 +76,110 @@ module fortsym_magnetic
     end interface j_fourier
 
 contains
+
+    !> Build one magnetic-coordinate owner from a covariant potential.
+    function magnetic_chart(c, potential, label_index) result(owner)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: potential(DIM)
+        integer, optional, intent(in) :: label_index
+        type(magnetic_chart_t) :: owner
+        integer :: selected_label
+
+        selected_label = 1
+        if (present(label_index)) selected_label = label_index
+        owner%chart = c
+        owner%surface = flux_surface(c, selected_label)
+        owner%field = magnetic_field(c, potential)
+        owner%valid = flux_surface_valid(owner%surface)
+        if (.not. owner%valid) return
+        if (.not. tensor_valid(owner%field%upper)) owner%valid = .false.
+        if (.not. owner%valid) return
+        if (.not. tensor_valid(owner%field%lower)) owner%valid = .false.
+        if (.not. owner%valid) return
+        if (.not. tensor_valid(owner%field%density)) owner%valid = .false.
+    end function magnetic_chart
+
+    !> Check the chart, surface metadata, and all three typed field views.
+    function magnetic_chart_valid(owner) result(valid)
+        type(magnetic_chart_t), intent(in) :: owner
+        logical :: valid
+
+        valid = owner%valid
+        if (.not. valid) return
+        valid = flux_surface_valid(owner%surface)
+        if (.not. valid) return
+        valid = tensor_valid(owner%field%upper)
+        if (.not. valid) return
+        valid = tensor_valid(owner%field%lower)
+        if (.not. valid) return
+        valid = tensor_valid(owner%field%density)
+    end function magnetic_chart_valid
+
+    !> Return the coordinate flux surface owned by the toolkit.
+    function magnetic_chart_surface(owner) result(surface)
+        type(magnetic_chart_t), intent(in) :: owner
+        type(flux_surface_t) :: surface
+
+        if (.not. magnetic_chart_valid(owner)) return
+        surface = owner%surface
+    end function magnetic_chart_surface
+
+    !> Return all typed magnetic views without copying their components.
+    function magnetic_chart_field(owner) result(field)
+        type(magnetic_chart_t), intent(in) :: owner
+        type(magnetic_field_t) :: field
+
+        if (.not. magnetic_chart_valid(owner)) return
+        field = owner%field
+    end function magnetic_chart_field
+
+    !> Return B^i and retain its upper-index tensor metadata.
+    function magnetic_chart_upper(owner) result(value)
+        type(magnetic_chart_t), intent(in) :: owner
+        type(tensor_t) :: value
+
+        if (.not. magnetic_chart_valid(owner)) return
+        value = magnetic_upper(owner%field)
+    end function magnetic_chart_upper
+
+    !> Return B_i and retain its lower-index tensor metadata.
+    function magnetic_chart_lower(owner) result(value)
+        type(magnetic_chart_t), intent(in) :: owner
+        type(tensor_t) :: value
+
+        if (.not. magnetic_chart_valid(owner)) return
+        value = magnetic_lower(owner%field)
+    end function magnetic_chart_lower
+
+    !> Return sqrt(g) B^i and retain its weight-one density metadata.
+    function magnetic_chart_density(owner) result(value)
+        type(magnetic_chart_t), intent(in) :: owner
+        type(tensor_t) :: value
+
+        if (.not. magnetic_chart_valid(owner)) return
+        value = magnetic_density(owner%field)
+    end function magnetic_chart_density
+
+    !> Average a scalar on the owner's coordinate flux surface.
+    subroutine magnetic_chart_average(owner, scalar, value, ok, why, period_one, &
+            period_two)
+        type(magnetic_chart_t), intent(in) :: owner
+        type(expr_t), intent(in) :: scalar
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(expr_t), optional, intent(in) :: period_one, period_two
+
+        ok = .false.
+        why = ""
+        value = expr_t()
+        if (.not. magnetic_chart_valid(owner)) then
+            why = "magnetic chart metadata is invalid"
+            return
+        end if
+        call flux_surface_average(owner%surface, scalar, value, ok, why, &
+            period_one, period_two)
+    end subroutine magnetic_chart_average
 
     !> Describe the coordinate surface u(label_index)=constant.
     function flux_surface(c, label_index) result(surface)

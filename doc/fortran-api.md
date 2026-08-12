@@ -69,6 +69,11 @@ accept either an integer mode or an expression mode, so a paper derivation can
 use a literal mode while a symbolic check keeps `n` in the expression tree.
 `magnetic_field_t` packages `B^i`, `B_i`, and `sqrtg B^i` as typed tensor
 views with variance and density weight retained across the three representations.
+`magnetic_chart(c, potential, label_index)` packages those views with a
+`flux_surface_t` in a `magnetic_chart_t` owner. `magnetic_chart_upper`,
+`magnetic_chart_lower`, and `magnetic_chart_density` return the existing typed
+views without a second component store; `magnetic_chart_average` delegates to
+the verified surface-average owner.
 The chart operation `surface_measure(chart, normal_index)` returns the positive
 induced measure on `u(normal_index)=constant`; `metric_surface_measure` is the
 same operation for an explicit metric and uses `sqrt(abs(det(g_surface)))`.
