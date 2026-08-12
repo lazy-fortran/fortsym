@@ -669,6 +669,127 @@ Wolfram or Mathics results are additional differential evidence and a source
 of input coverage. A translated script is not accepted merely because it
 reproduces its own expected strings.
 
+### Convention synthesis and derivation contracts
+
+The geometry API has two linked representations. A chart owns coordinates and
+the map into an embedding or an abstract coordinate manifold. Tensor and form
+objects own components, index variance, symmetry, density weight, and chart.
+The facade provides short names, while the owners provide the same operations
+for explicit-arena and library code. There is one vocabulary for both paths.
+
+The following table is the contract for the first physics profile. The index
+letters `a`, `i`, and `j` are labels only. A concrete object carries its
+dimension and index space, so an index is never matched by its printed name
+alone.
+
+| Object | Definition | Native meaning and invariant |
+|---|---|---|
+| Coordinates | `x^a = x^a(u^i)` | `chart_t`; `u^i` are coordinates and `x^a` are embedding or target coordinates. |
+| Tangent basis | `e_i = partial_i x` | A basis vector with a lower coordinate label. |
+| Reciprocal basis | `e^i = grad(u^i)` | A dual basis with `e^i dot e_j = delta^i_j`. |
+| Metric | `g_ij = e_i dot e_j` | A `(0,2)` tensor owned by `metric_t`; `g^ij` is its inverse. |
+| Vector | `B = B^i e_i` | Upper components are contravariant. |
+| Covector | `B_flat = B_i du^i` | `B_i = g_ij B^j`; `flat` and `sharp` are metric-owned conversions. |
+| Volume form | `Omega = sigma sqrt(abs(det(g))) du^1 wedge ...` | An oriented top form. `sigma` is orientation and is not hidden in `sqrtg`. |
+| Flux form | `beta = i_B Omega` | A two-form in three dimensions. It is the pullback-stable magnetic representation. |
+| Vector density | `Bden^i = sqrtg B^i` | A contravariant density of weight `+1` in this profile. It is not an unmarked vector. |
+
+For a coordinate change with `K^i_j = partial(u'^i)/partial(u^j)`, the
+density convention is recorded as
+
+```text
+T'^(upper...)_(lower...) = abs(det(K))^w
+                         * K^(upper...) * inverse(K)_(lower...) * T
+```
+
+where `w` is the stored density weight and the displayed products stand for
+the corresponding slot transformations. Orientation is a separate signed
+choice. A signed `J = det(partial(x)/partial(u))` is retained when orientation
+matters. `sqrtg = sqrt(abs(det(g)))` is the positive metric volume factor.
+The implementation must refuse a singular map, an incompatible index space,
+or an operation that would erase either sign or density metadata.
+
+The core identities are the derivation contracts for every implementation:
+
+```text
+e^i dot e_j = delta^i_j
+g^ik g_kj = delta^i_j
+B_i = g_ij B^j
+grad(f) = (d(f))^sharp
+L_B Omega = div(B) Omega
+div(B) = 1/sqrtg * partial_i(sqrtg B^i)
+beta = i_B Omega
+d(d(alpha)) = 0
+L_X(alpha) = i_X(d(alpha)) + d(i_X(alpha))
+```
+
+The implementation keeps the following distinctions visible in names and
+types. These are the Levi-Civita symbol, Levi-Civita tensor, and
+Levi-Civita density. They also include the signed Jacobian and positive
+`sqrtg`, plus a vector, its flat covector, its flux form, and its vector
+density. Plasma literature can call the flux form or density a contravariant
+representation. The API records which object is present instead of resolving
+that wording by convention.
+
+Every derivation case must specify its chart, metric signature, orientation,
+assumptions, source representation, target representation, invariant checks,
+and independent oracle. The minimum case set is:
+
+- [ ] Cartesian, cylindrical, and spherical coordinates, including reciprocal
+  bases, `sqrtg`, Christoffel symbols, gradient, divergence, curl, and scalar
+  Laplacian.
+- [ ] A nonorthogonal torus or flux chart with off-diagonal metric terms,
+  including signed Jacobian, raise/lower, density transformation, and a
+  round-trip coordinate change.
+- [ ] A magnetic potential `A` with `beta = d(A) = i_B(Omega)`, followed by
+  `d(beta) = 0`, divergence, and the component/form comparison.
+- [ ] The Albert, Bíró, and Lainer Fourier reduction, with separate `n = 0`
+  and `n != 0` branches, density components, constitutive transformation, and
+  weak-form metadata.
+- [ ] Flat and curved pseudo-Riemannian examples with an explicit signature,
+  connection sign convention, geodesic residual, and curvature invariant.
+
+Each case is implemented in the native owner first, exercised through the
+Fortran facade and `fortsym.sympy`, translated from the Wolfram/Python corpus,
+and checked against SymPy plus an independent determinant, component,
+numerical, or residual oracle. The Python and Wolfram frontends add syntax and
+conversion only. They do not maintain a second geometry implementation.
+
+### Staged delivery order for the geometry toolkit
+
+- [ ] **7A.0 Contract and ownership.** Freeze the notation above, add typed
+  chart/metric/tensor/form metadata, define density and orientation refusal
+  cases, and publish one module graph and naming audit.
+- [ ] **7A.1 Charts and volume.** Generalize `chart_t` to explicit dimensions,
+  expose Jacobian, reciprocal basis, metric, inverse metric, signed `J`,
+  `sqrtg`, volume forms, and coordinate-change composition.
+- [ ] **7A.2 Components and densities.** Add scalar, vector, covector, tensor,
+  and density transformations, `raise`, `lower`, `flat`, `sharp`, and
+  Jacobian-weighted `div`. Gate this stage with nonorthogonal and left-handed
+  charts.
+- [ ] **7A.3 Indexed tensor algebra.** Add arbitrary supported rank, products,
+  contractions, permutation, symmetry, traces, canonical dummy indices, and
+  refusal messages for variance or index-space errors.
+- [ ] **7A.4 Connections and vector calculus.** Extend covariant derivatives to
+  every slot, then derive `grad`, `curl`, `div`, `laplacian`, geodesics, and
+  curvature from the same metric and connection owners.
+- [ ] **7A.5 Forms and topology.** Extend degree-`k` forms, pullbacks,
+  interior products, Lie derivatives, Hodge star, codifferential,
+  Laplace-de Rham, Maxwell forms, gauge transformations, and patch/boundary
+  metadata.
+- [ ] **7A.6 Physics toolkits.** Add magnetic and flux-coordinate descriptors,
+  field-line and flux-surface operations, Clebsch/Boozer/Hamada identities,
+  and the paper's Fourier FEM reductions without coupling them into generic
+  chart, tensor, or form code.
+- [ ] **7A.7 Frontends and corpus.** Translate every supported Wolfram and
+  Python corpus record to the native IR, preserve assumptions and refusal
+  conditions, and expose SymPy-compatible names through one conversion path.
+- [ ] **7A.8 Verification and performance.** Run independent mathematical and
+  numerical checks for every case, then enforce matched SymPy correctness and
+  performance rows for cold construction, warm operations, conversion, and
+  generated kernels. No stage is complete while a supported row is slower or
+  less correct without a documented, accepted boundary condition.
+
 ### Conventions and object model
 
 - [ ] Freeze one notation table for coordinates, bases, components, metrics,
