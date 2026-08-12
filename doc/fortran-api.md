@@ -415,6 +415,13 @@ signature, retain zero slots for ABI transport, and define
 `sqrt(abs(det(g)))`; for a Lorentzian metric the scalar Laplace--Beltrami
 operator is the coordinate wave operator.
 
+`spacetime_tensor_covariant_diff(metric, tensor)` appends a lower derivative
+slot to a runtime spacetime tensor of rank at most three. It applies the
+Christoffel transport term to every upper and lower slot and the
+`-w*Gamma^m_mk*T` density term, while preserving the input density weight.
+The Python `SpacetimeTensor.covariant_diff()` method and its
+`covariant_derivative()` alias expose the same owner.
+
 ## Relativity and magnetic-flux examples
 
 The built examples keep physical assumptions at the application boundary:

@@ -118,6 +118,11 @@ and the Laplace--de Rham composition.
 The Maxwell form calls add native `F=d(A)`, gauge transformation
 `A -> A + d(chi)`, and the source residual `d(*F)-J`, with potentials and
 currents represented as degree-one and degree-three spacetime forms.
+Runtime spacetime tensors also expose metric covariant differentiation through
+`fortsym_spacetime_tensor_covariant_diff`. It appends a lower derivative slot,
+transports every declared upper or lower tensor slot, and preserves the
+density weight. The operation accepts input ranks zero through three and
+returns the fixed four-slot C representation with inactive components zero.
 The native library retains an
 arena while any expression handle refers to it; callers may therefore release
 the arena before releasing its expressions.

@@ -1527,6 +1527,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   including the correct Christoffel term for every upper and lower slot. The
   existing `christoffel` operation becomes a special case of the connection
   owner and remains available through the facade.
+- [x] Add the runtime-dimension spacetime covariant derivative for input rank
+  at most three. `spacetime_tensor_covariant_diff` appends a lower derivative
+  slot, applies every upper/lower Christoffel term, and includes the explicit
+  density-weight trace term. C ABI 63 and both Python facades expose the same
+  owner; scalar, curved-vector, and weight-one-density checks are independent.
 - [x] Implement the first fixed-three-dimensional subset for typed tensors of
   rank at most three: `covariant_diff`/`covariant_derivative` appends a lower
   derivative slot, applies every slot's Christoffel term, and honors density
@@ -1674,6 +1679,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   Einstein views, scalar curvature, typed variance/density metadata, and
   covariant differentiation. Python transports native handles and does not
   duplicate geometry formulas; broader `diffgeom`/tensor parity remains open.
+- [x] Extend the spacetime tensor facade with metric covariant differentiation
+  through C ABI 63 and `SpacetimeTensor.covariant_diff()`/
+  `covariant_derivative()`. The derivative slot is lower, density weight is
+  preserved, and the runtime boundary is rank three input to rank four output.
 - [x] Add explicit metric-owner Hodge transport for supplied Riemannian or
   Lorentzian component metrics, including inverse metric and positive
   `sqrt(abs(det(g)))`. Keep the chart-induced convenience path and the explicit
