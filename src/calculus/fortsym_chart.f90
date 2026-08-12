@@ -231,10 +231,13 @@ contains
     function sqrtg(c) result(value)
         type(chart_t), intent(in) :: c
         type(expr_t)              :: value
-        type(expr_t)              :: g(DIM, DIM)
+        type(expr_t)              :: j
 
-        g = metric_covariant(c)
-        value = sqrt(det3(g))
+        ! For an induced Euclidean chart det(g) = J**2. Reusing the signed
+        ! determinant avoids rebuilding the full metric solely to obtain its
+        ! volume factor; sqrt(J**2) retains the positive-volume convention.
+        j = jacobian(c)
+        value = sqrt(j*j)
     end function sqrtg
 
     !> Signed cofactor C_ij of a 3x3 matrix.
@@ -390,24 +393,25 @@ contains
 
     !> Divergence of a contravariant vector field:
     !>
-    !>   div v = (1/J) d_i ( J v^i )
+    !>   div v = (1/sqrtg) d_i ( sqrtg v^i )
     !>
-    !> The Jacobian weight is what makes this a divergence rather than a plain
-    !> sum of derivatives, and omitting it is the standard way curvilinear
-    !> vector calculus goes wrong.
+    !> The positive metric volume factor is what makes this a divergence rather
+    !> than a plain sum of derivatives. The signed chart Jacobian remains the
+    !> orientation-sensitive factor for curl; it must not leak into ordinary
+    !> scalar divergence.
     function divergence(c, v) result(d)
         type(chart_t), intent(in) :: c
         type(expr_t),  intent(in) :: v(DIM)
         type(expr_t)              :: d
-        type(expr_t) :: j
+        type(expr_t) :: volume
         integer :: i
 
-        j = jacobian(c)
-        d = diff(j*v(1), c%u(1))
+        volume = sqrtg(c)
+        d = diff(volume*v(1), c%u(1))
         do i = 2, DIM
-            d = d + diff(j*v(i), c%u(i))
+            d = d + diff(volume*v(i), c%u(i))
         end do
-        d = d/j
+        d = d/volume
     end function divergence
 
     !> Divergence of a contravariant vector density of weight +1:

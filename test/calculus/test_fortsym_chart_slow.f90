@@ -196,7 +196,10 @@ contains
         dfield(2) = r*th
         dfield(3) = sin(ph)
         d = div_density(torus, dfield)
-        call check_zero(s, eng, "density divergence", d - (2*r + th))
+        ! Build the oracle directly from the definition, keeping the test
+        ! independent of power-expansion heuristics such as r**2 -> r*r.
+        d = d - diff(dfield(1), r) - diff(dfield(2), th) - diff(dfield(3), ph)
+        call check_zero(s, eng, "density divergence", d)
     end subroutine test_density_operators
 
     !> curl grad f = 0, for any f and any chart. Catches a missing Jacobian
