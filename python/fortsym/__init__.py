@@ -1364,6 +1364,12 @@ class ChartMap:
             return Form(self.target, components, tensor.degree, _owned=True)
         raise TypeError("ChartMap.transform expects a Tensor or Form")
 
+    def pullback(self, form):
+        """Pull a differential form into the target coframe."""
+        if not isinstance(form, Form):
+            raise TypeError("ChartMap.pullback expects a Form")
+        return self.transform(form)
+
     pushforward = transform
 
 

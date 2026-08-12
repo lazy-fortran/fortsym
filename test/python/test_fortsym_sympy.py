@@ -215,7 +215,7 @@ class SympySubsetTest(unittest.TestCase):
             (2*op, 2*oq, 2*os),
         )
 
-        one_form = transition.transform(source.one_form((x, y, z)))
+        one_form = transition.pullback(source.one_form((x, y, z)))
         self.assertEqual(
             tuple(oracle.sympify(str(one_form[mask].simplify()))
                   for mask in (1, 2, 4)),
