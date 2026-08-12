@@ -69,7 +69,9 @@ two-form basis; and `7` for the volume form. Full arbitrary-dimensional
 source coordinates to target coordinates and its `inverse` tuple maps back.
 Upper tensor slots use the forward Jacobian, lower slots use the inverse
 Jacobian, and density weights are applied through the absolute Jacobian
-determinant. The result is expressed in the target coordinate symbols:
+determinant. Forms use the inverse Jacobian on each coframe factor, with the
+signed determinant for top forms. The result is expressed in the target
+coordinate symbols:
 
 ```python
 x, y, z, p, q, s = sp.symbols("x y z p q s")

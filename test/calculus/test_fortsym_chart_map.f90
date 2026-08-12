@@ -11,12 +11,14 @@ program test_fortsym_chart_map
         make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create
     use fortsym_chart_map, only: chart_map_t, chart_map_create, map_jacobian, &
-        inverse_jacobian, transform_tensor
+        inverse_jacobian, transform_tensor, transform_form
     use fortsym, only: facade_chart_map_t => chart_map_t, &
         facade_chart_map_create => chart_map_create, &
         facade_transform_tensor => transform_tensor
     use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, &
         density
+    use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
+        form_component
     implicit none
 
     type(arena_t), target :: arena
@@ -33,6 +35,8 @@ program test_fortsym_chart_map
     type(expr_t) :: expected, composition
     type(tensor_t) :: vector, vector_target, vector_density
     type(tensor_t) :: covector, covector_target
+    type(form_t) :: scalar_form, one_form, two_form, three_form
+    type(form_t) :: scalar_target, one_target, two_target, three_target
     integer :: i, j
 
     call arena%init()
@@ -106,6 +110,35 @@ program test_fortsym_chart_map
     vector_target = facade_transform_tensor(facade_transition, vector)
     call check_identity(suite, engine, "facade contravariant p component", &
         vector_target%component(0) - target_u(1))
+
+    scalar_form = form_scalar(2*source_u(1) + source_u(2))
+    scalar_target = transform_form(transition, scalar_form)
+    call check_identity(suite, engine, "scalar form transport", &
+        form_component(scalar_target, 0) - target_u(1))
+
+    one_form = form_one(source, source_values)
+    one_target = transform_form(transition, one_form)
+    call check_identity(suite, engine, "one-form p component", &
+        form_component(one_target, 1) - (target_u(1) - target_u(2))/4)
+    call check_identity(suite, engine, "one-form q component", &
+        form_component(one_target, 2) - (-target_u(1) + 5*target_u(2))/4)
+    call check_identity(suite, engine, "one-form s component", &
+        form_component(one_target, 4) - target_u(3))
+
+    two_form = form_two(source, source_values)
+    two_target = transform_form(transition, two_form)
+    call check_identity(suite, engine, "two-form pq component", &
+        form_component(two_target, 3) - (target_u(1) - target_u(2))/4)
+    call check_identity(suite, engine, "two-form ps component", &
+        form_component(two_target, 5) - target_u(2)/2)
+    call check_identity(suite, engine, "two-form qs component", &
+        form_component(two_target, 6) - (-target_u(2)/2 + &
+        target_u(3)))
+
+    three_form = form_three(source, num(arena, 1))
+    three_target = transform_form(transition, three_form)
+    call check_identity(suite, engine, "oriented three-form transport", &
+        form_component(three_target, 7) - num(arena, 1)/2)
 
     if (suite%failed /= 0) then
         print *, "test_fortsym_chart_map: ", suite%failed, " check(s) FAILED"
