@@ -181,6 +181,11 @@ value = tensor_component(scalar, none)
 ```
 
 `raise` and `lower` preserve density weight and all non-selected slots.
+They accept either a chart or an explicit `metric_t` owner, so the same tensor
+operation can be used for a supplied Lorentzian metric without reconstructing
+a chart. `metric_covariant_tensor(metric_owner)` and
+`metric_contravariant_tensor(metric_owner)` create typed metric tensors with
+the owner's arena and metadata contract.
 `contract` requires opposite variance and removes the two selected slots;
 `trace` is its named alias. The current native subset is rank four or less in
 three-dimensional charts. Symmetry declarations, arbitrary dimensions, and
