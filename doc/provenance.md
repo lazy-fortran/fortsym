@@ -101,6 +101,19 @@ implementation listed as a reference.
 | Equality saturation | Willsey et al., *egg: Fast and extensible equality saturation*, POPL 2021 |
 | Probabilistic zero testing | Schwartz, JACM 27, 1980; Zippel 1979 |
 
+### Geometry, tensor calculus, and plasma forms
+
+| Method | Citation |
+|---|---|
+| Reciprocal bases, curvilinear components, metric coefficients, Jacobians, and divergence | D'haeseleer, Hitchon, Callen & Shohet, *Flux Coordinates and Magnetic Field Structure*, Springer, 1991. [Publisher PDF](https://www.mech.kuleuven.be/en/tme/research/energy-systems-integration-modeling/pdf-publications/Dhaeseleer_et_al_Flux_Coordinates_and_Magnetic_Field_Structure_DEF/view) |
+| Vector/covector musical maps, magnetic flux forms, volume forms, contraction, and Cartan identities | Burby, Kallinikos & MacKay, [*Differential forms for plasma physics*](https://doi.org/10.1017/S0022377819000928), *Journal of Plasma Physics* |
+| Fourier reduction in a curvilinear coordinate with a symmetry direction, tensorial permeability, density components, and two-dimensional weak forms | Albert, Bíró & Lainer, [*2D Fourier finite element formulation for magnetostatics in curvilinear coordinates with a symmetry direction*](https://arxiv.org/abs/2008.13681), *Computer Physics Communications* 277, 108401 (2022) |
+
+These references are methods and notation sources. No implementation source,
+translated code, or figures are copied from them. The corresponding native
+derivations must carry an independent identity or numerical check in addition
+to the SymPy comparison.
+
 ## Behavioural oracles
 
 Systems fortsym runs and compares against. Running an oracle is ordinary use of
