@@ -59,6 +59,8 @@ the basis vector associated with coordinate `u(i)`.
 `b_fourier` interfaces
 accept either an integer mode or an expression mode, so a paper derivation can
 use a literal mode while a symbolic check keeps `n` in the expression tree.
+`magnetic_field_t` packages `B^i`, `B_i`, and `sqrtg B^i` as typed tensor
+views with variance and density weight retained across the three representations.
 The chart also owns `grad`, `divergence`, `curl`, and `laplacian`; `curl` takes
 covector components and returns contravariant components.
 

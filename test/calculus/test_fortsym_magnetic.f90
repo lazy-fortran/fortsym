@@ -12,7 +12,10 @@ program test_fortsym_magnetic
     use fortsym_chart, only: DIM, chart_t, chart_create, covariant_basis, &
         reciprocal_basis, metric_covariant, jacobian, sqrtg
     use fortsym_magnetic, only: b_con, b_cov, b_density, b_fourier, &
-        b_fourier_density, j_fourier
+        b_fourier_density, j_fourier, magnetic_field_t, magnetic_field, &
+        magnetic_upper, magnetic_lower, magnetic_density
+    use fortsym_tensor, only: tensor_t, tensor_component, tensor_variance, &
+        tensor_density_weight, tensor_valid
     implicit none
 
     type(arena_t), target :: arena
@@ -26,6 +29,9 @@ program test_fortsym_magnetic
     type(expr_t) :: fourier_integer(DIM), mode
     type(expr_t) :: reluctivity(DIM, DIM), current(DIM)
     type(expr_t) :: residual, det_metric, volume, signed_jacobian
+    type(magnetic_field_t) :: typed_field
+    type(tensor_t) :: typed_up, typed_down, typed_density
+    integer :: tensor_index(1)
     type(engine_result_t) :: reduced
     integer :: i, j
     character(len=64) :: label
@@ -68,6 +74,27 @@ program test_fortsym_magnetic
     b_up = b_con(shear, potential)
     b_down = b_cov(shear, b_up)
     b_den = b_density(shear, b_up)
+    typed_field = magnetic_field(shear, potential)
+    typed_up = magnetic_upper(typed_field)
+    typed_down = magnetic_lower(typed_field)
+    typed_density = magnetic_density(typed_field)
+
+    if (.not. tensor_valid(typed_up)) error stop "typed B^i is invalid"
+    if (.not. tensor_valid(typed_down)) error stop "typed B_i is invalid"
+    if (.not. tensor_valid(typed_density)) error stop "typed B density is invalid"
+    if (tensor_variance(typed_up, 1) /= 1) error stop "B^i variance failed"
+    if (tensor_variance(typed_down, 1) /= -1) error stop "B_i variance failed"
+    if (tensor_variance(typed_density, 1) /= 1) error stop "B density variance failed"
+    if (tensor_density_weight(typed_up) /= 0) error stop "B^i weight failed"
+    if (tensor_density_weight(typed_down) /= 0) error stop "B_i weight failed"
+    if (tensor_density_weight(typed_density) /= 1) error stop "B density weight failed"
+    tensor_index(1) = 1
+    call check_identity(suite, engine, "typed B^1 component", &
+        tensor_component(typed_up, tensor_index) - b_up(1))
+    call check_identity(suite, engine, "typed B_1 component", &
+        tensor_component(typed_down, tensor_index) - b_down(1))
+    call check_identity(suite, engine, "typed B density component", &
+        tensor_component(typed_density, tensor_index) - b_den(1))
 
     call check_identity(suite, engine, "B^1 from covariant potential", b_up(1) - 1)
     call check_identity(suite, engine, "B^2 from covariant potential", b_up(2) - u(2))

@@ -12,10 +12,19 @@ module fortsym_magnetic
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, i_expr, num, is_valid, operator(+), &
         operator(-), operator(*), operator(/)
+    use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, density
     implicit none
     private
 
+    public :: magnetic_field_t, magnetic_field, magnetic_upper, magnetic_lower
+    public :: magnetic_density
     public :: b_con, b_cov, b_density, b_fourier, b_fourier_density, j_fourier
+
+    type :: magnetic_field_t
+        type(tensor_t) :: upper
+        type(tensor_t) :: lower
+        type(tensor_t) :: density
+    end type magnetic_field_t
 
     interface b_fourier
         module procedure b_fourier_integer, b_fourier_expression
@@ -30,6 +39,49 @@ module fortsym_magnetic
     end interface j_fourier
 
 contains
+
+    !> Assemble the three typed views of one magnetic field.
+    !>
+    !> The component arrays remain owned by the established magnetic
+    !> operators; this wrapper adds variance and density metadata without
+    !> creating a second symbolic field representation.
+    function magnetic_field(c, potential) result(field)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: potential(DIM)
+        type(magnetic_field_t) :: field
+        type(expr_t) :: upper(DIM), lower_value(DIM), density_value(DIM)
+
+        upper = b_con(c, potential)
+        lower_value = b_cov(c, upper)
+        density_value = b_density(c, upper)
+        field%upper = tensor_vector(c, upper)
+        field%lower = tensor_covector(c, lower_value)
+        field%density = density(tensor_vector(c, density_value), 1)
+    end function magnetic_field
+
+    !> Return the contravariant B^i view.
+    function magnetic_upper(field) result(value)
+        type(magnetic_field_t), intent(in) :: field
+        type(tensor_t) :: value
+
+        value = field%upper
+    end function magnetic_upper
+
+    !> Return the covariant B_i view.
+    function magnetic_lower(field) result(value)
+        type(magnetic_field_t), intent(in) :: field
+        type(tensor_t) :: value
+
+        value = field%lower
+    end function magnetic_lower
+
+    !> Return the contravariant weight-one density sqrtg B^i.
+    function magnetic_density(field) result(value)
+        type(magnetic_field_t), intent(in) :: field
+        type(tensor_t) :: value
+
+        value = field%density
+    end function magnetic_density
 
     !> Contravariant magnetic components from a covariant vector potential.
     !>
