@@ -111,6 +111,44 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(component_density[0].simplify(), (x + 2)*x)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_native_three_dimensional_forms_match_sympy(self):
+        x, y, z = sp.symbols("form3_x form3_y form3_z")
+        chart = sp.Chart((x, y, z), (x, y, z))
+        one_form = chart.one_form((x, y, z))
+        scalar_form = chart.scalar_form(x**2 + y**2 + z**2)
+        ox, oy, oz = oracle.symbols("form3_x form3_y form3_z")
+        oracle_coordinates = (ox, oy, oz)
+        expected_codiff = -sum(oracle.diff(value, coordinate)
+                                for value, coordinate in zip(
+                                    (ox, oy, oz), oracle_coordinates))
+        expected_laplace = -sum(
+            oracle.diff(ox**2 + oy**2 + oz**2, coordinate, 2)
+            for coordinate in oracle_coordinates
+        )
+
+        actual_codiff = oracle.sympify(str(one_form.codiff()[0].simplify()))
+        actual_laplace = oracle.sympify(
+            str(scalar_form.laplace_de_rham()[0].simplify())
+        )
+        self.assertEqual(oracle.simplify(actual_codiff - expected_codiff), 0)
+        self.assertEqual(oracle.simplify(actual_laplace - expected_laplace), 0)
+        self.assertEqual(
+            (one_form.codifferential()[0] - one_form.codiff()[0]).simplify(), 0
+        )
+
+        metric = chart.metric_owner(
+            ((1, 0, 0), (0, 1, 0), (0, 0, 1)),
+        )
+        metric_codiff = oracle.sympify(
+            str(one_form.codifferential(metric)[0].simplify())
+        )
+        metric_laplace = oracle.sympify(
+            str(scalar_form.laplace_de_rham(metric)[0].simplify())
+        )
+        self.assertEqual(oracle.simplify(metric_codiff - expected_codiff), 0)
+        self.assertEqual(oracle.simplify(metric_laplace - expected_laplace), 0)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_form_tensor_roundtrip_matches_sympy(self):
         x, y, z = sp.symbols("form_tensor_x form_tensor_y form_tensor_z")
         chart = sp.Chart((x, y, z), (x, y, z))

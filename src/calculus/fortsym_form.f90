@@ -11,7 +11,8 @@ module fortsym_form
     use fortsym_chart, only: chart_t, DIM, metric_covariant, &
         metric_contravariant, sqrtg
     use fortsym_metric, only: metric_t, metric_valid, metric_arena, &
-        metric_orientation, metric_sqrtg, &
+        metric_orientation, metric_sqrtg, metric_signature, &
+        metric_coordinates, metric_has_coordinates, &
         metric_contravariant_owner => metric_contravariant, &
         metric_same_arena
     use fortsym_diff, only: diff
@@ -26,6 +27,7 @@ module fortsym_form
     public :: form_component, form_degree, form_valid
     public :: add_forms, subtract_forms, negate_form
     public :: wedge, d, exterior_diff, star, hodge_star
+    public :: codifferential, codiff, laplace_de_rham
     public :: interior, interior_product, lie, lie_derivative
     public :: flat, sharp, scale_form
 
@@ -41,8 +43,14 @@ module fortsym_form
     end interface form
 
     interface d
-        module procedure exterior_diff
+        module procedure exterior_diff_chart
+        module procedure exterior_diff_metric
     end interface d
+
+    interface exterior_diff
+        module procedure exterior_diff_chart
+        module procedure exterior_diff_metric
+    end interface exterior_diff
 
     interface star
         module procedure hodge_star_chart
@@ -53,6 +61,21 @@ module fortsym_form
         module procedure hodge_star_chart
         module procedure hodge_star_metric
     end interface hodge_star
+
+    interface codifferential
+        module procedure codifferential_chart
+        module procedure codifferential_metric
+    end interface codifferential
+
+    interface codiff
+        module procedure codifferential_chart
+        module procedure codifferential_metric
+    end interface codiff
+
+    interface laplace_de_rham
+        module procedure laplace_de_rham_chart
+        module procedure laplace_de_rham_metric
+    end interface laplace_de_rham
 
     interface volume
         module procedure volume_form_chart
@@ -328,7 +351,7 @@ contains
     end function scale_form
 
     !> Exterior derivative in the coordinate coframe.
-    function exterior_diff(c, alpha) result(result)
+    function exterior_diff_chart(c, alpha) result(result)
         type(chart_t), intent(in) :: c
         type(form_t), intent(in) :: alpha
         type(form_t) :: result
@@ -336,32 +359,144 @@ contains
         if (.not. associated(c%a)) return
         if (.not. form_valid(alpha)) return
         if (.not. associated(alpha%a, c%a)) return
+        result = exterior_diff_components(c%a, c%u, alpha)
+    end function exterior_diff_chart
+
+    function exterior_diff_metric(g, alpha) result(result)
+        type(metric_t), intent(in) :: g
+        type(form_t), intent(in) :: alpha
+        type(form_t) :: result
+        type(expr_t) :: coordinates(DIM)
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        if (.not. form_valid(alpha)) return
+        if (.not. metric_same_arena(g, alpha%a)) return
+        coordinates = metric_coordinates(g)
+        result = exterior_diff_components(metric_arena(g), coordinates, alpha)
+    end function exterior_diff_metric
+
+    function exterior_diff_components(a, coordinates, alpha) result(result)
+        type(arena_t), pointer, intent(in) :: a
+        type(expr_t), intent(in) :: coordinates(DIM)
+        type(form_t), intent(in) :: alpha
+        type(form_t) :: result
+
         if (alpha%degree > DIM) then
-            result = form_zero(c, DIM + 1)
+            result = zero_form(a, DIM + 1)
             return
         end if
 
-        result = zero_form(c%a, alpha%degree + 1)
+        result = zero_form(a, alpha%degree + 1)
         select case (alpha%degree)
         case (0)
-            result%component(1) = diff(alpha%component(0), c%u(1))
-            result%component(2) = diff(alpha%component(0), c%u(2))
-            result%component(4) = diff(alpha%component(0), c%u(3))
+            result%component(1) = diff(alpha%component(0), coordinates(1))
+            result%component(2) = diff(alpha%component(0), coordinates(2))
+            result%component(4) = diff(alpha%component(0), coordinates(3))
         case (1)
-            result%component(3) = diff(alpha%component(2), c%u(1)) - &
-                diff(alpha%component(1), c%u(2))
-            result%component(5) = diff(alpha%component(4), c%u(1)) - &
-                diff(alpha%component(1), c%u(3))
-            result%component(6) = diff(alpha%component(4), c%u(2)) - &
-                diff(alpha%component(2), c%u(3))
+            result%component(3) = diff(alpha%component(2), coordinates(1)) - &
+                diff(alpha%component(1), coordinates(2))
+            result%component(5) = diff(alpha%component(4), coordinates(1)) - &
+                diff(alpha%component(1), coordinates(3))
+            result%component(6) = diff(alpha%component(4), coordinates(2)) - &
+                diff(alpha%component(2), coordinates(3))
         case (2)
-            result%component(7) = diff(alpha%component(6), c%u(1)) - &
-                diff(alpha%component(5), c%u(2)) + &
-                diff(alpha%component(3), c%u(3))
+            result%component(7) = diff(alpha%component(6), coordinates(1)) - &
+                diff(alpha%component(5), coordinates(2)) + &
+                diff(alpha%component(3), coordinates(3))
         case default
             ! d of a top-degree form is the zero extension in this dimension.
         end select
-    end function exterior_diff
+    end function exterior_diff_components
+
+    !> Metric codifferential delta = (-1)^(n(k+1)+s+1) * d * on k-forms.
+    !> The explicit +1 gives delta(f_i du^i) = -div(f^sharp) in Euclidean
+    !> three-space, while s counts negative metric directions.
+    function codifferential_chart(c, alpha) result(result)
+        type(chart_t), intent(in) :: c
+        type(form_t), intent(in) :: alpha
+        type(form_t) :: result, first, second
+
+        if (.not. associated(c%a)) return
+        if (.not. form_valid(alpha)) return
+        if (.not. associated(alpha%a, c%a)) return
+        if (alpha%degree < 1 .or. alpha%degree > DIM) return
+        first = hodge_star_chart(c, alpha)
+        second = exterior_diff_chart(c, first)
+        result = hodge_star_chart(c, second)
+        if (codifferential_sign(alpha%degree, 0) < 0) result = negate_form(result)
+    end function codifferential_chart
+
+    function codifferential_metric(g, alpha) result(result)
+        type(metric_t), intent(in) :: g
+        type(form_t), intent(in) :: alpha
+        type(form_t) :: result, first, second
+        integer :: signature(DIM), negatives
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        if (.not. form_valid(alpha)) return
+        if (.not. metric_same_arena(g, alpha%a)) return
+        if (alpha%degree < 1 .or. alpha%degree > DIM) return
+        first = hodge_star_metric(g, alpha)
+        second = exterior_diff_metric(g, first)
+        result = hodge_star_metric(g, second)
+        signature = metric_signature(g)
+        negatives = count(signature == -1)
+        if (codifferential_sign(alpha%degree, negatives) < 0) result = negate_form(result)
+    end function codifferential_metric
+
+    function laplace_de_rham_chart(c, alpha) result(result)
+        type(chart_t), intent(in) :: c
+        type(form_t), intent(in) :: alpha
+        type(form_t) :: result, first, second
+
+        if (.not. associated(c%a)) return
+        if (.not. form_valid(alpha)) return
+        if (.not. associated(alpha%a, c%a)) return
+        if (alpha%degree > DIM) return
+        result = zero_form(c%a, alpha%degree)
+        if (alpha%degree > 0) then
+            first = codifferential_chart(c, alpha)
+            result = exterior_diff_chart(c, first)
+        end if
+        if (alpha%degree < DIM) then
+            first = exterior_diff_chart(c, alpha)
+            second = codifferential_chart(c, first)
+            result = add_forms(result, second)
+        end if
+    end function laplace_de_rham_chart
+
+    function laplace_de_rham_metric(g, alpha) result(result)
+        type(metric_t), intent(in) :: g
+        type(form_t), intent(in) :: alpha
+        type(form_t) :: result, first, second
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        if (.not. form_valid(alpha)) return
+        if (.not. metric_same_arena(g, alpha%a)) return
+        if (alpha%degree > DIM) return
+        result = zero_form(metric_arena(g), alpha%degree)
+        if (alpha%degree > 0) then
+            first = codifferential_metric(g, alpha)
+            result = exterior_diff_metric(g, first)
+        end if
+        if (alpha%degree < DIM) then
+            first = exterior_diff_metric(g, alpha)
+            second = codifferential_metric(g, first)
+            result = add_forms(result, second)
+        end if
+    end function laplace_de_rham_metric
+
+    pure function codifferential_sign(degree, negatives) result(sign)
+        integer, intent(in) :: degree, negatives
+        integer :: sign, exponent
+
+        exponent = DIM*(degree + 1) + negatives + 1
+        sign = 1
+        if (mod(exponent, 2) == 1) sign = -1
+    end function codifferential_sign
 
     !> Metric Hodge star with the chart orientation and positive sqrt(g).
     function hodge_star_chart(c, alpha) result(result)

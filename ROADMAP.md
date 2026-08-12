@@ -1584,6 +1584,12 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Implement the first fixed-three-dimensional subset: `form_t`, scalar,
   one-, two-, and three-form constructors, `wedge`, `d`, metric `star`,
   interior product, Cartan `lie`, and metric `flat`/`sharp`.
+- [x] Add the fixed-three-dimensional metric codifferential
+  `codifferential`/`codiff` and Laplace--de Rham owners for both charts and
+  explicit coordinate-aware metrics. The native C/Python facades keep these
+  formulas in the form owner; independent Cartesian and SymPy checks cover
+  `delta(x_i du^i) = -3` and the mathematician-sign scalar result
+  `Delta_(dR)(x^2+y^2+z^2) = -6`.
 - [x] Add the exact fixed-three-dimensional form/tensor conversion path through
   one bridge owner. `Tensor.to_form()`/`Form.to_tensor()` and the matching
   Fortran facade names share the native antisymmetry and density contract.
