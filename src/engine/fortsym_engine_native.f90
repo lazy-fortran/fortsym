@@ -2539,7 +2539,7 @@ contains
         integer, intent(in) :: id
         integer, intent(out) :: out
         logical, intent(out) :: ok
-        integer :: half_pi, quarter_pi, imaginary_half_pi
+        integer :: half_pi, quarter_pi, imaginary_half_pi, imaginary_log
 
         out = id
         ok = .false.
@@ -2566,7 +2566,10 @@ contains
             else if (is_minus_one_id(a, id)) then
                 out = a%const("pi")
             else
-                return
+                call exact_odd_imaginary_log_value(a, id, imaginary_log, ok)
+                if (.not. ok) return
+                out = add_pair(a, half_pi, mul_pair(a, &
+                    a%int(-1_int64), imaginary_log))
             end if
         case ("atan")
             if (is_zero_id(a, id)) then
