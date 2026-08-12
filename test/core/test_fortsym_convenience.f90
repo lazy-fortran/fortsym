@@ -2,7 +2,7 @@ program test_fortsym_convenience
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym
     use fortsym_print, only: print_expr
-    use fortsym_string, only: chars
+    use fortsym_string, only: str_t, chars
     implicit none
 
     type(arena_t), target :: explicit_arena, concurrent_arena
@@ -19,6 +19,8 @@ program test_fortsym_convenience
     type(expr_t) :: explicit_expression, default_expression, mixed
     type(expr_t) :: sine, substituted, derivative, simplified, expanded, factored
     type(expr_t) :: huge_integer, exact_fraction, relation
+    type(expr_t) :: free_expression
+    type(str_t), allocatable :: free_names(:)
     type(expr_t) :: stale
     type(engine_result_t) :: result, zero_result
     logical :: good, exact_good, context_ok
@@ -75,6 +77,12 @@ program test_fortsym_convenience
         is_valid(mixed), failures)
     call check("facade exposes SymPy-style operation counting", &
         operation_count((mu + 1)**2) == 2, failures)
+    free_expression = sin(mu) + sigma + pi_expr(default_storage)
+    call free_symbols(free_expression, free_names)
+    call check("facade exposes distinct free symbols", &
+        size(free_names) == 2 .and. &
+        contains_name(free_names, "mu") .and. &
+        contains_name(free_names, "sigma"), failures)
     sine = sin(mu)
     call check("facade uses the intrinsic spelling for expression functions", &
         chars(print_expr(sine)) == "sin(mu)", failures)
@@ -270,5 +278,18 @@ contains
             failures = failures + 1
         end if
     end subroutine check
+
+    logical function contains_name(names, wanted)
+        type(str_t), intent(in) :: names(:)
+        character(*), intent(in) :: wanted
+        integer :: k
+        contains_name = .false.
+        do k = 1, size(names)
+            if (chars(names(k)) == wanted) then
+                contains_name = .true.
+                return
+            end if
+        end do
+    end function contains_name
 
 end program test_fortsym_convenience

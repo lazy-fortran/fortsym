@@ -4,7 +4,7 @@ module fortsym
     use fortsym_arena, only: arena_t, node_kind_name, &
         NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, NK_POW, &
         NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL, NK_ALGEBRAIC
-    use fortsym_string, only: str, chars
+    use fortsym_string, only: str_t, str, chars
     use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, &
         real_text_expr, algebraic_expr, const, func, func_in, partial, pi_expr, e_expr, &
         i_expr, oo_expr, zoo_expr, nan_expr, sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, &
@@ -16,6 +16,7 @@ module fortsym
         greater_equal
     use fortsym_predicates, only: is_number, is_algebraic
     use fortsym_subs, only: subs_impl => subs
+    use fortsym_eval, only: collect_free_symbols
     use fortsym_assume, only: assumption_context_t, &
         make_assumption_context, with_assumption, zero, negative, nonpositive, &
         positive, nonnegative, nonzero, real_valued, rational_valued, &
@@ -53,7 +54,8 @@ module fortsym
         zero, negative, nonpositive, positive, nonnegative, nonzero, real_valued, &
         rational_valued, integer_valued, positive_integer, algebraic_valued
     public :: str, chars
-    public :: subs, diff, simplify, refine, expand, factor, operation_count
+    public :: subs, diff, simplify, refine, expand, factor, operation_count, &
+        free_symbols
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -204,6 +206,16 @@ contains
         integer                  :: n
         n = expression%operation_count()
     end function operation_count
+
+    !> Collect the distinct free symbol names reachable from an expression.
+    !> Caller-owned output avoids an allocatable function-result temporary. The
+    !> traversal is owned by fortsym_eval; this facade only exposes the concise
+    !> native spelling.
+    subroutine free_symbols(expression, names)
+        type(expr_t), intent(in) :: expression
+        type(str_t), allocatable, intent(out) :: names(:)
+        call collect_free_symbols(expression, names)
+    end subroutine free_symbols
 
     !> Expand an expression with the native engine in its owning arena.
     function expand(expression, assumptions) result(result)

@@ -13,6 +13,7 @@ it.
 | Area | Native | SymEngine backend | Other backends | Required next fragment |
 |---|---:|---:|---:|---|
 | Hash-consed scalar expression DAG | stable structural order | conversion | conversion | persist a versioned cross-process structural digest |
+| Free-symbol traversal | distinct native names | conversion | conversion | bound symbols, indexed objects, and full expression hierarchy |
 | Arbitrary-precision integers and rationals | native scalar arithmetic yes | yes | yes | requested-precision real and complex evaluation |
 | Real literals and real evaluation | yes, with sampled MPFR ULP bounds | yes | partial | rigorous intervals and arbitrary-precision operations |
 | Complex and algebraic domains | bounded `qqbar` atoms, mixed coefficient folding, exact `Re`/`Im`, conjugation, principal-branch `log` including exact `log(±i)`, exact `asin(±i)`, `acos(±i)`, exact real unit-circle `asin`/`acos` values, exact real tangent `atan` values, exact real `asinh(±1)` values, `atan(±i)`, `atanh(±i)`, and `acosh(±i)` branch points, principal-branch `sqrt`, exact negative perfect-square roots, exact `asinh(±i)` branch points, `tan`/`sinh`/`cosh`/`tanh` rectangular splitting, lossless text IO, and checked real binary64 kernel projection | exact Gaussian-rational conversion; higher-degree atoms refused | partial | full expression promotion, higher-degree conversion, and complex code generation |

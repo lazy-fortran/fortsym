@@ -24,6 +24,7 @@ int main(void)
 {
     char message[128];
     char buffer[256];
+    char short_buffer[2];
     size_t required = 0;
     int64_t integer_value = 0;
     int kind = 0;
@@ -114,7 +115,7 @@ int main(void)
     const fortsym_expr *special_arguments[2];
     const fortsym_expr *legendre_arguments[3];
 
-    assert(fortsym_abi_version() == 13);
+    assert(fortsym_abi_version() == 14);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
@@ -136,6 +137,18 @@ int main(void)
     status = fortsym_expr_operation_count(product, &operation_count, message,
                                           sizeof message);
     assert(status == FORTSYM_OK && operation_count == 2);
+    status = fortsym_expr_free_symbols(product, buffer, sizeof buffer, &required,
+                                       message, sizeof message);
+    assert(status == FORTSYM_OK && required == 5);
+    assert((buffer[0] == 'x' && buffer[2] == 'y') ||
+           (buffer[0] == 'y' && buffer[2] == 'x'));
+    assert(buffer[1] == '\0' && buffer[3] == '\0' && buffer[4] == '\0');
+    status = fortsym_expr_free_symbols(product, short_buffer,
+                                       sizeof short_buffer, &required,
+                                       message, sizeof message);
+    assert(status == FORTSYM_RESOURCE_LIMIT && required == 5);
+    assert((short_buffer[0] == 'x' || short_buffer[0] == 'y') &&
+           short_buffer[1] == '\0');
 
     status = fortsym_expr_kind(one, &kind, message, sizeof message);
     assert(status == FORTSYM_OK && kind == FORTSYM_INT);
