@@ -80,6 +80,12 @@ module fortsym
         spacetime_metric_has_coordinates, spacetime_christoffel, &
         spacetime_riemann, spacetime_ricci, spacetime_scalar_curvature, &
         spacetime_einstein
+    use fortsym_spacetime_form, only: spacetime_form_t, spacetime_form_zero, &
+        spacetime_form_scalar, spacetime_form_one, spacetime_form_two, &
+        spacetime_form_three, spacetime_form_four, spacetime_form_component, &
+        spacetime_form_degree, spacetime_form_valid, spacetime_wedge, &
+        spacetime_d, spacetime_exterior_diff, spacetime_hodge, spacetime_star, &
+        spacetime_codifferential
     implicit none
     private
 
@@ -133,6 +139,12 @@ module fortsym
         spacetime_metric_coordinates, spacetime_metric_has_coordinates, &
         spacetime_christoffel, spacetime_riemann, spacetime_ricci, &
         spacetime_scalar_curvature, spacetime_einstein, &
+        spacetime_form_t, spacetime_form_zero, spacetime_form_scalar, &
+        spacetime_form_one, spacetime_form_two, spacetime_form_three, &
+        spacetime_form_four, spacetime_form_component, spacetime_form_degree, &
+        spacetime_form_valid, spacetime_wedge, spacetime_d, &
+        spacetime_exterior_diff, spacetime_hodge, spacetime_star, &
+        spacetime_codifferential, &
         form_t, form, form_scalar, form_one, form_two, &
         form_three, form_component, form_degree, form_valid, add_forms, &
         subtract_forms, negate_form, wedge, d, &

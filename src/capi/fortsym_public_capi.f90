@@ -36,6 +36,11 @@ module fortsym_public_capi
         spacetime_metric_sqrtg, spacetime_metric_contravariant, &
         spacetime_christoffel, spacetime_riemann, spacetime_ricci, &
         spacetime_scalar_curvature, spacetime_einstein
+    use fortsym_spacetime_form, only: spacetime_form_t, spacetime_form_scalar, &
+        spacetime_form_one, &
+        spacetime_form_two, spacetime_form_three, spacetime_form_four, &
+        spacetime_form_component, spacetime_form_valid, spacetime_d, &
+        spacetime_wedge, spacetime_hodge
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_from_storage, tensor_component, tensor_valid, metric_covariant_tensor, &
         metric_contravariant_tensor, density_tensor => density, &
@@ -132,7 +137,9 @@ module fortsym_public_capi
         fortsym_chart_form_star_metric, fortsym_spacetime_metric_sqrtg, &
         fortsym_spacetime_metric_contravariant, fortsym_spacetime_christoffel, &
         fortsym_spacetime_riemann, fortsym_spacetime_ricci, &
-        fortsym_spacetime_scalar_curvature, fortsym_spacetime_einstein
+        fortsym_spacetime_scalar_curvature, fortsym_spacetime_einstein, &
+        fortsym_spacetime_form_d, fortsym_spacetime_form_wedge, &
+        fortsym_spacetime_form_star
     public :: fortsym_complex_operation
     public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
@@ -147,7 +154,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 32_c_int
+        v = 33_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -2206,6 +2213,80 @@ contains
             status, message, capacity)
     end function fortsym_spacetime_einstein
 
+    function fortsym_spacetime_form_d(raw, components, dimension, coordinates, &
+            signature, orientation, input, degree, out, message, capacity) bind(c, &
+            name="fortsym_spacetime_form_d") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, input, out
+        integer(c_int), value :: dimension, orientation
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_form_t) :: input_value, value
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, input, degree, input_value, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_d(metric, input_value)
+        call make_spacetime_form_array(a, value, out, status, message, capacity)
+    end function fortsym_spacetime_form_d
+
+    function fortsym_spacetime_form_wedge(raw, components, dimension, coordinates, &
+            signature, orientation, left, left_degree, right, right_degree, out, &
+            message, capacity) bind(c, name="fortsym_spacetime_form_wedge") &
+            result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, left, right
+        type(c_ptr), value :: out
+        integer(c_int), value :: dimension, orientation
+        integer(c_size_t), value :: left_degree, right_degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_form_t) :: left_value, right_value, value
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, left, left_degree, left_value, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, right, right_degree, right_value, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_wedge(left_value, right_value)
+        call make_spacetime_form_array(a, value, out, status, message, capacity)
+    end function fortsym_spacetime_form_wedge
+
+    function fortsym_spacetime_form_star(raw, components, dimension, coordinates, &
+            signature, orientation, input, degree, out, message, capacity) bind(c, &
+            name="fortsym_spacetime_form_star") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, input, out
+        integer(c_int), value :: dimension, orientation
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_form_t) :: input_value, value
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, input, degree, input_value, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_hodge(metric, input_value)
+        call make_spacetime_form_array(a, value, out, status, message, capacity)
+    end function fortsym_spacetime_form_star
+
     function fortsym_expand(raw, expression_raw, out, message, capacity) &
             bind(c, name="fortsym_expand") result(status)
         type(c_ptr), value :: raw, expression_raw, out
@@ -2834,6 +2915,95 @@ contains
         call put_error(message, capacity, FORTSYM_OK)
         status = FORTSYM_OK
     end subroutine get_spacetime_metric_input
+
+    subroutine get_spacetime_form_input(metric, a, raw, degree, value, status, &
+            message, capacity)
+        type(spacetime_metric_t), intent(in) :: metric
+        type(arena_owner_t), pointer :: a
+        type(c_ptr), value :: raw
+        integer(c_size_t), value :: degree
+        type(spacetime_form_t), intent(out) :: value
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(c_ptr), pointer :: component_values(:)
+        type(expr_owner_t), pointer :: owner
+        type(expr_t) :: values(16), coefficients4(4), coefficients6(6)
+        integer :: mask, index, shape(1)
+
+        value = spacetime_form_t()
+        if (degree > int(SPACETIME_DIM, c_size_t) .or. &
+                .not. c_associated(raw)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape(1) = 2**SPACETIME_DIM
+        call c_f_pointer(raw, component_values, shape)
+        do mask = 0, 2**SPACETIME_DIM - 1
+            call get_expr(component_values(mask + 1), owner, values(mask + 1), &
+                status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        select case (int(degree))
+        case (0)
+            value = spacetime_form_scalar(values(1))
+        case (1)
+            coefficients4(1) = values(2)
+            coefficients4(2) = values(3)
+            coefficients4(3) = values(5)
+            coefficients4(4) = values(9)
+            value = spacetime_form_one(metric, coefficients4)
+        case (2)
+            index = 0
+            do mask = 0, 2**SPACETIME_DIM - 1
+                if (popcnt(mask) /= 2) cycle
+                index = index + 1
+                coefficients6(index) = values(mask + 1)
+            end do
+            value = spacetime_form_two(metric, coefficients6)
+        case (3)
+            index = 0
+            do mask = 0, 2**SPACETIME_DIM - 1
+                if (popcnt(mask) /= 3) cycle
+                index = index + 1
+                coefficients4(index) = values(mask + 1)
+            end do
+            value = spacetime_form_three(metric, coefficients4)
+        case (4)
+            value = spacetime_form_four(metric, values(16))
+        end select
+        if (.not. spacetime_form_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end subroutine get_spacetime_form_input
+
+    subroutine make_spacetime_form_array(a, value, out, status, message, capacity)
+        type(arena_owner_t), pointer :: a
+        type(spacetime_form_t), intent(in) :: value
+        type(c_ptr), value :: out
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(expr_t) :: values(2**SPACETIME_DIM)
+        integer :: mask
+
+        if (.not. spacetime_form_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        do mask = 0, 2**SPACETIME_DIM - 1
+            values(mask + 1) = spacetime_form_component(value, mask)
+        end do
+        call make_expr_array(a, values, out, 2**SPACETIME_DIM, status, &
+            message, capacity)
+    end subroutine make_spacetime_form_array
 
     subroutine get_chart_map_inputs(raw, source_coordinates, source_position, &
             target_coordinates, target_position, forward, inverse, map, a, &

@@ -389,6 +389,33 @@ def _configure(lib):
                 spacetime_arguments[:-3] + [ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
             ),
         )
+    lib.spacetime_form_d = declare(
+        "fortsym_spacetime_form_d", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR,
+            _SIZE,
+        ],
+    )
+    lib.spacetime_form_star = declare(
+        "fortsym_spacetime_form_star", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR,
+            _SIZE,
+        ],
+    )
+    lib.spacetime_form_wedge = declare(
+        "fortsym_spacetime_form_wedge", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _SIZE,
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     for name in ("covariant_basis", "reciprocal_basis", "metric_covariant",
                  "metric_contravariant", "christoffel",
                  "riemann", "ricci", "einstein"):
@@ -1099,6 +1126,36 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message), operation.__name__)
         return Expr(self, output)
+
+    def _spacetime_form_unary(self, operation, metric, form, output_degree):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * 16)(*[value._handle for value in form.components])
+        output = (_CVOID * 16)()
+        message = _message()
+        status = operation(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, form.degree, output, message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), operation.__name__)
+        return tuple(Expr(self, output[index]) for index in range(16)), output_degree
+
+    def _spacetime_form_binary(self, operation, metric, left, right):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        left_values = (_CVOID * 16)(*[value._handle for value in left.components])
+        right_values = (_CVOID * 16)(*[value._handle for value in right.components])
+        output = (_CVOID * 16)()
+        message = _message()
+        status = operation(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, left_values, left.degree, right_values,
+            right.degree, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), operation.__name__)
+        return tuple(Expr(self, output[index]) for index in range(16)), \
+            left.degree + right.degree
 
     def _chart_tensor(self, operation, coordinates, position, rank):
         coordinate_handles, position_handles = self._chart_inputs(
@@ -1879,11 +1936,142 @@ class SpacetimeMetric:
             (4, 4),
         )
 
+    def one_form(self, values):
+        return SpacetimeForm(self, values, 1)
+
+    def two_form(self, values):
+        return SpacetimeForm(self, values, 2)
+
+    def three_form(self, values):
+        return SpacetimeForm(self, values, 3)
+
+    def four_form(self, value):
+        return SpacetimeForm(self, (value,), 4)
+
     def close(self):
         for value in self._temporaries:
             value.close()
         self._temporaries = ()
         self.components = ()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+class SpacetimeForm:
+    """Native degree-k form on a :class:`SpacetimeMetric`."""
+
+    def __init__(self, metric, components, degree, _owned=False):
+        if not isinstance(metric, SpacetimeMetric):
+            raise TypeError("SpacetimeForm requires a SpacetimeMetric")
+        self.metric = metric
+        self._arena = metric._arena
+        self.degree = int(degree)
+        if self.degree < 0 or self.degree > 4:
+            raise ValueError("spacetime forms require degrees zero through four")
+        values = self._normalise_components(components, self.degree)
+        component_values = []
+        temporaries = []
+        for value in values:
+            coerced, temporary = self._arena._coerce(value)
+            component_values.append(coerced)
+            if temporary is not None:
+                temporaries.append(temporary)
+        self.components = tuple(component_values)
+        self._temporaries = tuple(temporaries)
+        self._owned = bool(_owned)
+
+    @staticmethod
+    def _normalise_components(components, degree):
+        values = (components,) if degree == 0 and isinstance(
+            components, (Expr, int, float, Fraction)
+        ) else tuple(components)
+        if len(values) == 16:
+            return values
+        if degree == 1 and len(values) == 4:
+            result = [0] * 16
+            for index, mask in enumerate((1, 2, 4, 8)):
+                result[mask] = values[index]
+            return tuple(result)
+        if degree == 2 and len(values) == 6:
+            result = [0] * 16
+            index = 0
+            for mask in range(16):
+                if mask.bit_count() == 2:
+                    result[mask] = values[index]
+                    index += 1
+            return tuple(result)
+        if degree == 3 and len(values) == 4:
+            result = [0] * 16
+            index = 0
+            for mask in range(16):
+                if mask.bit_count() == 3:
+                    result[mask] = values[index]
+                    index += 1
+            return tuple(result)
+        if degree == 4 and len(values) == 1:
+            result = [0] * 16
+            result[15] = values[0]
+            return tuple(result)
+        if degree == 0 and len(values) == 1:
+            return (values[0],) + (0,) * 15
+        raise ValueError("spacetime form coefficients do not match degree")
+
+    def component(self, mask):
+        mask = int(mask)
+        if mask < 0 or mask >= 16:
+            raise IndexError("spacetime form mask is outside dimension four")
+        value = self.components[mask]
+        value._spacetime_form_owner = self
+        return value
+
+    def __getitem__(self, mask):
+        return self.component(mask)
+
+    def __len__(self):
+        return 16
+
+    def __iter__(self):
+        for mask in range(16):
+            yield self.component(mask)
+
+    def d(self):
+        components, degree = self._arena._spacetime_form_unary(
+            self._arena._lib.spacetime_form_d, self.metric, self,
+            self.degree + 1,
+        )
+        return SpacetimeForm(self.metric, components, degree, _owned=True)
+
+    exterior_diff = d
+
+    def star(self):
+        components, degree = self._arena._spacetime_form_unary(
+            self._arena._lib.spacetime_form_star, self.metric, self,
+            4 - self.degree,
+        )
+        return SpacetimeForm(self.metric, components, degree, _owned=True)
+
+    hodge_star = star
+
+    def wedge(self, other):
+        if not isinstance(other, SpacetimeForm) or other.metric is not self.metric:
+            raise ValueError("spacetime wedge requires forms on one metric")
+        components, degree = self._arena._spacetime_form_binary(
+            self._arena._lib.spacetime_form_wedge, self.metric, self, other
+        )
+        return SpacetimeForm(self.metric, components, degree, _owned=True)
+
+    def close(self):
+        if self._owned:
+            for value in self.components:
+                value.close()
+        for temporary in self._temporaries:
+            temporary.close()
+        self.components = ()
+        self._temporaries = ()
 
     def __del__(self):
         try:
@@ -3029,7 +3217,7 @@ def free_symbols(expression: Expr): return expression.free_symbols
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "SpacetimeMetric", "SpacetimeTensor", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "SPACETIME_DIM",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count",

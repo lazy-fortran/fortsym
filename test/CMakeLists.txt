@@ -83,6 +83,7 @@ fortsym_add_test(test_fortsym_tensor calculus/test_fortsym_tensor.f90)
 fortsym_add_test(test_fortsym_connection calculus/test_fortsym_connection.f90)
 fortsym_add_test(test_fortsym_products calculus/test_fortsym_products.f90)
 fortsym_add_test(test_fortsym_relativity calculus/test_fortsym_relativity.f90)
+fortsym_add_test(test_fortsym_spacetime_form calculus/test_fortsym_spacetime_form.f90)
 fortsym_add_test(test_fortsym_toroidal calculus/test_fortsym_toroidal.f90)
 
 # --- reading Fortran back ---

@@ -1264,6 +1264,13 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Implement the first fixed-three-dimensional subset: `form_t`, scalar,
   one-, two-, and three-form constructors, `wedge`, `d`, metric `star`,
   interior product, Cartan `lie`, and metric `flat`/`sharp`.
+- [x] Add the first dimension-aware four-dimensional spacetime form owner:
+  degree-zero through degree-four constructors, antisymmetric `wedge`,
+  coordinate-aware `d`, Lorentzian/Riemannian metric `star`, and the native
+  `codifferential` path. The owner proves `d(d(A)) = 0`, graded antisymmetry,
+  and the signature-dependent Hodge involution on the Minkowski baseline.
+  ABI 33 and both Python facades transport `d`, `wedge`, and `star`; pullback,
+  contraction, Lie derivative, arbitrary dimension, and topology remain open.
 - [ ] Implement codifferential, Laplace-de Rham, and the conversion between
   vectors and one-forms using `flat` and `sharp`. The fixed-three-dimensional
   Hodge owner now accepts an explicit metric signature and orientation through
@@ -1312,6 +1319,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   Lorentzian component metrics, including inverse metric and positive
   `sqrt(abs(det(g)))`. Keep the chart-induced convenience path and the explicit
   metric path on one native Hodge implementation.
+- [x] Add the first four-dimensional Maxwell-form transport slice: a native
+  `SpacetimeMetric.one_form()` potential can produce `F = d(A)`, and the
+  Python facade checks `d(F) = 0`, `A wedge A = 0`, and the Lorentzian
+  `star(star(F)) = -F` identity against direct component expectations. Full
+  current/source equations, gauge metadata, and patch topology remain open.
 
 ### Magnetic and flux-coordinate toolkit
 
@@ -1464,6 +1476,10 @@ between the two-dimensional gradient, scalar curl, and divergence.
   Einstein views. The Python result trees are differentially checked against
   independently assembled SymPy Christoffel expressions; full frontend corpus
   generation and Wolfram translation remain open.
+- [x] Transport the first dimension-aware spacetime-form owner through ABI 33
+  and both Python facades. The native owner remains the single implementation;
+  the Python test independently checks a component of `d(A)`, `d(d(A))`, the
+  Lorentzian Hodge sign, and wedge antisymmetry.
 - [ ] Publish short Fortran, Python, and Wolfram examples for every completed
   derivation. Each example must show construction, simplification, a named
   identity check, and code generation where applicable.

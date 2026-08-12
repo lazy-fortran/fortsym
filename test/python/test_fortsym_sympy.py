@@ -111,6 +111,29 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(metric.ricci()[0, 0].simplify(), 0)
         self.assertEqual(metric.einstein()[3, 3].simplify(), 0)
 
+    def test_native_spacetime_forms(self):
+        t, x, y, z = sp.symbols("form_t form_x form_y form_z")
+        metric = sp.SpacetimeMetric(
+            (t, x, y, z),
+            ((-1, 0, 0, 0), (0, 1, 0, 0),
+             (0, 0, 1, 0), (0, 0, 0, 1)),
+            signature=(-1, 1, 1, 1),
+        )
+        potential = metric.one_form((x*y, t*z, t*x, t + y))
+        field = potential.d()
+        self.assertIsInstance(field, sp.SpacetimeForm)
+        self.assertEqual((field[3] - (z - y)).simplify(), 0)
+        closed = field.d()
+        for mask in range(16):
+            self.assertEqual(closed[mask].simplify(), 0)
+
+        two_form = metric.two_form((1, 2, 3, 4, 5, 6))
+        double_star = two_form.star().star()
+        for mask in (3, 5, 6, 9, 10, 12):
+            self.assertEqual((double_star[mask] + two_form[mask]).simplify(), 0)
+        for mask in (3, 5, 6, 9, 10, 12):
+            self.assertEqual(potential.wedge(potential)[mask].simplify(), 0)
+
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_chart_jacobian_and_dual_basis_match_sympy(self):
         u, v, w = sp.symbols("basis_u basis_v basis_w")

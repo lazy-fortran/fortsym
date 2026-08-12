@@ -12,7 +12,7 @@ from itertools import count
 
 from .. import (
     Arena, Chart, ChartMap, MagneticField, FourierWeakForm, Metric,
-    SpacetimeMetric, SpacetimeTensor, Tensor, Form, Expr,
+    SpacetimeMetric, SpacetimeForm, SpacetimeTensor, Tensor, Form, Expr,
     FortSymError, FOURIER_INVALID, FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE,
     SPACE_NONE, SPACE_NODAL, SPACE_EDGE, TRACE_NONE, TRACE_NORMAL,
     TRACE_TANGENTIAL, _Assumption, _CONFLICT, _FACT_INTEGER, _FACT_RATIONAL,
@@ -1215,7 +1215,7 @@ nan = _default().constant("nan")
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "SpacetimeMetric", "SpacetimeTensor", "Tensor", "Form", "Expr", "FortSymError", "UnsupportedOperationError",
+    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "Form", "Expr", "FortSymError", "UnsupportedOperationError",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "SPACETIME_DIM",
     "Manifold", "Patch", "CoordSystem", "CoordinateSymbol", "BaseScalarField",

@@ -1,0 +1,89 @@
+program test_fortsym_spacetime_form
+    use fortsym_arena, only: arena_t
+    use fortsym_expr, only: expr_t, sym, num, operator(+), operator(-), &
+        operator(*), operator(**)
+    use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
+    use fortsym_engine_symengine, only: symengine_engine_t, &
+        make_symengine_engine
+    use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
+        spacetime_metric_create
+    use fortsym_spacetime_form, only: spacetime_form_t, spacetime_form_one, &
+        spacetime_form_two, spacetime_form_component, spacetime_d, &
+        spacetime_wedge, spacetime_hodge, spacetime_form_four
+    implicit none
+
+    type(arena_t), target :: arena
+    type(symengine_engine_t) :: engine
+    type(suite_t) :: suite
+    type(spacetime_metric_t) :: metric
+    type(expr_t) :: u(SPACETIME_DIM), components(SPACETIME_DIM, SPACETIME_DIM)
+    type(expr_t) :: potential_components(SPACETIME_DIM)
+    type(expr_t) :: two_components(6), residual
+    type(spacetime_form_t) :: potential, field, closed, hodge, hodge_hodge
+    integer :: signature(SPACETIME_DIM), mask
+
+    call arena%init()
+    engine = make_symengine_engine(arena)
+    u(1) = sym(arena, "t")
+    u(2) = sym(arena, "x")
+    u(3) = sym(arena, "y")
+    u(4) = sym(arena, "z")
+    components = num(arena, 0)
+    components(1, 1) = num(arena, -1)
+    components(2, 2) = num(arena, 1)
+    components(3, 3) = num(arena, 1)
+    components(4, 4) = num(arena, 1)
+    signature = [-1, 1, 1, 1]
+    metric = spacetime_metric_create(components, 4, u, signature, 1)
+    call suite_begin(suite, "spacetime differential forms")
+
+    potential_components(1) = u(2)*u(3)
+    potential_components(2) = u(1)*u(3)
+    potential_components(3) = u(1)*u(2)
+    potential_components(4) = u(1) + u(2)
+    potential = spacetime_form_one(metric, potential_components)
+    field = spacetime_d(metric, potential)
+    closed = spacetime_d(metric, field)
+    do mask = 0, 15
+        if (mask /= 15) cycle
+        call check_identity(suite, engine, "d(dA)=0", &
+            spacetime_form_component(closed, mask))
+    end do
+
+    two_components(1) = num(arena, 1)
+    two_components(2) = num(arena, 2)
+    two_components(3) = num(arena, 3)
+    two_components(4) = num(arena, 4)
+    two_components(5) = num(arena, 5)
+    two_components(6) = num(arena, 6)
+    field = spacetime_form_two(metric, two_components)
+    hodge = spacetime_hodge(metric, field)
+    hodge_hodge = spacetime_hodge(metric, hodge)
+    do mask = 0, 15
+        if (popcnt(mask) /= 2) cycle
+        residual = spacetime_form_component(hodge_hodge, mask) + &
+            spacetime_form_component(field, mask)
+        call check_identity(suite, engine, "Lorentzian star squared on two-form", &
+            residual)
+    end do
+
+    field = spacetime_wedge(potential, potential)
+    do mask = 0, 15
+        if (popcnt(mask) /= 2) cycle
+        call check_identity(suite, engine, "one-form wedge itself", &
+            spacetime_form_component(field, mask))
+    end do
+
+    field = spacetime_form_four(metric, num(arena, 1))
+    hodge = spacetime_hodge(metric, field)
+    call check_identity(suite, engine, "star volume is signed scalar", &
+        spacetime_form_component(hodge, 0) + 1)
+
+    if (suite%failed /= 0) then
+        print *, "test_fortsym_spacetime_form: ", suite%failed, &
+            " check(s) FAILED"
+        error stop 1
+    end if
+    call suite_end(suite, "/tmp/fortsym_spacetime_form.json")
+    print *, "test_fortsym_spacetime_form: all checks passed"
+end program test_fortsym_spacetime_form
