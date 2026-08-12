@@ -289,9 +289,11 @@ the two scopes.
 
 In the 2026-08-12 diagnostic run, the native `expand_power` cold row measured
 0.835 ms per distinct expression versus 0.296 ms for SymEngine (2.8x native /
-SymEngine). The native row was 1.36 ms before the expansion workspace reuse and
-expanded-form fast path; this is a diagnostic comparison, not a release claim,
-because the run did not control CPU affinity or governor.
+SymEngine). After the canonical multinomial fast path began bypassing the
+redundant general simplifier, the same local rerun measured 0.398 ms versus
+0.294 ms (1.35x native / SymEngine, 52% less native time). These are diagnostic
+comparisons, not release claims, because the runs did not control CPU affinity
+or governor.
 
 `fo exec bench_complexdom` writes the `complexdom_v1` native rows used for the
 complex-domain cache comparison. Its cold scope clears the assumption-context

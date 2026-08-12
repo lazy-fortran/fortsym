@@ -428,6 +428,9 @@ contains
         logical :: refused
         character(:), allocatable :: reason
         type(resource_limit_t) :: active_limit
+        integer :: base_id
+        integer(int64) :: exponent, denominator
+        logical :: exact, multinomial_ok
 
         started = wall_seconds()
         r%value = e
@@ -445,6 +448,7 @@ contains
             r%seconds = wall_seconds() - started
             return
         end if
+
         if (.not. associated(self%assumptions)) then
             call ensure_cache(self%expand_cache, e%a%size())
             if (self%expand_cache(e%id) /= 0) then
@@ -452,6 +456,38 @@ contains
                 r%ok = .true.
                 r%seconds = wall_seconds() - started
                 return
+            end if
+        end if
+
+        ! The multinomial kernel already simplifies every generated monomial
+        ! and collects like terms. Keep its canonical result instead of
+        ! sending it through the general simplifier a second time. Restrict
+        ! this shortcut to an already-expanded sum base; otherwise the normal
+        ! recursive path is still needed for inner products and powers.
+        if (e%kind() == NK_POW) then
+            base_id = e%a%arg_of(e%id, 1)
+            call exact_value(e%a, e%a%arg_of(e%id, 2), exponent, denominator, &
+                exact)
+            if (exact .and. denominator == 1_int64 .and. exponent >= 0_int64 .and. &
+                exponent <= MAX_EXPAND_POWER .and. e%a%kind_of(base_id) == NK_ADD &
+                .and. is_expanded_id(e%a, base_id)) then
+                expanded = e
+                expanded%id = expand_sum_power(e%a, base_id, exponent, &
+                    multinomial_ok, active_limit)
+                if (multinomial_ok) then
+                    if (active_limit%exceeded_kind /= 0) then
+                        r%message = str(resource_failure("expand", active_limit))
+                        r%seconds = wall_seconds() - started
+                        return
+                    end if
+                    r%value = expanded
+                    r%ok = .true.
+                    if (.not. associated(self%assumptions)) then
+                        self%expand_cache(e%id) = r%value%id
+                    end if
+                    r%seconds = wall_seconds() - started
+                    return
+                end if
             end if
         end if
 
@@ -3984,6 +4020,9 @@ contains
         nterms = int(term_count)
         allocate (composition(a%nargs_of(base)), source=0_int64)
         success = .true.
+        ! Preflight every multinomial coefficient before interning any node.
+        ! The bound is not merely an optimization: an int64 overflow must
+        ! leave the arena and the original power untouched.
         call validate_multinomial(exponent, 1, composition, success, limit)
         if (.not. success) return
 
