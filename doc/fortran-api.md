@@ -129,6 +129,10 @@ The exact imaginary branch points `asin(i)` and `asin(-i)` are canonicalized
 to `i*log(sqrt(2) + 1)` and `-i*log(sqrt(2) + 1)`.
 The exact imaginary branch points `acos(i)` and `acos(-i)` are canonicalized
 to `pi/2 - i*log(sqrt(2) + 1)` and `pi/2 + i*log(sqrt(2) + 1)`.
+The exact principal real unit-circle values are also canonicalized:
+`asin(±1/2)`, `asin(±sqrt(2)/2)`, and `asin(±sqrt(3)/2)` return signed
+`pi/6`, `pi/4`, and `pi/3`, while the matching `acos` values return their
+principal angles from `pi/6` through `5*pi/6`.
 The exact imaginary branch points `asinh(i)` and `asinh(-i)` are canonicalized
 to `i*pi/2` and `-i*pi/2`; broader complex inverse branches remain unevaluated.
 The reciprocal-hyperbolic heads `csch`, `sech`, and `coth` likewise have

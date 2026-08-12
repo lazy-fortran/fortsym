@@ -2555,6 +2555,8 @@ contains
             else if (is_minus_one_id(a, id)) then
                 out = mul_pair(a, a%int(-1_int64), half_pi)
             else
+                call exact_inverse_trig_special_value(a, "asin", id, out, ok)
+                if (ok) return
                 call exact_odd_imaginary_log_value(a, id, out, ok)
                 if (.not. ok) return
             end if
@@ -2566,6 +2568,8 @@ contains
             else if (is_minus_one_id(a, id)) then
                 out = a%const("pi")
             else
+                call exact_inverse_trig_special_value(a, "acos", id, out, ok)
+                if (ok) return
                 call exact_odd_imaginary_log_value(a, id, imaginary_log, ok)
                 if (.not. ok) return
                 out = add_pair(a, half_pi, mul_pair(a, &
@@ -2617,6 +2621,92 @@ contains
         end select
         ok = .true.
     end subroutine exact_inverse_value
+
+    subroutine exact_inverse_trig_special_value(a, name, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        character(*), intent(in) :: name
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+
+        out = id
+        ok = .false.
+        select case (name)
+        case ("asin")
+            call exact_inverse_trig_candidate(a, "sin", id, 1_int64, 6_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "sin", id, -1_int64, 6_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "sin", id, 1_int64, 4_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "sin", id, -1_int64, 4_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "sin", id, 1_int64, 3_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "sin", id, -1_int64, 3_int64, &
+                out, ok)
+        case ("acos")
+            call exact_inverse_trig_candidate(a, "cos", id, 1_int64, 6_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "cos", id, 1_int64, 4_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "cos", id, 1_int64, 3_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "cos", id, 2_int64, 3_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "cos", id, 3_int64, 4_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "cos", id, 5_int64, 6_int64, &
+                out, ok)
+        end select
+    end subroutine exact_inverse_trig_special_value
+
+    subroutine exact_inverse_trig_candidate(a, name, id, numerator, denominator, &
+            out, ok)
+        type(arena_t), intent(inout) :: a
+        character(*), intent(in) :: name
+        integer, intent(in) :: id
+        integer(int64), intent(in) :: numerator, denominator
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer :: angle, expected, alternate, root_two, one_arg(1)
+        logical :: expected_ok
+
+        out = id
+        ok = .false.
+        angle = mul_pair(a, a%rat(numerator, denominator), a%const("pi"))
+        call exact_trig_value(a, name, angle, expected, expected_ok)
+        if (.not. expected_ok) return
+        if (id == expected) then
+            out = angle
+            ok = .true.
+            return
+        end if
+        if (denominator /= 4_int64) return
+        one_arg(1) = a%int(2_int64)
+        root_two = a%func("sqrt", one_arg)
+        alternate = mul_pair(a, root_two, a%rat(1_int64, 2_int64))
+        if (name == "sin" .and. numerator < 0_int64) then
+            alternate = mul_pair(a, a%int(-1_int64), alternate)
+        else if (name == "cos" .and. &
+                (modulo(numerator, 8_int64) == 3_int64 .or. &
+                modulo(numerator, 8_int64) == 5_int64)) then
+            alternate = mul_pair(a, a%int(-1_int64), alternate)
+        end if
+        if (id /= alternate) return
+        out = angle
+        ok = .true.
+    end subroutine exact_inverse_trig_candidate
 
     subroutine exact_acosh_imaginary_value(a, id, out, ok)
         type(arena_t), intent(inout) :: a
