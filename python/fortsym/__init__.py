@@ -4330,6 +4330,8 @@ class Expr:
         self._handle = handle
         self._known_facts = 0
         self._pretty = False
+        self._simplified_result = None
+        self._simplified_epoch = -1
         self._expanded_result = None
         self._expanded_epoch = -1
         self._diff_results = {}
@@ -4352,6 +4354,7 @@ class Expr:
     def close(self):
         if self._borrowed:
             return
+        self._simplified_result = None
         self._expanded_result = None
         self._diff_results.clear()
         self._complex_results.clear()
@@ -4637,8 +4640,17 @@ class Expr:
         return result
 
     def simplify(self):
-        return self._arena._result(self._lib.simplify, self._arena._require(),
-                                   self._require())
+        cached = self._simplified_result
+        if (cached is not None and cached._handle is not None and
+                self._simplified_epoch == self._arena._assumption_epoch):
+            return cached
+        self._simplified_result = None
+        result = self._arena._result(
+            self._lib.simplify, self._arena._require(), self._require()
+        )
+        self._simplified_result = result
+        self._simplified_epoch = self._arena._assumption_epoch
+        return result
 
     def factor(self):
         return self._arena._result(self._lib.factor, self._arena._require(),

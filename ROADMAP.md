@@ -1846,6 +1846,11 @@ between the two-dimensional gradient, scalar curl, and divergence.
     native owner across Fortran, C, and Python.
   - [x] Reuse a Python facade's expanded result while its assumption epoch is
     unchanged, and invalidate that result when assumptions change.
+  - [x] Reuse a Python facade's simplified result while its assumption epoch is
+    unchanged, and invalidate it when assumptions change. Restrict the native
+    inverse-trigonometric probe to inverse-trigonometric heads, avoiding needless
+    constant construction for ordinary function, domain, and exact-factorial
+    simplification.
   - [x] Close the repeated `differentiate:warm_core` gap by caching one
     simplified derivative per immutable `(expression, variable)` pair in the
     expression owner. The cache preserves the raw low-level `Expr.diff` and

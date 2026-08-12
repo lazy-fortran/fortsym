@@ -330,8 +330,9 @@ from changing the other engine's cold conversion and interning cost. The two
 suites use the same input formulae, shifts, warmup counts, batches, validation
 points, and correctness oracles. The Python C-ABI arena retains its native
 engine and memoization caches across warm calls, while scoped assumptions are
-synchronized before each operation. The Python facade also reuses an expanded
-result for the same expression until the arena's assumption epoch changes,
+synchronized before each operation. The Python facade also reuses simplified
+and expanded results for the same immutable expression until the arena's
+assumption epoch changes,
 reuses simplified derivatives for repeated `(expression, variable)` calls, and
 caches the immutable `Expr.free_symbols` handle set for repeated access. It
 also caches up to eight identity-checked, non-cascading mapping results per
