@@ -31,6 +31,7 @@ module fortsym_connection
 
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
     integer, parameter, public :: CONNECTION_STANDARD = 1
+    integer, parameter, public :: CONNECTION_OPPOSITE = -1
 
     type :: connection_t
         private
@@ -126,8 +127,9 @@ contains
     !>
     !> The standard convention is the same one used by the existing curvature
     !> owners: R^a_bcd = d_c Gamma^a_db - d_d Gamma^a_cb + ....  The
-    !> convention is stored even though only this convention is accepted yet;
-    !> this keeps sign choices explicit at the owner boundary.
+    !> opposite convention is its exact negative. The coefficients remain the
+    !> supplied affine connection in either case; only curvature views use the
+    !> stored sign convention.
     function connection_create(components, coordinates, convention) result(result)
         type(expr_t), intent(in) :: components(DIM, DIM, DIM), coordinates(DIM)
         integer, optional, intent(in) :: convention
@@ -151,7 +153,8 @@ contains
 
         result%convention = CONNECTION_STANDARD
         if (present(convention)) result%convention = convention
-        if (result%convention /= CONNECTION_STANDARD) return
+        if (result%convention /= CONNECTION_STANDARD .and. &
+            result%convention /= CONNECTION_OPPOSITE) return
         result%component = components
         result%coordinate = coordinates
         result%valid = .true.
@@ -191,7 +194,8 @@ contains
             valid = .false.
             return
         end if
-        if (connection%convention /= CONNECTION_STANDARD) valid = .false.
+        if (connection%convention /= CONNECTION_STANDARD .and. &
+            connection%convention /= CONNECTION_OPPOSITE) valid = .false.
     end function connection_valid
 
     function connection_arena(connection) result(a)
@@ -765,9 +769,15 @@ contains
         type(tensor_t) :: result
         type(expr_t) :: values(0:MAX_COMPONENTS - 1)
         integer :: variances(MAX_RANK)
+        integer :: component
 
         if (.not. connection_valid(connection)) return
         call riemann_components(connection%component, connection%coordinate, values)
+        if (connection%convention == CONNECTION_OPPOSITE) then
+            do component = 0, DIM**4 - 1
+                values(component) = -values(component)
+            end do
+        end if
         variances = 0
         variances(1) = UPPER
         variances(2) = LOWER_VARIANCE

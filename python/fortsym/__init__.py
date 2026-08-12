@@ -53,6 +53,8 @@ TRACE_NONE = 0
 TRACE_NORMAL = 1
 TRACE_TANGENTIAL = 2
 SPACETIME_DIM = 4
+CONNECTION_STANDARD = 1
+CONNECTION_OPPOSITE = -1
 INDEX_TANGENT = 1
 INDEX_COTANGENT = 2
 INDEX_SPACETIME = 3
@@ -808,7 +810,8 @@ def _configure(lib):
     lib.chart_connection_riemann = declare(
         "fortsym_chart_connection_riemann", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
-         ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+         ctypes.POINTER(_CVOID), ctypes.c_int, ctypes.POINTER(_CVOID),
+         _CHAR_PTR, _SIZE],
     )
     lib.chart_connection_geodesic_residual = declare(
         "fortsym_chart_connection_geodesic_residual", ctypes.c_int,
@@ -2187,8 +2190,8 @@ class Arena:
         output = (_CVOID * 81)()
         message = _message()
         status = self._lib.chart_connection_riemann(
-            self._require(), coordinate_handles, position_handles, values, output,
-            message, len(message),
+            self._require(), coordinate_handles, position_handles, values,
+            connection.convention, output, message, len(message),
         )
         if status:
             raise FortSymError(status, _decode(message), "connection_riemann")
@@ -2832,9 +2835,9 @@ class Chart:
         """Create a native metric owner for this chart's expression arena."""
         return Metric(self, components, signature, orientation)
 
-    def connection(self, coefficients=None):
+    def connection(self, coefficients=None, convention=CONNECTION_STANDARD):
         """Create the chart Levi-Civita or a supplied affine connection."""
-        return Connection(self, coefficients)
+        return Connection(self, coefficients, convention)
 
     def b_fourier(self, potential, mode):
         return self._arena._chart_many(
@@ -3808,11 +3811,16 @@ class Tensor:
 class Connection:
     """A native supplied affine connection ``Gamma^a_bc`` on a chart."""
 
-    def __init__(self, chart, coefficients=None):
+    def __init__(self, chart, coefficients=None,
+                 convention=CONNECTION_STANDARD):
         if not isinstance(chart, Chart):
             raise TypeError("Connection requires a fortsym Chart")
+        convention = int(convention)
+        if convention not in (CONNECTION_STANDARD, CONNECTION_OPPOSITE):
+            raise ValueError("connection convention must be 1 or -1")
         self.chart = chart
         self._arena = chart._arena
+        self.convention = convention
         self._source = None
         if coefficients is None:
             self._source = chart.christoffel()
@@ -4815,7 +4823,7 @@ __all__ = [
     "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
-    "SPACETIME_DIM",
+    "SPACETIME_DIM", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

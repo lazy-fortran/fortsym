@@ -317,9 +317,11 @@ coordinate Levi-Civita owner with `connection_from_chart(chart)` or
 `Q_ijk = -nabla_k g_ij`, with the derivative slot last to match
 `covariant_diff`. The connection overloads of `covariant_diff`,
 `covariant_derivative`, and `covariant_divergence` use exactly the same typed
-slot and density kernel as the chart and metric owners. The current native
-convention is `CONNECTION_STANDARD`; named alternate Riemann conventions and
-geodesic solving remain separate roadmap work.
+slot and density kernel as the chart and metric owners. `CONNECTION_STANDARD`
+and `CONNECTION_OPPOSITE` select the sign of the supplied connection's
+Riemann view. The affine coefficients, torsion, covariant derivatives, and
+geodesic residual are unchanged by that curvature-sign choice. Geodesic
+solving remains separate roadmap work.
 `riemann_tensor(connection)` differentiates the supplied coefficients directly
 and returns `R^a_bcd` without inferring or constructing a metric. The Python
 facade exposes the same view as `Connection.riemann()`.

@@ -158,6 +158,14 @@ class SympySubsetTest(unittest.TestCase):
         )
         self.assertEqual(actual_riemann, -2*ox*oy)
 
+        opposite = chart.connection(
+            gamma, convention=sp.CONNECTION_OPPOSITE
+        )
+        actual_opposite = oracle.sympify(
+            str(opposite.riemann()[0, 1, 0, 1].simplify())
+        )
+        self.assertEqual(actual_opposite, 2*ox*oy)
+
         parameter = sp.Symbol("connection_lambda")
         actual_geodesic = tuple(
             oracle.sympify(str(value.simplify()))

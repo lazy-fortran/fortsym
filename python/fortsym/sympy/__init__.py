@@ -18,7 +18,8 @@ from .. import (
     INDEX_TANGENT, INDEX_COTANGENT, INDEX_SPACETIME, INDEX_INTERNAL, INDEX_USER,
     SPACE_NONE, SPACE_NODAL, SPACE_EDGE, TRACE_NONE, TRACE_NORMAL,
     TRACE_TANGENTIAL, _Assumption, _CONFLICT, _FACT_INTEGER, _FACT_RATIONAL,
-    _FACT_ALGEBRAIC, SPACETIME_DIM, _default,
+    _FACT_ALGEBRAIC, SPACETIME_DIM, CONNECTION_STANDARD, CONNECTION_OPPOSITE,
+    _default,
     tensor_product as _tensor_product, contract as _contract,
 )
 
@@ -1252,7 +1253,7 @@ __all__ = [
     "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "TensorIndexType", "TensorIndex", "Form", "Expr", "FortSymError", "UnsupportedOperationError",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
-    "SPACETIME_DIM",
+    "SPACETIME_DIM", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "Manifold", "Patch", "CoordSystem", "CoordinateSymbol", "BaseScalarField",
     "BaseVectorField", "Differential", "WedgeProduct", "TensorProduct", "LieDerivative",
     "InconsistentAssumptions",

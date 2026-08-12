@@ -19,7 +19,8 @@ program test_fortsym_connection
         UPPER, LOWER_VARIANCE, MAX_RANK, tensor_vector, density
     use fortsym_connection, only: connection_t, connection_create, &
         connection_from_chart, connection_from_metric, connection_valid, &
-        connection_convention, CONNECTION_STANDARD, covariant_diff, &
+        connection_convention, CONNECTION_STANDARD, CONNECTION_OPPOSITE, &
+        covariant_diff, &
         covariant_divergence, torsion, nonmetricity, geodesic_residual, &
         christoffel_tensor, &
         riemann_tensor, first_bianchi_residual, ricci_tensor, &
@@ -37,6 +38,7 @@ program test_fortsym_connection
     type(metric_t) :: curved_metric
     type(metric_t) :: cartesian_metric
     type(connection_t) :: chart_connection, metric_connection, supplied_connection
+    type(connection_t) :: opposite_connection
     type(expr_t) :: u(DIM), position(DIM), scalar_value
     type(expr_t) :: gamma(DIM, DIM, DIM), expected
     type(tensor_t) :: scalar, gradient, metric, metric_derivative
@@ -207,6 +209,16 @@ program test_fortsym_connection
     supplied_riemann = riemann_tensor(supplied_connection)
     call check_identity(suite, engine, "supplied R^1_212 = -2*R*Z", &
         tensor_component(supplied_riemann, [1, 2, 1, 2]) + 2*u(1)*u(2))
+    opposite_connection = connection_create(supplied_gamma, u, CONNECTION_OPPOSITE)
+    if (.not. connection_valid(opposite_connection)) then
+        error stop "opposite supplied connection invalid"
+    end if
+    if (connection_convention(opposite_connection) /= CONNECTION_OPPOSITE) then
+        error stop "opposite connection convention failed"
+    end if
+    supplied_riemann = riemann_tensor(opposite_connection)
+    call check_identity(suite, engine, "opposite R^1_212 = 2*R*Z", &
+        tensor_component(supplied_riemann, [1, 2, 1, 2]) - 2*u(1)*u(2))
     supplied_vector = u
     supplied_derivative = covariant_diff(supplied_connection, &
         tensor_vector(polynomial, supplied_vector))

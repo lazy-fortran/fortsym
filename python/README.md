@@ -85,7 +85,9 @@ or a supplied `Gamma^a_bc` owner. `Connection.torsion()`,
 `Connection.nonmetricity(metric)`, `Connection.covariant_diff(tensor)`, and
 `Connection.covariant_divergence(tensor)` all route through the same native
 connection owner. `Connection.riemann()` differentiates supplied coefficients
-without requiring a metric; `Tensor.covariant_diff(connection)` and
+without requiring a metric. Pass `convention=CONNECTION_STANDARD` or
+`convention=CONNECTION_OPPOSITE` to select the Riemann sign; the stored
+coefficients and all covariant calculus remain unchanged. `Tensor.covariant_diff(connection)` and
 `Tensor.covariant_divergence(connection)` are matching convenience spellings.
 `Connection.geodesic_residual(curve, parameter)` evaluates the same geodesic
 equation directly from supplied coefficients, without requiring a metric.
