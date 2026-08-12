@@ -17,6 +17,7 @@ module fortsym_metric
 
     public :: metric_t, metric_create, metric_from_chart
     public :: metric_covariant, metric_contravariant, metric_det, metric_sqrtg
+    public :: metric_inner
     public :: metric_grad, metric_divergence, metric_laplacian
     public :: metric_signature, metric_orientation, metric_valid
     public :: metric_arena, metric_same_arena
@@ -154,6 +155,40 @@ contains
         if (.not. g%valid) return
         value = sqrt(expr_abs(metric_det(g)))
     end function metric_sqrtg
+
+    !> Metric inner product of two contravariant component vectors.
+    !>
+    !> The contraction is kept here, rather than reimplemented by magnetic or
+    !> tensor callers, so nonorthogonal metrics have one checked and optimized
+    !> path: g_ij a^i b^j.  The fixed dimension keeps the small accumulation
+    !> cheaper than materializing a lowered vector or a metric component array
+    !> for each call.
+    function metric_inner(g, left, right) result(value)
+        type(metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: left(DIM), right(DIM)
+        type(expr_t) :: value
+        type(expr_t) :: term
+        integer :: i, j
+
+        if (.not. metric_valid(g)) return
+        do i = 1, DIM
+            if (.not. is_valid(left(i))) return
+            if (.not. associated(left(i)%a, g%a)) return
+            if (.not. is_valid(right(i))) return
+            if (.not. associated(right(i)%a, g%a)) return
+        end do
+
+        value = num(g%a, 0)
+        do i = 1, DIM
+            if (is_zero_expr(left(i))) cycle
+            do j = 1, DIM
+                if (is_zero_expr(g%component(i, j))) cycle
+                if (is_zero_expr(right(j))) cycle
+                term = g%component(i, j)*left(i)*right(j)
+                if (.not. is_zero_expr(term)) value = value + term
+            end do
+        end do
+    end function metric_inner
 
     !> Contravariant metric gradient (grad f)^i = g^ij partial_j f.
     !>

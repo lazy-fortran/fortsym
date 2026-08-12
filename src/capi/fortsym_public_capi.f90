@@ -31,7 +31,8 @@ module fortsym_public_capi
         TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_metric, only: metric_t, metric_create, metric_valid, &
         metric_covariant, metric_contravariant, metric_sqrtg, metric_signature, &
-        metric_orientation, metric_grad, metric_divergence, metric_laplacian
+        metric_orientation, metric_inner, metric_grad, metric_divergence, &
+        metric_laplacian
     use fortsym_volume, only: metric_volume_density, metric_levi_civita
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
         spacetime_metric_create, spacetime_metric_valid, &
@@ -137,6 +138,7 @@ module fortsym_public_capi
         fortsym_chart_j_fourier, fortsym_chart_fourier_weak_form, &
         fortsym_chart_current_compatibility, &
         fortsym_metric_sqrtg, fortsym_metric_contravariant, &
+        fortsym_metric_inner, &
         fortsym_metric_grad, fortsym_metric_divergence, fortsym_metric_laplacian, &
         fortsym_metric_volume_density, fortsym_metric_levi_civita, &
         fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
@@ -184,7 +186,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 49_c_int
+        v = 50_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1351,7 +1353,7 @@ contains
         integer :: order_fortran(MAX_RANK), shape(1), k
 
         if (rank < 1_c_size_t .or. rank > int(MAX_RANK, c_size_t) .or. &
-                .not. c_associated(order)) then
+            .not. c_associated(order)) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if
@@ -1390,8 +1392,8 @@ contains
             variance, density_weight, chart, a, input, status, message, capacity)
         if (status /= FORTSYM_OK) return
         if (rank < 2_c_size_t .or. first_slot < 1_c_size_t .or. &
-                first_slot > rank .or. second_slot < 1_c_size_t .or. &
-                second_slot > rank .or. first_slot == second_slot) then
+            first_slot > rank .or. second_slot < 1_c_size_t .or. &
+            second_slot > rank .or. first_slot == second_slot) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if
@@ -1459,8 +1461,8 @@ contains
             variance, density_weight, chart, a, input, status, message, capacity)
         if (status /= FORTSYM_OK) return
         if (first_slot < 1_c_size_t .or. first_slot > rank .or. &
-                second_slot < 1_c_size_t .or. second_slot > rank .or. &
-                first_slot == second_slot) then
+            second_slot < 1_c_size_t .or. second_slot > rank .or. &
+            first_slot == second_slot) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if
@@ -2367,6 +2369,30 @@ contains
         call make_expr_array(a, flat_values, out, DIM*DIM, status, message, &
             capacity)
     end function fortsym_metric_contravariant
+
+    function fortsym_metric_inner(raw, components, signature, orientation, left, &
+            right, out, message, capacity) bind(c, name="fortsym_metric_inner") &
+            result(status)
+        type(c_ptr), value :: raw, components, signature, left, right, out
+        integer(c_int), value :: orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(metric_t) :: metric
+        type(expr_t) :: left_value(DIM), right_value(DIM), value
+
+        call begin_output(out, message, capacity)
+        call get_metric_input(raw, components, signature, orientation, a, metric, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr_vector(a, left, left_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr_vector(a, right, right_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = metric_inner(metric, left_value, right_value)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_metric_inner
 
     function fortsym_metric_grad(raw, coordinates, position, components, signature, &
             orientation, scalar, out, message, capacity) bind(c, &
@@ -3746,8 +3772,8 @@ contains
             return
         end if
         if (.not. c_associated(components) .or. &
-                .not. c_associated(coordinates) .or. &
-                .not. c_associated(signature)) then
+            .not. c_associated(coordinates) .or. &
+            .not. c_associated(signature)) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if
@@ -3807,7 +3833,7 @@ contains
 
         value = spacetime_form_t()
         if (degree > int(SPACETIME_DIM, c_size_t) .or. &
-                .not. c_associated(raw)) then
+            .not. c_associated(raw)) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if

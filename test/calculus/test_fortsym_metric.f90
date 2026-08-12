@@ -13,7 +13,7 @@ program test_fortsym_metric
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
         metric_covariant, metric_contravariant, metric_det, metric_sqrtg, &
         metric_signature, metric_orientation, metric_valid, metric_grad, &
-        metric_divergence, metric_laplacian
+        metric_divergence, metric_laplacian, metric_inner
     use fortsym_volume, only: metric_volume_density, levi_civita_symbol, &
         metric_levi_civita
     implicit none
@@ -22,11 +22,12 @@ program test_fortsym_metric
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
     type(chart_t) :: cartesian
-    type(metric_t) :: euclidean, lorentzian, invalid, degenerate
+    type(metric_t) :: euclidean, shear_metric, lorentzian, invalid, degenerate
     type(expr_t) :: components(DIM, DIM), covariant(DIM, DIM)
     type(expr_t) :: inverse(DIM, DIM), product, determinant, root
     type(expr_t) :: scalar, gradient(DIM), vector(DIM), divergence_value
     type(expr_t) :: laplacian_value, facade_gradient(DIM), facade_laplacian
+    type(expr_t) :: inner_left(DIM), inner_right(DIM), inner_value
     type(expr_t) :: epsilon_lower(DIM, DIM, DIM), epsilon_upper(DIM, DIM, DIM)
     integer :: signature(DIM), returned_signature(DIM)
     integer :: i, j, k
@@ -46,8 +47,8 @@ program test_fortsym_metric
     call check_identity(suite, engine, "metric volume density is positive", &
         metric_volume_density(euclidean) - 1)
     if (levi_civita_symbol(1, 2, 3) /= 1 .or. &
-            levi_civita_symbol(1, 3, 2) /= -1 .or. &
-            levi_civita_symbol(1, 1, 2) /= 0) then
+        levi_civita_symbol(1, 3, 2) /= -1 .or. &
+        levi_civita_symbol(1, 1, 2) /= 0) then
         error stop "Levi-Civita symbol convention failed"
     end if
     epsilon_lower = metric_levi_civita(euclidean, -1)
@@ -108,6 +109,24 @@ program test_fortsym_metric
     facade_laplacian = divergence(euclidean, vector)
     call check_identity(suite, engine, "facade metric divergence", &
         facade_laplacian - divergence_value)
+
+    components = num(arena, 0)
+    components(1, 1) = num(arena, 2)
+    components(1, 2) = num(arena, 1)
+    components(2, 1) = num(arena, 1)
+    components(2, 2) = num(arena, 3)
+    components(3, 3) = num(arena, 4)
+    shear_metric = metric_create(components)
+    inner_left = cartesian%u
+    inner_right = num(arena, 0)
+    inner_right(1) = num(arena, 1)
+    inner_right(2) = num(arena, 2)
+    inner_right(3) = num(arena, 3)
+    inner_value = metric_inner(shear_metric, inner_left, inner_right)
+    call check_identity(suite, engine, "nonorthogonal metric inner product", &
+        inner_value - (4*cartesian%u(1) + 7*cartesian%u(2) + &
+        12*cartesian%u(3)))
+
     gradient = metric_grad(lorentzian, cartesian%u(1))
     call check_identity(suite, engine, "Lorentzian metric gradient sign", &
         gradient(1) + 1)

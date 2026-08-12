@@ -82,6 +82,9 @@ When the metric carries `coordinates=...`, `metric_grad`,
 tuple. `metric_grad` returns the contravariant components
 `g^ij diff(f, u^j)`, `metric_divergence` applies
 `diff(sqrtg*v^i, u^i)/sqrtg`, and `metric_laplacian` is their composition.
+`metric_inner(g, left, right)` contracts contravariant component vectors as
+`g_ij left^i right^j`; using the same vector twice is the native path for a
+metric norm squared such as `B**2`, including nonorthogonal metrics.
 These are metric-owner operations, so they also work for pseudo-Riemannian
 signatures; orientation remains owned by the volume-form layer.
 `volume_form(metric_owner)` uses the stored orientation, while
@@ -98,7 +101,7 @@ four-dimensional form equations `F=d(A)`, `A+d(chi)`, and `d(*F)-J`.
 use fortsym_chart, only: DIM
 use fortsym_expr, only: expr_t
 use fortsym_metric, only: metric_t, metric_create, metric_sqrtg, &
-    metric_contravariant
+    metric_contravariant, metric_inner
 use fortsym_volume, only: metric_volume_density, metric_levi_civita
 type(metric_t) :: spacetime_metric
 type(expr_t) :: g(DIM, DIM), sqrtg_value, g_inverse(DIM, DIM)

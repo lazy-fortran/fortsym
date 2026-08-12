@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 49). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 50). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -51,6 +51,9 @@ The metric owner is also available through `fortsym_metric_sqrtg`,
 `fortsym_metric_volume_density`, `fortsym_metric_levi_civita`,
 `fortsym_metric_contravariant`, `fortsym_metric_grad`,
 `fortsym_metric_divergence`, and `fortsym_metric_laplacian`;
+`fortsym_metric_inner` contracts two three-component contravariant vectors
+with the supplied metric and is the shared native path for metric norms and
+magnetic `B**2` calculations;
 the last three take the explicit coordinate tuple and position map needed to
 transport chart inputs while keeping the metric owner authoritative.
 `fortsym_chart_form_star_metric` applies the

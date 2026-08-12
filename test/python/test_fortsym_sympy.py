@@ -337,6 +337,24 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_metric_inner_matches_sympy_on_nonorthogonal_metric(self):
+        x, y, z = sp.symbols("inner_x inner_y inner_z")
+        chart = sp.Chart((x, y, z), (x, y, z))
+        metric = chart.metric_owner(
+            ((2, 1, 0), (1, 3, 0), (0, 0, 4)),
+        )
+        left = (x, y, z)
+        right = (1, 2, 3)
+        oracle_metric = oracle.Matrix(((2, 1, 0), (1, 3, 0), (0, 0, 4)))
+        oracle_left = oracle.Matrix(oracle.symbols("inner_x inner_y inner_z"))
+        expected = (oracle_left.T * oracle_metric * oracle.Matrix(right))[0]
+        actual = oracle.sympify(str(metric.inner(left, right).simplify()))
+        self.assertEqual(actual, expected)
+        expected_norm = (oracle_left.T * oracle_metric * oracle_left)[0]
+        actual_norm = oracle.sympify(str(metric.norm_squared(left).simplify()))
+        self.assertEqual(oracle.expand(actual_norm - expected_norm), 0)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_spherical_minkowski_relativity_owner_matches_sympy(self):
         t, r, theta, phi = sp.symbols("rel_t rel_r rel_theta rel_phi")
         metric = sp.SpacetimeMetric(
