@@ -138,6 +138,24 @@ and `fortsym_connection` owns covariant/curvature views. The Python `Chart`,
 `ChartMap`, `Tensor`, and `Form` classes only transport handles and metadata
 through the C ABI.
 
+The planned first-class geometry package split is:
+
+```text
+fortsym_geom -> fortsym_metric -> {fortsym_tensor, fortsym_form,
+                                    fortsym_connection, fortsym_magnetic}
+                           \-> fortsym_registry
+```
+
+`fortsym_geom` owns manifolds, patches, charts, bases, and coordinate maps.
+`fortsym_metric` owns signatures, orientations, volume densities, volume
+forms, and epsilon objects. The downstream modules consume those interfaces
+and do not store private metric or chart copies. `fortsym_registry` contains
+explicit capability records and procedure registration for optional toolkits;
+it has no linker discovery or hidden initialization path. This split is the
+implementation target recorded in the differential-geometry section of
+[`ROADMAP.md`](../ROADMAP.md), while the current fixed-three-dimensional
+modules are the migration starting point.
+
 The native limit layer proves continuity substitutions, bounded L'Hopital
 steps, polynomial degree ratios at infinity, and a restricted single-monomial
 growth ordering. It checks a full two-sided finite neighborhood before
