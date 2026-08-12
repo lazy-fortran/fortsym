@@ -1621,9 +1621,13 @@ between the two-dimensional gradient, scalar curl, and divergence.
 
 - [ ] Add a flat Cartesian-to-polar/cylindrical example that derives
   `sqrtg`, reciprocal bases, Christoffel symbols, and the scalar Laplacian.
-- [ ] Add spherical coordinates and verify the volume element, gradient,
-  divergence, curl, and Laplace--Beltrami operator against independent
-  component formulas and SymPy.
+- [x] Add spherical coordinates and verify the volume element, reciprocal
+  basis, Christoffel symbols, gradient, divergence, curl, and
+  Laplace--Beltrami operator against independent component formulas and
+  SymPy. The example keeps the expensive connection/vector-calculus path on
+  the compact explicit metric owner, avoiding raw Cartesian chain-rule growth;
+  the chart path remains independently checked for basis, metric, Jacobian,
+  and curl.
 - [ ] Add a nonorthogonal torus and a flux-coordinate chart with off-diagonal
   metric terms. Verify that raising, lowering, reciprocal bases, and
   Jacobian-weighted operators remain correct.

@@ -644,6 +644,107 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(left_handed.reciprocal_basis()[0].simplify(), -1)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_spherical_chart_calculus_matches_sympy(self):
+        r, theta, phi = sp.symbols(
+            "spherical_chart_r spherical_chart_theta spherical_chart_phi"
+        )
+        chart = sp.Chart(
+            (r, theta, phi),
+            (r*sp.sin(theta)*sp.cos(phi),
+             r*sp.sin(theta)*sp.sin(phi),
+             r*sp.cos(theta)),
+        )
+        or_, ot, op = oracle.symbols(
+            "spherical_chart_r spherical_chart_theta spherical_chart_phi"
+        )
+        oracle_position = oracle.Matrix((
+            or_*oracle.sin(ot)*oracle.cos(op),
+            or_*oracle.sin(ot)*oracle.sin(op),
+            or_*oracle.cos(ot),
+        ))
+        oracle_coordinates = oracle.Matrix((or_, ot, op))
+        expected_basis = oracle_position.jacobian(oracle_coordinates)
+        expected_metric = expected_basis.T*expected_basis
+        metric_owner = chart.metric_owner(
+            ((1, 0, 0), (0, r**2, 0),
+             (0, 0, r**2*sp.sin(theta)**2)),
+        )
+
+        def native_matrix(values):
+            return oracle.Matrix(3, 3, lambda row, column: oracle.sympify(
+                str(values[row + 3*column].simplify())
+            ))
+
+        actual_basis = native_matrix(chart.covariant_basis())
+        actual_reciprocal = native_matrix(chart.reciprocal_basis())
+        metric_tensor = chart.metric()
+        actual_metric = oracle.Matrix(3, 3, lambda row, column: oracle.sympify(
+            str(metric_tensor[row, column].simplify())
+        ))
+        self.assertEqual(actual_basis, expected_basis)
+        self.assertEqual(actual_reciprocal, expected_basis.inv().T)
+        for row in range(3):
+            for column in range(3):
+                self.assertEqual(
+                    oracle.simplify(
+                        actual_metric[row, column] - expected_metric[row, column]
+                    ),
+                    0,
+                )
+        self.assertEqual(
+            oracle.sympify(str(chart.jacobian().simplify())),
+            expected_basis.det(),
+        )
+        actual_sqrtg_squared = oracle.sympify(
+            str(chart.sqrtg().simplify())
+        )**2
+        self.assertEqual(
+            oracle.simplify(actual_sqrtg_squared - expected_metric.det()), 0
+        )
+
+        christoffel = chart.christoffel()
+        gamma_cases = (
+            (1, 2, 2, -or_),
+            (1, 3, 3, -or_*oracle.sin(ot)**2),
+            (2, 1, 2, 1/or_),
+            (2, 3, 3, -oracle.sin(ot)*oracle.cos(ot)),
+            (3, 1, 3, 1/or_),
+            (3, 2, 3, oracle.cos(ot)/oracle.sin(ot)),
+        )
+        for first, second, third, expected in gamma_cases:
+            actual = oracle.sympify(
+                str(christoffel[first - 1, second - 1, third - 1].simplify())
+            )
+            self.assertEqual(oracle.simplify(actual - expected), 0)
+
+        actual_gradient = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify()))
+            for value in metric_owner.grad(r)
+        ))
+        self.assertEqual(actual_gradient, oracle.Matrix((1, 0, 0)))
+        self.assertEqual(
+            oracle.sympify(
+                str(metric_owner.divergence((r, r - r, r - r)).simplify())
+            ),
+            3,
+        )
+        expected_curl = oracle.Matrix((
+            2*oracle.cos(ot), -2*oracle.sin(ot)/or_, 0,
+        ))
+        actual_curl = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify()))
+            for value in chart.curl((
+                r - r, r - r, r**2*sp.sin(theta)**2
+            ))
+        ))
+        self.assertEqual(
+            oracle.simplify(actual_curl - expected_curl), oracle.zeros(3, 1)
+        )
+        self.assertEqual(
+            oracle.sympify(str(metric_owner.laplacian(r**2).simplify())), 6
+        )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_chart_map_transforms_tensor_slots_and_densities(self):
         x, y, z, p, q, s = sp.symbols(
             "map_x map_y map_z map_p map_q map_s"
