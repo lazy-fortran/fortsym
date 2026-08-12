@@ -18,12 +18,15 @@ module fortsym_tensor
         index_variance, compatible_indices
     use fortsym_expr, only: expr_t, num, is_valid, operator(+), operator(-), &
         operator(*), &
-        operator(/)
+        operator(/), operator(==)
     implicit none
     private
 
     integer, parameter, public :: UPPER = 1
     integer, parameter, public :: LOWER_VARIANCE = -1
+    integer, parameter, public :: SYMMETRY_NONE = 0
+    integer, parameter, public :: SYMMETRIC = 1
+    integer, parameter, public :: ANTISYMMETRIC = -1
     integer, parameter, public :: MAX_RANK = 5
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
 
@@ -31,6 +34,7 @@ module fortsym_tensor
     public :: tensor_from_components, tensor_from_matrix
     public :: tensor_from_storage, tensor_from_arena
     public :: tensor_component, tensor_rank, tensor_variance
+    public :: tensor_symmetry, declare_symmetry
     public :: tensor_density_weight, tensor_valid, tensor_same_arena, density, &
         density_factor
     public :: vector, covector, raise, lower
@@ -43,6 +47,7 @@ module fortsym_tensor
         type(arena_t), pointer :: a => null()
         integer :: rank = -1
         integer :: variance(MAX_RANK) = 0
+        integer :: symmetry(MAX_RANK, MAX_RANK) = 0
         integer :: density_weight = 0
         type(expr_t) :: component(0:MAX_COMPONENTS - 1)
     end type tensor_t
@@ -320,6 +325,64 @@ contains
         weight = tensor_value%density_weight
     end function tensor_density_weight
 
+    !> Return the declared pair symmetry of two tensor slots.
+    function tensor_symmetry(tensor_value, first, second) result(kind)
+        type(tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: first, second
+        integer :: kind
+
+        kind = SYMMETRY_NONE
+        if (.not. tensor_valid(tensor_value)) return
+        if (first < 1 .or. first > tensor_value%rank) return
+        if (second < 1 .or. second > tensor_value%rank) return
+        if (first == second) return
+        kind = tensor_value%symmetry(first, second)
+    end function tensor_symmetry
+
+    !> Declare a pair symmetry after checking every stored component.
+    !>
+    !> A declaration is a mathematical promise, so arbitrary components are
+    !> refused rather than projected. Symmetric and antisymmetric slots must
+    !> have equal variance, matching the ordinary indexed-tensor convention.
+    function declare_symmetry(tensor_value, first, second, kind) result(result)
+        type(tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: first, second, kind
+        type(tensor_t) :: result
+        integer :: indices(MAX_RANK), swapped(MAX_RANK), flat, count
+        type(expr_t) :: left, right, zero
+
+        if (.not. tensor_valid(tensor_value)) return
+        if (first < 1 .or. first > tensor_value%rank) return
+        if (second < 1 .or. second > tensor_value%rank) return
+        if (first == second) return
+        if (kind /= SYMMETRIC .and. kind /= ANTISYMMETRIC) return
+        if (tensor_value%variance(first) /= tensor_value%variance(second)) return
+
+        count = component_count(tensor_value%rank)
+        zero = num(tensor_value%a, 0)
+        do flat = 0, count - 1
+            call decode_index(flat, tensor_value%rank, indices)
+            swapped = indices
+            swapped(first) = indices(second)
+            swapped(second) = indices(first)
+            left = tensor_value%component(flat)
+            right = tensor_value%component(encode_index(swapped, tensor_value%rank))
+            if (kind == SYMMETRIC) then
+                if (.not. (left == right)) return
+            else
+                if (indices(first) == indices(second)) then
+                    if (.not. (left == zero)) return
+                else if (.not. (left == -right)) then
+                    return
+                end if
+            end if
+        end do
+
+        result = tensor_value
+        result%symmetry(first, second) = kind
+        result%symmetry(second, first) = kind
+    end function declare_symmetry
+
     function tensor_same_arena(tensor_value, c) result(same)
         type(tensor_t), intent(in) :: tensor_value
         type(chart_t), intent(in) :: c
@@ -331,13 +394,23 @@ contains
     function tensor_valid(tensor_value) result(valid)
         type(tensor_t), intent(in) :: tensor_value
         logical :: valid
-        integer :: k
+        integer :: k, j
 
         valid = .false.
         if (.not. associated(tensor_value%a)) return
         if (tensor_value%rank < 0 .or. tensor_value%rank > MAX_RANK) return
         do k = 1, tensor_value%rank
             if (.not. valid_variance(tensor_value%variance(k))) return
+        end do
+        do k = 1, tensor_value%rank
+            if (tensor_value%symmetry(k, k) /= SYMMETRY_NONE) return
+            do j = 1, tensor_value%rank
+                if (.not. valid_symmetry_value(tensor_value%symmetry(k, j))) return
+                if (tensor_value%symmetry(k, j) /= tensor_value%symmetry(j, k)) return
+                if (tensor_value%symmetry(k, j) /= SYMMETRY_NONE) then
+                    if (tensor_value%variance(k) /= tensor_value%variance(j)) return
+                end if
+            end do
         end do
         do k = 0, component_count(tensor_value%rank) - 1
             if (.not. is_valid(tensor_value%component(k))) return
@@ -409,6 +482,7 @@ contains
         count = component_count(rank)
         result = zero_tensor(c%a, rank, tensor_value%variance, &
             tensor_density_weight(tensor_value))
+        result%symmetry = tensor_value%symmetry
         divergence = num(c%a, 0)
         do k = 1, DIM
             divergence = divergence + diff(vector_value%component(k - 1), c%u(k))
@@ -524,6 +598,17 @@ contains
         end do
         result = zero_tensor(left%a, left%rank + right%rank, metadata, &
             left%density_weight + right%density_weight)
+        do i = 1, left%rank
+            do j = 1, left%rank
+                result%symmetry(i, j) = left%symmetry(i, j)
+            end do
+        end do
+        do i = 1, right%rank
+            do j = 1, right%rank
+                result%symmetry(left%rank + i, left%rank + j) = &
+                    right%symmetry(i, j)
+            end do
+        end do
         left_count = component_count(left%rank)
         right_count = component_count(right%rank)
         do i = 0, left_count - 1
@@ -541,7 +626,7 @@ contains
         type(tensor_t) :: result
         integer :: metadata(MAX_RANK), free_indices(MAX_RANK)
         integer :: old_indices(MAX_RANK), free_slot, old_slot
-        integer :: output_index, old_index, i
+        integer :: output_index, old_index, i, free_first, free_second
 
         if (.not. tensor_valid(tensor_value)) return
         if (tensor_value%rank < 2) return
@@ -558,6 +643,31 @@ contains
         end do
         result = zero_tensor(tensor_value%a, tensor_value%rank - 2, metadata, &
             tensor_value%density_weight)
+        do old_slot = 1, tensor_value%rank
+            if (old_slot == first .or. old_slot == second) cycle
+            free_first = 0
+            do i = 1, tensor_value%rank
+                if (i == first .or. i == second) cycle
+                free_first = free_first + 1
+                if (i == old_slot) exit
+            end do
+            if (free_first == 0) cycle
+            do i = 1, tensor_value%rank
+                if (i == first .or. i == second) cycle
+                if (tensor_value%symmetry(old_slot, i) == SYMMETRY_NONE) cycle
+                free_second = 0
+                do old_index = 1, tensor_value%rank
+                    if (old_index == first .or. old_index == second) cycle
+                    free_second = free_second + 1
+                    if (old_index == i) exit
+                end do
+                if (free_second == 0) cycle
+                result%symmetry(free_first, free_second) = &
+                    tensor_value%symmetry(old_slot, i)
+                result%symmetry(free_second, free_first) = &
+                    tensor_value%symmetry(old_slot, i)
+            end do
+        end do
         do output_index = 0, component_count(tensor_value%rank - 2) - 1
             call decode_index(output_index, tensor_value%rank - 2, free_indices)
             result%component(output_index) = num(tensor_value%a, 0)
@@ -614,7 +724,7 @@ contains
         integer, intent(in) :: order(:)
         type(tensor_t) :: result
         integer :: metadata(MAX_RANK), output_indices(MAX_RANK)
-        integer :: source_indices(MAX_RANK), slot, output_index, source_index
+        integer :: source_indices(MAX_RANK), slot, output_index, source_index, i
 
         if (.not. tensor_valid(tensor_value)) return
         if (.not. valid_permutation(order, tensor_value%rank)) return
@@ -624,6 +734,12 @@ contains
         end do
         result = zero_tensor(tensor_value%a, tensor_value%rank, metadata, &
             tensor_value%density_weight)
+        do slot = 1, tensor_value%rank
+            do i = 1, tensor_value%rank
+                result%symmetry(slot, i) = &
+                    tensor_value%symmetry(order(slot), order(i))
+            end do
+        end do
         do output_index = 0, component_count(tensor_value%rank) - 1
             call decode_index(output_index, tensor_value%rank, output_indices)
             source_indices = 1
@@ -661,6 +777,7 @@ contains
         if (.not. associated(c%a)) return
         values = metric_covariant(c)
         result = tensor_from_matrix(c, values, LOWER_VARIANCE, LOWER_VARIANCE)
+        result = declare_symmetry(result, 1, 2, SYMMETRIC)
     end function metric_covariant_tensor_chart
 
     function metric_covariant_tensor_metric(g) result(result)
@@ -680,6 +797,7 @@ contains
                 result%component(encode_pair(i, j)) = values(i, j)
             end do
         end do
+        result = declare_symmetry(result, 1, 2, SYMMETRIC)
     end function metric_covariant_tensor_metric
 
     function metric_contravariant_tensor_chart(c) result(result)
@@ -690,6 +808,7 @@ contains
         if (.not. associated(c%a)) return
         values = metric_contravariant(c)
         result = tensor_from_matrix(c, values, UPPER, UPPER)
+        result = declare_symmetry(result, 1, 2, SYMMETRIC)
     end function metric_contravariant_tensor_chart
 
     function metric_contravariant_tensor_metric(g) result(result)
@@ -709,6 +828,7 @@ contains
                 result%component(encode_pair(i, j)) = values(i, j)
             end do
         end do
+        result = declare_symmetry(result, 1, 2, SYMMETRIC)
     end function metric_contravariant_tensor_metric
 
     function raise_components(tensor_value, metric, slot) result(result)
@@ -723,6 +843,11 @@ contains
         metadata(slot) = UPPER
         result = zero_tensor(tensor_value%a, tensor_value%rank, metadata, &
             tensor_value%density_weight)
+        result%symmetry = tensor_value%symmetry
+        do i = 1, tensor_value%rank
+            result%symmetry(slot, i) = SYMMETRY_NONE
+            result%symmetry(i, slot) = SYMMETRY_NONE
+        end do
         do output_index = 0, component_count(tensor_value%rank) - 1
             call decode_index(output_index, tensor_value%rank, indices)
             result%component(output_index) = num(tensor_value%a, 0)
@@ -749,6 +874,11 @@ contains
         metadata(slot) = LOWER_VARIANCE
         result = zero_tensor(tensor_value%a, tensor_value%rank, metadata, &
             tensor_value%density_weight)
+        result%symmetry = tensor_value%symmetry
+        do i = 1, tensor_value%rank
+            result%symmetry(slot, i) = SYMMETRY_NONE
+            result%symmetry(i, slot) = SYMMETRY_NONE
+        end do
         do output_index = 0, component_count(tensor_value%rank) - 1
             call decode_index(output_index, tensor_value%rank, indices)
             result%component(output_index) = num(tensor_value%a, 0)
@@ -778,6 +908,7 @@ contains
         if (tensor_value%variance(first) /= tensor_value%variance(second)) return
         result = zero_tensor(tensor_value%a, tensor_value%rank, &
             tensor_value%variance, tensor_value%density_weight)
+        result%symmetry = 0
         do output_index = 0, component_count(tensor_value%rank) - 1
             call decode_index(output_index, tensor_value%rank, indices)
             swapped = indices
@@ -790,6 +921,13 @@ contains
                 tensor_value%rank))
             result%component(output_index) = value/num(tensor_value%a, 2)
         end do
+        if (alternating) then
+            result%symmetry(first, second) = ANTISYMMETRIC
+            result%symmetry(second, first) = ANTISYMMETRIC
+        else
+            result%symmetry(first, second) = SYMMETRIC
+            result%symmetry(second, first) = SYMMETRIC
+        end if
     end function symmetrize_pair
 
     function zero_tensor(a, rank, metadata, weight) result(result)
@@ -803,6 +941,7 @@ contains
         result%a => a
         result%rank = rank
         result%variance = metadata
+        result%symmetry = 0
         result%density_weight = weight
         do k = 0, MAX_COMPONENTS - 1
             result%component(k) = num(a, 0)
@@ -844,6 +983,14 @@ contains
 
         valid = value == UPPER .or. value == LOWER_VARIANCE
     end function valid_variance
+
+    pure function valid_symmetry_value(value) result(valid)
+        integer, intent(in) :: value
+        logical :: valid
+
+        valid = value == SYMMETRY_NONE .or. value == SYMMETRIC .or. &
+            value == ANTISYMMETRIC
+    end function valid_symmetry_value
 
     pure function valid_permutation(order, rank) result(valid)
         integer, intent(in) :: order(:), rank
