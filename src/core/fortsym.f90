@@ -67,6 +67,10 @@ module fortsym
         fourier_weak_form_valid, FOURIER_INVALID, FOURIER_LONGITUDINAL, &
         FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, SPACE_EDGE, TRACE_NONE, &
         TRACE_NORMAL, TRACE_TANGENTIAL
+    use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
+        metric_det, metric_sqrtg, &
+        metric_signature, metric_orientation, metric_valid, metric_arena, &
+        metric_same_arena, metric_coordinates, metric_has_coordinates
     implicit none
     private
 
@@ -109,6 +113,9 @@ module fortsym
         fourier_constitutive_valid, fourier_weak_form_valid, FOURIER_INVALID, &
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, &
         SPACE_EDGE, TRACE_NONE, TRACE_NORMAL, TRACE_TANGENTIAL, &
+        metric_t, metric_create, metric_from_chart, metric_det, metric_sqrtg, &
+        metric_orientation, metric_valid, metric_arena, metric_same_arena, &
+        metric_coordinates, metric_has_coordinates, &
         form_t, form, form_scalar, form_one, form_two, &
         form_three, form_component, form_degree, form_valid, add_forms, &
         subtract_forms, negate_form, wedge, d, &

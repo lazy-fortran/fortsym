@@ -39,6 +39,23 @@ class SympySubsetTest(unittest.TestCase):
         self.assertIsInstance(form, sp.Form)
         self.assertEqual(form.d().degree, 2)
 
+    def test_explicit_lorentzian_metric_hodge_owner(self):
+        t, x, y = sp.symbols("metric_t metric_x metric_y")
+        chart = sp.Chart((t, x, y), (t, x, y))
+        metric = chart.metric_owner(
+            ((-1, 0, 0), (0, 1, 0), (0, 0, 1)),
+            signature=(-1, 1, 1),
+        )
+        self.assertEqual(metric.sqrtg().simplify(), 1)
+        inverse = metric.contravariant()
+        self.assertEqual(inverse.variance, (-1, -1))
+        self.assertEqual(inverse[0, 0].simplify(), -1)
+        alpha = chart.one_form((1, 2, 3))
+        self.assertEqual(
+            tuple(value.simplify() for value in alpha.star(metric)),
+            (0, 0, 0, 3, 0, -2, -1, 0),
+        )
+
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_chart_jacobian_and_dual_basis_match_sympy(self):
         u, v, w = sp.symbols("basis_u basis_v basis_w")

@@ -9,7 +9,7 @@ program test_fortsym_form
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create
-    use fortsym_metric, only: metric_t, metric_from_chart
+    use fortsym_metric, only: metric_t, metric_create, metric_from_chart
     use fortsym_magnetic, only: b_con
     use fortsym_form, only: form_t, form, form_one, form_zero, &
         form_component, form_degree, wedge, d, star, interior, lie, flat, &
@@ -21,15 +21,18 @@ program test_fortsym_form
     type(suite_t) :: suite
     type(chart_t) :: shear
     type(metric_t) :: metric_owner
+    type(metric_t) :: lorentz_metric
     type(expr_t) :: u(DIM), position(DIM), vector(DIM), potential(DIM)
     type(expr_t) :: scalar, expected, left, right
+    type(expr_t) :: lorentz_components(DIM, DIM)
     type(expr_t) :: raised(DIM)
     type(form_t) :: scalar_form, one_form
     type(form_t) :: derivative, second_derivative, product, hodge, hodge_hodge
+    type(form_t) :: metric_hodge, metric_hodge_hodge
     type(form_t) :: volume, reversed_volume, flux, lie_form
     type(form_t) :: cartan_first, cartan_second
     type(form_t) :: top_zero, top_from_d
-    integer :: mask, i
+    integer :: mask, i, lorentz_signature(DIM)
 
     call arena%init()
     engine = make_symengine_engine(arena)
@@ -83,6 +86,27 @@ program test_fortsym_form
         mask = 2**(i - 1)
         call check_identity(suite, engine, "Hodge star squared on one-form", &
             form_component(hodge_hodge, mask) - form_component(one_form, mask))
+    end do
+
+    lorentz_components(1, 1) = num(arena, -1)
+    lorentz_components(1, 2) = num(arena, 0)
+    lorentz_components(1, 3) = num(arena, 0)
+    lorentz_components(2, 1) = num(arena, 0)
+    lorentz_components(2, 2) = num(arena, 1)
+    lorentz_components(2, 3) = num(arena, 0)
+    lorentz_components(3, 1) = num(arena, 0)
+    lorentz_components(3, 2) = num(arena, 0)
+    lorentz_components(3, 3) = num(arena, 1)
+    lorentz_signature = [-1, 1, 1]
+    lorentz_metric = metric_create(lorentz_components, &
+        signature=lorentz_signature, orientation=1, coordinates=u)
+    metric_hodge = star(lorentz_metric, one_form)
+    metric_hodge_hodge = star(lorentz_metric, metric_hodge)
+    do i = 1, DIM
+        mask = 2**(i - 1)
+        call check_identity(suite, engine, "Lorentzian Hodge star squared", &
+            form_component(metric_hodge_hodge, mask) + &
+            form_component(one_form, mask))
     end do
 
     vector(1) = u(1)

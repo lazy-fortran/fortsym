@@ -33,6 +33,10 @@ trace; `n!=0` selects a two-component edge form with the transformed
 transverse mass block and a tangential boundary trace. The returned
 `FourierWeakForm` contains native expression handles and integer metadata;
 the Python layer does not recalculate the constitutive reduction.
+`Chart.metric_owner(g, signature, orientation)` creates an explicit native
+metric owner. `Metric.sqrtg()`, `Metric.contravariant()`, and
+`Form.star(metric)` use that owner, so Lorentzian signatures and orientation
+remain explicit instead of being inferred from a chart.
 `Chart.one_form()`, `two_form()`, and
 `three_form()` construct native `Form` objects. Forms expose the fixed
 three-dimensional basis-mask components plus `d()`, `wedge()`, `star()`,
