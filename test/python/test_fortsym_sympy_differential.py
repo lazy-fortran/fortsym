@@ -628,6 +628,8 @@ class SympyDifferentialTest(unittest.TestCase):
             (oracle.asinh(oracle.oo), native.asinh(native.oo)),
             (oracle.asinh(-oracle.oo), native.asinh(-native.oo)),
             (oracle.asinh(oracle.zoo), native.asinh(native.zoo)),
+            (oracle.asinh(oracle.I), native.asinh(native.I)),
+            (oracle.asinh(-oracle.I), native.asinh(-native.I)),
             (oracle.acosh(oracle.oo), native.acosh(native.oo)),
             (oracle.acosh(-oracle.oo), native.acosh(-native.oo)),
             (oracle.acosh(oracle.zoo), native.acosh(native.zoo)),

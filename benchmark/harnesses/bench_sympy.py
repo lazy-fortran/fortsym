@@ -49,6 +49,12 @@ def result_text(value: Any) -> str:
     return str(value).replace("Abs(", "abs(")
 
 
+def imaginary_unit(engine: Any) -> Any:
+    if engine is oracle:
+        return engine.I
+    return engine._default().constant("i")
+
+
 def equivalent(expected: Any, actual: Any, names: dict[str, Any]) -> bool:
     expected_text = result_text(expected)
     actual_text = str(actual)
@@ -212,34 +218,22 @@ def legendre_domain_expression(engine: Any, suffix: str) -> Any:
 
 def complex_domain_expression(engine: Any, suffix: str) -> Any:
     name = f"domain_complex_x_{suffix}"
-    if engine is oracle:
-        real_symbol = engine.Symbol(name, real=True)
-        imaginary = engine.I
-    else:
-        real_symbol = engine.Symbol(name, real=True)
-        imaginary = engine._default().constant("i")
+    real_symbol = engine.Symbol(name, real=True)
+    imaginary = imaginary_unit(engine)
     return (real_symbol + imaginary)**2
 
 
 def complex_abs_expression(engine: Any, suffix: str) -> Any:
     name = f"domain_abs_x_{suffix}"
-    if engine is oracle:
-        real_symbol = engine.Symbol(name, real=True)
-        imaginary = engine.I
-    else:
-        real_symbol = engine.Symbol(name, real=True)
-        imaginary = engine._default().constant("i")
+    real_symbol = engine.Symbol(name, real=True)
+    imaginary = imaginary_unit(engine)
     return real_symbol + imaginary
 
 
 def complex_expand_expression(engine: Any, suffix: str) -> Any:
     name = f"domain_expand_complex_x_{suffix}"
-    if engine is oracle:
-        real_symbol = engine.Symbol(name, real=True)
-        imaginary = engine.I
-    else:
-        real_symbol = engine.Symbol(name, real=True)
-        imaginary = engine._default().constant("i")
+    real_symbol = engine.Symbol(name, real=True)
+    imaginary = imaginary_unit(engine)
     return (real_symbol + imaginary)**4
 
 
@@ -257,6 +251,7 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
     oracle_rational = oracle.Symbol(rational_name, rational=True)
     native_rational = native.Symbol(rational_name, rational=True)
     native_oo = native._default().constant("oo")
+    native_i = imaginary_unit(native)
     native_three_halves = native.Rational(3, 2)
     native_two_thirds = native.Rational(2, 3)
     sqrt_power_name = f"{label}_sqrt_power_{suffix}"
@@ -270,7 +265,7 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
         integer_name: oracle_integer,
         rational_name: oracle_rational,
         "abs": oracle.Abs,
-        "i": oracle.I,
+        "i": imaginary_unit(oracle),
     }
     if has_composition:
         composition_name = f"{label}_composition_{suffix}"
@@ -346,6 +341,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
         "domain_sqrt_negative_square": (
             oracle.sqrt(-4),
             native.sqrt(-4),
+            names,
+        ),
+        "domain_asinh_imaginary": (
+            oracle.asinh(oracle.I),
+            native.asinh(native_i),
             names,
         ),
         "domain_inverse": (
@@ -507,6 +507,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.acosh(0)
     elif operation == "domain_sqrt_negative_square":
         expression = engine.sqrt(-4)
+    elif operation == "domain_asinh_imaginary":
+        expression = engine.asinh(imaginary_unit(engine))
     elif operation == "domain_inverse":
         expression = inverse_domain_expression(engine)
     elif operation == "domain_reciprocal":
@@ -722,7 +724,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                 "composition", "sqrt_power",
                 "domain_function", "domain_log_zero", "domain_log_negative",
                 "domain_atanh_pole", "domain_acosh_branch",
-                "domain_sqrt_negative_square", "domain_inverse",
+                "domain_sqrt_negative_square", "domain_asinh_imaginary",
+                "domain_inverse",
                 "domain_reciprocal", "domain_error_function", "domain_gamma",
                 "domain_atan2",
                 "domain_bessel", "domain_legendre",
@@ -773,6 +776,7 @@ def correctness_cases() -> list[dict[str, Any]]:
                         "domain_function", "domain_log_zero",
                         "domain_log_negative", "domain_atanh_pole",
                         "domain_acosh_branch", "domain_sqrt_negative_square",
+                        "domain_asinh_imaginary",
                         "domain_inverse",
                         "domain_reciprocal",
                         "domain_error_function", "domain_gamma", "domain_atan2",
@@ -841,7 +845,8 @@ def benchmark_workload(
                     "composition", "sqrt_power", "domain_function",
                     "domain_log_zero", "domain_log_negative",
                     "domain_atanh_pole", "domain_acosh_branch",
-                    "domain_sqrt_negative_square", "domain_inverse",
+                    "domain_sqrt_negative_square", "domain_asinh_imaginary",
+                    "domain_inverse",
                     "domain_reciprocal", "domain_error_function", "domain_gamma",
                     "domain_atan2",
                     "domain_bessel", "domain_legendre",
@@ -890,7 +895,8 @@ def benchmark_workload(
                     "composition", "sqrt_power",
                     "domain_function", "domain_log_zero", "domain_log_negative",
                     "domain_atanh_pole", "domain_acosh_branch",
-                    "domain_sqrt_negative_square", "domain_inverse",
+                    "domain_sqrt_negative_square", "domain_asinh_imaginary",
+                    "domain_inverse",
                         "domain_reciprocal", "domain_error_function", "domain_gamma",
                         "domain_atan2",
                         "domain_bessel", "domain_legendre",
@@ -954,7 +960,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_atanh_pole", "domain_acosh_branch", "domain_sqrt_negative_square", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
+        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_atanh_pole", "domain_acosh_branch", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):
         if operation in _PREDICATE_OPERATIONS:

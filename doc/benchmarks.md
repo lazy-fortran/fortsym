@@ -68,7 +68,8 @@ subset with SymPy 1.14.0. It measures cold end-to-end construction plus
 operation and warm core operation separately for expansion, differentiation,
 simplification, signed refinement, real/nonzero-guarded `log`/`exp` composition,
 principal-square-root powers, direct domain-function simplification of
-`sqrt(-oo)`, exact negative perfect-square roots, exact `log(0)`, exact negative-real `log`, exact `atanh(1)`/`atanh(-1)`, and exact `acosh(0)`/`acosh(-1)`, gamma-family domain-head
+`sqrt(-oo)`, exact negative perfect-square roots, exact `asinh(±i)` branch
+points, exact `log(0)`, exact negative-real `log`, exact `atanh(1)`/`atanh(-1)`, and exact `acosh(0)`/`acosh(-1)`, gamma-family domain-head
 simplification, inverse domain-head
 simplification, and reciprocal-hyperbolic domain-head simplification embedded
 in a symbolic fourth-degree expression, directed-infinity `atan2` domain-head
@@ -134,7 +135,10 @@ unwaived violations before the negative-square-root rows are added. The
 `domain_sqrt_negative_square` cold and warm rows are enforced because the
 native principal-root rewrite is faster than SymPy: the recorded ratios were
 0.029x and 0.062x. The final matrix has 66 rows, 60 enforced rows, and zero
-unwaived violations.
+unwaived violations. The `domain_asinh_imaginary` cold and warm rows are
+enforced because the native exact branch rewrite is faster than SymPy: the
+recorded ratios were 0.018x and 0.051x. The final matrix has 68 rows, 62
+enforced rows, and zero unwaived violations.
 
 Run it from a built checkout with:
 

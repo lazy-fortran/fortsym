@@ -2539,7 +2539,8 @@ contains
         integer, intent(in) :: id
         integer, intent(out) :: out
         logical, intent(out) :: ok
-        integer :: half_pi, quarter_pi, imaginary_half_pi
+        integer :: half_pi, quarter_pi, imaginary_half_pi, positive
+        logical :: negated
 
         out = id
         ok = .false.
@@ -2578,8 +2579,16 @@ contains
                 return
             end if
         case ("asinh")
-            if (.not. is_zero_id(a, id)) return
-            out = a%int(0_int64)
+            if (is_zero_id(a, id)) then
+                out = a%int(0_int64)
+            else
+                call split_negated_argument(a, id, positive, negated)
+                if (a%kind_of(positive) /= NK_CONST) return
+                if (chars(a%name_of(positive)) /= "i") return
+                imaginary_half_pi = mul_pair(a, a%const("i"), half_pi)
+                out = imaginary_half_pi
+                if (negated) out = mul_pair(a, a%int(-1_int64), out)
+            end if
         case ("acosh")
             if (is_one_id(a, id)) then
                 out = a%int(0_int64)

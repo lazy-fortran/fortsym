@@ -486,6 +486,10 @@ Every checklist item requires all of the following:
     rationals: `sqrt(-1)` becomes `i` and `sqrt(-4)` becomes `i*2`; irrational
     negative roots remain unevaluated and Gaussian-rational results stay in
     the structural expression vocabulary.
+  - [x] Canonicalize the exact imaginary inverse-hyperbolic branch points:
+    `asinh(i)` becomes `i*pi/2` and `asinh(-i)` becomes `-i*pi/2`; broader
+    complex inverse branches remain unevaluated until their domain rules are
+    covered.
 - [ ] Implement the general simplification families: `powsimp`, `powdenest`,
   `trigsimp`, `radsimp`, `ratsimp`, `sqrtdenest`, `fu`, `combsimp`,
   `hyperexpand`, `logcombine`, `posify`, and `refine`.
@@ -667,6 +671,10 @@ Every checklist item requires all of the following:
   - [x] Add exact negative perfect-square roots to the correctness and
     performance matrix. The cold and warm rows are enforced and measured at
     0.029x and 0.062x SymPy; the 60 substantive rows remain enforced with
+    zero unwaived violations.
+  - [x] Add the exact `asinh(i)`/`asinh(-i)` branch points to the correctness
+    and performance matrix. Their cold and warm rows are enforced and measured
+    at 0.018x and 0.051x SymPy; the 62 substantive rows remain enforced with
     zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
