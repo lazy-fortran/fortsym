@@ -909,6 +909,9 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   and Python `Chart` facade for signed `jacobian`, covariant basis, and
   reciprocal basis. Basis transport preserves component-first ordering and
   is checked against an independent SymPy matrix oracle.
+- [x] Expose metric-owned `raise` and `lower` for chart-bound tensor slots
+  through the C ABI and Python `Tensor`, preserving density weight and
+  checking the round trip against an independent metric matrix.
 - [ ] Add reciprocal bases, inverse coordinate maps when available, signed
   Jacobians, `sqrtg`, volume forms, surface measures, and metric signature
   checks. Singular maps and incompatible dimensions become named refusals.

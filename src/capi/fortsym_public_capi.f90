@@ -22,7 +22,7 @@ module fortsym_public_capi
     use fortsym_magnetic, only: b_cov, b_fourier, b_fourier_density
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_component, tensor_valid, metric_covariant_tensor, &
-        metric_contravariant_tensor
+        metric_contravariant_tensor, raise_tensor => raise, lower_tensor => lower
     use fortsym_connection, only: covariant_diff, christoffel_tensor, &
         riemann_tensor, ricci_tensor, scalar_curvature, einstein_tensor
     use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
@@ -93,6 +93,7 @@ module fortsym_public_capi
         fortsym_chart_b_fourier, fortsym_chart_b_fourier_density, &
         fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
         fortsym_chart_christoffel, fortsym_chart_covariant_diff, &
+        fortsym_chart_tensor_raise, fortsym_chart_tensor_lower, &
         fortsym_chart_riemann, fortsym_chart_ricci, &
         fortsym_chart_scalar_curvature, fortsym_chart_einstein, &
         fortsym_chart_form_add, fortsym_chart_form_subtract, &
@@ -115,7 +116,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 19_c_int
+        v = 20_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -892,59 +893,71 @@ contains
         integer(c_size_t), value :: capacity
         integer(c_int) :: status
         type(arena_owner_t), pointer :: a
-        type(expr_owner_t), pointer :: owner
         type(chart_t) :: chart
         type(tensor_t) :: input, value
-        type(expr_t) :: values(MAX_COMPONENTS)
-        type(c_ptr), pointer :: component_values(:)
-        integer(c_int), pointer :: variance_values(:)
-        integer :: count, flat, k
-        integer :: metadata(MAX_RANK), shape(1)
-
-        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
-            chart, a, status, message, capacity)
+        call get_chart_tensor_input(raw, coordinates, position, components, rank, &
+            variance, density_weight, chart, a, input, status, message, capacity)
         if (status /= FORTSYM_OK) return
-        if (rank > int(MAX_RANK - 1, c_size_t)) then
-            call fail(status, message, capacity, FORTSYM_RESOURCE_LIMIT)
-            return
-        end if
-        count = component_count(int(rank))
-        if (.not. c_associated(components) .or. .not. c_associated(variance)) then
-            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
-            return
-        end if
-        shape(1) = count
-        call c_f_pointer(components, component_values, shape)
-        shape(1) = int(rank)
-        call c_f_pointer(variance, variance_values, shape)
-        metadata = 0
-        do k = 1, int(rank)
-            if (variance_values(k) /= 1_c_int .and. &
-                variance_values(k) /= -1_c_int) then
-                call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
-                return
-            end if
-            metadata(k) = int(variance_values(k))
-        end do
-        do flat = 1, count
-            call get_expr(component_values(flat), owner, values(flat), status, &
-                message, capacity)
-            if (status /= FORTSYM_OK) return
-            if (.not. associated(owner%arena, a)) then
-                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
-                return
-            end if
-        end do
-        input = tensor_from_components(chart, int(rank), values(1:count), &
-            metadata(1:int(rank)), int(density_weight))
-        if (.not. tensor_valid(input)) then
-            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
-            return
-        end if
         value = covariant_diff(chart, input)
         call make_tensor_array(a, value, int(rank) + 1, out, status, message, &
             capacity)
     end function fortsym_chart_covariant_diff
+
+    function fortsym_chart_tensor_raise(raw, coordinates, position, components, &
+            rank, variance, density_weight, slot, out, message, capacity) &
+            bind(c, name="fortsym_chart_tensor_raise") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, variance, out
+        integer(c_size_t), value :: rank, slot
+        integer(c_int), value :: density_weight
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: input, value
+
+        call get_chart_tensor_input(raw, coordinates, position, components, rank, &
+            variance, density_weight, chart, a, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (slot < 1_c_size_t .or. slot > rank) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = raise_tensor(chart, input, int(slot))
+        if (.not. tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call make_tensor_array(a, value, int(rank), out, status, message, capacity)
+    end function fortsym_chart_tensor_raise
+
+    function fortsym_chart_tensor_lower(raw, coordinates, position, components, &
+            rank, variance, density_weight, slot, out, message, capacity) &
+            bind(c, name="fortsym_chart_tensor_lower") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, variance, out
+        integer(c_size_t), value :: rank, slot
+        integer(c_int), value :: density_weight
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: input, value
+
+        call get_chart_tensor_input(raw, coordinates, position, components, rank, &
+            variance, density_weight, chart, a, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (slot < 1_c_size_t .or. slot > rank) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = lower_tensor(chart, input, int(slot))
+        if (.not. tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call make_tensor_array(a, value, int(rank), out, status, message, capacity)
+    end function fortsym_chart_tensor_lower
 
     function fortsym_chart_riemann(raw, coordinates, position, out, message, &
             capacity) bind(c, name="fortsym_chart_riemann") result(status)
@@ -1888,6 +1901,69 @@ contains
         end do
         chart = chart_create(a%value, u, x)
     end subroutine get_chart_inputs
+
+    subroutine get_chart_tensor_input(raw, coordinates, position, components, &
+            rank, variance, density_weight, chart, a, value, status, message, &
+            capacity)
+        type(c_ptr), value :: raw, coordinates, position, components, variance
+        integer(c_size_t), value :: rank
+        integer(c_int), value :: density_weight
+        type(chart_t), intent(out) :: chart
+        type(arena_owner_t), pointer :: a
+        type(tensor_t), intent(out) :: value
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(expr_owner_t), pointer :: owner
+        type(expr_t) :: values(MAX_COMPONENTS)
+        type(c_ptr), pointer :: component_values(:)
+        integer(c_int), pointer :: variance_values(:)
+        integer :: count, flat, k
+        integer :: metadata(MAX_RANK), shape(1)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (rank > int(MAX_RANK, c_size_t)) then
+            call fail(status, message, capacity, FORTSYM_RESOURCE_LIMIT)
+            return
+        end if
+        count = component_count(int(rank))
+        if (.not. c_associated(components) .or. .not. c_associated(variance)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape(1) = count
+        call c_f_pointer(components, component_values, shape)
+        shape(1) = int(rank)
+        call c_f_pointer(variance, variance_values, shape)
+        metadata = 0
+        do k = 1, int(rank)
+            if (variance_values(k) /= 1_c_int .and. &
+                variance_values(k) /= -1_c_int) then
+                call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+                return
+            end if
+            metadata(k) = int(variance_values(k))
+        end do
+        do flat = 1, count
+            call get_expr(component_values(flat), owner, values(flat), status, &
+                message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        value = tensor_from_components(chart, int(rank), values(1:count), &
+            metadata(1:int(rank)), int(density_weight))
+        if (.not. tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end subroutine get_chart_tensor_input
 
     subroutine clear_array_outputs(out)
         type(c_ptr), pointer, intent(inout) :: out(:)
