@@ -60,6 +60,7 @@ FLUX_HAMADA = 4
 BOOZER_RESIDUAL_COUNT = 5
 HAMADA_RESIDUAL_COUNT = 5
 SPACETIME_DIM = 4
+SPACETIME_TENSOR_MAX_RANK = 4
 CONNECTION_STANDARD = 1
 CONNECTION_OPPOSITE = -1
 SYMMETRY_NONE = 0
@@ -774,6 +775,29 @@ def _configure(lib):
         "fortsym_spacetime_tensor_density_factor", ctypes.c_int,
         spacetime_tensor_arguments[:-4] + [
             _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.spacetime_tensor_permute = declare(
+        "fortsym_spacetime_tensor_permute", ctypes.c_int,
+        spacetime_tensor_arguments[:-4] + [
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.spacetime_tensor_contract = declare(
+        "fortsym_spacetime_tensor_contract", ctypes.c_int,
+        spacetime_tensor_arguments[:-4] + [
+            _SIZE, _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.spacetime_tensor_product = declare(
+        "fortsym_spacetime_tensor_product", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+            ctypes.c_int, ctypes.POINTER(_CVOID), _SIZE,
+            ctypes.POINTER(ctypes.c_int), ctypes.c_int, ctypes.POINTER(_CVOID),
+            _CHAR_PTR, _SIZE,
         ],
     )
     lib.spacetime_geodesic_residual = declare(
@@ -2041,6 +2065,96 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "spacetime_tensor_density_factor")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
+    def _spacetime_tensor_permute(self, metric, tensor, order):
+        if not isinstance(tensor, SpacetimeTensor) or tensor.metric is not metric:
+            raise ValueError("spacetime tensor must belong to this metric")
+        if tensor.variance is None:
+            raise ValueError("spacetime tensor permutation needs slot variance")
+        order = tuple(int(value) for value in order)
+        if len(order) != tensor.rank or set(order) != set(range(tensor.rank)):
+            raise ValueError("spacetime tensor permutation must contain every slot once")
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * (SPACETIME_DIM ** tensor.rank))(
+            *[value._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        order_values = (ctypes.c_int * tensor.rank)(
+            *[value + 1 for value in order]
+        )
+        output = (_CVOID * (SPACETIME_DIM ** tensor.rank))()
+        message = _message()
+        status = self._lib.spacetime_tensor_permute(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, tensor.rank, variance,
+            tensor.density_weight, order_values, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "spacetime_tensor_permute")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
+    def _spacetime_tensor_contract(self, metric, tensor, first, second):
+        if not isinstance(tensor, SpacetimeTensor) or tensor.metric is not metric:
+            raise ValueError("spacetime tensor must belong to this metric")
+        if tensor.variance is None:
+            raise ValueError("spacetime tensor contraction needs slot variance")
+        first, second = int(first), int(second)
+        if first < 0 or first >= tensor.rank:
+            raise IndexError("first contraction slot is outside the tensor rank")
+        if second < 0 or second >= tensor.rank:
+            raise IndexError("second contraction slot is outside the tensor rank")
+        if first == second:
+            raise ValueError("tensor contraction needs two distinct slots")
+        if tensor.variance[first] == tensor.variance[second]:
+            raise ValueError("tensor contraction needs opposite-variance slots")
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * (SPACETIME_DIM ** tensor.rank))(
+            *[value._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output_rank = tensor.rank - 2
+        output = (_CVOID * (SPACETIME_DIM ** output_rank))()
+        message = _message()
+        status = self._lib.spacetime_tensor_contract(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, tensor.rank, variance,
+            tensor.density_weight, first + 1, second + 1, output, message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "spacetime_tensor_contract")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
+    def _spacetime_tensor_product(self, metric, left, right):
+        if not isinstance(left, SpacetimeTensor) or left.metric is not metric:
+            raise ValueError("left spacetime tensor must belong to this metric")
+        if not isinstance(right, SpacetimeTensor) or right.metric is not metric:
+            raise ValueError("right spacetime tensor must belong to this metric")
+        if left.variance is None or right.variance is None:
+            raise ValueError("spacetime tensor product needs slot variance")
+        output_rank = left.rank + right.rank
+        if output_rank > SPACETIME_TENSOR_MAX_RANK:
+            raise ValueError("native spacetime tensors support rank at most four")
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        left_values = (_CVOID * (SPACETIME_DIM ** left.rank))(
+            *[value._handle for value in left.components]
+        )
+        right_values = (_CVOID * (SPACETIME_DIM ** right.rank))(
+            *[value._handle for value in right.components]
+        )
+        left_variance = (ctypes.c_int * left.rank)(*left.variance)
+        right_variance = (ctypes.c_int * right.rank)(*right.variance)
+        output = (_CVOID * (SPACETIME_DIM ** output_rank))()
+        message = _message()
+        status = self._lib.spacetime_tensor_product(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, left_values, left.rank, left_variance,
+            left.density_weight, right_values, right.rank, right_variance,
+            right.density_weight, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "spacetime_tensor_product")
         return tuple(Expr(self, output[index]) for index in range(len(output)))
 
     def _spacetime_scalar(self, operation, metric):
@@ -3808,6 +3922,71 @@ class SpacetimeTensor:
         )
 
     with_density = density
+
+    def permute(self, order):
+        """Return this tensor with slots reordered by zero-based slot order."""
+        if self.variance is None:
+            raise ValueError("spacetime tensor permutation needs slot variance")
+        order = tuple(int(value) for value in order)
+        if len(order) != self.rank or set(order) != set(range(self.rank)):
+            raise ValueError(
+                "spacetime tensor permutation must contain every slot once"
+            )
+        components = self._arena._spacetime_tensor_permute(
+            self.metric, self, order
+        )
+        variance = tuple(self.variance[index] for index in order)
+        return SpacetimeTensor(
+            self.metric, components, self.shape, variance,
+            self.density_weight, _owned=True,
+        )
+
+    def contract(self, first, second):
+        """Contract two opposite-variance slots using zero-based slots."""
+        if self.variance is None:
+            raise ValueError("spacetime tensor contraction needs slot variance")
+        first, second = int(first), int(second)
+        if first < 0 or first >= self.rank:
+            raise IndexError("first contraction slot is outside the tensor rank")
+        if second < 0 or second >= self.rank:
+            raise IndexError("second contraction slot is outside the tensor rank")
+        if first == second:
+            raise ValueError("tensor contraction needs two distinct slots")
+        if self.variance[first] == self.variance[second]:
+            raise ValueError("tensor contraction needs opposite-variance slots")
+        components = self._arena._spacetime_tensor_contract(
+            self.metric, self, first, second
+        )
+        variance = tuple(
+            value for index, value in enumerate(self.variance)
+            if index not in (first, second)
+        )
+        return SpacetimeTensor(
+            self.metric, components, (4,) * (self.rank - 2), variance,
+            self.density_weight, _owned=True,
+        )
+
+    trace = contract
+
+    def product(self, other):
+        """Return the native tensor product, with left slots first."""
+        if not isinstance(other, SpacetimeTensor) or other.metric is not self.metric:
+            raise ValueError("tensor factors must belong to the same metric")
+        if self.variance is None or other.variance is None:
+            raise ValueError("spacetime tensor product needs slot variance")
+        output_rank = self.rank + other.rank
+        if output_rank > SPACETIME_TENSOR_MAX_RANK:
+            raise ValueError("native spacetime tensors support rank at most four")
+        components = self._arena._spacetime_tensor_product(
+            self.metric, self, other
+        )
+        return SpacetimeTensor(
+            self.metric, components, (4,) * output_rank,
+            self.variance + other.variance,
+            self.density_weight + other.density_weight, _owned=True,
+        )
+
+    tensor_product = product
 
     def close(self):
         if self._owned:
@@ -5815,7 +5994,7 @@ __all__ = [
     "Arena", "Chart", "ChartMap", "FluxSurface", "FluxCoordinates", "MagneticChart", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL", "FLUX_GENERIC", "FLUX_CLEBSCH", "FLUX_STRAIGHT_FIELD_LINE", "FLUX_BOOZER", "FLUX_HAMADA", "BOOZER_RESIDUAL_COUNT", "HAMADA_RESIDUAL_COUNT",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
-    "SPACETIME_DIM", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
+    "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",

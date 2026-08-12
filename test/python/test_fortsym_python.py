@@ -58,6 +58,20 @@ class NativePackageTest(unittest.TestCase):
             density = upper.density(metric.sqrtg())
             self.assertEqual(density.density_weight, 1)
             self.assertEqual((density[0] - metric.sqrtg()*upper[0]).simplify(), 0)
+            product = upper.product(lower)
+            self.assertEqual(product.variance, (1, -1))
+            contracted = product.contract(0, 1)
+            self.assertEqual(contracted.rank, 0)
+            self.assertEqual(
+                (contracted[()] - (2*t**2 + 2*t*x + x**2)).simplify(), 0
+            )
+            permuted = product.permute((1, 0))
+            self.assertEqual(permuted.variance, (-1, 1))
+            self.assertEqual((permuted[0, 1] - product[1, 0]).simplify(), 0)
+            self.assertEqual(permuted[2, 0].simplify(), 0)
+            self.assertEqual(
+                density.product(lower).density_weight, 1
+            )
 
     def test_native_construction_and_transformations(self):
         with fortsym.Arena() as arena:

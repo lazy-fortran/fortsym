@@ -1260,6 +1260,11 @@ conversion only. They do not maintain a second geometry implementation.
     contractions, covariant derivatives, Lie derivatives, density views, and
     variance-changing operations. Full group metadata and raw-array queries
     remain open.
+  - [x] Transport runtime-dimension spacetime tensor products, opposite-
+    variance contractions, traces, and slot permutations through C ABI 62 and
+    both Python facades. Returned fixed-slot arrays retain inactive zeros,
+    slot variance, and summed density weight; arbitrary rank and canonical
+    dummy-index naming remain open.
 - [ ] **7A.4 Connections and vector calculus.** Extend covariant derivatives to
   every slot and every density weight, then derive `grad`, `curl`, `div`, and
   `laplacian` from the same metric, volume, and connection owners. Add
@@ -1730,7 +1735,7 @@ without an explicit volume factor.
   formulas.
 - [x] Add the Hamada residual descriptor as the contravariant counterpart to
   Boozer: `B^label` plus the four angular derivatives, exposed by the native
-  owner, C ABI 61, and both Python facades with independent Fortran, C, and
+  owner, C ABI 62, and both Python facades with independent Fortran, C, and
   SymPy-oracle checks.
 - [ ] Complete Clebsch and the remaining Hamada/equilibrium-surface
   construction, symbolic consistency/refusal checks, and current/Jacobian
@@ -2244,9 +2249,10 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     remains open.
   - [x] Add the first runtime-dimension spacetime tensor transport slice:
     non-diagonal 2D inverse metrics, `V^i`/`V_i` round trips, metric tensor
-    views, density factors, and fixed-slot permutation are checked natively
-    and through the Python/SymPy facade. General spacetime tensor products,
-    contraction transport, and arbitrary rank remain open.
+    views, density factors, products, opposite-variance contractions, traces,
+    and fixed-slot permutations are checked natively and through the
+    Python/SymPy facade. Arbitrary rank and canonical dummy-index naming
+    remain open.
 - [ ] Publish the compatibility matrix, performance baseline, refusal table,
   and migration notes.
 - [ ] Replace temporary aliases with the final canonical API.
