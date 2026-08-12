@@ -206,6 +206,8 @@ alias of the short `covariant_diff` name; both are exported by the facade.
 `christoffel_tensor` also accepts a `metric_t` carrying explicit coordinates;
 metrics without coordinates are intentionally refused for derivative-based
 connection construction.
+`covariant_diff` and `covariant_derivative` use the same overload rule and
+share the chart/metric component kernel.
 
 ```fortran
 type(tensor_t) :: metric_value, metric_derivative, curvature

@@ -11,10 +11,11 @@ module fortsym_connection
     !   A density of weight w contributes -w Gamma^m_mk T.
     !   R^a_bcd = d_c Gamma^a_db - d_d Gamma^a_cb
     !             + Gamma^a_cm Gamma^m_db - Gamma^a_dm Gamma^m_cb.
+    use fortsym_arena, only: arena_t
     use fortsym_chart, only: chart_t, DIM, &
         chart_christoffel => christoffel, metric_covariant, metric_contravariant
     use fortsym_metric, only: metric_t, metric_valid, metric_has_coordinates, &
-        metric_arena, metric_coordinates, &
+        metric_same_arena, metric_arena, metric_coordinates, &
         owner_metric_covariant => metric_covariant, &
         owner_metric_contravariant => metric_contravariant
     use fortsym_diff, only: diff
@@ -33,6 +34,16 @@ module fortsym_connection
     public :: christoffel_tensor, riemann_tensor, ricci_tensor
     public :: scalar_curvature, einstein_tensor
 
+    interface covariant_diff
+        module procedure covariant_diff_chart
+        module procedure covariant_diff_metric
+    end interface covariant_diff
+
+    interface covariant_derivative
+        module procedure covariant_derivative_chart
+        module procedure covariant_derivative_metric
+    end interface covariant_derivative
+
     interface christoffel_tensor
         module procedure christoffel_tensor_chart
         module procedure christoffel_tensor_metric
@@ -41,20 +52,67 @@ module fortsym_connection
 contains
 
     !> Full covariant derivative, with the derivative index as the last slot.
-    function covariant_diff(c, tensor_value) result(result)
+    function covariant_diff_chart(c, tensor_value) result(result)
         type(chart_t), intent(in) :: c
         type(tensor_t), intent(in) :: tensor_value
         type(tensor_t) :: result
-        type(expr_t) :: gamma(DIM, DIM, DIM), values(MAX_COMPONENTS)
+        type(expr_t) :: gamma(DIM, DIM, DIM)
+
+        if (.not. associated(c%a)) return
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. tensor_same_arena(tensor_value, c)) return
+        gamma = chart_christoffel(c)
+        result = covariant_diff_components(c%a, c%u, &
+            gamma, tensor_value)
+    end function covariant_diff_chart
+
+    !> Full covariant derivative using a supplied coordinate-aware metric.
+    function covariant_diff_metric(g, tensor_value) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t), intent(in) :: tensor_value
+        type(tensor_t) :: result
+        type(expr_t) :: coordinates(DIM), gamma(DIM, DIM, DIM)
+
+        if (.not. metric_same_arena(g, tensor_value%a)) return
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. metric_has_coordinates(g)) return
+        coordinates = metric_coordinates(g)
+        gamma = metric_christoffel_components(g)
+        result = covariant_diff_components(metric_arena(g), coordinates, &
+            gamma, tensor_value)
+    end function covariant_diff_metric
+
+    !> Descriptive alias for callers who prefer the full operation name.
+    function covariant_derivative_chart(c, tensor_value) result(result)
+        type(chart_t), intent(in) :: c
+        type(tensor_t), intent(in) :: tensor_value
+        type(tensor_t) :: result
+
+        result = covariant_diff_chart(c, tensor_value)
+    end function covariant_derivative_chart
+
+    !> Readable alias for the metric-owner covariant derivative.
+    function covariant_derivative_metric(g, tensor_value) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t), intent(in) :: tensor_value
+        type(tensor_t) :: result
+
+        result = covariant_diff_metric(g, tensor_value)
+    end function covariant_derivative_metric
+
+    function covariant_diff_components(a, coordinates, gamma, tensor_value) &
+            result(result)
+        type(arena_t), pointer, intent(in) :: a
+        type(expr_t), intent(in) :: coordinates(DIM), gamma(DIM, DIM, DIM)
+        type(tensor_t), intent(in) :: tensor_value
+        type(tensor_t) :: result
+        type(expr_t) :: values(0:MAX_COMPONENTS - 1)
         type(expr_t) :: base, term, trace_gamma
         integer :: rank, output_rank, count, output_index
         integer :: indices(MAX_RANK), old_indices(MAX_RANK)
         integer :: variances(MAX_RANK), empty(0)
         integer :: k, i, m, slot, weight
 
-        if (.not. associated(c%a)) return
-        if (.not. tensor_valid(tensor_value)) return
-        if (.not. tensor_same_arena(tensor_value, c)) return
         rank = tensor_rank(tensor_value)
         if (rank >= MAX_RANK) return
         output_rank = rank + 1
@@ -64,7 +122,6 @@ contains
             variances(slot) = tensor_variance(tensor_value, slot)
         end do
         variances(output_rank) = LOWER_VARIANCE
-        gamma = chart_christoffel(c)
         weight = tensor_density_weight(tensor_value)
 
         do output_index = 0, count - 1
@@ -75,14 +132,14 @@ contains
             else
                 base = tensor_component(tensor_value, indices(1:rank))
             end if
-            term = diff(base, c%u(k))
+            term = diff(base, coordinates(k))
 
             if (weight /= 0) then
-                trace_gamma = num(c%a, 0)
+                trace_gamma = num(a, 0)
                 do m = 1, DIM
                     trace_gamma = trace_gamma + gamma(m, m, k)
                 end do
-                term = term - num(c%a, weight)*trace_gamma*base
+                term = term - num(a, weight)*trace_gamma*base
             end if
 
             do slot = 1, rank
@@ -99,21 +156,39 @@ contains
                     end if
                 end do
             end do
-            values(output_index + 1) = term
+            values(output_index) = term
         end do
 
-        result = tensor_from_components(c, output_rank, values(1:count), &
-            variances(1:output_rank), weight)
-    end function covariant_diff
+        result = tensor_from_arena(a, output_rank, values, variances, weight)
+    end function covariant_diff_components
 
-    !> Descriptive alias for callers who prefer the full operation name.
-    function covariant_derivative(c, tensor_value) result(result)
-        type(chart_t), intent(in) :: c
-        type(tensor_t), intent(in) :: tensor_value
-        type(tensor_t) :: result
+    function metric_christoffel_components(g) result(gamma)
+        type(metric_t), intent(in) :: g
+        type(expr_t) :: gamma(DIM, DIM, DIM)
+        type(expr_t) :: metric(DIM, DIM), inverse(DIM, DIM)
+        type(expr_t) :: coordinates(DIM), term
+        integer :: k, i, j, l
 
-        result = covariant_diff(c, tensor_value)
-    end function covariant_derivative
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        metric = owner_metric_covariant(g)
+        inverse = owner_metric_contravariant(g)
+        coordinates = metric_coordinates(g)
+        do k = 1, DIM
+            do i = 1, DIM
+                do j = 1, DIM
+                    gamma(k, i, j) = num(metric_arena(g), 0)
+                    do l = 1, DIM
+                        term = diff(metric(l, j), coordinates(i)) + &
+                            diff(metric(l, i), coordinates(j)) - &
+                            diff(metric(i, j), coordinates(l))
+                        gamma(k, i, j) = gamma(k, i, j) + &
+                            inverse(k, l)*term/2
+                    end do
+                end do
+            end do
+        end do
+    end function metric_christoffel_components
 
     !> Christoffel symbols as Gamma^a_bc with explicit slot variance.
     function christoffel_tensor_chart(c) result(result)
@@ -151,28 +226,16 @@ contains
     function christoffel_tensor_metric(g) result(result)
         type(metric_t), intent(in) :: g
         type(tensor_t) :: result
-        type(expr_t) :: metric(DIM, DIM), inverse(DIM, DIM)
-        type(expr_t) :: coordinates(DIM), gamma(DIM, DIM, DIM)
-        type(expr_t) :: term
+        type(expr_t) :: gamma(DIM, DIM, DIM)
         type(expr_t) :: values(0:MAX_COMPONENTS - 1)
-        integer :: variances(MAX_RANK), indices(MAX_RANK), k, i, j, l
+        integer :: variances(MAX_RANK), indices(MAX_RANK), k, i, j
 
         if (.not. metric_valid(g)) return
         if (.not. metric_has_coordinates(g)) return
-        metric = owner_metric_covariant(g)
-        inverse = owner_metric_contravariant(g)
-        coordinates = metric_coordinates(g)
+        gamma = metric_christoffel_components(g)
         do k = 1, DIM
             do i = 1, DIM
                 do j = 1, DIM
-                    gamma(k, i, j) = num(metric_arena(g), 0)
-                    do l = 1, DIM
-                        term = diff(metric(l, j), coordinates(i)) + &
-                            diff(metric(l, i), coordinates(j)) - &
-                            diff(metric(i, j), coordinates(l))
-                        gamma(k, i, j) = gamma(k, i, j) + &
-                            inverse(k, l)*term/2
-                    end do
                     indices(1) = k
                     indices(2) = i
                     indices(3) = j
