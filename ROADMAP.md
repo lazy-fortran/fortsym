@@ -228,6 +228,10 @@ Every checklist item requires all of the following:
     equality owner. Equal structural expressions return `{}`, unequal
     expressions return `None`; wildcard matching is tracked as a separate
     bounded adapter fragment below.
+  - [x] Add exact non-wildcard `Expr.replace` through the existing exact-node
+    replacement owner. `map=True` reports only changed exact matches,
+    `exact=True`/`False` are accepted at the boundary, and callable or
+    wildcard replacement remains an explicit refusal.
 - [ ] Complete exact integer/rational/real/complex and algebraic domains.
   - [x] Preserve arbitrary-size integer and rational construction and native
     arithmetic in the current scalar fragment. `num`, `rat`, and `exact` share
@@ -558,6 +562,9 @@ Every checklist item requires all of the following:
   `expand`, `rewrite`, `replace`, and `match`.
     - [x] Implement non-visual `count_ops` through one native operation-count
       owner, with SymPy tree semantics and an explicit `visual=True` refusal.
+    - [x] Expose the exact non-wildcard `Expr.replace` boundary through
+      `xreplace`, including its changed-match `map` result and exact-option
+      validation without adding a second replacement traversal.
     - [x] Add the adapter-only `Wild` vocabulary and structural wildcard
       matching for direct wildcards and fixed-shape expression slots, including
       SymPy-compatible `exclude` and `properties` filters. Commutative
@@ -810,6 +817,9 @@ Every checklist item requires all of the following:
     112-row matrix measured native/SymPy ratios of 0.698x cold and 0.503x warm
     for direct wildcard matching, with zero correctness failures and zero
     unwaived violations.
+  - [x] Add exact non-wildcard `replace` correctness and performance coverage.
+    The 114-row matrix measured native/SymPy ratios of 0.716x cold and 0.029x
+    warm, with zero correctness failures and zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

@@ -59,6 +59,28 @@ class SympySubsetTest(unittest.TestCase):
         with self.assertRaises(TypeError):
             expression.xreplace([(x, y)])
 
+    def test_replace_uses_exact_nodes_and_map_contract(self):
+        x, y, z = sp.symbols("replace_x replace_y replace_z")
+        f = sp.Function("replace_f")
+        self.assertEqual(f(x + 1).replace(x, y), f(y + 1))
+        self.assertEqual(
+            (x + 1).replace(x + 1, z, exact=False), z
+        )
+        result, replacements = (f(x) + x).replace(x, y, map=True)
+        self.assertEqual(result, f(y) + y)
+        self.assertEqual(replacements, {x: y})
+        result.close()
+        cached = x.replace(x, y)
+        cached.close()
+        self.assertEqual(x.replace(x, y), y)
+        unchanged, replacements = (x + 1).replace(z, y, map=True)
+        self.assertEqual(unchanged, x + 1)
+        self.assertEqual(replacements, {})
+        with self.assertRaises(NotImplementedError):
+            x.replace(sp.Wild("replace_a"), y)
+        with self.assertRaises(TypeError):
+            x.replace(x, y, map=1)
+
     def test_match_uses_exact_structural_boundary(self):
         x, y = sp.symbols("match_x match_y")
         f = sp.Function("match_f")

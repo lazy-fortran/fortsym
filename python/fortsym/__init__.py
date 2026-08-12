@@ -511,6 +511,7 @@ class Expr:
         self._diff_results = {}
         self._complex_results = {}
         self._match_results = {}
+        self._replace_results = {}
         self._number_value = None
         self._free_symbols_cache = None
         self._node_count_cache = None
@@ -531,6 +532,7 @@ class Expr:
         self._diff_results.clear()
         self._complex_results.clear()
         self._match_results.clear()
+        self._replace_results.clear()
         self._number_value = None
         self._node_count_cache = None
         self._kind_cache = None
@@ -696,6 +698,46 @@ class Expr:
         return self._subs_many_raw(
             tuple(substitutions), tuple(substitutions.values())
         )
+
+    def replace(self, query, value, map=False, exact=None):
+        """Replace one exact, non-wildcard node through ``xreplace``."""
+        if not isinstance(map, bool):
+            raise TypeError("replace map must be a boolean")
+        if exact is not None and not isinstance(exact, bool):
+            raise TypeError("replace exact must be a boolean or None")
+        if callable(query) or callable(value):
+            raise NotImplementedError(
+                "callable and wildcard replace patterns are unsupported"
+            )
+        if getattr(query, "_wildcard_matcher", None) is not None:
+            raise NotImplementedError(
+                "callable and wildcard replace patterns are unsupported"
+            )
+        if not map:
+            key = (id(query), id(value), exact)
+            cached = self._replace_results.get(key)
+            if (cached is not None and cached[0] is query and
+                    cached[1] is value and cached[2]._handle is not None):
+                return cached[2]
+            result = self.xreplace({query: value})
+            self._replace_results[key] = (query, value, result)
+            if len(self._replace_results) > 8:
+                self._replace_results.pop(next(iter(self._replace_results)))
+            return result
+        old, old_temporary = self._arena._coerce(query)
+        new, new_temporary = self._arena._coerce(value)
+        keep_mapping = False
+        try:
+            result = self.xreplace({old: new})
+            changed = result != self
+            keep_mapping = changed
+            mapping = {old: new} if changed else {}
+            return result, mapping
+        finally:
+            if old_temporary is not None and not keep_mapping:
+                old_temporary.close()
+            if new_temporary is not None and not keep_mapping:
+                new_temporary.close()
 
     def match(self, pattern, old=False):
         """Return an empty binding for an exact, non-wildcard match.
