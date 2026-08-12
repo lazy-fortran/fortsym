@@ -17,7 +17,8 @@ module fortsym_public_capi
     use fortsym_predicates, only: predicate_is_number => is_number, &
         predicate_is_algebraic => is_algebraic
     use fortsym_diff, only: diff
-    use fortsym_chart, only: chart_t, chart_create, DIM, sqrtg
+    use fortsym_chart, only: chart_t, chart_create, DIM, sqrtg, jacobian, &
+        covariant_basis, reciprocal_basis
     use fortsym_magnetic, only: b_cov, b_fourier, b_fourier_density
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_component, tensor_valid, metric_covariant_tensor, &
@@ -86,7 +87,9 @@ module fortsym_public_capi
     public :: fortsym_substitute, fortsym_substitute_many, fortsym_differentiate, &
         fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor
-    public :: fortsym_chart_sqrtg, fortsym_chart_b_cov, &
+    public :: fortsym_chart_sqrtg, fortsym_chart_jacobian, &
+        fortsym_chart_covariant_basis, fortsym_chart_reciprocal_basis, &
+        fortsym_chart_b_cov, &
         fortsym_chart_b_fourier, fortsym_chart_b_fourier_density, &
         fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
         fortsym_chart_christoffel, fortsym_chart_covariant_diff, &
@@ -112,7 +115,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 18_c_int
+        v = 19_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -768,6 +771,62 @@ contains
         value = sqrtg(chart)
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_chart_sqrtg
+
+    function fortsym_chart_jacobian(raw, coordinates, position, dimension, out, &
+            message, capacity) bind(c, name="fortsym_chart_jacobian") result(status)
+        type(c_ptr), value :: raw, out
+        type(c_ptr), value :: coordinates, position
+        integer(c_size_t), value :: dimension
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: value
+
+        call begin_output(out, message, capacity)
+        call get_chart_inputs(raw, coordinates, position, dimension, chart, a, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = jacobian(chart)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_chart_jacobian
+
+    function fortsym_chart_covariant_basis(raw, coordinates, position, out, &
+            message, capacity) bind(c, name="fortsym_chart_covariant_basis") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: value(DIM, DIM)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = covariant_basis(chart)
+        call make_chart_matrix_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_covariant_basis
+
+    function fortsym_chart_reciprocal_basis(raw, coordinates, position, out, &
+            message, capacity) bind(c, name="fortsym_chart_reciprocal_basis") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: value(DIM, DIM)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = reciprocal_basis(chart)
+        call make_chart_matrix_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_reciprocal_basis
 
     function fortsym_chart_metric_covariant(raw, coordinates, position, out, &
             message, capacity) bind(c, name="fortsym_chart_metric_covariant") &
@@ -1901,6 +1960,26 @@ contains
         call put_error(message, capacity, FORTSYM_OK)
         status = FORTSYM_OK
     end subroutine make_expr_array
+
+    subroutine make_chart_matrix_array(a, matrix, out, status, message, capacity)
+        type(arena_owner_t), pointer :: a
+        type(expr_t), intent(in) :: matrix(DIM, DIM)
+        type(c_ptr), value :: out
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(expr_t) :: values(DIM*DIM)
+        integer :: component, index, flat
+
+        flat = 0
+        do index = 1, DIM
+            do component = 1, DIM
+                flat = flat + 1
+                values(flat) = matrix(component, index)
+            end do
+        end do
+        call make_expr_array(a, values, out, DIM*DIM, status, message, capacity)
+    end subroutine make_chart_matrix_array
 
     subroutine make_tensor_array(a, value, rank, out, status, message, capacity)
         type(arena_owner_t), pointer :: a

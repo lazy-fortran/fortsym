@@ -40,6 +40,48 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(form.d().degree, 2)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_chart_jacobian_and_dual_basis_match_sympy(self):
+        u, v, w = sp.symbols("basis_u basis_v basis_w")
+        chart = sp.Chart((u, v, w), (u + v, 2*v + w, w))
+        covariant = chart.covariant_basis()
+        reciprocal = chart.reciprocal_basis()
+
+        oracle_u, oracle_v, oracle_w = oracle.symbols(
+            "basis_u basis_v basis_w"
+        )
+        position = oracle.Matrix((
+            oracle_u + oracle_v,
+            2*oracle_v + oracle_w,
+            oracle_w,
+        ))
+        coordinates = oracle.Matrix((oracle_u, oracle_v, oracle_w))
+        expected_covariant = position.jacobian(coordinates)
+        expected_reciprocal = expected_covariant.inv().T
+
+        def native_matrix(values):
+            return oracle.Matrix(3, 3, lambda row, column: oracle.sympify(
+                str(values[row + 3*column].simplify())
+            ))
+
+        actual_covariant = native_matrix(covariant)
+        actual_reciprocal = native_matrix(reciprocal)
+        self.assertEqual(actual_covariant, expected_covariant)
+        self.assertEqual(actual_reciprocal, expected_reciprocal)
+        self.assertEqual(
+            oracle.sympify(str(chart.jacobian().simplify())),
+            expected_covariant.det(),
+        )
+        self.assertEqual(
+            actual_reciprocal.T * actual_covariant,
+            oracle.eye(3),
+        )
+
+        left_handed = sp.Chart((u, v, w), (-u, v, w))
+        self.assertEqual(left_handed.jacobian().simplify(), -1)
+        self.assertEqual(left_handed.sqrtg().simplify(), 1)
+        self.assertEqual(left_handed.reciprocal_basis()[0].simplify(), -1)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_diffgeom_names_use_native_owner_and_match_oracle(self):
         from sympy.diffgeom import (
             CoordSystem as OracleCoordSystem,

@@ -50,7 +50,10 @@ concurrency, isolation, and library code that outlives one problem.
 
 `fortsym_chart` owns the generic three-dimensional chart. Give it coordinate
 expressions and a Cartesian position map; `metric_covariant`, `sqrtg`,
-`reciprocal_basis`, and the differential operators follow from that one map.
+`jacobian`, `covariant_basis`, `reciprocal_basis`, and the differential
+operators follow from that one map. Basis matrices use component-first,
+basis-second ordering, so `basis(k, i)` is the Cartesian component `k` of
+the basis vector associated with coordinate `u(i)`.
 `fortsym_magnetic` owns the derived magnetic views: `b_con`, `b_cov`,
 `b_density`, `b_fourier`, and `b_fourier_density`. The `b_fourier` interfaces
 accept either an integer mode or an expression mode, so a paper derivation can

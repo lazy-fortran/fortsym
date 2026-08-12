@@ -171,6 +171,21 @@ int fortsym_chart_sqrtg(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], size_t dimension, fortsym_expr **out,
     char *message, size_t capacity);
+int fortsym_chart_jacobian(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], size_t dimension, fortsym_expr **out,
+    char *message, size_t capacity);
+/* Basis matrices use component-first, basis-second ordering. The nine output
+ * handles represent e(component, index), with the component index varying
+ * fastest. */
+int fortsym_chart_covariant_basis(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_chart_reciprocal_basis(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], fortsym_expr *out[], char *message,
+    size_t capacity);
 int fortsym_chart_b_cov(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *vector[],

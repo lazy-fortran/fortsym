@@ -905,6 +905,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [ ] Generalize the existing `fortsym_chart` implementation beyond a fixed
   three-dimensional Euclidean embedding while preserving its simple chart
   constructor and explicit-arena form.
+- [x] Expose the current fixed-three-dimensional chart owner through the C ABI
+  and Python `Chart` facade for signed `jacobian`, covariant basis, and
+  reciprocal basis. Basis transport preserves component-first ordering and
+  is checked against an independent SymPy matrix oracle.
 - [ ] Add reciprocal bases, inverse coordinate maps when available, signed
   Jacobians, `sqrtg`, volume forms, surface measures, and metric signature
   checks. Singular maps and incompatible dimensions become named refusals.
