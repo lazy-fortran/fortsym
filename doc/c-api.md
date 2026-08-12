@@ -22,6 +22,13 @@ metadata and averages a scalar over both remaining coordinates on
 `[0,2*pi]`. It returns `FORTSYM_UNSUPPORTED` when either the weighted
 numerator or normalization falls outside the verified native definite-integral
 subset; it never substitutes an unverified numerical result.
+`fortsym_chart_flux_normal_residual` returns `B^label`,
+`fortsym_chart_straight_field_line_residual` returns
+`B^angle_one - iota*B^angle_two`, and
+`fortsym_chart_boozer_residuals` returns the five native expressions
+`(B_label, d1 B1, d2 B1, d1 B2, d2 B2)` for a selected label. These calls
+share the `fortsym_flux` owner and expose residuals for an independent zero
+oracle; they do not construct an equilibrium.
 `fortsym_chart_tensor_permute` reorders typed tensor slots, and
 `fortsym_chart_tensor_symmetrize` projects two slots to their symmetric or
 antisymmetric part while preserving variance and density metadata.

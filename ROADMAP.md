@@ -1584,11 +1584,14 @@ without an explicit volume factor.
   divergence.
 - [x] Provide metric contraction for `B**2` through the shared `metric_inner`
   owner.
-- [ ] Support Clebsch, straight-field-line, Boozer, and Hamada coordinate
-  descriptors as reusable data and verified identities. The analytic Boozer
-  example is only the first representation fixture; add symbolic relations and
-  refusal on inconsistent or singular input. Do not encode a particular
-  equilibrium solver in this toolkit.
+- [x] Add the first reusable coordinate descriptor for generic,
+  straight-field-line, and Boozer residual identities. It retains one chart
+  owner, exposes the label and ordered angles, and delegates zero decisions to
+  the native engine. The C ABI and Python/SymPy facades do not duplicate these
+  formulas.
+- [ ] Complete Clebsch, Hamada, equilibrium-surface construction, symbolic
+  consistency/refusal checks, and current/Jacobian identities. Do not encode a
+  particular equilibrium solver in this toolkit.
 - [ ] Add the common plasma identities `B dot grad(psi) = 0`, the reciprocal
   basis relations, `B = B^i e_i = B_i e^i`, `div(B) = 0`, and the magnetic
   differential equation in both component and form notation.
@@ -1789,6 +1792,11 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
   straight-field-line, Boozer, and Hamada descriptors with flux-function,
   field-line, Jacobian, current, and consistency identities. Construction of
   equilibria stays outside the generic toolkit.
+  - [x] Add the first native `flux_coordinate_t` owner with generic,
+    straight-field-line, and Boozer metadata plus native normal, field-line,
+    and Boozer residuals. Expose the same owner through the C ABI and both
+    Python facades; equilibrium construction and the remaining descriptors
+    stay open.
 - [ ] **F5 — Fourier FEM completion.** Complete the Albert--Bíro--Lainer
   `n=0` and `n!=0` weak forms, density/constitutive transformations, traces,
   current compatibility, and a readable Fortran/Python derivation example.

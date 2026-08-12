@@ -268,6 +268,19 @@ int fortsym_chart_b_density(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *vector[],
     fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_flux_normal_residual(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *vector[],
+    int label_index, fortsym_expr **out, char *message, size_t capacity);
+int fortsym_chart_straight_field_line_residual(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *vector[],
+    int label_index, const fortsym_expr *rotational_transform,
+    fortsym_expr **out, char *message, size_t capacity);
+int fortsym_chart_boozer_residuals(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *covariant[],
+    int label_index, fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_chart_h_cov(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *reluctivity[],

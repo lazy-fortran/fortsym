@@ -135,6 +135,12 @@ module fortsym
         spacetime_codifferential, spacetime_interior, &
         spacetime_interior_product, spacetime_lie, spacetime_lie_derivative, &
         spacetime_laplace_de_rham
+    use fortsym_flux, only: flux_coordinate_t, flux_coordinates, &
+        flux_coordinate_valid, flux_coordinate_label, flux_coordinate_kind, &
+        flux_coordinate_angles, flux_normal_residual, &
+        straight_field_line_residual, boozer_residuals, FLUX_GENERIC, &
+        FLUX_CLEBSCH, FLUX_STRAIGHT_FIELD_LINE, FLUX_BOOZER, FLUX_HAMADA, &
+        BOOZER_RESIDUAL_COUNT
     use fortsym_maxwell, only: maxwell_field_strength, maxwell_gauge_transform, &
         maxwell_residual
     implicit none
@@ -210,6 +216,11 @@ module fortsym
         b_cov, b_density, h_cov, h_con, b_fourier, b_fourier_density, j_fourier, &
         flux_surface_t, flux_surface, flux_surface_valid, flux_surface_label, &
         flux_surface_measure, flux_surface_average, &
+        flux_coordinate_t, flux_coordinates, flux_coordinate_valid, &
+        flux_coordinate_label, flux_coordinate_kind, flux_coordinate_angles, &
+        flux_normal_residual, straight_field_line_residual, boozer_residuals, &
+        FLUX_GENERIC, FLUX_CLEBSCH, FLUX_STRAIGHT_FIELD_LINE, FLUX_BOOZER, &
+        FLUX_HAMADA, BOOZER_RESIDUAL_COUNT, &
         fourier_constitutive, fourier_constitutive_t, fourier_weak_form, &
         fourier_weak_form_t, current_compatibility, nubar, &
         fourier_constitutive_valid, fourier_weak_form_valid, FOURIER_INVALID, &

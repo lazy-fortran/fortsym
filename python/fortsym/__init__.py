@@ -52,6 +52,12 @@ SPACE_EDGE = 2
 TRACE_NONE = 0
 TRACE_NORMAL = 1
 TRACE_TANGENTIAL = 2
+FLUX_GENERIC = 0
+FLUX_CLEBSCH = 1
+FLUX_STRAIGHT_FIELD_LINE = 2
+FLUX_BOOZER = 3
+FLUX_HAMADA = 4
+BOOZER_RESIDUAL_COUNT = 5
 SPACETIME_DIM = 4
 CONNECTION_STANDARD = 1
 CONNECTION_OPPOSITE = -1
@@ -491,6 +497,30 @@ def _configure(lib):
             "chart_" + name,
             declare("fortsym_chart_" + name, ctypes.c_int, arguments),
         )
+    lib.chart_flux_normal_residual = declare(
+        "fortsym_chart_flux_normal_residual", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.c_int, ctypes.POINTER(_CVOID),
+            _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_straight_field_line_residual = declare(
+        "fortsym_chart_straight_field_line_residual", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.c_int, _CVOID,
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_boozer_residuals = declare(
+        "fortsym_chart_boozer_residuals", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.c_int, ctypes.POINTER(_CVOID),
+            _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.chart_h_cov = declare(
         "fortsym_chart_h_cov", ctypes.c_int,
         [
@@ -1430,6 +1460,72 @@ class Arena:
             name = operation.__name__.removeprefix("fortsym_chart_")
             raise FortSymError(status, _decode(message), name)
         return tuple(Expr(self, output[index]) for index in range(3))
+
+    def _chart_flux_scalar(self, operation, chart, vector, label_index,
+                           rotational_transform=None):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporaries = []
+        try:
+            values = []
+            for value in tuple(vector):
+                expression, temporary = self._coerce(value)
+                values.append(expression)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            if len(values) != 3:
+                raise ValueError("flux-coordinate vectors require three components")
+            vector_handles = (_CVOID * 3)(*[value._handle for value in values])
+            output = _CVOID()
+            message = _message()
+            arguments = [
+                self._require(), coordinate_handles, position_handles,
+                vector_handles, int(label_index),
+            ]
+            if rotational_transform is not None:
+                transform, temporary = self._coerce(rotational_transform)
+                if temporary is not None:
+                    temporaries.append(temporary)
+                arguments.append(transform._handle)
+            arguments.extend([ctypes.byref(output), message, len(message)])
+            status = operation(*arguments)
+            if status:
+                raise FortSymError(status, _decode(message), operation.__name__)
+            return Expr(self, output)
+        finally:
+            for temporary in temporaries:
+                temporary.close()
+
+    def _chart_flux_array(self, operation, chart, vector, label_index):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporaries = []
+        try:
+            values = []
+            for value in tuple(vector):
+                expression, temporary = self._coerce(value)
+                values.append(expression)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            if len(values) != 3:
+                raise ValueError("flux-coordinate covectors require three components")
+            vector_handles = (_CVOID * 3)(*[value._handle for value in values])
+            output = (_CVOID * BOOZER_RESIDUAL_COUNT)()
+            message = _message()
+            status = operation(
+                self._require(), coordinate_handles, position_handles,
+                vector_handles, int(label_index), output, message, len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), operation.__name__)
+            return tuple(
+                Expr(self, output[index]) for index in range(BOOZER_RESIDUAL_COUNT)
+            )
+        finally:
+            for temporary in temporaries:
+                temporary.close()
 
     def _chart_j_fourier(self, chart, reluctivity, potential, mode):
         coordinate_handles, position_handles = self._chart_inputs(
@@ -2676,6 +2772,10 @@ class Chart:
         """Describe ``coordinate[label_index]=constant`` as a flux surface."""
         return FluxSurface(self, label_index)
 
+    def flux_coordinates(self, label_index=1, kind=FLUX_GENERIC):
+        """Describe a flux-coordinate convention on this chart."""
+        return FluxCoordinates(self, label_index, kind)
+
     def magnetic_chart(self, potential, label_index=1):
         """Bundle this chart, a potential, and its typed magnetic views."""
         return MagneticChart(self, potential, label_index)
@@ -3004,6 +3104,90 @@ class FluxSurface:
             self.chart.coordinates, self.chart.position, self.label_index,
             scalar,
         )
+
+
+class FluxCoordinates:
+    """Native residual checks for a labelled flux-coordinate chart."""
+
+    def __init__(self, chart, label_index=1, kind=FLUX_GENERIC):
+        if not isinstance(chart, Chart):
+            raise TypeError("FluxCoordinates requires a fortsym Chart")
+        label_index = int(label_index)
+        kind = int(kind)
+        if label_index not in (1, 2, 3):
+            raise ValueError("flux-coordinate label index must be 1, 2, or 3")
+        if kind not in (
+                FLUX_GENERIC, FLUX_CLEBSCH, FLUX_STRAIGHT_FIELD_LINE,
+                FLUX_BOOZER, FLUX_HAMADA):
+            raise ValueError("unknown flux-coordinate kind")
+        self.chart = chart
+        self.surface = chart.flux_surface(label_index)
+        self.label_index = label_index
+        self.angle_indices = self.surface.angle_indices
+        self.kind = kind
+
+    @property
+    def label(self):
+        return self.surface.label
+
+    @property
+    def kind_name(self):
+        return {
+            FLUX_GENERIC: "generic",
+            FLUX_CLEBSCH: "clebsch",
+            FLUX_STRAIGHT_FIELD_LINE: "straight_field_line",
+            FLUX_BOOZER: "boozer",
+            FLUX_HAMADA: "hamada",
+        }[self.kind]
+
+    def normal(self, vector):
+        """Return the native residual ``B^label``."""
+        if isinstance(vector, Tensor):
+            if vector.chart is not self.chart or vector.rank != 1:
+                raise ValueError("flux normal expects a vector on this chart")
+            if vector.variance != (1,):
+                raise ValueError("flux normal expects contravariant components")
+        return self.chart._arena._chart_flux_scalar(
+            self.chart._arena._lib.chart_flux_normal_residual,
+            self.chart, vector, self.label_index,
+        )
+
+    normal_residual = normal
+
+    def straight_field_residual(self, vector, rotational_transform):
+        """Return ``B**angle_one - iota*B**angle_two``."""
+        if isinstance(vector, Tensor):
+            if vector.chart is not self.chart or vector.rank != 1:
+                raise ValueError("straight-field residual expects a vector on this chart")
+            if vector.variance != (1,):
+                raise ValueError("straight-field residual expects contravariant components")
+        return self.chart._arena._chart_flux_scalar(
+            self.chart._arena._lib.chart_straight_field_line_residual,
+            self.chart, vector, self.label_index, rotational_transform,
+        )
+
+    def boozer_residuals(self, covariant):
+        """Return ``(B_label, d1 B1, d2 B1, d1 B2, d2 B2)``."""
+        if self.kind != FLUX_BOOZER:
+            raise ValueError("Boozer residuals require kind=FLUX_BOOZER")
+        if isinstance(covariant, Tensor):
+            if covariant.chart is not self.chart or covariant.rank != 1:
+                raise ValueError("Boozer residuals expect a covector on this chart")
+            if covariant.variance != (-1,):
+                raise ValueError("Boozer residuals expect covariant components")
+        return self.chart._arena._chart_flux_array(
+            self.chart._arena._lib.chart_boozer_residuals,
+            self.chart, covariant, self.label_index,
+        )
+
+    def boozer_valid(self, covariant):
+        """Return True/False/None using the native zero oracle."""
+        verdicts = [value.is_zero for value in self.boozer_residuals(covariant)]
+        if any(value is False for value in verdicts):
+            return False
+        if any(value is None for value in verdicts):
+            return None
+        return True
 
 
 class MagneticChart:
@@ -5065,8 +5249,8 @@ def trace(tensor: Tensor, first, second): return tensor.trace(first, second)
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "FluxSurface", "MagneticChart", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
-    "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
+    "Arena", "Chart", "ChartMap", "FluxSurface", "FluxCoordinates", "MagneticChart", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
+    "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL", "FLUX_GENERIC", "FLUX_CLEBSCH", "FLUX_STRAIGHT_FIELD_LINE", "FLUX_BOOZER", "FLUX_HAMADA", "BOOZER_RESIDUAL_COUNT",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count", "tensor_product", "contract", "trace",

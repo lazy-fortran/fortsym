@@ -79,6 +79,14 @@ returns `A` and `.flux_form()` returns the closed magnetic two-form
 `Chart.h_con(covariant)` raises `H_i` with the chart metric.
 `MagneticField.h_cov()` and `.h_con()` provide typed covariant and
 contravariant `H` views from its `B^i` view.
+`Chart.flux_coordinates(label_index=1, kind=FLUX_GENERIC)` returns a
+`FluxCoordinates` descriptor with the ordered angular indices. Its
+`.normal(vector)`, `.straight_field_residual(vector, iota)`, and
+`.boozer_residuals(covariant)` methods call the native residual owners; the
+last method returns `(B_label, d1 B1, d2 B1, d1 B2, d2 B2)` and requires
+`kind=FLUX_BOOZER`. `.boozer_valid(covariant)` uses the native zero oracle and
+returns `True`, `False`, or `None`. The descriptor checks identities only and
+does not hide an equilibrium solver.
 `SpacetimeMetric` is the dimension-aware four-coordinate facade for the
 relativity owner. It exposes `sqrtg()`, inverse metric, Christoffel, Riemann,
 Ricci, scalar curvature, Einstein, and second-Bianchi views using the same native expression

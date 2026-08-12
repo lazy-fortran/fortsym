@@ -89,6 +89,15 @@ positive induced measure, while `flux_surface_average` verifies the weighted
 numerator and normalization with `definite_integral` on `[0,2*pi]` (or supplied
 upper bounds) before returning a result. Unsupported symbolic integrals return
 `ok=.false.` and a diagnostic instead of an unverified value.
+`fortsym_flux` adds the reusable `flux_coordinate_t` descriptor. Construct it
+with `flux_coordinates(chart, label_index, kind)` using `FLUX_GENERIC`,
+`FLUX_CLEBSCH`, `FLUX_STRAIGHT_FIELD_LINE`, `FLUX_BOOZER`, or `FLUX_HAMADA`.
+`flux_normal_residual` checks `B^label`,
+`straight_field_line_residual` checks `B^angle_one - iota*B^angle_two`, and
+`boozer_residuals` returns
+`(B_label, d1 B1, d2 B1, d1 B2, d2 B2)` for the descriptor's ordered angles.
+These are identity owners, not equilibrium solvers; callers use the native
+engine or an independent oracle to establish that residuals vanish.
 The generic chart operation `field_line_derivative(chart, vector, scalar)`
 returns `vector(i) * d(scalar)/du(i)` and is also the magnetic `B dot grad`
 operation.
