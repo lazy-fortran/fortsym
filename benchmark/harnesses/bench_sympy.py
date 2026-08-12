@@ -338,6 +338,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.atanh(1),
             names,
         ),
+        "domain_atanh_imaginary": (
+            oracle.atanh(oracle.I),
+            native.atanh(native_i),
+            names,
+        ),
         "domain_acosh_branch": (
             oracle.acosh(0),
             native.acosh(0),
@@ -510,6 +515,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.log(imaginary_unit(engine))
     elif operation == "domain_atanh_pole":
         expression = engine.atanh(1)
+    elif operation == "domain_atanh_imaginary":
+        expression = engine.atanh(imaginary_unit(engine))
     elif operation == "domain_acosh_branch":
         expression = engine.acosh(0)
     elif operation == "domain_sqrt_negative_square":
@@ -731,6 +738,7 @@ def correctness_cases() -> list[dict[str, Any]]:
                 "composition", "sqrt_power",
                 "domain_function", "domain_log_zero", "domain_log_negative",
                 "domain_log_imaginary", "domain_atanh_pole",
+                "domain_atanh_imaginary",
                 "domain_acosh_branch",
                 "domain_sqrt_negative_square", "domain_asinh_imaginary",
                 "domain_inverse",
@@ -783,7 +791,7 @@ def correctness_cases() -> list[dict[str, Any]]:
                 if operation in (
                         "domain_function", "domain_log_zero",
                         "domain_log_negative", "domain_log_imaginary",
-                        "domain_atanh_pole",
+                        "domain_atanh_pole", "domain_atanh_imaginary",
                         "domain_acosh_branch", "domain_sqrt_negative_square",
                         "domain_asinh_imaginary",
                         "domain_inverse",
@@ -854,7 +862,8 @@ def benchmark_workload(
                     "composition", "sqrt_power", "domain_function",
                     "domain_log_zero", "domain_log_negative",
                     "domain_log_imaginary",
-                    "domain_atanh_pole", "domain_acosh_branch",
+                    "domain_atanh_pole", "domain_atanh_imaginary",
+                    "domain_acosh_branch",
                     "domain_sqrt_negative_square", "domain_asinh_imaginary",
                     "domain_inverse",
                     "domain_reciprocal", "domain_error_function", "domain_gamma",
@@ -905,7 +914,8 @@ def benchmark_workload(
                     "composition", "sqrt_power",
                     "domain_function", "domain_log_zero", "domain_log_negative",
                     "domain_log_imaginary",
-                    "domain_atanh_pole", "domain_acosh_branch",
+                    "domain_atanh_pole", "domain_atanh_imaginary",
+                    "domain_acosh_branch",
                     "domain_sqrt_negative_square", "domain_asinh_imaginary",
                     "domain_inverse",
                         "domain_reciprocal", "domain_error_function", "domain_gamma",
@@ -971,7 +981,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_atanh_pole", "domain_acosh_branch", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
+        "expand", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_atanh_pole", "domain_atanh_imaginary", "domain_acosh_branch", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):
         if operation in _PREDICATE_OPERATIONS:

@@ -532,6 +532,30 @@ int main(void)
     fortsym_expr_free(branch);
     branch_simplified = NULL;
     branch = NULL;
+    root_argument[0] = imaginary;
+    status = fortsym_function(arena, "atanh", root_argument, 1, &branch,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, branch, &branch_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(branch_simplified, "i*pi*1/4");
+    fortsym_expr_free(branch_simplified);
+    fortsym_expr_free(branch);
+    branch_simplified = NULL;
+    branch = NULL;
+    root_argument[0] = negative_imaginary;
+    status = fortsym_function(arena, "atanh", root_argument, 1, &branch,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, branch, &branch_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(branch_simplified, "-i*pi*1/4");
+    fortsym_expr_free(branch_simplified);
+    fortsym_expr_free(branch);
+    branch_simplified = NULL;
+    branch = NULL;
     status = fortsym_multiply(arena, minus_one, infinity, &negative_infinity,
                               message, sizeof message);
     assert(status == FORTSYM_OK);

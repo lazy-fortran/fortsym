@@ -2539,8 +2539,7 @@ contains
         integer, intent(in) :: id
         integer, intent(out) :: out
         logical, intent(out) :: ok
-        integer :: half_pi, quarter_pi, imaginary_half_pi, positive
-        logical :: negated
+        integer :: half_pi, quarter_pi, imaginary_half_pi
 
         out = id
         ok = .false.
@@ -2582,12 +2581,8 @@ contains
             if (is_zero_id(a, id)) then
                 out = a%int(0_int64)
             else
-                call split_negated_argument(a, id, positive, negated)
-                if (a%kind_of(positive) /= NK_CONST) return
-                if (chars(a%name_of(positive)) /= "i") return
-                imaginary_half_pi = mul_pair(a, a%const("i"), half_pi)
-                out = imaginary_half_pi
-                if (negated) out = mul_pair(a, a%int(-1_int64), out)
+                call exact_odd_imaginary_value(a, id, half_pi, out, ok)
+                if (.not. ok) return
             end if
         case ("acosh")
             if (is_one_id(a, id)) then
@@ -2608,13 +2603,32 @@ contains
             else if (is_minus_one_id(a, id)) then
                 out = mul_pair(a, a%int(-1_int64), a%const("oo"))
             else
-                return
+                call exact_odd_imaginary_value(a, id, quarter_pi, out, ok)
+                if (.not. ok) return
             end if
         case default
             return
         end select
         ok = .true.
     end subroutine exact_inverse_value
+
+    subroutine exact_odd_imaginary_value(a, id, angle, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: id, angle
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer :: positive
+        logical :: negated
+
+        out = id
+        ok = .false.
+        call split_negated_argument(a, id, positive, negated)
+        if (a%kind_of(positive) /= NK_CONST) return
+        if (chars(a%name_of(positive)) /= "i") return
+        out = mul_pair(a, a%const("i"), angle)
+        if (negated) out = mul_pair(a, a%int(-1_int64), out)
+        ok = .true.
+    end subroutine exact_odd_imaginary_value
 
     subroutine exact_log_value(a, id, out, ok)
         type(arena_t), intent(inout) :: a
