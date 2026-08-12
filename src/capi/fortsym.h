@@ -524,6 +524,17 @@ int fortsym_chart_tensor_density_factor(
     size_t rank, const int variance[], int density_weight,
     const fortsym_expr *factor, fortsym_expr *out[], char *message,
     size_t capacity);
+/* Convert between an exact weight-zero lower antisymmetric tensor and the
+ * compact eight-mask three-dimensional differential-form representation. */
+int fortsym_chart_form_from_tensor(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    size_t rank, const int variance[], int density_weight,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_tensor_from_form(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    size_t degree, fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_chart_tensor_permute(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *components[],

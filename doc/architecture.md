@@ -140,6 +140,8 @@ the map-derived metric and operators, `fortsym_chart_map` owns bidirectional
 coordinate transitions and form pullbacks, `fortsym_magnetic` owns variance and
 density views,
 `fortsym_tensor` owns typed components, `fortsym_form` owns exterior algebra,
+`fortsym_form_tensor` owns the exact bridge between their views without
+duplicating either storage layout,
 `fortsym_connection` owns covariant/curvature views, and `fortsym_flux` owns
 coordinate-label metadata and flux-coordinate residual identities.
 `fortsym_magnetic`

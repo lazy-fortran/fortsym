@@ -849,6 +849,17 @@ def _configure(lib):
          ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
          ctypes.c_int, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_form_from_tensor = declare(
+        "fortsym_chart_form_from_tensor", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+         ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    lib.chart_tensor_from_form = declare(
+        "fortsym_chart_tensor_from_form", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.chart_tensor_permute = declare(
         "fortsym_chart_tensor_permute", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
@@ -2242,6 +2253,42 @@ class Arena:
             raise FortSymError(status, _decode(message), "tensor_density_factor")
         return tuple(Expr(self, output[index]) for index in range(output_count))
 
+    def _chart_form_from_tensor(self, chart, tensor):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        values = (_CVOID * len(tensor.components))(
+            *[self._check(value)._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output = (_CVOID * 8)()
+        message = _message()
+        status = self._lib.chart_form_from_tensor(
+            self._require(), coordinate_handles, position_handles, values,
+            tensor.rank, variance, tensor.density_weight, output, message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "form_from_tensor")
+        return tuple(Expr(self, output[index]) for index in range(8))
+
+    def _chart_tensor_from_form(self, chart, form):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        values = (_CVOID * 8)(
+            *[self._check(value)._handle for value in form.components]
+        )
+        output = (_CVOID * (3 ** form.degree))()
+        message = _message()
+        status = self._lib.chart_tensor_from_form(
+            self._require(), coordinate_handles, position_handles, values,
+            form.degree, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "tensor_from_form")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
     def _chart_tensor_permute(self, chart, tensor, order):
         coordinate_handles, position_handles = self._chart_inputs(
             chart.coordinates, chart.position
@@ -2887,6 +2934,22 @@ class Chart:
 
     def tensor(self, components, variance=(), density_weight=0):
         return Tensor(self, components, variance, density_weight)
+
+    def form_from_tensor(self, tensor):
+        """Convert an exact weight-zero lower antisymmetric tensor to a form."""
+        if not isinstance(tensor, Tensor) or tensor.chart is not self:
+            raise ValueError("form_from_tensor expects a tensor from this chart")
+        components = self._arena._chart_form_from_tensor(self, tensor)
+        return Form(self, components, tensor.rank, _owned=True)
+
+    def tensor_from_form(self, form):
+        """Convert a native k-form to its lower antisymmetric tensor view."""
+        if not isinstance(form, Form) or form.chart is not self:
+            raise ValueError("tensor_from_form expects a form from this chart")
+        components = self._arena._chart_tensor_from_form(self, form)
+        return Tensor(
+            self, components, (-1,) * form.degree, 0, _owned=True
+        )
 
     def vector(self, components, density_weight=0):
         return Tensor(self, components, (1,), density_weight)
@@ -4159,6 +4222,10 @@ class Tensor:
 
     tensor_product = product
 
+    def to_form(self):
+        """Convert this exact weight-zero lower antisymmetric tensor to a form."""
+        return self.chart.form_from_tensor(self)
+
     def trace(self, first, second):
         """Contract two opposite-variance slots using the short native name."""
         return self.contract(first, second)
@@ -4452,6 +4519,10 @@ class Form:
         return Form(self.chart, components, degree, _owned=True)
 
     exterior_diff = d
+
+    def to_tensor(self):
+        """Convert this form to its lower antisymmetric tensor view."""
+        return self.chart.tensor_from_form(self)
 
     @property
     def is_closed(self):
