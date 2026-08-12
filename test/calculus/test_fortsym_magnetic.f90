@@ -4,7 +4,7 @@ program test_fortsym_magnetic
     ! The shear chart is deliberately nonorthogonal. A Cartesian or diagonal
     ! chart would allow a transposed basis or a missed metric raise to pass.
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, num, i_expr, operator(+), &
+    use fortsym_expr, only: expr_t, sym, num, i_expr, sin, cos, operator(+), &
         operator(-), operator(*), operator(**)
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
     use fortsym_engine, only: engine_result_t
@@ -14,7 +14,9 @@ program test_fortsym_magnetic
         field_line_derivative
     use fortsym_magnetic, only: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
         b_fourier_density, j_fourier, magnetic_field_t, magnetic_field, &
-        magnetic_upper, magnetic_lower, magnetic_density
+        magnetic_upper, magnetic_lower, magnetic_density, flux_surface_t, &
+        flux_surface, flux_surface_valid, flux_surface_label, &
+        flux_surface_measure, flux_surface_average
     use fortsym_tensor, only: tensor_t, tensor_component, tensor_variance, &
         tensor_density_weight, tensor_valid
     implicit none
@@ -30,18 +32,38 @@ program test_fortsym_magnetic
     type(expr_t) :: fourier_integer(DIM), mode
     type(expr_t) :: reluctivity(DIM, DIM), current(DIM)
     type(expr_t) :: h_down(DIM), h_up(DIM)
-    type(expr_t) :: residual, det_metric, volume, signed_jacobian
+    type(expr_t) :: residual, det_metric, volume, signed_jacobian, average
     type(magnetic_field_t) :: typed_field
+    type(flux_surface_t) :: flux_surface_owner
     type(tensor_t) :: typed_up, typed_down, typed_density
     integer :: tensor_index(1)
     type(engine_result_t) :: reduced
     integer :: i, j
     character(len=64) :: label
+    logical :: average_ok
+    character(:), allocatable :: average_reason
 
     call arena%init()
     engine = make_symengine_engine(arena)
     shear = make_shear_chart()
     call suite_begin(suite, "native magnetic geometry")
+
+    flux_surface_owner = flux_surface(shear, 1)
+    if (.not. flux_surface_valid(flux_surface_owner)) then
+        error stop "flux surface metadata invalid"
+    end if
+    call check_identity(suite, engine, "flux surface label", &
+        flux_surface_label(flux_surface_owner) - u(1))
+    call check_identity(suite, engine, "flux surface measure", &
+        flux_surface_measure(flux_surface_owner)**2 - 2)
+    call flux_surface_average(flux_surface_owner, &
+        1 + sin(u(2)) + cos(u(3)), average, average_ok, average_reason)
+    if (.not. average_ok) then
+        write (*, '(a)') "FAIL flux surface average: "//average_reason
+        error stop 1
+    end if
+    call check_identity(suite, engine, "periodic flux surface average", &
+        average - 1)
 
     covariant = covariant_basis(shear)
     reciprocal = reciprocal_basis(shear)

@@ -376,6 +376,11 @@ def _configure(lib):
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), ctypes.c_int,
          ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_flux_surface_average = declare(
+        "fortsym_chart_flux_surface_average", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), ctypes.c_int,
+         _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.chart_jacobian = declare(
         "fortsym_chart_jacobian",
         ctypes.c_int,
@@ -1259,6 +1264,25 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "surface_measure")
+        return Expr(self, output)
+
+    def _chart_flux_surface_average(self, coordinates, position, label_index,
+                                    scalar):
+        if int(label_index) not in (1, 2, 3):
+            raise ValueError("flux-surface label index must be 1, 2, or 3")
+        coordinate_handles, position_handles = self._chart_inputs(
+            coordinates, position
+        )
+        scalar = self._check(scalar)
+        output = _CVOID()
+        message = _message()
+        status = self._lib.chart_flux_surface_average(
+            self._require(), coordinate_handles, position_handles,
+            int(label_index), scalar._handle, ctypes.byref(output), message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "flux_surface_average")
         return Expr(self, output)
 
     def _chart_jacobian(self, coordinates, position):
@@ -2638,6 +2662,10 @@ class Chart:
             self.coordinates, self.position, normal_index
         )
 
+    def flux_surface(self, label_index=1):
+        """Describe ``coordinate[label_index]=constant`` as a flux surface."""
+        return FluxSurface(self, label_index)
+
     def jacobian(self):
         """Return the signed determinant of the chart Jacobian."""
         return self._arena._chart_jacobian(self.coordinates, self.position)
@@ -2927,6 +2955,41 @@ class Chart:
     def current_compatibility(self, current, mode):
         """Return the native metric-free Fourier current divergence."""
         return self._arena._chart_current_compatibility(self, current, mode)
+
+
+class FluxSurface:
+    """A coordinate flux surface with native periodic averaging."""
+
+    def __init__(self, chart, label_index=1):
+        if not isinstance(chart, Chart):
+            raise TypeError("FluxSurface requires a fortsym Chart")
+        label_index = int(label_index)
+        if label_index not in (1, 2, 3):
+            raise ValueError("flux-surface label index must be 1, 2, or 3")
+        self.chart = chart
+        self.label_index = label_index
+        self.angle_indices = tuple(
+            index for index in (1, 2, 3) if index != label_index
+        )
+
+    @property
+    def label(self):
+        return self.chart.coordinates[self.label_index - 1]
+
+    def measure(self):
+        return self.chart.surface_measure(self.label_index)
+
+    def average(self, scalar):
+        """Average over both angles on ``[0, 2*pi]``.
+
+        Native definite integration verifies the numerator and normalization;
+        unsupported symbolic integrands raise ``FortSymError`` explicitly.
+        """
+        scalar = self.chart._arena._check(scalar)
+        return self.chart._arena._chart_flux_surface_average(
+            self.chart.coordinates, self.chart.position, self.label_index,
+            scalar,
+        )
 
 
 class MagneticField:
@@ -4905,7 +4968,7 @@ def trace(tensor: Tensor, first, second): return tensor.trace(first, second)
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "ChartMap", "FluxSurface", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",

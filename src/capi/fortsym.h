@@ -175,6 +175,14 @@ int fortsym_chart_surface_measure(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], int normal_index, fortsym_expr **out,
     char *message, size_t capacity);
+/* Average a scalar over the two angular coordinates of the surface
+ * u[ label_index ] = constant, using [0,2*pi] for both angles. The call
+ * returns FORTSYM_UNSUPPORTED when either exact integral is outside the
+ * verified native definite-integral subset. */
+int fortsym_chart_flux_surface_average(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], int label_index, const fortsym_expr *scalar,
+    fortsym_expr **out, char *message, size_t capacity);
 int fortsym_chart_jacobian(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], size_t dimension, fortsym_expr **out,

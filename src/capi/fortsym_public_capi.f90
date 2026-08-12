@@ -24,7 +24,8 @@ module fortsym_public_capi
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form
     use fortsym_magnetic, only: b_cov, b_density, h_cov, h_con, b_fourier, &
-        b_fourier_density, &
+        b_fourier_density, flux_surface_t, flux_surface, flux_surface_valid, &
+        flux_surface_average, &
         j_fourier
     use fortsym_magnetic_weak, only: fourier_constitutive, fourier_weak_form, &
         current_compatibility, &
@@ -132,6 +133,7 @@ module fortsym_public_capi
         fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor
     public :: fortsym_chart_sqrtg, fortsym_chart_surface_measure, &
+        fortsym_chart_flux_surface_average, &
         fortsym_chart_jacobian, &
         fortsym_chart_covariant_basis, fortsym_chart_reciprocal_basis, &
         fortsym_chart_grad, fortsym_chart_divergence, fortsym_chart_div_density, &
@@ -202,7 +204,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 58_c_int
+        v = 59_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -882,6 +884,40 @@ contains
         value = surface_measure(chart, int(normal_index))
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_chart_surface_measure
+
+    function fortsym_chart_flux_surface_average(raw, coordinates, position, &
+            label_index, scalar, out, message, capacity) bind(c, &
+            name="fortsym_chart_flux_surface_average") result(status)
+        type(c_ptr), value :: raw, coordinates, position, scalar, out
+        integer(c_int), value :: label_index
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(flux_surface_t) :: surface
+        type(expr_t) :: input, value
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        surface = flux_surface(chart, int(label_index))
+        if (.not. flux_surface_valid(surface)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call get_scalar_input(a, scalar, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call flux_surface_average(surface, input, value, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_chart_flux_surface_average
 
     function fortsym_chart_jacobian(raw, coordinates, position, dimension, out, &
             message, capacity) bind(c, name="fortsym_chart_jacobian") result(status)
