@@ -131,8 +131,32 @@ value = tensor_component(scalar, none)
 `raise` and `lower` preserve density weight and all non-selected slots.
 `contract` requires opposite variance and removes the two selected slots;
 `trace` is its named alias. The current native subset is rank four or less in
-three-dimensional charts. Symmetry declarations, arbitrary dimensions,
-covariant differentiation, and Python tensor transport remain roadmap work.
+three-dimensional charts. Symmetry declarations, arbitrary dimensions, and
+Python tensor transport remain roadmap work.
+
+## Connections and curvature
+
+`fortsym_connection` owns the first covariant-calculus subset. It consumes a
+chart and a typed tensor, appends the derivative as a lower slot, applies the
+Christoffel term for every upper and lower slot, and applies the documented
+`-w*Gamma^m_mk*T` density-weight term. `covariant_derivative` is the readable
+alias of the short `covariant_diff` name; both are exported by the facade.
+
+```fortran
+type(tensor_t) :: metric_value, metric_derivative, curvature
+type(expr_t) :: scalar
+
+metric_value = metric_covariant_tensor(chart)
+metric_derivative = covariant_diff(chart, metric_value)
+curvature = riemann_tensor(chart)
+scalar = scalar_curvature(chart)
+```
+
+The current fixed-three-dimensional subset also provides typed Christoffel,
+Ricci, and Einstein tensors. Its convention is
+`R^a_bcd = d_c Gamma^a_db - d_d Gamma^a_cb + Gamma^a_cm Gamma^m_db -`
+`Gamma^a_dm Gamma^m_cb`; the broader pseudo-Riemannian, torsion, geodesic,
+and arbitrary-rank surface remains roadmap work.
 
 `symbols` assigns whitespace- or comma-separated names to scalar outputs:
 

@@ -21,7 +21,7 @@ module fortsym_tensor
     public :: tensor_t, tensor, tensor_scalar, tensor_vector, tensor_covector
     public :: tensor_from_components, tensor_from_matrix
     public :: tensor_component, tensor_rank, tensor_variance
-    public :: tensor_density_weight, tensor_valid, density
+    public :: tensor_density_weight, tensor_valid, tensor_same_arena, density
     public :: vector, covector, raise, lower
     public :: tensor_product, contract, trace
     public :: metric_covariant_tensor, metric_contravariant_tensor
@@ -210,6 +210,14 @@ contains
 
         weight = tensor_value%density_weight
     end function tensor_density_weight
+
+    function tensor_same_arena(tensor_value, c) result(same)
+        type(tensor_t), intent(in) :: tensor_value
+        type(chart_t), intent(in) :: c
+        logical :: same
+
+        same = associated(tensor_value%a, c%a)
+    end function tensor_same_arena
 
     function tensor_valid(tensor_value) result(valid)
         type(tensor_t), intent(in) :: tensor_value
