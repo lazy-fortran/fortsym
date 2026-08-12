@@ -32,6 +32,8 @@ program test_fortsym_connection
     type(tensor_t) :: density_value, density_derivative, gamma_value
     type(tensor_t) :: metric_gamma_value
     type(tensor_t) :: riemann, ricci, einstein
+    type(tensor_t) :: metric_riemann, metric_ricci, metric_einstein
+    type(expr_t) :: metric_scalar
     integer :: indices(4)
 
     call arena%init()
@@ -110,6 +112,19 @@ program test_fortsym_connection
     call check_identity(suite, engine, "scalar curvature is zero", expected)
     einstein = einstein_tensor(polynomial)
     call check_tensor_zero(suite, engine, native, einstein, "Einstein tensor is zero")
+
+    metric_riemann = riemann_tensor(metric_owner)
+    call check_tensor_zero(suite, engine, native, metric_riemann, &
+        "metric-owner Riemann tensor is zero")
+    metric_ricci = ricci_tensor(metric_owner)
+    call check_tensor_zero(suite, engine, native, metric_ricci, &
+        "metric-owner Ricci tensor is zero")
+    metric_scalar = scalar_curvature(metric_owner)
+    call check_identity(suite, engine, "metric-owner scalar curvature is zero", &
+        metric_scalar)
+    metric_einstein = einstein_tensor(metric_owner)
+    call check_tensor_zero(suite, engine, native, metric_einstein, &
+        "metric-owner Einstein tensor is zero")
 
     if (suite%failed /= 0) then
         print *, "test_fortsym_connection: ", suite%failed, " check(s) FAILED"

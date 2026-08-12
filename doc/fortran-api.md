@@ -208,6 +208,9 @@ metrics without coordinates are intentionally refused for derivative-based
 connection construction.
 `covariant_diff` and `covariant_derivative` use the same overload rule and
 share the chart/metric component kernel.
+The same metric-owner overload is available for `riemann_tensor`,
+`ricci_tensor`, `scalar_curvature`, and `einstein_tensor` when coordinates are
+present.
 
 ```fortran
 type(tensor_t) :: metric_value, metric_derivative, curvature

@@ -49,6 +49,26 @@ module fortsym_connection
         module procedure christoffel_tensor_metric
     end interface christoffel_tensor
 
+    interface riemann_tensor
+        module procedure riemann_tensor_chart
+        module procedure riemann_tensor_metric
+    end interface riemann_tensor
+
+    interface ricci_tensor
+        module procedure ricci_tensor_chart
+        module procedure ricci_tensor_metric
+    end interface ricci_tensor
+
+    interface scalar_curvature
+        module procedure scalar_curvature_chart
+        module procedure scalar_curvature_metric
+    end interface scalar_curvature
+
+    interface einstein_tensor
+        module procedure einstein_tensor_chart
+        module procedure einstein_tensor_metric
+    end interface einstein_tensor
+
 contains
 
     !> Full covariant derivative, with the derivative index as the last slot.
@@ -251,7 +271,7 @@ contains
     end function christoffel_tensor_metric
 
     !> Riemann tensor R^a_bcd in the convention declared above.
-    function riemann_tensor(c) result(result)
+    function riemann_tensor_chart(c) result(result)
         type(chart_t), intent(in) :: c
         type(tensor_t) :: result
         type(expr_t) :: gamma(DIM, DIM, DIM), values(MAX_COMPONENTS), value
@@ -286,10 +306,31 @@ contains
         end do
         result = tensor_from_components(c, 4, values(1:component_count(4)), &
             variances(1:4))
-    end function riemann_tensor
+    end function riemann_tensor_chart
+
+    !> Riemann tensor for a supplied coordinate-aware metric.
+    function riemann_tensor_metric(g) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t) :: result
+        type(expr_t) :: gamma(DIM, DIM, DIM), coordinates(DIM)
+        type(expr_t) :: values(0:MAX_COMPONENTS - 1)
+        integer :: variances(MAX_RANK)
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        gamma = metric_christoffel_components(g)
+        coordinates = metric_coordinates(g)
+        call riemann_components(gamma, coordinates, values)
+        variances = 0
+        variances(1) = UPPER
+        variances(2) = LOWER_VARIANCE
+        variances(3) = LOWER_VARIANCE
+        variances(4) = LOWER_VARIANCE
+        result = tensor_from_arena(metric_arena(g), 4, values, variances)
+    end function riemann_tensor_metric
 
     !> Ricci tensor R_bd = R^a_bad, returned covariant in both slots.
-    function ricci_tensor(c) result(result)
+    function ricci_tensor_chart(c) result(result)
         type(chart_t), intent(in) :: c
         type(tensor_t) :: result
         type(tensor_t) :: riemann
@@ -298,7 +339,7 @@ contains
         integer :: a, b, d
 
         if (.not. associated(c%a)) return
-        riemann = riemann_tensor(c)
+        riemann = riemann_tensor_chart(c)
         if (.not. tensor_valid(riemann)) return
         do b = 1, DIM
             do d = 1, DIM
@@ -314,10 +355,41 @@ contains
             end do
         end do
         result = tensor_from_matrix(c, values, LOWER_VARIANCE, LOWER_VARIANCE)
-    end function ricci_tensor
+    end function ricci_tensor_chart
+
+    !> Ricci tensor obtained by contracting the metric-owner Riemann tensor.
+    function ricci_tensor_metric(g) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t) :: result, riemann
+        type(expr_t) :: values(0:MAX_COMPONENTS - 1), value
+        integer :: indices(MAX_RANK), a, b, d
+        integer :: variances(MAX_RANK)
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        riemann = riemann_tensor_metric(g)
+        if (.not. tensor_valid(riemann)) return
+        do b = 1, DIM
+            do d = 1, DIM
+                value = num(metric_arena(g), 0)
+                do a = 1, DIM
+                    indices(1) = a
+                    indices(2) = b
+                    indices(3) = a
+                    indices(4) = d
+                    value = value + tensor_component(riemann, indices(1:4))
+                end do
+                values(encode_pair(b, d)) = value
+            end do
+        end do
+        variances = 0
+        variances(1) = LOWER_VARIANCE
+        variances(2) = LOWER_VARIANCE
+        result = tensor_from_arena(metric_arena(g), 2, values, variances)
+    end function ricci_tensor_metric
 
     !> Scalar curvature R = g^bd R_bd.
-    function scalar_curvature(c) result(result)
+    function scalar_curvature_chart(c) result(result)
         type(chart_t), intent(in) :: c
         type(expr_t) :: result
         type(tensor_t) :: ricci
@@ -327,7 +399,7 @@ contains
 
         if (.not. associated(c%a)) return
         result = num(c%a, 0)
-        ricci = ricci_tensor(c)
+        ricci = ricci_tensor_chart(c)
         if (.not. tensor_valid(ricci)) return
         inverse_metric = metric_contravariant(c)
         do i = 1, DIM
@@ -338,10 +410,34 @@ contains
                     tensor_component(ricci, indices(1:2))
             end do
         end do
-    end function scalar_curvature
+    end function scalar_curvature_chart
+
+    !> Scalar curvature obtained from a metric-owner Ricci tensor.
+    function scalar_curvature_metric(g) result(result)
+        type(metric_t), intent(in) :: g
+        type(expr_t) :: result
+        type(tensor_t) :: ricci
+        type(expr_t) :: inverse_metric(DIM, DIM)
+        integer :: indices(MAX_RANK), i, j
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        result = num(metric_arena(g), 0)
+        ricci = ricci_tensor_metric(g)
+        if (.not. tensor_valid(ricci)) return
+        inverse_metric = owner_metric_contravariant(g)
+        do i = 1, DIM
+            do j = 1, DIM
+                indices(1) = i
+                indices(2) = j
+                result = result + inverse_metric(i, j)* &
+                    tensor_component(ricci, indices(1:2))
+            end do
+        end do
+    end function scalar_curvature_metric
 
     !> Einstein tensor G_bd = R_bd - 1/2 R g_bd.
-    function einstein_tensor(c) result(result)
+    function einstein_tensor_chart(c) result(result)
         type(chart_t), intent(in) :: c
         type(tensor_t) :: result
         type(tensor_t) :: ricci
@@ -350,10 +446,10 @@ contains
         integer :: i, j
 
         if (.not. associated(c%a)) return
-        ricci = ricci_tensor(c)
+        ricci = ricci_tensor_chart(c)
         if (.not. tensor_valid(ricci)) return
         metric = metric_covariant(c)
-        scalar = scalar_curvature(c)
+        scalar = scalar_curvature_chart(c)
         half = num(c%a, 1)/num(c%a, 2)
         do i = 1, DIM
             do j = 1, DIM
@@ -364,7 +460,65 @@ contains
             end do
         end do
         result = tensor_from_matrix(c, values, LOWER_VARIANCE, LOWER_VARIANCE)
-    end function einstein_tensor
+    end function einstein_tensor_chart
+
+    !> Einstein tensor for a supplied coordinate-aware metric.
+    function einstein_tensor_metric(g) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t) :: result, ricci
+        type(expr_t) :: values(0:MAX_COMPONENTS - 1), metric(DIM, DIM)
+        type(expr_t) :: scalar, half, value
+        integer :: indices(MAX_RANK), variances(MAX_RANK), i, j
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        ricci = ricci_tensor_metric(g)
+        if (.not. tensor_valid(ricci)) return
+        metric = owner_metric_covariant(g)
+        scalar = scalar_curvature_metric(g)
+        half = num(metric_arena(g), 1)/num(metric_arena(g), 2)
+        do i = 1, DIM
+            do j = 1, DIM
+                indices(1) = i
+                indices(2) = j
+                value = tensor_component(ricci, indices(1:2)) - &
+                    half*scalar*metric(i, j)
+                values(encode_pair(i, j)) = value
+            end do
+        end do
+        variances = 0
+        variances(1) = LOWER_VARIANCE
+        variances(2) = LOWER_VARIANCE
+        result = tensor_from_arena(metric_arena(g), 2, values, variances)
+    end function einstein_tensor_metric
+
+    subroutine riemann_components(gamma, coordinates, values)
+        type(expr_t), intent(in) :: gamma(DIM, DIM, DIM), coordinates(DIM)
+        type(expr_t), intent(out) :: values(0:MAX_COMPONENTS - 1)
+        type(expr_t) :: value
+        integer :: indices(MAX_RANK)
+        integer :: a, b, cindex, d, m
+
+        do a = 1, DIM
+            do b = 1, DIM
+                do cindex = 1, DIM
+                    do d = 1, DIM
+                        value = diff(gamma(a, d, b), coordinates(cindex)) - &
+                            diff(gamma(a, cindex, b), coordinates(d))
+                        do m = 1, DIM
+                            value = value + gamma(a, cindex, m)*gamma(m, d, b) - &
+                                gamma(a, d, m)*gamma(m, cindex, b)
+                        end do
+                        indices(1) = a
+                        indices(2) = b
+                        indices(3) = cindex
+                        indices(4) = d
+                        values(encode_index(indices, 4)) = value
+                    end do
+                end do
+            end do
+        end do
+    end subroutine riemann_components
 
     pure function component_count(rank) result(count)
         integer, intent(in) :: rank
@@ -375,6 +529,13 @@ contains
             count = count*DIM
         end do
     end function component_count
+
+    pure function encode_pair(first, second) result(index)
+        integer, intent(in) :: first, second
+        integer :: index
+
+        index = (first - 1) + DIM*(second - 1)
+    end function encode_pair
 
     pure function encode_index(indices, rank) result(index)
         integer, intent(in) :: indices(:), rank

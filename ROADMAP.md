@@ -815,6 +815,10 @@ The first-class object model is staged around these metadata owners:
 - [x] Apply the same owner rule to `covariant_diff` and
   `covariant_derivative`; chart and coordinate-aware metric calls share one
   slot/density component kernel and independent metric-compatibility checks.
+- [x] Extend the owner rule through `riemann_tensor`, `ricci_tensor`,
+  `scalar_curvature`, and `einstein_tensor`, with independent flat-chart
+  contraction and curvature checks. Pseudo-Riemannian sign-convention corpus
+  coverage remains open.
 - [ ] `orientation_t` and the positive volume density are separate metadata.
   `volume_form(metric, orientation)` may change sign, while `sqrtg(metric)`
   never absorbs orientation. `epsilon` constructors distinguish the symbol,
