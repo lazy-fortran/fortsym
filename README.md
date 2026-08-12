@@ -169,6 +169,11 @@ covariant angular components `B_theta = I(psi)` and `B_phi = G(psi)` are flux
 functions, while the metric and raised components carry the coordinate volume
 factor. It also prints the diagonal metric, the oriented volume form, and
 `i_B(Omega) = B_phi dpsi wedge dtheta - B_theta dpsi wedge dphi`.
+`example_spherical_coordinates` derives the regular-patch volume factor,
+reciprocal basis, selected Christoffel symbols, and the spherical gradient,
+divergence, curl, and Laplace--Beltrami operator. Its compact metric-owner
+path keeps the example fast and readable while the chart path checks the
+Cartesian embedding independently.
 
 **Read Fortran back.** Point it at a source file and a variable name and it
 returns the symbolic expression that file computes, so a hand-written kernel can

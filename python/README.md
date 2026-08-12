@@ -142,6 +142,30 @@ work; fixed-three-dimensional native pullback transport is available through
 `upper`, `lower`, and weight-one `density` tensor views. Its components come
 from the native curl, covariant magnetic, and density operations.
 
+The spherical chart has the same component-first API. On the regular patch,
+use the chart for the embedding and basis, and a compact metric owner for
+repeated connection and vector-calculus work:
+
+```python
+r, theta, phi = sp.symbols("r theta phi")
+chart = sp.Chart(
+    (r, theta, phi),
+    (r*sp.sin(theta)*sp.cos(phi),
+     r*sp.sin(theta)*sp.sin(phi),
+     r*sp.cos(theta)),
+)
+metric = chart.metric_owner(
+    ((1, 0, 0), (0, r**2, 0),
+     (0, 0, r**2*sp.sin(theta)**2)),
+)
+assert tuple(value.simplify() for value in metric.grad(r)) == (1, 0, 0)
+assert metric.divergence((r, r-r, r-r)).simplify() == 3
+assert metric.laplacian(r**2).simplify() == 6
+```
+
+The native and SymPy-oracle tests also compare the reciprocal basis, signed
+Jacobian, six standard spherical Christoffel components, and the chart curl.
+
 For an analytic Boozer-coordinate representation, keep the flux functions in
 the covariant angular components and raise them with the displayed metric:
 

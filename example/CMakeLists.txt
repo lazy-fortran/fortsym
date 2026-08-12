@@ -14,3 +14,6 @@ target_link_libraries(example_magnetic_flux_coordinates PRIVATE fortsym)
 
 add_executable(example_boozer_coordinates example_boozer_coordinates.f90)
 target_link_libraries(example_boozer_coordinates PRIVATE fortsym)
+
+add_executable(example_spherical_coordinates example_spherical_coordinates.f90)
+target_link_libraries(example_spherical_coordinates PRIVATE fortsym)

@@ -294,6 +294,7 @@ fo exec example_de_sitter
 fo exec example_gps_newtonian_limit
 fo exec example_magnetic_flux_coordinates
 fo exec example_boozer_coordinates
+fo exec example_spherical_coordinates
 ```
 
 `example_de_sitter` uses the flat-slicing metric
@@ -337,6 +338,14 @@ the coordinate map and solve the corresponding magnetic equations. The
 standard Boozer covariant representation and its flux-function angular
 components are summarized in [FusionWiki's Boozer-coordinate reference](https://fusionwiki.ciemat.es/wiki/Boozer_coordinates)
 and the [Boozer-coordinate notes](https://sites.fusion.ciemat.es/jlvelasco/files/notes/Boozer.pdf).
+
+`example_spherical_coordinates` uses the regular patch `r > 0` and
+`0 < theta < pi`. It derives the Cartesian chart basis and Jacobian, checks
+the reciprocal basis and diagonal metric, then uses the compact explicit
+metric owner for Christoffel symbols and vector calculus. It verifies
+`grad(r)`, `div(r e_r)`, a nontrivial curl, and
+`Laplace--Beltrami(r^2) = 6` without carrying the raw Cartesian chain-rule
+expansion through every connection component.
 
 `symbols` assigns whitespace- or comma-separated names to scalar outputs:
 
