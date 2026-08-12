@@ -161,7 +161,7 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "substitution",
             "Replace expressions.",
             ["subs", "subs_many"], ["subs", "subs_many"], ["subs", "Subs"], ["Expr", "Subs"],
-            "The native facade forwards both substitution shapes from the single owning module; the Python adapter maps only SymPy's simultaneous option at the boundary.",
+            "The native facade forwards both substitution shapes from the single owning module; the Python adapter applies SymPy's unordered mapping order and maps only the simultaneous option at the boundary.",
             "Keep structural substitution in fortsym_subs and expose only its concise single-pair and explicit paired-sequence spellings from the facade.",
         ),
         concept(

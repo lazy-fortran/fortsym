@@ -216,6 +216,10 @@ Every checklist item requires all of the following:
     `subs_many`, C ABI `fortsym_substitute_many`, and
     `fortsym.sympy.subs(..., simultaneous=True)` without adding a second
     substitution traversal.
+  - [x] Match SymPy 1.14's deterministic ordering for unordered substitution
+    mappings in the declared fragment: descending node count followed by the
+    supported structural sort key. Explicit replacement sequences retain their
+    caller order, and cascading or unsupported matching remains explicit.
 - [ ] Complete exact integer/rational/real/complex and algebraic domains.
   - [x] Preserve arbitrary-size integer and rational construction and native
     arithmetic in the current scalar fragment. `num`, `rat`, and `exact` share
@@ -781,6 +785,9 @@ Every checklist item requires all of the following:
   - [x] Add simultaneous substitution correctness and performance coverage.
     The 104-row matrix measured native/SymPy ratios of 0.330x cold and 0.370x
     warm with zero unwaived violations.
+  - [x] Add unordered mapping substitution ordering correctness and performance
+    coverage. The 106-row matrix measured native/SymPy ratios of 0.575x cold
+    and 0.276x warm with zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

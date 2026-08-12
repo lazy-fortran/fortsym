@@ -86,6 +86,11 @@
       "uses": 1
     },
     {
+      "from": "capi",
+      "to": "verify",
+      "uses": 1
+    },
+    {
       "from": "codegen",
       "to": "core",
       "uses": 14
@@ -143,7 +148,7 @@
     {
       "from": "core",
       "to": "verify",
-      "uses": 1
+      "uses": 2
     },
     {
       "from": "council",
@@ -285,6 +290,7 @@
         "fortsym_complexdom",
         "fortsym_engine",
         "fortsym_engine_native",
+        "fortsym_eval",
         "fortsym_expr",
         "fortsym_kernel",
         "fortsym_numeric",
@@ -835,6 +841,7 @@
         "fortsym_diff",
         "fortsym_engine",
         "fortsym_engine_native",
+        "fortsym_eval",
         "fortsym_expr",
         "fortsym_predicates",
         "fortsym_print",
@@ -1048,7 +1055,7 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 312,
+    "internal_edges": 314,
     "module_file_mismatches": 0,
     "module_units": 65,
     "modules": 65,

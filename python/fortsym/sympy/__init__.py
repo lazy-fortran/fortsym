@@ -71,6 +71,173 @@ _Q_ALGEBRAIC_UNDECIDED_HEADS = frozenset({
     "legendrep", "legendreq",
 })
 
+# These are the class-order slots used by SymPy 1.14 for the supported named
+# heads.  The adapter keeps this ordering local to unordered mapping handling;
+# the native expression owner remains responsible for matching and rebuilding.
+_SYMPY_FUNCTION_ORDER = {
+    "exp": 10,
+    "log": 11,
+    "sin": 20,
+    "cos": 21,
+    "tan": 22,
+    "sinh": 30,
+    "cosh": 31,
+    "tanh": 32,
+    "coth": 33,
+    "conjugate": 40,
+    "re": 41,
+    "im": 42,
+    "arg": 43,
+}
+_ONE_COEFFICIENT = (0, Fraction(1))
+
+
+def _number_key(expression):
+    text = expression.exact_text
+    if text:
+        try:
+            return (0, Fraction(text))
+        except (ValueError, ZeroDivisionError):
+            pass
+    return (1, str(expression))
+
+
+def _coefficient_key(value):
+    if isinstance(value, Expr):
+        return _number_key(value)
+    if isinstance(value, Fraction):
+        return (0, value)
+    return (1, str(value))
+
+
+def _children_key(expression):
+    children = expression.args
+    try:
+        return tuple(_sympy_sort_key(child) for child in children)
+    finally:
+        for child in children:
+            child.close()
+
+
+def _power_sort_key(base, exponent):
+    base_key = _sympy_sort_key(base)
+    return base_key[:4] + (_coefficient_key(exponent),)
+
+
+def _sympy_sort_key(expression):
+    cached = getattr(expression, "_sympy_sort_key_cache", None)
+    if cached is not None:
+        return cached
+    result = _uncached_sympy_sort_key(expression)
+    expression._sympy_sort_key_cache = result
+    return result
+
+
+def _uncached_sympy_sort_key(expression):
+    """Return the supported fragment of SymPy's default sort key."""
+    kind = expression.kind
+    if kind in (1, 2, 3, 10, 11, 12, 13):
+        return (1, kind, "Number", (), _number_key(expression))
+    if kind == 4:
+        return (2, 0, "Symbol", (expression.name,), _ONE_COEFFICIENT)
+    if kind == 5:
+        constant_order = {"oo": 3, "zoo": 4, "nan": 5,
+                          "e": 10, "pi": 11, "i": 12}
+        return (1, constant_order.get(expression.name, 10000),
+                expression.name, (), _ONE_COEFFICIENT)
+    if kind == 6:
+        return (3, 1, "Add", (expression.arity, _children_key(expression)),
+                _ONE_COEFFICIENT)
+    if kind == 7:
+        return (3, 0, "Mul", (expression.arity, _children_key(expression)),
+                _ONE_COEFFICIENT)
+    if kind == 8:
+        children = expression.args
+        try:
+            return _power_sort_key(children[0], children[1])
+        finally:
+            for child in children:
+                child.close()
+    if kind == 9:
+        name = expression.name
+        if name == "sqrt" and expression.arity == 1:
+            children = expression.args
+            try:
+                return _power_sort_key(children[0], Fraction(1, 2))
+            finally:
+                for child in children:
+                    child.close()
+        return (4, _SYMPY_FUNCTION_ORDER.get(name, 10000), name,
+                (expression.arity, _children_key(expression)),
+                _ONE_COEFFICIENT)
+    return (100, kind, str(expression), (), _ONE_COEFFICIENT)
+
+
+def _owned_substitution_value(value):
+    expression = sympify(value)
+    return expression, None if isinstance(value, Expr) else expression
+
+
+def _ordered_substitutions(substitutions):
+    """Sort an unordered mapping as SymPy does before replacement."""
+    pairs = []
+    temporaries = []
+    signature = tuple((id(old), id(new))
+                      for old, new in substitutions.items())
+    for old, new in substitutions.items():
+        old_expression, old_temporary = _owned_substitution_value(old)
+        new_expression, new_temporary = _owned_substitution_value(new)
+        pairs.append((old_expression, new_expression))
+        if old_temporary is not None:
+            temporaries.append(old_temporary)
+        if new_temporary is not None:
+            temporaries.append(new_temporary)
+    pairs.sort(key=lambda pair: (-pair[0].node_count,
+                                 _sympy_sort_key(pair[0])))
+    return pairs, temporaries, signature
+
+
+def _can_use_subs_many(expression, pairs, signature):
+    """Prove that atomic replacements cannot cascade into another key."""
+    cache = getattr(expression, "_subs_many_safe_cache", None)
+    if cache is not None and signature in cache:
+        return cache[signature]
+    atomic_kinds = frozenset({1, 2, 3, 4, 5, 10, 11, 12, 13})
+    safe = all(new.kind in atomic_kinds for _, new in pairs)
+    if safe:
+        safe = all(new != old for old, _ in pairs for _, new in pairs)
+    if cache is None:
+        cache = {}
+        expression._subs_many_safe_cache = cache
+    if signature not in cache and len(cache) >= 8:
+        cache.pop(next(iter(cache)))
+    cache[signature] = safe
+    return safe
+
+
+def _cached_subs_many(expression, pairs, substitutions, signature):
+    cache = getattr(expression, "_sympy_subs_cache", None)
+    if cache is None:
+        cache = {}
+        expression._sympy_subs_cache = cache
+    key = (expression._arena._assumption_epoch, signature)
+    inputs = tuple(substitutions.items())
+    cached = cache.get(key)
+    if cached is not None:
+        cached_inputs, cached_result = cached
+        if (all(left is cached_left and right is cached_right
+                for (left, right), (cached_left, cached_right)
+                in zip(inputs, cached_inputs)) and
+                cached_result._handle is not None):
+            return cached_result
+    old = tuple(pair[0] for pair in pairs)
+    replacement = tuple(pair[1] for pair in pairs)
+    result = expression._subs_many(old, replacement)
+    if key not in cache and len(cache) >= 8:
+        cache.pop(next(iter(cache)))
+    cache[key] = (inputs, result)
+    return result
+
 
 def _apply_assumptions(expression, assumptions):
     pending = []
@@ -516,15 +683,30 @@ def subs(expression, substitutions, new=None, *, simultaneous=False):
     if isinstance(substitutions, dict):
         if not substitutions:
             return result
-        if simultaneous:
-            old = tuple(sympify(value) for value in substitutions)
-            replacement = tuple(
-                sympify(value) for value in substitutions.values()
-            )
-            return result._subs_many(old, replacement)
-        for old, replacement in substitutions.items():
-            result = result.subs(sympify(old), sympify(replacement))
-        return result
+        pairs, temporaries, signature = _ordered_substitutions(substitutions)
+        try:
+            if simultaneous:
+                old = tuple(pair[0] for pair in pairs)
+                replacement = tuple(pair[1] for pair in pairs)
+                return result._subs_many(old, replacement)
+            if _can_use_subs_many(result, pairs, signature):
+                return _cached_subs_many(
+                    result, pairs, substitutions, signature
+                )
+            current = result
+            try:
+                for old, replacement in pairs:
+                    next_result = current._subs_raw(old, replacement)
+                    if current is not result:
+                        current.close()
+                    current = next_result
+                return current.expand()
+            finally:
+                if current is not result:
+                    current.close()
+        finally:
+            for temporary in temporaries:
+                temporary.close()
     raise TypeError("subs expects (old, new) or a mapping")
 
 

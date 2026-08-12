@@ -20,6 +20,8 @@ class NativePackageTest(unittest.TestCase):
             self.assertEqual(expression.subs(x, 2), y * 3)
             self.assertEqual(((x + 1) ** 2).subs(x, 2), 9)
             self.assertEqual(expression.arity, 2)
+            self.assertEqual(x.node_count, 1)
+            self.assertEqual(expression.node_count, 5)
 
         # Expression ownership keeps native inspection valid after close().
         arena = fortsym.Arena()
