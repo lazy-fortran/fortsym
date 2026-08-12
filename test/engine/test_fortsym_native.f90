@@ -544,7 +544,16 @@ contains
             r%value == num(arena, 2432902008176640000_int64))
         factorial_args(1) = num(arena, 21_int64)
         r = engine%simplify(func("factorial", factorial_args))
-        call check("factorial(21) refuses compact overflow", &
+        call check("factorial(21) promotes to arbitrary precision", &
+            r%value == exact(arena, "51090942171709440000"))
+        factorial_args(1) = num(arena, 100_int64)
+        r = engine%simplify(func("factorial", factorial_args))
+        call check("factorial(100) remains exact", &
+            chars(r%value%exact_text()) == &
+            "93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000000")
+        factorial_args(1) = num(arena, 1001_int64)
+        r = engine%simplify(func("factorial", factorial_args))
+        call check("factorial(1001) remains bounded", &
             r%value%kind() == NK_FUNC)
 
         loggamma_args(1) = num(arena, 1_int64)

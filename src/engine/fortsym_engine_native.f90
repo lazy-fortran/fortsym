@@ -40,6 +40,7 @@ module fortsym_engine_native
     integer(int64), parameter :: MAX_EXPAND_POWER = 32_int64
     integer(int64), parameter :: MAX_EXPAND_TERMS = 100000_int64
     integer(int64), parameter :: MAX_NATIVE_LEGENDRE_DEGREE = 16_int64
+    integer(int64), parameter :: MAX_EXACT_FACTORIAL_ORDER = 1000_int64
     integer, parameter :: DOMAIN_NONE = 0
     integer, parameter :: DOMAIN_OO = 1
     integer, parameter :: DOMAIN_ZOO = 2
@@ -848,6 +849,43 @@ contains
             value = next
         end do
     end subroutine factorial_i64
+
+    subroutine exact_factorial_value(a, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer,        intent(in)    :: id
+        integer,        intent(out)   :: out
+        logical,        intent(out)   :: ok
+        integer(int64) :: order, denominator, factorial_value
+        integer        :: k, factor, one_arg(1)
+        logical        :: exact, product_ok
+
+        one_arg(1) = id
+        out = a%func("factorial", one_arg)
+        ok = .false.
+        call exact_value(a, id, order, denominator, exact)
+        if (.not. exact) return
+        if (denominator /= 1_int64) return
+        if (order < 0_int64) return
+        if (order > MAX_EXACT_FACTORIAL_ORDER) return
+
+        if (order <= 20_int64) then
+            call factorial_i64(int(order), factorial_value, product_ok)
+            if (product_ok) out = a%int(factorial_value)
+            ok = product_ok
+            return
+        end if
+
+        out = a%int(1_int64)
+        do k = 2, int(order)
+            factor = a%int(int(k, int64))
+            out = exact_mul_node(a, out, factor, product_ok)
+            if (.not. product_ok) then
+                out = a%func("factorial", one_arg)
+                return
+            end if
+        end do
+        ok = .true.
+    end subroutine exact_factorial_value
 
     recursive function simplify_id(a, id, memo, done, limit) result(out)
         type(arena_t), target, intent(inout) :: a
@@ -2278,13 +2316,8 @@ contains
                     out = a%const("zoo")
                     return
                 end if
-                call exact_value(a, args(1), order, den, exact)
-                if (exact) then
-                    if (den == 1_int64 .and. order <= 20_int64) then
-                        call factorial_i64(int(order), factorial, factorial_ok)
-                        if (factorial_ok) out = a%int(factorial)
-                    end if
-                end if
+                call exact_factorial_value(a, args(1), out, exact)
+                if (exact) return
             end if
         case ("loggamma")
             call exact_integer_sign(a, args(1), integer_sign, integer_ok)

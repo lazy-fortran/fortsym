@@ -74,8 +74,8 @@ points, exact `atanh(1)`/`atanh(-1)`, exact `atanh(±i)` and `atan(±i)` branch
 points, exact `acosh(0)`, `acosh(-1)`, `acosh(±i)`, `asin(±i)`, and
 `acos(±i)`, exact real unit-circle `asin`/`acos` values, exact real tangent
 `atan` values, exact real `asinh(±1)` values, gamma-family domain-head
-simplification, finite gamma-family pole cases, compact exact factorial values
-through `factorial(20)`, inverse domain-head
+simplification, finite gamma-family pole cases, exact factorial values through
+`factorial(1000)`, inverse domain-head
 simplification, and reciprocal-hyperbolic domain-head simplification embedded
 in a symbolic fourth-degree expression, directed-infinity `atan2` domain-head
 simplification, and Bessel infinity-domain simplification,
@@ -188,6 +188,11 @@ diagnostics. Its cold and warm ratios were 5.25x and 3.25x SymPy, so both rows
 are explicitly waived for the same construction-versus-simplification
 boundary. The final matrix has 96 rows, 82 enforced rows, and zero unwaived
 violations.
+The bounded arbitrary-size `factorial(100)` workload adds two
+correctness-checked one-node ABI diagnostics. Its cold and warm ratios were
+5.57x and 3.57x SymPy, so both rows are explicitly waived for the same
+construction-versus-simplification boundary. The final matrix has 98 rows,
+82 enforced rows, and zero unwaived violations.
 
 Run it from a built checkout with:
 
@@ -308,7 +313,8 @@ was 5.34× cold and 4.15× warm; `domain_atanh_imaginary` was 0.014× cold and
 the waived `domain_gamma_pole`, `domain_loggamma_pole`, and
 `domain_factorial_pole` rows were 5.3×/3.4×, 5.1×/3.4×, and 5.2×/3.4×
 cold/warm respectively; the waived `domain_factorial_value` rows were
-5.25×/3.25× cold/warm.
+5.25×/3.25× cold/warm; the waived `domain_factorial_large` rows were
+5.57×/3.57× cold/warm.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
 text validation, FLINT reconstruction, the exact operation, canonical
