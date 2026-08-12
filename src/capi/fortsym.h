@@ -79,6 +79,12 @@ enum fortsym_tensor_variance {
     FORTSYM_UPPER_VARIANCE = 1
 };
 
+enum fortsym_tensor_symmetry {
+    FORTSYM_SYMMETRY_NONE = 0,
+    FORTSYM_SYMMETRIC = 1,
+    FORTSYM_ANTISYMMETRIC = -1
+};
+
 enum {
     FORTSYM_GEOMETRY_DIMENSION = 3,
     FORTSYM_TENSOR_MAX_RANK = 5,
@@ -561,6 +567,15 @@ int fortsym_chart_tensor_symmetrize(
     size_t rank, const int variance[], int density_weight, size_t first_slot,
     size_t second_slot, int antisymmetric, fortsym_expr *out[],
     char *message, size_t capacity);
+/* Validate and declare one same-variance slot pair. The output components are
+ * unchanged. Slots are one-based and symmetry is FORTSYM_SYMMETRIC or
+ * FORTSYM_ANTISYMMETRIC. A false declaration is refused. */
+int fortsym_chart_tensor_declare_symmetry(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    size_t rank, const int variance[], int density_weight, size_t first_slot,
+    size_t second_slot, int symmetry, fortsym_expr *out[], char *message,
+    size_t capacity);
 /* Coordinate Lie derivative along an ordinary contravariant vector tensor.
  * Both tensors use first-slot-fastest component order. */
 int fortsym_chart_tensor_lie(

@@ -1168,6 +1168,12 @@ conversion only. They do not maintain a second geometry implementation.
     covariant derivatives.
   - [ ] Expose the same declarations and refusal status through C/Python and
     map them to SymPy tensor-symmetry objects.
+  - [x] Expose checked pair declarations through C ABI 60 and the Python
+    `Tensor` facade. Add the SymPy-named `TensorSymmetry` descriptor and carry
+    pair metadata through metric/form construction, products, permutations,
+    contractions, covariant derivatives, Lie derivatives, density views, and
+    variance-changing operations. Full group metadata and raw-array queries
+    remain open.
 - [ ] **7A.4 Connections and vector calculus.** Extend covariant derivatives to
   every slot and every density weight, then derive `grad`, `curl`, `div`, and
   `laplacian` from the same metric, volume, and connection owners. Add
@@ -1400,8 +1406,9 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Add native pairwise symmetry metadata to `tensor_t`, including
   component-checked `declare_symmetry`, explicit metric/form declarations,
   propagation through surviving slots, and clearing when `raise`/`lower`
-  changes a slot's variance. C/Python transport and canonical symmetry
-  canonicalization remain open.
+  changes a slot's variance. C ABI 60 and both Python facades now expose
+  checked pair declarations and SymPy-named descriptors. Canonical symmetry
+  canonicalization remains open.
 - [x] Add the first value-semantic named-index slice: native `index_type_t` /
   `index_t` spaces, variance and dummy metadata, compatible-label checks, and
   an overloaded native `contract`. Expose the same checked operation through

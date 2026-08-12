@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 59). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 60). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -36,6 +36,8 @@ native C spelling of `sqrtg B^i` when the factor is `sqrtg`.
 `fortsym_chart_tensor_permute` reorders typed tensor slots, and
 `fortsym_chart_tensor_symmetrize` projects two slots to their symmetric or
 antisymmetric part while preserving variance and density metadata.
+`fortsym_chart_tensor_declare_symmetry` checks and records one same-variance
+pair declaration without changing components. A false declaration is refused.
 `fortsym_chart_tensor_contract` contracts two one-based opposite-variance
 slots and returns the remaining native tensor components; the Python facade
 adds named-index validation before calling this same operation.

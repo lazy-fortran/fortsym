@@ -61,11 +61,55 @@ BOOZER_RESIDUAL_COUNT = 5
 SPACETIME_DIM = 4
 CONNECTION_STANDARD = 1
 CONNECTION_OPPOSITE = -1
+SYMMETRY_NONE = 0
+SYMMETRIC = 1
+ANTISYMMETRIC = -1
 INDEX_TANGENT = 1
 INDEX_COTANGENT = 2
 INDEX_SPACETIME = 3
 INDEX_INTERNAL = 4
 INDEX_USER = 5
+
+
+def _symmetry_kind(value):
+    if isinstance(value, str):
+        names = {
+            "none": SYMMETRY_NONE,
+            "symmetric": SYMMETRIC,
+            "sym": SYMMETRIC,
+            "antisymmetric": ANTISYMMETRIC,
+            "antisym": ANTISYMMETRIC,
+        }
+        try:
+            value = names[value.lower()]
+        except KeyError as error:
+            raise ValueError("unknown tensor symmetry kind") from error
+    value = int(value)
+    if value not in (SYMMETRY_NONE, SYMMETRIC, ANTISYMMETRIC):
+        raise ValueError("tensor symmetry kind must be 0, 1, or -1")
+    return value
+
+
+def _normalize_symmetries(rank, values):
+    if values is None:
+        return {}
+    if isinstance(values, dict):
+        values = ((pair[0], pair[1], kind)
+                  for pair, kind in values.items())
+    result = {}
+    for item in values:
+        if len(item) != 3:
+            raise ValueError("tensor symmetries must be (first, second, kind)")
+        first, second, kind = (int(item[0]), int(item[1]),
+                               _symmetry_kind(item[2]))
+        if first < 0 or first >= rank or second < 0 or second >= rank:
+            raise IndexError("tensor symmetry slot is outside the tensor rank")
+        if first == second:
+            raise ValueError("tensor symmetry needs two distinct slots")
+        if kind == SYMMETRY_NONE:
+            continue
+        result[tuple(sorted((first, second)))] = kind
+    return result
 
 
 class Orientation:
@@ -882,6 +926,13 @@ def _configure(lib):
     )
     lib.chart_tensor_symmetrize = declare(
         "fortsym_chart_tensor_symmetrize", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+         ctypes.c_int, _SIZE, _SIZE, ctypes.c_int, ctypes.POINTER(_CVOID),
+         _CHAR_PTR, _SIZE],
+    )
+    lib.chart_tensor_declare_symmetry = declare(
+        "fortsym_chart_tensor_declare_symmetry", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
          ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
          ctypes.c_int, _SIZE, _SIZE, ctypes.c_int, ctypes.POINTER(_CVOID),
@@ -2373,6 +2424,25 @@ class Arena:
             raise FortSymError(status, _decode(message), "tensor_symmetrize")
         return tuple(Expr(self, output[index]) for index in range(len(output)))
 
+    def _chart_tensor_declare_symmetry(self, chart, tensor, first, second, kind):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        values = (_CVOID * len(tensor.components))(
+            *[self._check(value)._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output = (_CVOID * len(tensor.components))()
+        message = _message()
+        status = self._lib.chart_tensor_declare_symmetry(
+            self._require(), coordinate_handles, position_handles, values,
+            tensor.rank, variance, tensor.density_weight, first + 1, second + 1,
+            int(kind), output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "tensor_symmetry")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
     def _chart_tensor_lie(self, chart, vector, tensor):
         coordinate_handles, position_handles = self._chart_inputs(
             chart.coordinates, chart.position
@@ -2932,8 +3002,16 @@ class Chart:
         """Return the dual basis ``e^index`` in component-first flat order."""
         return self._basis_result(self._arena._lib.chart_reciprocal_basis)
 
-    def tensor(self, components, variance=(), density_weight=0):
-        return Tensor(self, components, variance, density_weight)
+    def tensor(self, components, variance=(), density_weight=0, symmetries=None):
+        result = Tensor(self, components, variance, density_weight)
+        if symmetries is None:
+            return result
+        declarations = getattr(symmetries, "pairs", symmetries)
+        for first, second, kind in declarations:
+            next_result = result.declare_symmetry(first, second, kind)
+            result.close()
+            result = next_result
+        return result
 
     def form_from_tensor(self, tensor):
         """Convert an exact weight-zero lower antisymmetric tensor to a form."""
@@ -2947,8 +3025,12 @@ class Chart:
         if not isinstance(form, Form) or form.chart is not self:
             raise ValueError("tensor_from_form expects a form from this chart")
         components = self._arena._chart_tensor_from_form(self, form)
+        symmetries = tuple((first, second, ANTISYMMETRIC)
+                           for first in range(form.degree)
+                           for second in range(first + 1, form.degree))
         return Tensor(
-            self, components, (-1,) * form.degree, 0, _owned=True
+            self, components, (-1,) * form.degree, 0, _owned=True,
+            _symmetries=symmetries,
         )
 
     def vector(self, components, density_weight=0):
@@ -2969,12 +3051,14 @@ class Chart:
 
     def metric_covariant(self):
         return self._tensor_result(
-            self._arena._lib.chart_metric_covariant, 2, (-1, -1)
+            self._arena._lib.chart_metric_covariant, 2, (-1, -1),
+            symmetries=((0, 1, SYMMETRIC),),
         )
 
     def metric_contravariant(self):
         return self._tensor_result(
-            self._arena._lib.chart_metric_contravariant, 2, (1, 1)
+            self._arena._lib.chart_metric_contravariant, 2, (1, 1),
+            symmetries=((0, 1, SYMMETRIC),),
         )
 
     def christoffel(self):
@@ -2988,7 +3072,7 @@ class Chart:
         components = self._arena._chart_covariant_diff(self, tensor)
         return Tensor(
             self, components, tensor.variance + (-1,), tensor.density_weight,
-            _owned=True,
+            _owned=True, _symmetries=tensor.symmetries,
         )
 
     def covariant_divergence(self, tensor):
@@ -2997,9 +3081,14 @@ class Chart:
         if tensor.rank < 1 or tensor.variance[0] != 1:
             raise ValueError("covariant_divergence requires a contravariant first slot")
         components = self._arena._chart_covariant_divergence(self, tensor)
+        survivors = list(range(1, tensor.rank))
+        positions = {source: target for target, source in enumerate(survivors)}
+        symmetries = tuple((positions[first], positions[second], kind)
+                           for (first, second), kind in tensor._symmetries.items()
+                           if first in positions and second in positions)
         return Tensor(
             self, components, tensor.variance[1:], tensor.density_weight,
-            _owned=True,
+            _owned=True, _symmetries=symmetries,
         )
 
     covariant_derivative = covariant_diff
@@ -3014,7 +3103,8 @@ class Chart:
             raise ValueError("lie expects a tensor from this chart")
         components = self._arena._chart_tensor_lie(self, vector, tensor)
         return Tensor(
-            self, components, tensor.variance, tensor.density_weight, _owned=True
+            self, components, tensor.variance, tensor.density_weight, _owned=True,
+            _symmetries=tensor.symmetries,
         )
 
     lie_derivative = lie
@@ -3058,11 +3148,15 @@ class Chart:
             self._arena._lib.chart_einstein, 2, (-1, -1)
         )
 
-    def _tensor_result(self, operation, rank, variance, density_weight=0):
+    def _tensor_result(self, operation, rank, variance, density_weight=0,
+                       symmetries=()):
         components = self._arena._chart_tensor(
             operation, self.coordinates, self.position, rank
         )
-        return Tensor(self, components, variance, density_weight, _owned=True)
+        return Tensor(
+            self, components, variance, density_weight, _owned=True,
+            _symmetries=symmetries,
+        )
 
     def _basis_result(self, operation):
         components = self._arena._chart_tensor(
@@ -3421,11 +3515,20 @@ class Metric:
                 "Levi-Civita variance must be covariant or contravariant"
             )
         components = self._arena._metric_levi_civita(self, value)
-        return Tensor(self.chart, components, (value, value, value), _owned=True)
+        symmetries = tuple((first, second, ANTISYMMETRIC)
+                           for first in range(3)
+                           for second in range(first + 1, 3))
+        return Tensor(
+            self.chart, components, (value, value, value), _owned=True,
+            _symmetries=symmetries,
+        )
 
     def contravariant(self):
         components = self._arena._metric_contravariant(self)
-        return Tensor(self.chart, components, (-1, -1), _owned=True)
+        return Tensor(
+            self.chart, components, (-1, -1), _owned=True,
+            _symmetries=((0, 1, SYMMETRIC),),
+        )
 
     def inner(self, left, right):
         """Return ``g_ij*left**i*right**j`` for contravariant components."""
@@ -4046,7 +4149,7 @@ class ChartMap:
             components = self._arena._chart_map_tensor(self, tensor)
             return Tensor(
                 self.target, components, tensor.variance, tensor.density_weight,
-                _owned=True,
+                _owned=True, _symmetries=tensor.symmetries,
             )
         if isinstance(tensor, Form):
             if tensor.chart is not self.source:
@@ -4073,7 +4176,7 @@ class Tensor:
     """
 
     def __init__(self, chart, components, variance=(), density_weight=0,
-                 _owned=False):
+                 _owned=False, _symmetries=()):
         if not isinstance(chart, Chart):
             raise TypeError("Tensor requires a fortsym Chart")
         self.chart = chart
@@ -4100,6 +4203,7 @@ class Tensor:
         self.components = tuple(component_values)
         self._temporaries = tuple(temporaries)
         self.density_weight = int(density_weight)
+        self._symmetries = _normalize_symmetries(self.rank, _symmetries)
         self._owned = bool(_owned)
 
     def component(self, *indices):
@@ -4133,6 +4237,45 @@ class Tensor:
             component._tensor_owner = self
             yield component
 
+    def symmetry(self, first, second):
+        """Return the declared pair symmetry for two zero-based slots."""
+        first, second = int(first), int(second)
+        if first < 0 or first >= self.rank or second < 0 or second >= self.rank:
+            raise IndexError("tensor symmetry slot is outside the tensor rank")
+        if first == second:
+            return SYMMETRY_NONE
+        return self._symmetries.get(tuple(sorted((first, second))),
+                                    SYMMETRY_NONE)
+
+    @property
+    def symmetries(self):
+        """Return declared pairs as ``(first, second, kind)`` tuples."""
+        return tuple((first, second, kind)
+                     for (first, second), kind in sorted(self._symmetries.items()))
+
+    def _copy_symmetries(self):
+        return dict(self._symmetries)
+
+    def declare_symmetry(self, first, second, kind):
+        """Check and declare one same-variance slot pair natively."""
+        first, second = int(first), int(second)
+        kind = _symmetry_kind(kind)
+        if kind == SYMMETRY_NONE:
+            raise ValueError("declare_symmetry needs symmetric or antisymmetric")
+        if first < 0 or first >= self.rank or second < 0 or second >= self.rank:
+            raise IndexError("tensor symmetry slot is outside the tensor rank")
+        if first == second:
+            raise ValueError("tensor symmetry needs two distinct slots")
+        components = self._arena._chart_tensor_declare_symmetry(
+            self.chart, self, first, second, kind
+        )
+        symmetries = self._copy_symmetries()
+        symmetries[tuple(sorted((first, second)))] = kind
+        return Tensor(
+            self.chart, components, self.variance, self.density_weight,
+            _owned=True, _symmetries=symmetries,
+        )
+
     def permute(self, order):
         """Return this tensor with slots reordered by zero-based slot order."""
         order = tuple(int(value) for value in order)
@@ -4140,8 +4283,12 @@ class Tensor:
             raise ValueError("tensor permutation must contain every slot once")
         components = self._arena._chart_tensor_permute(self.chart, self, order)
         variance = tuple(self.variance[index] for index in order)
+        positions = {source: target for target, source in enumerate(order)}
+        symmetries = tuple((positions[first], positions[second], kind)
+                           for (first, second), kind in self._symmetries.items())
         return Tensor(
-            self.chart, components, variance, self.density_weight, _owned=True
+            self.chart, components, variance, self.density_weight, _owned=True,
+            _symmetries=symmetries,
         )
 
     def symmetrize(self, first, second):
@@ -4153,7 +4300,8 @@ class Tensor:
             self.chart, self, first, second, False
         )
         return Tensor(
-            self.chart, components, self.variance, self.density_weight, _owned=True
+            self.chart, components, self.variance, self.density_weight, _owned=True,
+            _symmetries=((first, second, SYMMETRIC),),
         )
 
     def antisymmetrize(self, first, second):
@@ -4165,7 +4313,8 @@ class Tensor:
             self.chart, self, first, second, True
         )
         return Tensor(
-            self.chart, components, self.variance, self.density_weight, _owned=True
+            self.chart, components, self.variance, self.density_weight, _owned=True,
+            _symmetries=((first, second, ANTISYMMETRIC),),
         )
 
     def contract(self, first, second):
@@ -4204,8 +4353,15 @@ class Tensor:
             value for index, value in enumerate(self.variance)
             if index not in (first_slot, second_slot)
         )
+        survivors = [index for index in range(self.rank)
+                     if index not in (first_slot, second_slot)]
+        positions = {source: target for target, source in enumerate(survivors)}
+        symmetries = tuple((positions[first], positions[second], kind)
+                           for (first, second), kind in self._symmetries.items()
+                           if first in positions and second in positions)
         return Tensor(
-            self.chart, components, variance, self.density_weight, _owned=True
+            self.chart, components, variance, self.density_weight, _owned=True,
+            _symmetries=symmetries,
         )
 
     def product(self, other):
@@ -4215,9 +4371,15 @@ class Tensor:
         if self.rank + other.rank > 5:
             raise ValueError("native tensors support rank at most five")
         components = self._arena._chart_tensor_product(self.chart, self, other)
+        symmetries = list(self.symmetries)
+        symmetries.extend(
+            (first + self.rank, second + self.rank, kind)
+            for first, second, kind in other.symmetries
+        )
         return Tensor(
             self.chart, components, self.variance + other.variance,
-            self.density_weight + other.density_weight, _owned=True
+            self.density_weight + other.density_weight, _owned=True,
+            _symmetries=symmetries,
         )
 
     tensor_product = product
@@ -4256,7 +4418,8 @@ class Tensor:
             raise ValueError("lie expects a weight-zero contravariant vector")
         components = self._arena._chart_tensor_lie(self.chart, vector, self)
         return Tensor(
-            self.chart, components, self.variance, self.density_weight, _owned=True
+            self.chart, components, self.variance, self.density_weight, _owned=True,
+            _symmetries=self._symmetries,
         )
 
     lie_derivative = lie
@@ -4275,8 +4438,12 @@ class Tensor:
         )
         variance = list(self.variance)
         variance[slot] = 1
+        symmetries = tuple((first, second, kind)
+                           for (first, second), kind in self._symmetries.items()
+                           if slot not in (first, second))
         return Tensor(
-            self.chart, components, variance, self.density_weight, _owned=True
+            self.chart, components, variance, self.density_weight, _owned=True,
+            _symmetries=symmetries,
         )
 
     def lower(self, slot=0):
@@ -4293,8 +4460,12 @@ class Tensor:
         )
         variance = list(self.variance)
         variance[slot] = -1
+        symmetries = tuple((first, second, kind)
+                           for (first, second), kind in self._symmetries.items()
+                           if slot not in (first, second))
         return Tensor(
-            self.chart, components, variance, self.density_weight, _owned=True
+            self.chart, components, variance, self.density_weight, _owned=True,
+            _symmetries=symmetries,
         )
 
     def density(self, weight_or_factor):
@@ -4312,10 +4483,12 @@ class Tensor:
             return Tensor(
                 self.chart, components, self.variance,
                 self.density_weight + 1, _owned=True,
+                _symmetries=self._symmetries,
             )
         weight = int(weight_or_factor)
         components = self._arena._chart_tensor_density(self.chart, self, weight)
-        return Tensor(self.chart, components, self.variance, weight, _owned=True)
+        return Tensor(self.chart, components, self.variance, weight, _owned=True,
+                      _symmetries=self._symmetries)
 
     with_density = density
 
@@ -4411,6 +4584,7 @@ class Connection:
         return Tensor(
             self.chart, components, tensor.variance + (-1,),
             tensor.density_weight, _owned=True,
+            _symmetries=tensor.symmetries,
         )
 
     covariant_derivative = covariant_diff
@@ -4424,9 +4598,14 @@ class Connection:
             self._arena._lib.chart_connection_covariant_divergence,
             self, tensor, tensor.rank - 1,
         )
+        survivors = list(range(1, tensor.rank))
+        positions = {source: target for target, source in enumerate(survivors)}
+        symmetries = tuple((positions[first], positions[second], kind)
+                           for (first, second), kind in tensor._symmetries.items()
+                           if first in positions and second in positions)
         return Tensor(
             self.chart, components, tensor.variance[1:],
-            tensor.density_weight, _owned=True,
+            tensor.density_weight, _owned=True, _symmetries=symmetries,
         )
 
     divergence = covariant_divergence
@@ -5367,6 +5546,7 @@ __all__ = [
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL", "FLUX_GENERIC", "FLUX_CLEBSCH", "FLUX_STRAIGHT_FIELD_LINE", "FLUX_BOOZER", "FLUX_HAMADA", "BOOZER_RESIDUAL_COUNT",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
+    "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]
