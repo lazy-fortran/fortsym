@@ -1147,8 +1147,9 @@ conversion only. They do not maintain a second geometry implementation.
 - [ ] **7A.2 Components and densities.** Add scalar, vector, covector, tensor,
   and density transformations, `raise`, `lower`, `flat`, `sharp`, and
   Jacobian-weighted `div`. Gate this stage with nonorthogonal, left-handed,
-  and Lorentzian charts. Correct the current signed-Jacobian divergence path
-  before marking the stage complete.
+  and Lorentzian charts. The ordinary chart divergence now uses positive
+  `sqrtg`; the remaining stage work is the complete transformation and
+  left-handed/Lorentzian gate.
 - [ ] **7A.3 Indexed tensor algebra.** Add arbitrary supported rank, products,
   contractions, permutation, symmetry, traces, canonical dummy indices, and
   refusal messages for variance or index-space errors. Match SymPy's

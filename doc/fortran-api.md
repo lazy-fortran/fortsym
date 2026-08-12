@@ -106,7 +106,10 @@ operation.
 The two operations are intentionally separate, so anisotropic material data
 and metric index conversion remain independently reusable.
 The chart also owns `grad`, `divergence`, `curl`, and `laplacian`; `curl` takes
-covector components and returns contravariant components.
+covector components and returns contravariant components. Ordinary
+`divergence` uses the positive chart volume law
+`diff(sqrtg*v^i, u^i)/sqrtg`; the signed chart Jacobian is reserved for the
+orientation-sensitive curl convention.
 
 `fortsym_metric` owns explicit metric metadata. Use `metric_from_chart` for a
 chart-induced Euclidean metric or `metric_create` for a supplied metric, and
