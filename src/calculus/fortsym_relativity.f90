@@ -11,6 +11,10 @@ module fortsym_relativity
         expr_abs => abs, sqrt
     use fortsym_diff, only: diff
     use fortsym_subs, only: subs
+    use fortsym_geometry_metadata, only: orientation_t, signature_t, &
+        orientation_create, orientation_valid, orientation_value, &
+        signature_create, signature_valid, signature_dimension, &
+        signature_component
     implicit none
     private
 
@@ -22,8 +26,8 @@ module fortsym_relativity
         type(expr_t) :: component(SPACETIME_DIM, SPACETIME_DIM)
         type(expr_t) :: coordinate(SPACETIME_DIM)
         integer :: dimension = 0
-        integer :: signature(SPACETIME_DIM) = 0
-        integer :: orientation = 0
+        type(signature_t) :: signature_metadata
+        type(orientation_t) :: orientation_metadata
         logical :: valid = .false.
         logical :: has_coordinates = .false.
     end type spacetime_metric_t
@@ -32,6 +36,8 @@ module fortsym_relativity
     public :: spacetime_metric_contravariant, spacetime_metric_det
     public :: spacetime_metric_sqrtg, spacetime_metric_signature
     public :: spacetime_metric_orientation, spacetime_metric_dimension
+    public :: spacetime_metric_signature_type, spacetime_metric_orientation_type
+    public :: spacetime_metric_create_metadata
     public :: spacetime_metric_valid
     public :: spacetime_metric_arena, spacetime_metric_coordinates
     public :: spacetime_metric_has_coordinates
@@ -53,9 +59,58 @@ contains
         integer, optional, intent(in) :: signature(SPACETIME_DIM)
         integer, optional, intent(in) :: orientation
         type(spacetime_metric_t) :: result
+        integer :: signature_values(SPACETIME_DIM), orientation_sign
+        type(signature_t) :: signature_metadata
+        type(orientation_t) :: orientation_metadata
+
+        signature_values = 1
+        if (present(signature)) signature_values = signature
+        orientation_sign = 1
+        if (present(orientation)) orientation_sign = orientation
+        signature_metadata = signature_create(signature_values)
+        orientation_metadata = orientation_create(orientation_sign)
+        if (present(coordinates)) then
+            result = spacetime_metric_create_with_metadata(components, dimension, &
+                signature_metadata, orientation_metadata, coordinates)
+        else
+            result = spacetime_metric_create_with_metadata(components, dimension, &
+                signature_metadata, orientation_metadata)
+        end if
+    end function spacetime_metric_create
+
+    !> Construct a spacetime metric from typed signature/orientation owners.
+    function spacetime_metric_create_metadata(components, dimension, signature, &
+            orientation, coordinates) result(result)
+        type(expr_t), intent(in) :: components(SPACETIME_DIM, SPACETIME_DIM)
+        integer, intent(in) :: dimension
+        type(signature_t), intent(in) :: signature
+        type(orientation_t), intent(in) :: orientation
+        type(expr_t), optional, intent(in) :: coordinates(SPACETIME_DIM)
+        type(spacetime_metric_t) :: result
+
+        if (present(coordinates)) then
+            result = spacetime_metric_create_with_metadata(components, dimension, &
+                signature, orientation, coordinates)
+        else
+            result = spacetime_metric_create_with_metadata(components, dimension, &
+                signature, orientation)
+        end if
+    end function spacetime_metric_create_metadata
+
+    function spacetime_metric_create_with_metadata(components, dimension, &
+            signature_metadata, orientation_metadata, coordinates) result(result)
+        type(expr_t), intent(in) :: components(SPACETIME_DIM, SPACETIME_DIM)
+        integer, intent(in) :: dimension
+        type(signature_t), intent(in) :: signature_metadata
+        type(orientation_t), intent(in) :: orientation_metadata
+        type(expr_t), optional, intent(in) :: coordinates(SPACETIME_DIM)
+        type(spacetime_metric_t) :: result
         integer :: i, j
 
         if (dimension < 1 .or. dimension > SPACETIME_DIM) return
+        if (.not. signature_valid(signature_metadata)) return
+        if (signature_dimension(signature_metadata) /= SPACETIME_DIM) return
+        if (.not. orientation_valid(orientation_metadata)) return
         if (.not. is_valid(components(1, 1))) return
         result%a => components(1, 1)%a
         do i = 1, dimension
@@ -65,12 +120,8 @@ contains
             end do
         end do
         result%dimension = dimension
-        result%signature = 1
-        if (present(signature)) result%signature = signature
-        result%orientation = 1
-        if (present(orientation)) result%orientation = orientation
-        if (any(abs(result%signature(1:dimension)) /= 1)) return
-        if (abs(result%orientation) /= 1) return
+        result%signature_metadata = signature_metadata
+        result%orientation_metadata = orientation_metadata
         result%component = components
         if (present(coordinates)) then
             do i = 1, dimension
@@ -82,7 +133,7 @@ contains
         end if
         result%valid = .true.
         if (all_components_zero(result)) result%valid = .false.
-    end function spacetime_metric_create
+    end function spacetime_metric_create_with_metadata
 
     function spacetime_metric_covariant(g) result(value)
         type(spacetime_metric_t), intent(in) :: g
@@ -281,10 +332,21 @@ contains
     function spacetime_metric_signature(g) result(value)
         type(spacetime_metric_t), intent(in) :: g
         integer :: value(SPACETIME_DIM)
+        integer :: i
 
         value = 0
-        if (spacetime_metric_valid(g)) value = g%signature
+        if (.not. spacetime_metric_valid(g)) return
+        do i = 1, SPACETIME_DIM
+            value(i) = signature_component(g%signature_metadata, i)
+        end do
     end function spacetime_metric_signature
+
+    function spacetime_metric_signature_type(g) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        type(signature_t) :: value
+
+        if (spacetime_metric_valid(g)) value = g%signature_metadata
+    end function spacetime_metric_signature_type
 
     function spacetime_metric_dimension(g) result(value)
         type(spacetime_metric_t), intent(in) :: g
@@ -299,8 +361,15 @@ contains
         integer :: value
 
         value = 0
-        if (spacetime_metric_valid(g)) value = g%orientation
+        if (spacetime_metric_valid(g)) value = orientation_value(g%orientation_metadata)
     end function spacetime_metric_orientation
+
+    function spacetime_metric_orientation_type(g) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        type(orientation_t) :: value
+
+        if (spacetime_metric_valid(g)) value = g%orientation_metadata
+    end function spacetime_metric_orientation_type
 
     function spacetime_metric_valid(g) result(value)
         type(spacetime_metric_t), intent(in) :: g
@@ -313,11 +382,15 @@ contains
             value = .false.
             return
         end if
-        if (any(abs(g%signature(1:g%dimension)) /= 1)) then
+        if (.not. signature_valid(g%signature_metadata)) then
             value = .false.
             return
         end if
-        if (abs(g%orientation) /= 1) then
+        if (signature_dimension(g%signature_metadata) /= SPACETIME_DIM) then
+            value = .false.
+            return
+        end if
+        if (.not. orientation_valid(g%orientation_metadata)) then
             value = .false.
             return
         end if

@@ -896,6 +896,10 @@ The first-class object model is staged around these metadata owners:
   these types through `metric_create_metadata`, while `sqrtg` remains positive
   and oriented volume forms remain signed. The integer C ABI and Python tuple
   properties remain compatible views of the same metadata.
+- [x] Wire the same metadata owner into the dimension-aware
+  `spacetime_metric_t` constructor and typed accessors. The four-entry integer
+  ABI remains the compatibility boundary, while relativity shares the native
+  signature and orientation declarations with the fixed-3D metric toolkit.
 - [x] Add positive coordinate-surface measures for chart-induced and explicit
   metrics. The native kernels compute the induced two-metric minor directly,
   without array temporaries; C ABI 53 and both Python facades keep this
