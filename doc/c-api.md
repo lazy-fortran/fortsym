@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 47). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 48). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -48,8 +48,12 @@ coefficient blocks. It accepts an integer mode, returns the longitudinal
 nodal or transverse edge branch, and returns the scalar coefficient, curl
 coefficient, and 2x2 transverse mass block as native expression handles.
 The metric owner is also available through `fortsym_metric_sqrtg`,
-`fortsym_metric_volume_density`, `fortsym_metric_levi_civita`, and
-`fortsym_metric_contravariant`; `fortsym_chart_form_star_metric` applies the
+`fortsym_metric_volume_density`, `fortsym_metric_levi_civita`,
+`fortsym_metric_contravariant`, `fortsym_metric_grad`,
+`fortsym_metric_divergence`, and `fortsym_metric_laplacian`;
+the last three take the explicit coordinate tuple and position map needed to
+transport chart inputs while keeping the metric owner authoritative.
+`fortsym_chart_form_star_metric` applies the
 same native Hodge owner to an explicitly supplied signature and orientation.
 The Levi-Civita call takes variance `-1` or `+1` and returns 27 components in
 first-slot-fastest order; the volume-density call is always positive and does

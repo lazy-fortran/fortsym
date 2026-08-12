@@ -295,6 +295,21 @@ int fortsym_metric_contravariant(
     fortsym_arena *arena, const fortsym_expr *components[],
     const int signature[], int orientation, fortsym_expr *out[],
     char *message, size_t capacity);
+int fortsym_metric_grad(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    const int signature[], int orientation, const fortsym_expr *scalar,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_metric_divergence(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    const int signature[], int orientation, const fortsym_expr *vector[],
+    fortsym_expr **out, char *message, size_t capacity);
+int fortsym_metric_laplacian(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    const int signature[], int orientation, const fortsym_expr *scalar,
+    fortsym_expr **out, char *message, size_t capacity);
 int fortsym_chart_form_star_metric(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *components[],

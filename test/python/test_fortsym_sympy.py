@@ -102,6 +102,49 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_metric_vector_calculus_matches_sympy(self):
+        t, x, y = sp.symbols("calculus_t calculus_x calculus_y")
+        chart = sp.Chart((t, x, y), (t, x, y))
+        metric = chart.metric_owner(
+            ((-1, 0, 0), (0, 1, 0), (0, 0, 1)),
+            signature=(-1, 1, 1),
+        )
+        scalar = t + x + y
+        gradient = metric.grad(scalar)
+        vector = (t, x, y)
+        oracle_metric = oracle.diag(-1, 1, 1)
+        oracle_coordinates = oracle.symbols(
+            "calculus_t calculus_x calculus_y"
+        )
+        oracle_scalar = sum(oracle_coordinates)
+        expected_gradient = tuple(
+            sum(
+                oracle_metric[i, j] * oracle.diff(
+                    oracle_scalar, oracle_coordinates[j]
+                )
+                for j in range(3)
+            )
+            for i in range(3)
+        )
+        actual_gradient = tuple(
+            oracle.sympify(str(value.simplify())) for value in gradient
+        )
+        self.assertEqual(actual_gradient, expected_gradient)
+
+        expected_divergence = sum(
+            oracle.diff(value, coordinate)
+            for value, coordinate in zip(oracle_coordinates, oracle_coordinates)
+        )
+        self.assertEqual(
+            oracle.sympify(str(metric.divergence(vector).simplify())),
+            expected_divergence,
+        )
+        self.assertEqual(
+            oracle.sympify(str(metric.laplacian(scalar).simplify())),
+            oracle.Integer(0),
+        )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_metric_volume_and_levi_civita_match_sympy(self):
         x, y, z = sp.symbols("volume_x volume_y volume_z")
         chart = sp.Chart((x, y, z), (x, y, z))

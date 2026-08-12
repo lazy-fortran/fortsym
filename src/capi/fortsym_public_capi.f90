@@ -30,7 +30,8 @@ module fortsym_public_capi
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NODAL, SPACE_EDGE, &
         TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_metric, only: metric_t, metric_create, metric_valid, &
-        metric_contravariant, metric_sqrtg
+        metric_covariant, metric_contravariant, metric_sqrtg, metric_signature, &
+        metric_orientation, metric_grad, metric_divergence, metric_laplacian
     use fortsym_volume, only: metric_volume_density, metric_levi_civita
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
         spacetime_metric_create, spacetime_metric_valid, &
@@ -133,6 +134,7 @@ module fortsym_public_capi
         fortsym_chart_j_fourier, fortsym_chart_fourier_weak_form, &
         fortsym_chart_current_compatibility, &
         fortsym_metric_sqrtg, fortsym_metric_contravariant, &
+        fortsym_metric_grad, fortsym_metric_divergence, fortsym_metric_laplacian, &
         fortsym_metric_volume_density, fortsym_metric_levi_civita, &
         fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
         fortsym_chart_christoffel, fortsym_chart_covariant_diff, &
@@ -176,7 +178,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 47_c_int
+        v = 48_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -2360,6 +2362,77 @@ contains
             capacity)
     end function fortsym_metric_contravariant
 
+    function fortsym_metric_grad(raw, coordinates, position, components, signature, &
+            orientation, scalar, out, message, capacity) bind(c, &
+            name="fortsym_metric_grad") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, signature
+        type(c_ptr), value :: scalar, out
+        integer(c_int), value :: orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(metric_t) :: metric
+        type(expr_t) :: input, value(DIM)
+
+        call get_metric_chart_input(raw, coordinates, position, components, &
+            signature, orientation, chart, metric, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_scalar_input(a, scalar, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = metric_grad(metric, input)
+        call make_expr_array(a, value, out, DIM, status, message, capacity)
+    end function fortsym_metric_grad
+
+    function fortsym_metric_divergence(raw, coordinates, position, components, &
+            signature, orientation, vector, out, message, capacity) bind(c, &
+            name="fortsym_metric_divergence") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, signature
+        type(c_ptr), value :: vector, out
+        integer(c_int), value :: orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(metric_t) :: metric
+        type(expr_t) :: input(DIM), value
+
+        call begin_output(out, message, capacity)
+        call get_metric_chart_input(raw, coordinates, position, components, &
+            signature, orientation, chart, metric, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_vector_input(a, vector, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = metric_divergence(metric, input)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_metric_divergence
+
+    function fortsym_metric_laplacian(raw, coordinates, position, components, &
+            signature, orientation, scalar, out, message, capacity) bind(c, &
+            name="fortsym_metric_laplacian") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, signature
+        type(c_ptr), value :: scalar, out
+        integer(c_int), value :: orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(metric_t) :: metric
+        type(expr_t) :: input, value
+
+        call begin_output(out, message, capacity)
+        call get_metric_chart_input(raw, coordinates, position, components, &
+            signature, orientation, chart, metric, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_scalar_input(a, scalar, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = metric_laplacian(metric, input)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_metric_laplacian
+
     function fortsym_chart_form_star_metric(raw, coordinates, position, &
             components, signature, orientation, input, degree, out, message, &
             capacity) bind(c, name="fortsym_chart_form_star_metric") result(status)
@@ -3488,6 +3561,38 @@ contains
         call put_error(message, capacity, FORTSYM_OK)
         status = FORTSYM_OK
     end subroutine get_metric_input
+
+    subroutine get_metric_chart_input(raw, coordinates, position, components, &
+            signature, orientation, chart, metric, a, status, message, capacity)
+        type(c_ptr), value :: raw, coordinates, position, components, signature
+        integer(c_int), value :: orientation
+        type(chart_t), intent(out) :: chart
+        type(metric_t), intent(out) :: metric
+        type(arena_owner_t), pointer :: a
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(expr_t) :: components_value(DIM, DIM), coordinates_value(DIM)
+        integer :: signature_value(DIM)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_metric_input(raw, components, signature, orientation, a, metric, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        components_value = metric_covariant(metric)
+        signature_value = metric_signature(metric)
+        coordinates_value = chart%u
+        metric = metric_create(components_value, signature_value, &
+            metric_orientation(metric), coordinates_value)
+        if (.not. metric_valid(metric)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end subroutine get_metric_chart_input
 
     subroutine get_spacetime_metric_input(raw, components, dimension, &
             coordinates, signature, orientation, a, metric, status, message, &

@@ -716,6 +716,14 @@ must therefore keep `B^i`, `B_i`, `sqrtg B^i`, `beta`, `J`, and `Omega` as
 distinct typed views, with explicit transformations and no name-based
 coercion.
 
+The checked analytic fixture makes the useful constants visible: in the
+covariant representation `B_psi=0`, `B_theta=I(psi)`, and
+`B_phi=G(psi)`, so the angular covariant components are constant on each
+flux surface. Its displayed diagonal metric is
+`g_ij=diag(1,h^2,h^2)` with `sqrtg=h^2`; raising the field gives
+`B^theta=I(psi)/h^2` and `B^phi=G(psi)/h^2`, which generally vary with the
+angles. This distinction is part of the example's acceptance criteria.
+
 Forms add the mathematician's invariant layer:
 
 ```text
@@ -1378,6 +1386,12 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   Cylindrical coordinates check the nonzero radial Christoffel term against
   an independent SymEngine oracle; solving, variational mechanics, and
   arbitrary-dimensional transport remain open.
+- [x] Add the first coordinate-aware metric vector-calculus owner: contravariant
+  `metric_grad`, metric `metric_divergence`, and metric `metric_laplacian`,
+  transported through the generic Fortran facade, C ABI 48, and Python/SymPy
+  `Metric`. Independent native and SymPy checks cover Euclidean and
+  pseudo-Riemannian signatures; arbitrary dimensions, curl/forms derivation,
+  and full connection reuse remain open.
 - [ ] Derive vector calculus from tensor/forms primitives. `grad`, `div`,
   `curl`, and `laplacian` must share the same metric, orientation, and density
   conventions rather than maintaining separate coordinate formulas.

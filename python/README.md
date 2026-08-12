@@ -40,6 +40,11 @@ remain explicit instead of being inferred from a chart. `Metric.volume_density()
 returns positive `sqrt(abs(det(g)))`, and `Metric.levi_civita()` returns the
 oriented covariant tensor by default or the contravariant tensor when passed
 `"contravariant"`; neither operation hides orientation in `sqrtg()`.
+`Metric.grad(scalar)`, `Metric.divergence(vector)`, and
+`Metric.laplacian(scalar)` are the corresponding coordinate-aware operators;
+they use the metric inverse and positive `sqrt(abs(det(g)))` owned by the same
+metric. The returned gradient is contravariant, and divergence accepts a
+three-component contravariant vector.
 `SpacetimeMetric` is the dimension-aware four-coordinate facade for the
 relativity owner. It exposes `sqrtg()`, inverse metric, Christoffel, Riemann,
 Ricci, scalar curvature, Einstein, and second-Bianchi views using the same native expression

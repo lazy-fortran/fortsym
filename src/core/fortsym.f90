@@ -40,7 +40,8 @@ module fortsym
     use fortsym_ode, only: solve_ode
     use fortsym_chart, only: DIM, chart_t, chart_create, covariant_basis, &
         reciprocal_basis, metric_covariant, metric_contravariant, sqrtg, &
-        jacobian, christoffel, grad, divergence, curl, laplacian
+        jacobian, christoffel, chart_grad => grad, &
+        chart_divergence => divergence, curl, chart_laplacian => laplacian
     use fortsym_domain, only: manifold_t, patch_t, manifold_create, patch_create, &
         manifold_valid, manifold_dimension, manifold_name, manifold_has_boundary, &
         manifold_simply_connected, patch_valid, patch_dimension, patch_name, &
@@ -83,7 +84,8 @@ module fortsym
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
         metric_det, metric_sqrtg, &
         metric_signature, metric_orientation, metric_valid, metric_arena, &
-        metric_same_arena, metric_coordinates, metric_has_coordinates
+        metric_same_arena, metric_coordinates, metric_has_coordinates, &
+        metric_grad, metric_divergence, metric_laplacian
     use fortsym_volume, only: metric_volume_density, levi_civita_symbol, &
         metric_levi_civita
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
@@ -109,6 +111,21 @@ module fortsym
         maxwell_residual
     implicit none
     private
+
+    interface grad
+        procedure :: chart_grad
+        procedure :: metric_grad
+    end interface grad
+
+    interface divergence
+        procedure :: chart_divergence
+        procedure :: metric_divergence
+    end interface divergence
+
+    interface laplacian
+        procedure :: chart_laplacian
+        procedure :: metric_laplacian
+    end interface laplacian
 
     public :: arena_t, node_kind_name
     public :: NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, &
@@ -150,6 +167,7 @@ module fortsym
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, &
         SPACE_EDGE, TRACE_NONE, TRACE_NORMAL, TRACE_TANGENTIAL, &
         metric_t, metric_create, metric_from_chart, metric_det, metric_sqrtg, &
+        metric_grad, metric_divergence, metric_laplacian, &
         metric_volume_density, levi_civita_symbol, metric_levi_civita, &
         metric_orientation, metric_valid, metric_arena, metric_same_arena, &
         metric_coordinates, metric_has_coordinates, &

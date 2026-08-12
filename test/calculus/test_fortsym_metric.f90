@@ -3,14 +3,17 @@ program test_fortsym_metric
     ! identity, sqrtg is positive for a Lorentzian determinant, and signature
     ! and orientation survive as separate metadata.
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, num, sym, operator(+), operator(-), operator(*)
+    use fortsym, only: grad, divergence, laplacian
+    use fortsym_expr, only: expr_t, num, sym, operator(+), operator(-), &
+        operator(*), operator(/), operator(**)
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
         metric_covariant, metric_contravariant, metric_det, metric_sqrtg, &
-        metric_signature, metric_orientation, metric_valid
+        metric_signature, metric_orientation, metric_valid, metric_grad, &
+        metric_divergence, metric_laplacian
     use fortsym_volume, only: metric_volume_density, levi_civita_symbol, &
         metric_levi_civita
     implicit none
@@ -22,6 +25,8 @@ program test_fortsym_metric
     type(metric_t) :: euclidean, lorentzian, invalid, degenerate
     type(expr_t) :: components(DIM, DIM), covariant(DIM, DIM)
     type(expr_t) :: inverse(DIM, DIM), product, determinant, root
+    type(expr_t) :: scalar, gradient(DIM), vector(DIM), divergence_value
+    type(expr_t) :: laplacian_value, facade_gradient(DIM), facade_laplacian
     type(expr_t) :: epsilon_lower(DIM, DIM, DIM), epsilon_upper(DIM, DIM, DIM)
     integer :: signature(DIM), returned_signature(DIM)
     integer :: i, j, k
@@ -57,7 +62,7 @@ program test_fortsym_metric
     components(2, 2) = num(arena, 1)
     components(3, 3) = num(arena, 1)
     signature = [-1, 1, 1]
-    lorentzian = metric_create(components, signature, -1)
+    lorentzian = metric_create(components, signature, -1, cartesian%u)
     if (.not. metric_valid(lorentzian)) error stop "Lorentzian metric is invalid"
     returned_signature = metric_signature(lorentzian)
     if (any(returned_signature /= signature)) error stop "signature metadata failed"
@@ -75,6 +80,37 @@ program test_fortsym_metric
         epsilon_lower(1, 2, 3) + 1)
     call check_identity(suite, engine, "raised Levi-Civita tensor signature", &
         epsilon_upper(1, 2, 3) - 1)
+
+    scalar = cartesian%u(1) + cartesian%u(2) + cartesian%u(3)
+    gradient = metric_grad(euclidean, scalar)
+    call check_identity(suite, engine, "Euclidean metric gradient x", &
+        gradient(1) - 1)
+    call check_identity(suite, engine, "Euclidean metric gradient y", &
+        gradient(2) - 1)
+    call check_identity(suite, engine, "Euclidean metric gradient z", &
+        gradient(3) - 1)
+    vector = cartesian%u
+    divergence_value = metric_divergence(euclidean, vector)
+    call check_identity(suite, engine, "Euclidean metric divergence", &
+        divergence_value - 3)
+    laplacian_value = metric_laplacian(euclidean, scalar)
+    call check_identity(suite, engine, "Euclidean metric Laplace-Beltrami", &
+        laplacian_value)
+    facade_gradient = grad(euclidean, scalar)
+    call check_identity(suite, engine, "facade metric gradient", &
+        facade_gradient(1) - gradient(1))
+    facade_laplacian = laplacian(euclidean, scalar)
+    call check_identity(suite, engine, "facade metric Laplace-Beltrami", &
+        facade_laplacian - laplacian_value)
+    facade_laplacian = divergence(euclidean, gradient)
+    call check_identity(suite, engine, "facade metric divergence of gradient", &
+        facade_laplacian - laplacian_value)
+    facade_laplacian = divergence(euclidean, vector)
+    call check_identity(suite, engine, "facade metric divergence", &
+        facade_laplacian - divergence_value)
+    gradient = metric_grad(lorentzian, cartesian%u(1))
+    call check_identity(suite, engine, "Lorentzian metric gradient sign", &
+        gradient(1) + 1)
 
     covariant = metric_covariant(lorentzian)
     inverse = metric_contravariant(lorentzian)

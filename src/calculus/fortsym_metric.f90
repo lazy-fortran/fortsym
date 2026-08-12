@@ -8,6 +8,7 @@ module fortsym_metric
     use fortsym_arena, only: arena_t
     use fortsym_chart, only: chart_t, DIM, &
         chart_metric_covariant => metric_covariant
+    use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, num, is_valid, &
         operator(+), operator(-), operator(*), operator(/), &
         operator(==), expr_abs => abs, sqrt
@@ -16,6 +17,7 @@ module fortsym_metric
 
     public :: metric_t, metric_create, metric_from_chart
     public :: metric_covariant, metric_contravariant, metric_det, metric_sqrtg
+    public :: metric_grad, metric_divergence, metric_laplacian
     public :: metric_signature, metric_orientation, metric_valid
     public :: metric_arena, metric_same_arena
     public :: metric_coordinates, metric_has_coordinates
@@ -103,18 +105,24 @@ contains
         type(metric_t), intent(in) :: g
         type(expr_t) :: inverse(DIM, DIM)
         type(expr_t) :: determinant
+        type(expr_t) :: one
+        integer :: i, j
 
         if (.not. g%valid) return
+        if (is_diagonal_metric(g)) then
+            one = num(g%a, 1)
+            inverse = num(g%a, 0)
+            do i = 1, DIM
+                inverse(i, i) = one/g%component(i, i)
+            end do
+            return
+        end if
         determinant = metric_det(g)
-        inverse(1, 1) = cofactor(g, 1, 1)/determinant
-        inverse(1, 2) = cofactor(g, 2, 1)/determinant
-        inverse(1, 3) = cofactor(g, 3, 1)/determinant
-        inverse(2, 1) = cofactor(g, 1, 2)/determinant
-        inverse(2, 2) = cofactor(g, 2, 2)/determinant
-        inverse(2, 3) = cofactor(g, 3, 2)/determinant
-        inverse(3, 1) = cofactor(g, 1, 3)/determinant
-        inverse(3, 2) = cofactor(g, 2, 3)/determinant
-        inverse(3, 3) = cofactor(g, 3, 3)/determinant
+        do i = 1, DIM
+            do j = 1, DIM
+                inverse(i, j) = cofactor(g, j, i)/determinant
+            end do
+        end do
     end function metric_contravariant
 
     !> Determinant of the covariant metric.
@@ -123,6 +131,10 @@ contains
         type(expr_t) :: determinant
 
         if (.not. g%valid) return
+        if (is_diagonal_metric(g)) then
+            determinant = g%component(1, 1)*g%component(2, 2)*g%component(3, 3)
+            return
+        end if
         determinant = g%component(1, 1)*(g%component(2, 2)*g%component(3, 3) - &
             g%component(2, 3)*g%component(3, 2)) - &
             g%component(1, 2)*(g%component(2, 1)*g%component(3, 3) - &
@@ -142,6 +154,72 @@ contains
         if (.not. g%valid) return
         value = sqrt(expr_abs(metric_det(g)))
     end function metric_sqrtg
+
+    !> Contravariant metric gradient (grad f)^i = g^ij partial_j f.
+    !>
+    !> This is the metric-owner counterpart of chart `grad`. It uses the
+    !> supplied coordinate tuple rather than a chart position map, so a
+    !> pseudo-Riemannian metric can be used without inventing an embedding.
+    function metric_grad(g, f) result(value)
+        type(metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: f
+        type(expr_t) :: value(DIM)
+        type(expr_t) :: inverse(DIM, DIM), coordinates(DIM)
+        integer :: i, j
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        if (.not. is_valid(f)) return
+        if (.not. associated(f%a, g%a)) return
+        inverse = metric_contravariant(g)
+        coordinates = metric_coordinates(g)
+        do i = 1, DIM
+            value(i) = inverse(i, 1)*diff(f, coordinates(1))
+            do j = 2, DIM
+                value(i) = value(i) + inverse(i, j)*diff(f, coordinates(j))
+            end do
+        end do
+    end function metric_grad
+
+    !> Divergence of a contravariant vector using sqrt(abs(det(g))).
+    !>
+    !> The positive metric volume density is used for both Riemannian and
+    !> pseudo-Riemannian metrics; orientation belongs to the separate volume
+    !> form owner and must not leak into this scalar divergence.
+    function metric_divergence(g, vector) result(value)
+        type(metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: vector(DIM)
+        type(expr_t) :: value
+        type(expr_t) :: coordinates(DIM), volume
+        integer :: i
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        do i = 1, DIM
+            if (.not. is_valid(vector(i))) return
+            if (.not. associated(vector(i)%a, g%a)) return
+        end do
+        coordinates = metric_coordinates(g)
+        volume = metric_sqrtg(g)
+        value = diff(volume*vector(1), coordinates(1))
+        do i = 2, DIM
+            value = value + diff(volume*vector(i), coordinates(i))
+        end do
+        value = value/volume
+    end function metric_divergence
+
+    !> Laplace--Beltrami operator, including its pseudo-Riemannian wave form.
+    function metric_laplacian(g, f) result(value)
+        type(metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: f
+        type(expr_t) :: value
+        type(expr_t) :: gradient(DIM)
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        gradient = metric_grad(g, f)
+        value = metric_divergence(g, gradient)
+    end function metric_laplacian
 
     !> Return the explicit metric signature, with zeroes for an invalid metric.
     function metric_signature(g) result(signature)
@@ -260,5 +338,24 @@ contains
             end do
         end do
     end function all_components_zero
+
+    function is_diagonal_metric(g) result(diagonal)
+        type(metric_t), intent(in) :: g
+        logical :: diagonal
+        type(expr_t) :: zero
+        integer :: i, j
+
+        diagonal = .false.
+        if (.not. associated(g%a)) return
+        zero = num(g%a, 0)
+        diagonal = .true.
+        do i = 1, DIM
+            do j = 1, DIM
+                if (i /= j) then
+                    if (.not. (g%component(i, j) == zero)) diagonal = .false.
+                end if
+            end do
+        end do
+    end function is_diagonal_metric
 
 end module fortsym_metric
