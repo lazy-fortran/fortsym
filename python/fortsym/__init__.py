@@ -756,6 +756,26 @@ def _configure(lib):
         "fortsym_spacetime_metric_laplacian", ctypes.c_int,
         spacetime_scalar_array_arguments,
     )
+    spacetime_tensor_arguments = [
+        _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+        ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+        ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+        ctypes.c_int, _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+    ]
+    lib.spacetime_tensor_raise = declare(
+        "fortsym_spacetime_tensor_raise", ctypes.c_int,
+        spacetime_tensor_arguments,
+    )
+    lib.spacetime_tensor_lower = declare(
+        "fortsym_spacetime_tensor_lower", ctypes.c_int,
+        spacetime_tensor_arguments,
+    )
+    lib.spacetime_tensor_density_factor = declare(
+        "fortsym_spacetime_tensor_density_factor", ctypes.c_int,
+        spacetime_tensor_arguments[:-4] + [
+            _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.spacetime_geodesic_residual = declare(
         "fortsym_spacetime_geodesic_residual", ctypes.c_int,
         [
@@ -1978,6 +1998,50 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message), operation.__name__)
         return tuple(Expr(self, output[index]) for index in range(count))
+
+    def _spacetime_tensor_metric_operation(self, operation, metric, tensor, slot):
+        if not isinstance(tensor, SpacetimeTensor) or tensor.metric is not metric:
+            raise ValueError("spacetime tensor must belong to this metric")
+        if tensor.rank == 0:
+            raise ValueError("metric transforms require a tensor slot")
+        slot = int(slot)
+        if slot < 0 or slot >= tensor.rank:
+            raise IndexError("spacetime tensor slot is outside the rank")
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * (SPACETIME_DIM ** tensor.rank))(
+            *[value._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output = (_CVOID * (SPACETIME_DIM ** tensor.rank))()
+        message = _message()
+        status = operation(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, tensor.rank, variance,
+            tensor.density_weight, slot + 1, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), operation.__name__)
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
+    def _spacetime_tensor_density_factor(self, metric, tensor, factor):
+        if not isinstance(tensor, SpacetimeTensor) or tensor.metric is not metric:
+            raise ValueError("spacetime tensor must belong to this metric")
+        factor = self._check(factor)
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * (SPACETIME_DIM ** tensor.rank))(
+            *[value._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output = (_CVOID * (SPACETIME_DIM ** tensor.rank))()
+        message = _message()
+        status = self._lib.spacetime_tensor_density_factor(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, tensor.rank, variance,
+            tensor.density_weight, factor._handle, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "spacetime_tensor_density_factor")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
 
     def _spacetime_scalar(self, operation, metric):
         components, coordinates, signature = self._spacetime_inputs(metric)
@@ -3646,8 +3710,12 @@ class Metric:
 class SpacetimeTensor:
     """A small native-backed tensor view for the dimension-aware owner."""
 
-    def __init__(self, arena, components, shape, variance=None):
-        self._arena = arena
+    def __init__(self, metric, components, shape, variance=None,
+                 density_weight=0, _owned=True):
+        if not isinstance(metric, SpacetimeMetric):
+            raise TypeError("SpacetimeTensor requires a SpacetimeMetric")
+        self.metric = metric
+        self._arena = metric._arena
         self.components = tuple(components)
         self.shape = tuple(int(value) for value in shape)
         expected = SPACETIME_DIM ** len(self.shape)
@@ -3659,6 +3727,13 @@ class SpacetimeTensor:
                     value not in (-1, 1) for value in variance):
                 raise ValueError("spacetime tensor variance does not match rank")
         self.variance = variance
+        self.density_weight = int(density_weight)
+        self._owned = bool(_owned)
+        self._temporaries = ()
+
+    @property
+    def rank(self):
+        return len(self.shape)
 
     def component(self, *indices):
         if len(indices) != len(self.shape):
@@ -3688,10 +3763,60 @@ class SpacetimeTensor:
             value._spacetime_owner = self
             yield value
 
+    def raise_(self, slot=0):
+        """Raise one covariant slot with this tensor's metric."""
+        if self.variance is None or self.variance[int(slot)] != -1:
+            raise ValueError("raise_ requires a covariant spacetime slot")
+        components = self._arena._spacetime_tensor_metric_operation(
+            self._arena._lib.spacetime_tensor_raise, self.metric, self, slot
+        )
+        variance = list(self.variance)
+        variance[int(slot)] = 1
+        return SpacetimeTensor(
+            self.metric, components, self.shape, variance,
+            self.density_weight, _owned=True,
+        )
+
+    def lower(self, slot=0):
+        """Lower one contravariant slot with this tensor's metric."""
+        if self.variance is None or self.variance[int(slot)] != 1:
+            raise ValueError("lower requires a contravariant spacetime slot")
+        components = self._arena._spacetime_tensor_metric_operation(
+            self._arena._lib.spacetime_tensor_lower, self.metric, self, slot
+        )
+        variance = list(self.variance)
+        variance[int(slot)] = -1
+        return SpacetimeTensor(
+            self.metric, components, self.shape, variance,
+            self.density_weight, _owned=True,
+        )
+
+    def density(self, factor_or_weight):
+        """Return a density view, optionally multiplying by a factor."""
+        if isinstance(factor_or_weight, Expr):
+            factor = self._arena._check(factor_or_weight)
+            components = self._arena._spacetime_tensor_density_factor(
+                self.metric, self, factor
+            )
+            return SpacetimeTensor(
+                self.metric, components, self.shape, self.variance,
+                self.density_weight + 1, _owned=True,
+            )
+        return SpacetimeTensor(
+            self.metric, self.components, self.shape, self.variance,
+            int(factor_or_weight), _owned=False,
+        )
+
+    with_density = density
+
     def close(self):
-        for value in self.components:
-            value.close()
+        if self._owned:
+            for value in self.components:
+                value.close()
+        for temporary in self._temporaries:
+            temporary.close()
         self.components = ()
+        self._temporaries = ()
 
     def __del__(self):
         try:
@@ -3751,13 +3876,55 @@ class SpacetimeMetric:
 
     def contravariant(self):
         return SpacetimeTensor(
-            self._arena,
+            self,
             self._arena._spacetime_array(
                 self._arena._lib.spacetime_metric_contravariant, self, 16
             ),
             (4, 4),
-            variance=(-1, -1),
+            variance=(1, 1),
+            _owned=True,
         )
+
+    def covariant(self):
+        return SpacetimeTensor(
+            self, self.components, (4, 4), variance=(-1, -1), _owned=False
+        )
+
+    def vector(self, values, density_weight=0):
+        values = tuple(values)
+        if len(values) != SPACETIME_DIM:
+            raise ValueError("spacetime vectors require four components")
+        coerced = []
+        temporaries = []
+        for value in values:
+            expression, temporary = self._arena._coerce(value)
+            coerced.append(expression)
+            if temporary is not None:
+                temporaries.append(temporary)
+        result = SpacetimeTensor(
+            self, coerced, (4,), variance=(1,),
+            density_weight=density_weight, _owned=False,
+        )
+        result._temporaries = tuple(temporaries)
+        return result
+
+    def covector(self, values, density_weight=0):
+        values = tuple(values)
+        if len(values) != SPACETIME_DIM:
+            raise ValueError("spacetime covectors require four components")
+        coerced = []
+        temporaries = []
+        for value in values:
+            expression, temporary = self._arena._coerce(value)
+            coerced.append(expression)
+            if temporary is not None:
+                temporaries.append(temporary)
+        result = SpacetimeTensor(
+            self, coerced, (4,), variance=(-1,),
+            density_weight=density_weight, _owned=False,
+        )
+        result._temporaries = tuple(temporaries)
+        return result
 
     def flat(self, vector):
         """Lower a contravariant vector and return its one-form view."""
@@ -3777,7 +3944,7 @@ class SpacetimeMetric:
             self._arena._lib.spacetime_metric_sharp, self, values
         )
         return SpacetimeTensor(
-            self._arena, components, (4,), variance=(1,)
+            self, components, (4,), variance=(1,), _owned=True
         )
 
     def grad(self, scalar):
@@ -3786,7 +3953,7 @@ class SpacetimeMetric:
             self._arena._lib.spacetime_metric_grad, self, scalar
         )
         return SpacetimeTensor(
-            self._arena, components, (4,), variance=(1,)
+            self, components, (4,), variance=(1,), _owned=True
         )
 
     def divergence(self, vector):
@@ -3817,12 +3984,13 @@ class SpacetimeMetric:
             if temporary is not None:
                 temporaries.append(temporary)
             return SpacetimeTensor(
-                self._arena,
+                self,
                 self._arena._spacetime_geodesic_residual(
                     self, tuple(coerced), parameter_value
                 ),
                 (4,),
                 variance=(1,),
+                _owned=True,
             )
         finally:
             for temporary in temporaries:
@@ -3830,32 +3998,35 @@ class SpacetimeMetric:
 
     def christoffel(self):
         return SpacetimeTensor(
-            self._arena,
+            self,
             self._arena._spacetime_array(
                 self._arena._lib.spacetime_christoffel, self, 64
             ),
             (4, 4, 4),
             variance=(1, -1, -1),
+            _owned=True,
         )
 
     def riemann(self):
         return SpacetimeTensor(
-            self._arena,
+            self,
             self._arena._spacetime_array(
                 self._arena._lib.spacetime_riemann, self, 256
             ),
             (4, 4, 4, 4),
             variance=(1, -1, -1, -1),
+            _owned=True,
         )
 
     def ricci(self):
         return SpacetimeTensor(
-            self._arena,
+            self,
             self._arena._spacetime_array(
                 self._arena._lib.spacetime_ricci, self, 16
             ),
             (4, 4),
             variance=(-1, -1),
+            _owned=True,
         )
 
     def scalar_curvature(self):
@@ -3865,12 +4036,13 @@ class SpacetimeMetric:
 
     def einstein(self):
         return SpacetimeTensor(
-            self._arena,
+            self,
             self._arena._spacetime_array(
                 self._arena._lib.spacetime_einstein, self, 16
             ),
             (4, 4),
             variance=(-1, -1),
+            _owned=True,
         )
 
     def one_form(self, values):

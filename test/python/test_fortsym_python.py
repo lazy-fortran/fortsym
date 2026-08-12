@@ -33,6 +33,32 @@ class NativePackageTest(unittest.TestCase):
             self.assertEqual(spacetime.signature_type.negative_count, 1)
             self.assertEqual(spacetime.orientation_type.value, -1)
 
+    def test_runtime_spacetime_tensor_variance_and_density(self):
+        with fortsym.Arena() as arena:
+            t, x, y, z = [arena.symbol(name)
+                          for name in ("tensor_t", "tensor_x", "tensor_y", "tensor_z")]
+            metric = fortsym.SpacetimeMetric(
+                (t, x, y, z),
+                ((2, 1, 0, 0), (1, 1, 0, 0),
+                 (0, 0, 0, 0), (0, 0, 0, 0)),
+                dimension=2,
+                signature=(1, 1, 1, 1),
+            )
+            upper = metric.vector((t, x, 0, 0))
+            lower = upper.lower()
+            roundtrip = lower.raise_()
+            self.assertEqual(lower.variance, (-1,))
+            self.assertEqual(roundtrip.variance, (1,))
+            self.assertEqual((roundtrip[0] - t).simplify(), 0)
+            self.assertEqual((roundtrip[1] - x).simplify(), 0)
+            self.assertEqual(metric.covariant().variance, (-1, -1))
+            inverse = metric.contravariant()
+            self.assertEqual(inverse.variance, (1, 1))
+            self.assertEqual(inverse[0, 1].simplify(), -1)
+            density = upper.density(metric.sqrtg())
+            self.assertEqual(density.density_weight, 1)
+            self.assertEqual((density[0] - metric.sqrtg()*upper[0]).simplify(), 0)
+
     def test_native_construction_and_transformations(self):
         with fortsym.Arena() as arena:
             x = arena.symbol("x")

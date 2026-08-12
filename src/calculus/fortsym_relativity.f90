@@ -160,11 +160,41 @@ contains
             return
         end if
         determinant = spacetime_metric_det(g)
-        do i = 1, g%dimension
-            do j = 1, g%dimension
-                value(i, j) = cofactor(g, j, i)/determinant
+        one = num(g%a, 1)
+        select case (g%dimension)
+        case (1)
+            value(1, 1) = one/g%component(1, 1)
+        case (2)
+            value(1, 1) = g%component(2, 2)/determinant
+            value(1, 2) = -g%component(1, 2)/determinant
+            value(2, 1) = -g%component(2, 1)/determinant
+            value(2, 2) = g%component(1, 1)/determinant
+        case (3)
+            value(1, 1) = (g%component(2, 2)*g%component(3, 3) - &
+                g%component(2, 3)*g%component(3, 2))/determinant
+            value(1, 2) = (g%component(1, 3)*g%component(3, 2) - &
+                g%component(1, 2)*g%component(3, 3))/determinant
+            value(1, 3) = (g%component(1, 2)*g%component(2, 3) - &
+                g%component(1, 3)*g%component(2, 2))/determinant
+            value(2, 1) = (g%component(2, 3)*g%component(3, 1) - &
+                g%component(2, 1)*g%component(3, 3))/determinant
+            value(2, 2) = (g%component(1, 1)*g%component(3, 3) - &
+                g%component(1, 3)*g%component(3, 1))/determinant
+            value(2, 3) = (g%component(1, 3)*g%component(2, 1) - &
+                g%component(1, 1)*g%component(2, 3))/determinant
+            value(3, 1) = (g%component(2, 1)*g%component(3, 2) - &
+                g%component(2, 2)*g%component(3, 1))/determinant
+            value(3, 2) = (g%component(1, 2)*g%component(3, 1) - &
+                g%component(1, 1)*g%component(3, 2))/determinant
+            value(3, 3) = (g%component(1, 1)*g%component(2, 2) - &
+                g%component(1, 2)*g%component(2, 1))/determinant
+        case (4)
+            do i = 1, g%dimension
+                do j = 1, g%dimension
+                    value(i, j) = cofactor(g, j, i)/determinant
+                end do
             end do
-        end do
+        end select
     end function spacetime_metric_contravariant
 
     function spacetime_metric_det(g) result(value)

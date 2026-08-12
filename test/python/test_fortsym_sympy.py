@@ -689,6 +689,47 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_spacetime_tensor_variance_and_density_match_sympy(self):
+        t, x, y, z = sp.symbols("tensor_oracle_t tensor_oracle_x tensor_oracle_y tensor_oracle_z")
+        metric = sp.SpacetimeMetric(
+            (t, x, y, z),
+            ((2, 1, 0, 0), (1, 1, 0, 0),
+             (0, 0, 0, 0), (0, 0, 0, 0)),
+            dimension=2,
+            signature=(1, 1, 1, 1),
+        )
+        upper = metric.vector((t, x, 0, 0))
+        lower = upper.lower()
+        roundtrip = lower.raise_()
+        oracle_metric = oracle.Matrix(((2, 1), (1, 1)))
+        oracle_vector = oracle.Matrix((oracle.Symbol("tensor_oracle_t"),
+                                       oracle.Symbol("tensor_oracle_x")))
+        expected_lower = oracle_metric * oracle_vector
+        self.assertEqual(
+            tuple(oracle.sympify(str(lower[index].simplify())) for index in (0, 1)),
+            tuple(expected_lower),
+        )
+        self.assertEqual(
+            tuple(oracle.sympify(str(roundtrip[index].simplify())) for index in (0, 1)),
+            tuple(oracle_vector),
+        )
+        expected_inverse = oracle_metric.inv()
+        actual_inverse = metric.contravariant()
+        self.assertEqual(
+            oracle.Matrix(tuple(
+                oracle.sympify(str(actual_inverse[i, j].simplify()))
+                for i in range(2) for j in range(2)
+            )).reshape(2, 2), expected_inverse,
+        )
+        density = upper.density(metric.sqrtg())
+        self.assertEqual(density.density_weight, 1)
+        self.assertEqual(
+            tuple(oracle.sympify(str(density[index].simplify()))
+                  for index in (0, 1)),
+            tuple(oracle.sqrt(oracle_metric.det()) * oracle_vector),
+        )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_metric_volume_and_levi_civita_match_sympy(self):
         x, y, z = sp.symbols("volume_x volume_y volume_z")
         chart = sp.Chart((x, y, z), (x, y, z))
