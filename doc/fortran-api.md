@@ -96,7 +96,7 @@ type(form_t) :: A_form, B_form, volume, flux_form
 
 A_form = form_one(chart, A)
 B_form = d(chart, A_form)
-volume = star(chart, form(num(arena, 1)))
+volume = volume_form(chart)
 flux_form = interior(chart, b_con(chart, A), volume)
 ```
 

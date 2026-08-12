@@ -11,7 +11,7 @@ program test_fortsym_form
     use fortsym_chart, only: DIM, chart_t, chart_create
     use fortsym_magnetic, only: b_con
     use fortsym_form, only: form_t, form, form_one, form_component, &
-        wedge, d, star, interior, lie, flat, sharp, scale_form
+        wedge, d, star, interior, lie, flat, sharp, scale_form, volume_form
     implicit none
 
     type(arena_t), target :: arena
@@ -23,7 +23,8 @@ program test_fortsym_form
     type(expr_t) :: raised(DIM)
     type(form_t) :: scalar_form, one_form
     type(form_t) :: derivative, second_derivative, product, hodge, hodge_hodge
-    type(form_t) :: volume, flux, lie_form, cartan_first, cartan_second
+    type(form_t) :: volume, reversed_volume, flux, lie_form
+    type(form_t) :: cartan_first, cartan_second
     integer :: mask, i
 
     call arena%init()
@@ -95,6 +96,11 @@ program test_fortsym_form
     one_form = form_one(shear, potential)
     vector = b_con(shear, potential)
     volume = star(shear, form(num(arena, 1)))
+    reversed_volume = volume_form(shear, -1)
+    call check_identity(suite, engine, "volume form matches Hodge volume", &
+        form_component(volume, 7) - form_component(volume_form(shear), 7))
+    call check_identity(suite, engine, "reversed volume form orientation", &
+        form_component(reversed_volume, 7) + form_component(volume, 7))
     flux = interior(shear, vector, volume)
     derivative = d(shear, one_form)
     do mask = 3, 6

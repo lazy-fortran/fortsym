@@ -105,6 +105,16 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(chart.vector((1, 2, 3)).variance, (1,))
         self.assertEqual(chart.covector((1, 2, 3)).variance, (-1,))
 
+        expected_volume = oracle.sqrt(
+            (expected_covariant.T * expected_covariant).det()
+        )
+        actual_volume = oracle.sympify(str(chart.volume()[7].simplify()))
+        actual_reversed_volume = oracle.sympify(
+            str(chart.volume(-1)[7].simplify())
+        )
+        self.assertEqual(actual_volume, expected_volume)
+        self.assertEqual(actual_reversed_volume, -expected_volume)
+
         left_handed = sp.Chart((u, v, w), (-u, v, w))
         self.assertEqual(left_handed.jacobian().simplify(), -1)
         self.assertEqual(left_handed.sqrtg().simplify(), 1)
