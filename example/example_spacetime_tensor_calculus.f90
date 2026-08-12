@@ -12,11 +12,14 @@ program example_spacetime_tensor_calculus
     type(spacetime_tensor_t) :: v_upper, v_lower, roundtrip, density_value
     type(spacetime_tensor_t) :: dyad, norm
     type(spacetime_tensor_t) :: curved_vector, derivative_tensor
+    type(spacetime_tensor_t) :: curved_metric_tensor, killing_tensor
+    type(spacetime_tensor_t) :: dilation_vector, lie_tensor
     type(expr_t) :: coordinates(SPACETIME_DIM)
     type(expr_t) :: components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: vector_values(SPACETIME_DIM), volume_factor
     type(expr_t) :: lower_display, density_display, norm_display
     type(expr_t) :: derivative_display
+    type(expr_t) :: lie_display
     type(engine_result_t) :: checked
     integer :: signature(SPACETIME_DIM), empty(0), single_index(1), &
         derivative_indices(2), i
@@ -97,6 +100,28 @@ program example_spacetime_tensor_calculus
     if (.not. checked%ok) error stop "failed to simplify covariant derivative"
     derivative_display = checked%value
     print '(a,a)', "  nabla_2 V^1 = ", chars(print_expr(derivative_display))
+
+    curved_metric_tensor = spacetime_metric_covariant_tensor(curved_metric)
+    killing_tensor = lie(curved_metric, curved_vector, curved_metric_tensor)
+    derivative_indices(1) = 2
+    derivative_indices(2) = 2
+    checked = simplify(spacetime_tensor_component(killing_tensor, &
+        derivative_indices))
+    if (.not. checked%ok) error stop "failed to simplify Killing residual"
+    lie_display = checked%value
+    print '(a,a)', "  L_(d/dx) g_22 = ", chars(print_expr(lie_display))
+
+    vector_values = num(arena, 0)
+    vector_values(1) = coordinates(1)
+    dilation_vector = spacetime_tensor_vector(curved_metric, vector_values)
+    lie_tensor = lie(curved_metric, dilation_vector, curved_metric_tensor)
+    derivative_indices(1) = 1
+    derivative_indices(2) = 1
+    checked = simplify(spacetime_tensor_component(lie_tensor, &
+        derivative_indices))
+    if (.not. checked%ok) error stop "failed to simplify Lie derivative"
+    lie_display = checked%value
+    print '(a,a)', "  L_(q_1 d/dq_1) g_11 = ", chars(print_expr(lie_display))
 
 contains
 

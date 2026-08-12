@@ -47,6 +47,8 @@ module fortsym_spacetime_tensor
     public :: spacetime_tensor_product, spacetime_tensor_contract
     public :: spacetime_tensor_permute
     public :: spacetime_tensor_covariant_diff
+    public :: spacetime_tensor_lie_derivative
+    public :: spacetime_killing
 
 contains
 
@@ -590,6 +592,88 @@ contains
 
         result = spacetime_tensor_from_storage(g, output_rank, values, metadata, weight)
     end function spacetime_tensor_covariant_diff
+
+    !> Coordinate Lie derivative of a typed spacetime tensor.
+    !>
+    !> The vector is an ordinary contravariant, weight-zero field.  A tensor
+    !> density of weight w receives +w T d_k X^k, while upper slots receive
+    !> -T^k d_k X^a and lower slots receive +T_k d_b X^k.
+    function spacetime_tensor_lie_derivative(g, vector_value, tensor_value) &
+            result(result)
+        type(spacetime_metric_t), intent(in) :: g
+        type(spacetime_tensor_t), intent(in) :: vector_value, tensor_value
+        type(spacetime_tensor_t) :: result
+        type(expr_t) :: coordinates(SPACETIME_DIM)
+        type(expr_t) :: values(0:MAX_COMPONENTS - 1)
+        type(expr_t) :: base, term, divergence
+        integer :: rank, count, output_index, dimension
+        integer :: indices(SPACETIME_TENSOR_MAX_RANK)
+        integer :: old_indices(SPACETIME_TENSOR_MAX_RANK)
+        integer :: metadata(SPACETIME_TENSOR_MAX_RANK)
+        integer :: i, k, slot, weight
+
+        if (.not. spacetime_metric_valid(g)) return
+        if (.not. spacetime_metric_has_coordinates(g)) return
+        if (.not. spacetime_tensor_same_arena(vector_value, g)) return
+        if (.not. spacetime_tensor_same_arena(tensor_value, g)) return
+        if (vector_value%rank /= 1) return
+        if (vector_value%variance(1) /= SPACETIME_UPPER) return
+        if (vector_value%density_weight /= 0) return
+        dimension = spacetime_metric_dimension(g)
+        rank = tensor_value%rank
+        count = component_count(rank, dimension)
+        coordinates = spacetime_metric_coordinates(g)
+        metadata = tensor_value%variance
+        weight = tensor_value%density_weight
+        values = num(tensor_value%a, 0)
+        divergence = num(tensor_value%a, 0)
+        do k = 1, dimension
+            divergence = divergence + diff(vector_value%component(k - 1), &
+                coordinates(k))
+        end do
+
+        do output_index = 0, count - 1
+            call decode_index(output_index, rank, indices, dimension)
+            base = tensor_value%component(encode_index(indices, rank, dimension))
+            term = num(tensor_value%a, 0)
+            do k = 1, dimension
+                term = term + vector_value%component(k - 1)* &
+                    diff(base, coordinates(k))
+            end do
+            do slot = 1, rank
+                i = indices(slot)
+                do k = 1, dimension
+                    old_indices = indices
+                    old_indices(slot) = k
+                    if (tensor_value%variance(slot) == SPACETIME_UPPER) then
+                        term = term - tensor_value%component( &
+                            encode_index(old_indices, rank, dimension))* &
+                            diff(vector_value%component(i - 1), coordinates(k))
+                    else
+                        term = term + tensor_value%component( &
+                            encode_index(old_indices, rank, dimension))* &
+                            diff(vector_value%component(k - 1), coordinates(i))
+                    end if
+                end do
+            end do
+            if (weight /= 0) then
+                term = term + num(tensor_value%a, weight)*base*divergence
+            end if
+            values(output_index) = term
+        end do
+
+        result = spacetime_tensor_from_storage(g, rank, values, metadata, weight)
+    end function spacetime_tensor_lie_derivative
+
+    function spacetime_killing(g, vector_value) result(result)
+        type(spacetime_metric_t), intent(in) :: g
+        type(spacetime_tensor_t), intent(in) :: vector_value
+        type(spacetime_tensor_t) :: result
+        type(spacetime_tensor_t) :: metric_value
+
+        metric_value = spacetime_metric_covariant_tensor(g)
+        result = spacetime_tensor_lie_derivative(g, vector_value, metric_value)
+    end function spacetime_killing
 
     function zero_tensor(a, dimension, rank, metadata, weight) result(result)
         type(arena_t), pointer, intent(in) :: a

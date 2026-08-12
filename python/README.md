@@ -113,6 +113,11 @@ density weight remain explicit in the returned view.
 `SpacetimeTensor.covariant_diff()` (alias `.covariant_derivative()`) appends a
 lower derivative slot, applies the metric Christoffel terms to every slot, and
 preserves density weight for supported input rank at most three.
+`SpacetimeTensor.lie(vector)` (alias `.lie_derivative()`) transports any
+supported tensor rank along a weight-zero contravariant vector, including the
+stored tensor-density term. `SpacetimeMetric.killing(vector)` is the same
+owner applied to the covariant metric tensor; `SpacetimeMetric.lie(vector, tensor)`
+exposes the explicit metric-owner spelling.
 `SpacetimeMetric.flat(vector)` lowers a vector into a native one-form and
 `SpacetimeMetric.sharp(one_form)` raises it back; the returned vector carries
 upper variance metadata. `grad(scalar)` returns a contravariant metric

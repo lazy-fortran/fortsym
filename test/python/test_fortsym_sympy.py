@@ -771,6 +771,28 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(
             oracle.sympify(str(metric_derivative[1, 1, 0].simplify())), 0
         )
+        killing = curved_metric.killing(curved_vector)
+        self.assertEqual(oracle.sympify(str(killing[1, 1].simplify())), 0)
+        dilation = curved_metric.vector((t, 0, 0, 0))
+        lie_metric = curved_metric.lie(dilation, curved_metric.covariant())
+        tensor_t = oracle.Symbol("tensor_oracle_t")
+        self.assertEqual(
+            oracle.sympify(str(lie_metric[0, 0].simplify())), 2
+        )
+        self.assertEqual(
+            oracle.sympify(str(lie_metric[1, 1].simplify())),
+            2*tensor_t*oracle.exp(2*tensor_t),
+        )
+        self.assertEqual(
+            oracle.sympify(str(curved_metric.lie(
+                dilation, curved_metric.scalar(t)
+            )[()].simplify())), tensor_t
+        )
+        self.assertEqual(
+            oracle.sympify(str(curved_metric.lie(
+                dilation, curved_metric.scalar(1, density_weight=1)
+            )[()].simplify())), 1
+        )
         curved_density = curved_metric.vector(
             (0, sp.exp(t), 0, 0), density_weight=1
         )

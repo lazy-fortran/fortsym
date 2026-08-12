@@ -161,6 +161,8 @@ module fortsym
         spacetime_tensor_product, spacetime_tensor_contract, &
         spacetime_tensor_permute, spacetime_metric_covariant_tensor, &
         spacetime_metric_contravariant_tensor, spacetime_tensor_covariant_diff, &
+        spacetime_tensor_lie_derivative, &
+        spacetime_killing, &
         SPACETIME_UPPER, SPACETIME_LOWER
     use fortsym_flux, only: flux_coordinate_t, flux_coordinates, &
         flux_coordinate_valid, flux_coordinate_label, flux_coordinate_kind, &
@@ -214,11 +216,13 @@ module fortsym
     interface lie
         procedure :: form_lie_derivative
         procedure :: tensor_lie_derivative
+        procedure :: spacetime_tensor_lie_derivative
     end interface lie
 
     interface lie_derivative
         procedure :: form_lie_derivative
         procedure :: tensor_lie_derivative
+        procedure :: spacetime_tensor_lie_derivative
     end interface lie_derivative
 
     public :: arena_t, node_kind_name
@@ -322,6 +326,8 @@ module fortsym
         spacetime_tensor_contract, spacetime_tensor_permute, &
         spacetime_metric_covariant_tensor, spacetime_metric_contravariant_tensor, &
         spacetime_tensor_covariant_diff, &
+        spacetime_tensor_lie_derivative, &
+        spacetime_killing, &
         SPACETIME_UPPER, SPACETIME_LOWER, &
         maxwell_field_strength, maxwell_gauge_transform, maxwell_residual, &
         form_t, form, form_scalar, form_one, form_two, &

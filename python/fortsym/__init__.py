@@ -806,6 +806,12 @@ def _configure(lib):
             ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    lib.spacetime_tensor_lie = declare(
+        "fortsym_spacetime_tensor_lie", ctypes.c_int,
+        spacetime_tensor_arguments[:6] + [
+            ctypes.POINTER(_CVOID),
+        ] + spacetime_tensor_arguments[6:-4] + spacetime_tensor_arguments[-3:],
+    )
     lib.spacetime_geodesic_residual = declare(
         "fortsym_spacetime_geodesic_residual", ctypes.c_int,
         [
@@ -2185,6 +2191,36 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "spacetime_tensor_covariant_diff")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
+    def _spacetime_tensor_lie(self, metric, vector, tensor):
+        if not isinstance(vector, SpacetimeTensor) or vector.metric is not metric:
+            raise ValueError("spacetime Lie derivative needs a vector from this metric")
+        if vector.rank != 1 or vector.variance != (1,) or vector.density_weight != 0:
+            raise ValueError("spacetime Lie derivative needs a weight-zero contravariant vector")
+        if not isinstance(tensor, SpacetimeTensor) or tensor.metric is not metric:
+            raise ValueError("spacetime tensor must belong to this metric")
+        if tensor.rank > 0 and tensor.variance is None:
+            raise ValueError("spacetime Lie derivative needs slot variance")
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        vector_values = (_CVOID * SPACETIME_DIM)(
+            *[value._handle for value in vector.components]
+        )
+        values = (_CVOID * (SPACETIME_DIM ** tensor.rank))(
+            *[value._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(
+            *(tensor.variance or ())
+        )
+        output = (_CVOID * (SPACETIME_DIM ** tensor.rank))()
+        message = _message()
+        status = self._lib.spacetime_tensor_lie(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, vector_values, values, tensor.rank, variance,
+            tensor.density_weight, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "spacetime_tensor_lie")
         return tuple(Expr(self, output[index]) for index in range(len(output)))
 
     def _spacetime_scalar(self, operation, metric):
@@ -4030,6 +4066,18 @@ class SpacetimeTensor:
 
     covariant_derivative = covariant_diff
 
+    def lie(self, vector):
+        """Return the coordinate Lie derivative along a vector field."""
+        components = self._arena._spacetime_tensor_lie(
+            self.metric, vector, self
+        )
+        return SpacetimeTensor(
+            self.metric, components, self.shape, self.variance,
+            self.density_weight, _owned=True,
+        )
+
+    lie_derivative = lie
+
     def close(self):
         if self._owned:
             for value in self.components:
@@ -4147,6 +4195,17 @@ class SpacetimeMetric:
         result._temporaries = tuple(temporaries)
         return result
 
+    def scalar(self, value, density_weight=0):
+        """Create a typed spacetime scalar or scalar density."""
+        expression, temporary = self._arena._coerce(value)
+        result = SpacetimeTensor(
+            self, (expression,), (), variance=(),
+            density_weight=density_weight, _owned=False,
+        )
+        if temporary is not None:
+            result._temporaries = (temporary,)
+        return result
+
     def flat(self, vector):
         """Lower a contravariant vector and return its one-form view."""
         values = self._arena._spacetime_vector_array(
@@ -4182,6 +4241,18 @@ class SpacetimeMetric:
         return self._arena._spacetime_vector_scalar(
             self._arena._lib.spacetime_metric_divergence, self, vector
         )
+
+    def lie(self, vector, tensor):
+        """Return the Lie derivative of a tensor along a vector field."""
+        if not isinstance(tensor, SpacetimeTensor) or tensor.metric is not self:
+            raise ValueError("lie expects a tensor from this metric")
+        return tensor.lie(vector)
+
+    lie_derivative = lie
+
+    def killing(self, vector):
+        """Return the metric Killing residual ``L_vector(g)``."""
+        return self.covariant().lie(vector)
 
     def laplacian(self, scalar):
         """Return the metric Laplace--Beltrami or wave operator."""

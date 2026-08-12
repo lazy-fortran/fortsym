@@ -422,6 +422,14 @@ Christoffel transport term to every upper and lower slot and the
 The Python `SpacetimeTensor.covariant_diff()` method and its
 `covariant_derivative()` alias expose the same owner.
 
+`lie(metric, vector, tensor)` and `lie_derivative(metric, vector, tensor)`
+use the runtime tensor owner for coordinate Lie transport without a metric
+connection. The vector must be an ordinary weight-zero contravariant field;
+upper slots contribute `-T^k*d_k X^a`, lower slots contribute
+`+T_k*d_b X^k`, and a density of weight `w` contributes
+`+w*T*d_k X^k`. `lie(metric, vector, spacetime_metric_covariant_tensor(metric))`
+is the Killing residual.
+
 ## Relativity and magnetic-flux examples
 
 The built examples keep physical assumptions at the application boundary:
