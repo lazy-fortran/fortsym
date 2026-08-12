@@ -386,6 +386,10 @@ Every checklist item requires all of the following:
     existing checked `factorial_i64` owner: `factorial(0)` through
     `factorial(20)` become exact integers; arbitrary-size, overflowing, and
     non-integer inputs remain explicitly unevaluated.
+  - [x] Extend exact integer factorial evaluation through order `1000` using
+    the existing exact-arithmetic multiplication owner: orders `21` through
+    `1000` produce arbitrary-size exact integers, while larger orders remain
+    bounded refusals rather than triggering unbounded work.
   - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
     non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
@@ -756,6 +760,11 @@ Every checklist item requires all of the following:
     matrix. The two cold and warm rows are correctness-checked ABI diagnostics
     and explicitly waived at 5.25x cold and 3.25x warm SymPy; the final
     96-workload matrix retains 82 enforced rows with zero unwaived violations.
+  - [x] Add bounded arbitrary-size factorial values to the correctness and
+    performance matrix. The `factorial(100)` cold and warm rows are
+    correctness-checked ABI diagnostics and explicitly waived at 5.57x cold
+    and 3.57x warm SymPy; the final 98-workload matrix retains 82 enforced
+    rows with zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

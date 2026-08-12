@@ -140,10 +140,11 @@ canonicalized to `log(sqrt(2) + 1)` and `-log(sqrt(2) + 1)`.
 Finite gamma-family poles follow SymPy's representable boundaries: exact
 non-positive integer `gamma(n)` becomes `zoo`, exact non-positive integer
 `loggamma(n)` becomes `oo`, and exact negative integer `factorial(n)` becomes
-`zoo`. Compact nonnegative integer factorials through `factorial(20)` are
-evaluated exactly through the checked native integer path; larger, overflowing,
-and non-integer factorials remain applied. Broader non-integer and
-accumulation-bound pole cases remain applied.
+`zoo`. Nonnegative integer factorials through `factorial(1000)` are evaluated
+exactly: orders through 20 use the checked compact integer path, while larger
+supported orders use the existing arbitrary-size exact-arithmetic owner. Orders
+above 1000, overflowing resource budgets, and non-integer factorials remain
+applied. Broader non-integer and accumulation-bound pole cases remain applied.
 The exact imaginary branch points `asinh(i)` and `asinh(-i)` are canonicalized
 to `i*pi/2` and `-i*pi/2`; broader complex inverse branches remain unevaluated.
 The reciprocal-hyperbolic heads `csch`, `sech`, and `coth` likewise have

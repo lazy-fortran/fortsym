@@ -98,6 +98,7 @@ int main(void)
     fortsym_expr *half = NULL;
     fortsym_expr *three = NULL;
     fortsym_expr *five = NULL;
+    fortsym_expr *twenty_one = NULL;
     fortsym_expr *sqrt_three = NULL;
     fortsym_expr *negative_imaginary = NULL;
     fortsym_expr *pole = NULL;
@@ -426,6 +427,20 @@ int main(void)
                               sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(pole_simplified, "120");
+    fortsym_expr_free(pole_simplified);
+    fortsym_expr_free(pole);
+    pole_simplified = NULL;
+    pole = NULL;
+    status = fortsym_exact(arena, "21", &twenty_one, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    root_argument[0] = twenty_one;
+    status = fortsym_function(arena, "factorial", root_argument, 1, &pole,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, pole, &pole_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(pole_simplified, "51090942171709440000");
     fortsym_expr_free(pole_simplified);
     fortsym_expr_free(pole);
     pole_simplified = NULL;
@@ -869,6 +884,7 @@ int main(void)
     fortsym_expr_free(sqrt_three);
     fortsym_expr_free(three);
     fortsym_expr_free(five);
+    fortsym_expr_free(twenty_one);
     fortsym_expr_free(negative_imaginary);
     fortsym_expr_free(pole_simplified);
     fortsym_expr_free(pole);
