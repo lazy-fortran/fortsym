@@ -125,6 +125,8 @@ canonicalized to `i*pi/2` and `i*pi`; other negative-real branches remain
 unevaluated.
 The exact imaginary branch points `acosh(i)` and `acosh(-i)` are canonicalized
 to `log(sqrt(2) + 1) + i*pi/2` and `log(sqrt(2) + 1) - i*pi/2`.
+The exact imaginary branch points `asin(i)` and `asin(-i)` are canonicalized
+to `i*log(sqrt(2) + 1)` and `-i*log(sqrt(2) + 1)`.
 The exact imaginary branch points `asinh(i)` and `asinh(-i)` are canonicalized
 to `i*pi/2` and `-i*pi/2`; broader complex inverse branches remain unevaluated.
 The reciprocal-hyperbolic heads `csch`, `sech`, and `coth` likewise have

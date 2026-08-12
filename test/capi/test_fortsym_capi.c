@@ -607,6 +607,30 @@ int main(void)
     fortsym_expr_free(branch);
     branch_simplified = NULL;
     branch = NULL;
+    root_argument[0] = imaginary;
+    status = fortsym_function(arena, "asin", root_argument, 1, &branch,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, branch, &branch_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(branch_simplified, "i*log(sqrt(2) + 1)");
+    fortsym_expr_free(branch_simplified);
+    fortsym_expr_free(branch);
+    branch_simplified = NULL;
+    branch = NULL;
+    root_argument[0] = negative_imaginary;
+    status = fortsym_function(arena, "asin", root_argument, 1, &branch,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, branch, &branch_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(branch_simplified, "-i*log(sqrt(2) + 1)");
+    fortsym_expr_free(branch_simplified);
+    fortsym_expr_free(branch);
+    branch_simplified = NULL;
+    branch = NULL;
     status = fortsym_rational(arena, 2, 3, &two_thirds, message,
                               sizeof message);
     assert(status == FORTSYM_OK);

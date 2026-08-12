@@ -1323,6 +1323,8 @@ contains
         type(expr_t) :: negative_imaginary_quarter_pi
         type(expr_t) :: imaginary_infinity, negative_imaginary_infinity
         type(expr_t) :: log_one_plus_sqrt_two
+        type(expr_t) :: imaginary_log_one_plus_sqrt_two
+        type(expr_t) :: negative_imaginary_log_one_plus_sqrt_two
 
         infinity = oo_expr(arena)
         complex_infinity = zoo_expr(arena)
@@ -1341,6 +1343,9 @@ contains
             i_expr(arena)*infinity
         log_one_plus_sqrt_two = log(num(arena, 1_int64) + &
             sqrt(num(arena, 2_int64)))
+        imaginary_log_one_plus_sqrt_two = i_expr(arena)*log_one_plus_sqrt_two
+        negative_imaginary_log_one_plus_sqrt_two = &
+            -imaginary_log_one_plus_sqrt_two
 
         r = engine%simplify(asin(infinity))
         call check("asin(oo) is negative i oo", &
@@ -1349,6 +1354,12 @@ contains
         call check("asin(-oo) is i oo", r%value == i_expr(arena)*infinity)
         r = engine%simplify(asin(complex_infinity))
         call check("asin(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(asin(i_expr(arena)))
+        call check("asin(i) is i log(1 + sqrt(2))", &
+            r%value == imaginary_log_one_plus_sqrt_two)
+        r = engine%simplify(asin(-i_expr(arena)))
+        call check("asin(-i) is negative i log(1 + sqrt(2))", &
+            r%value == negative_imaginary_log_one_plus_sqrt_two)
         r = engine%simplify(acos(infinity))
         call check("acos(oo) is i oo", r%value == i_expr(arena)*infinity)
         r = engine%simplify(acos(negative_infinity))
