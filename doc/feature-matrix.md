@@ -23,7 +23,7 @@ it.
 | Operation counting | SymPy-compatible non-visual tree count | conversion | conversion | visual operation expression and CSE |
 | Differentiation | yes | yes | Yacas concrete method | memoization and domain-sensitive rules |
 | Multivariate symbolic partials | yes | opaque | opaque | function assumptions and rewrite rules |
-| Coordinate charts, reciprocal bases, metrics, `sqrtg`, magnetic components, and Fourier modes | native first subset: charts, signed Jacobian, reciprocal basis, metric, `B^i`, `B_i`, `sqrtg B^i`, and symmetry-mode curl; Python `Chart` transport facade | conversion/oracle path | partial | flux-coordinate descriptors and paper weak forms |
+| Coordinate charts, reciprocal bases, metrics, `sqrtg`, magnetic components, and Fourier modes | native first subset: charts, signed Jacobian, covariant and reciprocal basis matrices, metric, `B^i`, `B_i`, `sqrtg B^i`, and symmetry-mode curl; Python `Chart` transport facade | conversion/oracle path | partial | explicit dimensions, coordinate-change composition, flux-coordinate descriptors, and paper weak forms |
 | Typed coordinate tensors and indexed algebra | native first subset: chart-bound `tensor_t`, rank/slot variance/density metadata, metric `raise`/`lower`, tensor product, opposite-variance contraction, trace, covariant differentiation, and independent nonorthogonal-chart checks; Python/SymPy transport for fixed 3D components and metadata | no public nodes | no | arbitrary dimensions, symmetry/canonicalization, and full Python/SymPy parity |
 | Connections and curvature | native fixed-3D subset: typed Christoffel, covariant derivative, Riemann, Ricci, scalar curvature, Einstein tensor, metric compatibility, and density-weight checks; C ABI and Python/SymPy chart views | no public nodes | no | pseudo-Riemannian signatures, torsion/nonmetricity, geodesics, Bianchi identities, and full differential comparison |
 | Differential forms and de Rham identities | native fixed-3D coordinate forms: `form_t`, `d`, wedge, metric `star`, interior product, Cartan `lie`, `flat`, `sharp`, and magnetic `i_B(volume)=dA` checks | C ABI plus `fortsym.Form`/`fortsym.sympy.Form` transport and the first native-backed `Manifold`/`Patch`/`CoordSystem`/`Differential`/`WedgeProduct`/`LieDerivative` names | no | arbitrary dimension/rank, coordinate transformations, pullbacks, Hodge signatures, Maxwell vocabulary, and full Python/SymPy `diffgeom` parity |
@@ -64,7 +64,7 @@ toolchain has been exercised:
 | Path | Toolchain | Evidence | Result |
 |---|---|---|---|
 | Native gate | `fo`, GNU Fortran 16.1.1 | full static, build, test, and lint stages | passed |
-| CMake/CTest | GNU Fortran/C/C++ 16.1.1, system SymEngine 0.14.0 | fresh Debug configure, build, and 51-test CTest run | 51 passed; optional SymPy CTest skipped |
+| CMake/CTest | GNU Fortran/C/C++ 16.1.1, system SymEngine 0.14.0 | fresh Debug configure, build, and 54-test CTest run | 53 passed; one optional SymPy CTest skipped |
 | Code generation | CMake codegen targets | kernel, IR, backend, WL, and simple-kernel tests | passed |
 | CUDA generation | `nvcc` 13.3.73, RTX 5060 Ti, driver 610.57.04 | CUDA emitter CTest plus independent generated `.cu` compilation | passed |
 | NVIDIA Fortran | `nvfortran` 26.5-0 | independent compilation of a generated Fortran kernel | passed |

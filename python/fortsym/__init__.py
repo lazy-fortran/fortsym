@@ -170,6 +170,12 @@ def _configure(lib):
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _SIZE,
          ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_jacobian = declare(
+        "fortsym_chart_jacobian",
+        ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _SIZE,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     for name in ("b_cov", "b_fourier", "b_fourier_density"):
         arguments = [
             _CVOID,
@@ -185,7 +191,8 @@ def _configure(lib):
             "chart_" + name,
             declare("fortsym_chart_" + name, ctypes.c_int, arguments),
         )
-    for name in ("metric_covariant", "metric_contravariant", "christoffel",
+    for name in ("covariant_basis", "reciprocal_basis", "metric_covariant",
+                 "metric_contravariant", "christoffel",
                  "riemann", "ricci", "einstein"):
         setattr(
             lib,
@@ -558,6 +565,15 @@ class Arena:
             self._require(), coordinate_handles, position_handles, 3,
         )
 
+    def _chart_jacobian(self, coordinates, position):
+        coordinate_handles, position_handles = self._chart_inputs(
+            coordinates, position
+        )
+        return self._result(
+            self._lib.chart_jacobian,
+            self._require(), coordinate_handles, position_handles, 3,
+        )
+
     def _chart_many(self, operation, coordinates, position, values, mode=None):
         coordinate_handles, position_handles = self._chart_inputs(
             coordinates, position
@@ -803,6 +819,18 @@ class Chart:
     def sqrtg(self):
         return self._arena._chart_sqrtg(self.coordinates, self.position)
 
+    def jacobian(self):
+        """Return the signed determinant of the chart Jacobian."""
+        return self._arena._chart_jacobian(self.coordinates, self.position)
+
+    def covariant_basis(self):
+        """Return ``e(component, index)`` in component-first flat order."""
+        return self._basis_result(self._arena._lib.chart_covariant_basis)
+
+    def reciprocal_basis(self):
+        """Return the dual basis ``e^index`` in component-first flat order."""
+        return self._basis_result(self._arena._lib.chart_reciprocal_basis)
+
     def tensor(self, components, variance=(), density_weight=0):
         return Tensor(self, components, variance, density_weight)
 
@@ -868,6 +896,12 @@ class Chart:
             operation, self.coordinates, self.position, rank
         )
         return Tensor(self, components, variance, density_weight, _owned=True)
+
+    def _basis_result(self, operation):
+        components = self._arena._chart_tensor(
+            operation, self.coordinates, self.position, 2
+        )
+        return components
 
     def form(self, components, degree=0):
         return Form(self, components, degree)
