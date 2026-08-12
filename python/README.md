@@ -71,7 +71,8 @@ Upper tensor slots use the forward Jacobian, lower slots use the inverse
 Jacobian, and density weights are applied through the absolute Jacobian
 determinant. Forms use the inverse Jacobian on each coframe factor, with the
 signed determinant for top forms. The result is expressed in the target
-coordinate symbols:
+coordinate symbols. `transition.compose(following)` applies two native
+transitions in sequence:
 
 ```python
 x, y, z, p, q, s = sp.symbols("x y z p q s")
@@ -82,6 +83,7 @@ transition = sp.ChartMap(
 )
 target_vector = transition.transform(source.vector((x, y, z)))
 assert tuple(value.simplify() for value in target_vector) == (p, q, s)
+target_form = transition.transform(source.one_form((x, y, z)))
 ```
 
 The geometry API currently covers the first magnetic-paper, fixed-rank

@@ -227,6 +227,14 @@ int fortsym_chart_map_form(
     const fortsym_expr *target_position[], const fortsym_expr *forward[],
     const fortsym_expr *inverse[], const fortsym_expr *components[], size_t degree,
     fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_map_compose(
+    fortsym_arena *arena, const fortsym_expr *source_coordinates[],
+    const fortsym_expr *source_position[], const fortsym_expr *middle_coordinates[],
+    const fortsym_expr *middle_position[], const fortsym_expr *target_coordinates[],
+    const fortsym_expr *target_position[], const fortsym_expr *first_forward[],
+    const fortsym_expr *first_inverse[], const fortsym_expr *following_forward[],
+    const fortsym_expr *following_inverse[], fortsym_expr *forward_out[],
+    fortsym_expr *inverse_out[], char *message, size_t capacity);
 int fortsym_chart_b_cov(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *vector[],

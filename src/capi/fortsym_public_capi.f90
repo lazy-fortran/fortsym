@@ -19,8 +19,8 @@ module fortsym_public_capi
     use fortsym_diff, only: diff
     use fortsym_chart, only: chart_t, chart_create, DIM, sqrtg, jacobian, &
         covariant_basis, reciprocal_basis, grad, divergence, curl, laplacian
-    use fortsym_chart_map, only: chart_map_t, chart_map_create, map_jacobian, &
-        inverse_jacobian, transform_tensor, transform_form
+    use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
+        map_jacobian, inverse_jacobian, transform_tensor, transform_form
     use fortsym_magnetic, only: b_cov, b_fourier, b_fourier_density
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_from_storage, tensor_component, tensor_valid, metric_covariant_tensor, &
@@ -95,7 +95,7 @@ module fortsym_public_capi
         fortsym_chart_grad, fortsym_chart_divergence, fortsym_chart_curl, &
         fortsym_chart_laplacian, &
         fortsym_chart_map_jacobian, fortsym_chart_map_inverse_jacobian, &
-        fortsym_chart_map_tensor, fortsym_chart_map_form, &
+        fortsym_chart_map_tensor, fortsym_chart_map_form, fortsym_chart_map_compose, &
         fortsym_chart_b_cov, &
         fortsym_chart_b_fourier, fortsym_chart_b_fourier_density, &
         fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
@@ -1010,6 +1010,47 @@ contains
         value = transform_form(map, input)
         call make_form_array(a, value, out, status, message, capacity)
     end function fortsym_chart_map_form
+
+    function fortsym_chart_map_compose(raw, source_coordinates, source_position, &
+            middle_coordinates, middle_position, target_coordinates, target_position, &
+            first_forward, first_inverse, following_forward, following_inverse, &
+            forward_out, inverse_out, message, capacity) bind(c, &
+            name="fortsym_chart_map_compose") result(status)
+        type(c_ptr), value :: raw, source_coordinates, source_position
+        type(c_ptr), value :: middle_coordinates, middle_position
+        type(c_ptr), value :: target_coordinates, target_position
+        type(c_ptr), value :: first_forward, first_inverse
+        type(c_ptr), value :: following_forward, following_inverse
+        type(c_ptr), value :: forward_out, inverse_out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a, following_a
+        type(chart_map_t) :: first, following, result
+
+        call get_chart_map_inputs(raw, source_coordinates, source_position, &
+            middle_coordinates, middle_position, first_forward, first_inverse, &
+            first, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_chart_map_inputs(raw, middle_coordinates, middle_position, &
+            target_coordinates, target_position, following_forward, &
+            following_inverse, following, following_a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(following_a, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        result = compose_maps(first, following)
+        if (.not. associated(result%source%a)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call make_expr_array(a, result%forward, forward_out, DIM, status, &
+            message, capacity)
+        if (status /= FORTSYM_OK) return
+        call make_expr_array(a, result%inverse, inverse_out, DIM, status, &
+            message, capacity)
+    end function fortsym_chart_map_compose
 
     function fortsym_chart_metric_covariant(raw, coordinates, position, out, &
             message, capacity) bind(c, name="fortsym_chart_metric_covariant") &

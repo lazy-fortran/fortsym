@@ -234,6 +234,19 @@ def _configure(lib):
             _CHAR_PTR, _SIZE,
         ],
     )
+    lib.chart_map_compose = declare(
+        "fortsym_chart_map_compose", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            _CHAR_PTR, _SIZE,
+        ],
+    )
     for name in ("b_cov", "b_fourier", "b_fourier_density"):
         arguments = [
             _CVOID,
@@ -1028,6 +1041,43 @@ class Arena:
             raise FortSymError(status, _decode(message), "map_form")
         return tuple(Expr(self, output[index]) for index in range(8))
 
+    def _chart_map_compose(self, first, following):
+        source_coordinates, source_position = self._chart_inputs(
+            first.source.coordinates, first.source.position
+        )
+        middle_coordinates, middle_position = self._chart_inputs(
+            first.target.coordinates, first.target.position
+        )
+        target_coordinates, target_position = self._chart_inputs(
+            following.target.coordinates, following.target.position
+        )
+        first_forward = (_CVOID * 3)(
+            *[self._check(value)._handle for value in first.forward]
+        )
+        first_inverse = (_CVOID * 3)(
+            *[self._check(value)._handle for value in first.inverse]
+        )
+        following_forward = (_CVOID * 3)(
+            *[self._check(value)._handle for value in following.forward]
+        )
+        following_inverse = (_CVOID * 3)(
+            *[self._check(value)._handle for value in following.inverse]
+        )
+        forward = (_CVOID * 3)()
+        inverse = (_CVOID * 3)()
+        message = _message()
+        status = self._lib.chart_map_compose(
+            self._require(), source_coordinates, source_position,
+            middle_coordinates, middle_position, target_coordinates,
+            target_position, first_forward, first_inverse, following_forward,
+            following_inverse, forward, inverse, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "map_compose")
+        return tuple(Expr(self, forward[index]) for index in range(3)), tuple(
+            Expr(self, inverse[index]) for index in range(3)
+        )
+
     def relation(self, left: "Expr", right: "Expr", name: str):
         left = self._check(left)
         right, temporary = self._coerce(right)
@@ -1287,6 +1337,17 @@ class ChartMap:
             self._arena._lib.chart_map_inverse_jacobian, self
         )
 
+    def compose(self, following):
+        """Return the transition obtained by applying ``following`` next."""
+        if not isinstance(following, ChartMap):
+            raise TypeError("ChartMap.compose expects another ChartMap")
+        if following.source is not self.target:
+            raise ValueError("ChartMap.compose requires matching intermediate charts")
+        if following._arena is not self._arena:
+            raise ValueError("ChartMap.compose maps must share an arena")
+        forward, inverse = self._arena._chart_map_compose(self, following)
+        return ChartMap(self.source, following.target, forward, inverse)
+
     def transform(self, tensor):
         if isinstance(tensor, Tensor):
             if tensor.chart is not self.source:
@@ -1371,7 +1432,9 @@ class Tensor:
         return len(self.components)
 
     def __iter__(self):
-        return iter(self.components)
+        for component in self.components:
+            component._tensor_owner = self
+            yield component
 
     def covariant_diff(self):
         return self.chart.covariant_diff(self)
