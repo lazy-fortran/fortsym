@@ -485,6 +485,9 @@ Every checklist item requires all of the following:
   - [x] Canonicalize the exact imaginary inverse-hyperbolic branch points:
     `atanh(i)` becomes `i*pi/4` and `atanh(-i)` becomes `-i*pi/4`; broader
     complex inverse branches remain unevaluated.
+  - [x] Canonicalize the exact imaginary inverse-tangent branch points:
+    `atan(i)` becomes `i*oo` and `atan(-i)` becomes `-i*oo`; accumulation-bound
+    results at `zoo` remain unevaluated.
   - [x] Canonicalize the exact principal inverse-hyperbolic branch points:
     `acosh(0)` becomes `i*pi/2` and `acosh(-1)` becomes `i*pi`; unsupported
     negative-real branches remain unevaluated.
@@ -678,17 +681,21 @@ Every checklist item requires all of the following:
     and performance matrix. Their cold and warm rows are enforced and measured
     at 0.014x and 0.044x SymPy; the 60 substantive rows remain enforced with
     zero unwaived violations.
+  - [x] Add the exact `atan(i)`/`atan(-i)` branch points to the correctness and
+    performance matrix. Their cold and warm rows are enforced and measured at
+    0.018x and 0.052x SymPy; the 62 substantive rows remain enforced with
+    zero unwaived violations.
   - [x] Add the exact `acosh(0)`/`acosh(-1)` branch points to the correctness
     and performance matrix. Their cold and warm rows are enforced and measured
-    at 0.017x and 0.058x SymPy; the 62 substantive rows remain enforced with
+    at 0.017x and 0.058x SymPy; the 64 substantive rows remain enforced with
     zero unwaived violations.
   - [x] Add exact negative perfect-square roots to the correctness and
     performance matrix. The cold and warm rows are enforced and measured at
-    0.029x and 0.062x SymPy; the 64 substantive rows remain enforced with
+    0.029x and 0.062x SymPy; the 66 substantive rows remain enforced with
     zero unwaived violations.
   - [x] Add the exact `asinh(i)`/`asinh(-i)` branch points to the correctness
     and performance matrix. Their cold and warm rows are enforced and measured
-    at 0.018x and 0.051x SymPy; the 66 substantive rows remain enforced with
+    at 0.018x and 0.051x SymPy; the 68 substantive rows remain enforced with
     zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
