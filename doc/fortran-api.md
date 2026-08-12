@@ -406,6 +406,7 @@ fo exec example_gps_newtonian_limit
 fo exec example_magnetic_flux_coordinates
 fo exec example_boozer_coordinates
 fo exec example_spherical_coordinates
+fo exec example_cylindrical_fourier
 ```
 
 `example_de_sitter` uses the flat-slicing metric
@@ -457,6 +458,12 @@ metric owner for Christoffel symbols and vector calculus. It verifies
 `grad(r)`, `div(r e_r)`, a nontrivial curl, and
 `Laplace--Beltrami(r^2) = 6` without carrying the raw Cartesian chain-rule
 expansion through every connection component.
+
+`example_cylindrical_fourier` follows the Albert--Bíro--Lainer ordering
+`(Z, R, phi)`. It keeps `sqrt(g) B^i` as the primary Fourier density, so the
+displayed result does not require the branch choice `sqrt(R**2) = R`. The
+example checks the three density components for
+`A = Z R dZ + R**2 dR` and a symbolic symmetry mode `n`.
 
 `symbols` assigns whitespace- or comma-separated names to scalar outputs:
 

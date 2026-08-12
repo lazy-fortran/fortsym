@@ -1245,6 +1245,33 @@ class SympySubsetTest(unittest.TestCase):
             self.assertEqual(oracle.simplify(actual_value - expected_value), 0)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_paper_cylindrical_fourier_density_matches_sympy(self):
+        z, radius, phi, mode = sp.symbols(
+            "paper_cyl_z paper_cyl_R paper_cyl_phi paper_cyl_n"
+        )
+        chart = sp.Chart(
+            (z, radius, phi),
+            (radius*sp.cos(phi), radius*sp.sin(phi), z),
+        )
+        actual = chart.b_fourier_density(
+            (z*radius, radius**2, z - z), mode
+        )
+
+        oz, o_radius, o_mode = oracle.symbols(
+            "paper_cyl_z paper_cyl_R paper_cyl_n"
+        )
+        expected = (
+            -oracle.I*o_mode*o_radius**2,
+            oracle.I*o_mode*oz*o_radius,
+            -oz,
+        )
+        for actual_value, expected_value in zip(actual, expected):
+            parsed = oracle.sympify(
+                str(actual_value.simplify()), locals={"i": oracle.I}
+            )
+            self.assertEqual(oracle.simplify(parsed - expected_value), 0)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_paper_fourier_weak_form_branch_matches_sympy(self):
         u1, u2, u3, nu33 = sp.symbols(
             "weak_u1 weak_u2 weak_u3 weak_nu33"
