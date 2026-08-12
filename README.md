@@ -150,9 +150,10 @@ substitutions do not cascade through replacement expressions. The
 it does not perform a final expansion. `Expr.match` returns `{}` for equal
 structure and `None` otherwise, and the compatibility layer supports bounded
 `Wild` patterns with fixed structural slots plus `exclude` and `properties`
-filters; exact non-wildcard `Expr.replace` reuses that replacement owner and
-supports `map=True`; broad callable, wildcard replacement, and commutative
-remainder matching remain outside the subset.
+filters plus bounded single-Wild additive and multiplicative remainder
+matching; exact non-wildcard `Expr.replace` reuses that replacement owner and
+supports `map=True`; broad callable, wildcard replacement, and multi-Wild
+commutative partitioning remain outside the subset.
 
 **Solve exact dense rational systems.** `solve_exact_linear_system` accepts an
 `expr_t` coefficient matrix and one or more right-hand sides. It uses

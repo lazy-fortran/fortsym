@@ -36,6 +36,170 @@ def _wildcard_accepts(wildcard, expression):
     return True
 
 
+def _direct_wildcard(expression, wildcards):
+    if expression.kind != 4:
+        return None
+    return wildcards.get(expression.name)
+
+
+def _has_wildcard(expression):
+    return bool(getattr(expression, "_wildcard_patterns", {}))
+
+
+def _has_numeric_factor(expression):
+    arguments = expression.args
+    try:
+        return any(argument.kind in (1, 2, 3, 10, 11, 12, 13)
+                   for argument in arguments)
+    finally:
+        for argument in arguments:
+            argument.close()
+
+
+def _combine_owned(values, operation, owned):
+    result = values[0]
+    for value in values[1:]:
+        result = operation(result, value)
+        owned.append(result)
+    return result
+
+
+def _commutative_remainder(expression, pattern, wildcards):
+    """Match one repeated or single Wild at an Add or Mul root."""
+    if len(wildcards) != 1 or pattern.kind not in (6, 7):
+        return None
+    wildcard = next(iter(wildcards.values()))
+    pattern_args = pattern.args
+    actual_args = ()
+    owned = []
+    binding = None
+    try:
+        fixed = []
+        wildcard_count = 0
+        for argument in pattern_args:
+            candidate = _direct_wildcard(argument, wildcards)
+            if candidate is wildcard:
+                wildcard_count += 1
+            elif _has_wildcard(argument):
+                return None
+            else:
+                fixed.append(argument)
+        if not wildcard_count:
+            return None
+
+        if pattern.kind == 6:
+            if (fixed and expression.kind == 7 and
+                    not _has_numeric_factor(expression)):
+                return None
+            if expression.kind == 6:
+                actual_args = expression.args
+                used = set()
+                exact_partition = True
+                for expected in fixed:
+                    match = next(
+                        (index for index, actual in enumerate(actual_args)
+                         if index not in used and actual == expected),
+                        None,
+                    )
+                    if match is None:
+                        exact_partition = False
+                        break
+                    used.add(match)
+                if exact_partition:
+                    remaining = [
+                        actual for index, actual in enumerate(actual_args)
+                        if index not in used
+                    ]
+                    if not remaining:
+                        binding = expression._arena.integer(0)
+                        owned.append(binding)
+                    elif len(remaining) == 1:
+                        binding = remaining[0]
+                    else:
+                        binding = _combine_owned(
+                            remaining, lambda left, right: left + right, owned)
+            elif len(fixed) == 1 and expression == fixed[0]:
+                binding = expression._arena.integer(0)
+                owned.append(binding)
+            if binding is None:
+                if fixed:
+                    fixed_total = fixed[0]
+                    if len(fixed) > 1:
+                        fixed_total = _combine_owned(
+                            fixed, lambda left, right: left + right, owned)
+                    binding = expression - fixed_total
+                    owned.append(binding)
+                    binding = binding.expand()
+                    owned.append(binding)
+                else:
+                    binding = expression
+            if wildcard_count > 1:
+                divisor = expression._arena.integer(wildcard_count)
+                owned.append(divisor)
+                binding = binding / divisor
+                owned.append(binding)
+        else:
+            numeric = all(argument.kind in (1, 2, 3, 10, 11, 12, 13)
+                          for argument in fixed)
+            if numeric:
+                if fixed:
+                    coefficient = fixed[0]
+                    if len(fixed) > 1:
+                        coefficient = _combine_owned(
+                            fixed, lambda left, right: left * right, owned)
+                else:
+                    coefficient = expression._arena.integer(1)
+                    owned.append(coefficient)
+                if coefficient.exact_text not in ("1", "1/1"):
+                    binding = expression / coefficient
+                    owned.append(binding)
+                else:
+                    binding = expression
+            elif expression.kind == 7:
+                actual_args = expression.args
+                used = set()
+                for expected in fixed:
+                    match = next(
+                        (index for index, actual in enumerate(actual_args)
+                         if index not in used and actual == expected),
+                        None,
+                    )
+                    if match is None:
+                        return None
+                    used.add(match)
+                remaining = [
+                    actual for index, actual in enumerate(actual_args)
+                    if index not in used
+                ]
+                if not remaining:
+                    binding = expression._arena.integer(1)
+                    owned.append(binding)
+                elif len(remaining) == 1:
+                    binding = remaining[0]
+                else:
+                    binding = _combine_owned(
+                        remaining, lambda left, right: left * right, owned)
+            elif len(fixed) == 1 and expression == fixed[0]:
+                binding = expression._arena.integer(1)
+                owned.append(binding)
+            else:
+                return None
+
+        if not _wildcard_accepts(wildcard, binding):
+            return None
+        return {wildcard: binding}
+    finally:
+        keep = {id(binding)} if binding is not None else set()
+        for child in pattern_args:
+            child.close()
+        for child in actual_args:
+            if id(child) not in keep:
+                child.close()
+        for temporary in owned:
+            if id(temporary) not in keep:
+                temporary.close()
+
+
 def _match_pattern(expression, pattern, old=False):
     """Match structural wildcard nodes in the declared adapter fragment."""
     wildcards = getattr(pattern, "_wildcard_patterns", {})
@@ -44,6 +208,12 @@ def _match_pattern(expression, pattern, old=False):
                     else next(iter(wildcards.values())))
         return ({wildcard: expression}
                 if _wildcard_accepts(wildcard, expression) else None)
+    remainder_attempted = False
+    if pattern.kind in (6, 7) and wildcards:
+        remainder_attempted = True
+        remainder = _commutative_remainder(expression, pattern, wildcards)
+        if remainder is not None:
+            return remainder
     bindings = {}
     actual_children = []
     pattern_children = []
@@ -78,9 +248,11 @@ def _match_pattern(expression, pattern, old=False):
                    for left, right in zip(actual_args, expected_args))
 
     try:
-        if not visit(expression, pattern):
+        if visit(expression, pattern):
+            return dict(bindings)
+        if remainder_attempted:
             return None
-        return dict(bindings)
+        return _commutative_remainder(expression, pattern, wildcards)
     finally:
         keep = {id(value) for value in bindings.values()}
         for child in pattern_children:

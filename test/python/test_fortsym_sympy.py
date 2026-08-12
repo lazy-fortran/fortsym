@@ -108,6 +108,27 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(sp.Integer(2).match(integer), {integer: sp.Integer(2)})
         self.assertIsNone(sp.Rational(1, 2).match(integer))
 
+    def test_match_supports_bounded_commutative_remainders(self):
+        x, y = sp.symbols("remainder_x remainder_y")
+        a = sp.Wild("remainder_a")
+        self.assertEqual((x + y).match(x + a), {a: y})
+        self.assertEqual((2*x).match(x*a), {a: sp.Integer(2)})
+        self.assertEqual((x*y).match(x*a), {a: y})
+        self.assertEqual(x.match(x + a), {a: sp.Integer(0)})
+        self.assertEqual((x + y).match(a + a), {a: (x + y)/2})
+        self.assertIsNone((x*y).match(x + a))
+
+        excluded = sp.Wild("remainder_excluded", exclude=(y,))
+        self.assertIsNone((x + y).match(x + excluded))
+        integer = sp.Wild(
+            "remainder_integer",
+            properties=lambda value: value.is_integer is True,
+        )
+        self.assertEqual((x + 2).match(x + integer), {
+            integer: sp.Integer(2),
+        })
+        self.assertIsNone((x + y).match(x + integer))
+
     def test_refusal_and_truth_contract(self):
         self.assertFalse(bool(sp.Integer(0)))
         with self.assertRaises(TypeError):
