@@ -18,13 +18,13 @@ module fortsym_chart
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_arena, only: arena_t
     use fortsym_domain, only: patch_t, patch_valid, patch_dimension
-    use fortsym_expr, only: expr_t, num, is_valid, &
+    use fortsym_expr, only: expr_t, num, is_valid, same_arena, &
         operator(+), operator(-), operator(*), operator(/), operator(**), sqrt
     use fortsym_diff, only: diff
     implicit none
     private
 
-    public :: chart_t, chart_create, chart_create_on_patch, chart_valid
+    public :: chart_t, coords, chart_create, chart_create_on_patch, chart_valid
     public :: chart_has_patch, chart_patch
     public :: covariant_basis, reciprocal_basis
     public :: metric_covariant, metric_contravariant, sqrtg
@@ -50,6 +50,25 @@ module fortsym_chart
     end type chart_t
 
 contains
+
+    !> Pack three same-arena coordinate expressions for the fixed chart.
+    !>
+    !> This is only a value constructor. It does not create a chart or retain
+    !> global state; chart construction remains owned by chart_create or the
+    !> default facade's make_chart(...) overload.
+    function coords(first, second, third) result(u)
+        type(expr_t), intent(in) :: first, second, third
+        type(expr_t) :: u(DIM)
+
+        if (.not. is_valid(first)) return
+        if (.not. is_valid(second)) return
+        if (.not. is_valid(third)) return
+        if (.not. same_arena(first, second)) return
+        if (.not. same_arena(first, third)) return
+        u(1) = first
+        u(2) = second
+        u(3) = third
+    end function coords
 
     !> Build a chart from coordinate symbols and the position map.
     function chart_create(a, u, x) result(c)
