@@ -90,6 +90,9 @@ always pass the signature and orientation when they are physically meaningful.
 `orientation_t` and `signature_t` are the shared declaration owners. Use
 `metric_create_metadata` when typed declarations are already available;
 `metric_signature_type` and `metric_orientation_type` return typed views.
+The dimension-aware `spacetime_metric_t` owner uses the same metadata types
+through `spacetime_metric_create_metadata` and its corresponding typed-view
+accessors.
 When the metric carries `coordinates=...`, `metric_grad`,
 `metric_divergence`, and `metric_laplacian` use that same explicit coordinate
 tuple. `metric_grad` returns the contravariant components

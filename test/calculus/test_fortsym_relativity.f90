@@ -11,11 +11,16 @@ program test_fortsym_relativity
         make_symengine_engine
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
         spacetime_metric_create, spacetime_metric_det, spacetime_metric_sqrtg, &
+        spacetime_metric_create_metadata, spacetime_metric_signature_type, &
+        spacetime_metric_orientation_type, &
+        spacetime_metric_valid, &
         spacetime_metric_contravariant, spacetime_christoffel, &
         spacetime_ricci, spacetime_scalar_curvature, spacetime_einstein, &
         spacetime_geodesic_residual, spacetime_metric_flat, &
         spacetime_metric_sharp, spacetime_metric_grad, &
         spacetime_metric_divergence, spacetime_metric_laplacian
+    use fortsym_geometry_metadata, only: signature_t, orientation_t, &
+        signature_create, signature_dimension, orientation_create, orientation_value
     implicit none
 
     type(arena_t), target :: arena
@@ -24,6 +29,9 @@ program test_fortsym_relativity
     type(spacetime_metric_t) :: metric
     type(spacetime_metric_t) :: metric_2d
     type(spacetime_metric_t) :: metric_cartesian
+    type(spacetime_metric_t) :: typed_metric
+    type(signature_t) :: typed_signature
+    type(orientation_t) :: typed_orientation
     type(expr_t) :: u(SPACETIME_DIM), components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: inverse(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: gamma(SPACETIME_DIM, SPACETIME_DIM, SPACETIME_DIM)
@@ -52,6 +60,18 @@ program test_fortsym_relativity
     signature = [-1, 1, 1, 1]
     metric = spacetime_metric_create(components, SPACETIME_DIM, u, &
         signature, 1)
+    typed_signature = signature_create(signature)
+    typed_orientation = orientation_create(-1)
+    typed_metric = spacetime_metric_create_metadata(components, SPACETIME_DIM, &
+        typed_signature, typed_orientation, u)
+    if (.not. spacetime_metric_valid(typed_metric)) then
+        error stop "typed spacetime metric invalid"
+    end if
+    if (signature_dimension(spacetime_metric_signature_type(typed_metric)) /= &
+        SPACETIME_DIM) error stop "typed spacetime signature lost"
+    if (orientation_value(spacetime_metric_orientation_type(typed_metric)) /= -1) then
+        error stop "typed spacetime orientation lost"
+    end if
     call suite_begin(suite, "spherical Minkowski relativity")
 
     parameter = sym(arena, "lambda")

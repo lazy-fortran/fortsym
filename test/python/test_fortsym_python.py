@@ -22,6 +22,16 @@ class NativePackageTest(unittest.TestCase):
             )
             self.assertEqual(metric.signature_type.values, (-1, 1, 1))
             self.assertEqual(metric.orientation_type.value, -1)
+            time = arena.symbol("meta_t")
+            spacetime = fortsym.SpacetimeMetric(
+                (time, x, y, z),
+                ((-1, 0, 0, 0), (0, 1, 0, 0),
+                 (0, 0, 1, 0), (0, 0, 0, 1)),
+                signature=fortsym.Signature((-1, 1, 1, 1)),
+                orientation=orientation,
+            )
+            self.assertEqual(spacetime.signature_type.negative_count, 1)
+            self.assertEqual(spacetime.orientation_type.value, -1)
 
     def test_native_construction_and_transformations(self):
         with fortsym.Arena() as arena:

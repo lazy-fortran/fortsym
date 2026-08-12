@@ -107,6 +107,8 @@ module fortsym
         spacetime_metric_contravariant, spacetime_metric_det, &
         spacetime_metric_sqrtg, spacetime_metric_signature, &
         spacetime_metric_orientation, spacetime_metric_dimension, &
+        spacetime_metric_signature_type, spacetime_metric_orientation_type, &
+        spacetime_metric_create_metadata, &
         spacetime_metric_valid, &
         spacetime_metric_arena, spacetime_metric_coordinates, &
         spacetime_metric_has_coordinates, spacetime_metric_flat, &
@@ -213,6 +215,8 @@ module fortsym
         spacetime_metric_flat, spacetime_metric_sharp, spacetime_metric_grad, &
         spacetime_metric_divergence, spacetime_metric_laplacian, &
         spacetime_metric_signature, spacetime_metric_orientation, &
+        spacetime_metric_signature_type, spacetime_metric_orientation_type, &
+        spacetime_metric_create_metadata, &
         spacetime_metric_valid, spacetime_metric_arena, &
         spacetime_metric_coordinates, spacetime_metric_has_coordinates, &
         spacetime_christoffel, spacetime_riemann, spacetime_ricci, &
