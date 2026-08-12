@@ -22,6 +22,16 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(sp.simplify(sp.diff(sp.exp(x*y), x)), y*sp.exp(x*y))
         self.assertEqual(sp.subs((x + 1) ** 2, {x: 2}), 9)
 
+    def test_simultaneous_substitution(self):
+        x, y = sp.symbols("simultaneous_x simultaneous_y")
+        self.assertEqual(
+            sp.subs(x + y, {x: y, y: x}, simultaneous=True), x + y
+        )
+        self.assertEqual(
+            sp.subs(x + y, {x: y + 1, y: 2}, simultaneous=True), y + 3
+        )
+        self.assertEqual(sp.subs(x + y, {}), x + y)
+
     def test_refusal_and_truth_contract(self):
         self.assertFalse(bool(sp.Integer(0)))
         with self.assertRaises(TypeError):

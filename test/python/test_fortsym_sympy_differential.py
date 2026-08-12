@@ -252,6 +252,37 @@ class SympyDifferentialTest(unittest.TestCase):
         with self.assertRaises(native.UnsupportedOperationError):
             native.count_ops(native_cases["symbol"], visual=True)
 
+    def test_simultaneous_substitution_matches_oracle(self):
+        oracle_x, oracle_y = oracle.symbols(
+            "differential_subs_x differential_subs_y"
+        )
+        native_x, native_y = native.symbols(
+            "differential_subs_x differential_subs_y"
+        )
+        oracle_cases = [
+            oracle_x + oracle_y,
+            oracle_x + 2*oracle_y,
+            oracle.sin(oracle_x) + oracle_y,
+        ]
+        native_cases = [
+            native_x + native_y,
+            native_x + 2*native_y,
+            native.sin(native_x) + native_y,
+        ]
+        oracle_replacements = {oracle_x: oracle_y, oracle_y: oracle_x}
+        native_replacements = {native_x: native_y, native_y: native_x}
+        for oracle_expression, native_expression in zip(oracle_cases, native_cases):
+            with self.subTest(expression=str(oracle_expression)):
+                expected = oracle_expression.subs(
+                    oracle_replacements, simultaneous=True
+                )
+                actual = native.subs(
+                    native_expression, native_replacements, simultaneous=True
+                )
+                self.assert_equivalent(
+                    "simultaneous substitution", expected, actual
+                )
+
     def test_free_symbols_matches_oracle(self):
         def names(api, expression):
             if api is oracle:

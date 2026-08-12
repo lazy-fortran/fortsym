@@ -134,6 +134,13 @@ int fortsym_substitute(fortsym_arena *arena, const fortsym_expr *expression,
                        const fortsym_expr *old_expression,
                        const fortsym_expr *new_expression, fortsym_expr **out,
                        char *message, size_t capacity);
+/* Replacement expressions are not revisited, so the substitutions are
+ * simultaneous and do not cascade. `count` may be zero. */
+int fortsym_substitute_many(
+    fortsym_arena *arena, const fortsym_expr *expression,
+    const fortsym_expr *const old_expressions[],
+    const fortsym_expr *const new_expressions[], size_t count,
+    fortsym_expr **out, char *message, size_t capacity);
 int fortsym_differentiate(fortsym_arena *arena, const fortsym_expr *expression,
                           const fortsym_expr *variable, fortsym_expr **out,
                           char *message, size_t capacity);

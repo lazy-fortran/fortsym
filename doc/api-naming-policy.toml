@@ -73,12 +73,12 @@ decision = "Keep arena_t and expr_t as type names. Use default_arena and reset i
 [[family]]
 id = "transformations"
 audit_concepts = ["substitution", "transformation-functions"]
-canonical_native = ["subs", "expand", "simplify", "refine", "factor"]
-current_native = ["subs", "expand", "simplify", "refine", "factor"]
+canonical_native = ["subs", "subs_many", "expand", "simplify", "refine", "factor"]
+current_native = ["subs", "subs_many", "expand", "simplify", "refine", "factor"]
 transition_aliases = []
-python_facade = ["subs", "factor"]
+python_facade = ["subs", "subs_many", "factor"]
 sympy_adapter = ["subs", "Subs", "expand", "simplify", "refine", "factor"]
-decision = "Expose the native operations under the same short names from one facade owner. Keep refine as the named assumption-aware entry point while the native simplifier owns guarded rewrites. Keep Subs as an adapter-only typed wrapper and keep options/refusals in the Python boundary."
+decision = "Expose the native operations under the same short names from one facade owner. Keep subs_many as the explicit paired-sequence native spelling, map only the SymPy simultaneous option at the adapter boundary, keep refine as the named assumption-aware entry point, and keep Subs as an adapter-only typed wrapper."
 
 [[family]]
 id = "operation-count"

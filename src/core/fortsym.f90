@@ -15,7 +15,7 @@ module fortsym
     use fortsym_relation, only: equal, unequal, less, less_equal, greater, &
         greater_equal
     use fortsym_predicates, only: is_number, is_algebraic
-    use fortsym_subs, only: subs_impl => subs
+    use fortsym_subs, only: subs_impl => subs, subs_many_impl => subs_many
     use fortsym_eval, only: collect_free_symbols
     use fortsym_assume, only: assumption_context_t, &
         make_assumption_context, with_assumption, zero, negative, nonpositive, &
@@ -54,8 +54,8 @@ module fortsym
         zero, negative, nonpositive, positive, nonnegative, nonzero, real_valued, &
         rational_valued, integer_valued, positive_integer, algebraic_valued
     public :: str, chars
-    public :: subs, diff, simplify, refine, expand, factor, operation_count, &
-        free_symbols
+    public :: subs, subs_many, diff, simplify, refine, expand, factor, &
+        operation_count, free_symbols
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -111,7 +111,11 @@ contains
             call report_failure(result, "subs: invalid expression")
             return
         end if
-        if (.not. is_valid(old) .or. .not. is_valid(new)) then
+        if (.not. is_valid(old)) then
+            call report_failure(result, "subs: invalid replacement")
+            return
+        end if
+        if (.not. is_valid(new)) then
             call report_failure(result, "subs: invalid replacement")
             return
         end if
@@ -128,6 +132,44 @@ contains
             result%ok = .true.
         end if
     end function subs
+
+    !> Replace all old expressions simultaneously. Replacement expressions are
+    !> not revisited, so swaps and coupled replacements do not cascade.
+    function subs_many(expression, old, new) result(result)
+        type(expr_t), intent(in) :: expression, old(:), new(:)
+        type(engine_result_t) :: result
+        integer :: k
+
+        if (.not. is_valid(expression)) then
+            call report_failure(result, "subs_many: invalid expression")
+            return
+        end if
+        if (size(old) /= size(new)) then
+            call report_failure(result, "subs_many: replacement size mismatch")
+            return
+        end if
+        do k = 1, size(old)
+            if (.not. is_valid(old(k)) .or. .not. is_valid(new(k))) then
+                call report_failure(result, "subs_many: invalid replacement")
+                return
+            end if
+            if (.not. same_arena(expression, old(k))) then
+                call report_failure(result, "subs_many: expressions belong to different arenas")
+                return
+            end if
+            if (.not. same_arena(expression, new(k))) then
+                call report_failure(result, "subs_many: expressions belong to different arenas")
+                return
+            end if
+        end do
+
+        result%value = subs_many_impl(expression, old, new)
+        if (.not. is_valid(result%value)) then
+            call report_failure(result, "subs_many: substitution failed")
+        else
+            result%ok = .true.
+        end if
+    end function subs_many
 
     !> Differentiate and simplify through the native engine in the expression's
     !> arena. The low-level fortsym_diff module remains available when callers

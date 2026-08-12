@@ -45,6 +45,7 @@ int main(void)
     fortsym_expr *derivative = NULL;
     fortsym_expr *replacement = NULL;
     fortsym_expr *substituted = NULL;
+    fortsym_expr *simultaneous = NULL;
     fortsym_expr *foreign = NULL;
     fortsym_expr *two = NULL;
     fortsym_expr *square = NULL;
@@ -112,10 +113,12 @@ int main(void)
     fortsym_expr *legendre_simplified = NULL;
     fortsym_expr *unknown_head = NULL;
     const fortsym_expr *root_argument[1];
+    const fortsym_expr *substitution_old[2];
+    const fortsym_expr *substitution_new[2];
     const fortsym_expr *special_arguments[2];
     const fortsym_expr *legendre_arguments[3];
 
-    assert(fortsym_abi_version() == 14);
+    assert(fortsym_abi_version() == 15);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
@@ -846,6 +849,22 @@ int main(void)
                                 sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(substituted, "y*(1 + 2)");
+    substitution_old[0] = x;
+    substitution_old[1] = y;
+    substitution_new[0] = y;
+    substitution_new[1] = x;
+    status = fortsym_substitute_many(
+        arena, product, substitution_old, substitution_new, 2,
+        &simultaneous, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(simultaneous, "x*(y + 1)");
+    fortsym_expr_free(simultaneous);
+    simultaneous = NULL;
+    status = fortsym_substitute_many(
+        arena, product, NULL, NULL, 0, &simultaneous, message,
+        sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(simultaneous, "y*(x + 1)");
 
     status = fortsym_arena_new(&other_arena, message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -933,6 +952,7 @@ int main(void)
     fortsym_expr_free(quotient_num);
     fortsym_expr_free(two);
     fortsym_expr_free(substituted);
+    fortsym_expr_free(simultaneous);
     fortsym_expr_free(sum);
     fortsym_expr_free(replacement);
     fortsym_expr_free(derivative);

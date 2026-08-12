@@ -509,11 +509,19 @@ def diff(expression, *variables, **_):
     return result if variables else result.simplify()
 
 
-def subs(expression, substitutions, new=None):
+def subs(expression, substitutions, new=None, *, simultaneous=False):
     result = sympify(expression)
     if new is not None:
         return result.subs(sympify(substitutions), sympify(new))
     if isinstance(substitutions, dict):
+        if not substitutions:
+            return result
+        if simultaneous:
+            old = tuple(sympify(value) for value in substitutions)
+            replacement = tuple(
+                sympify(value) for value in substitutions.values()
+            )
+            return result._subs_many(old, replacement)
         for old, replacement in substitutions.items():
             result = result.subs(sympify(old), sympify(replacement))
         return result

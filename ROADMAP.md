@@ -212,6 +212,10 @@ Every checklist item requires all of the following:
   - [x] Expose the distinct free-symbol traversal through native
     `free_symbols`, C ABI `fortsym_expr_free_symbols`, and Python
     `Expr.free_symbols` without adding a second tree walk.
+  - [x] Expose the existing simultaneous substitution owner through native
+    `subs_many`, C ABI `fortsym_substitute_many`, and
+    `fortsym.sympy.subs(..., simultaneous=True)` without adding a second
+    substitution traversal.
 - [ ] Complete exact integer/rational/real/complex and algebraic domains.
   - [x] Preserve arbitrary-size integer and rational construction and native
     arithmetic in the current scalar fragment. `num`, `rat`, and `exact` share
@@ -774,6 +778,9 @@ Every checklist item requires all of the following:
     C ABI and Python facade reuse one native traversal; the Python facade
     caches the immutable handle set, measuring 0.236x cold and 0.054x warm
     SymPy in the 102-row matrix with zero unwaived violations.
+  - [x] Add simultaneous substitution correctness and performance coverage.
+    The 104-row matrix measured native/SymPy ratios of 0.330x cold and 0.370x
+    warm with zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.
