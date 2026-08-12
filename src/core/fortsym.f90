@@ -162,6 +162,7 @@ module fortsym
         spacetime_tensor_permute, spacetime_metric_covariant_tensor, &
         spacetime_metric_contravariant_tensor, spacetime_tensor_covariant_diff, &
         spacetime_tensor_lie_derivative, &
+        spacetime_tensor_covariant_divergence, &
         spacetime_killing, &
         SPACETIME_UPPER, SPACETIME_LOWER
     use fortsym_flux, only: flux_coordinate_t, flux_coordinates, &
@@ -326,6 +327,7 @@ module fortsym
         spacetime_tensor_contract, spacetime_tensor_permute, &
         spacetime_metric_covariant_tensor, spacetime_metric_contravariant_tensor, &
         spacetime_tensor_covariant_diff, &
+        spacetime_tensor_covariant_divergence, &
         spacetime_tensor_lie_derivative, &
         spacetime_killing, &
         SPACETIME_UPPER, SPACETIME_LOWER, &

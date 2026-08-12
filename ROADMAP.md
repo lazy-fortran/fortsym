@@ -1538,6 +1538,13 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   residual through the same owner. C ABI 64, the Fortran `lie` generic, and
   both Python facades share the kernel; curved-metric, scalar, and density
   identities are checked independently.
+- [x] Add the direct runtime-dimension first-slot covariant divergence owner.
+  `spacetime_tensor_covariant_divergence` contracts the first upper slot with
+  the derivative slot without materializing the full derivative tensor,
+  preserves remaining variance and density weight, and exposes C ABI 65 plus
+  Python `.covariant_divergence()`/`.divergence()` views. Vector, density,
+  contravariant-metric, and independent SymPy checks cover the cancellation
+  and metric-compatibility identities.
 - [x] Implement the first fixed-three-dimensional subset for typed tensors of
   rank at most three: `covariant_diff`/`covariant_derivative` appends a lower
   derivative slot, applies every slot's Christoffel term, and honors density

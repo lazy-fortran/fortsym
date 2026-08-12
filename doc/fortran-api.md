@@ -422,6 +422,12 @@ Christoffel transport term to every upper and lower slot and the
 The Python `SpacetimeTensor.covariant_diff()` method and its
 `covariant_derivative()` alias expose the same owner.
 
+`spacetime_tensor_covariant_divergence(metric, tensor)` contracts the first
+upper slot with that derivative and returns the remaining tensor. The direct
+kernel preserves density weight and is equivalent to forming
+`covariant_diff(metric, tensor)` followed by a first-slot/last-slot
+contraction, without materializing that intermediate tensor.
+
 `lie(metric, vector, tensor)` and `lie_derivative(metric, vector, tensor)`
 use the runtime tensor owner for coordinate Lie transport without a metric
 connection. The vector must be an ordinary weight-zero contravariant field;

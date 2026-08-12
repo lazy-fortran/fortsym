@@ -19,6 +19,7 @@ program test_fortsym_spacetime_tensor
         spacetime_tensor_product, spacetime_tensor_contract, &
         spacetime_tensor_permute, spacetime_metric_covariant_tensor, &
         spacetime_metric_contravariant_tensor, spacetime_tensor_covariant_diff, &
+        spacetime_tensor_covariant_divergence, &
         spacetime_tensor_lie_derivative, &
         spacetime_killing, &
         SPACETIME_UPPER, SPACETIME_LOWER
@@ -33,6 +34,7 @@ program test_fortsym_spacetime_tensor
     type(spacetime_metric_t) :: curved_metric
     type(spacetime_tensor_t) :: curved_vector, derivative, metric_derivative
     type(spacetime_tensor_t) :: lie_result, density_scalar, dilation_vector
+    type(spacetime_tensor_t) :: divergence_result
     type(spacetime_tensor_t) :: curved_density, density_derivative, scalar_tensor
     type(expr_t) :: coordinates(SPACETIME_DIM)
     type(expr_t) :: components(SPACETIME_DIM, SPACETIME_DIM)
@@ -171,6 +173,28 @@ program test_fortsym_spacetime_tensor
         dilation_vector, density_scalar)
     call check_identity(suite, engine, "L_(t d/dt) density", &
         spacetime_tensor_component(lie_result, empty) - 1)
+    divergence_result = spacetime_tensor_covariant_divergence(curved_metric, &
+        curved_vector)
+    call check_identity(suite, engine, "div constant x vector", &
+        spacetime_tensor_component(divergence_result, empty))
+    divergence_result = spacetime_tensor_covariant_divergence(curved_metric, &
+        dilation_vector)
+    call check_identity(suite, engine, "div t d/dt", &
+        spacetime_tensor_component(divergence_result, empty) - &
+        (1 + coordinates(1)))
+    density_values = num(arena, 0)
+    density_values(1) = coordinates(1)
+    curved_density = spacetime_tensor_vector(curved_metric, density_values, 1)
+    divergence_result = spacetime_tensor_covariant_divergence(curved_metric, &
+        curved_density)
+    call check_identity(suite, engine, "div weight-one t density", &
+        spacetime_tensor_component(divergence_result, empty) - 1)
+    contravariant = spacetime_metric_contravariant_tensor(curved_metric)
+    divergence_result = spacetime_tensor_covariant_divergence(curved_metric, &
+        contravariant)
+    scalar_indices(1) = 2
+    call check_identity(suite, engine, "div contravariant metric", &
+        spacetime_tensor_component(divergence_result, scalar_indices))
     density_values = num(arena, 0)
     density_values(2) = exp(coordinates(1))
     curved_density = spacetime_tensor_vector(curved_metric, density_values, 1)

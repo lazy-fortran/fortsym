@@ -104,6 +104,19 @@ class NativePackageTest(unittest.TestCase):
             self.assertEqual(
                 curved.lie(dilation, density_scalar)[()].simplify(), 1
             )
+            self.assertEqual(
+                curved_vector.covariant_divergence()[()].simplify(), 0
+            )
+            self.assertEqual(
+                (dilation.covariant_divergence()[()] - (1 + t)).simplify(), 0
+            )
+            density_vector = curved.vector((t, 0, 0, 0), density_weight=1)
+            self.assertEqual(
+                density_vector.divergence()[()].simplify(), 1
+            )
+            self.assertEqual(
+                curved.contravariant().covariant_divergence()[1].simplify(), 0
+            )
             curved_density = curved.vector((0, exp_t, 0, 0), density_weight=1)
             density_derivative = curved_density.covariant_diff()
             self.assertEqual(
