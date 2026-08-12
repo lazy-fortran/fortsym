@@ -83,6 +83,7 @@ target_sources(fortsym PRIVATE
     verify/fortsym_rk.f90
 
     # differential geometry
+    calculus/fortsym_domain.f90
     calculus/fortsym_diff.f90
     calculus/fortsym_ode.f90
     calculus/fortsym_chart.f90

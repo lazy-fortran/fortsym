@@ -800,6 +800,10 @@ The first-class object model is staged around these metadata owners:
   space. `index_t` stores variance and free/dummy role. The first native
   fixed-3D contraction slice requires the same index space, opposite variance,
   and matching nonempty labels.
+- [x] Add the declaration-only `fortsym_domain` owner for `manifold_t` and
+  `patch_t`, including dimension, parent, open-domain, boundary, and
+  simply-connected metadata. The Python diffgeom names carry the same flags;
+  topology is never inferred from coordinate expressions.
 - [ ] `metric_t` stores a nondegenerate component tensor, signature
   `(n_plus, n_minus, n_zero)`, orientation compatibility, and its inverse.
   `metric_from_chart` is a convenience constructor, not a second metric

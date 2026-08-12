@@ -41,6 +41,11 @@ module fortsym
     use fortsym_chart, only: DIM, chart_t, chart_create, covariant_basis, &
         reciprocal_basis, metric_covariant, metric_contravariant, sqrtg, &
         jacobian, christoffel, grad, divergence, curl, laplacian
+    use fortsym_domain, only: manifold_t, patch_t, manifold_create, patch_create, &
+        manifold_valid, manifold_dimension, manifold_name, manifold_has_boundary, &
+        manifold_simply_connected, patch_valid, patch_dimension, patch_name, &
+        patch_manifold, patch_is_open, patch_has_boundary, &
+        patch_simply_connected, same_manifold, same_patch_parent
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
         map_valid, map_jacobian, &
         inverse_jacobian, transform_tensor, transform_form, pullback
