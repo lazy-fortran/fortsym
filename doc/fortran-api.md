@@ -173,6 +173,11 @@ do not maintain separate metric, variance, or density representations.
 coordinates as functions of source coordinates and the inverse map explicitly.
 `map_valid` reports whether the transition passed the native structural
 validation; identically singular forward or inverse Jacobians are refused.
+When the source and target charts were created with `chart_create_on_patch`,
+the map retains both declarations through `chart_map_source_patch` and
+`chart_map_target_patch`. Composition compares the intermediate chart's patch
+metadata as well as its coordinate expressions, so a transition cannot silently
+cross an unrelated declared patch.
 The tensor transform applies `K` to upper slots and `L` to lower slots. For a
 stored density weight `w`, it multiplies by `abs(det(K))**(-w)` before the
 slot transforms. This is the passive coordinate law for a density. In
@@ -181,7 +186,9 @@ orientation remains a separate signed top-form choice.
 
 ```fortran
 use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
-    transform_tensor, transform_form, pullback
+    chart_map_has_source_patch, chart_map_has_target_patch, &
+    chart_map_source_patch, chart_map_target_patch, transform_tensor, &
+    transform_form, pullback
 type(chart_map_t) :: transition
 transition = chart_map_create(source, target, target_in_source, source_in_target)
 target_tensor = transform_tensor(transition, source_tensor)

@@ -142,7 +142,9 @@ density views,
 `fortsym_tensor` owns typed components, `fortsym_form` owns exterior algebra,
 and `fortsym_connection` owns covariant/curvature views. `fortsym_magnetic`
 also packages its `B^i`, `B_i`, and vector-density views as typed tensors
-without duplicating their component derivation. The Python `Chart`,
+without duplicating their component derivation. Chart maps retain source and
+target patch declarations and validate the intermediate patch during
+composition. The Python `Chart`,
 `ChartMap`, `Tensor`, and `Form` classes only transport handles and metadata
 through the C ABI.
 

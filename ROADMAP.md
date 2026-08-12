@@ -862,6 +862,10 @@ The first-class object model is staged around these metadata owners:
   `chart_t` owner with `chart_create_on_patch`, `chart_has_patch`, and
   `chart_patch`; the Python `Chart(..., patch=...)` and `CoordSystem` paths
   retain the same declaration without changing chart algebra.
+- [x] Propagate fixed-three-dimensional source and target patch ownership into
+  `chart_map_t` and Python `ChartMap`; expose both declarations and refuse
+  composition across a mismatched intermediate patch. General-dimensional
+  patch maps and overlap/topology proofs remain open.
 - [x] `metric_t` stores a nondegenerate component tensor and shared typed
   `signature_t`/`orientation_t` declarations, with signature `(n_plus,
   n_minus, n_zero)`, orientation compatibility, and its inverse.

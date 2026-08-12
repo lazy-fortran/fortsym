@@ -33,7 +33,7 @@ module fortsym_domain
     public :: manifold_has_boundary, manifold_simply_connected
     public :: patch_valid, patch_dimension, patch_name, patch_manifold
     public :: patch_is_open, patch_has_boundary, patch_simply_connected
-    public :: same_manifold, same_patch_parent
+    public :: same_manifold, same_patch_parent, same_patch
 
 contains
 
@@ -185,5 +185,20 @@ contains
 
         same = patch_valid(patch) .and. same_manifold(patch%parent, parent)
     end function same_patch_parent
+
+    pure function same_patch(left, right) result(same)
+        type(patch_t), intent(in) :: left, right
+        logical :: same
+
+        same = .false.
+        if (.not. patch_valid(left)) return
+        if (.not. patch_valid(right)) return
+        if (.not. same_manifold(left%parent, right%parent)) return
+        if (trim(left%name) /= trim(right%name)) return
+        if (left%open_domain .neqv. right%open_domain) return
+        if (left%has_boundary .neqv. right%has_boundary) return
+        if (left%simply_connected .neqv. right%simply_connected) return
+        same = .true.
+    end function same_patch
 
 end module fortsym_domain

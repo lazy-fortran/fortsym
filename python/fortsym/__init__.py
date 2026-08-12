@@ -3734,6 +3734,16 @@ class ChartMap:
             self._arena._lib.chart_map_jacobian, self
         )
 
+    @property
+    def source_patch(self):
+        """Declared patch owned by the source chart, if any."""
+        return self.source.patch
+
+    @property
+    def target_patch(self):
+        """Declared patch owned by the target chart, if any."""
+        return self.target.patch
+
     def inverse_jacobian(self):
         return self._arena._chart_map_matrix(
             self._arena._lib.chart_map_inverse_jacobian, self
@@ -3747,6 +3757,10 @@ class ChartMap:
             raise ValueError("ChartMap.compose requires matching intermediate charts")
         if following._arena is not self._arena:
             raise ValueError("ChartMap.compose maps must share an arena")
+        if ((self.target.patch is None) != (following.source.patch is None) or
+                (self.target.patch is not None and
+                 self.target.patch is not following.source.patch)):
+            raise ValueError("ChartMap.compose requires matching intermediate patches")
         forward, inverse = self._arena._chart_map_compose(self, following)
         return ChartMap(self.source, following.target, forward, inverse)
 

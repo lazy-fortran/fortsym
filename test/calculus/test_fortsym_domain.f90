@@ -45,6 +45,8 @@ program test_fortsym_domain
     if (.not. same_patch_parent(patch, manifold)) then
         error stop "patch parent failed"
     end if
+    if (.not. same_patch(patch, patch)) error stop "same patch failed"
+    if (same_patch(patch, closed_patch)) error stop "different patch matched"
     if (patch_is_open(closed_patch)) error stop "closed domain accepted"
     if (.not. patch_has_boundary(closed_patch)) then
         error stop "patch boundary flag failed"
@@ -54,7 +56,9 @@ program test_fortsym_domain
     call arena%init()
     manifold = manifold_create("M3", DIM, simply_connected=.true.)
     patch = patch_create(manifold, "U3", simply_connected=.true.)
-    coordinates = [sym(arena, "u1"), sym(arena, "u2"), sym(arena, "u3")]
+    coordinates(1) = sym(arena, "u1")
+    coordinates(2) = sym(arena, "u2")
+    coordinates(3) = sym(arena, "u3")
     position = coordinates
     chart = chart_create_on_patch(arena, patch, coordinates, position)
     if (.not. chart_valid(chart)) error stop "patched chart rejected"
