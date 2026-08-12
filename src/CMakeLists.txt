@@ -93,6 +93,7 @@ target_sources(fortsym PRIVATE
     calculus/fortsym_volume.f90
     calculus/fortsym_index.f90
     calculus/fortsym_form.f90
+    calculus/fortsym_form_tensor.f90
     calculus/fortsym_flux.f90
     calculus/fortsym_magnetic.f90
     calculus/fortsym_magnetic_weak.f90

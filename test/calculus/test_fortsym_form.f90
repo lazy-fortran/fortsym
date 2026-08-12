@@ -11,9 +11,12 @@ program test_fortsym_form
     use fortsym_chart, only: DIM, chart_t, chart_create
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart
     use fortsym_magnetic, only: b_con
-    use fortsym_form, only: form_t, form, form_one, form_zero, &
+    use fortsym_form, only: form_t, form, form_one, form_zero, form_valid, &
         form_component, form_degree, wedge, d, star, interior, lie, flat, &
         sharp, scale_form, volume_form
+    use fortsym_form_tensor, only: form_from_tensor, tensor_from_form
+    use fortsym_tensor, only: tensor_t, tensor_from_matrix, tensor_component, &
+        tensor_variance, tensor_valid, density, LOWER_VARIANCE
     implicit none
 
     type(arena_t), target :: arena
@@ -32,6 +35,10 @@ program test_fortsym_form
     type(form_t) :: volume, reversed_volume, flux, lie_form
     type(form_t) :: cartan_first, cartan_second
     type(form_t) :: top_zero, top_from_d
+    type(form_t) :: two_form, round_form
+    type(tensor_t) :: form_tensor, density_tensor, nonsymmetric
+    type(expr_t) :: tensor_matrix(DIM, DIM)
+    integer :: pair(2)
     integer :: mask, i, lorentz_signature(DIM)
 
     call arena%init()
@@ -64,6 +71,49 @@ program test_fortsym_form
     vector(2) = u(2)
     vector(3) = u(3)
     one_form = form_one(shear, vector)
+    two_form = wedge(one_form, derivative)
+
+    ! Forms and tensors share one conversion owner. A two-form becomes a
+    ! fully antisymmetric lower tensor, including the sign of reversed slots,
+    ! and converts back without a second component representation.
+    form_tensor = tensor_from_form(shear, two_form)
+    round_form = form_from_tensor(form_tensor)
+    if (.not. tensor_valid(form_tensor) .or. .not. form_valid(round_form)) then
+        suite%total = suite%total + 1
+        suite%failed = suite%failed + 1
+        print *, "FAIL  form/tensor conversion validity"
+    end if
+    if (tensor_variance(form_tensor, 1) /= LOWER_VARIANCE .or. &
+        tensor_variance(form_tensor, 2) /= LOWER_VARIANCE) then
+        suite%total = suite%total + 1
+        suite%failed = suite%failed + 1
+        print *, "FAIL  form-to-tensor variance"
+    end if
+    do mask = 3, 6
+        if (mask == 4) cycle
+        call check_identity(suite, engine, "form/tensor round trip", &
+            form_component(round_form, mask) - form_component(two_form, mask))
+    end do
+    pair = [2, 1]
+    call check_identity(suite, engine, "form tensor antisymmetry", &
+        tensor_component(form_tensor, pair) + form_component(two_form, 3))
+
+    density_tensor = density(form_tensor, 1)
+    if (form_valid(form_from_tensor(density_tensor))) then
+        suite%total = suite%total + 1
+        suite%failed = suite%failed + 1
+        print *, "FAIL  density tensor conversion refusal"
+    end if
+    tensor_matrix = num(arena, 0)
+    tensor_matrix(1, 1) = num(arena, 1)
+    nonsymmetric = tensor_from_matrix(shear, tensor_matrix, LOWER_VARIANCE, &
+        LOWER_VARIANCE)
+    if (form_valid(form_from_tensor(nonsymmetric))) then
+        suite%total = suite%total + 1
+        suite%failed = suite%failed + 1
+        print *, "FAIL  nonsymmetric tensor conversion refusal"
+    end if
+
     product = wedge(one_form, scalar_form)
     do mask = 3, 6
         if (mask == 4) cycle

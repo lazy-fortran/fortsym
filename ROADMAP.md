@@ -928,6 +928,10 @@ The first-class object model is staged around these metadata owners:
   A form is an antisymmetric covariant tensor with a degree, and a density is
   a tensor with an explicit integer weight. `form_t` and `tensor_t` share
   conversion checks without sharing storage layouts.
+- [x] Add the fixed-three-dimensional `fortsym_form_tensor` bridge. Exact
+  weight-zero lower antisymmetric tensors convert to and from the compact form
+  owner through one native operation, with C ABI/Python facade transport and
+  independent refusal checks for non-antisymmetric and density-weighted input.
 
 The core identities are the derivation contracts for every implementation:
 
@@ -1466,6 +1470,9 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Implement the first fixed-three-dimensional subset: `form_t`, scalar,
   one-, two-, and three-form constructors, `wedge`, `d`, metric `star`,
   interior product, Cartan `lie`, and metric `flat`/`sharp`.
+- [x] Add the exact fixed-three-dimensional form/tensor conversion path through
+  one bridge owner. `Tensor.to_form()`/`Form.to_tensor()` and the matching
+  Fortran facade names share the native antisymmetry and density contract.
 - [x] Add the first dimension-aware four-dimensional spacetime form owner:
   degree-zero through degree-four constructors, antisymmetric `wedge`,
   coordinate-aware `d`, Lorentzian/Riemannian metric `star`, and the native

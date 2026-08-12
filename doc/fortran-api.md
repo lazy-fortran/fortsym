@@ -238,6 +238,15 @@ On an orientation-preserving chart, `flux_form` and `B_form` agree and
 rank, and full Python form parity remain explicit roadmap work; the fixed-3D
 transport facade is documented in `python/README.md`.
 
+`fortsym_form_tensor` is the single bridge between the two typed owners. It
+does not add a second component store: `tensor_from_form(chart, alpha)` returns
+the fully antisymmetric lower-tensor view, while `form_from_tensor(tensor)`
+returns the compact form view. The latter accepts only an exact weight-zero,
+lower-variance antisymmetric tensor; non-antisymmetric and density-weighted
+inputs are refused rather than silently projected. The Python facade exposes
+the same vocabulary as `chart.tensor_from_form(form)`,
+`chart.form_from_tensor(tensor)`, `form.to_tensor()`, and `tensor.to_form()`.
+
 ## Typed coordinate tensors
 
 `fortsym_tensor` owns the first typed tensor subset. A `tensor_t` is bound to a
@@ -303,6 +312,11 @@ view. `density(tensor, factor)` is the component-density constructor: it
 multiplies every component by the scalar `factor` and increments the density
 weight. Thus `Bden = density(Bup, sqrtg(chart))` is the generic native spelling
 of `sqrtg B^i`, while `density(Bup, 1)` remains a metadata-only view.
+
+Forms and tensors are converted only through `fortsym_form_tensor`; neither
+owner imports the other's storage layout. This keeps the short facade names
+consistent with the lower-level owners and makes the exact antisymmetry and
+density boundary visible at every API layer.
 
 ## Connections and curvature
 

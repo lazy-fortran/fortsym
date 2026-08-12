@@ -97,6 +97,38 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(component_density[0].simplify(), (x + 2)*x)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_form_tensor_roundtrip_matches_sympy(self):
+        x, y, z = sp.symbols("form_tensor_x form_tensor_y form_tensor_z")
+        chart = sp.Chart((x, y, z), (x, y, z))
+        source = chart.two_form((x**2 + y, x*y, z + 1))
+
+        tensor = source.to_tensor()
+        self.assertEqual(tensor.variance, (-1, -1))
+        ox, oy, oz = oracle.symbols(
+            "form_tensor_x form_tensor_y form_tensor_z"
+        )
+        self.assertEqual(
+            oracle.sympify(str(tensor[0, 1].simplify())), ox**2 + oy
+        )
+        self.assertEqual(
+            oracle.sympify(str(tensor[1, 0].simplify())), -(ox**2 + oy)
+        )
+        roundtrip = tensor.to_form()
+        for mask, expected in (
+            (3, ox**2 + oy), (5, ox*oy), (6, oz + 1)
+        ):
+            actual = oracle.sympify(str(roundtrip[mask].simplify()))
+            self.assertEqual(actual, expected)
+
+        nonsymmetric = chart.tensor(
+            (1, 0, 0, 0, 0, 0, 0, 0, 0), variance=(-1, -1)
+        )
+        with self.assertRaises(fortsym.FortSymError):
+            nonsymmetric.to_form()
+        with self.assertRaises(fortsym.FortSymError):
+            tensor.density(1).to_form()
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_flux_coordinate_residuals_match_sympy(self):
         psi, theta, phi = sp.symbols("flux_owner_psi flux_owner_theta flux_owner_phi")
         i0, i1, g0, g1 = sp.symbols(

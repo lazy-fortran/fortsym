@@ -79,6 +79,7 @@ module fortsym_public_capi
         form_component, form_valid, add_forms, subtract_forms, negate_form, &
         wedge, exterior_diff, hodge_star, interior_product, lie_derivative, &
         flat, sharp, scale_form, volume_form
+    use fortsym_form_tensor, only: form_from_tensor, tensor_from_form
     use fortsym_assume_api, only: assumption_context_t, init_assumption_context, &
         clone_assumption_context, record_assumption, &
         record_relation, &
@@ -185,6 +186,7 @@ module fortsym_public_capi
         fortsym_chart_form_star, fortsym_chart_form_interior, &
         fortsym_chart_form_lie, fortsym_chart_form_flat, &
         fortsym_chart_form_sharp, fortsym_chart_form_volume, &
+        fortsym_chart_form_from_tensor, fortsym_chart_tensor_from_form, &
         fortsym_chart_form_star_metric, fortsym_spacetime_metric_sqrtg, &
         fortsym_spacetime_metric_contravariant, fortsym_spacetime_metric_flat, &
         fortsym_spacetime_metric_sharp, fortsym_spacetime_metric_grad, &
@@ -2005,6 +2007,50 @@ contains
         value = add_forms(left_value, right_value)
         call make_form_array(a, value, out, status, message, capacity)
     end function fortsym_chart_form_add
+
+    function fortsym_chart_form_from_tensor(raw, coordinates, position, &
+            components, rank, variance, density_weight, out, message, capacity) &
+            bind(c, name="fortsym_chart_form_from_tensor") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, variance, out
+        integer(c_size_t), value :: rank
+        integer(c_int), value :: density_weight
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: input
+        type(form_t) :: value
+
+        call get_chart_tensor_input(raw, coordinates, position, components, rank, &
+            variance, density_weight, chart, a, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = form_from_tensor(input)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_from_tensor
+
+    function fortsym_chart_tensor_from_form(raw, coordinates, position, &
+            components, degree, out, message, capacity) bind(c, &
+            name="fortsym_chart_tensor_from_form") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: input
+        type(tensor_t) :: value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, components, degree, input, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        value = tensor_from_form(chart, input)
+        call make_tensor_array(a, value, int(degree), out, status, message, capacity)
+    end function fortsym_chart_tensor_from_form
 
     function fortsym_chart_form_subtract(raw, coordinates, position, left, &
             left_degree, right, right_degree, out, message, capacity) &
