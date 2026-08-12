@@ -63,7 +63,9 @@ is explicit. `chart.metric()`, `chart.christoffel()`, `chart.ricci()`, and
 validation stay in the native Fortran owners. Form components use the native
 bit masks `1`, `2`, `4` for `dx`, `dy`, `dz`; `3`, `5`, `6` for the ordered
 two-form basis; and `7` for the volume form. Full arbitrary-dimensional
-`diffgeom` parity, pullbacks, and metric signatures remain roadmap work.
+`diffgeom` parity, map generalization, and metric signatures remain roadmap
+work; fixed-three-dimensional native pullback transport is available through
+`ChartMap.pullback()`.
 
 `ChartMap` transforms components between two charts. Its `forward` tuple maps
 source coordinates to target coordinates and its `inverse` tuple maps back.

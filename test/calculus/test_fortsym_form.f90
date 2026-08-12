@@ -10,8 +10,9 @@ program test_fortsym_form
         make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create
     use fortsym_magnetic, only: b_con
-    use fortsym_form, only: form_t, form, form_one, form_component, &
-        wedge, d, star, interior, lie, flat, sharp, scale_form, volume_form
+    use fortsym_form, only: form_t, form, form_one, form_zero, &
+        form_component, form_degree, wedge, d, star, interior, lie, flat, &
+        sharp, scale_form, volume_form
     implicit none
 
     type(arena_t), target :: arena
@@ -25,6 +26,7 @@ program test_fortsym_form
     type(form_t) :: derivative, second_derivative, product, hodge, hodge_hodge
     type(form_t) :: volume, reversed_volume, flux, lie_form
     type(form_t) :: cartan_first, cartan_second
+    type(form_t) :: top_zero, top_from_d
     integer :: mask, i
 
     call arena%init()
@@ -111,6 +113,19 @@ program test_fortsym_form
     second_derivative = d(shear, flux)
     call check_identity(suite, engine, "magnetic flux is closed", &
         form_component(second_derivative, 7))
+
+    top_from_d = d(shear, volume)
+    top_zero = form_zero(shear, DIM + 1)
+    call check_identity(suite, engine, "d of a top form is the degree-four zero form", &
+        form_component(top_from_d, 0))
+    call check_identity(suite, engine, "explicit degree-four zero form", &
+        form_component(top_zero, 0))
+    if (form_degree(top_from_d) /= DIM + 1 .or. &
+        form_degree(top_zero) /= DIM + 1) then
+        suite%total = suite%total + 1
+        suite%failed = suite%failed + 1
+        print *, "FAIL  degree-four form metadata"
+    end if
 
     lie_form = lie(shear, vector, one_form)
     cartan_first = interior(shear, vector, d(shear, one_form))

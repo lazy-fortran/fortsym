@@ -83,7 +83,7 @@ enum {
     FORTSYM_GEOMETRY_DIMENSION = 3,
     FORTSYM_TENSOR_MAX_RANK = 4,
     FORTSYM_FORM_COMPONENTS = 8,
-    FORTSYM_FORM_MAX_DEGREE = 3
+    FORTSYM_FORM_MAX_DEGREE = 4
 };
 
 int fortsym_abi_version(void);

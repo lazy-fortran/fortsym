@@ -17,6 +17,7 @@ module fortsym_form
     private
 
     public :: form_t, form, form_scalar, form_one, form_two, form_three
+    public :: form_zero
     public :: volume_form, volume
     public :: form_component, form_degree, form_valid
     public :: add_forms, subtract_forms, negate_form
@@ -56,6 +57,18 @@ module fortsym_form
     end interface lie
 
 contains
+
+    !> Construct an explicit zero k-form, including the degree DIM+1 zero
+    !> extension returned by d of a top-degree form.
+    function form_zero(c, degree) result(alpha)
+        type(chart_t), intent(in) :: c
+        integer, intent(in) :: degree
+        type(form_t) :: alpha
+
+        if (.not. associated(c%a)) return
+        if (degree < 0 .or. degree > DIM + 1) return
+        alpha = zero_form(c%a, degree)
+    end function form_zero
 
     !> Construct a zero k-form in an existing expression arena.
     function zero_form(a, degree) result(alpha)
@@ -286,7 +299,10 @@ contains
         if (.not. associated(c%a)) return
         if (.not. form_valid(alpha)) return
         if (.not. associated(alpha%a, c%a)) return
-        if (alpha%degree > DIM) return
+        if (alpha%degree > DIM) then
+            result = form_zero(c, DIM + 1)
+            return
+        end if
 
         result = zero_form(c%a, alpha%degree + 1)
         select case (alpha%degree)
