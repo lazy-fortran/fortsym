@@ -804,6 +804,10 @@ The first-class object model is staged around these metadata owners:
   `metric_from_chart` is a convenience constructor, not a second metric
   representation. Euclidean and Lorentzian metrics use the same tensor and
   Hodge owners.
+- [x] Add the fixed-three-dimensional metric-owner subset: explicit component
+  storage, signature and orientation metadata, inverse, determinant, and
+  positive `sqrtg`, with independent Euclidean and Lorentzian checks. Full
+  nondegeneracy proofs and Hodge/connection integration remain open.
 - [ ] `orientation_t` and the positive volume density are separate metadata.
   `volume_form(metric, orientation)` may change sign, while `sqrtg(metric)`
   never absorbs orientation. `epsilon` constructors distinguish the symbol,
@@ -1064,7 +1068,7 @@ conversion only. They do not maintain a second geometry implementation.
   changes. `sqrtg` carries orientation separately from the positive metric
   volume factor. No operation may silently replace a signed Jacobian with
   `sqrt(det(g))`.
-- [ ] Keep geometry as independent modules with declared downward
+- [x] Keep geometry as independent modules with declared downward
   dependencies: `fortsym_geom` owns charts and bases, `fortsym_metric` owns
   metrics and volume forms, `fortsym_tensor` owns indexed algebra,
   `fortsym_form` owns exterior algebra, `fortsym_connection` owns covariant

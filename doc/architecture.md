@@ -126,7 +126,12 @@ exact algebraic conjugation delegates to the same bridge. The complex test
 oracle evaluates the original expression independently rather than
 reconstructing the expected parts from the splitter.
 
-The `fortsym` facade, C ABI, and `fortsym.sympy` adapter all call this owner;
+The `fortsym_metric` owner now carries fixed-three-dimensional metric
+components, signature, orientation, inverse, determinant, and positive
+`sqrtg` independently of a chart. `metric_from_chart` is its convenience
+constructor; it copies expression handles, not symbolic subgraphs. The
+`fortsym` facade, C ABI, and `fortsym.sympy` adapter all call the relevant
+owner;
 they add only result/error transport and SymPy spelling translation, so there
 is no second projection or conjugation implementation at a public boundary.
 The same ownership rule applies to coordinate charts: `fortsym_chart` owns

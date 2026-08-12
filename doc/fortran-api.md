@@ -62,6 +62,24 @@ use a literal mode while a symbolic check keeps `n` in the expression tree.
 The chart also owns `grad`, `divergence`, `curl`, and `laplacian`; `curl` takes
 covector components and returns contravariant components.
 
+`fortsym_metric` owns explicit metric metadata. Use `metric_from_chart` for a
+chart-induced Euclidean metric or `metric_create` for a supplied metric, and
+always pass the signature and orientation when they are physically meaningful.
+`metric_sqrtg` is positive and never absorbs orientation; `metric_det` and
+`metric_contravariant` retain the metric's own signature.
+
+```fortran
+use fortsym_chart, only: DIM
+use fortsym_expr, only: expr_t
+use fortsym_metric, only: metric_t, metric_create, metric_sqrtg, &
+    metric_contravariant
+type(metric_t) :: spacetime_metric
+type(expr_t) :: g(DIM, DIM), sqrtg_value, g_inverse(DIM, DIM)
+spacetime_metric = metric_create(g, [-1, 1, 1], -1)
+sqrtg_value = metric_sqrtg(spacetime_metric)
+g_inverse = metric_contravariant(spacetime_metric)
+```
+
 ```fortran
 use fortsym
 type(arena_t), target :: a

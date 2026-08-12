@@ -87,6 +87,7 @@ target_sources(fortsym PRIVATE
     calculus/fortsym_ode.f90
     calculus/fortsym_chart.f90
     calculus/fortsym_chart_map.f90
+    calculus/fortsym_metric.f90
     calculus/fortsym_form.f90
     calculus/fortsym_magnetic.f90
     calculus/fortsym_products.f90
