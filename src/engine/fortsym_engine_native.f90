@@ -62,9 +62,11 @@ module fortsym_engine_native
         integer, allocatable :: simplify_cache(:)
         integer, allocatable :: expand_cache(:)
         integer, allocatable :: simplify_memo(:)
-        logical, allocatable :: simplify_done(:)
+        integer, allocatable :: simplify_stamp(:)
+        integer(int64) :: simplify_epoch = 0_int64
         integer, allocatable :: expand_memo(:)
-        logical, allocatable :: expand_done(:)
+        integer, allocatable :: expand_stamp(:)
+        integer(int64) :: expand_epoch = 0_int64
     contains
         procedure :: zero_test => native_zero_test
         procedure :: simplify => native_simplify
@@ -157,9 +159,10 @@ contains
             end if
         end if
 
-        call reset_workspace(self%simplify_memo, self%simplify_done, e%a%size())
+        call reset_workspace(self%simplify_memo, self%simplify_stamp, &
+            self%simplify_epoch, e%a%size())
         simplified_id = simplify_id(e%a, e%id, self%simplify_memo, &
-            self%simplify_done, active_limit)
+            self%simplify_stamp, self%simplify_epoch, active_limit)
         if (active_limit%exceeded_kind /= 0) then
             r%message = str(resource_failure("simplify", active_limit))
             r%seconds = wall_seconds() - started
@@ -185,10 +188,11 @@ contains
                 r%seconds = wall_seconds() - started
                 return
             end if
-            call reset_workspace(self%simplify_memo, self%simplify_done, &
-                e%a%size())
+            call reset_workspace(self%simplify_memo, self%simplify_stamp, &
+                self%simplify_epoch, e%a%size())
             simplified_id = simplify_id(e%a, simplified_id, &
-                self%simplify_memo, self%simplify_done, active_limit)
+                self%simplify_memo, self%simplify_stamp, self%simplify_epoch, &
+                active_limit)
             if (active_limit%exceeded_kind /= 0) then
                 r%message = str(resource_failure("simplify", active_limit))
                 r%seconds = wall_seconds() - started
@@ -208,9 +212,10 @@ contains
                     cancel_reason)
                 if (cancel_ok) then
                     call reset_workspace(self%simplify_memo, &
-                        self%simplify_done, e%a%size())
+                        self%simplify_stamp, self%simplify_epoch, e%a%size())
                     cancelled%id = simplify_id(e%a, cancelled%id, &
-                        self%simplify_memo, self%simplify_done, active_limit)
+                        self%simplify_memo, self%simplify_stamp, &
+                        self%simplify_epoch, active_limit)
                     if (cancelled%node_count() < &
                         simplified_expr%node_count()) then
                         simplified_id = cancelled%id
@@ -226,9 +231,10 @@ contains
                         cancel_ok, cancel_reason)
                     if (cancel_ok) then
                         call reset_workspace(self%simplify_memo, &
-                            self%simplify_done, e%a%size())
+                            self%simplify_stamp, self%simplify_epoch, e%a%size())
                         cancelled%id = simplify_id(e%a, cancelled%id, &
-                            self%simplify_memo, self%simplify_done, active_limit)
+                            self%simplify_memo, self%simplify_stamp, &
+                            self%simplify_epoch, active_limit)
                         if (cancelled%node_count() < &
                             simplified_expr%node_count()) then
                             simplified_id = cancelled%id
@@ -491,10 +497,11 @@ contains
             end if
         end if
 
-        call reset_workspace(self%expand_memo, self%expand_done, e%a%size())
+        call reset_workspace(self%expand_memo, self%expand_stamp, &
+            self%expand_epoch, e%a%size())
         expanded = e
         expanded%id = expand_id(e%a, e%id, self%expand_memo, &
-            self%expand_done, active_limit)
+            self%expand_stamp, self%expand_epoch, active_limit)
         if (active_limit%exceeded_kind /= 0) then
             r%message = str(resource_failure("expand", active_limit))
             r%seconds = wall_seconds() - started
@@ -508,19 +515,20 @@ contains
             ! produces a canonical expanded sum; walking it through a second
             ! expand/simplify pair was pure overhead.
             if (.not. is_expanded_id(e%a, r%value%id)) then
-                call reset_workspace(self%expand_memo, self%expand_done, &
-                    e%a%size())
+                call reset_workspace(self%expand_memo, self%expand_stamp, &
+                    self%expand_epoch, e%a%size())
                 reexpanded = r%value
                 reexpanded%id = expand_id(e%a, r%value%id, self%expand_memo, &
-                    self%expand_done, active_limit)
+                    self%expand_stamp, self%expand_epoch, active_limit)
                 if (active_limit%exceeded_kind /= 0) then
                     r%ok = .false.
                     r%message = str(resource_failure("expand", active_limit))
                 else
                     call reset_workspace(self%simplify_memo, &
-                        self%simplify_done, e%a%size())
+                        self%simplify_stamp, self%simplify_epoch, e%a%size())
                     reexpanded%id = simplify_id(e%a, reexpanded%id, &
-                        self%simplify_memo, self%simplify_done, active_limit)
+                        self%simplify_memo, self%simplify_stamp, &
+                        self%simplify_epoch, active_limit)
                     if (active_limit%exceeded_kind /= 0) then
                         r%ok = .false.
                         r%message = str(resource_failure("expand", active_limit))
@@ -560,30 +568,37 @@ contains
         call move_alloc(larger, cache)
     end subroutine ensure_cache
 
-    subroutine reset_workspace(memo, done, needed)
+    subroutine reset_workspace(memo, stamp, epoch, needed)
         integer, allocatable, intent(inout) :: memo(:)
-        logical, allocatable, intent(inout) :: done(:)
+        integer, allocatable, intent(inout) :: stamp(:)
+        integer(int64), intent(inout) :: epoch
         integer, intent(in) :: needed
         integer, allocatable :: larger_memo(:)
-        logical, allocatable :: larger_done(:)
+        integer, allocatable :: larger_stamp(:)
         integer :: capacity
 
         if (.not. allocated(memo)) then
             capacity = max(256, needed)
             allocate (memo(capacity), source=0)
-            allocate (done(capacity), source=.false.)
+            allocate (stamp(capacity), source=0)
         else if (size(memo) < needed) then
             capacity = size(memo)
             do while (capacity < needed)
                 capacity = 2*capacity
             end do
             allocate (larger_memo(capacity), source=0)
-            allocate (larger_done(capacity), source=.false.)
+            allocate (larger_stamp(capacity), source=0)
+            larger_memo(1:size(memo)) = memo
+            larger_stamp(1:size(stamp)) = stamp
             call move_alloc(larger_memo, memo)
-            call move_alloc(larger_done, done)
+            call move_alloc(larger_stamp, stamp)
         end if
-        memo = 0
-        done = .false.
+        if (epoch == huge(epoch)) then
+            stamp = 0
+            epoch = 1_int64
+        else
+            epoch = epoch + 1_int64
+        end if
     end subroutine reset_workspace
 
     recursive function is_expanded_id(a, id) result(expanded)
@@ -986,15 +1001,17 @@ contains
         ok = .true.
     end subroutine exact_factorial_value
 
-    recursive function simplify_id(a, id, memo, done, limit) result(out)
+    recursive function simplify_id(a, id, memo, stamp, epoch, limit) result(out)
         type(arena_t), target, intent(inout) :: a
         integer,       intent(in)    :: id
         integer,       intent(inout) :: memo(:)
-        logical,       intent(inout) :: done(:)
+        integer,       intent(inout) :: stamp(:)
+        integer(int64), intent(in) :: epoch
         type(resource_limit_t), intent(inout), optional :: limit
         integer                      :: out
         integer, allocatable :: children(:)
-        integer :: k
+        integer :: k, child
+        integer :: pair(2), unary(1)
         logical :: refused
         character(:), allocatable :: reason
 
@@ -1006,35 +1023,45 @@ contains
             end if
         end if
 
-        if (done(id)) then
+        if (stamp(id) == epoch) then
             out = memo(id)
             return
         end if
 
         select case (a%kind_of(id))
-        case (NK_ADD, NK_MUL, NK_FUNC)
+        case (NK_ADD, NK_MUL)
             allocate (children(a%nargs_of(id)))
             do k = 1, size(children)
-                children(k) = simplify_id(a, a%arg_of(id, k), memo, done, limit)
+                children(k) = simplify_id(a, a%arg_of(id, k), memo, stamp, epoch, limit)
             end do
             select case (a%kind_of(id))
             case (NK_ADD)
                 out = simplify_add(a, children)
-            case (NK_MUL)
-                out = simplify_mul(a, children)
             case default
-                out = simplify_function(a, chars(a%name_of(id)), children)
+                out = simplify_mul(a, children)
             end select
+        case (NK_FUNC)
+            if (a%nargs_of(id) == 1) then
+                child = simplify_id(a, a%arg_of(id, 1), memo, stamp, epoch, limit)
+                unary(1) = child
+                out = simplify_function(a, chars(a%name_of(id)), unary)
+            else
+                allocate (children(a%nargs_of(id)))
+                do k = 1, size(children)
+                    children(k) = simplify_id(a, a%arg_of(id, k), memo, stamp, &
+                        epoch, limit)
+                end do
+                out = simplify_function(a, chars(a%name_of(id)), children)
+            end if
         case (NK_POW)
-            allocate (children(2))
-            children(1) = simplify_id(a, a%arg_of(id, 1), memo, done, limit)
-            children(2) = simplify_id(a, a%arg_of(id, 2), memo, done, limit)
-            out = simplify_power(a, children(1), children(2))
+            pair(1) = simplify_id(a, a%arg_of(id, 1), memo, stamp, epoch, limit)
+            pair(2) = simplify_id(a, a%arg_of(id, 2), memo, stamp, epoch, limit)
+            out = simplify_power(a, pair(1), pair(2))
         case default
             out = id
         end select
 
-        done(id) = .true.
+        stamp(id) = epoch
         memo(id) = out
     end function simplify_id
 
@@ -3891,16 +3918,18 @@ contains
         end select
     end function exact_periodic_constant
 
-    recursive function expand_id(a, id, memo, done, limit) result(out)
+    recursive function expand_id(a, id, memo, stamp, epoch, limit) result(out)
         type(arena_t), intent(inout) :: a
         integer,       intent(in)    :: id
         integer,       intent(inout) :: memo(:)
-        logical,       intent(inout) :: done(:)
+        integer,       intent(inout) :: stamp(:)
+        integer(int64), intent(in) :: epoch
         type(resource_limit_t), intent(inout), optional :: limit
         integer                      :: out
         integer, allocatable :: children(:)
         integer(int64) :: exponent, den, remaining
-        integer :: k, base, acc, factor
+        integer :: k, base, acc, factor, child
+        integer :: unary(1)
         logical :: exact, multinomial_ok
         logical :: refused
         character(:), allocatable :: reason
@@ -3913,7 +3942,7 @@ contains
             end if
         end if
 
-        if (done(id)) then
+        if (stamp(id) == epoch) then
             out = memo(id)
             return
         end if
@@ -3922,19 +3951,19 @@ contains
         case (NK_ADD)
             allocate (children(a%nargs_of(id)))
             do k = 1, size(children)
-                children(k) = expand_id(a, a%arg_of(id, k), memo, done, limit)
+                children(k) = expand_id(a, a%arg_of(id, k), memo, stamp, epoch, limit)
             end do
             out = a%add(children)
         case (NK_MUL)
             acc = a%int(1_int64)
             do k = 1, a%nargs_of(id)
-                base = expand_id(a, a%arg_of(id, k), memo, done, limit)
+                base = expand_id(a, a%arg_of(id, k), memo, stamp, epoch, limit)
                 acc = distribute(a, acc, base, limit)
             end do
             out = acc
         case (NK_POW)
-            base = expand_id(a, a%arg_of(id, 1), memo, done, limit)
-            out = expand_id(a, a%arg_of(id, 2), memo, done, limit)
+            base = expand_id(a, a%arg_of(id, 1), memo, stamp, epoch, limit)
+            out = expand_id(a, a%arg_of(id, 2), memo, stamp, epoch, limit)
             call exact_value(a, out, exponent, den, exact)
             if (exact) then
                 if (den /= 1_int64) exact = .false.
@@ -3979,16 +4008,23 @@ contains
                 out = a%pow(base, out)
             end if
         case (NK_FUNC)
-            allocate (children(a%nargs_of(id)))
-            do k = 1, size(children)
-                children(k) = expand_id(a, a%arg_of(id, k), memo, done, limit)
-            end do
-            out = a%func(chars(a%name_of(id)), children)
+            if (a%nargs_of(id) == 1) then
+                child = expand_id(a, a%arg_of(id, 1), memo, stamp, epoch, limit)
+                unary(1) = child
+                out = a%func(chars(a%name_of(id)), unary)
+            else
+                allocate (children(a%nargs_of(id)))
+                do k = 1, size(children)
+                    children(k) = expand_id(a, a%arg_of(id, k), memo, stamp, &
+                        epoch, limit)
+                end do
+                out = a%func(chars(a%name_of(id)), children)
+            end if
         case default
             out = id
         end select
 
-        done(id) = .true.
+        stamp(id) = epoch
         memo(id) = out
     end function expand_id
 
@@ -4226,11 +4262,13 @@ contains
         type(resource_limit_t), intent(inout), optional :: limit
         integer                              :: out
         integer, allocatable :: memo(:)
-        logical, allocatable :: done(:)
+        integer, allocatable :: stamp(:)
+        integer(int64) :: epoch
 
         allocate (memo(a%size()), source=0)
-        allocate (done(a%size()), source=.false.)
-        out = simplify_id(a, id, memo, done, limit)
+        allocate (stamp(a%size()), source=0)
+        epoch = 1_int64
+        out = simplify_id(a, id, memo, stamp, epoch, limit)
     end function simplify_root_id
 
     function distribute(a, left, right, limit) result(out)
