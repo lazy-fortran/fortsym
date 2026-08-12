@@ -80,6 +80,27 @@ B = b_fourier(chart, A, n)
 The convenience facade and the lower-level modules call the same owners; they
 do not maintain separate metric, variance, or density representations.
 
+The first native differential-form layer is three-dimensional and uses the
+coordinate coframe. `form_scalar`, `form_one`, `form_two`, and `form_three`
+construct typed forms; `d`, `wedge`, `star`, `interior`, and `lie` operate on
+them. `flat` and `sharp` are the metric-owned one-form/vector conversions.
+The magnetic two-form is therefore a derived identity, not a second magnetic
+field representation:
+
+```fortran
+type(expr_t) :: A(DIM)
+type(form_t) :: A_form, B_form, volume, flux_form
+
+A_form = form_one(chart, A)
+B_form = d(chart, A_form)
+volume = star(chart, form(num(arena, 1)))
+flux_form = interior(chart, b_con(chart, A), volume)
+```
+
+On an orientation-preserving chart, `flux_form` and `B_form` agree and
+`d(chart, flux_form)` is zero. Higher-dimensional manifolds, arbitrary tensor
+rank, and Python form transport remain explicit roadmap work.
+
 `symbols` assigns whitespace- or comma-separated names to scalar outputs:
 
 ```fortran

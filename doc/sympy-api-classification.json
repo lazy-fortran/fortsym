@@ -1289,6 +1289,246 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_form.form_t",
+        "module": "fortsym_form",
+        "name": "form_t",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.form",
+        "module": "fortsym_form",
+        "name": "form",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.form_scalar",
+        "module": "fortsym_form",
+        "name": "form_scalar",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.form_one",
+        "module": "fortsym_form",
+        "name": "form_one",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.form_two",
+        "module": "fortsym_form",
+        "name": "form_two",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.form_three",
+        "module": "fortsym_form",
+        "name": "form_three",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.form_component",
+        "module": "fortsym_form",
+        "name": "form_component",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.form_degree",
+        "module": "fortsym_form",
+        "name": "form_degree",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.form_valid",
+        "module": "fortsym_form",
+        "name": "form_valid",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.add_forms",
+        "module": "fortsym_form",
+        "name": "add_forms",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.subtract_forms",
+        "module": "fortsym_form",
+        "name": "subtract_forms",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.negate_form",
+        "module": "fortsym_form",
+        "name": "negate_form",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.wedge",
+        "module": "fortsym_form",
+        "name": "wedge",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.d",
+        "module": "fortsym_form",
+        "name": "d",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.exterior_diff",
+        "module": "fortsym_form",
+        "name": "exterior_diff",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.star",
+        "module": "fortsym_form",
+        "name": "star",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.hodge_star",
+        "module": "fortsym_form",
+        "name": "hodge_star",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.interior",
+        "module": "fortsym_form",
+        "name": "interior",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.interior_product",
+        "module": "fortsym_form",
+        "name": "interior_product",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.lie",
+        "module": "fortsym_form",
+        "name": "lie",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.lie_derivative",
+        "module": "fortsym_form",
+        "name": "lie_derivative",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.flat",
+        "module": "fortsym_form",
+        "name": "flat",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.sharp",
+        "module": "fortsym_form",
+        "name": "sharp",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.scale_form",
+        "module": "fortsym_form",
+        "name": "scale_form",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_magnetic.b_con",
         "module": "fortsym_magnetic",
         "name": "b_con",
@@ -4295,6 +4535,270 @@
         "id": "fortsym.b_fourier_density",
         "module": "fortsym",
         "name": "b_fourier_density",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.form_t",
+        "module": "fortsym",
+        "name": "form_t",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.form",
+        "module": "fortsym",
+        "name": "form",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.form_scalar",
+        "module": "fortsym",
+        "name": "form_scalar",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.form_one",
+        "module": "fortsym",
+        "name": "form_one",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.form_two",
+        "module": "fortsym",
+        "name": "form_two",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.form_three",
+        "module": "fortsym",
+        "name": "form_three",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.form_component",
+        "module": "fortsym",
+        "name": "form_component",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.form_degree",
+        "module": "fortsym",
+        "name": "form_degree",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.form_valid",
+        "module": "fortsym",
+        "name": "form_valid",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.add_forms",
+        "module": "fortsym",
+        "name": "add_forms",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.subtract_forms",
+        "module": "fortsym",
+        "name": "subtract_forms",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.negate_form",
+        "module": "fortsym",
+        "name": "negate_form",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.wedge",
+        "module": "fortsym",
+        "name": "wedge",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.d",
+        "module": "fortsym",
+        "name": "d",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.exterior_diff",
+        "module": "fortsym",
+        "name": "exterior_diff",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.star",
+        "module": "fortsym",
+        "name": "star",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.hodge_star",
+        "module": "fortsym",
+        "name": "hodge_star",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.interior",
+        "module": "fortsym",
+        "name": "interior",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.interior_product",
+        "module": "fortsym",
+        "name": "interior_product",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.lie",
+        "module": "fortsym",
+        "name": "lie",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.lie_derivative",
+        "module": "fortsym",
+        "name": "lie_derivative",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.flat",
+        "module": "fortsym",
+        "name": "flat",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.sharp",
+        "module": "fortsym",
+        "name": "sharp",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.scale_form",
+        "module": "fortsym",
+        "name": "scale_form",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -8144,12 +8648,12 @@
     "classification_counts": {
       "delegated": 2529,
       "external": 10,
-      "facade": 207,
-      "native": 3222,
+      "facade": 231,
+      "native": 3270,
       "python-adapter": 2485,
       "refused": 25309
     },
-    "fortran_public_exports": 781,
+    "fortran_public_exports": 829,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

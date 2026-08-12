@@ -1364,7 +1364,7 @@ contains
     end subroutine get_chart_inputs
 
     subroutine clear_array_outputs(out)
-        type(c_ptr), intent(out) :: out(*)
+        type(c_ptr), pointer, intent(inout) :: out(:)
         integer :: k
 
         do k = 1, DIM
@@ -1375,7 +1375,7 @@ contains
     subroutine make_array_handles(a, values, out, status, message, capacity)
         type(arena_owner_t), pointer :: a
         type(expr_t), intent(in) :: values(DIM)
-        type(c_ptr), intent(out) :: out(*)
+        type(c_ptr), pointer, intent(inout) :: out(:)
         integer(c_int), intent(out) :: status
         character(kind=c_char), intent(out) :: message(*)
         integer(c_size_t), value :: capacity

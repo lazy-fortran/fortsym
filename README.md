@@ -140,6 +140,10 @@ companion `paper_magnetic.wl` assignments through the same expression arena.
 The Python `fortsym.Chart` facade exposes the same native operations; it is
 also re-exported from `fortsym.sympy` without importing SymPy.
 
+The native `forms_native` example shows the next layer: a covector potential
+`A`, its magnetic two-form `dA`, and the checked identity
+`i_B(volume) = dA`, with `d(dA) = 0` proved in the same expression arena.
+
 **Read Fortran back.** Point it at a source file and a variable name and it
 returns the symbolic expression that file computes, so a hand-written kernel can
 be checked against its definition without anyone transcribing the code into the

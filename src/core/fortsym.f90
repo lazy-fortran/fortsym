@@ -41,6 +41,11 @@ module fortsym
     use fortsym_chart, only: DIM, chart_t, chart_create, covariant_basis, &
         reciprocal_basis, metric_covariant, metric_contravariant, sqrtg, &
         jacobian, christoffel, grad, divergence, curl, laplacian
+    use fortsym_form, only: form_t, form, form_scalar, form_one, form_two, &
+        form_three, form_component, form_degree, form_valid, add_forms, &
+        subtract_forms, negate_form, wedge, d, &
+        exterior_diff, star, hodge_star, interior, interior_product, lie, &
+        lie_derivative, flat, sharp, scale_form
     use fortsym_magnetic, only: b_con, b_cov, b_density, b_fourier, &
         b_fourier_density
     implicit none
@@ -77,7 +82,11 @@ module fortsym
     public :: DIM, chart_t, chart_create, covariant_basis, reciprocal_basis, &
         metric_covariant, metric_contravariant, sqrtg, jacobian, christoffel, &
         grad, divergence, curl, laplacian, b_con, b_cov, b_density, b_fourier, &
-        b_fourier_density
+        b_fourier_density, form_t, form, form_scalar, form_one, form_two, &
+        form_three, form_component, form_degree, form_valid, add_forms, &
+        subtract_forms, negate_form, wedge, d, &
+        exterior_diff, star, hodge_star, interior, interior_product, lie, &
+        lie_derivative, flat, sharp, scale_form
     public :: operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), operator(/=)
     public :: sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, tanh, &
