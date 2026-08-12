@@ -20,3 +20,6 @@ target_link_libraries(example_spherical_coordinates PRIVATE fortsym)
 
 add_executable(example_cylindrical_fourier example_cylindrical_fourier.f90)
 target_link_libraries(example_cylindrical_fourier PRIVATE fortsym)
+
+add_executable(example_killing_vectors example_killing_vectors.f90)
+target_link_libraries(example_killing_vectors PRIVATE fortsym)

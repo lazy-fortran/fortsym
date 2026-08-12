@@ -16,6 +16,7 @@ program test_fortsym_tensor
         tensor_density_weight, tensor_valid, density, raise, lower, &
         tensor_product, contract, trace, permute, symmetrize, antisymmetrize, &
         metric_covariant_tensor, tensor_lie_derivative, tensor_symmetry, &
+        killing, &
         declare_symmetry, SYMMETRY_NONE, SYMMETRIC, ANTISYMMETRIC, UPPER, &
         LOWER_VARIANCE
     use fortsym_index, only: index_type_t, index_t, index_type, make_index, &
@@ -29,12 +30,14 @@ program test_fortsym_tensor
     type(metric_t) :: metric_owner
     type(expr_t) :: u(DIM), position(DIM), values(DIM), expected
     type(expr_t) :: vector_values(DIM), tensor_values(DIM), covector_values(DIM)
+    type(expr_t) :: translation_values(DIM)
     type(expr_t) :: components(27), matrix_components(9)
     type(tensor_t) :: vup, vcov, vdown, roundtrip, weighted, scaled_density, outer, dot
     type(tensor_t) :: metric_down, mixed, rank_three
     type(tensor_t) :: permuted, matrix, symmetric_value, antisymmetric_value
     type(tensor_t) :: scalar, vector_field, vector_lie, covector_field, &
-        covector_lie, density_scalar, density_lie, generic_lie
+        covector_lie, density_scalar, density_lie, generic_lie, killing_value, &
+        metric_killing
     type(index_type_t) :: tangent_space, internal_space
     type(index_t) :: upper_i, lower_i, lower_j, internal_i
     integer :: indices(4), empty(0), rank_three_variance(3), i, j, k
@@ -103,6 +106,32 @@ program test_fortsym_tensor
     generic_lie = lie(shear, vector_field, density_scalar)
     call check_identity(suite, engine, "facade generic tensor Lie derivative", &
         tensor_component(generic_lie, empty) - tensor_component(density_lie, empty))
+
+    ! The third coordinate is an isometry of the nonorthogonal shear metric:
+    ! its coefficients depend on u_1 and u_2 but not u_3.  The Killing
+    ! residual must therefore vanish in both chart and explicit-metric owners.
+    translation_values = num(arena, 0)
+    translation_values(3) = num(arena, 1)
+    killing_value = killing(shear, tensor_vector(shear, translation_values))
+    metric_killing = killing(metric_owner, &
+        tensor_vector(shear, translation_values))
+    call check(suite, tensor_valid(killing_value), &
+        "chart Killing residual is valid")
+    call check(suite, tensor_symmetry(killing_value, 1, 2) == SYMMETRIC, &
+        "chart Killing residual is symmetric")
+    call check(suite, tensor_valid(metric_killing), &
+        "metric Killing residual is valid")
+    do i = 1, DIM
+        do j = 1, DIM
+            indices(1) = i
+            indices(2) = j
+            call check_identity(suite, engine, "translation Killing residual", &
+                tensor_component(killing_value, indices(1:2)))
+            call check_identity(suite, engine, &
+                "metric translation Killing residual", &
+                tensor_component(metric_killing, indices(1:2)))
+        end do
+    end do
 
     vdown = lower(shear, vup, 1)
     call check_metadata(suite, vdown, 1, LOWER_VARIANCE, 0, &

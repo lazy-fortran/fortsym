@@ -11,7 +11,8 @@ module fortsym_tensor
     use fortsym_chart, only: chart_t, DIM, metric_covariant, &
         metric_contravariant
     use fortsym_metric, only: metric_t, metric_valid, metric_same_arena, &
-        metric_arena, owner_metric_covariant => metric_covariant, &
+        metric_arena, metric_has_coordinates, metric_coordinates, &
+        owner_metric_covariant => metric_covariant, &
         owner_metric_contravariant => metric_contravariant
     use fortsym_diff, only: diff
     use fortsym_index, only: index_t, index_valid, index_dimension, index_slot, &
@@ -40,7 +41,7 @@ module fortsym_tensor
     public :: vector, covector, raise, lower
     public :: tensor_product, contract, contract_slots, trace
     public :: permute, symmetrize, antisymmetrize
-    public :: tensor_lie_derivative
+    public :: tensor_lie_derivative, killing
     public :: metric_covariant_tensor, metric_contravariant_tensor
 
     type :: tensor_t
@@ -94,6 +95,11 @@ module fortsym_tensor
         module procedure metric_contravariant_tensor_chart
         module procedure metric_contravariant_tensor_metric
     end interface metric_contravariant_tensor
+
+    interface killing
+        module procedure killing_chart
+        module procedure killing_metric
+    end interface killing
 
 contains
 
@@ -465,27 +471,92 @@ contains
         type(chart_t), intent(in) :: c
         type(tensor_t), intent(in) :: vector_value, tensor_value
         type(tensor_t) :: result
-        type(expr_t) :: base, term, divergence
-        integer :: rank, count, output_index, indices(MAX_RANK)
-        integer :: old_indices(MAX_RANK), slot, i, k, variance
 
         if (.not. associated(c%a)) return
         if (.not. tensor_valid(vector_value)) return
         if (.not. tensor_valid(tensor_value)) return
         if (.not. associated(vector_value%a, c%a)) return
         if (.not. associated(tensor_value%a, c%a)) return
+        result = tensor_lie_derivative_components(c%a, c%u, vector_value, &
+            tensor_value)
+    end function tensor_lie_derivative
+
+    !> Coordinate-aware Lie derivative for a metric without an embedding map.
+    function tensor_lie_derivative_metric(g, vector_value, tensor_value) &
+            result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t), intent(in) :: vector_value, tensor_value
+        type(tensor_t) :: result
+        type(expr_t) :: coordinates(DIM)
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        if (.not. tensor_valid(vector_value)) return
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. metric_same_arena(g, vector_value%a)) return
+        if (.not. metric_same_arena(g, tensor_value%a)) return
+        coordinates = metric_coordinates(g)
+        result = tensor_lie_derivative_components(metric_arena(g), coordinates, &
+            vector_value, tensor_value)
+    end function tensor_lie_derivative_metric
+
+    !> Killing residual L_X g, with the metric as a symmetric lower tensor.
+    !>
+    !> A vector is Killing exactly when this rank-two tensor vanishes. The
+    !> chart and explicit-metric overloads share the same component kernel;
+    !> the latter only requires the metric's declared coordinate tuple.
+    function killing_chart(c, vector_value) result(result)
+        type(chart_t), intent(in) :: c
+        type(tensor_t), intent(in) :: vector_value
+        type(tensor_t) :: result, metric_value
+
+        if (.not. associated(c%a)) return
+        if (.not. tensor_valid(vector_value)) return
+        if (.not. associated(vector_value%a, c%a)) return
+        metric_value = metric_covariant_tensor_chart(c)
+        result = tensor_lie_derivative(c, vector_value, metric_value)
+    end function killing_chart
+
+    function killing_metric(g, vector_value) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t), intent(in) :: vector_value
+        type(tensor_t) :: result, metric_value
+
+        if (.not. metric_valid(g)) return
+        if (.not. tensor_valid(vector_value)) return
+        if (.not. metric_same_arena(g, vector_value%a)) return
+        metric_value = metric_covariant_tensor_metric(g)
+        result = tensor_lie_derivative_metric(g, vector_value, metric_value)
+    end function killing_metric
+
+    function tensor_lie_derivative_components(a, coordinates, vector_value, &
+            tensor_value) result(result)
+        type(arena_t), pointer, intent(in) :: a
+        type(expr_t), intent(in) :: coordinates(DIM)
+        type(tensor_t), intent(in) :: vector_value, tensor_value
+        type(tensor_t) :: result
+        type(expr_t) :: base, term, divergence
+        integer :: rank, count, output_index, indices(MAX_RANK)
+        integer :: old_indices(MAX_RANK), slot, i, k, variance
+
+        if (.not. tensor_valid(vector_value)) return
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. associated(a)) return
+        if (.not. associated(vector_value%a, a)) return
+        if (.not. associated(tensor_value%a, a)) return
         if (tensor_rank(vector_value) /= 1) return
         if (tensor_variance(vector_value, 1) /= UPPER) return
         if (tensor_density_weight(vector_value) /= 0) return
 
         rank = tensor_rank(tensor_value)
         count = component_count(rank)
-        result = zero_tensor(c%a, rank, tensor_value%variance, &
+        result = zero_tensor(a, rank, tensor_value%variance, &
             tensor_density_weight(tensor_value))
         result%symmetry = tensor_value%symmetry
-        divergence = num(c%a, 0)
+        divergence = num(a, 0)
         do k = 1, DIM
-            divergence = divergence + diff(vector_value%component(k - 1), c%u(k))
+            divergence = divergence + diff(vector_value%component(k - 1), &
+                coordinates(k))
         end do
 
         do output_index = 0, count - 1
@@ -495,10 +566,10 @@ contains
             else
                 base = tensor_value%component(encode_index(indices, rank))
             end if
-            term = num(c%a, 0)
+            term = num(a, 0)
             do k = 1, DIM
                 term = term + vector_value%component(k - 1)* &
-                    diff(base, c%u(k))
+                    diff(base, coordinates(k))
             end do
             do slot = 1, rank
                 i = indices(slot)
@@ -509,21 +580,21 @@ contains
                     if (variance == UPPER) then
                         term = term - tensor_value%component( &
                             encode_index(old_indices, rank))* &
-                            diff(vector_value%component(i - 1), c%u(k))
+                            diff(vector_value%component(i - 1), coordinates(k))
                     else
                         term = term + tensor_value%component( &
-                            encode_index(old_indices, rank))* &
-                            diff(vector_value%component(k - 1), c%u(i))
+                            encode_index(old_indices, rank))* diff( &
+                            vector_value%component(k - 1), coordinates(i))
                     end if
                 end do
             end do
             if (tensor_density_weight(tensor_value) /= 0) then
-                term = term + num(c%a, tensor_density_weight(tensor_value))* &
+                term = term + num(a, tensor_density_weight(tensor_value))* &
                     base*divergence
             end if
             result%component(output_index) = term
         end do
-    end function tensor_lie_derivative
+    end function tensor_lie_derivative_components
 
     !> Metric raise of one selected covariant slot.
     function raise_chart(c, tensor_value, slot) result(result)
