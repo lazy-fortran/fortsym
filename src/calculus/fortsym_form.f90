@@ -659,20 +659,25 @@ contains
     end function codifferential_sign
 
     !> Metric Hodge star with the chart orientation and positive sqrt(g).
-    function hodge_star_chart(c, alpha) result(result)
+    function hodge_star_chart(c, alpha, orientation) result(result)
         type(chart_t), intent(in) :: c
         type(form_t), intent(in) :: alpha
+        integer, optional, intent(in) :: orientation
         type(form_t) :: result
         type(expr_t) :: ginv(DIM, DIM), volume
+        integer :: sign
 
         if (.not. chart_valid(c)) return
         if (.not. form_valid(alpha)) return
         if (.not. form_chart_compatible(alpha, c)) return
         if (alpha%degree > DIM) return
+        sign = 1
+        if (present(orientation)) sign = orientation
+        if (sign /= 1 .and. sign /= -1) return
 
         ginv = metric_contravariant(c)
         volume = sqrtg(c)
-        result = hodge_star_components(c%a, alpha, ginv, volume, 1)
+        result = hodge_star_components(c%a, alpha, ginv, volume, sign)
         call form_bind_chart(result, c)
     end function hodge_star_chart
 

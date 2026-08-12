@@ -211,7 +211,11 @@ warnings.
   examples with independent zero checks.
 - [ ] Add a nonorthogonal off-diagonal metric fixture and a direct
   coordinate-composition check.
-- [ ] Add a typed B_ij/2-form-to-beta density bridge with explicit orientation.
+- [x] Add the native typed B_ij/2-form-to-beta density bridge with explicit
+  orientation. `b_con_form` applies the chart Hodge map and metric raise;
+  `b_density_form` then adds the weight-`+1` `sqrtg` factor. The nonorthogonal
+  magnetic test checks both orientations against the independently assembled
+  `interior(B, volume_form)` form.
 - [ ] Complete the n=0/n/=0 Fourier weak-form owner and its Python facade.
 - [ ] Add executable de Sitter and GPS/Newtonian-limit derivation records.
 - [ ] Run every record through native Fortran, fortsym.sympy, and the

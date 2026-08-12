@@ -14,6 +14,7 @@ program test_fortsym_magnetic
         field_line_derivative
     use fortsym_magnetic, only: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
         b_fourier_density, j_fourier, magnetic_field_t, magnetic_field, &
+        b_con_form, b_density_form, &
         magnetic_upper, magnetic_lower, magnetic_density, flux_surface_t, &
         flux_surface, flux_surface_valid, flux_surface_label, &
         flux_surface_measure, flux_surface_average, magnetic_chart_t, &
@@ -38,6 +39,7 @@ program test_fortsym_magnetic
     type(expr_t) :: fourier_integer(DIM), mode
     type(expr_t) :: reluctivity(DIM, DIM), current(DIM)
     type(expr_t) :: h_down(DIM), h_up(DIM)
+    type(expr_t) :: form_up(DIM)
     type(expr_t) :: residual, det_metric, volume, signed_jacobian, average
     type(magnetic_field_t) :: typed_field
     type(flux_surface_t) :: flux_surface_owner
@@ -47,7 +49,10 @@ program test_fortsym_magnetic
     type(tensor_t) :: magnetic_up_owner, magnetic_down_owner, magnetic_density_owner
     type(form_t) :: potential_form_owner, flux_form_owner, field_flux_form, closed_form
     type(form_t) :: volume_form_owner
+    type(form_t) :: negative_volume, negative_flux_form
     type(tensor_t) :: typed_up, typed_down, typed_density
+    type(tensor_t) :: form_density_owner
+    type(tensor_t) :: negative_density_owner
     integer :: tensor_index(1)
     type(engine_result_t) :: reduced
     integer :: i, j
@@ -187,6 +192,31 @@ program test_fortsym_magnetic
         form_component(flux_form_owner, 5) - form_component(field_flux_form, 5))
     call check_identity(suite, engine, "magnetic beta theta-phi", &
         form_component(flux_form_owner, 6) - form_component(field_flux_form, 6))
+    form_up = b_con_form(shear, flux_form_owner)
+    form_density_owner = b_density_form(shear, flux_form_owner)
+    if (.not. tensor_valid(form_density_owner)) then
+        error stop "magnetic form density bridge is invalid"
+    end if
+    if (tensor_variance(form_density_owner, 1) /= 1) then
+        error stop "magnetic form density variance failed"
+    end if
+    if (tensor_density_weight(form_density_owner) /= 1) then
+        error stop "magnetic form density weight failed"
+    end if
+    call check_identity(suite, engine, "magnetic form B^1 bridge", &
+        form_up(1) - b_up(1))
+    call check_identity(suite, engine, "magnetic form density bridge", &
+        tensor_component(form_density_owner, tensor_index) - b_den(1))
+    ! Reversing both the volume used to contract B and the Hodge orientation
+    ! must leave the recovered vector density unchanged.
+    negative_volume = volume_form(shear, -1)
+    negative_flux_form = interior(shear, b_up, negative_volume)
+    negative_density_owner = b_density_form(shear, negative_flux_form, -1)
+    if (.not. tensor_valid(negative_density_owner)) then
+        error stop "oriented magnetic form bridge is invalid"
+    end if
+    call check_identity(suite, engine, "oriented magnetic density bridge", &
+        tensor_component(negative_density_owner, tensor_index) - b_den(1))
     call check_identity(suite, engine, "magnetic beta is closed", &
         form_component(closed_form, 7))
 

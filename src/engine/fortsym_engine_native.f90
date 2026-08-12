@@ -62,6 +62,8 @@ module fortsym_engine_native
         type(assumption_context_t), pointer :: assumptions => null()
         integer, allocatable :: simplify_cache(:)
         integer(int64) :: simplify_cache_generation = -1_int64
+        integer, allocatable :: factor_cache(:)
+        integer(int64) :: factor_cache_generation = -1_int64
         integer, allocatable :: expand_cache(:)
         integer(int64) :: expand_cache_generation = -1_int64
         integer, allocatable :: simplify_memo(:)
@@ -312,6 +314,16 @@ contains
             return
         end if
 
+        call prepare_id_cache(self%factor_cache, &
+            self%factor_cache_generation, e%a)
+        if (self%factor_cache(e%id) /= 0) then
+            r%value%id = self%factor_cache(e%id)
+            r%ok = .true.
+            call set_simplify_condition(e, r%value%id, r)
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
         call poly_factor(e%a, e, factored, factor_ok, factor_reason)
         if (.not. factor_ok) then
             r%message = str(factor_reason)
@@ -330,6 +342,7 @@ contains
         r%value = factored
         r%ok = .true.
         call set_simplify_condition(e, factored%id, r)
+        self%factor_cache(e%id) = factored%id
         r%seconds = wall_seconds() - started
     end function native_factor
 

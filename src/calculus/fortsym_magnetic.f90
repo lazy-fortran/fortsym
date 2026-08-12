@@ -9,13 +9,14 @@ module fortsym_magnetic
     ! a plasma equilibrium package.
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_arena, only: arena_t
-    use fortsym_chart, only: chart_t, DIM, curl, metric_covariant, &
+    use fortsym_chart, only: chart_t, DIM, chart_valid, curl, metric_covariant, &
         metric_contravariant, sqrtg, chart_surface_measure => surface_measure
     use fortsym_defint, only: definite_integral
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, i_expr, num, pi_expr, is_valid, &
         operator(+), operator(-), operator(*), operator(/)
-    use fortsym_form, only: form_t, form_one, exterior_diff
+    use fortsym_form, only: form_t, form_one, exterior_diff, form_valid, &
+        form_degree, form_chart_compatible, star, sharp
     use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, density, &
         tensor_valid
     implicit none
@@ -30,7 +31,7 @@ module fortsym_magnetic
     public :: flux_surface_t, flux_surface, flux_surface_valid, &
         flux_surface_label, flux_surface_measure, flux_surface_average
     public :: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
-        b_fourier_density, j_fourier
+        b_fourier_density, j_fourier, b_con_form, b_density_form
 
     type :: magnetic_field_t
         type(tensor_t) :: upper
@@ -454,6 +455,46 @@ contains
         value(2) = volume*contravariant(2)
         value(3) = volume*contravariant(3)
     end function b_density
+
+    !> Recover B^i from the magnetic two-form beta = i_B(orientation*vol).
+    !>
+    !> The optional orientation is explicit because a two-form is an
+    !> orientation-independent object while the Hodge identification with a
+    !> vector depends on the chosen volume orientation.  With the default
+    !> orientation this is the inverse of interior(c, B, volume_form(c)).
+    function b_con_form(c, beta, orientation) result(value)
+        type(chart_t), intent(in) :: c
+        type(form_t), intent(in) :: beta
+        integer, optional, intent(in) :: orientation
+        type(expr_t) :: value(DIM)
+        type(form_t) :: one_form
+
+        if (.not. chart_valid(c)) return
+        if (.not. form_valid(beta)) return
+        if (form_degree(beta) /= 2) return
+        if (.not. form_chart_compatible(beta, c)) return
+        if (present(orientation)) then
+            if (orientation /= 1 .and. orientation /= -1) return
+            one_form = star(c, beta, orientation)
+        else
+            one_form = star(c, beta)
+        end if
+        value = sharp(c, one_form)
+    end function b_con_form
+
+    !> Return the weight-one contravariant density dual to a magnetic two-form.
+    function b_density_form(c, beta, orientation) result(value)
+        type(chart_t), intent(in) :: c
+        type(form_t), intent(in) :: beta
+        integer, optional, intent(in) :: orientation
+        type(tensor_t) :: value, ordinary
+        type(expr_t) :: contravariant(DIM)
+
+        contravariant = b_con_form(c, beta, orientation)
+        ordinary = tensor_vector(c, contravariant)
+        if (.not. tensor_valid(ordinary)) return
+        value = density(ordinary, sqrtg(c))
+    end function b_density_form
 
     !> Covariant magnetic field intensity from a reluctivity map.
     !>

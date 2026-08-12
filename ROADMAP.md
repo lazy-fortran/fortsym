@@ -1724,6 +1724,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   potential yields `magnetic_chart_potential_form` and the native
   `magnetic_chart_flux_form`, while the Python/SymPy facades provide
   `.potential_form()` and `.flux_form()` without duplicating form algebra.
+- [x] Add the native typed B_ij/2-form-to-beta density bridge with explicit
+  orientation. `b_con_form` applies the chart Hodge map and metric raise;
+  `b_density_form` then adds the weight-`+1` `sqrtg` factor. C/Python transport
+  remains a follow-up so the ABI does not grow without a matching facade.
 - [x] Add native-backed `Form.is_closed` and `SpacetimeForm.is_closed` with
   the shared three-valued zero-verdict contract. Closedness is computed from
   the native exterior derivative and remains `None` when any coefficient is
@@ -2302,6 +2306,10 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     without recursive workspace reset or traversal. This removes avoidable
     overhead for symbols and literal values; the complete SymPy performance
     gate remains open.
+  - [x] Cache native factor results by arena generation and expression handle.
+    Repeated `factor` calls now reuse the exact factorized DAG while retaining
+    the conditional nonzero-domain diagnostic on cache hits; arena clearing
+    invalidates the cache with the existing generation contract.
 - [x] Cache immutable explicit metric determinant, inverse, and positive
   `sqrtg` views in the native `metric_t` owner. Repeated gradient, divergence,
   Laplace--Beltrami, Hodge, and raise/lower calls reuse the same expression
