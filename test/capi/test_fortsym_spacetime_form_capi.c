@@ -20,12 +20,17 @@ int main(void)
     fortsym_expr *minus_one = NULL;
     fortsym_expr *two = NULL;
     fortsym_expr *check = NULL;
+    fortsym_expr *interior_check = NULL;
+    fortsym_expr *lie_check = NULL;
     fortsym_expr *output[16] = {0};
     const fortsym_expr *metric[16];
     const fortsym_expr *coordinates[4];
     const fortsym_expr *input[16];
     const fortsym_expr *curve[4];
+    const fortsym_expr *vector[4];
     fortsym_expr *geodesic_output[4] = {0};
+    fortsym_expr *interior_output[16] = {0};
+    fortsym_expr *lie_output[16] = {0};
 
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -60,6 +65,10 @@ int main(void)
     curve[1] = one;
     curve[2] = parameter;
     curve[3] = zero;
+    vector[0] = one;
+    vector[1] = zero;
+    vector[2] = zero;
+    vector[3] = zero;
 
     status = fortsym_spacetime_form_codifferential(
         arena, metric, 4, coordinates, signature, 1, input, 1, output,
@@ -81,11 +90,37 @@ int main(void)
         assert(verdict == FORTSYM_ZERO_TRUE);
     }
 
+    status = fortsym_spacetime_form_interior(
+        arena, metric, 4, coordinates, signature, 1, vector, input, 1,
+        interior_output, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    assert(fortsym_subtract(arena, interior_output[0], t, &interior_check,
+                            message, sizeof message) == FORTSYM_OK);
+    assert(fortsym_zero_test(arena, interior_check, &verdict, message,
+                             sizeof message) == FORTSYM_OK);
+    assert(verdict == FORTSYM_ZERO_TRUE);
+
+    status = fortsym_spacetime_form_lie(
+        arena, metric, 4, coordinates, signature, 1, vector, input, 1,
+        lie_output, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    assert(fortsym_subtract(arena, lie_output[1], one, &lie_check,
+                            message, sizeof message) == FORTSYM_OK);
+    assert(fortsym_zero_test(arena, lie_check, &verdict, message,
+                             sizeof message) == FORTSYM_OK);
+    assert(verdict == FORTSYM_ZERO_TRUE);
+
     fortsym_expr_free(check);
+    fortsym_expr_free(interior_check);
+    fortsym_expr_free(lie_check);
     for (mask = 0; mask < 16; ++mask)
         fortsym_expr_free(output[mask]);
     for (mask = 0; mask < 4; ++mask)
         fortsym_expr_free(geodesic_output[mask]);
+    for (mask = 0; mask < 16; ++mask) {
+        fortsym_expr_free(interior_output[mask]);
+        fortsym_expr_free(lie_output[mask]);
+    }
     fortsym_expr_free(two);
     fortsym_expr_free(minus_one);
     fortsym_expr_free(one);

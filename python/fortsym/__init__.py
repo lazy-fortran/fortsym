@@ -434,6 +434,19 @@ def _configure(lib):
             ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    for name in ("spacetime_form_interior", "spacetime_form_lie"):
+        setattr(
+            lib, name, declare(
+                "fortsym_" + name, ctypes.c_int,
+                [
+                    _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+                    ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int),
+                    ctypes.c_int, ctypes.POINTER(_CVOID),
+                    ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID),
+                    _CHAR_PTR, _SIZE,
+                ],
+            ),
+        )
     for name in ("covariant_basis", "reciprocal_basis", "metric_covariant",
                  "metric_contravariant", "christoffel",
                  "riemann", "ricci", "einstein"):
@@ -1190,6 +1203,24 @@ class Arena:
             raise FortSymError(status, _decode(message), operation.__name__)
         return tuple(Expr(self, output[index]) for index in range(16)), \
             left.degree + right.degree
+
+    def _spacetime_form_vector_operation(
+            self, operation, metric, vector, form, output_degree):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        vector_values = (_CVOID * SPACETIME_DIM)(
+            *[value._handle for value in vector]
+        )
+        values = (_CVOID * 16)(*[value._handle for value in form.components])
+        output = (_CVOID * 16)()
+        message = _message()
+        status = operation(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, vector_values, values, form.degree, output,
+            message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), operation.__name__)
+        return tuple(Expr(self, output[index]) for index in range(16)), output_degree
 
     def _chart_tensor(self, operation, coordinates, position, rank):
         coordinate_handles, position_handles = self._chart_inputs(
@@ -2124,6 +2155,40 @@ class SpacetimeForm:
         return SpacetimeForm(self.metric, components, degree, _owned=True)
 
     codiff = codifferential
+
+    def _vector_operation(self, operation, vector, output_degree):
+        values = tuple(vector)
+        if len(values) != SPACETIME_DIM:
+            raise ValueError("spacetime vectors require four components")
+        coerced = []
+        temporaries = []
+        try:
+            for value in values:
+                expression, temporary = self._arena._coerce(value)
+                coerced.append(expression)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            components, degree = self._arena._spacetime_form_vector_operation(
+                operation, self.metric, tuple(coerced), self, output_degree
+            )
+            return SpacetimeForm(self.metric, components, degree, _owned=True)
+        finally:
+            for temporary in temporaries:
+                temporary.close()
+
+    def interior(self, vector):
+        return self._vector_operation(
+            self._arena._lib.spacetime_form_interior, vector, self.degree - 1
+        )
+
+    interior_product = interior
+
+    def lie(self, vector):
+        return self._vector_operation(
+            self._arena._lib.spacetime_form_lie, vector, self.degree
+        )
+
+    lie_derivative = lie
 
     def wedge(self, other):
         if not isinstance(other, SpacetimeForm) or other.metric is not self.metric:

@@ -145,6 +145,16 @@ class SympySubsetTest(unittest.TestCase):
         for mask in (3, 5, 6, 9, 10, 12):
             self.assertEqual(potential.wedge(potential)[mask].simplify(), 0)
 
+        vector = (1, 0, 0, 0)
+        test_field = metric.two_form((z - y, 0, t, 0, 0, 0))
+        contraction = test_field.interior(vector)
+        self.assertEqual((contraction[2] - (z - y)).simplify(), 0)
+        lie_field = test_field.lie(vector)
+        self.assertEqual((lie_field[6] - 1).simplify(), 0)
+        self.assertEqual(
+            (lie_field[6] - contraction.d()[6]).simplify(), 0
+        )
+
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_chart_jacobian_and_dual_basis_match_sympy(self):
         u, v, w = sp.symbols("basis_u basis_v basis_w")

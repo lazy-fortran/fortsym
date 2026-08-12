@@ -1489,6 +1489,10 @@ between the two-dimensional gradient, scalar curl, and divergence.
   into the metric connection. Spherical-coordinate residual checks now cover
   nonzero Christoffel dependence; geodesic solving and variational mechanics
   remain open.
+- [x] Extend the four-dimensional form owner through ABI 36 with contraction
+  and Cartan Lie derivative. Independent tests compare `L_X(alpha)` with
+  `i_X(d(alpha)) + d(i_X(alpha))`; arbitrary-dimensional pullback and topology
+  remain open.
 - [ ] Publish short Fortran, Python, and Wolfram examples for every completed
   derivation. Each example must show construction, simplification, a named
   identity check, and code generation where applicable.
