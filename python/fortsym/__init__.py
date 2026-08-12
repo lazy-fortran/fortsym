@@ -210,6 +210,63 @@ def _configure(lib):
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
          ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    form_binary_arguments = [
+        _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+        ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _SIZE,
+        ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+    ]
+    for name in ("add", "subtract", "wedge"):
+        setattr(
+            lib,
+            "chart_form_" + name,
+            declare(
+                "fortsym_chart_form_" + name, ctypes.c_int,
+                form_binary_arguments,
+            ),
+        )
+    form_unary_arguments = [
+        _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+        ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR,
+        _SIZE,
+    ]
+    for name in ("negate", "d", "star"):
+        setattr(
+            lib,
+            "chart_form_" + name,
+            declare(
+                "fortsym_chart_form_" + name, ctypes.c_int,
+                form_unary_arguments,
+            ),
+        )
+    lib.chart_form_scale = declare(
+        "fortsym_chart_form_scale", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, _CVOID, ctypes.POINTER(_CVOID),
+         _CHAR_PTR, _SIZE],
+    )
+    form_vector_arguments = [
+        _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+        ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _SIZE,
+        ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+    ]
+    for name in ("interior", "lie"):
+        setattr(
+            lib,
+            "chart_form_" + name,
+            declare(
+                "fortsym_chart_form_" + name, ctypes.c_int,
+                form_vector_arguments,
+            ),
+        )
+    lib.chart_form_flat = declare(
+        "fortsym_chart_form_flat", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    lib.chart_form_sharp = declare(
+        "fortsym_chart_form_sharp", ctypes.c_int,
+        form_unary_arguments,
+    )
     lib.expand = declare(
         "fortsym_expand",
         ctypes.c_int,
@@ -574,6 +631,95 @@ class Arena:
             operation, self._require(), coordinate_handles, position_handles,
         )
 
+    def _chart_form_output(self, operation, coordinates, position, arguments,
+                           count):
+        coordinate_handles, position_handles = self._chart_inputs(
+            coordinates, position
+        )
+        output = (_CVOID * count)()
+        message = _message()
+        status = operation(
+            self._require(), coordinate_handles, position_handles, *arguments,
+            output, message, len(message)
+        )
+        if status:
+            name = operation.__name__.removeprefix("fortsym_chart_")
+            raise FortSymError(status, _decode(message), name)
+        return tuple(Expr(self, output[index]) for index in range(count))
+
+    def _chart_form_unary(self, operation, form):
+        components = (_CVOID * 8)(
+            *[self._check(value)._handle for value in form.components]
+        )
+        return self._chart_form_output(
+            operation, form.chart.coordinates, form.chart.position,
+            [components, form.degree], 8,
+        )
+
+    def _chart_form_binary(self, operation, left, right):
+        left_components = (_CVOID * 8)(
+            *[self._check(value)._handle for value in left.components]
+        )
+        right_components = (_CVOID * 8)(
+            *[self._check(value)._handle for value in right.components]
+        )
+        return self._chart_form_output(
+            operation, left.chart.coordinates, left.chart.position,
+            [left_components, left.degree, right_components, right.degree], 8,
+        )
+
+    def _chart_form_scale(self, form, factor):
+        components = (_CVOID * 8)(
+            *[self._check(value)._handle for value in form.components]
+        )
+        factor, temporary = self._coerce(factor)
+        try:
+            return self._chart_form_output(
+                self._lib.chart_form_scale,
+                form.chart.coordinates, form.chart.position,
+                [components, form.degree, factor._handle], 8,
+            )
+        finally:
+            if temporary is not None:
+                temporary.close()
+
+    def _chart_form_vector(self, operation, form, vector):
+        components = (_CVOID * 8)(
+            *[self._check(value)._handle for value in form.components]
+        )
+        vector_values = tuple(self._check(value) for value in vector)
+        if len(vector_values) != 3:
+            raise ValueError("form vector operations require three components")
+        vector_handles = (_CVOID * 3)(
+            *[value._handle for value in vector_values]
+        )
+        return self._chart_form_output(
+            operation, form.chart.coordinates, form.chart.position,
+            [vector_handles, components, form.degree], 8,
+        )
+
+    def _chart_form_flat(self, chart, vector):
+        vector_values = tuple(self._check(value) for value in vector)
+        if len(vector_values) != 3:
+            raise ValueError("flat requires three vector components")
+        vector_handles = (_CVOID * 3)(
+            *[value._handle for value in vector_values]
+        )
+        return self._chart_form_output(
+            self._lib.chart_form_flat, chart.coordinates, chart.position,
+            [vector_handles], 8,
+        )
+
+    def _chart_form_sharp(self, form):
+        components = (_CVOID * 8)(
+            *[self._check(value)._handle for value in form.components]
+        )
+        return self._chart_form_output(
+            self._lib.chart_form_sharp,
+            form.chart.coordinates, form.chart.position,
+            [components, form.degree], 3,
+        )
+
     def _chart_inputs(self, coordinates, position):
         coordinates = tuple(self._check(value) for value in coordinates)
         position = tuple(self._check(value) for value in position)
@@ -723,6 +869,25 @@ class Chart:
         )
         return Tensor(self, components, variance, density_weight, _owned=True)
 
+    def form(self, components, degree=0):
+        return Form(self, components, degree)
+
+    def scalar_form(self, value):
+        return Form(self, (value,), 0)
+
+    def one_form(self, values):
+        return Form(self, values, 1)
+
+    def two_form(self, values):
+        return Form(self, values, 2)
+
+    def three_form(self, value):
+        return Form(self, (value,), 3)
+
+    def flat(self, vector):
+        components = self._arena._chart_form_flat(self, vector)
+        return Form(self, components, 1, _owned=True)
+
     def b_cov(self, vector):
         return self._arena._chart_many(
             self._arena._lib.chart_b_cov,
@@ -813,6 +978,170 @@ class Tensor:
         return self.chart.covariant_diff(self)
 
     covariant_derivative = covariant_diff
+
+    def close(self):
+        if self._owned:
+            for component in self.components:
+                component.close()
+        for temporary in self._temporaries:
+            temporary.close()
+        self._temporaries = ()
+        self.components = ()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+class Form:
+    """A chart-bound native differential form.
+
+    The native owner stores all eight three-dimensional basis masks. Public
+    constructors accept the nonzero ordered coefficients for the declared
+    degree, while ``component(mask)`` uses the native bit-mask spelling.
+    """
+
+    def __init__(self, chart, components, degree=0, _owned=False):
+        if not isinstance(chart, Chart):
+            raise TypeError("Form requires a fortsym Chart")
+        degree = int(degree)
+        if degree < 0 or degree > 4:
+            raise ValueError("native forms support degrees zero through four")
+        self.chart = chart
+        self._arena = chart._arena
+        self.degree = degree
+        values = self._normalise_components(components, degree)
+        component_values = []
+        temporaries = []
+        for value in values:
+            coerced, temporary = self._arena._coerce(value)
+            component_values.append(coerced)
+            if temporary is not None:
+                temporaries.append(temporary)
+        self.components = tuple(component_values)
+        self._temporaries = tuple(temporaries)
+        self._owned = bool(_owned)
+
+    @staticmethod
+    def _normalise_components(components, degree):
+        if degree == 0 and isinstance(components, (Expr, int, float, Fraction)):
+            values = (components,)
+        else:
+            values = tuple(components)
+        if len(values) == 8:
+            return values
+        if degree == 0 and len(values) == 1:
+            return (values[0], 0, 0, 0, 0, 0, 0, 0)
+        if degree == 1 and len(values) == 3:
+            return (0, values[0], values[1], 0, values[2], 0, 0, 0)
+        if degree == 2 and len(values) == 3:
+            return (0, 0, 0, values[0], 0, values[1], values[2], 0)
+        if degree == 3 and len(values) == 1:
+            return (0, 0, 0, 0, 0, 0, 0, values[0])
+        if degree == 4 and len(values) == 0:
+            return (0, 0, 0, 0, 0, 0, 0, 0)
+        raise ValueError("form coefficients do not match the declared degree")
+
+    def component(self, mask):
+        mask = int(mask)
+        if mask < 0 or mask >= 8:
+            raise IndexError("form mask is outside the three-dimensional basis")
+        value = self.components[mask]
+        value._form_owner = self
+        return value
+
+    def __getitem__(self, mask):
+        return self.component(mask)
+
+    def __len__(self):
+        return 8
+
+    def __iter__(self):
+        for mask in range(8):
+            yield self.component(mask)
+
+    def d(self):
+        degree = min(self.degree + 1, 4)
+        components = self._arena._chart_form_unary(
+            self._arena._lib.chart_form_d, self
+        )
+        return Form(self.chart, components, degree, _owned=True)
+
+    exterior_diff = d
+
+    def star(self):
+        components = self._arena._chart_form_unary(
+            self._arena._lib.chart_form_star, self
+        )
+        return Form(self.chart, components, 3 - self.degree, _owned=True)
+
+    hodge_star = star
+
+    def wedge(self, other):
+        self._check_other(other)
+        components = self._arena._chart_form_binary(
+            self._arena._lib.chart_form_wedge, self, other
+        )
+        return Form(self.chart, components, self.degree + other.degree,
+                    _owned=True)
+
+    def interior(self, vector):
+        components = self._arena._chart_form_vector(
+            self._arena._lib.chart_form_interior, self, vector
+        )
+        return Form(self.chart, components, max(0, self.degree - 1),
+                    _owned=True)
+
+    interior_product = interior
+
+    def lie(self, vector):
+        components = self._arena._chart_form_vector(
+            self._arena._lib.chart_form_lie, self, vector
+        )
+        return Form(self.chart, components, self.degree, _owned=True)
+
+    lie_derivative = lie
+
+    def sharp(self):
+        return self._arena._chart_form_sharp(self)
+
+    def scale(self, factor):
+        components = self._arena._chart_form_scale(self, factor)
+        return Form(self.chart, components, self.degree, _owned=True)
+
+    def __add__(self, other):
+        self._check_other(other)
+        components = self._arena._chart_form_binary(
+            self._arena._lib.chart_form_add, self, other
+        )
+        return Form(self.chart, components, self.degree, _owned=True)
+
+    def __sub__(self, other):
+        self._check_other(other)
+        components = self._arena._chart_form_binary(
+            self._arena._lib.chart_form_subtract, self, other
+        )
+        return Form(self.chart, components, self.degree, _owned=True)
+
+    def __neg__(self):
+        components = self._arena._chart_form_unary(
+            self._arena._lib.chart_form_negate, self
+        )
+        return Form(self.chart, components, self.degree, _owned=True)
+
+    def __mul__(self, other):
+        if isinstance(other, Form):
+            return self.wedge(other)
+        return self.scale(other)
+
+    def __rmul__(self, other):
+        return self.scale(other)
+
+    def _check_other(self, other):
+        if not isinstance(other, Form) or other.chart is not self.chart:
+            raise ValueError("form operation expects a form from this chart")
 
     def close(self):
         if self._owned:
@@ -1556,7 +1885,7 @@ def free_symbols(expression: Expr): return expression.free_symbols
 
 
 __all__ = [
-    "Arena", "Chart", "Tensor", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count",
     "free_symbols",
 ]

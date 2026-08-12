@@ -1,8 +1,9 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 15). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 18). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
-inspection, substitution, and differentiation. The native library retains an
+inspection, substitution, differentiation, and the first fixed-three-dimensional
+chart, tensor, connection, and differential-form views. The native library retains an
 arena while any expression handle refers to it; callers may therefore release
 the arena before releasing its expressions.
 
