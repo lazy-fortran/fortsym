@@ -1852,6 +1852,14 @@ contains
         ! extraction without building the general live/filtered work arrays;
         ! larger sums retain the full like-term collector below.
         if (size(operands) == 2) then
+            if (is_zero_id(a, operands(1))) then
+                out = operands(2)
+                return
+            end if
+            if (is_zero_id(a, operands(2))) then
+                out = operands(1)
+                return
+            end if
             pair(1) = operands(1)
             pair(2) = operands(2)
             flat = a%add(pair)
@@ -1860,14 +1868,6 @@ contains
                 return
             end if
             if (a%nargs_of(flat) == 2) then
-                if (is_zero_id(a, operands(1))) then
-                    out = operands(2)
-                    return
-                end if
-                if (is_zero_id(a, operands(2))) then
-                    out = operands(1)
-                    return
-                end if
                 call split_coefficient(a, operands(1), base, coefficient, exact)
                 exact2 = .false.
                 if (exact) then
@@ -2207,6 +2207,18 @@ contains
         ! below handles arbitrary arity and repeated powers, but its factor,
         ! base, exponent, and result arrays are unnecessary for this shape.
         if (size(operands) == 2) then
+            if (is_zero_id(a, operands(1)) .or. is_zero_id(a, operands(2))) then
+                out = a%int(0_int64)
+                return
+            end if
+            if (is_one_id(a, operands(1))) then
+                out = operands(2)
+                return
+            end if
+            if (is_one_id(a, operands(2))) then
+                out = operands(1)
+                return
+            end if
             pair(1) = operands(1)
             pair(2) = operands(2)
             flat = a%mul(pair)

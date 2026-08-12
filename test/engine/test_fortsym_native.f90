@@ -42,6 +42,7 @@ program test_fortsym_native
     call test_workspace_reuse()
     call test_generation_cache_safety()
     call test_like_terms_and_powers()
+    call test_binary_identity_fast_paths()
     call test_common_rational_factor()
     call test_polynomial_cancellation()
     call test_expansion()
@@ -232,6 +233,29 @@ contains
         call check("square of principal square root is canonical", &
             sqrt(sqrt_argument)**2 == sqrt_argument)
     end subroutine test_like_terms_and_powers
+
+    subroutine test_binary_identity_fast_paths()
+        type(engine_result_t) :: r
+        type(expr_t) :: zero_value, one_value
+
+        zero_value = num(arena, 0_int64)
+        one_value = num(arena, 1_int64)
+
+        r = engine%simplify(x + zero_value)
+        call check("binary x plus zero keeps x", r%ok .and. r%value == x)
+        r = engine%simplify(zero_value + x)
+        call check("binary zero plus x keeps x", r%ok .and. r%value == x)
+        r = engine%simplify(x*zero_value)
+        call check("binary x times zero is zero", &
+            r%ok .and. r%value == zero_value)
+        r = engine%simplify(zero_value*x)
+        call check("binary zero times x is zero", &
+            r%ok .and. r%value == zero_value)
+        r = engine%simplify(x*one_value)
+        call check("binary x times one keeps x", r%ok .and. r%value == x)
+        r = engine%simplify(one_value*x)
+        call check("binary one times x keeps x", r%ok .and. r%value == x)
+    end subroutine test_binary_identity_fast_paths
 
     subroutine test_common_rational_factor()
         type(engine_result_t) :: r

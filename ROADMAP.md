@@ -2173,10 +2173,11 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     SymEngine for cold simplify, differentiation, and expansion on its current
     diagnostic workload. Matched SymPy coverage remains open.
   - [x] Add allocation-free binary add/multiply fast paths while preserving
-    flattened and domain-sensitive fallbacks. The 2026-08-12 rerun remained
-    correct and measured 7.28 microseconds for cold simplify, 8.64 microseconds
-    for cold differentiation, and 0.12/0.11 microseconds for the corresponding
-    warm calls; the broader SymPy corpus gate remains open.
+    flattened and domain-sensitive fallbacks, including zero/one identity exits
+    before binary interning. The 2026-08-12 rerun remained correct and measured
+    7.46 microseconds for cold simplify, 7.90 microseconds for cold
+    differentiation, and 0.121/0.101 microseconds for the corresponding warm
+    calls; the broader SymPy corpus gate remains open.
 - [x] Cache immutable explicit metric determinant, inverse, and positive
   `sqrtg` views in the native `metric_t` owner. Repeated gradient, divergence,
   Laplace--Beltrami, Hodge, and raise/lower calls reuse the same expression
