@@ -38,7 +38,7 @@
     {
       "from": "calculus",
       "to": "core",
-      "uses": 12
+      "uses": 14
     },
     {
       "from": "calculus",
@@ -123,7 +123,7 @@
     {
       "from": "core",
       "to": "calculus",
-      "uses": 3
+      "uses": 4
     },
     {
       "from": "core",
@@ -293,6 +293,7 @@
         "fortsym_engine_native",
         "fortsym_eval",
         "fortsym_expr",
+        "fortsym_form",
         "fortsym_kernel",
         "fortsym_magnetic",
         "fortsym_numeric",
@@ -576,6 +577,17 @@
       "name": "fortsym_expr",
       "owner": "core",
       "path": "src/core/fortsym_expr.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_chart",
+        "fortsym_diff",
+        "fortsym_expr"
+      ],
+      "name": "fortsym_form",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_form.f90"
     },
     {
       "dependencies": [
@@ -1069,11 +1081,11 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 321,
+    "internal_edges": 326,
     "module_file_mismatches": 0,
-    "module_units": 66,
-    "modules": 66,
-    "source_units": 67,
+    "module_units": 67,
+    "modules": 67,
+    "source_units": 68,
     "unknown_internal_dependencies": 0
   },
   "violations": {

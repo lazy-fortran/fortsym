@@ -45,6 +45,9 @@ target_link_libraries(fortsym_latex_paper_pilot PRIVATE fortsym)
 add_executable(paper_magnetic_native paper_magnetic_native.f90)
 target_link_libraries(paper_magnetic_native PRIVATE fortsym)
 
+add_executable(forms_native forms_native.f90)
+target_link_libraries(forms_native PRIVATE fortsym)
+
 # Lives under benchmark/harnesses rather than app/ because fpm treats every
 # file in app/ as a program and links their objects together, so a C++ main
 # here collides with every Fortran app's main and breaks `fo install`.

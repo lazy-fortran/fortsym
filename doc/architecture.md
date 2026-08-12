@@ -21,8 +21,8 @@ naming rule and lifetime contract.
 1. `src/core` owns expression identity, exact scalar literals, applied
    functions, and substitution.
 2. `src/io` parses and prints canonical expressions and backend dialects.
-3. `src/calculus` implements mechanical differentiation and contracted
-   derivative products.
+3. `src/calculus` implements mechanical differentiation, contracted derivative
+   products, coordinate geometry, and the native differential-form layer.
 4. `src/engine` declares operations and wraps native or external algorithms.
 5. `src/algebra` implements deterministic exact operations over expression
    arrays, including dense rational linear systems, bounded symbolic matrices,
@@ -39,7 +39,7 @@ The structural module audit is reproducible with:
 python3 scripts/audit_module_architecture.py doc/module-architecture.json
 ```
 
-At the current revision it covers 66 Fortran modules and 321 internal `use`
+At the current revision it covers 67 Fortran modules and 326 internal `use`
 edges. It requires one named module per source owner, matching filenames,
 known internal dependencies, an acyclic module graph, and no implementation
 module importing the convenience facade. The generated report records the

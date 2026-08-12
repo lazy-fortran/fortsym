@@ -703,6 +703,10 @@ reproduces its own expected strings.
   `fortsym_form` owns exterior algebra, `fortsym_connection` owns covariant
   derivatives and curvature, and `fortsym_magnetic` owns flux-coordinate
   constructions. The facade only registers and forwards operations.
+- [x] Add the first independent `fortsym_form` owner for fixed three-dimensional
+  coordinate forms. It stores antisymmetric components once and provides the
+  native exterior-algebra operations without coupling the expression arena to
+  a physics package.
 - [ ] Translate every supported geometry derivation into native `fortsym`
   construction. The Wolfram and Python scripts are coverage inputs and
   differential tests. They are never the implementation behind a native
@@ -815,17 +819,27 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [ ] Implement degree-`k` forms with antisymmetric slots, scalar and function
   coefficients, `wedge`, exterior derivative `d`, pullback, interior product,
   Lie derivative, and exact/closed checks.
+- [x] Implement the first fixed-three-dimensional subset: `form_t`, scalar,
+  one-, two-, and three-form constructors, `wedge`, `d`, metric `star`,
+  interior product, Cartan `lie`, and metric `flat`/`sharp`.
 - [ ] Implement metric-dependent Hodge `star`, codifferential, Laplace-de Rham
   operator, and the conversion between vectors and one-forms using `flat` and
   `sharp`. Orientation and metric signature are explicit inputs to `star`.
 - [ ] Prove and test the structural identities `d(d(alpha)) = 0`, the graded
   Leibniz rule, pullback composition, Cartan's identity, and the appropriate
   signed `star(star(alpha))` rule in each supported signature.
+- [x] Prove the first coordinate-form identities independently on a
+  nonorthogonal chart: `d(d(alpha)) = 0`, graded Leibniz, Cartan's identity,
+  Euclidean-signature Hodge involution, and `sharp(flat(v)) = v`.
 - [ ] Add a Maxwell and plasma vocabulary built from forms: vector potential
   one-form `A`, magnetic flux two-form `beta = i_B(volume)`, `d(beta) = 0`,
   `beta = d(A)` on a declared simply connected patch, electric field form,
   Faraday law, and gauge transformations. Vector-calculus spellings remain
   derived convenience views.
+- [x] Add the first magnetic-form identity: `beta = i_B(volume) = d(A)` and
+  `d(beta) = 0` for the native chart/magnetic owners. Keep the full Maxwell,
+  gauge, and topology vocabulary open until the form domain carries patch
+  and boundary metadata.
 - [ ] Add Python compatibility for the selected `sympy.diffgeom` and
   `sympy.tensor` operations, while keeping the native form algebra independent
   of SymPy at runtime. Add Wolfram translations for the corresponding
