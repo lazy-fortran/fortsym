@@ -1,3 +1,16 @@
 # Worked examples. Built so they cannot rot, but not registered as tests.
 add_executable(example_workflow example_workflow.f90)
 target_link_libraries(example_workflow PRIVATE fortsym)
+
+add_executable(example_de_sitter example_de_sitter.f90)
+target_link_libraries(example_de_sitter PRIVATE fortsym)
+
+add_executable(example_gps_newtonian_limit example_gps_newtonian_limit.f90)
+target_link_libraries(example_gps_newtonian_limit PRIVATE fortsym)
+
+add_executable(example_magnetic_flux_coordinates
+    example_magnetic_flux_coordinates.f90)
+target_link_libraries(example_magnetic_flux_coordinates PRIVATE fortsym)
+
+add_executable(example_boozer_coordinates example_boozer_coordinates.f90)
+target_link_libraries(example_boozer_coordinates PRIVATE fortsym)

@@ -53,7 +53,7 @@ module fortsym
         form_three, form_zero, form_component, form_degree, form_valid, add_forms, &
         subtract_forms, negate_form, wedge, d, &
         exterior_diff, star, hodge_star, interior, interior_product, lie, &
-        lie_derivative, flat, sharp, scale_form
+        lie_derivative, flat, sharp, scale_form, volume_form
     use fortsym_tensor, only: tensor_t, tensor, tensor_scalar, tensor_vector, &
         tensor_covector, tensor_from_components, tensor_from_matrix, &
         tensor_component, tensor_rank, tensor_variance, &
@@ -175,7 +175,7 @@ module fortsym
         form_three, form_component, form_degree, form_valid, add_forms, &
         subtract_forms, negate_form, wedge, d, &
         exterior_diff, star, hodge_star, interior, interior_product, lie, &
-        lie_derivative, flat, sharp, scale_form, tensor_t, tensor, &
+        lie_derivative, flat, sharp, scale_form, volume_form, tensor_t, tensor, &
         tensor_scalar, tensor_vector, tensor_covector, tensor_from_components, &
         tensor_from_matrix, tensor_component, tensor_rank, tensor_variance, &
         tensor_density_weight, tensor_valid, tensor_same_arena, density, vector, covector, raise, &

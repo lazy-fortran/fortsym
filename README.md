@@ -155,6 +155,18 @@ differentiation and typed curvature views. `fortsym_connection` owns
 Christoffel, Riemann, Ricci, scalar-curvature, and Einstein construction, with
 independent checks for metric compatibility and tensor-density weights.
 
+The relativity examples continue from those owners. `example_de_sitter`
+checks the de Sitter vacuum equation `G_ab + Lambda g_ab = 0` with
+`Lambda = 3 H**2`; `example_gps_newtonian_limit` derives the radial weak-field
+geodesic term and prints the first-order gravitational plus second-order
+Doppler clock correction. `example_magnetic_flux_coordinates` builds nested
+toroidal surfaces labelled by `psi`, verifies `B^psi = 0`, and checks
+`i_B(volume) = dA` and `div(B) = 0`.
+`example_boozer_coordinates` shows the analytic Boozer representation: the
+covariant angular components `B_theta = I(psi)` and `B_phi = G(psi)` are flux
+functions, while the metric and raised components carry the coordinate volume
+factor.
+
 **Read Fortran back.** Point it at a source file and a variable name and it
 returns the symbolic expression that file computes, so a hand-written kernel can
 be checked against its definition without anyone transcribing the code into the
