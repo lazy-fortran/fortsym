@@ -463,6 +463,12 @@ int fortsym_spacetime_tensor_covariant_diff(
     const fortsym_expr *coordinates[], const int signature[], int orientation,
     const fortsym_expr *input[], size_t rank, const int variance[],
     int density_weight, fortsym_expr *out[], char *message, size_t capacity);
+/* Contract the first upper slot with the covariant derivative slot. */
+int fortsym_spacetime_tensor_covariant_divergence(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *input[], size_t rank, const int variance[],
+    int density_weight, fortsym_expr *out[], char *message, size_t capacity);
 /* Coordinate Lie derivative along an ordinary contravariant spacetime vector.
  * The tensor rank and slot variance are preserved. */
 int fortsym_spacetime_tensor_lie(

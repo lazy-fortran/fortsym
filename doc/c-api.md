@@ -123,6 +123,9 @@ Runtime spacetime tensors also expose metric covariant differentiation through
 transports every declared upper or lower tensor slot, and preserves the
 density weight. The operation accepts input ranks zero through three and
 returns the fixed four-slot C representation with inactive components zero.
+`fortsym_spacetime_tensor_covariant_divergence` directly contracts the first
+upper slot with the covariant derivative and returns the remaining slots,
+avoiding an intermediate full derivative tensor.
 `fortsym_spacetime_tensor_lie` transports a tensor of any supported rank along
 an ordinary weight-zero contravariant spacetime vector, preserving its slot
 variance and density weight. The related metric Killing residual is the Lie

@@ -793,6 +793,26 @@ class SympySubsetTest(unittest.TestCase):
                 dilation, curved_metric.scalar(1, density_weight=1)
             )[()].simplify())), 1
         )
+        self.assertEqual(
+            oracle.sympify(str(curved_vector.covariant_divergence()[()].simplify())),
+            0,
+        )
+        self.assertEqual(
+            oracle.sympify(str(
+                dilation.covariant_divergence()[()].simplify()
+            )), 1 + tensor_t,
+        )
+        density_vector = curved_metric.vector(
+            (t, 0, 0, 0), density_weight=1
+        )
+        self.assertEqual(
+            oracle.sympify(str(density_vector.divergence()[()].simplify())), 1
+        )
+        self.assertEqual(
+            oracle.sympify(str(
+                curved_metric.contravariant().covariant_divergence()[1].simplify()
+            )), 0,
+        )
         curved_density = curved_metric.vector(
             (0, sp.exp(t), 0, 0), density_weight=1
         )

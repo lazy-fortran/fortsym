@@ -14,6 +14,7 @@ program example_spacetime_tensor_calculus
     type(spacetime_tensor_t) :: curved_vector, derivative_tensor
     type(spacetime_tensor_t) :: curved_metric_tensor, killing_tensor
     type(spacetime_tensor_t) :: dilation_vector, lie_tensor
+    type(spacetime_tensor_t) :: divergence_tensor
     type(expr_t) :: coordinates(SPACETIME_DIM)
     type(expr_t) :: components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: vector_values(SPACETIME_DIM), volume_factor
@@ -122,6 +123,13 @@ program example_spacetime_tensor_calculus
     if (.not. checked%ok) error stop "failed to simplify Lie derivative"
     lie_display = checked%value
     print '(a,a)', "  L_(q_1 d/dq_1) g_11 = ", chars(print_expr(lie_display))
+
+    divergence_tensor = spacetime_tensor_covariant_divergence(curved_metric, &
+        dilation_vector)
+    checked = simplify(spacetime_tensor_component(divergence_tensor, empty))
+    if (.not. checked%ok) error stop "failed to simplify tensor divergence"
+    lie_display = checked%value
+    print '(a,a)', "  div(q_1 d/dq_1) = ", chars(print_expr(lie_display))
 
 contains
 

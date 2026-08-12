@@ -47,6 +47,7 @@ module fortsym_spacetime_tensor
     public :: spacetime_tensor_product, spacetime_tensor_contract
     public :: spacetime_tensor_permute
     public :: spacetime_tensor_covariant_diff
+    public :: spacetime_tensor_covariant_divergence
     public :: spacetime_tensor_lie_derivative
     public :: spacetime_killing
 
@@ -592,6 +593,89 @@ contains
 
         result = spacetime_tensor_from_storage(g, output_rank, values, metadata, weight)
     end function spacetime_tensor_covariant_diff
+
+    !> Contract the first upper tensor slot with the derivative slot.
+    !>
+    !> This is evaluated directly instead of constructing the full covariant
+    !> derivative and then contracting it, which keeps the symbolic DAG and
+    !> intermediate component storage proportional to the result rank.
+    function spacetime_tensor_covariant_divergence(g, tensor_value) result(result)
+        type(spacetime_metric_t), intent(in) :: g
+        type(spacetime_tensor_t), intent(in) :: tensor_value
+        type(spacetime_tensor_t) :: result
+        type(expr_t) :: coordinates(SPACETIME_DIM)
+        type(expr_t) :: gamma(SPACETIME_DIM, SPACETIME_DIM, SPACETIME_DIM)
+        type(expr_t) :: base, term, trace_gamma(SPACETIME_DIM)
+        integer :: rank, output_rank, count, output_index, dimension
+        integer :: output_indices(SPACETIME_TENSOR_MAX_RANK)
+        integer :: indices(SPACETIME_TENSOR_MAX_RANK)
+        integer :: old_indices(SPACETIME_TENSOR_MAX_RANK)
+        integer :: metadata(SPACETIME_TENSOR_MAX_RANK)
+        integer :: i, k, m, slot, weight
+
+        if (.not. spacetime_metric_valid(g)) return
+        if (.not. spacetime_metric_has_coordinates(g)) return
+        if (.not. spacetime_tensor_same_arena(tensor_value, g)) return
+        rank = tensor_value%rank
+        if (rank < 1) return
+        if (tensor_value%variance(1) /= SPACETIME_UPPER) return
+        dimension = spacetime_metric_dimension(g)
+        output_rank = rank - 1
+        count = component_count(output_rank, dimension)
+        coordinates = spacetime_metric_coordinates(g)
+        gamma = spacetime_christoffel(g)
+        metadata = 0
+        do slot = 2, rank
+            metadata(slot - 1) = tensor_value%variance(slot)
+        end do
+        weight = tensor_value%density_weight
+        if (weight /= 0) then
+            do i = 1, dimension
+                trace_gamma(i) = num(tensor_value%a, 0)
+                do m = 1, dimension
+                    trace_gamma(i) = trace_gamma(i) + gamma(m, m, i)
+                end do
+            end do
+        end if
+        result = zero_tensor(tensor_value%a, dimension, output_rank, metadata, weight)
+
+        do output_index = 0, count - 1
+            call decode_index(output_index, output_rank, output_indices, dimension)
+            result%component(output_index) = num(tensor_value%a, 0)
+            do i = 1, dimension
+                indices(1) = i
+                do slot = 2, rank
+                    indices(slot) = output_indices(slot - 1)
+                end do
+                base = tensor_value%component(encode_index(indices, rank, dimension))
+                term = diff(base, coordinates(i))
+                do m = 1, dimension
+                    old_indices = indices
+                    old_indices(1) = m
+                    term = term + gamma(i, i, m)* &
+                        tensor_value%component(encode_index(old_indices, rank, dimension))
+                end do
+                do slot = 2, rank
+                    k = indices(slot)
+                    do m = 1, dimension
+                        old_indices = indices
+                        old_indices(slot) = m
+                        if (tensor_value%variance(slot) == SPACETIME_UPPER) then
+                            term = term + gamma(k, i, m)* &
+                                tensor_value%component(encode_index(old_indices, rank, dimension))
+                        else
+                            term = term - gamma(m, i, k)* &
+                                tensor_value%component(encode_index(old_indices, rank, dimension))
+                        end if
+                    end do
+                end do
+                if (weight /= 0) then
+                    term = term - num(tensor_value%a, weight)*trace_gamma(i)*base
+                end if
+                result%component(output_index) = result%component(output_index) + term
+            end do
+        end do
+    end function spacetime_tensor_covariant_divergence
 
     !> Coordinate Lie derivative of a typed spacetime tensor.
     !>
