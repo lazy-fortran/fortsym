@@ -1194,9 +1194,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Add native composition of two fixed-three-dimensional chart maps and
   prove tensor and form transport composition through the Fortran facade and
   Python/SymPy boundary.
-- [ ] Add `raise` and `lower` as metric-owned operations. They must preserve
-  the underlying geometric object, update slot variance, and refuse a missing
-  or singular metric instead of guessing.
+- [x] Add metric-owner overloads of `raise`, `lower`,
+  `metric_covariant_tensor`, and `metric_contravariant_tensor`. They preserve
+  the underlying geometric object, update slot variance, and reject a
+  cross-arena or invalid metric; symbolic determinant proofs remain open.
 - [x] Implement the first nonorthogonal-chart `raise`/`lower` subset. It uses
   the chart metric and inverse metric, preserves density weight and untouched
   slots, and refuses cross-arena or wrong-variance inputs.

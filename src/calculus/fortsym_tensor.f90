@@ -9,6 +9,9 @@ module fortsym_tensor
     use fortsym_arena, only: arena_t
     use fortsym_chart, only: chart_t, DIM, metric_covariant, &
         metric_contravariant
+    use fortsym_metric, only: metric_t, metric_valid, metric_same_arena, &
+        metric_arena, owner_metric_covariant => metric_covariant, &
+        owner_metric_contravariant => metric_contravariant
     use fortsym_expr, only: expr_t, num, is_valid, operator(+), operator(*)
     implicit none
     private
@@ -47,6 +50,26 @@ module fortsym_tensor
     interface covector
         module procedure tensor_covector
     end interface covector
+
+    interface raise
+        module procedure raise_chart
+        module procedure raise_metric
+    end interface raise
+
+    interface lower
+        module procedure lower_chart
+        module procedure lower_metric
+    end interface lower
+
+    interface metric_covariant_tensor
+        module procedure metric_covariant_tensor_chart
+        module procedure metric_covariant_tensor_metric
+    end interface metric_covariant_tensor
+
+    interface metric_contravariant_tensor
+        module procedure metric_contravariant_tensor_chart
+        module procedure metric_contravariant_tensor_metric
+    end interface metric_contravariant_tensor
 
 contains
 
@@ -282,64 +305,58 @@ contains
     end function density
 
     !> Metric raise of one selected covariant slot.
-    function raise(c, tensor_value, slot) result(result)
+    function raise_chart(c, tensor_value, slot) result(result)
         type(chart_t), intent(in) :: c
         type(tensor_t), intent(in) :: tensor_value
         integer, intent(in) :: slot
         type(tensor_t) :: result
         type(expr_t) :: metric(DIM, DIM)
-        integer :: metadata(MAX_RANK), indices(MAX_RANK), old_indices(MAX_RANK)
-        integer :: output_index, old_index, i, j
 
         if (.not. valid_metric_input(c, tensor_value, slot, LOWER_VARIANCE)) return
         metric = metric_contravariant(c)
-        metadata = tensor_value%variance
-        metadata(slot) = UPPER
-        result = zero_tensor(c%a, tensor_value%rank, metadata, &
-            tensor_value%density_weight)
-        do output_index = 0, component_count(tensor_value%rank) - 1
-            call decode_index(output_index, tensor_value%rank, indices)
-            result%component(output_index) = num(c%a, 0)
-            do j = 1, DIM
-                old_indices = indices
-                old_indices(slot) = j
-                old_index = encode_index(old_indices, tensor_value%rank)
-                i = indices(slot)
-                result%component(output_index) = result%component(output_index) + &
-                    metric(i, j)*tensor_value%component(old_index)
-            end do
-        end do
-    end function raise
+        result = raise_components(tensor_value, metric, slot)
+    end function raise_chart
+
+    !> Metric-owner form of raise; the tensor and metric must share an arena.
+    function raise_metric(g, tensor_value, slot) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: slot
+        type(tensor_t) :: result
+        type(expr_t) :: metric(DIM, DIM)
+
+        if (.not. metric_same_arena(g, tensor_value%a)) return
+        if (.not. valid_tensor_slot(tensor_value, slot, LOWER_VARIANCE)) return
+        metric = owner_metric_contravariant(g)
+        result = raise_components(tensor_value, metric, slot)
+    end function raise_metric
 
     !> Metric lower of one selected contravariant slot.
-    function lower(c, tensor_value, slot) result(result)
+    function lower_chart(c, tensor_value, slot) result(result)
         type(chart_t), intent(in) :: c
         type(tensor_t), intent(in) :: tensor_value
         integer, intent(in) :: slot
         type(tensor_t) :: result
         type(expr_t) :: metric(DIM, DIM)
-        integer :: metadata(MAX_RANK), indices(MAX_RANK), old_indices(MAX_RANK)
-        integer :: output_index, old_index, i, j
 
         if (.not. valid_metric_input(c, tensor_value, slot, UPPER)) return
         metric = metric_covariant(c)
-        metadata = tensor_value%variance
-        metadata(slot) = LOWER_VARIANCE
-        result = zero_tensor(c%a, tensor_value%rank, metadata, &
-            tensor_value%density_weight)
-        do output_index = 0, component_count(tensor_value%rank) - 1
-            call decode_index(output_index, tensor_value%rank, indices)
-            result%component(output_index) = num(c%a, 0)
-            do j = 1, DIM
-                old_indices = indices
-                old_indices(slot) = j
-                old_index = encode_index(old_indices, tensor_value%rank)
-                i = indices(slot)
-                result%component(output_index) = result%component(output_index) + &
-                    metric(i, j)*tensor_value%component(old_index)
-            end do
-        end do
-    end function lower
+        result = lower_components(tensor_value, metric, slot)
+    end function lower_chart
+
+    !> Metric-owner form of lower; the tensor and metric must share an arena.
+    function lower_metric(g, tensor_value, slot) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: slot
+        type(tensor_t) :: result
+        type(expr_t) :: metric(DIM, DIM)
+
+        if (.not. metric_same_arena(g, tensor_value%a)) return
+        if (.not. valid_tensor_slot(tensor_value, slot, UPPER)) return
+        metric = owner_metric_covariant(g)
+        result = lower_components(tensor_value, metric, slot)
+    end function lower_metric
 
     !> Outer/tensor product. Slot order is left slots followed by right slots.
     function tensor_product(left, right) result(result)
@@ -421,7 +438,7 @@ contains
         result = contract(tensor_value, first, second)
     end function trace
 
-    function metric_covariant_tensor(c) result(result)
+    function metric_covariant_tensor_chart(c) result(result)
         type(chart_t), intent(in) :: c
         type(tensor_t) :: result
         type(expr_t) :: values(DIM, DIM)
@@ -429,9 +446,28 @@ contains
         if (.not. associated(c%a)) return
         values = metric_covariant(c)
         result = tensor_from_matrix(c, values, LOWER_VARIANCE, LOWER_VARIANCE)
-    end function metric_covariant_tensor
+    end function metric_covariant_tensor_chart
 
-    function metric_contravariant_tensor(c) result(result)
+    function metric_covariant_tensor_metric(g) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t) :: result
+        type(expr_t) :: values(DIM, DIM)
+        integer :: metadata(MAX_RANK), i, j
+
+        if (.not. metric_valid(g)) return
+        values = owner_metric_covariant(g)
+        metadata = 0
+        metadata(1) = LOWER_VARIANCE
+        metadata(2) = LOWER_VARIANCE
+        result = zero_tensor(metric_arena(g), 2, metadata, 0)
+        do j = 1, DIM
+            do i = 1, DIM
+                result%component(encode_pair(i, j)) = values(i, j)
+            end do
+        end do
+    end function metric_covariant_tensor_metric
+
+    function metric_contravariant_tensor_chart(c) result(result)
         type(chart_t), intent(in) :: c
         type(tensor_t) :: result
         type(expr_t) :: values(DIM, DIM)
@@ -439,7 +475,78 @@ contains
         if (.not. associated(c%a)) return
         values = metric_contravariant(c)
         result = tensor_from_matrix(c, values, UPPER, UPPER)
-    end function metric_contravariant_tensor
+    end function metric_contravariant_tensor_chart
+
+    function metric_contravariant_tensor_metric(g) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t) :: result
+        type(expr_t) :: values(DIM, DIM)
+        integer :: metadata(MAX_RANK), i, j
+
+        if (.not. metric_valid(g)) return
+        values = owner_metric_contravariant(g)
+        metadata = 0
+        metadata(1) = UPPER
+        metadata(2) = UPPER
+        result = zero_tensor(metric_arena(g), 2, metadata, 0)
+        do j = 1, DIM
+            do i = 1, DIM
+                result%component(encode_pair(i, j)) = values(i, j)
+            end do
+        end do
+    end function metric_contravariant_tensor_metric
+
+    function raise_components(tensor_value, metric, slot) result(result)
+        type(tensor_t), intent(in) :: tensor_value
+        type(expr_t), intent(in) :: metric(DIM, DIM)
+        integer, intent(in) :: slot
+        type(tensor_t) :: result
+        integer :: metadata(MAX_RANK), indices(MAX_RANK), old_indices(MAX_RANK)
+        integer :: output_index, old_index, i, j
+
+        metadata = tensor_value%variance
+        metadata(slot) = UPPER
+        result = zero_tensor(tensor_value%a, tensor_value%rank, metadata, &
+            tensor_value%density_weight)
+        do output_index = 0, component_count(tensor_value%rank) - 1
+            call decode_index(output_index, tensor_value%rank, indices)
+            result%component(output_index) = num(tensor_value%a, 0)
+            do j = 1, DIM
+                old_indices = indices
+                old_indices(slot) = j
+                old_index = encode_index(old_indices, tensor_value%rank)
+                i = indices(slot)
+                result%component(output_index) = result%component(output_index) + &
+                    metric(i, j)*tensor_value%component(old_index)
+            end do
+        end do
+    end function raise_components
+
+    function lower_components(tensor_value, metric, slot) result(result)
+        type(tensor_t), intent(in) :: tensor_value
+        type(expr_t), intent(in) :: metric(DIM, DIM)
+        integer, intent(in) :: slot
+        type(tensor_t) :: result
+        integer :: metadata(MAX_RANK), indices(MAX_RANK), old_indices(MAX_RANK)
+        integer :: output_index, old_index, i, j
+
+        metadata = tensor_value%variance
+        metadata(slot) = LOWER_VARIANCE
+        result = zero_tensor(tensor_value%a, tensor_value%rank, metadata, &
+            tensor_value%density_weight)
+        do output_index = 0, component_count(tensor_value%rank) - 1
+            call decode_index(output_index, tensor_value%rank, indices)
+            result%component(output_index) = num(tensor_value%a, 0)
+            do j = 1, DIM
+                old_indices = indices
+                old_indices(slot) = j
+                old_index = encode_index(old_indices, tensor_value%rank)
+                i = indices(slot)
+                result%component(output_index) = result%component(output_index) + &
+                    metric(i, j)*tensor_value%component(old_index)
+            end do
+        end do
+    end function lower_components
 
     function zero_tensor(a, rank, metadata, weight) result(result)
         type(arena_t), pointer, intent(in) :: a
@@ -472,6 +579,20 @@ contains
         if (tensor_value%variance(slot) /= expected) return
         valid = .true.
     end function valid_metric_input
+
+    function valid_tensor_slot(tensor_value, slot, expected) result(valid)
+        type(tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: slot, expected
+        logical :: valid
+
+        valid = tensor_valid(tensor_value)
+        if (.not. valid) return
+        if (slot < 1 .or. slot > tensor_value%rank) then
+            valid = .false.
+            return
+        end if
+        valid = tensor_value%variance(slot) == expected
+    end function valid_tensor_slot
 
     pure function valid_variance(value) result(valid)
         integer, intent(in) :: value

@@ -17,6 +17,7 @@ module fortsym_metric
     public :: metric_t, metric_create, metric_from_chart
     public :: metric_covariant, metric_contravariant, metric_det, metric_sqrtg
     public :: metric_signature, metric_orientation, metric_valid
+    public :: metric_arena, metric_same_arena
 
     type :: metric_t
         private
@@ -169,6 +170,23 @@ contains
             end do
         end do
     end function metric_valid
+
+    !> Return the owning arena without exposing metric component storage.
+    function metric_arena(g) result(a)
+        type(metric_t), intent(in) :: g
+        type(arena_t), pointer :: a
+
+        a => g%a
+    end function metric_arena
+
+    !> Check that a tensor component arena is the metric's arena.
+    function metric_same_arena(g, a) result(same)
+        type(metric_t), intent(in) :: g
+        type(arena_t), pointer, intent(in) :: a
+        logical :: same
+
+        same = metric_valid(g) .and. associated(g%a, a)
+    end function metric_same_arena
 
     function cofactor(g, i, j) result(value)
         type(metric_t), intent(in) :: g

@@ -9,6 +9,7 @@ program test_fortsym_tensor
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create
+    use fortsym_metric, only: metric_t, metric_from_chart
     use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, &
         tensor_from_components, tensor_component, tensor_rank, tensor_variance, &
         tensor_density_weight, tensor_valid, density, raise, lower, &
@@ -19,6 +20,7 @@ program test_fortsym_tensor
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
     type(chart_t) :: shear
+    type(metric_t) :: metric_owner
     type(expr_t) :: u(DIM), position(DIM), values(DIM), expected
     type(expr_t) :: components(27)
     type(tensor_t) :: vup, vcov, vdown, roundtrip, weighted, outer, dot
@@ -28,6 +30,7 @@ program test_fortsym_tensor
     call arena%init()
     engine = make_symengine_engine(arena)
     shear = make_shear_chart()
+    metric_owner = metric_from_chart(shear)
     call suite_begin(suite, "typed tensors")
 
     values(1) = u(1)
@@ -67,10 +70,10 @@ program test_fortsym_tensor
     call check_identity(suite, engine, "upper/lower contraction", &
         tensor_component(dot, empty) - expected)
 
-    metric_down = metric_covariant_tensor(shear)
+    metric_down = metric_covariant_tensor(metric_owner)
     call check_metadata(suite, metric_down, 2, LOWER_VARIANCE, 0, &
         "covariant metric metadata")
-    mixed = raise(shear, metric_down, 1)
+    mixed = raise(metric_owner, metric_down, 1)
     do i = 1, DIM
         do j = 1, DIM
             indices(1) = i
