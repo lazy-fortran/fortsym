@@ -34,6 +34,21 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(sp.simplify(sp.diff(sp.exp(x*y), x)), y*sp.exp(x*y))
         self.assertEqual(sp.subs((x + 1) ** 2, {x: 2}), 9)
 
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_simplify_cache_matches_sympy(self):
+        x = sp.Symbol("simplify_cache_x")
+        expression = sp.sqrt(x**2)
+        first = expression.simplify()
+        second = expression.simplify()
+        self.assertIs(first, second)
+        ox = oracle.Symbol("simplify_cache_x")
+        expected = oracle.simplify(oracle.sqrt(ox**2))
+        self.assertEqual(oracle.sympify(str(first)), expected)
+        with sp.assuming(sp.Q.positive(x)):
+            refined = expression.simplify()
+            self.assertIsNot(refined, first)
+            self.assertEqual(str(refined), "simplify_cache_x")
+
     def test_geometry_classes_are_reexported(self):
         x, y, z = sp.symbols("geometry_x geometry_y geometry_z")
         chart = sp.Chart((x, y, z), (x, y, z))

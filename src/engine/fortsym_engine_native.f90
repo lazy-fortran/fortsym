@@ -2294,15 +2294,17 @@ contains
         out = a%func(name, args)
         if (size(args) == 0) return
 
-        call exact_inverse_value(a, name, args(1), trig_constant, &
-            trig_constant_ok)
+        trig_constant_ok = .false.
+        select case (name)
+        case ("asin", "acos", "atan", "asinh", "acosh", "atanh")
+            call exact_inverse_value(a, name, args(1), trig_constant, &
+                trig_constant_ok)
+        end select
         if (trig_constant_ok) then
             out = trig_constant
             return
         end if
 
-        call split_negated_argument(a, args(1), positive_argument, &
-            negated_argument)
         odd_head = .false.
         even_head = .false.
         select case (name)
@@ -2312,6 +2314,11 @@ contains
         case ("cos", "cosh", "sec", "sech", "abs")
             even_head = .true.
         end select
+        negated_argument = .false.
+        if (odd_head .or. even_head) then
+            call split_negated_argument(a, args(1), positive_argument, &
+                negated_argument)
+        end if
         if (negated_argument .and. (odd_head .or. even_head)) then
             one_arg(1) = positive_argument
             if (odd_head) then
