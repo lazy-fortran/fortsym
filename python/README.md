@@ -59,6 +59,11 @@ matching aliases. `.laplace_de_rham()` composes the same native `d` and
 codifferential owners.
 `Tensor.permute()`, `symmetrize()`, and `antisymmetrize()` perform native
 slot operations using zero-based Python slot numbers.
+`IndexType(name, dimension, category)` and `IndexType.index(slot, variance,
+label, dummy)` provide checked, zero-based named slots; `Tensor.contract(i, j)`
+accepts those labels and validates their space, variance, and dummy name before
+using the native contraction owner. `fortsym.sympy.TensorIndexType` and
+`TensorIndex` are spelling-compatible aliases for the same classes.
 `Chart.one_form()`, `two_form()`, and
 `three_form()` construct native `Form` objects. Forms expose the fixed
 three-dimensional basis-mask components plus `d()`, `wedge()`, `star()`,

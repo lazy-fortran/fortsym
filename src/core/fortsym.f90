@@ -57,6 +57,12 @@ module fortsym
         antisymmetrize, &
         metric_covariant_tensor, metric_contravariant_tensor, UPPER, LOWER_VARIANCE, &
         MAX_RANK
+    use fortsym_index, only: index_type_t, index_t, index_type, make_index, &
+        index_valid, index_space_valid, index_dimension, index_category, &
+        index_space_name, index_label, index_slot, index_variance, &
+        index_is_dummy, same_index_space, compatible_indices, &
+        INDEX_TANGENT, INDEX_COTANGENT, INDEX_SPACETIME, INDEX_INTERNAL, &
+        INDEX_USER
     use fortsym_connection, only: covariant_diff, covariant_derivative, &
         christoffel_tensor, riemann_tensor, ricci_tensor, scalar_curvature, &
         einstein_tensor
@@ -170,6 +176,11 @@ module fortsym
         lower, tensor_product, contract, trace, permute, symmetrize, &
         antisymmetrize, metric_covariant_tensor, &
         metric_contravariant_tensor, UPPER, LOWER_VARIANCE, MAX_RANK, &
+        index_type_t, index_t, index_type, make_index, index_valid, &
+        index_space_valid, index_dimension, index_category, index_space_name, &
+        index_label, index_slot, index_variance, index_is_dummy, &
+        same_index_space, compatible_indices, INDEX_TANGENT, &
+        INDEX_COTANGENT, INDEX_SPACETIME, INDEX_INTERNAL, INDEX_USER, &
         covariant_diff, covariant_derivative, christoffel_tensor, &
         riemann_tensor, ricci_tensor, scalar_curvature, einstein_tensor
     public :: operator(+), operator(-), operator(*), operator(/), operator(**), &

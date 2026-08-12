@@ -200,9 +200,13 @@ a chart. `metric_covariant_tensor(metric_owner)` and
 the owner's arena and metadata contract.
 `contract` requires opposite variance and removes the two selected slots;
 `trace` is its named alias. The current native subset is rank four or less in
-three-dimensional charts. Symmetry declarations, arbitrary dimensions, and
-full Python tensor parity remain roadmap work; the fixed-rank Python transport
-is documented in `python/README.md`.
+three-dimensional charts. A checked overload also accepts `index_t` values
+from `fortsym_index`: `index_type("T", 3)` declares a space and
+`make_index(space, slot, variance, label, dummy)` declares a one-based native
+slot. It requires the same space, opposite variance, and matching nonempty
+labels. Symmetry declarations, arbitrary dimensions, and full Python tensor
+parity remain roadmap work; the fixed-rank Python transport is documented in
+`python/README.md`.
 
 ## Connections and curvature
 

@@ -53,6 +53,80 @@ TRACE_NONE = 0
 TRACE_NORMAL = 1
 TRACE_TANGENTIAL = 2
 SPACETIME_DIM = 4
+INDEX_TANGENT = 1
+INDEX_COTANGENT = 2
+INDEX_SPACETIME = 3
+INDEX_INTERNAL = 4
+INDEX_USER = 5
+
+
+def _index_variance(value):
+    if value in (1, "upper", "up", "contravariant"):
+        return 1
+    if value in (-1, "lower", "down", "covariant"):
+        return -1
+    raise ValueError("index variance must be upper/contravariant or lower/covariant")
+
+
+class IndexType:
+    """A named finite index space used by checked tensor contractions."""
+
+    __slots__ = ("name", "dimension", "category")
+
+    def __init__(self, name, dimension=3, category=INDEX_USER):
+        name = str(name).strip()
+        dimension = int(dimension)
+        category = int(category)
+        if not name or len(name) > 64:
+            raise ValueError("index-space name must contain 1 to 64 characters")
+        if dimension < 1:
+            raise ValueError("index-space dimension must be positive")
+        if category < INDEX_TANGENT or category > INDEX_USER:
+            raise ValueError("invalid index-space category")
+        self.name = name
+        self.dimension = dimension
+        self.category = category
+
+    def index(self, slot, variance, label=None, dummy=False):
+        """Create a zero-based slot label in this index space."""
+        slot = int(slot)
+        if slot < 0 or slot >= self.dimension:
+            raise IndexError("index slot is outside its index space")
+        label = "" if label is None else str(label).strip()
+        if len(label) > 64:
+            raise ValueError("index label must contain at most 64 characters")
+        return Index(self, slot, variance, label, dummy)
+
+    __call__ = index
+
+
+class Index:
+    """A variance-aware, optionally labelled zero-based tensor slot."""
+
+    __slots__ = ("space", "slot", "variance", "label", "dummy")
+
+    def __init__(self, space, slot, variance, label="", dummy=False):
+        if not isinstance(space, IndexType):
+            raise TypeError("Index requires an IndexType")
+        self.space = space
+        self.slot = int(slot)
+        self.variance = _index_variance(variance)
+        self.label = str(label).strip()
+        self.dummy = bool(dummy)
+        if self.slot < 0 or self.slot >= space.dimension:
+            raise IndexError("index slot is outside its index space")
+        if len(self.label) > 64:
+            raise ValueError("index label must contain at most 64 characters")
+
+    def compatible(self, other):
+        return (
+            isinstance(other, Index)
+            and self.space.name == other.space.name
+            and self.space.dimension == other.space.dimension
+            and self.space.category == other.space.category
+            and self.variance == -other.variance
+            and (not self.label or not other.label or self.label == other.label)
+        )
 
 
 def _matrix3_values(matrix):
@@ -541,6 +615,12 @@ def _configure(lib):
          ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
          ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.POINTER(_CVOID),
          _CHAR_PTR, _SIZE],
+    )
+    lib.chart_tensor_contract = declare(
+        "fortsym_chart_tensor_contract", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+         ctypes.c_int, _SIZE, _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
     lib.chart_tensor_symmetrize = declare(
         "fortsym_chart_tensor_symmetrize", ctypes.c_int,
@@ -1455,6 +1535,25 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "tensor_permute")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
+    def _chart_tensor_contract(self, chart, tensor, first, second):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        values = (_CVOID * len(tensor.components))(
+            *[self._check(value)._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output = (_CVOID * (3 ** (tensor.rank - 2)))()
+        message = _message()
+        status = self._lib.chart_tensor_contract(
+            self._require(), coordinate_handles, position_handles, values,
+            tensor.rank, variance, tensor.density_weight, first + 1, second + 1,
+            output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "tensor_contract")
         return tuple(Expr(self, output[index]) for index in range(len(output)))
 
     def _chart_tensor_symmetrize(self, chart, tensor, first, second, antisymmetric):
@@ -2655,6 +2754,46 @@ class Tensor:
             self.chart, components, self.variance, self.density_weight, _owned=True
         )
 
+    def contract(self, first, second):
+        """Contract two opposite-variance slots.
+
+        Integer slots are zero-based. ``Index`` arguments additionally check
+        the named space, variance, and (when present) dummy label before the
+        native contraction is called.
+        """
+        if isinstance(first, Index) or isinstance(second, Index):
+            if not isinstance(first, Index) or not isinstance(second, Index):
+                raise TypeError("typed contraction requires two Index values")
+            if not first.compatible(second):
+                raise ValueError("tensor indices are not a compatible dummy pair")
+            if first.space.dimension != 3:
+                raise ValueError("native chart tensors require three-dimensional indices")
+            first_slot, second_slot = first.slot, second.slot
+            if self.variance[first_slot] != first.variance:
+                raise ValueError("first index variance does not match the tensor slot")
+            if self.variance[second_slot] != second.variance:
+                raise ValueError("second index variance does not match the tensor slot")
+        else:
+            first_slot, second_slot = int(first), int(second)
+        if first_slot < 0 or first_slot >= self.rank:
+            raise IndexError("first contraction slot is outside the tensor rank")
+        if second_slot < 0 or second_slot >= self.rank:
+            raise IndexError("second contraction slot is outside the tensor rank")
+        if first_slot == second_slot:
+            raise ValueError("tensor contraction needs two distinct slots")
+        if self.variance[first_slot] == self.variance[second_slot]:
+            raise ValueError("tensor contraction needs opposite-variance slots")
+        components = self._arena._chart_tensor_contract(
+            self.chart, self, first_slot, second_slot
+        )
+        variance = tuple(
+            value for index, value in enumerate(self.variance)
+            if index not in (first_slot, second_slot)
+        )
+        return Tensor(
+            self.chart, components, variance, self.density_weight, _owned=True
+        )
+
     def covariant_diff(self):
         return self.chart.covariant_diff(self)
 
@@ -3614,8 +3753,9 @@ def free_symbols(expression: Expr): return expression.free_symbols
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
+    "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count",
     "free_symbols",

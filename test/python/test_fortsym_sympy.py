@@ -39,6 +39,23 @@ class SympySubsetTest(unittest.TestCase):
         self.assertIsInstance(form, sp.Form)
         self.assertEqual(form.d().degree, 2)
 
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_tensor_index_labels_contract_through_native_owner(self):
+        x, y, z = sp.symbols("index_x index_y index_z")
+        chart = sp.Chart((x, y, z), (x, y, z))
+        indices = sp.TensorIndexType("T", 3)
+        upper = indices.index(0, "upper", "i", dummy=True)
+        lower = indices.index(1, "lower", "i", dummy=True)
+        mismatch = indices.index(1, "lower", "j", dummy=True)
+        tensor = chart.tensor(tuple(range(1, 10)), variance=(1, -1))
+        contracted = tensor.contract(upper, lower)
+        expected = oracle.trace(oracle.Matrix(3, 3, lambda row, column: row + 3*column + 1))
+        self.assertEqual(
+            oracle.sympify(str(contracted.component().simplify())), expected
+        )
+        with self.assertRaisesRegex(ValueError, "compatible dummy pair"):
+            tensor.contract(upper, mismatch)
+
     def test_explicit_lorentzian_metric_hodge_owner(self):
         t, x, y = sp.symbols("metric_t metric_x metric_y")
         chart = sp.Chart((t, x, y), (t, x, y))
