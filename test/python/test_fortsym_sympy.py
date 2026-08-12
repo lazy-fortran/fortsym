@@ -44,6 +44,10 @@ class SympySubsetTest(unittest.TestCase):
         product = sp.tensorproduct(chart.vector((1, 2, 3)), chart.covector((4, 5, 6)))
         self.assertEqual(product.variance, (1, -1))
         self.assertEqual(product[0, 0].simplify(), 4)
+        density_vector = chart.vector((x, y, z), density_weight=1)
+        self.assertEqual(
+            density_vector.covariant_divergence().component().simplify(), 3
+        )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_tensor_index_labels_contract_through_native_owner(self):

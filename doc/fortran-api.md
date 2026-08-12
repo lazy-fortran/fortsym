@@ -244,6 +244,13 @@ curvature = riemann_tensor(chart)
 scalar = scalar_curvature(chart)
 ```
 
+`covariant_divergence(tensor)` is the physicists' first-slot divergence: it
+forms the covariant derivative and contracts the first contravariant slot with
+the appended lower derivative slot. It preserves density weight and refuses a
+scalar or a tensor whose first slot is not contravariant. For a weight-one
+vector density it reduces to `div_density`, namely
+`partial_i(sqrtg*V^i)` when the stored components are `sqrtg*V^i`.
+
 The current fixed-three-dimensional subset also provides typed Christoffel,
 Ricci, and Einstein tensors. Its convention is
 `R^a_bcd = d_c Gamma^a_db - d_d Gamma^a_cb + Gamma^a_cm Gamma^m_db -`

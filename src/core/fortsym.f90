@@ -69,7 +69,8 @@ module fortsym
         INDEX_TANGENT, INDEX_COTANGENT, INDEX_SPACETIME, INDEX_INTERNAL, &
         INDEX_USER
     use fortsym_connection, only: covariant_diff, covariant_derivative, &
-        christoffel_tensor, riemann_tensor, ricci_tensor, scalar_curvature, &
+        covariant_divergence, christoffel_tensor, riemann_tensor, ricci_tensor, &
+        scalar_curvature, &
         einstein_tensor
     use fortsym_magnetic, only: b_con, b_cov, b_density, b_fourier, &
         b_fourier_density, j_fourier

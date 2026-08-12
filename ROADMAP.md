@@ -821,6 +821,11 @@ The first-class object model is staged around these metadata owners:
 - [x] Apply the same owner rule to `covariant_diff` and
   `covariant_derivative`; chart and coordinate-aware metric calls share one
   slot/density component kernel and independent metric-compatibility checks.
+- [x] Add the physicists' first-slot `covariant_divergence` owner and expose it
+  through C ABI 44 and both Python facades. It contracts the appended lower
+  derivative slot against the first contravariant slot, preserves the free-slot
+  variance and density weight, and independently matches `div_density` for a
+  weight-one vector density on a nonorthogonal chart.
 - [x] Extend the owner rule through `riemann_tensor`, `ricci_tensor`,
   `scalar_curvature`, and `einstein_tensor`, with independent flat-chart
   contraction and curvature checks. Pseudo-Riemannian sign-convention corpus

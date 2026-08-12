@@ -10,12 +10,14 @@ program test_fortsym_connection
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortsym_engine_native, only: native_engine_t, make_native_engine
-    use fortsym_chart, only: DIM, chart_t, chart_create, christoffel, jacobian
+    use fortsym_chart, only: DIM, chart_t, chart_create, christoffel, jacobian, &
+        div_density
     use fortsym_metric, only: metric_t, metric_from_chart
     use fortsym_tensor, only: tensor_t, tensor_scalar, tensor_component, &
         tensor_rank, tensor_variance, tensor_valid, metric_covariant_tensor, &
-        UPPER, LOWER_VARIANCE
-    use fortsym_connection, only: covariant_diff, christoffel_tensor, &
+        UPPER, LOWER_VARIANCE, tensor_vector, density
+    use fortsym_connection, only: covariant_diff, covariant_divergence, &
+        christoffel_tensor, &
         riemann_tensor, ricci_tensor, scalar_curvature, einstein_tensor
     implicit none
 
@@ -29,7 +31,8 @@ program test_fortsym_connection
     type(expr_t) :: gamma(DIM, DIM, DIM), expected
     type(tensor_t) :: scalar, gradient, metric, metric_derivative
     type(tensor_t) :: metric_gradient, metric_owner_value
-    type(tensor_t) :: density_value, density_derivative, gamma_value
+    type(tensor_t) :: density_value, density_derivative, density_vector, &
+        density_divergence, gamma_value
     type(tensor_t) :: metric_gamma_value
     type(tensor_t) :: riemann, ricci, einstein
     type(tensor_t) :: metric_riemann, metric_ricci, metric_einstein
@@ -102,6 +105,11 @@ program test_fortsym_connection
     density_derivative = covariant_diff(polynomial, density_value)
     call check_tensor_zero(suite, engine, native, density_derivative, &
         "weight-one density compatibility")
+    density_vector = density(tensor_vector(polynomial, u), 1)
+    density_divergence = covariant_divergence(polynomial, density_vector)
+    call check_identity(suite, engine, "density divergence is componentwise", &
+        tensor_component(density_divergence, indices(1:0)) - &
+        div_density(polynomial, u))
 
     riemann = riemann_tensor(polynomial)
     call check_tensor_zero(suite, engine, native, riemann, &

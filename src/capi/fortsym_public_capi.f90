@@ -53,7 +53,8 @@ module fortsym_public_capi
         tensor_product_native => tensor_product, contract_slots, &
         raise_tensor => raise, lower_tensor => lower, permute_tensor => permute, &
         symmetrize_tensor => symmetrize, antisymmetrize_tensor => antisymmetrize
-    use fortsym_connection, only: covariant_diff, christoffel_tensor, &
+    use fortsym_connection, only: covariant_diff, covariant_divergence, &
+        christoffel_tensor, &
         riemann_tensor, ricci_tensor, scalar_curvature, einstein_tensor
     use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
         form_zero, &
@@ -133,6 +134,7 @@ module fortsym_public_capi
         fortsym_metric_volume_density, fortsym_metric_levi_civita, &
         fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
         fortsym_chart_christoffel, fortsym_chart_covariant_diff, &
+        fortsym_chart_covariant_divergence, &
         fortsym_chart_tensor_raise, fortsym_chart_tensor_lower, &
         fortsym_chart_tensor_density, fortsym_chart_tensor_permute, &
         fortsym_chart_tensor_contract, fortsym_chart_tensor_product, &
@@ -170,7 +172,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 43_c_int
+        v = 44_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1211,6 +1213,35 @@ contains
         call make_tensor_array(a, value, int(rank) + 1, out, status, message, &
             capacity)
     end function fortsym_chart_covariant_diff
+
+    function fortsym_chart_covariant_divergence(raw, coordinates, position, &
+            components, rank, variance, density_weight, out, message, capacity) &
+            bind(c, name="fortsym_chart_covariant_divergence") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, variance, out
+        integer(c_size_t), value :: rank
+        integer(c_int), value :: density_weight
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: input, value
+
+        call get_chart_tensor_input(raw, coordinates, position, components, rank, &
+            variance, density_weight, chart, a, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (rank < 1_c_size_t) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = covariant_divergence(chart, input)
+        if (.not. tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call make_tensor_array(a, value, int(rank) - 1, out, status, message, &
+            capacity)
+    end function fortsym_chart_covariant_divergence
 
     function fortsym_chart_tensor_raise(raw, coordinates, position, components, &
             rank, variance, density_weight, slot, out, message, capacity) &
