@@ -74,6 +74,9 @@ three-dimensional basis-mask components plus `d()`, `wedge()`, `star()`,
 wedge spelling and scalar multiplication is coefficient scaling. The same
 classes are re-exported as `fortsym.sympy.Chart`, `fortsym.sympy.Tensor`, and
 `fortsym.sympy.Form`; they do not reimplement geometry in Python.
+`Form.is_closed` and `SpacetimeForm.is_closed` use the native three-valued
+zero engine on every coefficient of `d(form)`, returning `True`, `False`, or
+`None` when the symbolic verdict is undecidable.
 
 ```python
 import fortsym.sympy as sp

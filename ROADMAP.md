@@ -1254,6 +1254,9 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   Python/SymPy facade. `Tensor.product`/`tensor_product` now preserves slot
   order and summed density weight, and `diffgeom.TensorProduct` no longer
   reconstructs components in Python.
+- [x] Add native-backed closedness verdicts at C ABI 43 and both Python
+  facades. Form closedness is defined as a zero `d(form)` coefficient vector,
+  with `None` preserved for undecidable symbolic coefficients.
 - [ ] Implement covariant differentiation of arbitrary tensor valence,
   including the correct Christoffel term for every upper and lower slot. The
   existing `christoffel` operation becomes a special case of the connection
@@ -1326,6 +1329,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   `d(beta) = 0` for the native chart/magnetic owners. Keep the full Maxwell,
   gauge, and topology vocabulary open until the form domain carries patch
   and boundary metadata.
+- [x] Add native-backed `Form.is_closed` and `SpacetimeForm.is_closed` with
+  the shared three-valued zero-verdict contract. Closedness is computed from
+  the native exterior derivative and remains `None` when any coefficient is
+  undecidable; exactness, patch topology, and global boundary metadata remain
+  open.
 - [ ] Add Python compatibility for the selected `sympy.diffgeom` and
   `sympy.tensor` operations, while keeping the native form algebra independent
   of SymPy at runtime. Add Wolfram translations for the corresponding

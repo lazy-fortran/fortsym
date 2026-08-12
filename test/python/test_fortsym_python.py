@@ -147,6 +147,7 @@ class NativePackageTest(unittest.TestCase):
 
             self.assertEqual(top.degree, 4)
             self.assertEqual(top[0].simplify(), 0)
+            self.assertTrue(top.is_closed)
             self.assertEqual(top.d()[0].simplify(), 0)
 
 
