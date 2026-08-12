@@ -31,6 +31,7 @@ module fortsym_public_capi
         TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_metric, only: metric_t, metric_create, metric_valid, &
         metric_contravariant, metric_sqrtg
+    use fortsym_volume, only: metric_volume_density, metric_levi_civita
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
         spacetime_metric_create, spacetime_metric_valid, &
         spacetime_metric_sqrtg, spacetime_metric_contravariant, &
@@ -125,6 +126,7 @@ module fortsym_public_capi
         fortsym_chart_j_fourier, fortsym_chart_fourier_weak_form, &
         fortsym_chart_current_compatibility, &
         fortsym_metric_sqrtg, fortsym_metric_contravariant, &
+        fortsym_metric_volume_density, fortsym_metric_levi_civita, &
         fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
         fortsym_chart_christoffel, fortsym_chart_covariant_diff, &
         fortsym_chart_tensor_raise, fortsym_chart_tensor_lower, &
@@ -160,7 +162,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 37_c_int
+        v = 38_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1971,6 +1973,56 @@ contains
         value = metric_sqrtg(metric)
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_metric_sqrtg
+
+    function fortsym_metric_volume_density(raw, components, signature, &
+            orientation, out, message, capacity) bind(c, &
+            name="fortsym_metric_volume_density") result(status)
+        type(c_ptr), value :: raw, components, signature, out
+        integer(c_int), value :: orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(metric_t) :: metric
+        type(expr_t) :: value
+
+        call begin_output(out, message, capacity)
+        call get_metric_input(raw, components, signature, orientation, a, metric, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = metric_volume_density(metric)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_metric_volume_density
+
+    function fortsym_metric_levi_civita(raw, components, signature, orientation, &
+            variance, out, message, capacity) bind(c, &
+            name="fortsym_metric_levi_civita") result(status)
+        type(c_ptr), value :: raw, components, signature, out
+        integer(c_int), value :: orientation, variance
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(metric_t) :: metric
+        type(expr_t) :: value(DIM, DIM, DIM), flat_values(DIM*DIM*DIM)
+        integer :: i, j, k, flat
+
+        call get_metric_input(raw, components, signature, orientation, a, metric, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = metric_levi_civita(metric, int(variance))
+        flat = 0
+        do k = 1, DIM
+            do j = 1, DIM
+                do i = 1, DIM
+                    flat = flat + 1
+                    flat_values(flat) = value(i, j, k)
+                end do
+            end do
+        end do
+        call make_expr_array(a, flat_values, out, DIM*DIM*DIM, status, message, &
+            capacity)
+    end function fortsym_metric_levi_civita
 
     function fortsym_metric_contravariant(raw, components, signature, orientation, &
             out, message, capacity) bind(c, name="fortsym_metric_contravariant") &

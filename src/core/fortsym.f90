@@ -71,6 +71,8 @@ module fortsym
         metric_det, metric_sqrtg, &
         metric_signature, metric_orientation, metric_valid, metric_arena, &
         metric_same_arena, metric_coordinates, metric_has_coordinates
+    use fortsym_volume, only: metric_volume_density, levi_civita_symbol, &
+        metric_levi_civita
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
         spacetime_metric_create, spacetime_metric_covariant, &
         spacetime_metric_contravariant, spacetime_metric_det, &
@@ -132,6 +134,7 @@ module fortsym
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, &
         SPACE_EDGE, TRACE_NONE, TRACE_NORMAL, TRACE_TANGENTIAL, &
         metric_t, metric_create, metric_from_chart, metric_det, metric_sqrtg, &
+        metric_volume_density, levi_civita_symbol, metric_levi_civita, &
         metric_orientation, metric_valid, metric_arena, metric_same_arena, &
         metric_coordinates, metric_has_coordinates, &
         SPACETIME_DIM, spacetime_metric_t, spacetime_metric_create, &

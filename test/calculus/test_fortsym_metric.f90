@@ -11,6 +11,8 @@ program test_fortsym_metric
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
         metric_covariant, metric_contravariant, metric_det, metric_sqrtg, &
         metric_signature, metric_orientation, metric_valid
+    use fortsym_volume, only: metric_volume_density, levi_civita_symbol, &
+        metric_levi_civita
     implicit none
 
     type(arena_t), target :: arena
@@ -20,6 +22,7 @@ program test_fortsym_metric
     type(metric_t) :: euclidean, lorentzian, invalid, degenerate
     type(expr_t) :: components(DIM, DIM), covariant(DIM, DIM)
     type(expr_t) :: inverse(DIM, DIM), product, determinant, root
+    type(expr_t) :: epsilon_lower(DIM, DIM, DIM), epsilon_upper(DIM, DIM, DIM)
     integer :: signature(DIM), returned_signature(DIM)
     integer :: i, j, k
 
@@ -35,6 +38,19 @@ program test_fortsym_metric
     if (metric_orientation(euclidean) /= 1) error stop "default orientation failed"
     call check_identity(suite, engine, "chart metric has unit positive sqrtg", &
         metric_sqrtg(euclidean) - 1)
+    call check_identity(suite, engine, "metric volume density is positive", &
+        metric_volume_density(euclidean) - 1)
+    if (levi_civita_symbol(1, 2, 3) /= 1 .or. &
+            levi_civita_symbol(1, 3, 2) /= -1 .or. &
+            levi_civita_symbol(1, 1, 2) /= 0) then
+        error stop "Levi-Civita symbol convention failed"
+    end if
+    epsilon_lower = metric_levi_civita(euclidean, -1)
+    epsilon_upper = metric_levi_civita(euclidean, 1)
+    call check_identity(suite, engine, "covariant Levi-Civita tensor", &
+        epsilon_lower(1, 2, 3) - 1)
+    call check_identity(suite, engine, "contravariant Levi-Civita tensor", &
+        epsilon_upper(1, 3, 2) + 1)
 
     components = num(arena, 0)
     components(1, 1) = num(arena, -1)
@@ -51,6 +67,14 @@ program test_fortsym_metric
     root = metric_sqrtg(lorentzian)
     call check_identity(suite, engine, "Lorentzian determinant", determinant + 1)
     call check_identity(suite, engine, "sqrtg uses absolute determinant", root - 1)
+    call check_identity(suite, engine, "Lorentzian volume density is positive", &
+        metric_volume_density(lorentzian) - 1)
+    epsilon_lower = metric_levi_civita(lorentzian, -1)
+    epsilon_upper = metric_levi_civita(lorentzian, 1)
+    call check_identity(suite, engine, "oriented covariant Levi-Civita tensor", &
+        epsilon_lower(1, 2, 3) + 1)
+    call check_identity(suite, engine, "raised Levi-Civita tensor signature", &
+        epsilon_upper(1, 2, 3) - 1)
 
     covariant = metric_covariant(lorentzian)
     inverse = metric_contravariant(lorentzian)
