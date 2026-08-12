@@ -173,6 +173,11 @@ class SympySubsetTest(unittest.TestCase):
         transition = sp.ChartMap(
             source, target, (2*x + y, y, z), ((p - q)/2, q, s)
         )
+        singular = sp.ChartMap(
+            source, target, (x, x, z), (p, q, s)
+        )
+        with self.assertRaisesRegex(fortsym.FortSymError, "zero Jacobian"):
+            singular.jacobian()
         op, oq, os = oracle.symbols("map_p map_q map_s")
 
         jacobian = oracle.Matrix(3, 3, lambda row, column: oracle.sympify(

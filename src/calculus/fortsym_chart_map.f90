@@ -19,7 +19,7 @@ module fortsym_chart_map
 
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
 
-    public :: chart_map_t, chart_map_create, compose_maps
+    public :: chart_map_t, chart_map_create, compose_maps, map_valid
     public :: map_jacobian, inverse_jacobian, transform_tensor, transform_form
     public :: pullback
 
@@ -57,6 +57,9 @@ contains
         result%target = target
         result%forward = forward
         result%inverse = inverse
+        if (.not. map_valid(result)) then
+            result = chart_map_t()
+        end if
     end function chart_map_create
 
     !> Compose two transitions. `following` is applied after `first`.
@@ -84,6 +87,8 @@ contains
         type(expr_t) :: result(DIM, DIM)
         integer :: i, j
 
+        if (.not. map_structure_valid(map)) return
+
         do i = 1, DIM
             do j = 1, DIM
                 result(i, j) = diff(map%forward(i), map%source%u(j))
@@ -96,6 +101,8 @@ contains
         type(chart_map_t), intent(in) :: map
         type(expr_t) :: result(DIM, DIM)
         integer :: i, j
+
+        if (.not. map_structure_valid(map)) return
 
         do i = 1, DIM
             do j = 1, DIM
@@ -243,6 +250,19 @@ contains
     function map_valid(map) result(valid)
         type(chart_map_t), intent(in) :: map
         logical :: valid
+        type(expr_t) :: forward_matrix(DIM, DIM), inverse_matrix(DIM, DIM)
+
+        valid = map_structure_valid(map)
+        if (.not. valid) return
+        forward_matrix = map_jacobian(map)
+        inverse_matrix = inverse_jacobian(map)
+        valid = .not. matrix_has_zero_determinant(forward_matrix) .and. &
+            .not. matrix_has_zero_determinant(inverse_matrix)
+    end function map_valid
+
+    function map_structure_valid(map) result(valid)
+        type(chart_map_t), intent(in) :: map
+        logical :: valid
         integer :: k
 
         valid = .false.
@@ -256,7 +276,7 @@ contains
             if (.not. associated(map%inverse(k)%a, map%target%a)) return
         end do
         valid = .true.
-    end function map_valid
+    end function map_structure_valid
 
     function same_chart(left, right) result(same)
         type(chart_t), intent(in) :: left, right
@@ -284,6 +304,51 @@ contains
             matrix(1, 3)*(matrix(2, 1)*matrix(3, 2) - &
             matrix(2, 2)*matrix(3, 1))
     end function det3
+
+    function matrix_has_zero_determinant(matrix) result(zero)
+        type(expr_t), intent(in) :: matrix(DIM, DIM)
+        logical :: zero
+        logical :: row_zero, column_zero, equal_rows, equal_columns
+        type(expr_t) :: zero_value
+        integer :: i, j, k
+
+        zero = .false.
+        zero_value = num(matrix(1, 1)%a, 0)
+        if (det3(matrix) == zero_value) then
+            zero = .true.
+            return
+        end if
+
+        do i = 1, DIM
+            row_zero = .true.
+            column_zero = .true.
+            do j = 1, DIM
+                if (.not. (matrix(i, j) == zero_value)) row_zero = .false.
+                if (.not. (matrix(j, i) == zero_value)) column_zero = .false.
+            end do
+            if (row_zero .or. column_zero) then
+                zero = .true.
+                return
+            end if
+        end do
+
+        do i = 1, DIM - 1
+            do k = i + 1, DIM
+                equal_rows = .true.
+                equal_columns = .true.
+                do j = 1, DIM
+                    if (.not. (matrix(i, j) == matrix(k, j))) &
+                        equal_rows = .false.
+                    if (.not. (matrix(j, i) == matrix(j, k))) &
+                        equal_columns = .false.
+                end do
+                if (equal_rows .or. equal_columns) then
+                    zero = .true.
+                    return
+                end if
+            end do
+        end do
+    end function matrix_has_zero_determinant
 
     pure function pair_index(first, second) result(index)
         integer, intent(in) :: first, second

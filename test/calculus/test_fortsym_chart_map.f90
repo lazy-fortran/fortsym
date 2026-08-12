@@ -11,7 +11,8 @@ program test_fortsym_chart_map
         make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
-        map_jacobian, inverse_jacobian, transform_tensor, transform_form, pullback
+        map_valid, map_jacobian, inverse_jacobian, transform_tensor, &
+        transform_form, pullback
     use fortsym, only: facade_chart_map_t => chart_map_t, &
         facade_chart_map_create => chart_map_create, &
         facade_transform_tensor => transform_tensor
@@ -25,7 +26,7 @@ program test_fortsym_chart_map
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
     type(chart_t) :: source, target, middle, final
-    type(chart_map_t) :: transition, second_transition, composed
+    type(chart_map_t) :: transition, second_transition, composed, singular
     type(facade_chart_map_t) :: facade_transition
     type(expr_t) :: source_u(DIM), target_u(DIM), final_u(DIM)
     type(expr_t) :: source_position(DIM), target_position(DIM), final_position(DIM)
@@ -184,6 +185,21 @@ program test_fortsym_chart_map
         call check_identity(suite, engine, "tensor composition", &
             vector_target%component(i) - composed_vector%component(i))
     end do
+
+    forward(1) = source_u(1)
+    forward(2) = source_u(1)
+    forward(3) = source_u(3)
+    inverse = target_u
+    singular = chart_map_create(source, target, forward, inverse)
+    suite%total = suite%total + 1
+    if (.not. map_valid(singular)) then
+        suite%passed = suite%passed + 1
+        suite%proved = suite%proved + 1
+        print *, "PASS         singular map is refused"
+    else
+        suite%failed = suite%failed + 1
+        print *, "FAIL         singular map is refused"
+    end if
 
     if (suite%failed /= 0) then
         print *, "test_fortsym_chart_map: ", suite%failed, " check(s) FAILED"

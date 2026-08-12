@@ -87,6 +87,8 @@ do not maintain separate metric, variance, or density representations.
 
 `fortsym_chart_map` owns bidirectional coordinate transitions. Supply target
 coordinates as functions of source coordinates and the inverse map explicitly.
+`map_valid` reports whether the transition passed the native structural
+validation; identically singular forward or inverse Jacobians are refused.
 The tensor transform applies `K` to upper slots, `L` to lower slots, preserves
 the density weight, and returns components expressed in the target coordinates.
 

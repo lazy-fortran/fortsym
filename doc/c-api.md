@@ -10,6 +10,9 @@ chart-owned vector calculus, and bidirectional chart-map tensor and form transpo
 The form boundary also accepts the explicit degree-four zero extension produced
 by `d` of a three-form; any degree-four input with a nonzero component is
 rejected.
+Chart operations reject maps whose forward or inverse Jacobian is identically
+zero, while a determinant that can vanish only on a coordinate locus remains a
+conditional map and is not silently treated as globally singular.
 The native library retains an
 arena while any expression handle refers to it; callers may therefore release
 the arena before releasing its expressions.
