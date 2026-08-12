@@ -17,6 +17,8 @@ module fortsym_public_capi
     use fortsym_predicates, only: predicate_is_number => is_number, &
         predicate_is_algebraic => is_algebraic
     use fortsym_diff, only: diff
+    use fortsym_chart, only: chart_t, chart_create, DIM, sqrtg
+    use fortsym_magnetic, only: b_cov, b_fourier, b_fourier_density
     use fortsym_assume_api, only: assumption_context_t, init_assumption_context, &
         clone_assumption_context, record_assumption, &
         record_relation, &
@@ -72,6 +74,8 @@ module fortsym_public_capi
     public :: fortsym_substitute, fortsym_substitute_many, fortsym_differentiate, &
         fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor
+    public :: fortsym_chart_sqrtg, fortsym_chart_b_cov, &
+        fortsym_chart_b_fourier, fortsym_chart_b_fourier_density
     public :: fortsym_complex_operation
     public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
@@ -86,7 +90,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 15_c_int
+        v = 16_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -723,6 +727,136 @@ contains
         call make_handle(a, e, out, status, message, capacity)
     end function fortsym_differentiate
 
+    function fortsym_chart_sqrtg(raw, coordinates, position, dimension, out, &
+            message, capacity) bind(c, name="fortsym_chart_sqrtg") result(status)
+        type(c_ptr), value :: raw, out
+        type(c_ptr), value :: coordinates, position
+        integer(c_size_t), value :: dimension
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: value
+
+        call begin_output(out, message, capacity)
+        call get_chart_inputs(raw, coordinates, position, dimension, chart, a, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = sqrtg(chart)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_chart_sqrtg
+
+    function fortsym_chart_b_cov(raw, coordinates, position, vector, out, &
+            message, capacity) bind(c, name="fortsym_chart_b_cov") result(status)
+        type(c_ptr), value :: raw, out
+        type(c_ptr), value :: coordinates, position, vector
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(expr_t) :: input(DIM), value(DIM)
+        type(c_ptr), pointer :: output(:), vector_values(:)
+        integer :: k
+
+        call c_f_pointer(out, output, [DIM])
+        call c_f_pointer(vector, vector_values, [DIM])
+        call clear_array_outputs(output)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        do k = 1, DIM
+            call get_expr(vector_values(k), owner, input(k), status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        value = b_cov(chart, input)
+        call make_array_handles(a, value, output, status, message, capacity)
+    end function fortsym_chart_b_cov
+
+    function fortsym_chart_b_fourier(raw, coordinates, position, potential, &
+            mode, out, message, capacity) bind(c, name="fortsym_chart_b_fourier") &
+            result(status)
+        type(c_ptr), value :: raw, mode, out
+        type(c_ptr), value :: coordinates, position, potential
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(expr_t) :: input(DIM), mode_value, value(DIM)
+        type(c_ptr), pointer :: output(:), potential_values(:)
+        integer :: k
+
+        call c_f_pointer(out, output, [DIM])
+        call c_f_pointer(potential, potential_values, [DIM])
+        call clear_array_outputs(output)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        do k = 1, DIM
+            call get_expr(potential_values(k), owner, input(k), status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        call get_expr(mode, owner, mode_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        value = b_fourier(chart, input, mode_value)
+        call make_array_handles(a, value, output, status, message, capacity)
+    end function fortsym_chart_b_fourier
+
+    function fortsym_chart_b_fourier_density(raw, coordinates, position, &
+            potential, mode, out, message, capacity) bind(c, &
+            name="fortsym_chart_b_fourier_density") result(status)
+        type(c_ptr), value :: raw, mode, out
+        type(c_ptr), value :: coordinates, position, potential
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(expr_t) :: input(DIM), mode_value, value(DIM)
+        type(c_ptr), pointer :: output(:), potential_values(:)
+        integer :: k
+
+        call c_f_pointer(out, output, [DIM])
+        call c_f_pointer(potential, potential_values, [DIM])
+        call clear_array_outputs(output)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        do k = 1, DIM
+            call get_expr(potential_values(k), owner, input(k), status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        call get_expr(mode, owner, mode_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        value = b_fourier_density(chart, input, mode_value)
+        call make_array_handles(a, value, output, status, message, capacity)
+    end function fortsym_chart_b_fourier_density
+
     function fortsym_expand(raw, expression_raw, out, message, capacity) &
             bind(c, name="fortsym_expand") result(status)
         type(c_ptr), value :: raw, expression_raw, out
@@ -1189,6 +1323,81 @@ contains
         end if
         value = e%real_value()
     end function fortsym_expr_real_value
+
+    subroutine get_chart_inputs(raw, coordinates, position, dimension, chart, &
+            a, status, message, capacity)
+        type(c_ptr), value :: raw, coordinates, position
+        integer(c_size_t), value :: dimension
+        type(chart_t), intent(out) :: chart
+        type(arena_owner_t), pointer :: a
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(expr_owner_t), pointer :: owner
+        type(expr_t) :: u(DIM), x(DIM)
+        type(c_ptr), pointer :: coordinate_values(:), position_values(:)
+        integer :: k
+
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (dimension /= int(DIM, c_size_t)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call c_f_pointer(coordinates, coordinate_values, [DIM])
+        call c_f_pointer(position, position_values, [DIM])
+        do k = 1, DIM
+            call get_expr(coordinate_values(k), owner, u(k), status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+            call get_expr(position_values(k), owner, x(k), status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        chart = chart_create(a%value, u, x)
+    end subroutine get_chart_inputs
+
+    subroutine clear_array_outputs(out)
+        type(c_ptr), intent(out) :: out(*)
+        integer :: k
+
+        do k = 1, DIM
+            out(k) = c_null_ptr
+        end do
+    end subroutine clear_array_outputs
+
+    subroutine make_array_handles(a, values, out, status, message, capacity)
+        type(arena_owner_t), pointer :: a
+        type(expr_t), intent(in) :: values(DIM)
+        type(c_ptr), intent(out) :: out(*)
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(expr_owner_t), pointer :: p
+        integer :: k
+
+        status = FORTSYM_INVALID_ARGUMENT
+        do k = 1, DIM
+            if (.not. is_valid(values(k))) then
+                call put_error(message, capacity, FORTSYM_INVALID_ARGUMENT)
+                return
+            end if
+            nullify(p)
+            allocate (p)
+            p%arena => a
+            p%id = values(k)%id
+            a%references = a%references + 1
+            out(k) = c_loc(p)
+        end do
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end subroutine make_array_handles
 
     subroutine begin_output(out, message, capacity)
         type(c_ptr), value :: out

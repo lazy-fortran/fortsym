@@ -1,6 +1,6 @@
 {
   "adapter_profile": {
-    "declared_count": 86,
+    "declared_count": 87,
     "explicit_refusals": [
       "Matrix",
       "apart",
@@ -17,6 +17,7 @@
       "Add",
       "And",
       "Arena",
+      "Chart",
       "Derivative",
       "E",
       "Eq",
@@ -1780,6 +1781,50 @@
         "id": "fortsym_public_capi.fortsym_factor",
         "module": "fortsym_public_capi",
         "name": "fortsym_factor",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_sqrtg",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_sqrtg",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_b_cov",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_b_cov",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_b_fourier",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_b_fourier",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_b_fourier_density",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_b_fourier_density",
         "owner": "src/capi/fortsym_public_capi.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -4041,6 +4086,17 @@
         "id": "fortsym.solve_ode",
         "module": "fortsym",
         "name": "solve_ode",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.DIM",
+        "module": "fortsym",
+        "name": "DIM",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -8088,12 +8144,12 @@
     "classification_counts": {
       "delegated": 2529,
       "external": 10,
-      "facade": 202,
-      "native": 3217,
+      "facade": 207,
+      "native": 3222,
       "python-adapter": 2485,
       "refused": 25309
     },
-    "fortran_public_exports": 776,
+    "fortran_public_exports": 781,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

@@ -18,6 +18,33 @@ The native `Expr.factor()` method and top-level `factor()` function expose
 bounded polynomial factorisation; factorizations that would discard a domain
 condition are refused by the C ABI.
 
+## Native geometry facade
+
+`fortsym.Chart` is a small transport facade over the native Fortran chart and
+magnetic owners. It accepts three coordinate expressions and their Cartesian
+position map, then exposes `sqrtg()`, `b_fourier()`, `b_fourier_density()`, and
+`b_cov()`. The same class is re-exported as `fortsym.sympy.Chart`; it does not
+reimplement geometry in Python.
+
+```python
+import fortsym.sympy as sp
+
+Z, R, phi, n = sp.symbols("Z R phi n")
+chart = sp.Chart(
+    (Z, R, phi),
+    (R*sp.cos(phi), R*sp.sin(phi), Z),
+)
+A1 = sp.Function("A1")(Z, R)
+A2 = sp.Function("A2")(Z, R)
+A = (A1, A2, sp.Integer(0))
+B_up = chart.b_fourier(A, n)
+B_density = chart.b_fourier_density(A, n)
+```
+
+The geometry API currently covers the first magnetic-paper subset. The
+Wolfram/Python source-script translator and full three-frontend differential
+comparison remain roadmap work.
+
 ## `fortsym.sympy` compatibility subset
 
 `fortsym.sympy` is a drop-in import spelling for the declared subset below. It

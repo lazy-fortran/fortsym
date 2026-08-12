@@ -937,11 +937,14 @@ between the two-dimensional gradient, scalar curl, and divergence.
   order as the paper, then emit compact Fortran kernels for selected Fourier
   modes. The generated kernel must preserve density components and avoid
   array temporaries.
-- [ ] Add a native `paper_magnetic` example that is readable without the
+- [x] Add a native `paper_magnetic` example that is readable without the
   source scripts: declare `Z`, `R`, `phi`, `n`, `A`, and `g`, construct
   `sqrtg`, `B%up`, `B%down`, and the Fourier curl, and assert the paper's
-  equations through native `zero_test`. Add the corresponding Python and
-  Wolfram frontend examples and compare all three result trees.
+  equations through native `zero_test`.
+- [x] Add the native Python `Chart` facade for the same first subset, with
+  native C-ABI transport and no duplicate geometry implementation.
+- [ ] Add the corresponding Python and Wolfram frontend examples and compare
+  all three result trees.
 
 ### Relativity and geometry examples
 
