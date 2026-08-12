@@ -14,6 +14,10 @@ from .. import (
     Arena, Chart, Tensor, Form, Expr, FortSymError, _Assumption, _CONFLICT, _FACT_INTEGER,
     _FACT_RATIONAL, _FACT_ALGEBRAIC, _default,
 )
+from ..diffgeom import (
+    BaseScalarField, BaseVectorField, CoordinateSymbol, CoordSystem,
+    Differential, LieDerivative, Manifold, Patch, TensorProduct, WedgeProduct,
+)
 
 
 class UnsupportedOperationError(NotImplementedError):
@@ -1208,6 +1212,8 @@ nan = _default().constant("nan")
 
 __all__ = [
     "Arena", "Chart", "Tensor", "Form", "Expr", "FortSymError", "UnsupportedOperationError",
+    "Manifold", "Patch", "CoordSystem", "CoordinateSymbol", "BaseScalarField",
+    "BaseVectorField", "Differential", "WedgeProduct", "TensorProduct", "LieDerivative",
     "InconsistentAssumptions",
     "Symbol", "symbols", "sympify", "Integer", "Rational", "Float",
     "Add", "Mul", "Pow", "Function", "Wild", "Derivative", "Subs", "sin", "cos",
