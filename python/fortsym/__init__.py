@@ -238,6 +238,10 @@ def _configure(lib):
         "fortsym_expr_operation_count", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
     )
+    lib.expr_free_symbols = declare(
+        "fortsym_expr_free_symbols", ctypes.c_int,
+        [_CVOID, _CHAR_PTR, _SIZE, ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
+    )
     for name in ("text", "name", "exact_text"):
         setattr(
             lib,
@@ -495,6 +499,8 @@ class Expr:
         self._diff_results = {}
         self._complex_results = {}
         self._number_value = None
+        self._free_symbols_cache = None
+        self._borrowed = False
 
     def _require(self):
         if self._handle is None:
@@ -502,11 +508,21 @@ class Expr:
         return self._handle
 
     def close(self):
+        if self._borrowed:
+            return
         self._expanded_result = None
         self._diff_results.clear()
         self._complex_results.clear()
         self._number_value = None
+        if self._free_symbols_cache is not None:
+            for symbol in self._free_symbols_cache:
+                symbol._release()
+            self._free_symbols_cache = None
         self.__dict__.pop("is_algebraic", None)
+        if self._handle is not None:
+            self._release()
+
+    def _release(self):
         if self._handle is not None:
             self._lib.expr_free(self._handle)
             self._handle = None
@@ -813,6 +829,38 @@ class Expr:
             raise FortSymError(status, _decode(message), "expr_operation_count")
         return count.value
 
+    @property
+    def free_symbols(self):
+        if self._free_symbols_cache is not None:
+            return self._free_symbols_cache
+        size = 128
+        while True:
+            buffer = ctypes.create_string_buffer(size)
+            required = _SIZE()
+            message = _message()
+            status = self._lib.expr_free_symbols(
+                self._require(), buffer, size, ctypes.byref(required),
+                message, len(message)
+            )
+            if status == 6 and required.value > size:
+                size = required.value
+                continue
+            if status:
+                raise FortSymError(status, _decode(message), "expr_free_symbols")
+            payload = buffer.raw[:max(0, required.value - 1)]
+            if not payload:
+                self._free_symbols_cache = frozenset()
+                return self._free_symbols_cache
+            symbols = frozenset(
+                self._arena.symbol(name.decode("utf-8", "replace"))
+                for name in payload.split(b"\0")
+                if name
+            )
+            for symbol in symbols:
+                symbol._borrowed = True
+            self._free_symbols_cache = symbols
+            return symbols
+
     def _text(self, accessor):
         size = 128
         while True:
@@ -961,9 +1009,11 @@ def diff(expression: Expr, variable: Expr): return expression.diff(variable)
 def subs(expression: Expr, old: Expr, new: Expr): return expression.subs(old, new)
 def factor(expression: Expr): return expression.factor()
 def operation_count(expression: Expr): return expression.operation_count()
+def free_symbols(expression: Expr): return expression.free_symbols
 
 
 __all__ = [
     "Arena", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
     "Rational", "Float", "Function", "diff", "subs", "factor", "operation_count",
+    "free_symbols",
 ]

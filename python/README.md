@@ -12,6 +12,8 @@ The CMake install places the package sources under
 Expression handles own their native references and are released by `close()`
 or garbage collection. Exact integers and `fractions.Fraction` values are
 passed as decimal strings when they do not fit the compact C ABI scalars.
+`Expr.free_symbols` is cached on its owning expression; its symbol handles are
+kept alive by that cache and remain valid while the expression is alive.
 The native `Expr.factor()` method and top-level `factor()` function expose
 bounded polynomial factorisation; factorizations that would discard a domain
 condition are refused by the C ABI.
@@ -26,6 +28,7 @@ does not import SymPy. Unsupported names raise
 |---|---|
 | `Symbol`, `symbols`, `Integer`, `Rational`, `Float`, `pi`, `E`, `I`, `oo`, `zoo`, `nan` | exact native construction and structural equality; `Float(-0.0)` retains its IEEE sign, `nan` follows the declared propagation rules, and finite-scalar/integer-power `oo`/`zoo` rules match SymPy while symbolic factors remain unevaluated |
 | `Expr.is_number`, `Expr.is_algebraic`, `Expr.is_rational`, `Expr.is_integer`, `Expr.is_zero`, `Expr.is_nonzero`, `Expr.is_real`, `Expr.is_positive`, `Expr.is_nonnegative`, `Expr.is_negative`, `Expr.is_nonpositive` | SymPy-compatible numeric and three-valued predicates backed by one native expression owner; `is_number` is Boolean, while the domain and sign predicates return `True`, `False`, or `None` |
+| `Expr.free_symbols` | a cached `frozenset` of native symbol handles for the distinct free symbols; constants and applied-function heads are excluded |
 | `algebraic=True`, `rational=True`, `integer=True`, `real=True`, `zero=True`, `positive=True`, `nonnegative=True`, `nonzero=True`, `negative=True`, `nonpositive=True` | native arena facts; algebraic, rational, and integer facts close over their supported exact domains, sign facts close to real/nonzero/zero implications, and contradictory combinations raise `InconsistentAssumptions` |
 | `Q.algebraic`, `Q.rational`, `Q.integer`, `Q.real`, `Q.zero`, `Q.positive`, `Q.nonnegative`, `Q.nonzero`, `Q.negative`, `Q.nonpositive`, `ask`, `assuming`, `And` | nested, reversible assumption queries and transactional compound scopes backed by the native arena context; `Q.algebraic` uses the native algebraic result and preserves SymPy's `None` boundary for constructor-attached symbol assumptions and undecided function heads; bounded relational facts are accepted in scopes |
 | `Add`, `Mul`, `Pow`, `Function` | native operator construction; universal power identities (`x**0`, `x**1`, `1**x` outside sentinel exponents, and `sqrt(x)**2`) are canonicalized in the shared arena, with `1**oo`, `1**zoo`, and `1**nan` becoming `nan`; `isinstance` checks use native node kinds |

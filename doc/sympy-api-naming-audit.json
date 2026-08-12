@@ -407,6 +407,24 @@
       ]
     },
     {
+      "action": "Keep free-symbol discovery in the existing fortsym_eval traversal and expose only collection and spelling adapters at the boundaries.",
+      "description": "Return the distinct free symbols of an expression.",
+      "finding": "The native facade uses the concise free_symbols name, the native Python facade exposes the same top-level helper, and the compatibility Expr property reuses the same C-ABI traversal owner.",
+      "fortran_facade": [
+        "free_symbols"
+      ],
+      "id": "free-symbols",
+      "python_facade": [
+        "free_symbols"
+      ],
+      "sympy_adapter": [
+        "Expr"
+      ],
+      "sympy_reference": [
+        "Expr"
+      ]
+    },
+    {
       "action": "Keep one relation recorder in fortsym_assume; expose compatibility spellings only at the Python adapter boundary and refuse unsupported relation inference explicitly.",
       "description": "Construct symbolic equality and ordering relations.",
       "finding": "The Fortran facade keeps relation constructors snake_case. The Python adapter preserves SymPy's constructor spellings and maps comparison operators to the same native relation nodes.",
@@ -1048,6 +1066,12 @@
       },
       {
         "concepts": [
+          "free-symbols"
+        ],
+        "name": "free_symbols"
+      },
+      {
+        "concepts": [
           "function-construction"
         ],
         "name": "func"
@@ -1490,6 +1514,7 @@
       "Symbol",
       "diff",
       "factor",
+      "free_symbols",
       "operation_count",
       "subs",
       "symbols"
@@ -1597,10 +1622,10 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 175,
-    "concept_groups": 30,
-    "fortran_facade_exports": 137,
-    "python_facade_exports": 13,
+    "assigned_names": 176,
+    "concept_groups": 31,
+    "fortran_facade_exports": 138,
+    "python_facade_exports": 14,
     "sympy_adapter_exports": 85,
     "unmapped_fortran_exports": 1
   },

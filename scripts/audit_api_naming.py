@@ -179,6 +179,13 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "Keep the tree traversal in the native arena owner and expose only spelling adapters at the language boundaries.",
         ),
         concept(
+            "free-symbols",
+            "Return the distinct free symbols of an expression.",
+            ["free_symbols"], ["free_symbols"], ["Expr"], ["Expr"],
+            "The native facade uses the concise free_symbols name, the native Python facade exposes the same top-level helper, and the compatibility Expr property reuses the same C-ABI traversal owner.",
+            "Keep free-symbol discovery in the existing fortsym_eval traversal and expose only collection and spelling adapters at the boundaries.",
+        ),
+        concept(
             "relational-constructors",
             "Construct symbolic equality and ordering relations.",
             ["equal", "unequal", "less", "less_equal", "greater", "greater_equal"],

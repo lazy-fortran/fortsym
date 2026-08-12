@@ -91,6 +91,16 @@ sympy_adapter = ["count_ops"]
 decision = "Keep one native tree traversal under operation_count and map only the Python compatibility spelling count_ops; visual operation expressions remain an explicit bounded refusal."
 
 [[family]]
+id = "free-symbols"
+audit_concepts = ["free-symbols"]
+canonical_native = ["free_symbols"]
+current_native = ["free_symbols"]
+transition_aliases = []
+python_facade = ["free_symbols"]
+sympy_adapter = ["Expr"]
+decision = "Keep free_symbols as the one user-facing native name and reuse the caller-owned collect_free_symbols traversal internally; the SymPy Expr property is a handle-set adapter, not a second walk."
+
+[[family]]
 id = "relations"
 audit_concepts = ["relational-constructors"]
 canonical_native = ["equal", "unequal", "less", "less_equal", "greater", "greater_equal"]

@@ -209,6 +209,9 @@ Every checklist item requires all of the following:
   relations, Boolean objects, sets, tuples, rules, and indexed objects.
 - [ ] Complete canonical hashing, ordering, equality, traversal, matching,
   replacement, and controlled evaluation.
+  - [x] Expose the distinct free-symbol traversal through native
+    `free_symbols`, C ABI `fortsym_expr_free_symbols`, and Python
+    `Expr.free_symbols` without adding a second tree walk.
 - [ ] Complete exact integer/rational/real/complex and algebraic domains.
   - [x] Preserve arbitrary-size integer and rational construction and native
     arithmetic in the current scalar fragment. `num`, `rat`, and `exact` share
@@ -767,6 +770,10 @@ Every checklist item requires all of the following:
     correctness-checked ABI diagnostics and explicitly waived at 5.57x cold
     and 3.57x warm SymPy; the final 98-workload matrix retains 82 enforced
     rows with zero unwaived violations.
+  - [x] Add native `free_symbols` correctness and performance coverage. The
+    C ABI and Python facade reuse one native traversal; the Python facade
+    caches the immutable handle set, measuring 0.236x cold and 0.054x warm
+    SymPy in the 102-row matrix with zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

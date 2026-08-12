@@ -122,6 +122,14 @@ fortsym = "Native expansion is bounded and supports the implemented polynomial f
 difference = "Supported algebraic forms, option semantics, and resource-bounded refusal differ."
 
 [[semantic]]
+id = "free-symbols"
+affected = ["Expr"]
+parity = "partial"
+sympy = "SymPy Expr.free_symbols returns the distinct Symbol objects reachable from an expression."
+fortsym = "The native arena traversal returns distinct NK_SYM names; the C ABI and Python Expr.free_symbols expose native symbol handles while excluding constants and applied-function heads."
+difference = "The supported hierarchy is narrower than SymPy's full bound-symbol, indexed, set, and tuple model, and the C ABI name order is not semantic."
+
+[[semantic]]
 id = "operation-count"
 affected = ["count_ops"]
 parity = "partial"

@@ -70,6 +70,13 @@ operation per operand link; repeated references to an interned child count once
 per written occurrence; canonical reciprocal products count as divisions.
 `expr_t%node_count()` remains the separate shared-DAG node measure.
 
+`free_symbols(expression, names)` collects the distinct symbolic names
+reachable from the expression into caller-owned allocatable `names`. Constants
+and applied-function heads are excluded. The lower-level `fortsym_eval` owner
+provides `collect_free_symbols` for internal consumers; the facade keeps
+`free_symbols` as the easy native spelling and avoids an allocatable
+function-result temporary.
+
 `oo_expr` constructs the positive-infinity sentinel. It remains a structural
 domain value, not a finite real literal. Native simplification currently
 matches the finite scalar and integer-power rules for `oo` and `zoo`: known

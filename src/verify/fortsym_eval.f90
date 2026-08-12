@@ -21,7 +21,7 @@ module fortsym_eval
     implicit none
     private
 
-    public :: binding_t, eval_expr, free_symbols_of, collect_free_symbols
+    public :: binding_t, eval_expr, collect_free_symbols
 
     integer, parameter :: dp = real64
 
@@ -38,13 +38,6 @@ module fortsym_eval
     end type binding_t
 
 contains
-
-    !> Collect the distinct free symbol names of an expression.
-    function free_symbols_of(e) result(names)
-        type(expr_t), intent(in) :: e
-        type(str_t), allocatable :: names(:)
-        call collect_free_symbols(e, names)
-    end function free_symbols_of
 
     !> Collect free symbols into caller-owned storage. The subroutine form is
     !> used on hot and diagnostic paths so an allocatable function result is

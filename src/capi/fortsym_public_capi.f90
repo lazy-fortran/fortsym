@@ -13,6 +13,7 @@ module fortsym_public_capi
         operator(*), operator(/), operator(**)
     use fortsym_print, only: print_expr
     use fortsym_subs, only: subs
+    use fortsym_eval, only: collect_free_symbols
     use fortsym_predicates, only: predicate_is_number => is_number, &
         predicate_is_algebraic => is_algebraic
     use fortsym_diff, only: diff
@@ -74,7 +75,8 @@ module fortsym_public_capi
     public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
     public :: fortsym_expr_equal, fortsym_expr_node_count, &
-        fortsym_expr_operation_count, fortsym_expr_text
+        fortsym_expr_operation_count, fortsym_expr_free_symbols, &
+        fortsym_expr_text
     public :: fortsym_expr_name, fortsym_expr_exact_text
     public :: fortsym_expr_int_value, fortsym_expr_real_value
     public :: fortsym_expr_is_number, fortsym_expr_is_algebraic
@@ -83,7 +85,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 13_c_int
+        v = 14_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1020,6 +1022,28 @@ contains
         end if
     end function fortsym_expr_operation_count
 
+    function fortsym_expr_free_symbols(raw, buffer, capacity, required, &
+            message, message_capacity) bind(c, name="fortsym_expr_free_symbols") &
+            result(status)
+        type(c_ptr), value :: raw
+        character(kind=c_char), intent(out) :: buffer(*)
+        integer(c_size_t), value :: capacity
+        integer(c_size_t), intent(out) :: required
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: message_capacity
+        integer(c_int) :: status
+        type(expr_owner_t), pointer :: p
+        type(expr_t) :: e
+        type(str_t), allocatable :: names(:)
+
+        required = 0_c_size_t
+        call get_expr(raw, p, e, status, message, message_capacity)
+        if (status /= FORTSYM_OK) return
+        call collect_free_symbols(e, names)
+        call put_symbol_names(names, buffer, capacity, required, status, &
+            message, message_capacity)
+    end function fortsym_expr_free_symbols
+
     function fortsym_expr_text(raw, buffer, capacity, required, message, &
             message_capacity) bind(c, name="fortsym_expr_text") result(status)
         type(c_ptr), value :: raw
@@ -1361,6 +1385,54 @@ contains
             call fail(status, message, message_capacity, FORTSYM_RESOURCE_LIMIT)
         end if
     end subroutine put_text
+
+    !> Write names as name NUL name NUL ... NUL. The required size includes
+    !> every separator and the final NUL; truncation retains a valid final NUL.
+    subroutine put_symbol_names(names, buffer, capacity, required, status, &
+            message, message_capacity)
+        type(str_t), intent(in) :: names(:)
+        character(kind=c_char), intent(out) :: buffer(*)
+        integer(c_size_t), value :: capacity
+        integer(c_size_t), intent(out) :: required
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: message_capacity
+        integer(c_size_t) :: position, available, take
+        integer :: i, k
+        character(:), allocatable :: source
+
+        required = 1_c_size_t
+        do i = 1, size(names)
+            required = required + int(names(i)%len(), c_size_t) + 1_c_size_t
+        end do
+        status = FORTSYM_OK
+        if (capacity == 0_c_size_t) return
+
+        position = 1_c_size_t
+        do i = 1, size(names)
+            if (position >= capacity) exit
+            source = names(i)%chars()
+            if (index(source, achar(0)) /= 0) then
+                call fail(status, message, message_capacity, FORTSYM_UNSUPPORTED)
+                required = 0_c_size_t
+                return
+            end if
+            available = capacity - position
+            take = min(int(len(source), c_size_t), available)
+            do k = 1, int(take)
+                buffer(position + int(k - 1, c_size_t)) = source(k:k)
+            end do
+            position = position + take
+            if (position < capacity) then
+                buffer(position) = c_null_char
+                position = position + 1_c_size_t
+            end if
+        end do
+        if (position <= capacity) buffer(position) = c_null_char
+        if (capacity < required) then
+            call fail(status, message, message_capacity, FORTSYM_RESOURCE_LIMIT)
+        end if
+    end subroutine put_symbol_names
 
     subroutine c_store_pointer(address, value)
         type(c_ptr), value :: address, value

@@ -172,6 +172,10 @@ int fortsym_expr_node_count(const fortsym_expr *expression, size_t *count,
                             char *message, size_t capacity);
 int fortsym_expr_operation_count(const fortsym_expr *expression, size_t *count,
                                  char *message, size_t capacity);
+/* The output is name\0name\0...\0; `required` includes the final NUL. */
+int fortsym_expr_free_symbols(const fortsym_expr *expression, char *buffer,
+                              size_t capacity, size_t *required,
+                              char *message, size_t message_capacity);
 int fortsym_expr_text(const fortsym_expr *expression, char *buffer,
                       size_t capacity, size_t *required, char *message,
                       size_t message_capacity);

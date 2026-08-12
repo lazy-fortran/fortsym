@@ -1794,6 +1794,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym_public_capi.fortsym_expr_free_symbols",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_expr_free_symbols",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym_public_capi.fortsym_expr_text",
         "module": "fortsym_public_capi",
         "name": "fortsym_expr_text",
@@ -3519,6 +3530,17 @@
         "id": "fortsym.operation_count",
         "module": "fortsym",
         "name": "operation_count",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.free_symbols",
+        "module": "fortsym",
+        "name": "free_symbols",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -7477,16 +7499,6 @@
         "classification": [
           "native"
         ],
-        "id": "fortsym_eval.free_symbols_of",
-        "module": "fortsym_eval",
-        "name": "free_symbols_of",
-        "owner": "src/verify/fortsym_eval.f90",
-        "reason": "public declaration is owned by the in-process Fortran implementation"
-      },
-      {
-        "classification": [
-          "native"
-        ],
         "id": "fortsym_eval.collect_free_symbols",
         "module": "fortsym_eval",
         "name": "collect_free_symbols",
@@ -7785,12 +7797,12 @@
     "classification_counts": {
       "delegated": 2492,
       "external": 10,
-      "facade": 180,
-      "native": 3152,
+      "facade": 182,
+      "native": 3153,
       "python-adapter": 2448,
       "refused": 25346
     },
-    "fortran_public_exports": 748,
+    "fortran_public_exports": 749,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

@@ -49,6 +49,17 @@ def result_text(value: Any) -> str:
     return str(value).replace("Abs(", "abs(")
 
 
+def free_symbol_names(expression: Any, engine: Any) -> set[str]:
+    if engine is oracle:
+        return {str(symbol) for symbol in expression.free_symbols}
+    symbols = expression.free_symbols
+    try:
+        return {str(symbol) for symbol in symbols}
+    finally:
+        for symbol in symbols:
+            symbol.close()
+
+
 def imaginary_unit(engine: Any) -> Any:
     if engine is oracle:
         return engine.I
@@ -282,6 +293,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
         "count_ops": (
             (oracle_x + oracle_y + 1) ** 2,
             (native_x + native_y + 1) ** 2,
+            names,
+        ),
+        "free_symbols": (
+            oracle_x + oracle.sin(oracle_y * oracle_x),
+            native_x + native.sin(native_y * native_x),
             names,
         ),
         "differentiate": (
@@ -567,6 +583,9 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
     elif operation == "count_ops":
         y = engine.Symbol(f"{operation}_y_{suffix}")
         expression = (x + y + 1) ** 2
+    elif operation == "free_symbols":
+        y = engine.Symbol(f"{operation}_y_{suffix}")
+        expression = x + engine.sin(y * x)
     elif operation == "differentiate":
         y = engine.Symbol(f"{operation}_y_{suffix}")
         expression = engine.exp(x * y)
@@ -818,6 +837,9 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation == "count_ops":
             expected = oracle.count_ops(oracle_expression)
             actual = native.count_ops(native_expression)
+        elif operation == "free_symbols":
+            expected = free_symbol_names(oracle_expression, oracle)
+            actual = free_symbol_names(native_expression, native)
         elif operation == "differentiate":
             expected = oracle.diff(oracle_expression, names[f"check_x_fixed"])
             actual = native.diff(native_expression, native.Symbol("check_x_fixed"))
@@ -892,7 +914,7 @@ def correctness_cases() -> list[dict[str, Any]]:
             "operation": operation,
             "correct": (
                 expected == actual
-                if (operation == "count_ops" or
+                if (operation in ("count_ops", "free_symbols") or
                         operation in _ASSUMPTION_OPERATIONS or
                         operation in _PREDICATE_OPERATIONS)
                 else str(expected) == str(actual)
@@ -952,6 +974,9 @@ def benchmark_workload(
             elif operation == "count_ops":
                 oracle_call = lambda: oracle.count_ops(oracle_expression)
                 native_call = lambda: native.count_ops(native_expression)
+            elif operation == "free_symbols":
+                oracle_call = lambda: oracle_expression.free_symbols
+                native_call = lambda: native_expression.free_symbols
             elif operation == "simplify":
                 oracle_call = lambda: oracle.simplify(oracle_expression)
                 native_call = lambda: native.simplify(native_expression)
@@ -1032,6 +1057,8 @@ def benchmark_workload(
                     return engine.ask(expression)
                 if operation == "count_ops":
                     return engine.count_ops(expression)
+                if operation == "free_symbols":
+                    return expression.free_symbols
                 if operation in _PREDICATE_OPERATIONS:
                     return predicate_value(expression, operation)
                 if operation in _CONSTRUCTION_OPERATIONS:
@@ -1123,7 +1150,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "count_ops", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
+        "expand", "count_ops", "free_symbols", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):
         if operation in _PREDICATE_OPERATIONS:
