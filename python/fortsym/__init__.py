@@ -467,6 +467,12 @@ class Arena:
     def _coerce(self, value):
         if isinstance(value, Expr):
             return self._check(value), None
+        pattern_materializer = getattr(value, "_materialize_pattern", None)
+        if pattern_materializer is not None:
+            return self._check(pattern_materializer()), None
+        pattern_expression = getattr(value, "_pattern_expression", None)
+        if pattern_expression is not None:
+            return self._check(pattern_expression), None
         if isinstance(value, Fraction):
             expression = self.rational(value.numerator, value.denominator)
             return expression, expression
@@ -504,9 +510,13 @@ class Expr:
         self._expanded_epoch = -1
         self._diff_results = {}
         self._complex_results = {}
+        self._match_results = {}
         self._number_value = None
         self._free_symbols_cache = None
         self._node_count_cache = None
+        self._kind_cache = None
+        self._arity_cache = None
+        self._name_cache = None
         self._borrowed = False
 
     def _require(self):
@@ -520,8 +530,14 @@ class Expr:
         self._expanded_result = None
         self._diff_results.clear()
         self._complex_results.clear()
+        self._match_results.clear()
         self._number_value = None
         self._node_count_cache = None
+        self._kind_cache = None
+        self._arity_cache = None
+        self._name_cache = None
+        self.__dict__.pop("_wildcard_patterns", None)
+        self.__dict__.pop("_wildcard_matcher", None)
         if self._free_symbols_cache is not None:
             for symbol in self._free_symbols_cache:
                 symbol._release()
@@ -542,10 +558,25 @@ class Expr:
             pass
 
     def _binary(self, function, other):
+        pattern_materializer = getattr(other, "_materialize_pattern", None)
+        if pattern_materializer is not None:
+            other = pattern_materializer()
         other, temporary = self._arena._coerce(other)
         try:
-            return self._arena._result(function, self._arena._require(),
-                                       self._require(), other._handle)
+            result = self._arena._result(
+                function, self._arena._require(), self._require(),
+                other._handle,
+            )
+            patterns = {}
+            patterns.update(getattr(self, "_wildcard_patterns", {}))
+            patterns.update(getattr(other, "_wildcard_patterns", {}))
+            if patterns:
+                result._wildcard_patterns = patterns
+                matcher = (getattr(self, "_wildcard_matcher", None) or
+                           getattr(other, "_wildcard_matcher", None))
+                if matcher is not None:
+                    result._wildcard_matcher = matcher
+            return result
         finally:
             if temporary is not None:
                 temporary.close()
@@ -674,8 +705,30 @@ class Expr:
         deliberately implements only SymPy's exact structural boundary.
         ``old`` has no effect when no wildcard is present.
         """
+        direct_matcher = getattr(pattern, "_wildcard_matcher", None)
+        if direct_matcher is not None and not isinstance(pattern, Expr):
+            if getattr(pattern, "_pattern_arena", self._arena) is not self._arena:
+                raise ValueError("expression belongs to another arena")
+            key = id(pattern)
+            cached = self._match_results.get(key)
+            if cached is not None and cached[0] is pattern:
+                return dict(cached[1])
+            result = direct_matcher(self, pattern, old)
+            self._match_results[key] = (pattern, result)
+            return None if result is None else dict(result)
         pattern, temporary = self._arena._coerce(pattern)
         try:
+            matcher = getattr(pattern, "_wildcard_matcher", None)
+            if matcher is not None:
+                key = id(pattern)
+                cached = self._match_results.get(key)
+                if cached is not None and cached[0] is pattern:
+                    return dict(cached[1])
+                result = matcher(self, pattern, old)
+                self._match_results[key] = (pattern, result)
+                if len(self._match_results) > 8:
+                    self._match_results.pop(next(iter(self._match_results)))
+                return None if result is None else dict(result)
             if self is pattern or self == pattern:
                 return {}
             return None
@@ -883,19 +936,27 @@ class Expr:
 
     @property
     def kind(self):
+        self._require()
+        if self._kind_cache is not None:
+            return self._kind_cache
         value = ctypes.c_int()
         message = _message()
         status = self._lib.expr_kind(self._require(), ctypes.byref(value), message, len(message))
         if status: raise FortSymError(status, _decode(message), "expr_kind")
-        return value.value
+        self._kind_cache = value.value
+        return self._kind_cache
 
     @property
     def arity(self):
+        self._require()
+        if self._arity_cache is not None:
+            return self._arity_cache
         value = _SIZE()
         message = _message()
         status = self._lib.expr_arity(self._require(), ctypes.byref(value), message, len(message))
         if status: raise FortSymError(status, _decode(message), "expr_arity")
-        return value.value
+        self._arity_cache = value.value
+        return self._arity_cache
 
     def argument(self, index):
         output = _CVOID()
@@ -999,10 +1060,17 @@ class Expr:
                 finally:
                     left.close()
                     right.close()
-        return self._text(self._lib.expr_text)
+        text = self._text(self._lib.expr_text)
+        for name, wildcard in getattr(self, "_wildcard_patterns", {}).items():
+            text = text.replace(name, getattr(wildcard, "name", name))
+        return text
     def __repr__(self): return str(self)
     @property
-    def name(self): return self._text(self._lib.expr_name)
+    def name(self):
+        self._require()
+        if self._name_cache is None:
+            self._name_cache = self._text(self._lib.expr_name)
+        return self._name_cache
     @property
     def exact_text(self): return self._text(self._lib.expr_exact_text)
 

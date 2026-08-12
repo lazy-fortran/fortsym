@@ -99,11 +99,11 @@ difference = "Variable inference, options, special-function rules, and the compl
 
 [[semantic]]
 id = "substitution"
-affected = ["Expr", "Subs"]
+affected = ["Expr", "Subs", "Wild"]
 parity = "partial"
 sympy = "SymPy supports ordered and simultaneous substitutions, mappings, sequences, and substitution options."
-fortsym = "The adapter supports one old/new pair, SymPy-ordered mappings, `simultaneous=True` for non-cascading mappings, exact-node `Expr.xreplace`, and exact non-wildcard `Expr.match`; the native facade also exposes paired-sequence `subs_many`. Subs supports explicit old/new pairs followed by doit()."
-difference = "Wildcard pattern matching and the broader substitution option vocabulary remain partial; the declared ordered-mapping, simultaneous, exact-node, and exact non-wildcard fragments are differential-tested."
+fortsym = "The adapter supports one old/new pair, SymPy-ordered mappings, `simultaneous=True` for non-cascading mappings, exact-node `Expr.xreplace`, exact non-wildcard `Expr.match`, and bounded `Wild` patterns with fixed structural slots, `exclude`, and `properties`; the native facade also exposes paired-sequence `subs_many`. Subs supports explicit old/new pairs followed by doit()."
+difference = "Commutative wildcard remainder partitioning, broad wildcard algebra, and the wider substitution option vocabulary remain partial; the declared ordered-mapping, simultaneous, exact-node, exact-match, and bounded-Wild fragments are differential-tested."
 
 [[semantic]]
 id = "sympification"

@@ -360,6 +360,42 @@ class SympyDifferentialTest(unittest.TestCase):
                     oracle_expression.match(oracle_pattern),
                 )
 
+    def test_wildcard_match_matches_oracle(self):
+        def normalized(result):
+            if result is None:
+                return None
+            return {str(key): str(value) for key, value in result.items()}
+
+        def cases(api):
+            x, y = api.symbols("wild_x wild_y")
+            a = api.Wild("wild_a")
+            b = api.Wild("wild_b")
+            f = api.Function("wild_f")
+            integer = api.Wild(
+                "wild_integer",
+                properties=(lambda value: value.is_integer is True,),
+            )
+            return [
+                (x, a),
+                (x + 1, a + 1),
+                (f(x + y), f(a + b)),
+                (x, api.Wild("not_x", exclude=(x,))),
+                (api.Integer(2), integer),
+                (api.Rational(1, 2), integer),
+            ]
+
+        oracle_cases = cases(oracle)
+        native_cases = cases(native)
+        for index, ((oracle_expression, oracle_pattern),
+                    (native_expression, native_pattern)) in enumerate(
+                        zip(oracle_cases, native_cases)
+                    ):
+            with self.subTest(index=index):
+                self.assertEqual(
+                    normalized(native_expression.match(native_pattern)),
+                    normalized(oracle_expression.match(oracle_pattern)),
+                )
+
     def test_free_symbols_matches_oracle(self):
         def names(api, expression):
             if api is oracle:

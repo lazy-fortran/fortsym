@@ -69,6 +69,23 @@ class SympySubsetTest(unittest.TestCase):
         self.assertIsNone(f(x + 1).match(f(x + 2)))
         self.assertEqual(x.match(x, old=True), {})
 
+    def test_match_supports_structural_wildcards(self):
+        x, y = sp.symbols("wild_x wild_y")
+        a = sp.Wild("wild_a")
+        b = sp.Wild("wild_b")
+        f = sp.Function("wild_f")
+        self.assertEqual(x.match(a), {a: x})
+        self.assertEqual((x + 1).match(a + 1), {a: x})
+        self.assertEqual(
+            f(x + y).match(f(a + b)), {a: x, b: y}
+        )
+        self.assertIsNone(x.match(sp.Wild("not_x", exclude=(x,))))
+        integer = sp.Wild(
+            "wild_integer", properties=lambda value: value.is_integer is True
+        )
+        self.assertEqual(sp.Integer(2).match(integer), {integer: sp.Integer(2)})
+        self.assertIsNone(sp.Rational(1, 2).match(integer))
+
     def test_refusal_and_truth_contract(self):
         self.assertFalse(bool(sp.Integer(0)))
         with self.assertRaises(TypeError):

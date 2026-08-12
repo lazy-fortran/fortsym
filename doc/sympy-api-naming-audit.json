@@ -342,9 +342,9 @@
       ]
     },
     {
-      "action": "Keep structural substitution in fortsym_subs, expose only its concise single-pair and explicit paired-sequence spellings from the native facade, and keep xreplace and exact non-wildcard match at the SymPy adapter boundary.",
+      "action": "Keep structural substitution in fortsym_subs, expose only its concise single-pair and explicit paired-sequence spellings from the native facade, and keep xreplace, exact match, and Wild at the SymPy adapter boundary.",
       "description": "Replace expressions.",
-      "finding": "The native facade forwards both substitution shapes from the single owning module; the Python adapter applies SymPy's unordered mapping order and maps the simultaneous, exact-node, and exact non-wildcard match boundaries.",
+      "finding": "The native facade forwards both substitution shapes from the single owning module; the Python adapter applies SymPy's unordered mapping order and maps the simultaneous, exact-node, exact-match, and bounded-Wild boundaries.",
       "fortran_facade": [
         "subs",
         "subs_many"
@@ -358,11 +358,13 @@
         "subs",
         "Subs",
         "xreplace",
-        "match"
+        "match",
+        "Wild"
       ],
       "sympy_reference": [
         "Expr",
-        "Subs"
+        "Subs",
+        "Wild"
       ]
     },
     {
@@ -1558,6 +1560,7 @@
       "Subs",
       "Symbol",
       "UnsupportedOperationError",
+      "Wild",
       "acos",
       "acosh",
       "apart",
@@ -1657,11 +1660,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 179,
+    "assigned_names": 180,
     "concept_groups": 31,
     "fortran_facade_exports": 139,
     "python_facade_exports": 15,
-    "sympy_adapter_exports": 109,
+    "sympy_adapter_exports": 110,
     "unmapped_fortran_exports": 1
   },
   "sympy_version": "1.14.0",
