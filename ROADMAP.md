@@ -1257,6 +1257,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Add native-backed closedness verdicts at C ABI 43 and both Python
   facades. Form closedness is defined as a zero `d(form)` coefficient vector,
   with `None` preserved for undecidable symbolic coefficients.
+- [x] Align tensor facade spellings: native/Python `product`, `tensor_product`,
+  `contract`, and `trace` share one owner, while `fortsym.sympy` adds
+  `tensorproduct` and `tensorcontraction` adapters without duplicating tensor
+  arithmetic.
 - [ ] Implement covariant differentiation of arbitrary tensor valence,
   including the correct Christoffel term for every upper and lower slot. The
   existing `christoffel` operation becomes a special case of the connection
