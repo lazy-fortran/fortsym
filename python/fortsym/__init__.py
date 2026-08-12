@@ -153,6 +153,12 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.substitute_many = declare(
+        "fortsym_substitute_many",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.differentiate = declare(
         "fortsym_differentiate",
         ctypes.c_int,
@@ -597,6 +603,48 @@ class Expr:
             if new_temporary:
                 new.close()
 
+    def _subs_many(self, old, new):
+        if len(old) != len(new):
+            raise ValueError("old and new replacement sequences differ in size")
+        if not old:
+            return self
+        old_values = []
+        new_values = []
+        temporaries = []
+        try:
+            for value in old:
+                coerced, temporary = self._arena._coerce(value)
+                old_values.append(coerced)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            for value in new:
+                coerced, temporary = self._arena._coerce(value)
+                new_values.append(coerced)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            old_handles = (_CVOID * len(old_values))(
+                *[value._handle for value in old_values]
+            )
+            new_handles = (_CVOID * len(new_values))(
+                *[value._handle for value in new_values]
+            )
+            output = _CVOID()
+            message = _message()
+            status = self._lib.substitute_many(
+                self._arena._require(), self._require(), old_handles,
+                new_handles, len(old_values), ctypes.byref(output), message,
+                len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), "substitute_many")
+            result = Expr(self._arena, output)
+            expanded = result.expand()
+            result.close()
+            return expanded
+        finally:
+            for temporary in temporaries:
+                temporary.close()
+
     def diff(self, variable):
         variable = self._arena._check(variable)
         return self._arena._result(self._lib.differentiate, self._arena._require(),
@@ -1007,6 +1055,7 @@ def Float(value: float): return _default().real(value)
 def Function(name: str): return lambda *args: _default().function(name, args)
 def diff(expression: Expr, variable: Expr): return expression.diff(variable)
 def subs(expression: Expr, old: Expr, new: Expr): return expression.subs(old, new)
+def subs_many(expression: Expr, old, new): return expression._subs_many(old, new)
 def factor(expression: Expr): return expression.factor()
 def operation_count(expression: Expr): return expression.operation_count()
 def free_symbols(expression: Expr): return expression.free_symbols
@@ -1014,6 +1063,6 @@ def free_symbols(expression: Expr): return expression.free_symbols
 
 __all__ = [
     "Arena", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
-    "Rational", "Float", "Function", "diff", "subs", "factor", "operation_count",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count",
     "free_symbols",
 ]

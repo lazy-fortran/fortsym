@@ -342,15 +342,17 @@
       ]
     },
     {
-      "action": "Keep structural substitution in fortsym_subs and expose only the concise native subs entry point from the facade.",
+      "action": "Keep structural substitution in fortsym_subs and expose only its concise single-pair and explicit paired-sequence spellings from the facade.",
       "description": "Replace expressions.",
-      "finding": "The native facade forwards structural substitution from its single owning module and reports invalid handles through the common optional status outputs.",
+      "finding": "The native facade forwards both substitution shapes from the single owning module; the Python adapter maps only SymPy's simultaneous option at the boundary.",
       "fortran_facade": [
-        "subs"
+        "subs",
+        "subs_many"
       ],
       "id": "substitution",
       "python_facade": [
-        "subs"
+        "subs",
+        "subs_many"
       ],
       "sympy_adapter": [
         "subs",
@@ -1444,6 +1446,12 @@
       },
       {
         "concepts": [
+          "substitution"
+        ],
+        "name": "subs_many"
+      },
+      {
+        "concepts": [
           "symbol-construction"
         ],
         "name": "sym"
@@ -1517,6 +1525,7 @@
       "free_symbols",
       "operation_count",
       "subs",
+      "subs_many",
       "symbols"
     ],
     "sympy_adapter": [
@@ -1622,10 +1631,10 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 176,
+    "assigned_names": 177,
     "concept_groups": 31,
-    "fortran_facade_exports": 138,
-    "python_facade_exports": 14,
+    "fortran_facade_exports": 139,
+    "python_facade_exports": 15,
     "sympy_adapter_exports": 85,
     "unmapped_fortran_exports": 1
   },

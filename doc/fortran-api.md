@@ -70,6 +70,12 @@ operation per operand link; repeated references to an interned child count once
 per written occurrence; canonical reciprocal products count as divisions.
 `expr_t%node_count()` remains the separate shared-DAG node measure.
 
+`subs_many(expression, old, new)` applies paired replacement arrays
+simultaneously. Replacement expressions are not revisited, so swaps and other
+coupled replacements do not cascade. It returns the same `engine_result_t`
+status contract as `subs`; the arrays must have equal size and belong to the
+expression's arena.
+
 `free_symbols(expression, names)` collects the distinct symbolic names
 reachable from the expression into caller-owned allocatable `names`. Constants
 and applied-function heads are excluded. The lower-level `fortsym_eval` owner
@@ -393,7 +399,8 @@ p = result%value
 
 `diff` is the evaluated native derivative. The `fortsym_diff` module remains
 available for the deliberately unsimplified derivative DAG. `subs` is structural and
-simultaneous for its one replacement pair. `simplify`, `refine`, `expand`, and
+simultaneous for its one replacement pair; `subs_many` applies paired arrays
+simultaneously. `simplify`, `refine`, `expand`, and
 `factor` use the native engine in the expression's arena. All six functions
 return the
 same `engine_result_t` as the native engine. `%ok` reports whether the operation

@@ -12,7 +12,7 @@ module fortsym_public_capi
         func, func_in, is_valid, same_arena, operator(+), operator(-), &
         operator(*), operator(/), operator(**)
     use fortsym_print, only: print_expr
-    use fortsym_subs, only: subs
+    use fortsym_subs, only: subs, subs_many
     use fortsym_eval, only: collect_free_symbols
     use fortsym_predicates, only: predicate_is_number => is_number, &
         predicate_is_algebraic => is_algebraic
@@ -69,7 +69,8 @@ module fortsym_public_capi
         fortsym_constant
     public :: fortsym_add, fortsym_subtract, fortsym_multiply, fortsym_divide
     public :: fortsym_power, fortsym_add_many, fortsym_function, fortsym_relation
-    public :: fortsym_substitute, fortsym_differentiate, fortsym_expr_free
+    public :: fortsym_substitute, fortsym_substitute_many, fortsym_differentiate, &
+        fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor
     public :: fortsym_complex_operation
     public :: fortsym_zero_test
@@ -85,7 +86,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 14_c_int
+        v = 15_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -648,6 +649,54 @@ contains
         e = subs(expression, old_expression, new_expression)
         call make_handle(a, e, out, status, message, capacity)
     end function fortsym_substitute
+
+    function fortsym_substitute_many(raw, expression_raw, old_raw, new_raw, &
+            count, out, message, capacity) bind(c, &
+            name="fortsym_substitute_many") result(status)
+        type(c_ptr), value :: raw, expression_raw, out
+        type(c_ptr), intent(in) :: old_raw(*), new_raw(*)
+        integer(c_size_t), value :: count
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, op, np
+        type(expr_t) :: expression, e
+        type(expr_t), allocatable :: old_values(:), new_values(:)
+        integer :: k, n
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (count > int(huge(0), c_size_t)) then
+            call fail(status, message, capacity, FORTSYM_RESOURCE_LIMIT)
+            return
+        end if
+        n = int(count)
+        allocate (old_values(n), new_values(n))
+        do k = 1, n
+            call get_expr(old_raw(k), op, old_values(k), status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(op%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+            call get_expr(new_raw(k), np, new_values(k), status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(np%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        e = subs_many(expression, old_values, new_values)
+        call make_handle(a, e, out, status, message, capacity)
+    end function fortsym_substitute_many
 
     function fortsym_differentiate(raw, expression_raw, variable_raw, out, &
             message, capacity) bind(c, name="fortsym_differentiate") result(status)

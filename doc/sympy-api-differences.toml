@@ -102,8 +102,8 @@ id = "substitution"
 affected = ["Expr", "Subs"]
 parity = "partial"
 sympy = "SymPy supports ordered and simultaneous substitutions, mappings, sequences, and substitution options."
-fortsym = "The adapter supports one old/new pair or a mapping, and Subs supports explicit old/new pairs followed by doit()."
-difference = "Simultaneous and ordered substitution edge cases, matching rules, and option handling are not yet equivalent."
+fortsym = "The adapter supports one old/new pair, a mapping, and `simultaneous=True` for non-cascading mappings; the native facade also exposes paired-sequence `subs_many`. Subs supports explicit old/new pairs followed by doit()."
+difference = "SymPy's default mapping ordering, matching rules, and the broader substitution option vocabulary remain partial; the declared simultaneous mapping fragment is differential-tested."
 
 [[semantic]]
 id = "sympification"

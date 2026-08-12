@@ -1651,6 +1651,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym_public_capi.fortsym_substitute_many",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_substitute_many",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym_public_capi.fortsym_differentiate",
         "module": "fortsym_public_capi",
         "name": "fortsym_differentiate",
@@ -3464,6 +3475,17 @@
         "id": "fortsym.subs",
         "module": "fortsym",
         "name": "subs",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.subs_many",
+        "module": "fortsym",
+        "name": "subs_many",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -7797,12 +7819,12 @@
     "classification_counts": {
       "delegated": 2492,
       "external": 10,
-      "facade": 182,
-      "native": 3153,
+      "facade": 184,
+      "native": 3155,
       "python-adapter": 2448,
       "refused": 25346
     },
-    "fortran_public_exports": 749,
+    "fortran_public_exports": 751,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

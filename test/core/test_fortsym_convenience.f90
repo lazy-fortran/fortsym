@@ -19,6 +19,7 @@ program test_fortsym_convenience
     type(expr_t) :: explicit_expression, default_expression, mixed
     type(expr_t) :: sine, substituted, derivative, simplified, expanded, factored
     type(expr_t) :: huge_integer, exact_fraction, relation
+    type(expr_t) :: substitution_old(2), substitution_new(2)
     type(expr_t) :: free_expression
     type(str_t), allocatable :: free_names(:)
     type(expr_t) :: stale
@@ -90,6 +91,13 @@ program test_fortsym_convenience
     substituted = result%value
     call check("facade exposes structural substitution", &
         result%ok .and. substituted == sigma + sigma, failures)
+    substitution_old(1) = mu
+    substitution_old(2) = sigma
+    substitution_new(1) = sigma
+    substitution_new(2) = mu
+    result = subs_many(mu + 2*sigma, substitution_old, substitution_new)
+    call check("facade exposes simultaneous substitution", &
+        result%ok .and. result%value == sigma + 2*mu, failures)
     result = diff(mu*mu, mu)
     derivative = result%value
     call check("facade exposes evaluated differentiation", &

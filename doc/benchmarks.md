@@ -200,7 +200,10 @@ violations. The native `free_symbols` workload adds two correctness-checked
 structural-query rows. Its cold and warm ratios were 0.236x and 0.054x SymPy;
 the Python facade caches the immutable handle set on the owning expression, so
 both rows remain enforced. The latest matrix therefore has 102 rows, 86
-enforced rows, and zero unwaived violations.
+enforced rows, and zero unwaived violations. The simultaneous-substitution
+workload adds two correctness-checked rows; its cold and warm ratios were
+0.330x and 0.370x SymPy, so both rows remain enforced. The latest matrix
+therefore has 104 rows, 88 enforced rows, and zero unwaived violations.
 
 Run it from a built checkout with:
 
@@ -299,7 +302,7 @@ reuses simplified derivatives for repeated `(expression, variable)` calls, and
 caches the immutable `Expr.free_symbols` handle set for repeated access.
 The matched differentiation diagnostic after that cache was added measured
 native/SymPy ratios of about 0.14 cold and 0.06 warm; the remaining full-suite
-102-workload parity run also passed with zero correctness failures and zero
+104-workload parity run also passed with zero correctness failures and zero
 parity violations; the warm predicate and algebraic-assumption rows were
 all at or below the SymPy 1.14.0 median in the recorded run on 2026-08-12.
 The warm `number_predicate` and `algebraic_predicate` ratios were 0.32× and
@@ -323,7 +326,8 @@ the waived `domain_gamma_pole`, `domain_loggamma_pole`, and
 `domain_factorial_pole` rows were 5.3×/3.4×, 5.1×/3.4×, and 5.2×/3.4×
 cold/warm respectively; the waived `domain_factorial_value` rows were
 5.25×/3.25× cold/warm; the waived `domain_factorial_large` rows were
-5.57×/3.57× cold/warm; `free_symbols` was 0.236×/0.054× cold/warm.
+5.57×/3.57× cold/warm; `free_symbols` was 0.236×/0.054× cold/warm;
+`subs_simultaneous` was 0.330×/0.370× cold/warm.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
 text validation, FLINT reconstruction, the exact operation, canonical
