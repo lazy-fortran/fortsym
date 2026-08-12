@@ -40,6 +40,7 @@ program test_fortsym_native
 
     call test_exact_arithmetic()
     call test_workspace_reuse()
+    call test_generation_cache_safety()
     call test_like_terms_and_powers()
     call test_common_rational_factor()
     call test_polynomial_cancellation()
@@ -99,6 +100,37 @@ contains
                 r%ok .and. r%value == x)
         end do
     end subroutine test_workspace_reuse
+
+    subroutine test_generation_cache_safety()
+        type(arena_t), target :: cache_arena
+        type(native_engine_t) :: cache_engine
+        type(engine_result_t) :: r
+        type(expr_t) :: old_symbol, old_input
+        type(expr_t) :: new_symbol, new_other, new_dummy, new_input
+
+        ! The cache key is an arena-local node id. After clear(), the same id
+        ! can name a different expression, so a stale result must never be
+        ! returned even when the new input lands in the same cache slot.
+        call cache_arena%init()
+        cache_engine = make_native_engine(cache_arena)
+        old_symbol = sym(cache_arena, "cache_old")
+        old_input = (old_symbol + 1) - 1
+        r = cache_engine%simplify(old_input)
+        call check("old-generation simplify succeeds", r%ok)
+
+        call cache_arena%clear()
+        call cache_arena%init()
+        new_symbol = sym(cache_arena, "cache_new")
+        new_other = sym(cache_arena, "cache_other")
+        new_dummy = new_symbol + new_other
+        new_dummy = new_dummy + new_symbol
+        new_dummy = new_dummy*new_other
+        new_input = new_symbol*new_other
+        r = cache_engine%simplify(new_input)
+        call check("new-generation simplify succeeds", r%ok)
+        call check("new-generation simplify does not reuse stale id", &
+            r%value == new_input)
+    end subroutine test_generation_cache_safety
 
     subroutine test_exact_arithmetic()
         type(engine_result_t) :: r

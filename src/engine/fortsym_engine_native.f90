@@ -61,7 +61,9 @@ module fortsym_engine_native
         type(arena_t), pointer :: home => null()
         type(assumption_context_t), pointer :: assumptions => null()
         integer, allocatable :: simplify_cache(:)
+        integer(int64) :: simplify_cache_generation = -1_int64
         integer, allocatable :: expand_cache(:)
+        integer(int64) :: expand_cache_generation = -1_int64
         integer, allocatable :: simplify_memo(:)
         integer, allocatable :: simplify_stamp(:)
         integer(int64) :: simplify_epoch = 0_int64
@@ -149,7 +151,8 @@ contains
             return
         end if
         if (.not. associated(self%assumptions)) then
-            call ensure_cache(self%simplify_cache, e%a%size())
+            call prepare_id_cache(self%simplify_cache, &
+                self%simplify_cache_generation, e%a)
             if (self%simplify_cache(e%id) /= 0) then
                 cached_id = self%simplify_cache(e%id)
                 r%value%id = abs(cached_id)
@@ -486,7 +489,8 @@ contains
         end if
 
         if (.not. associated(self%assumptions)) then
-            call ensure_cache(self%expand_cache, e%a%size())
+            call prepare_id_cache(self%expand_cache, &
+                self%expand_cache_generation, e%a)
             if (self%expand_cache(e%id) /= 0) then
                 r%value%id = self%expand_cache(e%id)
                 r%ok = .true.
@@ -576,6 +580,23 @@ contains
         end if
         r%seconds = wall_seconds() - started
     end function native_expand
+
+    !> Id-indexed operation caches are valid only for one arena generation.
+    !> Arena clear() deliberately reuses node ids, so retaining a cache entry
+    !> across that boundary can return a structurally unrelated expression.
+    !> Same-generation calls still take one generation comparison and the
+    !> existing direct array lookup.
+    subroutine prepare_id_cache(cache, generation, a)
+        integer, allocatable, intent(inout) :: cache(:)
+        integer(int64), intent(inout) :: generation
+        type(arena_t), intent(in) :: a
+
+        if (generation /= a%generation_value()) then
+            if (allocated(cache)) deallocate (cache)
+            generation = a%generation_value()
+        end if
+        call ensure_cache(cache, a%size())
+    end subroutine prepare_id_cache
 
     subroutine ensure_cache(cache, needed)
         integer, allocatable, intent(inout) :: cache(:)
