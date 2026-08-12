@@ -55,7 +55,8 @@ module fortsym_public_capi
         symmetrize_tensor => symmetrize, antisymmetrize_tensor => antisymmetrize
     use fortsym_connection, only: covariant_diff, covariant_divergence, &
         christoffel_tensor, &
-        riemann_tensor, ricci_tensor, scalar_curvature, einstein_tensor
+        riemann_tensor, first_bianchi_residual, ricci_tensor, &
+        scalar_curvature, einstein_tensor
     use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
         form_zero, &
         form_component, form_valid, add_forms, subtract_forms, negate_form, &
@@ -139,7 +140,8 @@ module fortsym_public_capi
         fortsym_chart_tensor_density, fortsym_chart_tensor_permute, &
         fortsym_chart_tensor_contract, fortsym_chart_tensor_product, &
         fortsym_chart_tensor_symmetrize, &
-        fortsym_chart_riemann, fortsym_chart_ricci, &
+        fortsym_chart_riemann, fortsym_chart_first_bianchi_residual, &
+        fortsym_chart_ricci, &
         fortsym_chart_scalar_curvature, fortsym_chart_einstein, &
         fortsym_chart_form_add, fortsym_chart_form_subtract, &
         fortsym_chart_form_negate, fortsym_chart_form_scale, &
@@ -172,7 +174,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 44_c_int
+        v = 45_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1480,6 +1482,24 @@ contains
         value = riemann_tensor(chart)
         call make_tensor_array(a, value, 4, out, status, message, capacity)
     end function fortsym_chart_riemann
+
+    function fortsym_chart_first_bianchi_residual(raw, coordinates, position, &
+            out, message, capacity) bind(c, &
+            name="fortsym_chart_first_bianchi_residual") result(status)
+        type(c_ptr), value :: raw, coordinates, position, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = first_bianchi_residual(chart)
+        call make_tensor_array(a, value, 4, out, status, message, capacity)
+    end function fortsym_chart_first_bianchi_residual
 
     function fortsym_chart_ricci(raw, coordinates, position, out, message, &
             capacity) bind(c, name="fortsym_chart_ricci") result(status)

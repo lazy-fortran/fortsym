@@ -460,6 +460,10 @@ int fortsym_chart_riemann(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], fortsym_expr *out[], char *message,
     size_t capacity);
+int fortsym_chart_first_bianchi_residual(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], fortsym_expr *out[], char *message,
+    size_t capacity);
 int fortsym_chart_ricci(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], fortsym_expr *out[], char *message,

@@ -578,7 +578,7 @@ def _configure(lib):
         )
     for name in ("covariant_basis", "reciprocal_basis", "metric_covariant",
                  "metric_contravariant", "christoffel",
-                 "riemann", "ricci", "einstein"):
+                 "riemann", "first_bianchi_residual", "ricci", "einstein"):
         setattr(
             lib,
             "chart_" + name,
@@ -2078,6 +2078,13 @@ class Chart:
     def riemann(self):
         return self._tensor_result(
             self._arena._lib.chart_riemann, 4, (1, -1, -1, -1)
+        )
+
+    def first_bianchi_residual(self):
+        """Return ``R^a_bcd + R^a_cdb + R^a_dbc``."""
+        return self._tensor_result(
+            self._arena._lib.chart_first_bianchi_residual,
+            4, (1, -1, -1, -1),
         )
 
     def ricci(self):

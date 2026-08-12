@@ -3,22 +3,24 @@ program test_fortsym_connection
     ! flat, nonorthogonal, and has a nonconstant Jacobian, so compatibility,
     ! density, and curvature identities stay in the exact rational fragment.
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, operator(+), operator(-), &
-        operator(*), operator(/)
+    use fortsym_expr, only: expr_t, num, sym, operator(+), operator(-), &
+        operator(*), operator(/), operator(**)
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
-    use fortsym_engine, only: engine_result_t
+    use fortsym_engine, only: engine_result_t, VERDICT_FALSE
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_chart, only: DIM, chart_t, chart_create, christoffel, jacobian, &
         div_density
-    use fortsym_metric, only: metric_t, metric_from_chart
+    use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
+        metric_valid
     use fortsym_tensor, only: tensor_t, tensor_scalar, tensor_component, &
         tensor_rank, tensor_variance, tensor_valid, metric_covariant_tensor, &
         UPPER, LOWER_VARIANCE, tensor_vector, density
     use fortsym_connection, only: covariant_diff, covariant_divergence, &
         christoffel_tensor, &
-        riemann_tensor, ricci_tensor, scalar_curvature, einstein_tensor
+        riemann_tensor, first_bianchi_residual, ricci_tensor, &
+        scalar_curvature, einstein_tensor
     implicit none
 
     type(arena_t), target :: arena
@@ -27,6 +29,7 @@ program test_fortsym_connection
     type(suite_t) :: suite
     type(chart_t) :: polynomial
     type(metric_t) :: metric_owner
+    type(metric_t) :: curved_metric
     type(expr_t) :: u(DIM), position(DIM), scalar_value
     type(expr_t) :: gamma(DIM, DIM, DIM), expected
     type(tensor_t) :: scalar, gradient, metric, metric_derivative
@@ -36,7 +39,10 @@ program test_fortsym_connection
     type(tensor_t) :: metric_gamma_value
     type(tensor_t) :: riemann, ricci, einstein
     type(tensor_t) :: metric_riemann, metric_ricci, metric_einstein
+    type(tensor_t) :: bianchi, metric_bianchi, curved_riemann, curved_bianchi
     type(expr_t) :: metric_scalar
+    type(expr_t) :: curved_components(DIM, DIM)
+    type(engine_result_t) :: nonzero_result
     integer :: indices(4)
 
     call arena%init()
@@ -133,6 +139,29 @@ program test_fortsym_connection
     metric_einstein = einstein_tensor(metric_owner)
     call check_tensor_zero(suite, engine, native, metric_einstein, &
         "metric-owner Einstein tensor is zero")
+
+    bianchi = first_bianchi_residual(polynomial)
+    call check_tensor_zero(suite, engine, native, bianchi, &
+        "flat chart first Bianchi residual is zero")
+    metric_bianchi = first_bianchi_residual(metric_owner)
+    call check_tensor_zero(suite, engine, native, metric_bianchi, &
+        "metric-owner first Bianchi residual is zero")
+
+    curved_components = num(arena, 0)
+    curved_components(1, 1) = num(arena, 1)
+    curved_components(2, 2) = (1 + u(1)**2)**2
+    curved_components(3, 3) = num(arena, 1)
+    curved_metric = metric_create(curved_components, [1, 1, 1], 1, u)
+    if (.not. metric_valid(curved_metric)) error stop "curved metric invalid"
+    curved_riemann = riemann_tensor(curved_metric)
+    curved_bianchi = first_bianchi_residual(curved_metric)
+    call check_tensor_zero(suite, engine, native, curved_bianchi, &
+        "non-flat metric first Bianchi residual is zero")
+    indices = [1, 2, 1, 2]
+    nonzero_result = engine%zero_test(tensor_component(curved_riemann, indices))
+    if (.not. nonzero_result%ok .or. nonzero_result%verdict /= VERDICT_FALSE) then
+        error stop "non-flat metric did not produce nonzero curvature"
+    end if
 
     if (suite%failed /= 0) then
         print *, "test_fortsym_connection: ", suite%failed, " check(s) FAILED"
