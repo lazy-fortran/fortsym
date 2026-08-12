@@ -41,6 +41,7 @@ module fortsym_engine_native
     integer(int64), parameter :: MAX_EXPAND_TERMS = 100000_int64
     integer(int64), parameter :: MAX_NATIVE_LEGENDRE_DEGREE = 16_int64
     integer(int64), parameter :: MAX_EXACT_FACTORIAL_ORDER = 1000_int64
+    integer, parameter :: DIFF_CACHE_SIZE = 1024
     integer, parameter :: DOMAIN_NONE = 0
     integer, parameter :: DOMAIN_OO = 1
     integer, parameter :: DOMAIN_ZOO = 2
@@ -67,6 +68,10 @@ module fortsym_engine_native
         integer, allocatable :: expand_memo(:)
         integer, allocatable :: expand_stamp(:)
         integer(int64) :: expand_epoch = 0_int64
+        integer, allocatable :: diff_cache_expression(:)
+        integer, allocatable :: diff_cache_variable(:)
+        integer, allocatable :: diff_cache_result(:)
+        integer(int64) :: diff_cache_generation = -1_int64
     contains
         procedure :: zero_test => native_zero_test
         procedure :: simplify => native_simplify
@@ -417,10 +422,35 @@ contains
         type(engine_result_t)                 :: r
         type(expr_t) :: raw
         real(dp) :: started
+        integer :: slot
+        logical :: cacheable
 
         started = wall_seconds()
+        cacheable = .false.
+        if (.not. associated(self%assumptions)) then
+            if (associated(e%a, self%home)) then
+                if (associated(v%a, self%home)) cacheable = .true.
+            end if
+        end if
+        if (cacheable) then
+            call prepare_diff_cache(self, e)
+            slot = diff_cache_slot(e%id, v%id, size(self%diff_cache_result))
+            if (self%diff_cache_expression(slot) == e%id .and. &
+                self%diff_cache_variable(slot) == v%id) then
+                r%value = e
+                r%value%id = self%diff_cache_result(slot)
+                r%ok = .true.
+                r%seconds = wall_seconds() - started
+                return
+            end if
+        end if
         raw = diff_expr(e, v)
         r = self%simplify(raw)
+        if (r%ok .and. cacheable) then
+            self%diff_cache_expression(slot) = e%id
+            self%diff_cache_variable(slot) = v%id
+            self%diff_cache_result(slot) = r%value%id
+        end if
         r%seconds = wall_seconds() - started
     end function native_diff
 
@@ -567,6 +597,36 @@ contains
         larger(1:size(cache)) = cache
         call move_alloc(larger, cache)
     end subroutine ensure_cache
+
+    !> Prepare the small direct-mapped derivative cache for this arena
+    !> generation. Expression ids are only meaningful until arena%clear(), so
+    !> generation is part of the cache contract rather than an optimization
+    !> detail. A collision only costs a recomputation; it can never change a
+    !> result because both ids are checked before a hit is accepted.
+    subroutine prepare_diff_cache(self, e)
+        class(native_engine_t), intent(inout) :: self
+        type(expr_t), intent(in) :: e
+
+        if (self%diff_cache_generation == e%a%generation_value()) return
+        if (allocated(self%diff_cache_expression)) then
+            deallocate (self%diff_cache_expression)
+            deallocate (self%diff_cache_variable)
+            deallocate (self%diff_cache_result)
+        end if
+        allocate (self%diff_cache_expression(DIFF_CACHE_SIZE), source=0)
+        allocate (self%diff_cache_variable(DIFF_CACHE_SIZE), source=0)
+        allocate (self%diff_cache_result(DIFF_CACHE_SIZE), source=0)
+        self%diff_cache_generation = e%a%generation_value()
+    end subroutine prepare_diff_cache
+
+    integer function diff_cache_slot(expression, variable, capacity) result(slot)
+        integer, intent(in) :: expression, variable, capacity
+        integer(int64) :: mixed
+
+        mixed = 104729_int64*int(expression, int64) + &
+            130363_int64*int(variable, int64)
+        slot = 1 + int(modulo(mixed, int(capacity, int64)))
+    end function diff_cache_slot
 
     subroutine reset_workspace(memo, stamp, epoch, needed)
         integer, allocatable, intent(inout) :: memo(:)
