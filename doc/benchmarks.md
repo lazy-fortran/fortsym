@@ -320,6 +320,14 @@ for `expand_power`. Against the same run's SymEngine medians, the ratios were
 microseconds. These rows remain diagnostics until the matched SymPy corpus
 covers the same workloads.
 
+The subsequent binary add/multiply fast paths removed the remaining small-arity
+heap work while retaining the general collector for flattened or domain-sensitive
+cases. In the paired 2026-08-12 rerun, native cold medians were 7.28 microseconds
+for `simplify_collect`, 8.64 microseconds for `differentiate_power`, and 0.355 ms
+for `expand_power`; warm medians were 0.121, 0.106, and 0.116 microseconds.
+Every native and SymEngine row passed its behavioral check. These are still local
+SymEngine diagnostics, not a matched SymPy parity claim.
+
 `fo exec bench_complexdom` writes the `complexdom_v1` native rows used for the
 complex-domain cache comparison. Its cold scope clears the assumption-context
 pair and single-result caches before each split or conjugation call; its warm
