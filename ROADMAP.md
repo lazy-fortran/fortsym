@@ -1480,10 +1480,15 @@ between the two-dimensional gradient, scalar curl, and divergence.
   Einstein views. The Python result trees are differentially checked against
   independently assembled SymPy Christoffel expressions; full frontend corpus
   generation and Wolfram translation remain open.
-- [x] Transport the first dimension-aware spacetime-form owner through ABI 33
+- [x] Transport the first dimension-aware spacetime-form owner through ABI 35
   and both Python facades. The native owner remains the single implementation;
   the Python test independently checks a component of `d(A)`, `d(d(A))`, the
   Lorentzian Hodge sign, and wedge antisymmetry.
+- [x] Add a parameterized geodesic residual owner and ABI 35/Python transport:
+  `x''^a + Gamma^a_bc x'^b x'^c`, with explicit substitution of the curve
+  into the metric connection. Spherical-coordinate residual checks now cover
+  nonzero Christoffel dependence; geodesic solving and variational mechanics
+  remain open.
 - [ ] Publish short Fortran, Python, and Wolfram examples for every completed
   derivation. Each example must show construction, simplification, a named
   identity check, and code generation where applicable.

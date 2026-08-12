@@ -12,7 +12,8 @@ program test_fortsym_relativity
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
         spacetime_metric_create, spacetime_metric_det, spacetime_metric_sqrtg, &
         spacetime_metric_contravariant, spacetime_christoffel, &
-        spacetime_ricci, spacetime_scalar_curvature, spacetime_einstein
+        spacetime_ricci, spacetime_scalar_curvature, spacetime_einstein, &
+        spacetime_geodesic_residual
     implicit none
 
     type(arena_t), target :: arena
@@ -25,6 +26,7 @@ program test_fortsym_relativity
     type(expr_t) :: ricci(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: einstein(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: scalar, determinant, volume
+    type(expr_t) :: parameter, curve(SPACETIME_DIM), residual(SPACETIME_DIM)
     integer :: signature(SPACETIME_DIM), i, j
 
     call arena%init()
@@ -42,6 +44,17 @@ program test_fortsym_relativity
     metric = spacetime_metric_create(components, SPACETIME_DIM, u, &
         signature, 1)
     call suite_begin(suite, "spherical Minkowski relativity")
+
+    parameter = sym(arena, "lambda")
+    curve = num(arena, 0)
+    curve(1) = parameter
+    curve(2) = num(arena, 1)
+    curve(3) = parameter
+    residual = spacetime_geodesic_residual(metric, curve, parameter)
+    call check_identity(suite, engine, "spherical geodesic radial residual", &
+        residual(2) + 1)
+    call check_identity(suite, engine, "spherical geodesic time residual", &
+        residual(1))
 
     determinant = spacetime_metric_det(metric)
     volume = spacetime_metric_sqrtg(metric)

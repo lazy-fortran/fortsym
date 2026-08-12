@@ -389,6 +389,15 @@ def _configure(lib):
                 spacetime_arguments[:-3] + [ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
             ),
         )
+    lib.spacetime_geodesic_residual = declare(
+        "fortsym_spacetime_geodesic_residual", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR,
+            _SIZE,
+        ],
+    )
     lib.spacetime_form_d = declare(
         "fortsym_spacetime_form_d", ctypes.c_int,
         [
@@ -1135,6 +1144,22 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message), operation.__name__)
         return Expr(self, output)
+
+    def _spacetime_geodesic_residual(self, metric, curve, parameter):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        curve_values = (_CVOID * SPACETIME_DIM)(
+            *[value._handle for value in curve]
+        )
+        output = (_CVOID * SPACETIME_DIM)()
+        message = _message()
+        status = self._lib.spacetime_geodesic_residual(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, curve_values, parameter._handle, output, message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "geodesic_residual")
+        return tuple(Expr(self, output[index]) for index in range(SPACETIME_DIM))
 
     def _spacetime_form_unary(self, operation, metric, form, output_degree):
         components, coordinates, signature = self._spacetime_inputs(metric)
@@ -1903,6 +1928,32 @@ class SpacetimeMetric:
             ),
             (4, 4),
         )
+
+    def geodesic_residual(self, curve, parameter):
+        values = tuple(curve)
+        if len(values) != SPACETIME_DIM:
+            raise ValueError("geodesic curves require four components")
+        coerced = []
+        temporaries = []
+        try:
+            for value in values:
+                expression, temporary = self._arena._coerce(value)
+                coerced.append(expression)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            parameter_value, temporary = self._arena._coerce(parameter)
+            if temporary is not None:
+                temporaries.append(temporary)
+            return SpacetimeTensor(
+                self._arena,
+                self._arena._spacetime_geodesic_residual(
+                    self, tuple(coerced), parameter_value
+                ),
+                (4,),
+            )
+        finally:
+            for temporary in temporaries:
+                temporary.close()
 
     def christoffel(self):
         return SpacetimeTensor(

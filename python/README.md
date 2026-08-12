@@ -44,7 +44,8 @@ arena and first-slot-fastest indexing. Its `one_form()`, `two_form()`,
 `three_form()`, and `four_form()` constructors return native `SpacetimeForm`
 owners. These expose `d()`/`exterior_diff`, `wedge()`, `star()`/`hodge_star`,
 and `codifferential()`/`codiff()` with degree-aware components and the explicit
-metric signature and orientation.
+metric signature and orientation. `geodesic_residual(curve, parameter)`
+returns the four native components of the parameterized geodesic equation.
 `Chart.one_form()`, `two_form()`, and
 `three_form()` construct native `Form` objects. Forms expose the fixed
 three-dimensional basis-mask components plus `d()`, `wedge()`, `star()`,
