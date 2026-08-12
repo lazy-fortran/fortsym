@@ -19,6 +19,7 @@ module fortsym_flux
     integer, parameter, public :: FLUX_BOOZER = 3
     integer, parameter, public :: FLUX_HAMADA = 4
     integer, parameter, public :: BOOZER_RESIDUAL_COUNT = 5
+    integer, parameter, public :: HAMADA_RESIDUAL_COUNT = 5
 
     !> Coordinate metadata for a flux label and its two ordered angles.
     !>
@@ -39,6 +40,7 @@ module fortsym_flux
     public :: flux_coordinate_angles
     public :: flux_normal_residual, straight_field_line_residual
     public :: boozer_residuals
+    public :: hamada_residuals
 
 contains
 
@@ -185,5 +187,33 @@ contains
         residual(5) = diff(covariant(owner%angle_two), &
             owner%chart%u(owner%angle_two))
     end function boozer_residuals
+
+    !> Hamada residuals for (B^label, d_1 B^angle_one, d_2 B^angle_one,
+    !> d_1 B^angle_two, d_2 B^angle_two). In Hamada coordinates the angular
+    !> contravariant components are flux functions; this is the contravariant
+    !> counterpart of the Boozer covariant-component contract above.
+    function hamada_residuals(owner, vector) result(residual)
+        type(flux_coordinate_t), intent(in) :: owner
+        type(expr_t), intent(in) :: vector(DIM)
+        type(expr_t) :: residual(HAMADA_RESIDUAL_COUNT)
+        integer :: i
+
+        if (.not. flux_coordinate_valid(owner)) return
+        if (owner%kind /= FLUX_HAMADA) return
+        do i = 1, DIM
+            if (.not. is_valid(vector(i))) return
+            if (.not. associated(vector(i)%a, owner%chart%a)) return
+        end do
+
+        residual(1) = vector(owner%label_index)
+        residual(2) = diff(vector(owner%angle_one), &
+            owner%chart%u(owner%angle_one))
+        residual(3) = diff(vector(owner%angle_one), &
+            owner%chart%u(owner%angle_two))
+        residual(4) = diff(vector(owner%angle_two), &
+            owner%chart%u(owner%angle_one))
+        residual(5) = diff(vector(owner%angle_two), &
+            owner%chart%u(owner%angle_two))
+    end function hamada_residuals
 
 end module fortsym_flux

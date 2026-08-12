@@ -58,6 +58,7 @@ FLUX_STRAIGHT_FIELD_LINE = 2
 FLUX_BOOZER = 3
 FLUX_HAMADA = 4
 BOOZER_RESIDUAL_COUNT = 5
+HAMADA_RESIDUAL_COUNT = 5
 SPACETIME_DIM = 4
 CONNECTION_STANDARD = 1
 CONNECTION_OPPOSITE = -1
@@ -557,14 +558,19 @@ def _configure(lib):
             ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
-    lib.chart_boozer_residuals = declare(
-        "fortsym_chart_boozer_residuals", ctypes.c_int,
-        [
-            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
-            ctypes.POINTER(_CVOID), ctypes.c_int, ctypes.POINTER(_CVOID),
-            _CHAR_PTR, _SIZE,
-        ],
-    )
+    for name in ("boozer_residuals", "hamada_residuals"):
+        setattr(
+            lib,
+            "chart_" + name,
+            declare(
+                "fortsym_chart_" + name, ctypes.c_int,
+                [
+                    _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+                    ctypes.POINTER(_CVOID), ctypes.c_int,
+                    ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+                ],
+            ),
+        )
     lib.chart_h_cov = declare(
         "fortsym_chart_h_cov", ctypes.c_int,
         [
@@ -1565,7 +1571,7 @@ class Arena:
             for temporary in temporaries:
                 temporary.close()
 
-    def _chart_flux_array(self, operation, chart, vector, label_index):
+    def _chart_flux_array(self, operation, chart, vector, label_index, count):
         coordinate_handles, position_handles = self._chart_inputs(
             chart.coordinates, chart.position
         )
@@ -1578,9 +1584,9 @@ class Arena:
                 if temporary is not None:
                     temporaries.append(temporary)
             if len(values) != 3:
-                raise ValueError("flux-coordinate covectors require three components")
+                raise ValueError("flux-coordinate vectors require three components")
             vector_handles = (_CVOID * 3)(*[value._handle for value in values])
-            output = (_CVOID * BOOZER_RESIDUAL_COUNT)()
+            output = (_CVOID * count)()
             message = _message()
             status = operation(
                 self._require(), coordinate_handles, position_handles,
@@ -1589,7 +1595,7 @@ class Arena:
             if status:
                 raise FortSymError(status, _decode(message), operation.__name__)
             return tuple(
-                Expr(self, output[index]) for index in range(BOOZER_RESIDUAL_COUNT)
+                Expr(self, output[index]) for index in range(count)
             )
         finally:
             for temporary in temporaries:
@@ -3362,12 +3368,35 @@ class FluxCoordinates:
                 raise ValueError("Boozer residuals expect covariant components")
         return self.chart._arena._chart_flux_array(
             self.chart._arena._lib.chart_boozer_residuals,
-            self.chart, covariant, self.label_index,
+            self.chart, covariant, self.label_index, BOOZER_RESIDUAL_COUNT,
         )
 
     def boozer_valid(self, covariant):
         """Return True/False/None using the native zero oracle."""
         verdicts = [value.is_zero for value in self.boozer_residuals(covariant)]
+        if any(value is False for value in verdicts):
+            return False
+        if any(value is None for value in verdicts):
+            return None
+        return True
+
+    def hamada_residuals(self, vector):
+        """Return ``(B_label, d1 B1, d2 B1, d1 B2, d2 B2)``."""
+        if self.kind != FLUX_HAMADA:
+            raise ValueError("Hamada residuals require kind=FLUX_HAMADA")
+        if isinstance(vector, Tensor):
+            if vector.chart is not self.chart or vector.rank != 1:
+                raise ValueError("Hamada residuals expect a vector on this chart")
+            if vector.variance != (1,):
+                raise ValueError("Hamada residuals expect contravariant components")
+        return self.chart._arena._chart_flux_array(
+            self.chart._arena._lib.chart_hamada_residuals,
+            self.chart, vector, self.label_index, HAMADA_RESIDUAL_COUNT,
+        )
+
+    def hamada_valid(self, vector):
+        """Return True/False/None using the native zero oracle."""
+        verdicts = [value.is_zero for value in self.hamada_residuals(vector)]
         if any(value is False for value in verdicts):
             return False
         if any(value is None for value in verdicts):
@@ -5543,7 +5572,7 @@ def trace(tensor: Tensor, first, second): return tensor.trace(first, second)
 
 __all__ = [
     "Arena", "Chart", "ChartMap", "FluxSurface", "FluxCoordinates", "MagneticChart", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
-    "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL", "FLUX_GENERIC", "FLUX_CLEBSCH", "FLUX_STRAIGHT_FIELD_LINE", "FLUX_BOOZER", "FLUX_HAMADA", "BOOZER_RESIDUAL_COUNT",
+    "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL", "FLUX_GENERIC", "FLUX_CLEBSCH", "FLUX_STRAIGHT_FIELD_LINE", "FLUX_BOOZER", "FLUX_HAMADA", "BOOZER_RESIDUAL_COUNT", "HAMADA_RESIDUAL_COUNT",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",

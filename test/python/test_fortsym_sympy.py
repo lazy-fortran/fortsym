@@ -203,6 +203,21 @@ class SympySubsetTest(unittest.TestCase):
         )
         self.assertEqual(oracle.sympify(str(straight.simplify())), 0)
 
+        hamada = chart.flux_coordinates(1, kind=sp.FLUX_HAMADA)
+        contravariant = chart.vector((0, i_flux, g_flux))
+        self.assertEqual(
+            tuple(oracle.sympify(str(value.simplify()))
+                  for value in hamada.hamada_residuals(contravariant)),
+            (0, 0, 0, 0, 0),
+        )
+        self.assertTrue(hamada.hamada_valid(contravariant))
+        bad_hamada = chart.vector((0, i_flux + theta, g_flux))
+        self.assertEqual(
+            oracle.sympify(str(hamada.hamada_residuals(bad_hamada)[1].simplify())),
+            1,
+        )
+        self.assertFalse(hamada.hamada_valid(bad_hamada))
+
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_flux_surface_average_matches_sympy(self):
         x, y, z = sp.symbols("average_x average_y average_z")

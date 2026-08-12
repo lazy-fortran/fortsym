@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 60). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 61). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -29,6 +29,10 @@ subset; it never substitutes an unverified numerical result.
 `(B_label, d1 B1, d2 B1, d1 B2, d2 B2)` for a selected label. These calls
 share the `fortsym_flux` owner and expose residuals for an independent zero
 oracle; they do not construct an equilibrium.
+`fortsym_chart_hamada_residuals` has the same residual layout for contravariant
+components and checks the Hamada contract that the two angular components are
+flux functions. The Boozer operation requires covariant components; Hamada
+requires contravariant components.
 `fortsym_chart_tensor_density` changes only density metadata. The companion
 `fortsym_chart_tensor_density_factor` multiplies every component by one
 arena-owned scalar factor and increments the density weight, so it is the
