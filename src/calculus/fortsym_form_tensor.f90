@@ -11,7 +11,8 @@ module fortsym_form_tensor
     use fortsym_chart, only: chart_t, DIM
     use fortsym_form, only: form_t, form_valid
     use fortsym_tensor, only: tensor_t, MAX_RANK, LOWER_VARIANCE, tensor_valid, &
-        tensor_rank, tensor_variance, tensor_density_weight, tensor_from_arena
+        tensor_rank, tensor_variance, tensor_density_weight, tensor_from_arena, &
+        ANTISYMMETRIC
     use fortsym_expr, only: expr_t, num, operator(-), operator(==)
     implicit none
     private
@@ -112,6 +113,12 @@ contains
         end do
 
         tensor_value = tensor_from_arena(c%a, degree, values, variance, 0)
+        do k = 1, degree
+            do flat = k + 1, degree
+                tensor_value%symmetry(k, flat) = ANTISYMMETRIC
+                tensor_value%symmetry(flat, k) = ANTISYMMETRIC
+            end do
+        end do
     end function tensor_from_form
 
     pure function component_count(rank) result(count)

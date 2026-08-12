@@ -610,6 +610,11 @@ contains
         end do
 
         result = tensor_from_arena(a, output_rank, values, variances, weight)
+        do slot = 1, rank
+            do m = 1, rank
+                result%symmetry(slot, m) = tensor_value%symmetry(slot, m)
+            end do
+        end do
     end function covariant_diff_components
 
     function metric_christoffel_components(g) result(gamma)

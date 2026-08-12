@@ -1162,6 +1162,12 @@ conversion only. They do not maintain a second geometry implementation.
   refusal messages for variance or index-space errors. Match SymPy's
   `TensorIndexType`, `TensorIndex`, `TensorHead`, and `TensorSymmetry` at the
   Python boundary.
+  - [x] Native fixed-3D pairwise symmetry metadata: declarations are checked
+    componentwise, invalid declarations are refused, and surviving metadata
+    propagates through products, permutations, contractions, forms, and
+    covariant derivatives.
+  - [ ] Expose the same declarations and refusal status through C/Python and
+    map them to SymPy tensor-symmetry objects.
 - [ ] **7A.4 Connections and vector calculus.** Extend covariant derivatives to
   every slot and every density weight, then derive `grad`, `curl`, `div`, and
   `laplacian` from the same metric, volume, and connection owners. Add
@@ -1391,6 +1397,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   antisymmetrization through the native owner, C ABI, Python facade, and
   independent Fortran/SymPy checks. Named index spaces, arbitrary-rank
   symmetry declarations, and dummy-index canonicalization remain open.
+- [x] Add native pairwise symmetry metadata to `tensor_t`, including
+  component-checked `declare_symmetry`, explicit metric/form declarations,
+  propagation through surviving slots, and clearing when `raise`/`lower`
+  changes a slot's variance. C/Python transport and canonical symmetry
+  canonicalization remain open.
 - [x] Add the first value-semantic named-index slice: native `index_type_t` /
   `index_t` spaces, variance and dummy metadata, compatible-label checks, and
   an overloaded native `contract`. Expose the same checked operation through

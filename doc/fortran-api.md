@@ -302,9 +302,20 @@ three-dimensional charts. A checked overload also accepts `index_t` values
 from `fortsym_index`: `index_type("T", 3)` declares a space and
 `make_index(space, slot, variance, label, dummy)` declares a one-based native
 slot. It requires the same space, opposite variance, and matching nonempty
-labels. Symmetry declarations, arbitrary dimensions, and full Python tensor
-parity remain roadmap work; the fixed-rank Python transport is documented in
-`python/README.md`.
+labels. Arbitrary dimensions, C/Python symmetry transport, and full Python
+tensor parity remain roadmap work; the fixed-rank Python transport is
+documented in `python/README.md`.
+The tensor owner records pairwise symmetry metadata with
+`tensor_symmetry(tensor, first, second)`. It returns `SYMMETRY_NONE`,
+`SYMMETRIC`, or `ANTISYMMETRIC`. `declare_symmetry` checks every stored
+component before accepting a declaration; a false declaration returns an
+invalid tensor rather than silently changing components. `symmetrize` and
+`antisymmetrize` set the corresponding declaration. Tensor products,
+permutations, contractions, and covariant derivatives preserve declarations
+on surviving slots. Raising or lowering a slot clears declarations involving
+that slot because its variance has changed. Metric tensors and tensor views of
+forms carry their guaranteed pair symmetry explicitly.
+
 `tensor_product(left, right)` is the single native outer-product owner; the
 left slots precede the right slots and density weights add.
 `density(tensor, integer)` changes only the stored density metadata for a

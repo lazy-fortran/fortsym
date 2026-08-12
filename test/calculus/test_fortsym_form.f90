@@ -17,6 +17,7 @@ program test_fortsym_form
     use fortsym_form_tensor, only: form_from_tensor, tensor_from_form
     use fortsym_tensor, only: tensor_t, tensor_from_matrix, tensor_component, &
         tensor_variance, tensor_valid, density, LOWER_VARIANCE
+    use fortsym_tensor, only: tensor_symmetry, ANTISYMMETRIC
     implicit none
 
     type(arena_t), target :: arena
@@ -88,6 +89,11 @@ program test_fortsym_form
         suite%total = suite%total + 1
         suite%failed = suite%failed + 1
         print *, "FAIL  form-to-tensor variance"
+    end if
+    if (tensor_symmetry(form_tensor, 1, 2) /= ANTISYMMETRIC) then
+        suite%total = suite%total + 1
+        suite%failed = suite%failed + 1
+        print *, "FAIL  form-to-tensor antisymmetry metadata"
     end if
     do mask = 3, 6
         if (mask == 4) cycle

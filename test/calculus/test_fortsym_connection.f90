@@ -16,7 +16,8 @@ program test_fortsym_connection
         metric_valid
     use fortsym_tensor, only: tensor_t, tensor_scalar, tensor_component, &
         tensor_rank, tensor_variance, tensor_valid, metric_covariant_tensor, &
-        UPPER, LOWER_VARIANCE, MAX_RANK, tensor_vector, density
+        tensor_symmetry, SYMMETRIC, UPPER, LOWER_VARIANCE, MAX_RANK, &
+        tensor_vector, density
     use fortsym_connection, only: connection_t, connection_create, &
         connection_from_chart, connection_from_metric, connection_valid, &
         connection_convention, CONNECTION_STANDARD, CONNECTION_OPPOSITE, &
@@ -121,6 +122,9 @@ program test_fortsym_connection
 
     metric = metric_covariant_tensor(polynomial)
     metric_derivative = covariant_diff(polynomial, metric)
+    if (tensor_symmetry(metric_derivative, 1, 2) /= SYMMETRIC) then
+        error stop "covariant derivative lost metric symmetry metadata"
+    end if
     call check_tensor_zero(suite, engine, native, metric_derivative, &
         "metric compatibility")
     metric_owner_value = metric_covariant_tensor(metric_owner)

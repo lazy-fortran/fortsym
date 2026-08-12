@@ -15,7 +15,9 @@ program test_fortsym_tensor
         tensor_from_components, tensor_component, tensor_rank, tensor_variance, &
         tensor_density_weight, tensor_valid, density, raise, lower, &
         tensor_product, contract, trace, permute, symmetrize, antisymmetrize, &
-        metric_covariant_tensor, tensor_lie_derivative, UPPER, LOWER_VARIANCE
+        metric_covariant_tensor, tensor_lie_derivative, tensor_symmetry, &
+        declare_symmetry, SYMMETRY_NONE, SYMMETRIC, ANTISYMMETRIC, UPPER, &
+        LOWER_VARIANCE
     use fortsym_index, only: index_type_t, index_t, index_type, make_index, &
         index_valid, compatible_indices, INDEX_TANGENT, INDEX_INTERNAL
     implicit none
@@ -30,7 +32,7 @@ program test_fortsym_tensor
     type(expr_t) :: components(27), matrix_components(9)
     type(tensor_t) :: vup, vcov, vdown, roundtrip, weighted, scaled_density, outer, dot
     type(tensor_t) :: metric_down, mixed, rank_three
-    type(tensor_t) :: permuted, matrix, symmetric, antisymmetric
+    type(tensor_t) :: permuted, matrix, symmetric_value, antisymmetric_value
     type(tensor_t) :: scalar, vector_field, vector_lie, covector_field, &
         covector_lie, density_scalar, density_lie, generic_lie
     type(index_type_t) :: tangent_space, internal_space
@@ -158,6 +160,10 @@ program test_fortsym_tensor
     call check_metadata(suite, metric_down, 2, LOWER_VARIANCE, 0, &
         "covariant metric metadata")
     mixed = raise(metric_owner, metric_down, 1)
+    call check(suite, tensor_symmetry(metric_down, 1, 2) == SYMMETRIC, &
+        "metric declares covariant symmetry")
+    call check(suite, tensor_symmetry(mixed, 1, 2) == SYMMETRY_NONE, &
+        "raising one slot clears mixed symmetry declaration")
     do i = 1, DIM
         do j = 1, DIM
             indices(1) = i
@@ -211,14 +217,24 @@ program test_fortsym_tensor
         matrix_components(i) = num(arena, i)
     end do
     matrix = tensor_from_components(shear, 2, matrix_components, [UPPER, UPPER])
-    symmetric = symmetrize(matrix, 1, 2)
-    antisymmetric = antisymmetrize(matrix, 1, 2)
+    symmetric_value = symmetrize(matrix, 1, 2)
+    antisymmetric_value = antisymmetrize(matrix, 1, 2)
+    call check(suite, tensor_symmetry(symmetric_value, 1, 2) == SYMMETRIC, &
+        "symmetrize retains symmetric declaration")
+    call check(suite, tensor_symmetry(antisymmetric_value, 1, 2) == ANTISYMMETRIC, &
+        "antisymmetrize retains antisymmetric declaration")
+    matrix = declare_symmetry(symmetric_value, 1, 2, SYMMETRIC)
+    call check(suite, tensor_valid(matrix), &
+        "matching symmetry declaration is accepted")
+    matrix = declare_symmetry(antisymmetric_value, 1, 2, SYMMETRIC)
+    call check(suite, .not. tensor_valid(matrix), &
+        "false symmetry declaration is refused")
     indices(1) = 1
     indices(2) = 2
     call check_identity(suite, engine, "tensor symmetrization", &
-        tensor_component(symmetric, indices(1:2)) - 3)
+        tensor_component(symmetric_value, indices(1:2)) - 3)
     call check_identity(suite, engine, "tensor antisymmetrization", &
-        tensor_component(antisymmetric, indices(1:2)) - 1)
+        tensor_component(antisymmetric_value, indices(1:2)) - 1)
 
     if (suite%failed /= 0) then
         print *, "test_fortsym_tensor: ", suite%failed, " check(s) FAILED"
@@ -250,6 +266,21 @@ contains
             print *, "PASS ", label
         end if
     end subroutine check_metadata
+
+    subroutine check(s, condition, label)
+        type(suite_t), intent(inout) :: s
+        logical, intent(in) :: condition
+        character(*), intent(in) :: label
+
+        s%total = s%total + 1
+        if (condition) then
+            s%passed = s%passed + 1
+            print *, "PASS ", label
+        else
+            s%failed = s%failed + 1
+            print *, "FAIL ", label
+        end if
+    end subroutine check
 
     subroutine check_slot_variances(s, value, expected_second, expected_third, &
             label)
