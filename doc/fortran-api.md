@@ -276,6 +276,15 @@ the parameterized curve into the connection. The current owner is fixed to
 three-dimensional charts; geodesic solving and variational mechanics remain
 separate roadmap work.
 
+The dimension-aware `spacetime_metric_t` owner provides the matching
+relativity operations `spacetime_metric_flat`, `spacetime_metric_sharp`,
+`spacetime_metric_grad`, `spacetime_metric_divergence`, and
+`spacetime_metric_laplacian`. They use the runtime dimension and explicit
+signature, retain zero slots for ABI transport, and define
+`sharp(flat(v))=v` on valid components. Divergence uses positive
+`sqrt(abs(det(g)))`; for a Lorentzian metric the scalar Laplace--Beltrami
+operator is the coordinate wave operator.
+
 ## Relativity and magnetic-flux examples
 
 The built examples keep physical assumptions at the application boundary:

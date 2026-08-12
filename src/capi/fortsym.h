@@ -323,6 +323,31 @@ int fortsym_spacetime_metric_contravariant(
     fortsym_arena *arena, const fortsym_expr *components[], int dimension,
     const fortsym_expr *coordinates[], const int signature[], int orientation,
     fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_spacetime_metric_flat(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *vector[], fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_spacetime_metric_sharp(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *covector[], fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_spacetime_metric_grad(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *scalar, fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_spacetime_metric_divergence(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *vector[], fortsym_expr **out, char *message,
+    size_t capacity);
+int fortsym_spacetime_metric_laplacian(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *scalar, fortsym_expr **out, char *message,
+    size_t capacity);
 int fortsym_spacetime_christoffel(
     fortsym_arena *arena, const fortsym_expr *components[], int dimension,
     const fortsym_expr *coordinates[], const int signature[], int orientation,

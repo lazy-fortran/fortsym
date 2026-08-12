@@ -13,7 +13,9 @@ program example_de_sitter
     type(expr_t) :: scale, h, einstein(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: covariant(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: scalar, cosmological_constant
-    type(engine_result_t) :: checked
+    type(expr_t) :: vector_value(SPACETIME_DIM), covector_value(SPACETIME_DIM)
+    type(expr_t) :: raised_value(SPACETIME_DIM), wave_time
+    type(engine_result_t) :: checked, wave_checked
     integer :: signature(SPACETIME_DIM), i, j
 
     call reset()
@@ -47,12 +49,26 @@ program example_de_sitter
     scalar = spacetime_scalar_curvature(metric)
     call assert_zero(scalar - 12*h**2, "de Sitter scalar curvature")
 
+    vector_value = num(arena, 0)
+    vector_value(1) = coordinates(1)
+    covector_value = spacetime_metric_flat(metric, vector_value)
+    raised_value = spacetime_metric_sharp(metric, covector_value)
+    do i = 1, SPACETIME_DIM
+        call assert_zero(raised_value(i) - vector_value(i), &
+            "de Sitter sharp-flat round trip")
+    end do
+    wave_time = spacetime_metric_laplacian(metric, coordinates(1))
+    wave_checked = simplify(wave_time + 3*h)
+    if (.not. wave_checked%ok) error stop "de Sitter wave simplification failed"
+    call assert_zero(wave_checked%value, "de Sitter wave operator on time")
     print '(a)', "de Sitter flat slicing"
     checked = simplify(scalar)
     if (.not. checked%ok) error stop "de Sitter scalar simplification failed"
     print '(a,a)', "  R = ", chars(print_expr(checked%value))
     print '(a,a)', "  Lambda = ", chars(print_expr(cosmological_constant))
     print '(a)', "  G_ab + Lambda g_ab = 0"
+    print '(a)', "  sharp(flat(partial_t)) = partial_t"
+    print '(a,a)', "  Box(t) + 3 H = ", chars(print_expr(wave_checked%value))
 
 contains
 

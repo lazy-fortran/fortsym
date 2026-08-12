@@ -493,6 +493,38 @@ def _configure(lib):
                 spacetime_arguments[:-3] + [ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
             ),
         )
+    spacetime_vector_arguments = [
+        _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+        ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+        ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+    ]
+    for name in ("spacetime_metric_flat", "spacetime_metric_sharp"):
+        setattr(
+            lib, name, declare("fortsym_" + name, ctypes.c_int,
+                               spacetime_vector_arguments),
+        )
+    spacetime_scalar_array_arguments = [
+        _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+        ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+        _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+    ]
+    lib.spacetime_metric_grad = declare(
+        "fortsym_spacetime_metric_grad", ctypes.c_int,
+        spacetime_scalar_array_arguments,
+    )
+    spacetime_vector_scalar_arguments = [
+        _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+        ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+        ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+    ]
+    lib.spacetime_metric_divergence = declare(
+        "fortsym_spacetime_metric_divergence", ctypes.c_int,
+        spacetime_vector_scalar_arguments,
+    )
+    lib.spacetime_metric_laplacian = declare(
+        "fortsym_spacetime_metric_laplacian", ctypes.c_int,
+        spacetime_scalar_array_arguments,
+    )
     lib.spacetime_geodesic_residual = declare(
         "fortsym_spacetime_geodesic_residual", ctypes.c_int,
         [
@@ -1462,6 +1494,102 @@ class Arena:
             raise FortSymError(status, _decode(message), operation.__name__)
         return Expr(self, output)
 
+    def _spacetime_vector_array(self, operation, metric, vector):
+        values = tuple(vector)
+        if len(values) != SPACETIME_DIM:
+            raise ValueError("spacetime vector operators require four components")
+        coerced = []
+        temporaries = []
+        try:
+            for value in values:
+                expression, temporary = self._coerce(value)
+                coerced.append(expression)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            components, coordinates, signature = self._spacetime_inputs(metric)
+            vector_values = (_CVOID * SPACETIME_DIM)(
+                *[value._handle for value in coerced]
+            )
+            output = (_CVOID * SPACETIME_DIM)()
+            message = _message()
+            status = operation(
+                self._require(), components, metric.dimension, coordinates,
+                signature, metric.orientation, vector_values, output, message,
+                len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), operation.__name__)
+            return tuple(Expr(self, output[index]) for index in range(SPACETIME_DIM))
+        finally:
+            for temporary in temporaries:
+                temporary.close()
+
+    def _spacetime_scalar_array(self, operation, metric, scalar):
+        expression, temporary = self._coerce(scalar)
+        try:
+            components, coordinates, signature = self._spacetime_inputs(metric)
+            output = (_CVOID * SPACETIME_DIM)()
+            message = _message()
+            status = operation(
+                self._require(), components, metric.dimension, coordinates,
+                signature, metric.orientation, expression._handle, output,
+                message, len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), operation.__name__)
+            return tuple(Expr(self, output[index]) for index in range(SPACETIME_DIM))
+        finally:
+            if temporary is not None:
+                temporary.close()
+
+    def _spacetime_vector_scalar(self, operation, metric, vector):
+        values = tuple(vector)
+        if len(values) != SPACETIME_DIM:
+            raise ValueError("spacetime vector operators require four components")
+        coerced = []
+        temporaries = []
+        try:
+            for value in values:
+                expression, temporary = self._coerce(value)
+                coerced.append(expression)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            components, coordinates, signature = self._spacetime_inputs(metric)
+            vector_values = (_CVOID * SPACETIME_DIM)(
+                *[value._handle for value in coerced]
+            )
+            output = _CVOID()
+            message = _message()
+            status = operation(
+                self._require(), components, metric.dimension, coordinates,
+                signature, metric.orientation, vector_values,
+                ctypes.byref(output), message, len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), operation.__name__)
+            return Expr(self, output)
+        finally:
+            for temporary in temporaries:
+                temporary.close()
+
+    def _spacetime_scalar_scalar(self, operation, metric, scalar):
+        expression, temporary = self._coerce(scalar)
+        try:
+            components, coordinates, signature = self._spacetime_inputs(metric)
+            output = _CVOID()
+            message = _message()
+            status = operation(
+                self._require(), components, metric.dimension, coordinates,
+                signature, metric.orientation, expression._handle,
+                ctypes.byref(output), message, len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), operation.__name__)
+            return Expr(self, output)
+        finally:
+            if temporary is not None:
+                temporary.close()
+
     def _spacetime_geodesic_residual(self, metric, curve, parameter):
         components, coordinates, signature = self._spacetime_inputs(metric)
         curve_values = (_CVOID * SPACETIME_DIM)(
@@ -2411,13 +2539,19 @@ class Metric:
 class SpacetimeTensor:
     """A small native-backed tensor view for the dimension-aware owner."""
 
-    def __init__(self, arena, components, shape):
+    def __init__(self, arena, components, shape, variance=None):
         self._arena = arena
         self.components = tuple(components)
         self.shape = tuple(int(value) for value in shape)
         expected = SPACETIME_DIM ** len(self.shape)
         if len(self.components) != expected:
             raise ValueError("spacetime tensor component count is inconsistent")
+        if variance is not None:
+            variance = tuple(int(value) for value in variance)
+            if len(variance) != len(self.shape) or any(
+                    value not in (-1, 1) for value in variance):
+                raise ValueError("spacetime tensor variance does not match rank")
+        self.variance = variance
 
     def component(self, *indices):
         if len(indices) != len(self.shape):
@@ -2503,6 +2637,49 @@ class SpacetimeMetric:
                 self._arena._lib.spacetime_metric_contravariant, self, 16
             ),
             (4, 4),
+            variance=(-1, -1),
+        )
+
+    def flat(self, vector):
+        """Lower a contravariant vector and return its one-form view."""
+        values = self._arena._spacetime_vector_array(
+            self._arena._lib.spacetime_metric_flat, self, vector
+        )
+        return SpacetimeForm(self, values, 1, _owned=True)
+
+    def sharp(self, covector):
+        """Raise a one-form and return its contravariant tensor view."""
+        if not isinstance(covector, SpacetimeForm) or covector.metric is not self:
+            raise ValueError("sharp requires a one-form on this metric")
+        if covector.degree != 1:
+            raise ValueError("sharp requires a one-form")
+        values = tuple(covector[1 << index] for index in range(SPACETIME_DIM))
+        components = self._arena._spacetime_vector_array(
+            self._arena._lib.spacetime_metric_sharp, self, values
+        )
+        return SpacetimeTensor(
+            self._arena, components, (4,), variance=(1,)
+        )
+
+    def grad(self, scalar):
+        """Return the contravariant metric gradient of a scalar."""
+        components = self._arena._spacetime_scalar_array(
+            self._arena._lib.spacetime_metric_grad, self, scalar
+        )
+        return SpacetimeTensor(
+            self._arena, components, (4,), variance=(1,)
+        )
+
+    def divergence(self, vector):
+        """Return the metric divergence of a contravariant vector."""
+        return self._arena._spacetime_vector_scalar(
+            self._arena._lib.spacetime_metric_divergence, self, vector
+        )
+
+    def laplacian(self, scalar):
+        """Return the metric Laplace--Beltrami or wave operator."""
+        return self._arena._spacetime_scalar_scalar(
+            self._arena._lib.spacetime_metric_laplacian, self, scalar
         )
 
     def geodesic_residual(self, curve, parameter):
@@ -2526,6 +2703,7 @@ class SpacetimeMetric:
                     self, tuple(coerced), parameter_value
                 ),
                 (4,),
+                variance=(1,),
             )
         finally:
             for temporary in temporaries:
@@ -2538,6 +2716,7 @@ class SpacetimeMetric:
                 self._arena._lib.spacetime_christoffel, self, 64
             ),
             (4, 4, 4),
+            variance=(1, -1, -1),
         )
 
     def riemann(self):
@@ -2547,6 +2726,7 @@ class SpacetimeMetric:
                 self._arena._lib.spacetime_riemann, self, 256
             ),
             (4, 4, 4, 4),
+            variance=(1, -1, -1, -1),
         )
 
     def ricci(self):
@@ -2556,6 +2736,7 @@ class SpacetimeMetric:
                 self._arena._lib.spacetime_ricci, self, 16
             ),
             (4, 4),
+            variance=(-1, -1),
         )
 
     def scalar_curvature(self):
@@ -2570,6 +2751,7 @@ class SpacetimeMetric:
                 self._arena._lib.spacetime_einstein, self, 16
             ),
             (4, 4),
+            variance=(-1, -1),
         )
 
     def one_form(self, values):
@@ -2614,13 +2796,17 @@ class SpacetimeForm:
         values = self._normalise_components(components, self.degree)
         component_values = []
         temporaries = []
+        borrowed_components = set()
         for value in values:
             coerced, temporary = self._arena._coerce(value)
             component_values.append(coerced)
             if temporary is not None:
                 temporaries.append(temporary)
+            elif any(coerced is cached for cached in self._arena._integer_cache.values()):
+                borrowed_components.add(id(coerced))
         self.components = tuple(component_values)
         self._temporaries = tuple(temporaries)
+        self._borrowed_components = borrowed_components
         self._owned = bool(_owned)
 
     @staticmethod
@@ -2790,11 +2976,13 @@ class SpacetimeForm:
     def close(self):
         if self._owned:
             for value in self.components:
-                value.close()
+                if id(value) not in self._borrowed_components:
+                    value.close()
         for temporary in self._temporaries:
             temporary.close()
         self.components = ()
         self._temporaries = ()
+        self._borrowed_components = set()
 
     def __del__(self):
         try:

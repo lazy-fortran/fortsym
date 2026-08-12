@@ -56,6 +56,12 @@ and `codifferential()`/`codiff()` with degree-aware components and the explicit
 metric signature and orientation. `SpacetimeForm.field_strength()` returns
 `F=d(A)`, `gauge_transform(chi)` returns `A+d(chi)`, and
 `maxwell_residual(current)` returns the native source residual `d(star(F))-J`.
+`SpacetimeMetric.flat(vector)` lowers a vector into a native one-form and
+`SpacetimeMetric.sharp(one_form)` raises it back; the returned vector carries
+upper variance metadata. `grad(scalar)` returns a contravariant metric
+gradient, while `divergence(vector)` and `laplacian(scalar)` use the positive
+`sqrt(abs(det(g)))` volume factor. In Lorentzian signature the latter is the
+coordinate wave operator.
 `geodesic_residual(curve, parameter)` returns the four native components of
 the parameterized geodesic equation.
 `Chart.geodesic_residual(curve, parameter)` provides the matching three-
