@@ -1392,6 +1392,12 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   `Metric`. Independent native and SymPy checks cover Euclidean and
   pseudo-Riemannian signatures; arbitrary dimensions, curl/forms derivation,
   and full connection reuse remain open.
+- [x] Extend the dimension-aware relativity owner with metric `flat`/`sharp`,
+  contravariant gradient, divergence, and Laplace--Beltrami/wave operator,
+  transported through the Fortran facade, C ABI 49, and Python
+  `SpacetimeMetric`. Minkowski tests cover `sharp(flat(v))`, variance metadata,
+  the signed gradient, divergence, and the linear-scalar wave identity;
+  curved-space and arbitrary-dimensional tensor transport remain open.
 - [ ] Derive vector calculus from tensor/forms primitives. `grad`, `div`,
   `curl`, and `laplacian` must share the same metric, orientation, and density
   conventions rather than maintaining separate coordinate formulas.

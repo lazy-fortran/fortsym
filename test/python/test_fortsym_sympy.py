@@ -145,6 +145,83 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_spacetime_metric_forms_and_wave_operator_match_sympy(self):
+        t, x, y, z = sp.symbols("spacetime_t spacetime_x spacetime_y spacetime_z")
+        coordinates = (t, x, y, z)
+        metric = sp.SpacetimeMetric(
+            coordinates,
+            ((-1, 0, 0, 0), (0, 1, 0, 0),
+             (0, 0, 1, 0), (0, 0, 0, 1)),
+            signature=(-1, 1, 1, 1),
+        )
+        vector = coordinates
+        covector = metric.flat(vector)
+        self.assertEqual(covector.degree, 1)
+        oracle_coordinates = oracle.symbols(
+            "spacetime_t spacetime_x spacetime_y spacetime_z"
+        )
+        expected_covector = (-oracle_coordinates[0],) + oracle_coordinates[1:]
+        self.assertEqual(
+            tuple(
+                oracle.sympify(str(covector[1 << index].simplify()))
+                for index in range(4)
+            ),
+            expected_covector,
+        )
+        raised = metric.sharp(covector)
+        self.assertEqual(raised.variance, (1,))
+        self.assertEqual(
+            tuple(
+                oracle.sympify(str(value.simplify())) for value in raised
+            ),
+            oracle_coordinates,
+        )
+
+        scalar = sum(coordinates)
+        oracle_metric = oracle.diag(-1, 1, 1, 1)
+        oracle_scalar = sum(oracle_coordinates)
+        expected_gradient = tuple(
+            sum(
+                oracle_metric[i, j] * oracle.diff(
+                    oracle_scalar, oracle_coordinates[j]
+                )
+                for j in range(4)
+            )
+            for i in range(4)
+        )
+        actual_gradient = tuple(
+            oracle.sympify(str(metric.grad(scalar)[index].simplify()))
+            for index in range(4)
+        )
+        self.assertEqual(actual_gradient, expected_gradient)
+        expected_divergence = sum(
+            oracle.diff(value, coordinate)
+            for value, coordinate in zip(oracle_coordinates, oracle_coordinates)
+        )
+        self.assertEqual(
+            oracle.sympify(str(metric.divergence(vector).simplify())),
+            expected_divergence,
+        )
+        self.assertEqual(
+            oracle.sympify(str(metric.laplacian(scalar).simplify())),
+            oracle.Integer(0),
+        )
+
+        hubble = sp.Symbol("spacetime_H")
+        scale = sp.exp(hubble*t)
+        curved = sp.SpacetimeMetric(
+            coordinates,
+            ((-1, 0, 0, 0), (0, scale**2, 0, 0),
+             (0, 0, scale**2, 0), (0, 0, 0, scale**2)),
+            signature=(-1, 1, 1, 1),
+        )
+        oracle_hubble = oracle.Symbol("spacetime_H")
+        self.assertEqual(
+            oracle.sympify(str(curved.laplacian(t).simplify())),
+            -3*oracle_hubble,
+        )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_metric_volume_and_levi_civita_match_sympy(self):
         x, y, z = sp.symbols("volume_x volume_y volume_z")
         chart = sp.Chart((x, y, z), (x, y, z))

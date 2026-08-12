@@ -165,6 +165,7 @@ contains
         type(expr_t), intent(in) :: f
         type(expr_t) :: value(DIM)
         type(expr_t) :: inverse(DIM, DIM), coordinates(DIM)
+        type(expr_t) :: derivative, term
         integer :: i, j
 
         if (.not. metric_valid(g)) return
@@ -173,10 +174,18 @@ contains
         if (.not. associated(f%a, g%a)) return
         inverse = metric_contravariant(g)
         coordinates = metric_coordinates(g)
-        do i = 1, DIM
-            value(i) = inverse(i, 1)*diff(f, coordinates(1))
-            do j = 2, DIM
-                value(i) = value(i) + inverse(i, j)*diff(f, coordinates(j))
+        value = num(g%a, 0)
+        do j = 1, DIM
+            derivative = diff(f, coordinates(j))
+            if (is_zero_expr(derivative)) cycle
+            do i = 1, DIM
+                if (is_zero_expr(inverse(i, j))) cycle
+                term = inverse(i, j)*derivative
+                if (is_zero_expr(value(i))) then
+                    value(i) = term
+                else
+                    value(i) = value(i) + term
+                end if
             end do
         end do
     end function metric_grad
@@ -190,8 +199,9 @@ contains
         type(metric_t), intent(in) :: g
         type(expr_t), intent(in) :: vector(DIM)
         type(expr_t) :: value
-        type(expr_t) :: coordinates(DIM), volume
-        integer :: i
+        type(expr_t) :: coordinates(DIM), inverse(DIM, DIM)
+        type(expr_t) :: derivative, term, half
+        integer :: i, j, k
 
         if (.not. metric_valid(g)) return
         if (.not. metric_has_coordinates(g)) return
@@ -200,12 +210,22 @@ contains
             if (.not. associated(vector(i)%a, g%a)) return
         end do
         coordinates = metric_coordinates(g)
-        volume = metric_sqrtg(g)
-        value = diff(volume*vector(1), coordinates(1))
-        do i = 2, DIM
-            value = value + diff(volume*vector(i), coordinates(i))
+        inverse = metric_contravariant(g)
+        half = num(g%a, 1)/num(g%a, 2)
+        value = num(g%a, 0)
+        do i = 1, DIM
+            if (is_zero_expr(vector(i))) cycle
+            term = diff(vector(i), coordinates(i))
+            do j = 1, DIM
+                do k = 1, DIM
+                    derivative = diff(g%component(j, k), coordinates(i))
+                    if (is_zero_expr(derivative)) cycle
+                    if (is_zero_expr(inverse(k, j))) cycle
+                    term = term + half*vector(i)*inverse(k, j)*derivative
+                end do
+            end do
+            if (.not. is_zero_expr(term)) value = value + term
         end do
-        value = value/volume
     end function metric_divergence
 
     !> Laplace--Beltrami operator, including its pseudo-Riemannian wave form.
@@ -357,5 +377,14 @@ contains
             end do
         end do
     end function is_diagonal_metric
+
+    function is_zero_expr(value) result(zero)
+        type(expr_t), intent(in) :: value
+        logical :: zero
+
+        zero = .false.
+        if (.not. is_valid(value)) return
+        zero = value == num(value%a, 0)
+    end function is_zero_expr
 
 end module fortsym_metric

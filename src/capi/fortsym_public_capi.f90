@@ -36,6 +36,9 @@ module fortsym_public_capi
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
         spacetime_metric_create, spacetime_metric_valid, &
         spacetime_metric_sqrtg, spacetime_metric_contravariant, &
+        spacetime_metric_flat, spacetime_metric_sharp, &
+        spacetime_metric_grad, spacetime_metric_divergence, &
+        spacetime_metric_laplacian, &
         spacetime_christoffel, spacetime_riemann, spacetime_ricci, &
         spacetime_scalar_curvature, spacetime_einstein, &
         spacetime_geodesic_residual
@@ -154,7 +157,10 @@ module fortsym_public_capi
         fortsym_chart_form_lie, fortsym_chart_form_flat, &
         fortsym_chart_form_sharp, fortsym_chart_form_volume, &
         fortsym_chart_form_star_metric, fortsym_spacetime_metric_sqrtg, &
-        fortsym_spacetime_metric_contravariant, fortsym_spacetime_christoffel, &
+        fortsym_spacetime_metric_contravariant, fortsym_spacetime_metric_flat, &
+        fortsym_spacetime_metric_sharp, fortsym_spacetime_metric_grad, &
+        fortsym_spacetime_metric_divergence, fortsym_spacetime_metric_laplacian, &
+        fortsym_spacetime_christoffel, &
         fortsym_spacetime_riemann, fortsym_spacetime_ricci, &
         fortsym_spacetime_scalar_curvature, fortsym_spacetime_einstein, &
         fortsym_spacetime_geodesic_residual, &
@@ -178,7 +184,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 48_c_int
+        v = 49_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -2509,6 +2515,126 @@ contains
         call make_expr_array(a, flat_values, out, SPACETIME_DIM*SPACETIME_DIM, &
             status, message, capacity)
     end function fortsym_spacetime_metric_contravariant
+
+    function fortsym_spacetime_metric_flat(raw, components, dimension, &
+            coordinates, signature, orientation, vector, out, message, capacity) &
+            bind(c, name="fortsym_spacetime_metric_flat") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, vector, out
+        integer(c_int), value :: dimension, orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(expr_t) :: input(SPACETIME_DIM), value(SPACETIME_DIM)
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_vector_input(a, vector, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_metric_flat(metric, input)
+        call make_expr_array(a, value, out, SPACETIME_DIM, status, message, &
+            capacity)
+    end function fortsym_spacetime_metric_flat
+
+    function fortsym_spacetime_metric_sharp(raw, components, dimension, &
+            coordinates, signature, orientation, covector, out, message, capacity) &
+            bind(c, name="fortsym_spacetime_metric_sharp") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, covector, out
+        integer(c_int), value :: dimension, orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(expr_t) :: input(SPACETIME_DIM), value(SPACETIME_DIM)
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_vector_input(a, covector, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_metric_sharp(metric, input)
+        call make_expr_array(a, value, out, SPACETIME_DIM, status, message, &
+            capacity)
+    end function fortsym_spacetime_metric_sharp
+
+    function fortsym_spacetime_metric_grad(raw, components, dimension, &
+            coordinates, signature, orientation, scalar, out, message, capacity) &
+            bind(c, name="fortsym_spacetime_metric_grad") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, scalar, out
+        integer(c_int), value :: dimension, orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(spacetime_metric_t) :: metric
+        type(expr_t) :: input, value(SPACETIME_DIM)
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(scalar, owner, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        value = spacetime_metric_grad(metric, input)
+        call make_expr_array(a, value, out, SPACETIME_DIM, status, message, &
+            capacity)
+    end function fortsym_spacetime_metric_grad
+
+    function fortsym_spacetime_metric_divergence(raw, components, dimension, &
+            coordinates, signature, orientation, vector, out, message, capacity) &
+            bind(c, name="fortsym_spacetime_metric_divergence") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, vector, out
+        integer(c_int), value :: dimension, orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(expr_t) :: input(SPACETIME_DIM), value
+
+        call begin_output(out, message, capacity)
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_vector_input(a, vector, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_metric_divergence(metric, input)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_spacetime_metric_divergence
+
+    function fortsym_spacetime_metric_laplacian(raw, components, dimension, &
+            coordinates, signature, orientation, scalar, out, message, capacity) &
+            bind(c, name="fortsym_spacetime_metric_laplacian") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, scalar, out
+        integer(c_int), value :: dimension, orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(spacetime_metric_t) :: metric
+        type(expr_t) :: input, value
+
+        call begin_output(out, message, capacity)
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(scalar, owner, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        value = spacetime_metric_laplacian(metric, input)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_spacetime_metric_laplacian
 
     function fortsym_spacetime_christoffel(raw, components, dimension, &
             coordinates, signature, orientation, out, message, capacity) bind(c, &

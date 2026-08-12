@@ -35,6 +35,9 @@ module fortsym_relativity
     public :: spacetime_metric_valid
     public :: spacetime_metric_arena, spacetime_metric_coordinates
     public :: spacetime_metric_has_coordinates
+    public :: spacetime_metric_flat, spacetime_metric_sharp
+    public :: spacetime_metric_grad, spacetime_metric_divergence
+    public :: spacetime_metric_laplacian
     public :: spacetime_christoffel, spacetime_riemann, spacetime_ricci
     public :: spacetime_scalar_curvature, spacetime_einstein
     public :: spacetime_geodesic_residual
@@ -149,6 +152,131 @@ contains
         if (.not. spacetime_metric_valid(g)) return
         value = sqrt(expr_abs(spacetime_metric_det(g)))
     end function spacetime_metric_sqrtg
+
+    !> Lower a contravariant vector with the supplied metric.
+    !>
+    !> The result is a covector: v_i = g_ij v^j. Components outside the
+    !> runtime dimension are explicit zeroes, so a four-slot result remains
+    !> safe to transport through the fixed ABI for lower-dimensional metrics.
+    function spacetime_metric_flat(g, vector) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: vector(SPACETIME_DIM)
+        type(expr_t) :: value(SPACETIME_DIM)
+        integer :: i, j
+
+        if (.not. spacetime_metric_valid(g)) return
+        do i = 1, g%dimension
+            if (.not. is_valid(vector(i))) return
+            if (.not. same_arena(vector(i), g%component(1, 1))) return
+        end do
+        value = num(g%a, 0)
+        do i = 1, g%dimension
+            do j = 1, g%dimension
+                value(i) = value(i) + g%component(i, j)*vector(j)
+            end do
+        end do
+    end function spacetime_metric_flat
+
+    !> Raise a covector with the supplied metric.
+    !>
+    !> The result is a vector: v^i = g^ij v_j. It is the inverse operation
+    !> of spacetime_metric_flat when both inputs belong to this metric arena.
+    function spacetime_metric_sharp(g, covector) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: covector(SPACETIME_DIM)
+        type(expr_t) :: value(SPACETIME_DIM)
+        type(expr_t) :: inverse(SPACETIME_DIM, SPACETIME_DIM)
+        integer :: i, j
+
+        if (.not. spacetime_metric_valid(g)) return
+        do i = 1, g%dimension
+            if (.not. is_valid(covector(i))) return
+            if (.not. same_arena(covector(i), g%component(1, 1))) return
+        end do
+        inverse = spacetime_metric_contravariant(g)
+        value = num(g%a, 0)
+        do i = 1, g%dimension
+            do j = 1, g%dimension
+                value(i) = value(i) + inverse(i, j)*covector(j)
+            end do
+        end do
+    end function spacetime_metric_sharp
+
+    !> Contravariant metric gradient (grad f)^i = g^ij partial_j f.
+    function spacetime_metric_grad(g, f) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: f
+        type(expr_t) :: value(SPACETIME_DIM)
+        type(expr_t) :: inverse(SPACETIME_DIM, SPACETIME_DIM)
+        type(expr_t) :: derivative, term
+        integer :: i, j
+
+        if (.not. spacetime_metric_valid(g)) return
+        if (.not. spacetime_metric_has_coordinates(g)) return
+        if (.not. is_valid(f)) return
+        if (.not. same_arena(f, g%component(1, 1))) return
+        inverse = spacetime_metric_contravariant(g)
+        value = num(g%a, 0)
+        do j = 1, g%dimension
+            derivative = diff(f, g%coordinate(j))
+            if (is_zero_expr(derivative)) cycle
+            do i = 1, g%dimension
+                if (is_zero_expr(inverse(i, j))) cycle
+                term = inverse(i, j)*derivative
+                if (is_zero_expr(value(i))) then
+                    value(i) = term
+                else
+                    value(i) = value(i) + term
+                end if
+            end do
+        end do
+    end function spacetime_metric_grad
+
+    !> Divergence of a contravariant vector using positive sqrt(abs(det(g))).
+    function spacetime_metric_divergence(g, vector) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: vector(SPACETIME_DIM)
+        type(expr_t) :: value
+        type(expr_t) :: inverse(SPACETIME_DIM, SPACETIME_DIM)
+        type(expr_t) :: derivative, term, half
+        integer :: i, j, k
+
+        if (.not. spacetime_metric_valid(g)) return
+        if (.not. spacetime_metric_has_coordinates(g)) return
+        do i = 1, g%dimension
+            if (.not. is_valid(vector(i))) return
+            if (.not. same_arena(vector(i), g%component(1, 1))) return
+        end do
+        inverse = spacetime_metric_contravariant(g)
+        half = num(g%a, 1)/num(g%a, 2)
+        value = num(g%a, 0)
+        do i = 1, g%dimension
+            if (is_zero_expr(vector(i))) cycle
+            term = diff(vector(i), g%coordinate(i))
+            do j = 1, g%dimension
+                do k = 1, g%dimension
+                    derivative = diff(g%component(j, k), g%coordinate(i))
+                    if (is_zero_expr(derivative)) cycle
+                    if (is_zero_expr(inverse(k, j))) cycle
+                    term = term + half*vector(i)*inverse(k, j)*derivative
+                end do
+            end do
+            if (.not. is_zero_expr(term)) value = value + term
+        end do
+    end function spacetime_metric_divergence
+
+    !> Metric Laplace--Beltrami operator, including the Lorentzian wave operator.
+    function spacetime_metric_laplacian(g, f) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: f
+        type(expr_t) :: value
+        type(expr_t) :: gradient(SPACETIME_DIM)
+
+        if (.not. spacetime_metric_valid(g)) return
+        if (.not. spacetime_metric_has_coordinates(g)) return
+        gradient = spacetime_metric_grad(g, f)
+        value = spacetime_metric_divergence(g, gradient)
+    end function spacetime_metric_laplacian
 
     function spacetime_metric_signature(g) result(value)
         type(spacetime_metric_t), intent(in) :: g
@@ -472,5 +600,14 @@ contains
             end do
         end do
     end function is_diagonal_metric
+
+    function is_zero_expr(value) result(zero)
+        type(expr_t), intent(in) :: value
+        logical :: zero
+
+        zero = .false.
+        if (.not. is_valid(value)) return
+        zero = value == num(value%a, 0)
+    end function is_zero_expr
 
 end module fortsym_relativity

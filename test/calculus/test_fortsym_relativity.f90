@@ -13,7 +13,9 @@ program test_fortsym_relativity
         spacetime_metric_create, spacetime_metric_det, spacetime_metric_sqrtg, &
         spacetime_metric_contravariant, spacetime_christoffel, &
         spacetime_ricci, spacetime_scalar_curvature, spacetime_einstein, &
-        spacetime_geodesic_residual
+        spacetime_geodesic_residual, spacetime_metric_flat, &
+        spacetime_metric_sharp, spacetime_metric_grad, &
+        spacetime_metric_divergence, spacetime_metric_laplacian
     implicit none
 
     type(arena_t), target :: arena
@@ -21,6 +23,7 @@ program test_fortsym_relativity
     type(suite_t) :: suite
     type(spacetime_metric_t) :: metric
     type(spacetime_metric_t) :: metric_2d
+    type(spacetime_metric_t) :: metric_cartesian
     type(expr_t) :: u(SPACETIME_DIM), components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: inverse(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: gamma(SPACETIME_DIM, SPACETIME_DIM, SPACETIME_DIM)
@@ -29,6 +32,10 @@ program test_fortsym_relativity
     type(expr_t) :: scalar, determinant, volume
     type(expr_t) :: components_2d(SPACETIME_DIM, SPACETIME_DIM), scalar_2d
     type(expr_t) :: parameter, curve(SPACETIME_DIM), residual(SPACETIME_DIM)
+    type(expr_t) :: components_cartesian(SPACETIME_DIM, SPACETIME_DIM)
+    type(expr_t) :: vector(SPACETIME_DIM), flat_vector(SPACETIME_DIM)
+    type(expr_t) :: sharp_vector(SPACETIME_DIM), gradient(SPACETIME_DIM)
+    type(expr_t) :: divergence_value, laplacian_value
     integer :: signature(SPACETIME_DIM), i, j
 
     call arena%init()
@@ -95,6 +102,37 @@ program test_fortsym_relativity
             call check_identity(suite, engine, "flat Einstein component", einstein(i, j))
         end do
     end do
+
+    components_cartesian = num(arena, 0)
+    components_cartesian(1, 1) = num(arena, -1)
+    components_cartesian(2, 2) = num(arena, 1)
+    components_cartesian(3, 3) = num(arena, 1)
+    components_cartesian(4, 4) = num(arena, 1)
+    metric_cartesian = spacetime_metric_create(components_cartesian, &
+        SPACETIME_DIM, u, signature, 1)
+    vector = u
+    flat_vector = spacetime_metric_flat(metric_cartesian, vector)
+    call check_identity(suite, engine, "Minkowski flat time component", &
+        flat_vector(1) + u(1))
+    call check_identity(suite, engine, "Minkowski flat space component", &
+        flat_vector(2) - u(2))
+    sharp_vector = spacetime_metric_sharp(metric_cartesian, flat_vector)
+    do i = 1, SPACETIME_DIM
+        call check_identity(suite, engine, "Minkowski sharp-flat round trip", &
+            sharp_vector(i) - vector(i))
+    end do
+    scalar = u(1) + u(2) + u(3) + u(4)
+    gradient = spacetime_metric_grad(metric_cartesian, scalar)
+    call check_identity(suite, engine, "Minkowski wave gradient time", &
+        gradient(1) + 1)
+    call check_identity(suite, engine, "Minkowski wave gradient space", &
+        gradient(2) - 1)
+    divergence_value = spacetime_metric_divergence(metric_cartesian, vector)
+    call check_identity(suite, engine, "Minkowski vector divergence", &
+        divergence_value - 4)
+    laplacian_value = spacetime_metric_laplacian(metric_cartesian, scalar)
+    call check_identity(suite, engine, "Minkowski wave operator on linear scalar", &
+        laplacian_value)
 
     components_2d = num(arena, 0)
     components_2d(1, 1) = num(arena, 1)

@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 48). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 49). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -59,8 +59,9 @@ The Levi-Civita call takes variance `-1` or `+1` and returns 27 components in
 first-slot-fastest order; the volume-density call is always positive and does
 not absorb metric orientation.
 The dimension-aware relativity owner is transported by the
-`fortsym_spacetime_*` calls for inverse metric, Christoffel, Riemann, Ricci,
-scalar curvature, and Einstein tensors. The spacetime form calls add native
+`fortsym_spacetime_*` calls for inverse metric, `flat`, `sharp`, metric
+gradient, divergence, Laplace--Beltrami/wave operator, Christoffel, Riemann,
+Ricci, scalar curvature, and Einstein tensors. The spacetime form calls add native
 degree-aware exterior derivative, wedge, metric Hodge-star, and
 codifferential transport over the same four-coordinate owner. The geodesic
 residual call substitutes an explicit parameterized curve into the native
