@@ -87,7 +87,8 @@ module fortsym
         spacetime_form_degree, spacetime_form_valid, spacetime_wedge, &
         spacetime_d, spacetime_exterior_diff, spacetime_hodge, spacetime_star, &
         spacetime_codifferential, spacetime_interior, &
-        spacetime_interior_product, spacetime_lie, spacetime_lie_derivative
+        spacetime_interior_product, spacetime_lie, spacetime_lie_derivative, &
+        spacetime_laplace_de_rham
     implicit none
     private
 
@@ -149,6 +150,7 @@ module fortsym
         spacetime_exterior_diff, spacetime_hodge, spacetime_star, &
         spacetime_codifferential, spacetime_interior, &
         spacetime_interior_product, spacetime_lie, spacetime_lie_derivative, &
+        spacetime_laplace_de_rham, &
         form_t, form, form_scalar, form_one, form_two, &
         form_three, form_component, form_degree, form_valid, add_forms, &
         subtract_forms, negate_form, wedge, d, &

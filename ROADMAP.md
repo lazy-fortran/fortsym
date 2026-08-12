@@ -1493,6 +1493,10 @@ between the two-dimensional gradient, scalar curl, and divergence.
   and Cartan Lie derivative. Independent tests compare `L_X(alpha)` with
   `i_X(d(alpha)) + d(i_X(alpha))`; arbitrary-dimensional pullback and topology
   remain open.
+- [x] Add the first native Laplace--de Rham owner through ABI 37. The flat
+  Lorentzian scalar case is checked against the signed wave-operator formula;
+  higher-degree curved-space simplification and boundary/topology metadata
+  remain open.
 - [ ] Publish short Fortran, Python, and Wolfram examples for every completed
   derivation. Each example must show construction, simplification, a named
   identity check, and code generation where applicable.

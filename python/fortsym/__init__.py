@@ -425,6 +425,15 @@ def _configure(lib):
             _SIZE,
         ],
     )
+    lib.spacetime_form_laplace_de_rham = declare(
+        "fortsym_spacetime_form_laplace_de_rham", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR,
+            _SIZE,
+        ],
+    )
     lib.spacetime_form_wedge = declare(
         "fortsym_spacetime_form_wedge", ctypes.c_int,
         [
@@ -2039,6 +2048,9 @@ class SpacetimeMetric:
     def four_form(self, value):
         return SpacetimeForm(self, (value,), 4)
 
+    def scalar_form(self, value):
+        return SpacetimeForm(self, value, 0)
+
     def close(self):
         for value in self._temporaries:
             value.close()
@@ -2155,6 +2167,13 @@ class SpacetimeForm:
         return SpacetimeForm(self.metric, components, degree, _owned=True)
 
     codiff = codifferential
+
+    def laplace_de_rham(self):
+        components, degree = self._arena._spacetime_form_unary(
+            self._arena._lib.spacetime_form_laplace_de_rham, self.metric, self,
+            self.degree,
+        )
+        return SpacetimeForm(self.metric, components, degree, _owned=True)
 
     def _vector_operation(self, operation, vector, output_degree):
         values = tuple(vector)
