@@ -63,6 +63,7 @@ module fortsym_public_capi
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_from_storage, tensor_component, tensor_valid, metric_covariant_tensor, &
         metric_contravariant_tensor, density_tensor => density, &
+        density_factor_tensor => density_factor, &
         tensor_product_native => tensor_product, contract_slots, &
         raise_tensor => raise, lower_tensor => lower, permute_tensor => permute, &
         symmetrize_tensor => symmetrize, antisymmetrize_tensor => antisymmetrize
@@ -163,7 +164,8 @@ module fortsym_public_capi
         fortsym_chart_christoffel, fortsym_chart_covariant_diff, &
         fortsym_chart_covariant_divergence, &
         fortsym_chart_tensor_raise, fortsym_chart_tensor_lower, &
-        fortsym_chart_tensor_density, fortsym_chart_tensor_permute, &
+        fortsym_chart_tensor_density, fortsym_chart_tensor_density_factor, &
+        fortsym_chart_tensor_permute, &
         fortsym_chart_tensor_contract, fortsym_chart_tensor_product, &
         fortsym_chart_tensor_symmetrize, &
         fortsym_chart_tensor_lie, &
@@ -1442,6 +1444,35 @@ contains
         end if
         call make_tensor_array(a, value, int(rank), out, status, message, capacity)
     end function fortsym_chart_tensor_density
+
+    function fortsym_chart_tensor_density_factor(raw, coordinates, position, &
+            components, rank, variance, density_weight, factor, out, message, &
+            capacity) bind(c, name="fortsym_chart_tensor_density_factor") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, variance, &
+            factor, out
+        integer(c_size_t), value :: rank
+        integer(c_int), value :: density_weight
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: input, value
+        type(expr_t) :: factor_value
+
+        call get_chart_tensor_input(raw, coordinates, position, components, rank, &
+            variance, density_weight, chart, a, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_scalar_input(a, factor, factor_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = density_factor_tensor(input, factor_value)
+        if (.not. tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call make_tensor_array(a, value, int(rank), out, status, message, capacity)
+    end function fortsym_chart_tensor_density_factor
 
     function fortsym_chart_tensor_permute(raw, coordinates, position, components, &
             rank, variance, density_weight, order, out, message, capacity) &

@@ -295,6 +295,11 @@ parity remain roadmap work; the fixed-rank Python transport is documented in
 `python/README.md`.
 `tensor_product(left, right)` is the single native outer-product owner; the
 left slots precede the right slots and density weights add.
+`density(tensor, integer)` changes only the stored density metadata for a
+view. `density(tensor, factor)` is the component-density constructor: it
+multiplies every component by the scalar `factor` and increments the density
+weight. Thus `Bden = density(Bup, sqrtg(chart))` is the generic native spelling
+of `sqrtg B^i`, while `density(Bup, 1)` remains a metadata-only view.
 
 ## Connections and curvature
 

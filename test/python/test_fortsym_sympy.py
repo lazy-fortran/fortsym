@@ -92,6 +92,9 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(
             density_vector.covariant_divergence().component().simplify(), 3
         )
+        component_density = chart.vector((x, y, z)).density(x + 2)
+        self.assertEqual(component_density.density_weight, 1)
+        self.assertEqual(component_density[0].simplify(), (x + 2)*x)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_flux_coordinate_residuals_match_sympy(self):

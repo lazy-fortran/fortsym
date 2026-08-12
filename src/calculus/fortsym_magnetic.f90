@@ -378,14 +378,13 @@ contains
         type(chart_t), intent(in) :: c
         type(expr_t), intent(in) :: potential(DIM)
         type(magnetic_field_t) :: field
-        type(expr_t) :: upper(DIM), lower_value(DIM), density_value(DIM)
+        type(expr_t) :: upper(DIM), lower_value(DIM)
 
         upper = b_con(c, potential)
         lower_value = b_cov(c, upper)
-        density_value = b_density(c, upper)
         field%upper = tensor_vector(c, upper)
         field%lower = tensor_covector(c, lower_value)
-        field%density = density(tensor_vector(c, density_value), 1)
+        field%density = density(field%upper, sqrtg(c))
     end function magnetic_field
 
     !> Return the contravariant B^i view.

@@ -194,6 +194,10 @@ two-form basis; and `7` for the volume form. Full arbitrary-dimensional
 `diffgeom` parity, map generalization, and metric signatures remain roadmap
 work; fixed-three-dimensional native pullback transport is available through
 `ChartMap.pullback()`.
+`Tensor.density(integer)` keeps the components and changes only the metadata.
+`Tensor.density(factor)` multiplies the native components by one scalar factor
+and increments the weight, so `Bup.density(chart.sqrtg())` is the direct
+generic spelling of `sqrtg B^i`.
 
 `Chart.magnetic_field(potential)` returns a `MagneticField` containing typed
 `upper`, `lower`, and weight-one `density` tensor views. Its components come
