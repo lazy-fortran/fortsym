@@ -87,6 +87,9 @@ chart-induced Euclidean metric or `metric_create` for a supplied metric, and
 always pass the signature and orientation when they are physically meaningful.
 `metric_sqrtg` is positive and never absorbs orientation; `metric_det` and
 `metric_contravariant` retain the metric's own signature.
+`orientation_t` and `signature_t` are the shared declaration owners. Use
+`metric_create_metadata` when typed declarations are already available;
+`metric_signature_type` and `metric_orientation_type` return typed views.
 When the metric carries `coordinates=...`, `metric_grad`,
 `metric_divergence`, and `metric_laplacian` use that same explicit coordinate
 tuple. `metric_grad` returns the contravariant components

@@ -12,6 +12,13 @@ except ModuleNotFoundError:
 
 
 class SympySubsetTest(unittest.TestCase):
+    def test_typed_geometry_metadata_facade(self):
+        signature = sp.Signature((-1, 1, 1))
+        orientation = sp.Orientation(-1)
+        self.assertTrue(signature.is_lorentzian)
+        self.assertEqual((signature.positive_count, signature.negative_count), (2, 1))
+        self.assertEqual(orientation.value, -1)
+
     def test_native_subset_and_kind_classes(self):
         x, y = sp.symbols("x y")
         self.assertIsInstance(x, sp.Symbol)

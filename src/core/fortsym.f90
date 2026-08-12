@@ -48,6 +48,12 @@ module fortsym
         manifold_simply_connected, patch_valid, patch_dimension, patch_name, &
         patch_manifold, patch_is_open, patch_has_boundary, &
         patch_simply_connected, same_manifold, same_patch_parent
+    use fortsym_geometry_metadata, only: orientation_t, signature_t, &
+        orientation_create, orientation_valid, orientation_value, &
+        orientation_is_positive, orientation_is_negative, signature_create, &
+        signature_valid, signature_dimension, signature_component, &
+        signature_positive_count, signature_negative_count, &
+        signature_is_lorentzian
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
         map_valid, map_jacobian, &
         inverse_jacobian, transform_tensor, transform_form, pullback
@@ -92,7 +98,8 @@ module fortsym
         metric_surface_measure, metric_inner, &
         metric_signature, metric_orientation, metric_valid, metric_arena, &
         metric_same_arena, metric_coordinates, metric_has_coordinates, &
-        metric_grad, metric_divergence, metric_laplacian
+        metric_grad, metric_divergence, metric_laplacian, &
+        metric_signature_type, metric_orientation_type, metric_create_metadata
     use fortsym_volume, only: metric_volume_density, levi_civita_symbol, &
         metric_levi_civita
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
@@ -194,6 +201,12 @@ module fortsym
         metric_volume_density, levi_civita_symbol, metric_levi_civita, &
         metric_orientation, metric_valid, metric_arena, metric_same_arena, &
         metric_coordinates, metric_has_coordinates, &
+        metric_signature_type, metric_orientation_type, metric_create_metadata, &
+        orientation_t, signature_t, orientation_create, orientation_valid, &
+        orientation_value, orientation_is_positive, orientation_is_negative, &
+        signature_create, signature_valid, signature_dimension, &
+        signature_component, signature_positive_count, signature_negative_count, &
+        signature_is_lorentzian, &
         SPACETIME_DIM, spacetime_metric_t, spacetime_metric_create, &
         spacetime_metric_covariant, spacetime_metric_contravariant, &
         spacetime_metric_det, spacetime_metric_sqrtg, &

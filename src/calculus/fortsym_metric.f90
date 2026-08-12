@@ -12,6 +12,9 @@ module fortsym_metric
     use fortsym_expr, only: expr_t, num, is_valid, &
         operator(+), operator(-), operator(*), operator(/), &
         operator(==), expr_abs => abs, sqrt
+    use fortsym_geometry_metadata, only: orientation_t, signature_t, &
+        orientation_create, orientation_valid, orientation_value, &
+        signature_create, signature_valid, signature_dimension, signature_component
     implicit none
     private
 
@@ -21,6 +24,8 @@ module fortsym_metric
     public :: metric_inner
     public :: metric_grad, metric_divergence, metric_laplacian
     public :: metric_signature, metric_orientation, metric_valid
+    public :: metric_signature_type, metric_orientation_type
+    public :: metric_create_metadata
     public :: metric_arena, metric_same_arena
     public :: metric_coordinates, metric_has_coordinates
 
@@ -29,8 +34,8 @@ module fortsym_metric
         type(arena_t), pointer :: a => null()
         type(expr_t) :: component(DIM, DIM)
         type(expr_t) :: coordinate(DIM)
-        integer :: signature(DIM) = 0
-        integer :: orientation = 0
+        type(signature_t) :: signature_metadata
+        type(orientation_t) :: orientation_metadata
         logical :: valid = .false.
         logical :: has_coordinates = .false.
     end type metric_t
@@ -50,8 +55,54 @@ contains
         integer, optional, intent(in) :: orientation
         type(expr_t), optional, intent(in) :: coordinates(DIM)
         type(metric_t) :: result
+        integer :: signature_values(DIM), orientation_sign
+        type(signature_t) :: signature_metadata
+        type(orientation_t) :: orientation_metadata
+
+        signature_values = 1
+        if (present(signature)) signature_values = signature
+        orientation_sign = 1
+        if (present(orientation)) orientation_sign = orientation
+        signature_metadata = signature_create(signature_values)
+        orientation_metadata = orientation_create(orientation_sign)
+        if (present(coordinates)) then
+            result = metric_create_with_metadata(components, signature_metadata, &
+                orientation_metadata, coordinates)
+        else
+            result = metric_create_with_metadata(components, signature_metadata, &
+                orientation_metadata)
+        end if
+    end function metric_create
+
+    !> Construct a metric from typed metadata owners.
+    function metric_create_metadata(components, signature, orientation, coordinates) &
+            result(result)
+        type(expr_t), intent(in) :: components(DIM, DIM)
+        type(signature_t), intent(in) :: signature
+        type(orientation_t), intent(in) :: orientation
+        type(expr_t), optional, intent(in) :: coordinates(DIM)
+        type(metric_t) :: result
+
+        if (present(coordinates)) then
+            result = metric_create_with_metadata(components, signature, &
+                orientation, coordinates)
+        else
+            result = metric_create_with_metadata(components, signature, orientation)
+        end if
+    end function metric_create_metadata
+
+    function metric_create_with_metadata(components, signature_metadata, &
+            orientation_metadata, coordinates) result(result)
+        type(expr_t), intent(in) :: components(DIM, DIM)
+        type(signature_t), intent(in) :: signature_metadata
+        type(orientation_t), intent(in) :: orientation_metadata
+        type(expr_t), optional, intent(in) :: coordinates(DIM)
+        type(metric_t) :: result
         integer :: i, j
 
+        if (.not. signature_valid(signature_metadata)) return
+        if (signature_dimension(signature_metadata) /= DIM) return
+        if (.not. orientation_valid(orientation_metadata)) return
         if (.not. is_valid(components(1, 1))) return
         result%a => components(1, 1)%a
         do i = 1, DIM
@@ -61,13 +112,8 @@ contains
             end do
         end do
 
-        result%signature = 1
-        if (present(signature)) result%signature = signature
-        result%orientation = 1
-        if (present(orientation)) result%orientation = orientation
-        if (any(abs(result%signature) /= 1)) return
-        if (abs(result%orientation) /= 1) return
-
+        result%signature_metadata = signature_metadata
+        result%orientation_metadata = orientation_metadata
         result%component = components
         if (present(coordinates)) then
             do i = 1, DIM
@@ -79,7 +125,7 @@ contains
         end if
         result%valid = .true.
         if (.not. metric_valid(result)) result%valid = .false.
-    end function metric_create
+    end function metric_create_with_metadata
 
     !> Materialize the metric induced by a chart with explicit metadata.
     function metric_from_chart(c, signature, orientation) result(result)
@@ -301,10 +347,21 @@ contains
     function metric_signature(g) result(signature)
         type(metric_t), intent(in) :: g
         integer :: signature(DIM)
+        integer :: i
 
         signature = 0
-        if (g%valid) signature = g%signature
+        if (.not. metric_valid(g)) return
+        do i = 1, DIM
+            signature(i) = signature_component(g%signature_metadata, i)
+        end do
     end function metric_signature
+
+    function metric_signature_type(g) result(signature)
+        type(metric_t), intent(in) :: g
+        type(signature_t) :: signature
+
+        if (metric_valid(g)) signature = g%signature_metadata
+    end function metric_signature_type
 
     !> Return the explicit orientation, or zero for an invalid metric.
     function metric_orientation(g) result(orientation)
@@ -312,8 +369,15 @@ contains
         integer :: orientation
 
         orientation = 0
-        if (g%valid) orientation = g%orientation
+        if (metric_valid(g)) orientation = orientation_value(g%orientation_metadata)
     end function metric_orientation
+
+    function metric_orientation_type(g) result(orientation)
+        type(metric_t), intent(in) :: g
+        type(orientation_t) :: orientation
+
+        if (metric_valid(g)) orientation = g%orientation_metadata
+    end function metric_orientation_type
 
     !> Check metadata, arena ownership, and component validity.
     function metric_valid(g) result(valid)
@@ -323,11 +387,11 @@ contains
 
         valid = g%valid .and. associated(g%a)
         if (.not. valid) return
-        if (any(abs(g%signature) /= 1)) then
+        if (.not. signature_valid(g%signature_metadata)) then
             valid = .false.
             return
         end if
-        if (abs(g%orientation) /= 1) then
+        if (.not. orientation_valid(g%orientation_metadata)) then
             valid = .false.
             return
         end if
