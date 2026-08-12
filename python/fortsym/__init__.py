@@ -496,6 +496,15 @@ def _configure(lib):
             _SIZE,
         ],
     )
+    lib.spacetime_form_closed = declare(
+        "fortsym_spacetime_form_closed", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+            _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.spacetime_form_star = declare(
         "fortsym_spacetime_form_star", ctypes.c_int,
         [
@@ -670,6 +679,12 @@ def _configure(lib):
                 form_unary_arguments,
             ),
         )
+    lib.chart_form_closed = declare(
+        "fortsym_chart_form_closed", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+         _CHAR_PTR, _SIZE],
+    )
     lib.chart_form_scale = declare(
         "fortsym_chart_form_scale", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
@@ -1363,6 +1378,20 @@ class Arena:
             raise FortSymError(status, _decode(message), operation.__name__)
         return tuple(Expr(self, output[index]) for index in range(16)), output_degree
 
+    def _spacetime_form_closed(self, metric, form):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * 16)(*[value._handle for value in form.components])
+        verdict = ctypes.c_int()
+        message = _message()
+        status = self._lib.spacetime_form_closed(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, form.degree, ctypes.byref(verdict),
+            message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "form_closed")
+        return verdict.value
+
     def _spacetime_form_binary(self, operation, metric, left, right):
         components, coordinates, signature = self._spacetime_inputs(metric)
         left_values = (_CVOID * 16)(*[value._handle for value in left.components])
@@ -1638,6 +1667,23 @@ class Arena:
             operation, form.chart.coordinates, form.chart.position,
             [components, form.degree], 8,
         )
+
+    def _chart_form_closed(self, form):
+        components = (_CVOID * 8)(
+            *[self._check(value)._handle for value in form.components]
+        )
+        coordinate_handles, position_handles = self._chart_inputs(
+            form.chart.coordinates, form.chart.position
+        )
+        verdict = ctypes.c_int()
+        message = _message()
+        status = self._lib.chart_form_closed(
+            self._require(), coordinate_handles, position_handles, components,
+            form.degree, ctypes.byref(verdict), message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "form_closed")
+        return verdict.value
 
     def _chart_form_binary(self, operation, left, right):
         left_components = (_CVOID * 8)(
@@ -2460,6 +2506,11 @@ class SpacetimeForm:
 
     exterior_diff = d
 
+    @property
+    def is_closed(self):
+        verdict = self._arena._spacetime_form_closed(self.metric, self)
+        return True if verdict == 1 else False if verdict == 2 else None
+
     def field_strength(self):
         if self.degree != 1:
             raise ValueError("field_strength requires a potential one-form")
@@ -2978,6 +3029,11 @@ class Form:
         return Form(self.chart, components, degree, _owned=True)
 
     exterior_diff = d
+
+    @property
+    def is_closed(self):
+        verdict = self._arena._chart_form_closed(self)
+        return True if verdict == 1 else False if verdict == 2 else None
 
     def star(self, metric=None):
         if metric is not None:

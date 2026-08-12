@@ -183,6 +183,8 @@ class SympySubsetTest(unittest.TestCase):
         )
         potential = metric.one_form((x*y, t*z, t*x, t + y))
         field = potential.d()
+        self.assertTrue(field.is_closed)
+        self.assertFalse(potential.is_closed)
         self.assertEqual(
             tuple(value.simplify() for value in potential.field_strength()),
             tuple(value.simplify() for value in field),
@@ -192,6 +194,7 @@ class SympySubsetTest(unittest.TestCase):
         closed = field.d()
         for mask in range(16):
             self.assertEqual(closed[mask].simplify(), 0)
+        self.assertTrue(closed.is_closed)
         gauge = potential.gauge_transform(t*x)
         gauge_field = gauge.field_strength()
         for mask in range(16):
@@ -209,7 +212,8 @@ class SympySubsetTest(unittest.TestCase):
         scalar_form = metric.scalar_form(t**2 + x**2 + y**2 + z**2)
         self.assertEqual((scalar_form.laplace_de_rham()[0] + 4).simplify(), 0)
 
-        two_form = metric.two_form((1, 2, 3, 4, 5, 6))
+        two_form = metric.two_form((y, 2, 3, 4, 5, 6))
+        self.assertFalse(two_form.is_closed)
         double_star = two_form.star().star()
         for mask in (3, 5, 6, 9, 10, 12):
             self.assertEqual((double_star[mask] + two_form[mask]).simplify(), 0)

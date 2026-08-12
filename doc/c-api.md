@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 42). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 43). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -20,6 +20,8 @@ slots and returns the remaining native tensor components; the Python facade
 adds named-index validation before calling this same operation.
 `fortsym_chart_tensor_product` forms a tensor product with left slots followed
 by right slots and preserves the summed density weight.
+`fortsym_chart_form_closed` and `fortsym_spacetime_form_closed` return the
+three-valued zero verdict for every coefficient of `d(form)`.
 `fortsym_chart_b_density` exposes the native `sqrtg B^i` magnetic view alongside
 `fortsym_chart_b_cov`; both consume the same native magnetic owner.
 The form boundary also accepts the explicit degree-four zero extension produced

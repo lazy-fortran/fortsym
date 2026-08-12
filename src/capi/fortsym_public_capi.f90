@@ -141,7 +141,7 @@ module fortsym_public_capi
         fortsym_chart_scalar_curvature, fortsym_chart_einstein, &
         fortsym_chart_form_add, fortsym_chart_form_subtract, &
         fortsym_chart_form_negate, fortsym_chart_form_scale, &
-        fortsym_chart_form_d, fortsym_chart_form_wedge, &
+        fortsym_chart_form_d, fortsym_chart_form_closed, fortsym_chart_form_wedge, &
         fortsym_chart_form_star, fortsym_chart_form_interior, &
         fortsym_chart_form_lie, fortsym_chart_form_flat, &
         fortsym_chart_form_sharp, fortsym_chart_form_volume, &
@@ -150,7 +150,8 @@ module fortsym_public_capi
         fortsym_spacetime_riemann, fortsym_spacetime_ricci, &
         fortsym_spacetime_scalar_curvature, fortsym_spacetime_einstein, &
         fortsym_spacetime_geodesic_residual, &
-        fortsym_spacetime_form_d, fortsym_spacetime_form_wedge, &
+        fortsym_spacetime_form_d, fortsym_spacetime_form_closed, &
+        fortsym_spacetime_form_wedge, &
         fortsym_spacetime_form_star, fortsym_spacetime_form_codifferential, &
         fortsym_spacetime_form_interior, fortsym_spacetime_form_lie, &
         fortsym_spacetime_form_laplace_de_rham, fortsym_spacetime_field_strength, &
@@ -169,7 +170,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 42_c_int
+        v = 43_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1622,6 +1623,52 @@ contains
         call make_form_array(a, value, out, status, message, capacity)
     end function fortsym_chart_form_d
 
+    function fortsym_chart_form_closed(raw, coordinates, position, input, degree, &
+            verdict, message, capacity) bind(c, name="fortsym_chart_form_closed") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, input
+        integer(c_size_t), value :: degree
+        integer(c_int), intent(out) :: verdict
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: input_value, value
+        type(engine_result_t) :: checked
+        integer :: mask
+
+        verdict = int(VERDICT_UNKNOWN, c_int)
+        call put_error(message, capacity, FORTSYM_OK)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, &
+            message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = exterior_diff(chart, input_value)
+        if (.not. form_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call prepare_native_engine(a)
+        verdict = int(VERDICT_TRUE, c_int)
+        do mask = 0, 2**DIM - 1
+            checked = a%engine%zero_test(value%component(mask))
+            if (.not. checked%ok) then
+                verdict = int(VERDICT_UNKNOWN, c_int)
+                return
+            end if
+            if (checked%verdict == VERDICT_FALSE) then
+                verdict = int(VERDICT_FALSE, c_int)
+                return
+            end if
+            if (checked%verdict /= VERDICT_TRUE) then
+                verdict = int(VERDICT_UNKNOWN, c_int)
+            end if
+        end do
+    end function fortsym_chart_form_closed
+
     function fortsym_chart_form_wedge(raw, coordinates, position, left, &
             left_degree, right, right_degree, out, message, capacity) &
             bind(c, name="fortsym_chart_form_wedge") result(status)
@@ -2488,6 +2535,53 @@ contains
         value = spacetime_d(metric, input_value)
         call make_spacetime_form_array(a, value, out, status, message, capacity)
     end function fortsym_spacetime_form_d
+
+    function fortsym_spacetime_form_closed(raw, components, dimension, coordinates, &
+            signature, orientation, input, degree, verdict, message, capacity) &
+            bind(c, name="fortsym_spacetime_form_closed") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, input
+        integer(c_int), value :: dimension, orientation
+        integer(c_size_t), value :: degree
+        integer(c_int), intent(out) :: verdict
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_form_t) :: input_value, value
+        type(engine_result_t) :: checked
+        integer :: mask
+
+        verdict = int(VERDICT_UNKNOWN, c_int)
+        call put_error(message, capacity, FORTSYM_OK)
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, input, degree, input_value, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_d(metric, input_value)
+        if (.not. spacetime_form_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call prepare_native_engine(a)
+        verdict = int(VERDICT_TRUE, c_int)
+        do mask = 0, 2**SPACETIME_DIM - 1
+            checked = a%engine%zero_test(spacetime_form_component(value, mask))
+            if (.not. checked%ok) then
+                verdict = int(VERDICT_UNKNOWN, c_int)
+                return
+            end if
+            if (checked%verdict == VERDICT_FALSE) then
+                verdict = int(VERDICT_FALSE, c_int)
+                return
+            end if
+            if (checked%verdict /= VERDICT_TRUE) then
+                verdict = int(VERDICT_UNKNOWN, c_int)
+            end if
+        end do
+    end function fortsym_spacetime_form_closed
 
     function fortsym_spacetime_form_wedge(raw, components, dimension, coordinates, &
             signature, orientation, left, left_degree, right, right_degree, out, &
