@@ -1726,8 +1726,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   `.potential_form()` and `.flux_form()` without duplicating form algebra.
 - [x] Add the native typed B_ij/2-form-to-beta density bridge with explicit
   orientation. `b_con_form` applies the chart Hodge map and metric raise;
-  `b_density_form` then adds the weight-`+1` `sqrtg` factor. C/Python transport
-  remains a follow-up so the ABI does not grow without a matching facade.
+  `b_density_form` then adds the weight-`+1` `sqrtg` factor.
+- [x] Carry the magnetic form bridge through the public C ABI and both Python
+  facades with the same `b_con_form`/`b_density_form` names; `Form.b_con()` and
+  `Form.b_density()` are convenience methods over those native operations.
 - [x] Add native-backed `Form.is_closed` and `SpacetimeForm.is_closed` with
   the shared three-valued zero-verdict contract. Closedness is computed from
   the native exterior derivative and remains `None` when any coefficient is

@@ -287,7 +287,7 @@ class SympySubsetTest(unittest.TestCase):
     def test_magnetic_chart_matches_sympy_curl(self):
         psi, theta, phi = sp.symbols("magnetic_psi magnetic_theta magnetic_phi")
         chart = sp.Chart((psi, theta, phi), (psi, theta, phi))
-        owner = chart.magnetic_chart((0, psi, 0), label_index=1)
+        owner = chart.magnetic_chart((sp.Integer(0), psi, sp.Integer(0)), label_index=1)
         self.assertIsInstance(owner, sp.MagneticChart)
         actual = tuple(oracle.sympify(str(value.simplify())) for value in owner.upper)
         o_psi, o_theta, o_phi = oracle.symbols(
@@ -304,6 +304,25 @@ class SympySubsetTest(unittest.TestCase):
         flux_form = owner.flux_form()
         self.assertEqual(oracle.sympify(str(flux_form[3].simplify())), 1)
         self.assertTrue(flux_form.is_closed)
+        recovered = flux_form.b_con()
+        recovered_actual = tuple(
+            oracle.sympify(str(recovered[index].simplify()))
+            for index in range(3)
+        )
+        self.assertEqual(recovered_actual, expected)
+        recovered_density = flux_form.b_density()
+        self.assertEqual(recovered_density.variance, (1,))
+        self.assertEqual(recovered_density.density_weight, 1)
+        self.assertEqual(
+            tuple(
+                oracle.sympify(str(recovered_density[index].simplify()))
+                for index in range(3)
+            ),
+            tuple(
+                oracle.sympify(str(owner.density[index].simplify()))
+                for index in range(3)
+            ),
+        )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_tensor_lie_derivative_matches_independent_sympy_formula(self):
