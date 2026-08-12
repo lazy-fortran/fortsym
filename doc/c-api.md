@@ -121,8 +121,9 @@ currents represented as degree-one and degree-three spacetime forms.
 Runtime spacetime tensors also expose metric covariant differentiation through
 `fortsym_spacetime_tensor_covariant_diff`. It appends a lower derivative slot,
 transports every declared upper or lower tensor slot, and preserves the
-density weight. The operation accepts input ranks zero through three and
-returns the fixed four-slot C representation with inactive components zero.
+density weight. The operation accepts input ranks zero through four and
+returns the fixed four-coordinate C representation with inactive components
+zero. The runtime tensor ceiling is rank five.
 `fortsym_spacetime_tensor_covariant_divergence` directly contracts the first
 upper slot with the covariant derivative and returns the remaining slots,
 avoiding an intermediate full derivative tensor.

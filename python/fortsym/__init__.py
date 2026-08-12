@@ -60,7 +60,7 @@ FLUX_HAMADA = 4
 BOOZER_RESIDUAL_COUNT = 5
 HAMADA_RESIDUAL_COUNT = 5
 SPACETIME_DIM = 4
-SPACETIME_TENSOR_MAX_RANK = 4
+SPACETIME_TENSOR_MAX_RANK = 5
 CONNECTION_STANDARD = 1
 CONNECTION_OPPOSITE = -1
 SYMMETRY_NONE = 0
@@ -2153,7 +2153,7 @@ class Arena:
             raise ValueError("spacetime tensor product needs slot variance")
         output_rank = left.rank + right.rank
         if output_rank > SPACETIME_TENSOR_MAX_RANK:
-            raise ValueError("native spacetime tensors support rank at most four")
+            raise ValueError("native spacetime tensors support rank at most five")
         components, coordinates, signature = self._spacetime_inputs(metric)
         left_values = (_CVOID * (SPACETIME_DIM ** left.rank))(
             *[value._handle for value in left.components]
@@ -2181,7 +2181,7 @@ class Arena:
         if tensor.variance is None:
             raise ValueError("spacetime covariant differentiation needs slot variance")
         if tensor.rank >= SPACETIME_TENSOR_MAX_RANK:
-            raise ValueError("native spacetime covariant derivative supports input rank at most three")
+            raise ValueError("native spacetime covariant derivative supports input rank at most four")
         components, coordinates, signature = self._spacetime_inputs(metric)
         values = (_CVOID * (SPACETIME_DIM ** tensor.rank))(
             *[value._handle for value in tensor.components]
@@ -4074,7 +4074,7 @@ class SpacetimeTensor:
             raise ValueError("spacetime tensor product needs slot variance")
         output_rank = self.rank + other.rank
         if output_rank > SPACETIME_TENSOR_MAX_RANK:
-            raise ValueError("native spacetime tensors support rank at most four")
+            raise ValueError("native spacetime tensors support rank at most five")
         components = self._arena._spacetime_tensor_product(
             self.metric, self, other
         )

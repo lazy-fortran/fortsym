@@ -11,6 +11,7 @@ program test_fortsym_spacetime_tensor
         spacetime_metric_create, spacetime_metric_valid
     use fortsym_spacetime_tensor, only: spacetime_tensor_t, &
         spacetime_tensor_scalar, spacetime_tensor_vector, &
+        spacetime_tensor_from_components, &
         spacetime_tensor_component, &
         spacetime_tensor_rank, spacetime_tensor_dimension, &
         spacetime_tensor_variance, spacetime_tensor_density_weight, &
@@ -36,13 +37,16 @@ program test_fortsym_spacetime_tensor
     type(spacetime_tensor_t) :: lie_result, density_scalar, dilation_vector
     type(spacetime_tensor_t) :: divergence_result
     type(spacetime_tensor_t) :: curved_density, density_derivative, scalar_tensor
+    type(spacetime_tensor_t) :: rank_four, rank_five
     type(expr_t) :: coordinates(SPACETIME_DIM)
     type(expr_t) :: components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: values(SPACETIME_DIM), factor
     type(expr_t) :: curved_components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: density_values(SPACETIME_DIM)
+    type(expr_t) :: rank_four_values(16)
     integer :: signature(SPACETIME_DIM), indices(2), scalar_indices(1), &
-        derivative_indices(3), permutation(2), empty(0)
+        derivative_indices(3), permutation(2), empty(0), rank_four_variance(4), &
+        rank_five_indices(5)
 
     call arena%init()
     engine = make_symengine_engine(arena)
@@ -107,6 +111,24 @@ program test_fortsym_spacetime_tensor
         spacetime_tensor_component(scalar, empty) - &
         (2*coordinates(1)**2 + 2*coordinates(1)*coordinates(2) + &
         coordinates(2)**2))
+
+    ! A rank-four tensor must differentiate into the rank-five object used by
+    ! the second-Bianchi representation.  The constant nonorthogonal metric
+    ! is flat, so this is an independent partial-derivative check.
+    rank_four_values = num(arena, 0)
+    rank_four_values(1) = coordinates(1)
+    rank_four_variance = [SPACETIME_UPPER, SPACETIME_LOWER, &
+        SPACETIME_UPPER, SPACETIME_LOWER]
+    rank_four = spacetime_tensor_from_components(metric, 4, rank_four_values, &
+        rank_four_variance)
+    rank_five = spacetime_tensor_covariant_diff(metric, rank_four)
+    rank_five_indices = 1
+    call check(suite, spacetime_tensor_valid(rank_five), &
+        "rank-four derivative returns valid rank-five tensor")
+    call check(suite, spacetime_tensor_rank(rank_five) == 5, &
+        "rank-five derivative metadata")
+    call check_identity(suite, engine, "rank-five partial derivative", &
+        spacetime_tensor_component(rank_five, rank_five_indices) - 1)
     permutation(1) = 2
     permutation(2) = 1
     permuted = spacetime_tensor_permute(covariant, permutation)

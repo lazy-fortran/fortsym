@@ -821,6 +821,18 @@ class SympySubsetTest(unittest.TestCase):
             oracle.sympify(str(density_derivative[1, 0].simplify())),
             oracle.exp(oracle.Symbol("tensor_oracle_t")),
         )
+        zero = sp.Integer(0)
+        rank_four_components = [zero] * (fortsym.SPACETIME_DIM ** 4)
+        rank_four_components[0] = t
+        rank_four = sp.SpacetimeTensor(
+            metric, rank_four_components, (4, 4, 4, 4),
+            variance=(1, -1, 1, -1),
+        )
+        rank_five = rank_four.covariant_diff()
+        self.assertEqual(rank_five.rank, 5)
+        self.assertEqual(
+            oracle.sympify(str(rank_five[0, 0, 0, 0, 0].simplify())), 1
+        )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_metric_volume_and_levi_civita_match_sympy(self):

@@ -17,7 +17,10 @@ module fortsym_spacetime_tensor
     implicit none
     private
 
-    integer, parameter, public :: SPACETIME_TENSOR_MAX_RANK = 4
+    ! Rank five is the smallest useful ceiling that includes a covariant
+    ! derivative of a rank-four curvature tensor (the natural second-Bianchi
+    ! representation) without falling back to a separate fixed-3D owner.
+    integer, parameter, public :: SPACETIME_TENSOR_MAX_RANK = 5
     integer, parameter :: MAX_COMPONENTS = SPACETIME_DIM**SPACETIME_TENSOR_MAX_RANK
     integer, parameter, public :: SPACETIME_UPPER = 1
     integer, parameter, public :: SPACETIME_LOWER = -1
@@ -524,15 +527,14 @@ contains
     !> Full metric covariant derivative with the derivative slot last.
     !>
     !> A tensor density of weight w receives the physicists' transport term
-    !> -w Gamma^m_mk T. The native rank bound is deliberate: a rank-r input
-    !> produces rank r+1, and the owner stores at most four slots.
+    !> -w Gamma^m_mk T. A rank-four input produces the rank-five derivative
+    !> needed by the standard second-Bianchi representation.
     function spacetime_tensor_covariant_diff(g, tensor_value) result(result)
         type(spacetime_metric_t), intent(in) :: g
         type(spacetime_tensor_t), intent(in) :: tensor_value
         type(spacetime_tensor_t) :: result
         type(expr_t) :: coordinates(SPACETIME_DIM)
         type(expr_t) :: gamma(SPACETIME_DIM, SPACETIME_DIM, SPACETIME_DIM)
-        type(expr_t) :: values(0:MAX_COMPONENTS - 1)
         type(expr_t) :: base, term, trace_gamma(SPACETIME_DIM)
         integer :: rank, output_rank, count, output_index, dimension
         integer :: indices(SPACETIME_TENSOR_MAX_RANK)
@@ -556,7 +558,6 @@ contains
         end do
         metadata(output_rank) = SPACETIME_LOWER
         weight = tensor_value%density_weight
-        values = num(tensor_value%a, 0)
         if (weight /= 0) then
             do k = 1, dimension
                 trace_gamma(k) = num(tensor_value%a, 0)
@@ -566,6 +567,7 @@ contains
             end do
         end if
 
+        result = zero_tensor(tensor_value%a, dimension, output_rank, metadata, weight)
         do output_index = 0, count - 1
             call decode_index(output_index, output_rank, indices, dimension)
             k = indices(output_rank)
@@ -588,10 +590,8 @@ contains
                     end if
                 end do
             end do
-            values(output_index) = term
+            result%component(output_index) = term
         end do
-
-        result = spacetime_tensor_from_storage(g, output_rank, values, metadata, weight)
     end function spacetime_tensor_covariant_diff
 
     !> Contract the first upper tensor slot with the derivative slot.
@@ -688,7 +688,6 @@ contains
         type(spacetime_tensor_t), intent(in) :: vector_value, tensor_value
         type(spacetime_tensor_t) :: result
         type(expr_t) :: coordinates(SPACETIME_DIM)
-        type(expr_t) :: values(0:MAX_COMPONENTS - 1)
         type(expr_t) :: base, term, divergence
         integer :: rank, count, output_index, dimension
         integer :: indices(SPACETIME_TENSOR_MAX_RANK)
@@ -709,7 +708,7 @@ contains
         coordinates = spacetime_metric_coordinates(g)
         metadata = tensor_value%variance
         weight = tensor_value%density_weight
-        values = num(tensor_value%a, 0)
+        result = zero_tensor(tensor_value%a, dimension, rank, metadata, weight)
         divergence = num(tensor_value%a, 0)
         do k = 1, dimension
             divergence = divergence + diff(vector_value%component(k - 1), &
@@ -743,10 +742,8 @@ contains
             if (weight /= 0) then
                 term = term + num(tensor_value%a, weight)*base*divergence
             end if
-            values(output_index) = term
+            result%component(output_index) = term
         end do
-
-        result = spacetime_tensor_from_storage(g, rank, values, metadata, weight)
     end function spacetime_tensor_lie_derivative
 
     function spacetime_killing(g, vector_value) result(result)
