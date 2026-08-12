@@ -23,7 +23,8 @@ module fortsym_public_capi
         curl, curl_density, laplacian
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form
-    use fortsym_magnetic, only: b_cov, b_density, h_cov, h_con, b_fourier, &
+    use fortsym_magnetic, only: b_cov, b_density, b_con_form, b_density_form, &
+        h_cov, h_con, b_fourier, &
         b_fourier_density, flux_surface_t, flux_surface, flux_surface_valid, &
         flux_surface_average, &
         j_fourier
@@ -168,6 +169,7 @@ module fortsym_public_capi
         fortsym_chart_map_jacobian, fortsym_chart_map_inverse_jacobian, &
         fortsym_chart_map_tensor, fortsym_chart_map_form, fortsym_chart_map_compose, &
         fortsym_chart_b_cov, fortsym_chart_b_density, &
+        fortsym_chart_b_con_form, fortsym_chart_b_density_form, &
         fortsym_chart_flux_normal_residual, &
         fortsym_chart_straight_field_line_residual, &
         fortsym_chart_boozer_residuals, &
@@ -2520,6 +2522,83 @@ contains
         value = b_density(chart, input)
         call make_array_handles(a, value, output, status, message, capacity)
     end function fortsym_chart_b_density
+
+    function fortsym_chart_b_con_form(raw, coordinates, position, input, degree, &
+            orientation, out, message, capacity) bind(c, &
+            name="fortsym_chart_b_con_form") result(status)
+        type(c_ptr), value :: raw, coordinates, position, input, out
+        integer(c_size_t), value :: degree
+        integer(c_int), value :: orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: input_value
+        type(expr_t) :: value(DIM)
+        type(c_ptr), pointer :: output(:)
+        integer :: shape(1)
+
+        shape(1) = DIM
+        call c_f_pointer(out, output, shape)
+        call clear_array_outputs(output)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (degree /= 2_c_size_t .or. (orientation /= 1_c_int .and. &
+            orientation /= -1_c_int)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call get_form_input(chart, a, input, degree, input_value, status, &
+            message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = b_con_form(chart, input_value, int(orientation))
+        call make_array_handles(a, value, output, status, message, capacity)
+    end function fortsym_chart_b_con_form
+
+    function fortsym_chart_b_density_form(raw, coordinates, position, input, degree, &
+            orientation, out, message, capacity) bind(c, &
+            name="fortsym_chart_b_density_form") result(status)
+        type(c_ptr), value :: raw, coordinates, position, input, out
+        integer(c_size_t), value :: degree
+        integer(c_int), value :: orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: input_value
+        type(tensor_t) :: value
+        type(expr_t) :: components(DIM)
+        type(c_ptr), pointer :: output(:)
+        integer :: shape(1), indices(1), k
+
+        shape(1) = DIM
+        call c_f_pointer(out, output, shape)
+        call clear_array_outputs(output)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (degree /= 2_c_size_t .or. (orientation /= 1_c_int .and. &
+            orientation /= -1_c_int)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call get_form_input(chart, a, input, degree, input_value, status, &
+            message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = b_density_form(chart, input_value, int(orientation))
+        if (.not. tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        do k = 1, DIM
+            indices(1) = k
+            components(k) = tensor_component(value, indices)
+        end do
+        call make_array_handles(a, components, output, status, message, capacity)
+    end function fortsym_chart_b_density_form
 
     function fortsym_chart_flux_normal_residual(raw, coordinates, position, &
             vector, label_index, out, message, capacity) bind(c, &

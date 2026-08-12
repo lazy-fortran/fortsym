@@ -254,6 +254,31 @@ class NativePackageTest(unittest.TestCase):
             self.assertEqual(flux_form[3].simplify(), 1)
             self.assertTrue(flux_form.is_closed)
 
+    def test_native_magnetic_form_dual_views(self):
+        with fortsym.Arena() as arena:
+            u, v, w = [arena.symbol(name)
+                       for name in ("dual_u", "dual_v", "dual_w")]
+            chart = fortsym.Chart((u, v, w), (u + v, v, w))
+            potential = (v*w, u**2, v + w**2)
+            upper = chart.curl(potential)
+            beta = chart.one_form(potential).d()
+            recovered = beta.b_con()
+            density = beta.b_density()
+            self.assertEqual(recovered.variance, (1,))
+            self.assertEqual(density.variance, (1,))
+            self.assertEqual(density.density_weight, 1)
+            for index in range(3):
+                self.assertEqual((recovered[index] - upper[index]).simplify(), 0)
+                self.assertEqual(
+                    (density[index] - chart.b_density(upper)[index]).simplify(), 0
+                )
+            reversed_beta = chart.volume(-1).interior(upper)
+            reversed_density = reversed_beta.b_density(-1)
+            for index in range(3):
+                self.assertEqual(
+                    (reversed_density[index] - density[index]).simplify(), 0
+                )
+
     def test_native_tensor_and_connection_frontend(self):
         with fortsym.Arena() as arena:
             z, r, phi = [arena.symbol(name)

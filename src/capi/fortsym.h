@@ -274,6 +274,14 @@ int fortsym_chart_b_density(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *vector[],
     fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_b_con_form(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *input[], size_t degree,
+    int orientation, fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_b_density_form(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *input[], size_t degree,
+    int orientation, fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_chart_flux_normal_residual(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *vector[],

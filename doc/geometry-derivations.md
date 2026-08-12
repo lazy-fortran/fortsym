@@ -215,7 +215,8 @@ warnings.
   orientation. `b_con_form` applies the chart Hodge map and metric raise;
   `b_density_form` then adds the weight-`+1` `sqrtg` factor. The nonorthogonal
   magnetic test checks both orientations against the independently assembled
-  `interior(B, volume_form)` form.
+  `interior(B, volume_form)` form. The public C ABI and both Python facades
+  carry the same bridge without duplicating its geometry algebra.
 - [ ] Complete the n=0/n/=0 Fourier weak-form owner and its Python facade.
 - [ ] Add executable de Sitter and GPS/Newtonian-limit derivation records.
 - [ ] Run every record through native Fortran, fortsym.sympy, and the

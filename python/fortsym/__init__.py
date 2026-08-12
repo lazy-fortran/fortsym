@@ -543,6 +543,19 @@ def _configure(lib):
             "chart_" + name,
             declare("fortsym_chart_" + name, ctypes.c_int, arguments),
         )
+    for name in ("b_con_form", "b_density_form"):
+        setattr(
+            lib,
+            "chart_" + name,
+            declare(
+                "fortsym_chart_" + name, ctypes.c_int,
+                [
+                    _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+                    ctypes.POINTER(_CVOID), _SIZE, ctypes.c_int,
+                    ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+                ],
+            ),
+        )
     lib.chart_flux_normal_residual = declare(
         "fortsym_chart_flux_normal_residual", ctypes.c_int,
         [
@@ -3017,6 +3030,25 @@ class Arena:
             [components, form.degree], 3,
         )
 
+    def _chart_b_form(self, chart, form, orientation, density):
+        components = (_CVOID * 8)(
+            *[self._check(value)._handle for value in form.components]
+        )
+        output = (_CVOID * 3)()
+        message = _message()
+        operation = (
+            self._lib.chart_b_density_form if density
+            else self._lib.chart_b_con_form
+        )
+        status = operation(
+            self._require(), *self._chart_inputs(chart.coordinates, chart.position),
+            components, form.degree, int(orientation), output, message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "b_form")
+        return tuple(Expr(self, output[index]) for index in range(3))
+
     def _chart_inputs(self, coordinates, position):
         coordinates = tuple(self._check(value) for value in coordinates)
         position = tuple(self._check(value) for value in position)
@@ -3507,6 +3539,24 @@ class Chart:
             self._arena._lib.chart_b_density,
             self.coordinates, self.position, vector,
         )
+
+    def b_con_form(self, beta, orientation=1):
+        """Return typed ``B^i`` recovered from a magnetic two-form."""
+        if not isinstance(beta, Form) or beta.chart is not self:
+            raise ValueError("b_con_form expects a two-form from this chart")
+        if beta.degree != 2:
+            raise ValueError("b_con_form expects a degree-two form")
+        components = self._arena._chart_b_form(self, beta, orientation, False)
+        return self.vector(components)
+
+    def b_density_form(self, beta, orientation=1):
+        """Return typed ``sqrt(g) B^i`` recovered from a magnetic two-form."""
+        if not isinstance(beta, Form) or beta.chart is not self:
+            raise ValueError("b_density_form expects a two-form from this chart")
+        if beta.degree != 2:
+            raise ValueError("b_density_form expects a degree-two form")
+        components = self._arena._chart_b_form(self, beta, orientation, True)
+        return self.vector(components, density_weight=1)
 
     def h_cov(self, reluctivity, vector):
         """Return covariant ``H_i = nu_ij*B^j`` components."""
@@ -5352,6 +5402,14 @@ class Form:
 
     def sharp(self):
         return self._arena._chart_form_sharp(self)
+
+    def b_con(self, orientation=1):
+        """Recover the contravariant magnetic field from a degree-two form."""
+        return self.chart.b_con_form(self, orientation)
+
+    def b_density(self, orientation=1):
+        """Recover the weight-one magnetic density from a degree-two form."""
+        return self.chart.b_density_form(self, orientation)
 
     def scale(self, factor):
         components = self._arena._chart_form_scale(self, factor)
