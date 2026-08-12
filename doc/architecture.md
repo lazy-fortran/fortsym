@@ -170,6 +170,14 @@ implementation target recorded in the differential-geometry section of
 [`ROADMAP.md`](../ROADMAP.md), while the current fixed-three-dimensional
 modules are the migration starting point.
 
+The registry owner is `src/calculus/fortsym_registry.f90`. A caller creates
+and initializes `toolkit_registry_t`, registers a name, version, owner module,
+capability description, and refusal boundary, and may attach a procedure
+pointer probe. `register_builtin_geometry` fills an explicit registry with the
+ten shipped geometry owners. The call is visible in application code, so a
+host can register only the toolkits it ships and can add private owners beside
+them without changing the core expression arena.
+
 The native limit layer proves continuity substitutions, bounded L'Hopital
 steps, polynomial degree ratios at infinity, and a restricted single-monomial
 growth ordering. It checks a full two-sided finite neighborhood before
