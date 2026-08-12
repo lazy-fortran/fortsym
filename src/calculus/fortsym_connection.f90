@@ -571,15 +571,31 @@ contains
         integer :: a, b, cindex, d
 
         if (.not. tensor_valid(riemann)) return
-        variances = [UPPER, LOWER_VARIANCE, LOWER_VARIANCE, LOWER_VARIANCE]
+        variances = 0
+        variances(1) = UPPER
+        variances(2) = LOWER_VARIANCE
+        variances(3) = LOWER_VARIANCE
+        variances(4) = LOWER_VARIANCE
         do a = 1, DIM
             do b = 1, DIM
                 do cindex = 1, DIM
                     do d = 1, DIM
-                        indices = [a, b, cindex, d]
-                        value = tensor_component(riemann, indices) + &
-                            tensor_component(riemann, [a, cindex, d, b]) + &
-                            tensor_component(riemann, [a, d, b, cindex])
+                        indices(1) = a
+                        indices(2) = b
+                        indices(3) = cindex
+                        indices(4) = d
+                        value = tensor_component(riemann, indices)
+                        indices(2) = cindex
+                        indices(3) = d
+                        indices(4) = b
+                        value = value + tensor_component(riemann, indices)
+                        indices(2) = d
+                        indices(3) = b
+                        indices(4) = cindex
+                        value = value + tensor_component(riemann, indices)
+                        indices(2) = b
+                        indices(3) = cindex
+                        indices(4) = d
                         values(encode_index(indices, 4)) = value
                     end do
                 end do

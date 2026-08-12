@@ -1053,7 +1053,12 @@ conversion only. They do not maintain a second geometry implementation.
   field-line and flux-surface operations, Clebsch/Boozer/Hamada identities,
   and the paper's Fourier FEM reductions without coupling them into generic
   chart, tensor, or form code. The current `b_*` and `j_fourier` subset is the
-  first checked slice, not completion of the toolkit.
+  first checked slice, not completion of the toolkit. The first executable
+  nested-flux-surface example now checks `B^psi=0`, `div(B)=0`, and
+  `i_B(volume)=dA`; the analytic Boozer fixture now verifies that the
+  covariant angular components are flux functions, shows the metric form, and
+  checks the raised-field divergence. Equilibrium construction plus
+  Clebsch/Hamada descriptors and field-line labels remain open.
 - [ ] **7A.7 Frontends and corpus.** Translate every supported Wolfram and
   Python corpus record to the native IR, preserve assumptions and refusal
   conditions, and expose SymPy-compatible names through one conversion path.
@@ -1410,8 +1415,9 @@ without an explicit volume factor.
   field-line derivatives, magnetic surfaces, flux-surface averages, and
   Jacobian-weighted divergence.
 - [ ] Support Clebsch, straight-field-line, Boozer, and Hamada coordinate
-  descriptors as data and verified identities. Start with symbolic relations
-  and refusal on inconsistent or singular input. Do not encode a particular
+  descriptors as reusable data and verified identities. The analytic Boozer
+  example is only the first representation fixture; add symbolic relations and
+  refusal on inconsistent or singular input. Do not encode a particular
   equilibrium solver in this toolkit.
 - [ ] Add the common plasma identities `B dot grad(psi) = 0`, the reciprocal
   basis relations, `B = B^i e_i = B_i e^i`, `div(B) = 0`, and the magnetic

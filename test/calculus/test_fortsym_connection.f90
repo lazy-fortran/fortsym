@@ -151,13 +151,17 @@ program test_fortsym_connection
     curved_components(1, 1) = num(arena, 1)
     curved_components(2, 2) = (1 + u(1)**2)**2
     curved_components(3, 3) = num(arena, 1)
-    curved_metric = metric_create(curved_components, [1, 1, 1], 1, u)
+    curved_metric = metric_create(curved_components, orientation=1, &
+        coordinates=u)
     if (.not. metric_valid(curved_metric)) error stop "curved metric invalid"
     curved_riemann = riemann_tensor(curved_metric)
     curved_bianchi = first_bianchi_residual(curved_metric)
     call check_tensor_zero(suite, engine, native, curved_bianchi, &
         "non-flat metric first Bianchi residual is zero")
-    indices = [1, 2, 1, 2]
+    indices(1) = 1
+    indices(2) = 2
+    indices(3) = 1
+    indices(4) = 2
     nonzero_result = engine%zero_test(tensor_component(curved_riemann, indices))
     if (.not. nonzero_result%ok .or. nonzero_result%verdict /= VERDICT_FALSE) then
         error stop "non-flat metric did not produce nonzero curvature"

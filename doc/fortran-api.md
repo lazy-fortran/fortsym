@@ -260,6 +260,59 @@ and arbitrary-rank surface remains roadmap work.
 `R^a_bcd + R^a_cdb + R^a_dbc`; it is zero for the torsion-free metric
 connection and is exposed as a residual rather than a hidden Boolean.
 
+## Relativity and magnetic-flux examples
+
+The built examples keep physical assumptions at the application boundary:
+
+```text
+fo exec example_de_sitter
+fo exec example_gps_newtonian_limit
+fo exec example_magnetic_flux_coordinates
+fo exec example_boozer_coordinates
+```
+
+`example_de_sitter` uses the flat-slicing metric
+`ds^2 = -dt^2 + exp(2 H t)(dx^2 + dy^2 + dz^2)` and verifies
+`G_ab + 3 H^2 g_ab = 0` and `R = 12 H^2`. The GPS example uses the weak,
+static metric `g_tt = -(1 + 2 Phi)` in units with `c = 1`. Its checked
+Christoffel component gives `r'' = -d_r Phi` in the slow-motion limit. The
+printed clock correction is `d tau/dt - 1 = Phi - v^2/2`; restoring units
+gives `Phi/c^2 - v^2/(2 c^2)`.
+
+The GPS example follows the order-`1/c^2` separation of gravitational and
+second-order Doppler effects described by Pascual-Sánchez, *Introducing
+Relativity in Global Navigation Satellite Systems*,
+[`arXiv:gr-qc/0507121`](https://arxiv.org/abs/gr-qc/0507121). The broader
+survey *Relativity in the Global Positioning System* is available in
+[`Living Reviews in Relativity`](https://www.maths.tcd.ie/EMIS/journals/LRG/Articles/lrr-2003-1/).
+The example proves the symbolic weak-field identity. It does not model Earth
+rotation, signal propagation, orbital eccentricity, or a full post-Newtonian
+GNSS solution.
+
+`example_magnetic_flux_coordinates` uses
+`R = R0 + a sqrt(psi) cos(theta)` and `Z = a sqrt(psi) sin(theta)` with
+`phi` as the toroidal angle. The covector potential `A = psi dphi` produces a
+field tangent to `psi = constant` surfaces. The generic chart, metric, volume,
+form, and magnetic owners perform the derivation. The application contains no
+second magnetic representation.
+
+`example_boozer_coordinates` is a compact analytic Boozer-coordinate fixture,
+not an equilibrium solver. With `q = (psi, theta, phi)` it uses
+
+```text
+g_ij = diag(1, h^2, h^2),       sqrt(g) = h^2,
+B_i = (0, I(psi), G(psi)),     B^i = (0, I/h^2, G/h^2).
+```
+
+It proves that `B_theta` and `B_phi` are independent of the angular
+coordinates, hence are flux functions, and checks `div(B) = 0` after raising
+the covector with the native metric owner. This intentionally isolates the
+Boozer representation: a real equilibrium calculation must still construct
+the coordinate map and solve the corresponding magnetic equations. The
+standard Boozer covariant representation and its flux-function angular
+components are summarized in [FusionWiki's Boozer-coordinate reference](https://fusionwiki.ciemat.es/wiki/Boozer_coordinates)
+and the [Boozer-coordinate notes](https://sites.fusion.ciemat.es/jlvelasco/files/notes/Boozer.pdf).
+
 `symbols` assigns whitespace- or comma-separated names to scalar outputs:
 
 ```fortran
