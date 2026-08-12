@@ -28,6 +28,7 @@ program test_fortsym_connection
     type(expr_t) :: u(DIM), position(DIM), scalar_value
     type(expr_t) :: gamma(DIM, DIM, DIM), expected
     type(tensor_t) :: scalar, gradient, metric, metric_derivative
+    type(tensor_t) :: metric_gradient, metric_owner_value
     type(tensor_t) :: density_value, density_derivative, gamma_value
     type(tensor_t) :: metric_gamma_value
     type(tensor_t) :: riemann, ricci, einstein
@@ -72,6 +73,7 @@ program test_fortsym_connection
     scalar_value = u(2)
     scalar = tensor_scalar(scalar_value)
     gradient = covariant_diff(polynomial, scalar)
+    metric_gradient = covariant_diff(metric_owner, scalar)
     indices(1) = 1
     call check_identity(suite, engine, "nabla_Z R = 0", &
         tensor_component(gradient, indices(1:1)))
@@ -81,11 +83,18 @@ program test_fortsym_connection
     indices(1) = 3
     call check_identity(suite, engine, "nabla_phi R = 0", &
         tensor_component(gradient, indices(1:1)))
+    indices(1) = 2
+    call check_identity(suite, engine, "metric-owner nabla_R R = 1", &
+        tensor_component(metric_gradient, indices(1:1)) - 1)
 
     metric = metric_covariant_tensor(polynomial)
     metric_derivative = covariant_diff(polynomial, metric)
     call check_tensor_zero(suite, engine, native, metric_derivative, &
         "metric compatibility")
+    metric_owner_value = metric_covariant_tensor(metric_owner)
+    metric_derivative = covariant_diff(metric_owner, metric_owner_value)
+    call check_tensor_zero(suite, engine, native, metric_derivative, &
+        "metric-owner compatibility")
 
     density_value = tensor_scalar(jacobian(polynomial), 1)
     density_derivative = covariant_diff(polynomial, density_value)

@@ -812,6 +812,9 @@ The first-class object model is staged around these metadata owners:
   `christoffel_tensor(metric_t)` derive the same connection as the chart path.
   A supplied metric without coordinates is refused for derivative-based
   connection construction rather than inferring variables from free symbols.
+- [x] Apply the same owner rule to `covariant_diff` and
+  `covariant_derivative`; chart and coordinate-aware metric calls share one
+  slot/density component kernel and independent metric-compatibility checks.
 - [ ] `orientation_t` and the positive volume density are separate metadata.
   `volume_form(metric, orientation)` may change sign, while `sqrtg(metric)`
   never absorbs orientation. `epsilon` constructors distinguish the symbol,
