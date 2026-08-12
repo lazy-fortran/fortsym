@@ -226,8 +226,8 @@ Every checklist item requires all of the following:
     refuses non-mapping inputs without adding a native alias or second walk.
   - [x] Add exact non-wildcard `Expr.match` through the existing native
     equality owner. Equal structural expressions return `{}`, unequal
-    expressions return `None`, and wildcard patterns remain unsupported until
-    their compatibility vocabulary is defined.
+    expressions return `None`; wildcard matching is tracked as a separate
+    bounded adapter fragment below.
 - [ ] Complete exact integer/rational/real/complex and algebraic domains.
   - [x] Preserve arbitrary-size integer and rational construction and native
     arithmetic in the current scalar fragment. `num`, `rat`, and `exact` share
@@ -558,6 +558,10 @@ Every checklist item requires all of the following:
   `expand`, `rewrite`, `replace`, and `match`.
     - [x] Implement non-visual `count_ops` through one native operation-count
       owner, with SymPy tree semantics and an explicit `visual=True` refusal.
+    - [x] Add the adapter-only `Wild` vocabulary and structural wildcard
+      matching for direct wildcards and fixed-shape expression slots, including
+      SymPy-compatible `exclude` and `properties` filters. Commutative
+      remainder partitioning and other broad matcher rules remain open.
 
 ## Phase 4 — polynomial and rational algebra
 
@@ -802,6 +806,10 @@ Every checklist item requires all of the following:
   - [x] Add exact non-wildcard `match` correctness and performance coverage.
     The 110-row matrix measured native/SymPy ratios of 0.699x cold and 0.526x
     warm, with zero correctness failures and zero unwaived violations.
+  - [x] Add bounded `Wild` matching correctness and performance coverage. The
+    112-row matrix measured native/SymPy ratios of 0.698x cold and 0.503x warm
+    for direct wildcard matching, with zero correctness failures and zero
+    unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

@@ -8,6 +8,7 @@ and never imports SymPy.  Names outside the table in ``python/README.md`` raise
 from __future__ import annotations
 
 from fractions import Fraction
+from itertools import count
 
 from .. import (
     Arena, Expr, FortSymError, _Assumption, _CONFLICT, _FACT_INTEGER,
@@ -23,9 +24,86 @@ class InconsistentAssumptions(ValueError):
     """The supplied assumptions cannot hold simultaneously."""
 
 
+_WILD_COUNTER = count()
+
+
+def _wildcard_accepts(wildcard, expression):
+    if any(expression == excluded for excluded in wildcard._exclude):
+        return False
+    for property_function in wildcard._properties:
+        if not bool(property_function(expression)):
+            return False
+    return True
+
+
+def _match_pattern(expression, pattern, old=False):
+    """Match structural wildcard nodes in the declared adapter fragment."""
+    wildcards = getattr(pattern, "_wildcard_patterns", {})
+    if getattr(pattern, "_wildcard_direct", False):
+        wildcard = (pattern if isinstance(pattern, Wild)
+                    else next(iter(wildcards.values())))
+        return ({wildcard: expression}
+                if _wildcard_accepts(wildcard, expression) else None)
+    bindings = {}
+    actual_children = []
+    pattern_children = []
+
+    def visit(actual, expected):
+        wildcard = (wildcards.get(expected.name)
+                    if expected.kind == 4 else None)
+        if wildcard is not None:
+            previous = bindings.get(wildcard)
+            if previous is not None:
+                return actual == previous
+            if not _wildcard_accepts(wildcard, actual):
+                return False
+            bindings[wildcard] = actual
+            return True
+
+        if actual.kind != expected.kind:
+            return False
+        if actual.kind in (1, 2, 3, 4, 5, 10, 11, 12, 13):
+            return actual == expected
+        if actual.kind == 9 and (
+                actual.name != expected.name or
+                actual.arity != expected.arity):
+            return False
+        if actual.arity != expected.arity:
+            return False
+        actual_args = actual.args
+        expected_args = expected.args
+        actual_children.extend(actual_args)
+        pattern_children.extend(expected_args)
+        return all(visit(left, right)
+                   for left, right in zip(actual_args, expected_args))
+
+    try:
+        if not visit(expression, pattern):
+            return None
+        return dict(bindings)
+    finally:
+        keep = {id(value) for value in bindings.values()}
+        for child in pattern_children:
+            child.close()
+        closed = set()
+        for child in actual_children:
+            marker = id(child)
+            if marker in closed:
+                continue
+            closed.add(marker)
+            if marker not in keep:
+                child.close()
+
+
 def _coerce(value):
     if isinstance(value, Expr):
         return _default()._check(value)
+    pattern_materializer = getattr(value, "_materialize_pattern", None)
+    if pattern_materializer is not None:
+        return _default()._check(pattern_materializer())
+    pattern_expression = getattr(value, "_pattern_expression", None)
+    if pattern_expression is not None:
+        return _default()._check(pattern_expression)
     if isinstance(value, Fraction):
         return Rational(value.numerator, value.denominator)
     if isinstance(value, bool):
@@ -461,6 +539,89 @@ class Float(Expr, metaclass=_KindMeta):
         return _default().real(float(value))
 
 
+def _attach_pattern(expression, values):
+    wildcards = {}
+    for value in values:
+        candidate = getattr(value, "_pattern_expression", None)
+        if candidate is None:
+            materializer = getattr(value, "_materialize_pattern", None)
+            candidate = value if materializer is None else materializer()
+        wildcards.update(getattr(candidate, "_wildcard_patterns", {}))
+    if wildcards:
+        expression._wildcard_patterns = wildcards
+        expression._wildcard_matcher = _match_pattern
+    return expression
+
+
+class Wild:
+    """A bounded SymPy-compatible structural wildcard."""
+
+    def __new__(cls, name, exclude=(), properties=(), **assumptions):
+        if assumptions:
+            raise UnsupportedOperationError("Wild assumptions")
+        instance = super().__new__(cls)
+        instance.name = f"{name}_"
+        instance._pattern_expression = None
+        instance._pattern_arena = _default()
+        instance._wildcard_direct = True
+        instance._wildcard_matcher = _match_pattern
+        if isinstance(exclude, (tuple, list, set, frozenset)):
+            excluded = exclude
+        else:
+            excluded = (exclude,)
+        instance._exclude = tuple(sympify(value) for value in excluded)
+        if properties is None:
+            properties = ()
+        elif callable(properties):
+            properties = (properties,)
+        instance._properties = tuple(properties)
+        return instance
+
+    def _materialize_pattern(self):
+        if self._pattern_expression is None:
+            expression = self._pattern_arena.symbol(
+                f"__fortsym_wild_{next(_WILD_COUNTER)}"
+            )
+            expression._wildcard_patterns = {expression.name: self}
+            expression._wildcard_direct = True
+            expression._wildcard_matcher = _match_pattern
+            self._pattern_expression = expression
+        return self._pattern_expression
+
+    def __str__(self):
+        return self.name
+
+    __repr__ = __str__
+
+    @property
+    def args(self):
+        return ()
+
+    @property
+    def exclude(self):
+        return self._exclude
+
+    @property
+    def properties(self):
+        return self._properties
+
+    @property
+    def is_symbol(self):
+        return True
+
+    def __add__(self, other): return self._materialize_pattern() + other
+    def __radd__(self, other): return other + self._materialize_pattern()
+    def __sub__(self, other): return self._materialize_pattern() - other
+    def __rsub__(self, other): return other - self._materialize_pattern()
+    def __mul__(self, other): return self._materialize_pattern() * other
+    def __rmul__(self, other): return other * self._materialize_pattern()
+    def __truediv__(self, other): return self._materialize_pattern() / other
+    def __rtruediv__(self, other): return other / self._materialize_pattern()
+    def __pow__(self, other): return self._materialize_pattern() ** other
+    def __rpow__(self, other): return other ** self._materialize_pattern()
+    def __neg__(self): return -self._materialize_pattern()
+
+
 class Add(Expr, metaclass=_KindMeta):
     _kinds = frozenset({6})
 
@@ -505,10 +666,16 @@ class Function(Expr, metaclass=_KindMeta):
         if _:
             raise UnsupportedOperationError("function assumptions")
         if args:
-            return _default().function(str(name), [_coerce(arg) for arg in args])
+            arguments = [_coerce(arg) for arg in args]
+            return _attach_pattern(
+                _default().function(str(name), arguments), args
+            )
 
         def applied(*arguments):
-            return _default().function(str(name), [_coerce(arg) for arg in arguments])
+            values = [_coerce(arg) for arg in arguments]
+            return _attach_pattern(
+                _default().function(str(name), values), arguments
+            )
 
         applied.__name__ = str(name)
         return applied
@@ -575,6 +742,8 @@ def FunctionClass(name):
 def _named_function(name):
     def applied(*args):
         expression = Function(name, *args)
+        if getattr(expression, "_wildcard_patterns", None):
+            return expression
         try:
             return expression.simplify()
         finally:
@@ -764,7 +933,7 @@ __all__ = [
     "Arena", "Expr", "FortSymError", "UnsupportedOperationError",
     "InconsistentAssumptions",
     "Symbol", "symbols", "sympify", "Integer", "Rational", "Float",
-    "Add", "Mul", "Pow", "Function", "Derivative", "Subs", "sin", "cos",
+    "Add", "Mul", "Pow", "Function", "Wild", "Derivative", "Subs", "sin", "cos",
     "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "csch",
     "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial",
     "besselj", "besseli", "legendre", "expand_complex",
