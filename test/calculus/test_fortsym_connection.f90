@@ -3,7 +3,7 @@ program test_fortsym_connection
     ! flat, nonorthogonal, and has a nonconstant Jacobian, so compatibility,
     ! density, and curvature identities stay in the exact rational fragment.
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, num, sym, operator(+), operator(-), &
+    use fortsym_expr, only: expr_t, num, sym, cos, sin, operator(+), operator(-), &
         operator(*), operator(/), operator(**)
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
     use fortsym_engine, only: engine_result_t, VERDICT_FALSE
@@ -18,7 +18,7 @@ program test_fortsym_connection
         tensor_rank, tensor_variance, tensor_valid, metric_covariant_tensor, &
         UPPER, LOWER_VARIANCE, MAX_RANK, tensor_vector, density
     use fortsym_connection, only: covariant_diff, covariant_divergence, &
-        christoffel_tensor, &
+        geodesic_residual, christoffel_tensor, &
         riemann_tensor, first_bianchi_residual, ricci_tensor, &
         second_bianchi_residual, scalar_curvature, einstein_tensor
     implicit none
@@ -28,7 +28,9 @@ program test_fortsym_connection
     type(native_engine_t) :: native
     type(suite_t) :: suite
     type(chart_t) :: polynomial
+    type(chart_t) :: cylindrical
     type(metric_t) :: metric_owner
+    type(metric_t) :: cylindrical_metric
     type(metric_t) :: curved_metric
     type(expr_t) :: u(DIM), position(DIM), scalar_value
     type(expr_t) :: gamma(DIM, DIM, DIM), expected
@@ -44,6 +46,9 @@ program test_fortsym_connection
     type(tensor_t) :: curved_second_bianchi
     type(expr_t) :: metric_scalar
     type(expr_t) :: curved_components(DIM, DIM)
+    type(expr_t) :: cylindrical_u(DIM), cylindrical_position(DIM)
+    type(expr_t) :: geodesic_curve(DIM), geodesic_parameter
+    type(expr_t) :: geodesic_value(DIM), metric_geodesic_value(DIM)
     type(engine_result_t) :: nonzero_result
     integer :: indices(MAX_RANK), four_indices(4)
 
@@ -142,6 +147,29 @@ program test_fortsym_connection
     call check_tensor_zero(suite, engine, native, metric_einstein, &
         "metric-owner Einstein tensor is zero")
 
+    cylindrical = make_cylindrical_chart()
+    cylindrical_metric = metric_from_chart(cylindrical)
+    geodesic_curve(1) = sym(arena, "R0")
+    geodesic_parameter = sym(arena, "lambda")
+    geodesic_curve(2) = geodesic_parameter
+    geodesic_curve(3) = num(arena, 0)
+    geodesic_value = geodesic_residual(cylindrical, geodesic_curve, &
+        geodesic_parameter)
+    call check_identity(suite, engine, "cylindrical radial geodesic residual", &
+        geodesic_value(1) + geodesic_curve(1))
+    call check_identity(suite, engine, "cylindrical angular geodesic residual", &
+        geodesic_value(2))
+    call check_identity(suite, engine, "cylindrical axial geodesic residual", &
+        geodesic_value(3))
+    metric_geodesic_value = geodesic_residual(cylindrical_metric, geodesic_curve, &
+        geodesic_parameter)
+    call check_identity(suite, engine, "metric-owner cylindrical radial geodesic", &
+        metric_geodesic_value(1) + geodesic_curve(1))
+    call check_identity(suite, engine, "metric-owner cylindrical angular geodesic", &
+        metric_geodesic_value(2))
+    call check_identity(suite, engine, "metric-owner cylindrical axial geodesic", &
+        metric_geodesic_value(3))
+
     bianchi = first_bianchi_residual(polynomial)
     call check_tensor_zero(suite, engine, native, bianchi, &
         "flat chart first Bianchi residual is zero")
@@ -199,6 +227,18 @@ contains
         position(3) = u(3)
         c = chart_create(arena, u, position)
     end function make_polynomial_chart
+
+    function make_cylindrical_chart() result(c)
+        type(chart_t) :: c
+
+        cylindrical_u(1) = sym(arena, "rho")
+        cylindrical_u(2) = sym(arena, "theta")
+        cylindrical_u(3) = sym(arena, "zeta")
+        cylindrical_position(1) = cylindrical_u(1)*cos(cylindrical_u(2))
+        cylindrical_position(2) = cylindrical_u(1)*sin(cylindrical_u(2))
+        cylindrical_position(3) = cylindrical_u(3)
+        c = chart_create(arena, cylindrical_u, cylindrical_position)
+    end function make_cylindrical_chart
 
     subroutine check_tensor_zero(s, e, n, value, label)
         type(suite_t), intent(inout) :: s

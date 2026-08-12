@@ -53,6 +53,9 @@ metric signature and orientation. `SpacetimeForm.field_strength()` returns
 `maxwell_residual(current)` returns the native source residual `d(star(F))-J`.
 `geodesic_residual(curve, parameter)` returns the four native components of
 the parameterized geodesic equation.
+`Chart.geodesic_residual(curve, parameter)` provides the matching three-
+component chart-owner operation and substitutes the curve into the chart
+connection before evaluating it.
 `SpacetimeForm.interior(vector)` and `.lie(vector)` provide contraction and
 the Cartan Lie derivative, with `interior_product` and `lie_derivative` as
 matching aliases. `.laplace_de_rham()` composes the same native `d` and

@@ -54,7 +54,7 @@ module fortsym_public_capi
         raise_tensor => raise, lower_tensor => lower, permute_tensor => permute, &
         symmetrize_tensor => symmetrize, antisymmetrize_tensor => antisymmetrize
     use fortsym_connection, only: covariant_diff, covariant_divergence, &
-        christoffel_tensor, &
+        geodesic_residual, christoffel_tensor, &
         riemann_tensor, first_bianchi_residual, second_bianchi_residual, &
         ricci_tensor, &
         scalar_curvature, einstein_tensor
@@ -142,7 +142,8 @@ module fortsym_public_capi
         fortsym_chart_tensor_contract, fortsym_chart_tensor_product, &
         fortsym_chart_tensor_symmetrize, &
         fortsym_chart_riemann, fortsym_chart_first_bianchi_residual, &
-        fortsym_chart_second_bianchi_residual, fortsym_chart_ricci, &
+        fortsym_chart_second_bianchi_residual, fortsym_chart_geodesic_residual, &
+        fortsym_chart_ricci, &
         fortsym_chart_scalar_curvature, fortsym_chart_einstein, &
         fortsym_chart_form_add, fortsym_chart_form_subtract, &
         fortsym_chart_form_negate, fortsym_chart_form_scale, &
@@ -175,7 +176,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 46_c_int
+        v = 47_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1519,6 +1520,48 @@ contains
         value = second_bianchi_residual(chart)
         call make_tensor_array(a, value, 5, out, status, message, capacity)
     end function fortsym_chart_second_bianchi_residual
+
+    function fortsym_chart_geodesic_residual(raw, coordinates, position, curve, &
+            parameter, out, message, capacity) bind(c, &
+            name="fortsym_chart_geodesic_residual") result(status)
+        type(c_ptr), value :: raw, coordinates, position, curve, parameter, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(expr_t) :: curve_value(DIM), parameter_value, value(DIM)
+        type(c_ptr), pointer :: curve_values(:)
+        integer :: i, shape(1)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. c_associated(curve) .or. .not. c_associated(parameter)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape(1) = DIM
+        call c_f_pointer(curve, curve_values, shape)
+        do i = 1, DIM
+            call get_expr(curve_values(i), owner, curve_value(i), status, &
+                message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        call get_expr(parameter, owner, parameter_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        value = geodesic_residual(chart, curve_value, parameter_value)
+        call make_expr_array(a, value, out, DIM, status, message, capacity)
+    end function fortsym_chart_geodesic_residual
 
     function fortsym_chart_ricci(raw, coordinates, position, out, message, &
             capacity) bind(c, name="fortsym_chart_ricci") result(status)

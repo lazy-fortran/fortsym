@@ -252,10 +252,10 @@ vector density it reduces to `div_density`, namely
 `partial_i(sqrtg*V^i)` when the stored components are `sqrtg*V^i`.
 
 The current fixed-three-dimensional subset also provides typed Christoffel,
-Ricci, and Einstein tensors. Its convention is
+geodesic residuals, Ricci, and Einstein tensors. Its convention is
 `R^a_bcd = d_c Gamma^a_db - d_d Gamma^a_cb + Gamma^a_cm Gamma^m_db -`
-`Gamma^a_dm Gamma^m_cb`; the broader pseudo-Riemannian, torsion, geodesic,
-and arbitrary-rank surface remains roadmap work.
+`Gamma^a_dm Gamma^m_cb`; pseudo-Riemannian sign-corpus coverage, torsion, and
+geodesic solving remain roadmap work.
 `first_bianchi_residual` returns the rank-four residual
 `R^a_bcd + R^a_cdb + R^a_dbc`; it is zero for the torsion-free metric
 connection and is exposed as a residual rather than a hidden Boolean.
@@ -263,6 +263,11 @@ connection and is exposed as a residual rather than a hidden Boolean.
 `nabla_e R^a_bcd + nabla_c R^a_bde + nabla_d R^a_bec`. The typed tensor owner
 now preserves that derivative slot and exposes the same residual through the
 Python/SymPy facade.
+`geodesic_residual(chart, curve, parameter)` and its coordinate-aware
+`metric_t` overload return `x''^a + Gamma^a_bc x'^b x'^c`, after substituting
+the parameterized curve into the connection. The current owner is fixed to
+three-dimensional charts; geodesic solving and variational mechanics remain
+separate roadmap work.
 
 ## Relativity and magnetic-flux examples
 

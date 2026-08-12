@@ -134,6 +134,22 @@ class NativePackageTest(unittest.TestCase):
             second_bianchi = cartesian.second_bianchi_residual()
             self.assertEqual(second_bianchi[0, 1, 0, 1, 2].simplify(), 0)
 
+            rho, theta, zeta = [arena.symbol(name)
+                                for name in ("rho", "theta", "zeta")]
+            parameter = arena.symbol("lambda")
+            radius = arena.symbol("R0")
+            cylindrical = fortsym.Chart(
+                (rho, theta, zeta),
+                (rho*arena.function("cos", (theta,)),
+                 rho*arena.function("sin", (theta,)), zeta),
+            )
+            residual = cylindrical.geodesic_residual(
+                (radius, parameter, 0), parameter
+            )
+            self.assertEqual((residual[0] + radius).simplify(), 0)
+            self.assertEqual(residual[1].simplify(), 0)
+            self.assertEqual(residual[2].simplify(), 0)
+
     def test_native_differential_form_frontend(self):
         with fortsym.Arena() as arena:
             x, y, z = [arena.symbol(name) for name in ("form_x", "form_y", "form_z")]

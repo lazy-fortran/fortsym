@@ -1114,7 +1114,7 @@ conversion only. They do not maintain a second geometry implementation.
 - [ ] **7A.4 Connections and vector calculus.** Extend covariant derivatives to
   every slot and every density weight, then derive `grad`, `curl`, `div`, and
   `laplacian` from the same metric, volume, and connection owners. Add
-  torsion, nonmetricity, Levi-Civita construction, geodesics, Riemann/Ricci/
+  torsion, nonmetricity, Levi-Civita construction, geodesic solving, Riemann/Ricci/
   Einstein tensors, Bianchi identities, Killing tests, and named sign
   conventions.
 - [ ] **7A.5 Forms and topology.** Extend degree-`k` forms, pullbacks,
@@ -1361,7 +1361,7 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   derivative slot, applies every slot's Christoffel term, and honors density
   weight. Metric compatibility and an independent nonlinear nonorthogonal
   chart check are required gates.
-- [ ] Implement torsion, nonmetricity, geodesics, Lie derivatives, and named
+- [ ] Implement torsion, nonmetricity, geodesic solving, Lie derivatives, and named
   Riemann-sign conventions. Support both Riemannian and pseudo-Riemannian
   connections without coupling them to magnetic physics.
 - [x] Implement the first fixed-three-dimensional curvature views:
@@ -1373,6 +1373,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   Flat, nonorthogonal, and genuinely curved metric cases are checked against
   SymEngine's independent zero oracle; arbitrary dimensions and non-Levi-Civita
   connections remain open.
+- [x] Add fixed-three-dimensional chart and coordinate-aware metric geodesic
+  residuals through the native owner, C ABI 47, and the Python chart facade.
+  Cylindrical coordinates check the nonzero radial Christoffel term against
+  an independent SymEngine oracle; solving, variational mechanics, and
+  arbitrary-dimensional transport remain open.
 - [ ] Derive vector calculus from tensor/forms primitives. `grad`, `div`,
   `curl`, and `laplacian` must share the same metric, orientation, and density
   conventions rather than maintaining separate coordinate formulas.

@@ -152,8 +152,9 @@ modules, including density weights.
 
 The native `connection_native` example extends this with covariant
 differentiation and typed curvature views. `fortsym_connection` owns
-Christoffel, Riemann, Ricci, scalar-curvature, Einstein, and second-Bianchi
-construction, with independent checks for metric compatibility and
+Christoffel, geodesic residuals, Riemann, Ricci, scalar-curvature, Einstein,
+and second-Bianchi construction, with independent checks for metric
+compatibility and
 tensor-density weights.
 
 The relativity examples continue from those owners. `example_de_sitter`
