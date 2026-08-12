@@ -11,8 +11,11 @@ from fractions import Fraction
 from itertools import count
 
 from .. import (
-    Arena, Chart, ChartMap, MagneticField, Tensor, Form, Expr, FortSymError, _Assumption, _CONFLICT, _FACT_INTEGER,
-    _FACT_RATIONAL, _FACT_ALGEBRAIC, _default,
+    Arena, Chart, ChartMap, MagneticField, FourierWeakForm, Tensor, Form, Expr,
+    FortSymError, FOURIER_INVALID, FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE,
+    SPACE_NONE, SPACE_NODAL, SPACE_EDGE, TRACE_NONE, TRACE_NORMAL,
+    TRACE_TANGENTIAL, _Assumption, _CONFLICT, _FACT_INTEGER, _FACT_RATIONAL,
+    _FACT_ALGEBRAIC, _default,
 )
 from ..diffgeom import (
     BaseScalarField, BaseVectorField, CoordinateSymbol, CoordSystem,
@@ -1211,7 +1214,8 @@ nan = _default().constant("nan")
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "MagneticField", "Tensor", "Form", "Expr", "FortSymError", "UnsupportedOperationError",
+    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Tensor", "Form", "Expr", "FortSymError", "UnsupportedOperationError",
+    "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "Manifold", "Patch", "CoordSystem", "CoordinateSymbol", "BaseScalarField",
     "BaseVectorField", "Differential", "WedgeProduct", "TensorProduct", "LieDerivative",
     "InconsistentAssumptions",

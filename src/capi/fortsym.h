@@ -266,6 +266,17 @@ int fortsym_chart_j_fourier(
     const fortsym_expr *position[], const fortsym_expr *reluctivity[],
     const fortsym_expr *potential[], const fortsym_expr *mode,
     fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_fourier_weak_form(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *reluctivity[], int mode,
+    int *branch, int *trial_space, int *test_space, int *trial_components,
+    int *test_components, int *boundary_trace, fortsym_expr **scalar_coefficient,
+    fortsym_expr **transverse_curl_coefficient, fortsym_expr *transverse_mass[],
+    char *message, size_t capacity);
+int fortsym_chart_current_compatibility(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *current[], int mode,
+    fortsym_expr **out, char *message, size_t capacity);
 /* Geometry tensor arrays use first-slot-fastest order, matching the native
  * `tensor_component` convention. The caller supplies an output array with
  * `3**rank` slots and releases each returned handle with fortsym_expr_free. */

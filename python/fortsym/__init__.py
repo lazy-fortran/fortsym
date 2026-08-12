@@ -43,6 +43,16 @@ _RELATIONS = {
     "GreaterEqual": (">=", 6),
 }
 
+FOURIER_INVALID = 0
+FOURIER_LONGITUDINAL = 1
+FOURIER_TRANSVERSE = 2
+SPACE_NONE = 0
+SPACE_NODAL = 1
+SPACE_EDGE = 2
+TRACE_NONE = 0
+TRACE_NORMAL = 1
+TRACE_TANGENTIAL = 2
+
 
 def _matrix3_values(matrix):
     """Return a 3x3 matrix in the native first-slot-fastest order."""
@@ -295,6 +305,28 @@ def _configure(lib):
             ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
             ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CVOID,
             ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_fourier_weak_form = declare(
+        "fortsym_chart_fourier_weak_form", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_current_compatibility = declare(
+        "fortsym_chart_current_compatibility", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.c_int, ctypes.POINTER(_CVOID),
+            _CHAR_PTR, _SIZE,
         ],
     )
     for name in ("covariant_basis", "reciprocal_basis", "metric_covariant",
@@ -853,6 +885,75 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message), "j_fourier")
         return tuple(Expr(self, output[index]) for index in range(3))
+
+    def _chart_fourier_weak_form(self, chart, reluctivity, mode):
+        if not isinstance(mode, int) or isinstance(mode, bool):
+            raise TypeError("fourier_weak_form mode must be an integer")
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporary_values = []
+        try:
+            reluctivity_values = []
+            for value in _matrix3_values(reluctivity):
+                value, temporary = self._coerce(value)
+                reluctivity_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            reluctivity_handles = (_CVOID * 9)(
+                *[value._handle for value in reluctivity_values]
+            )
+            branch = ctypes.c_int()
+            trial_space = ctypes.c_int()
+            test_space = ctypes.c_int()
+            trial_components = ctypes.c_int()
+            test_components = ctypes.c_int()
+            boundary_trace = ctypes.c_int()
+            scalar = _CVOID()
+            transverse_curl = _CVOID()
+            mass = (_CVOID * 4)()
+            message = _message()
+            status = self._lib.chart_fourier_weak_form(
+                self._require(), coordinate_handles, position_handles,
+                reluctivity_handles, mode, ctypes.byref(branch),
+                ctypes.byref(trial_space), ctypes.byref(test_space),
+                ctypes.byref(trial_components), ctypes.byref(test_components),
+                ctypes.byref(boundary_trace), ctypes.byref(scalar),
+                ctypes.byref(transverse_curl), mass, message, len(message),
+            )
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
+        if status:
+            raise FortSymError(status, _decode(message), "fourier_weak_form")
+        components = tuple(Expr(self, mass[index]) for index in range(4))
+        return FourierWeakForm(
+            chart, mode, branch.value, trial_space.value, test_space.value,
+            trial_components.value, test_components.value, boundary_trace.value,
+            Expr(self, scalar), Expr(self, transverse_curl), components,
+        )
+
+    def _chart_current_compatibility(self, chart, current, mode):
+        if not isinstance(mode, int) or isinstance(mode, bool):
+            raise TypeError("current_compatibility mode must be an integer")
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        values = tuple(self._check(value) for value in current)
+        if len(values) != 3:
+            raise ValueError("current_compatibility requires three components")
+        handles = (_CVOID * 3)(*[value._handle for value in values])
+        output = _CVOID()
+        message = _message()
+        status = self._lib.chart_current_compatibility(
+            self._require(), coordinate_handles, position_handles, handles,
+            mode, ctypes.byref(output), message, len(message),
+        )
+        if status:
+            raise FortSymError(
+                status, _decode(message), "current_compatibility"
+            )
+        return Expr(self, output)
 
     def _chart_tensor(self, operation, coordinates, position, rank):
         coordinate_handles, position_handles = self._chart_inputs(
@@ -1416,6 +1517,16 @@ class Chart:
             self, reluctivity, potential, mode,
         )
 
+    def fourier_weak_form(self, reluctivity, mode):
+        """Return native n=0 or n!=0 Fourier variational metadata."""
+        return self._arena._chart_fourier_weak_form(
+            self, reluctivity, mode,
+        )
+
+    def current_compatibility(self, current, mode):
+        """Return the native metric-free Fourier current divergence."""
+        return self._arena._chart_current_compatibility(self, current, mode)
+
 
 class MagneticField:
     """Typed magnetic views sharing one chart and native components."""
@@ -1425,6 +1536,48 @@ class MagneticField:
         self.upper = Tensor(chart, upper, (1,))
         self.lower = Tensor(chart, lower, (-1,))
         self.density = Tensor(chart, density, (1,), 1)
+
+
+class FourierWeakForm:
+    """Native metadata and coefficient blocks for one Fourier FEM branch."""
+
+    def __init__(self, chart, mode, branch, trial_space, test_space,
+                 trial_components, test_components, boundary_trace,
+                 scalar_coefficient, transverse_curl_coefficient, mass):
+        self.chart = chart
+        self.mode = mode
+        self.branch = branch
+        self.trial_space = trial_space
+        self.test_space = test_space
+        self.trial_components = trial_components
+        self.test_components = test_components
+        self.boundary_trace = boundary_trace
+        self.scalar_coefficient = scalar_coefficient
+        self.transverse_curl_coefficient = transverse_curl_coefficient
+        self.transverse_mass = (
+            (mass[0], mass[2]),
+            (mass[1], mass[3]),
+        )
+        self.requires_current_compatibility = True
+
+    @property
+    def branch_name(self):
+        return {
+            FOURIER_LONGITUDINAL: "longitudinal",
+            FOURIER_TRANSVERSE: "transverse",
+        }.get(self.branch, "invalid")
+
+    @property
+    def has_gradient_term(self):
+        return self.branch == FOURIER_LONGITUDINAL
+
+    @property
+    def has_curl_term(self):
+        return self.branch == FOURIER_TRANSVERSE
+
+    @property
+    def has_mass_term(self):
+        return self.branch == FOURIER_TRANSVERSE
 
 
 class ChartMap:
@@ -2520,7 +2673,8 @@ def free_symbols(expression: Expr): return expression.free_symbols
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "MagneticField", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count",
     "free_symbols",
 ]

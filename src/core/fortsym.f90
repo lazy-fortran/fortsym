@@ -61,6 +61,12 @@ module fortsym
         einstein_tensor
     use fortsym_magnetic, only: b_con, b_cov, b_density, b_fourier, &
         b_fourier_density, j_fourier
+    use fortsym_magnetic_weak, only: fourier_constitutive, &
+        fourier_constitutive_t, fourier_weak_form, fourier_weak_form_t, &
+        current_compatibility, nubar, fourier_constitutive_valid, &
+        fourier_weak_form_valid, FOURIER_INVALID, FOURIER_LONGITUDINAL, &
+        FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, SPACE_EDGE, TRACE_NONE, &
+        TRACE_NORMAL, TRACE_TANGENTIAL
     implicit none
     private
 
@@ -98,6 +104,11 @@ module fortsym
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form, &
         pullback, b_con, &
         b_cov, b_density, b_fourier, b_fourier_density, j_fourier, &
+        fourier_constitutive, fourier_constitutive_t, fourier_weak_form, &
+        fourier_weak_form_t, current_compatibility, nubar, &
+        fourier_constitutive_valid, fourier_weak_form_valid, FOURIER_INVALID, &
+        FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, &
+        SPACE_EDGE, TRACE_NONE, TRACE_NORMAL, TRACE_TANGENTIAL, &
         form_t, form, form_scalar, form_one, form_two, &
         form_three, form_component, form_degree, form_valid, add_forms, &
         subtract_forms, negate_form, wedge, d, &
