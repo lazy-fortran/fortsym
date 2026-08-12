@@ -627,6 +627,8 @@ class SympyDifferentialTest(unittest.TestCase):
             (oracle.acos(oracle.zoo), native.acos(native.zoo)),
             (oracle.atan(oracle.oo), native.atan(native.oo)),
             (oracle.atan(-oracle.oo), native.atan(-native.oo)),
+            (oracle.atan(oracle.I), native.atan(native.I)),
+            (oracle.atan(-oracle.I), native.atan(-native.I)),
             (oracle.asinh(oracle.oo), native.asinh(native.oo)),
             (oracle.asinh(-oracle.oo), native.asinh(-native.oo)),
             (oracle.asinh(oracle.zoo), native.asinh(native.zoo)),

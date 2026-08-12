@@ -1321,6 +1321,7 @@ contains
         type(expr_t) :: imaginary_half_pi, negative_imaginary_half_pi
         type(expr_t) :: quarter_pi, imaginary_quarter_pi
         type(expr_t) :: negative_imaginary_quarter_pi
+        type(expr_t) :: imaginary_infinity, negative_imaginary_infinity
 
         infinity = oo_expr(arena)
         complex_infinity = zoo_expr(arena)
@@ -1334,6 +1335,9 @@ contains
         imaginary_quarter_pi = i_expr(arena)*quarter_pi
         negative_imaginary_quarter_pi = rat(arena, -1_int64, 4_int64)* &
             i_expr(arena)*pi_expr(arena)
+        imaginary_infinity = i_expr(arena)*infinity
+        negative_imaginary_infinity = rat(arena, -1_int64, 1_int64)* &
+            i_expr(arena)*infinity
 
         r = engine%simplify(asin(infinity))
         call check("asin(oo) is negative i oo", &
@@ -1356,6 +1360,11 @@ contains
             r%value == negative_half_pi)
         r = engine%simplify(atan(complex_infinity))
         call check("atan(zoo) remains an applied head", r%value%kind() == NK_FUNC)
+        r = engine%simplify(atan(i_expr(arena)))
+        call check("atan(i) is i oo", r%value == imaginary_infinity)
+        r = engine%simplify(atan(-i_expr(arena)))
+        call check("atan(-i) is negative i oo", &
+            r%value == negative_imaginary_infinity)
         r = engine%simplify(asinh(infinity))
         call check("asinh(oo) is oo", r%value == infinity)
         r = engine%simplify(asinh(negative_infinity))

@@ -2575,7 +2575,8 @@ contains
             else if (is_minus_one_id(a, id)) then
                 out = mul_pair(a, a%int(-1_int64), quarter_pi)
             else
-                return
+                call exact_odd_imaginary_value(a, id, a%const("oo"), out, ok)
+                if (.not. ok) return
             end if
         case ("asinh")
             if (is_zero_id(a, id)) then
