@@ -84,7 +84,8 @@ connection before evaluating it.
 or a supplied `Gamma^a_bc` owner. `Connection.torsion()`,
 `Connection.nonmetricity(metric)`, `Connection.covariant_diff(tensor)`, and
 `Connection.covariant_divergence(tensor)` all route through the same native
-connection owner; `Tensor.covariant_diff(connection)` and
+connection owner. `Connection.riemann()` differentiates supplied coefficients
+without requiring a metric; `Tensor.covariant_diff(connection)` and
 `Tensor.covariant_divergence(connection)` are matching convenience spellings.
 `SpacetimeForm.interior(vector)` and `.lie(vector)` provide contraction and
 the Cartan Lie derivative, with `interior_product` and `lie_derivative` as

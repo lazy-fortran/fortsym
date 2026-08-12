@@ -162,6 +162,7 @@ module fortsym_public_capi
         fortsym_chart_connection_nonmetricity, &
         fortsym_chart_connection_covariant_diff, &
         fortsym_chart_connection_covariant_divergence, &
+        fortsym_chart_connection_riemann, &
         fortsym_chart_riemann, fortsym_chart_first_bianchi_residual, &
         fortsym_chart_second_bianchi_residual, fortsym_chart_geodesic_residual, &
         fortsym_chart_ricci, &
@@ -200,7 +201,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 55_c_int
+        v = 56_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1659,6 +1660,25 @@ contains
         call make_tensor_array(a, value, int(rank) + 1, out, status, message, &
             capacity)
     end function fortsym_chart_connection_covariant_diff
+
+    function fortsym_chart_connection_riemann(raw, coordinates, position, &
+            components, out, message, capacity) bind(c, &
+            name="fortsym_chart_connection_riemann") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(connection_t) :: connection
+        type(tensor_t) :: value
+
+        call get_chart_connection_input(raw, coordinates, position, components, &
+            chart, a, connection, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = riemann_tensor(connection)
+        call make_tensor_array(a, value, 4, out, status, message, capacity)
+    end function fortsym_chart_connection_riemann
 
     function fortsym_chart_connection_covariant_divergence(raw, coordinates, &
             position, connection_components, components, rank, variance, &
