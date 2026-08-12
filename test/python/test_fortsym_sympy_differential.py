@@ -530,6 +530,8 @@ class SympyDifferentialTest(unittest.TestCase):
             (oracle.log(-oracle.I), native.log(-native.I)),
             (oracle.acosh(0), native.acosh(0)),
             (oracle.acosh(-1), native.acosh(-1)),
+            (oracle.acosh(oracle.I), native.acosh(native.I)),
+            (oracle.acosh(-oracle.I), native.acosh(-native.I)),
             (oracle.sqrt(-1), native.sqrt(-1)),
             (oracle.sqrt(-4), native.sqrt(-4)),
             (oracle.sqrt(oracle.Rational(-4, 9)),
