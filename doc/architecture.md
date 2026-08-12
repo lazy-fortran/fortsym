@@ -127,9 +127,10 @@ oracle evaluates the original expression independently rather than
 reconstructing the expected parts from the splitter.
 
 The `fortsym_metric` owner now carries fixed-three-dimensional metric
-components, signature, orientation, inverse, determinant, and positive
-`sqrtg` independently of a chart. `metric_from_chart` is its convenience
-constructor; it copies expression handles, not symbolic subgraphs. The
+components, signature, orientation, inverse, determinant, positive `sqrtg`,
+and oriented volume-form input independently of a chart. `metric_from_chart`
+is its convenience constructor; it copies expression handles, not symbolic
+subgraphs. The
 `fortsym` facade, C ABI, and `fortsym.sympy` adapter all call the relevant
 owner;
 they add only result/error transport and SymPy spelling translation, so there

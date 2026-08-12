@@ -10,6 +10,8 @@ module fortsym_form
     use fortsym_arena, only: arena_t
     use fortsym_chart, only: chart_t, DIM, metric_covariant, &
         metric_contravariant, sqrtg
+    use fortsym_metric, only: metric_t, metric_valid, metric_arena, &
+        metric_orientation, metric_sqrtg
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, num, is_valid, operator(+), operator(-), &
         operator(*), operator(/), operator(==)
@@ -45,8 +47,14 @@ module fortsym_form
     end interface star
 
     interface volume
-        module procedure volume_form
+        module procedure volume_form_chart
+        module procedure volume_form_metric
     end interface volume
+
+    interface volume_form
+        module procedure volume_form_chart
+        module procedure volume_form_metric
+    end interface volume_form
 
     interface interior
         module procedure interior_product
@@ -162,7 +170,7 @@ contains
     end function form_three
 
     !> Oriented metric volume form sigma*sqrt(g) du^1^du^2^du^3.
-    function volume_form(c, orientation) result(alpha)
+    function volume_form_chart(c, orientation) result(alpha)
         type(chart_t), intent(in) :: c
         integer, optional, intent(in) :: orientation
         type(form_t) :: alpha
@@ -175,7 +183,28 @@ contains
         coefficient = sqrtg(c)
         if (sign < 0) coefficient = -coefficient
         alpha = form_three(c, coefficient)
-    end function volume_form
+    end function volume_form_chart
+
+    !> Oriented metric volume form from an explicit metric owner.
+    !>
+    !> The stored metric orientation is used by default; an optional sign is
+    !> an explicit view change. The positive metric volume is never modified.
+    function volume_form_metric(g, orientation) result(alpha)
+        type(metric_t), intent(in) :: g
+        integer, optional, intent(in) :: orientation
+        type(form_t) :: alpha
+        type(expr_t) :: coefficient
+        integer :: sign
+
+        if (.not. metric_valid(g)) return
+        sign = metric_orientation(g)
+        if (present(orientation)) sign = orientation
+        if (sign /= 1 .and. sign /= -1) return
+        coefficient = metric_sqrtg(g)
+        if (sign < 0) coefficient = -coefficient
+        alpha = zero_form(metric_arena(g), 3)
+        alpha%component(7) = coefficient
+    end function volume_form_metric
 
     !> Return a coefficient by its ordered basis mask.
     function form_component(alpha, mask) result(value)

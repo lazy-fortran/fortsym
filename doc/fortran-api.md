@@ -67,6 +67,8 @@ chart-induced Euclidean metric or `metric_create` for a supplied metric, and
 always pass the signature and orientation when they are physically meaningful.
 `metric_sqrtg` is positive and never absorbs orientation; `metric_det` and
 `metric_contravariant` retain the metric's own signature.
+`volume_form(metric_owner)` uses the stored orientation, while
+`volume_form(metric_owner, sign)` makes an explicit oriented view.
 
 ```fortran
 use fortsym_chart, only: DIM
