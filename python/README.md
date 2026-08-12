@@ -155,8 +155,12 @@ using the native contraction owner. `fortsym.sympy.TensorIndexType` and
 `Chart.one_form()`, `two_form()`, and
 `three_form()` construct native `Form` objects. Forms expose the fixed
 three-dimensional basis-mask components plus `d()`, `wedge()`, `star()`,
-`interior()`, `lie()`, `flat()`, and `sharp()`; `form * form` is the concise
-wedge spelling and scalar multiplication is coefficient scaling. The same
+`codifferential()`/`codiff()`, `laplace_de_rham()`, `interior()`, `lie()`,
+`flat()`, and `sharp()`; pass a `Metric` to the metric-aware Hodge,
+codifferential, or Laplace--de Rham operation. The de Rham Laplacian follows
+the mathematician's sign convention, so its scalar flat-space value is
+`-sum(diff(f, x_i, 2))`. `form * form` is the concise wedge spelling and
+scalar multiplication is coefficient scaling. The same
 classes are re-exported as `fortsym.sympy.Chart`, `fortsym.sympy.Tensor`, and
 `fortsym.sympy.Form`; they do not reimplement geometry in Python.
 `Form.is_closed` and `SpacetimeForm.is_closed` use the native three-valued

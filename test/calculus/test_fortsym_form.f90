@@ -12,8 +12,8 @@ program test_fortsym_form
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart
     use fortsym_magnetic, only: b_con
     use fortsym_form, only: form_t, form, form_one, form_zero, form_valid, &
-        form_component, form_degree, wedge, d, star, interior, lie, flat, &
-        sharp, scale_form, volume_form
+        form_component, form_degree, wedge, d, exterior_diff, star, interior, lie, &
+        flat, sharp, scale_form, volume_form, codifferential, laplace_de_rham
     use fortsym_form_tensor, only: form_from_tensor, tensor_from_form
     use fortsym_tensor, only: tensor_t, tensor_from_matrix, tensor_component, &
         tensor_variance, tensor_valid, density, LOWER_VARIANCE
@@ -24,7 +24,9 @@ program test_fortsym_form
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
     type(chart_t) :: shear
+    type(chart_t) :: cartesian
     type(metric_t) :: metric_owner
+    type(metric_t) :: cartesian_metric
     type(metric_t) :: lorentz_metric
     type(expr_t) :: u(DIM), position(DIM), vector(DIM), potential(DIM)
     type(expr_t) :: scalar, expected, left, right
@@ -33,6 +35,7 @@ program test_fortsym_form
     type(form_t) :: scalar_form, one_form
     type(form_t) :: derivative, second_derivative, product, hodge, hodge_hodge
     type(form_t) :: metric_hodge, metric_hodge_hodge
+    type(form_t) :: codifferential_form, laplace_form
     type(form_t) :: volume, reversed_volume, flux, lie_form
     type(form_t) :: cartan_first, cartan_second
     type(form_t) :: top_zero, top_from_d
@@ -46,6 +49,8 @@ program test_fortsym_form
     engine = make_symengine_engine(arena)
     shear = make_shear_chart()
     metric_owner = metric_from_chart(shear, orientation=-1)
+    cartesian = make_cartesian_chart()
+    cartesian_metric = metric_from_chart(cartesian)
     call suite_begin(suite, "differential forms")
 
     u(1) = sym(arena, "u1")
@@ -143,6 +148,20 @@ program test_fortsym_form
         call check_identity(suite, engine, "Hodge star squared on one-form", &
             form_component(hodge_hodge, mask) - form_component(one_form, mask))
     end do
+
+    scalar = u(1)**2 + u(2)**2 + u(3)**2
+    scalar_form = form(scalar)
+    one_form = form_one(cartesian, u)
+    call check_identity(suite, engine, "Cartesian codifferential", &
+        form_component(codifferential(cartesian, one_form), 0) + 3)
+    call check_identity(suite, engine, "Cartesian Laplace-de Rham", &
+        form_component(laplace_de_rham(cartesian, scalar_form), 0) + 6)
+    call check_identity(suite, engine, "Metric codifferential owner", &
+        form_component(codifferential(cartesian_metric, one_form), 0) + 3)
+    call check_identity(suite, engine, "Metric Laplace-de Rham owner", &
+        form_component(laplace_de_rham(cartesian_metric, scalar_form), 0) + 6)
+    call check_identity(suite, engine, "Metric exterior derivative owner", &
+        form_component(exterior_diff(cartesian_metric, scalar_form), 1) - 2*u(1))
 
     lorentz_components(1, 1) = num(arena, -1)
     lorentz_components(1, 2) = num(arena, 0)
@@ -247,5 +266,11 @@ contains
         position(3) = u(3)
         c = chart_create(arena, u, position)
     end function make_shear_chart
+
+    function make_cartesian_chart() result(c)
+        type(chart_t) :: c
+
+        c = chart_create(arena, u, u)
+    end function make_cartesian_chart
 
 end program test_fortsym_form

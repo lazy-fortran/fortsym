@@ -373,6 +373,16 @@ int fortsym_chart_form_star_metric(
     const fortsym_expr *position[], const fortsym_expr *components[],
     const int signature[], int orientation, const fortsym_expr *input[],
     size_t degree, fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_form_codifferential_metric(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    const int signature[], int orientation, const fortsym_expr *input[],
+    size_t degree, fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_form_laplace_de_rham_metric(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    const int signature[], int orientation, const fortsym_expr *input[],
+    size_t degree, fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_spacetime_metric_sqrtg(
     fortsym_arena *arena, const fortsym_expr *components[], int dimension,
     const fortsym_expr *coordinates[], const int signature[], int orientation,
@@ -681,6 +691,14 @@ int fortsym_chart_form_wedge(
     const fortsym_expr *right[], size_t right_degree, fortsym_expr *out[],
     char *message, size_t capacity);
 int fortsym_chart_form_star(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *input[], size_t degree,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_form_codifferential(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *input[], size_t degree,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_form_laplace_de_rham(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *input[], size_t degree,
     fortsym_expr *out[], char *message, size_t capacity);

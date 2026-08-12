@@ -78,8 +78,8 @@ module fortsym_public_capi
     use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
         form_zero, &
         form_component, form_valid, add_forms, subtract_forms, negate_form, &
-        wedge, exterior_diff, hodge_star, interior_product, lie_derivative, &
-        flat, sharp, scale_form, volume_form
+        wedge, exterior_diff, hodge_star, codifferential, laplace_de_rham, &
+        interior_product, lie_derivative, flat, sharp, scale_form, volume_form
     use fortsym_form_tensor, only: form_from_tensor, tensor_from_form
     use fortsym_assume_api, only: assumption_context_t, init_assumption_context, &
         clone_assumption_context, record_assumption, &
@@ -186,11 +186,13 @@ module fortsym_public_capi
         fortsym_chart_form_add, fortsym_chart_form_subtract, &
         fortsym_chart_form_negate, fortsym_chart_form_scale, &
         fortsym_chart_form_d, fortsym_chart_form_closed, fortsym_chart_form_wedge, &
-        fortsym_chart_form_star, fortsym_chart_form_interior, &
+        fortsym_chart_form_star, fortsym_chart_form_codifferential, &
+        fortsym_chart_form_laplace_de_rham, fortsym_chart_form_interior, &
         fortsym_chart_form_lie, fortsym_chart_form_flat, &
         fortsym_chart_form_sharp, fortsym_chart_form_volume, &
         fortsym_chart_form_from_tensor, fortsym_chart_tensor_from_form, &
-        fortsym_chart_form_star_metric, fortsym_spacetime_metric_sqrtg, &
+        fortsym_chart_form_star_metric, fortsym_chart_form_codifferential_metric, &
+        fortsym_chart_form_laplace_de_rham_metric, fortsym_spacetime_metric_sqrtg, &
         fortsym_spacetime_metric_contravariant, fortsym_spacetime_metric_flat, &
         fortsym_spacetime_metric_sharp, fortsym_spacetime_metric_grad, &
         fortsym_spacetime_metric_divergence, fortsym_spacetime_metric_laplacian, &
@@ -2275,6 +2277,48 @@ contains
         call make_form_array(a, value, out, status, message, capacity)
     end function fortsym_chart_form_star
 
+    function fortsym_chart_form_codifferential(raw, coordinates, position, input, &
+            degree, out, message, capacity) bind(c, &
+            name="fortsym_chart_form_codifferential") result(status)
+        type(c_ptr), value :: raw, coordinates, position, input, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: input_value, value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = codifferential(chart, input_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_codifferential
+
+    function fortsym_chart_form_laplace_de_rham(raw, coordinates, position, input, &
+            degree, out, message, capacity) bind(c, &
+            name="fortsym_chart_form_laplace_de_rham") result(status)
+        type(c_ptr), value :: raw, coordinates, position, input, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: input_value, value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = laplace_de_rham(chart, input_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_laplace_de_rham
+
     function fortsym_chart_form_interior(raw, coordinates, position, vector, input, &
             degree, out, message, capacity) bind(c, name="fortsym_chart_form_interior") &
             result(status)
@@ -3152,6 +3196,54 @@ contains
         value = hodge_star(metric, input_value)
         call make_form_array(a, value, out, status, message, capacity)
     end function fortsym_chart_form_star_metric
+
+    function fortsym_chart_form_codifferential_metric(raw, coordinates, position, &
+            components, signature, orientation, input, degree, out, message, &
+            capacity) bind(c, name="fortsym_chart_form_codifferential_metric") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, signature
+        integer(c_int), value :: orientation
+        type(c_ptr), value :: input, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(metric_t) :: metric
+        type(form_t) :: input_value, value
+
+        call get_metric_chart_input(raw, coordinates, position, components, signature, &
+            orientation, chart, metric, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = codifferential(metric, input_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_codifferential_metric
+
+    function fortsym_chart_form_laplace_de_rham_metric(raw, coordinates, position, &
+            components, signature, orientation, input, degree, out, message, &
+            capacity) bind(c, name="fortsym_chart_form_laplace_de_rham_metric") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, signature
+        integer(c_int), value :: orientation
+        type(c_ptr), value :: input, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(metric_t) :: metric
+        type(form_t) :: input_value, value
+
+        call get_metric_chart_input(raw, coordinates, position, components, signature, &
+            orientation, chart, metric, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = laplace_de_rham(metric, input_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_laplace_de_rham_metric
 
     function fortsym_spacetime_metric_sqrtg(raw, components, dimension, &
             coordinates, signature, orientation, out, message, capacity) bind(c, &

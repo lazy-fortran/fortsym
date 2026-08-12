@@ -686,6 +686,24 @@ def _configure(lib):
             _SIZE,
         ],
     )
+    lib.chart_form_codifferential_metric = declare(
+        "fortsym_chart_form_codifferential_metric", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR,
+            _SIZE,
+        ],
+    )
+    lib.chart_form_laplace_de_rham_metric = declare(
+        "fortsym_chart_form_laplace_de_rham_metric", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR,
+            _SIZE,
+        ],
+    )
     spacetime_arguments = [
         _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
         ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
@@ -1014,7 +1032,7 @@ def _configure(lib):
         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR,
         _SIZE,
     ]
-    for name in ("negate", "d", "star"):
+    for name in ("negate", "d", "star", "codifferential", "laplace_de_rham"):
         setattr(
             lib,
             "chart_form_" + name,
@@ -1919,7 +1937,7 @@ class Arena:
             raise FortSymError(status, _decode(message), operation.__name__)
         return Expr(self, output)
 
-    def _metric_form_star(self, metric, form):
+    def _metric_form_unary(self, operation, metric, form):
         coordinate_handles, position_handles = self._chart_inputs(
             form.chart.coordinates, form.chart.position
         )
@@ -1927,14 +1945,17 @@ class Arena:
         values = (_CVOID * 8)(*[value._handle for value in form.components])
         output = (_CVOID * 8)()
         message = _message()
-        status = self._lib.chart_form_star_metric(
+        status = operation(
             self._require(), coordinate_handles, position_handles, components,
             signature, metric.orientation, values, form.degree, output,
             message, len(message),
         )
         if status:
-            raise FortSymError(status, _decode(message), "metric_hodge_star")
+            raise FortSymError(status, _decode(message), operation.__name__)
         return tuple(Expr(self, output[index]) for index in range(8))
+
+    def _metric_form_star(self, metric, form):
+        return self._metric_form_unary(self._lib.chart_form_star_metric, metric, form)
 
     def _spacetime_inputs(self, metric):
         components = (_CVOID * (SPACETIME_DIM * SPACETIME_DIM))(
@@ -4762,6 +4783,38 @@ class Form:
         return Form(self.chart, components, 3 - self.degree, _owned=True)
 
     hodge_star = star
+
+    def codifferential(self, metric=None):
+        """Return the metric codifferential ``delta`` of this form."""
+        if self.degree == 0:
+            raise ValueError("codifferential is defined here for positive-degree forms")
+        if metric is None:
+            components = self._arena._chart_form_unary(
+                self._arena._lib.chart_form_codifferential, self
+            )
+        else:
+            if not isinstance(metric, Metric) or metric.chart is not self.chart:
+                raise ValueError("metric codifferential requires this chart's metric")
+            components = self._arena._metric_form_unary(
+                self._arena._lib.chart_form_codifferential_metric, metric, self
+            )
+        return Form(self.chart, components, self.degree - 1, _owned=True)
+
+    codiff = codifferential
+
+    def laplace_de_rham(self, metric=None):
+        """Return ``d(delta(form)) + delta(d(form))``."""
+        if metric is None:
+            components = self._arena._chart_form_unary(
+                self._arena._lib.chart_form_laplace_de_rham, self
+            )
+        else:
+            if not isinstance(metric, Metric) or metric.chart is not self.chart:
+                raise ValueError("metric Laplace--de Rham requires this chart's metric")
+            components = self._arena._metric_form_unary(
+                self._arena._lib.chart_form_laplace_de_rham_metric, metric, self
+            )
+        return Form(self.chart, components, self.degree, _owned=True)
 
     def wedge(self, other):
         self._check_other(other)
