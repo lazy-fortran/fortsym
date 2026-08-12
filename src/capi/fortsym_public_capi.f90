@@ -163,6 +163,7 @@ module fortsym_public_capi
         fortsym_chart_connection_covariant_diff, &
         fortsym_chart_connection_covariant_divergence, &
         fortsym_chart_connection_riemann, &
+        fortsym_chart_connection_geodesic_residual, &
         fortsym_chart_riemann, fortsym_chart_first_bianchi_residual, &
         fortsym_chart_second_bianchi_residual, fortsym_chart_geodesic_residual, &
         fortsym_chart_ricci, &
@@ -201,7 +202,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 56_c_int
+        v = 57_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1679,6 +1680,51 @@ contains
         value = riemann_tensor(connection)
         call make_tensor_array(a, value, 4, out, status, message, capacity)
     end function fortsym_chart_connection_riemann
+
+    function fortsym_chart_connection_geodesic_residual(raw, coordinates, &
+            position, components, curve, parameter, out, message, capacity) &
+            bind(c, name="fortsym_chart_connection_geodesic_residual") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, curve, &
+            parameter, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(connection_t) :: connection
+        type(expr_t) :: curve_value(DIM), parameter_value, value(DIM)
+        type(c_ptr), pointer :: curve_values(:)
+        integer :: i, shape(1)
+
+        call get_chart_connection_input(raw, coordinates, position, components, &
+            chart, a, connection, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. c_associated(curve) .or. .not. c_associated(parameter)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape(1) = DIM
+        call c_f_pointer(curve, curve_values, shape)
+        do i = 1, DIM
+            call get_expr(curve_values(i), owner, curve_value(i), status, &
+                message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        call get_expr(parameter, owner, parameter_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        value = geodesic_residual(connection, curve_value, parameter_value)
+        call make_expr_array(a, value, out, DIM, status, message, capacity)
+    end function fortsym_chart_connection_geodesic_residual
 
     function fortsym_chart_connection_covariant_divergence(raw, coordinates, &
             position, connection_components, components, rank, variance, &

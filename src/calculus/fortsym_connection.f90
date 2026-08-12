@@ -81,6 +81,7 @@ module fortsym_connection
     interface geodesic_residual
         module procedure geodesic_residual_chart
         module procedure geodesic_residual_metric
+        module procedure geodesic_residual_connection
     end interface geodesic_residual
 
     interface christoffel_tensor
@@ -377,6 +378,40 @@ contains
             end do
         end do
     end function geodesic_residual_metric
+
+    !> Affine-connection overload of the coordinate geodesic residual.
+    !>
+    !> The supplied connection owns its coordinate tuple, so this view also
+    !> supports torsionful or nonmetric connections without requiring a metric.
+    function geodesic_residual_connection(connection, curve, parameter) result(value)
+        type(connection_t), intent(in) :: connection
+        type(expr_t), intent(in) :: curve(DIM), parameter
+        type(expr_t) :: value(DIM)
+        type(expr_t) :: velocity(DIM), term
+        integer :: a, b, k
+
+        if (.not. connection_valid(connection)) return
+        if (.not. is_valid(parameter)) return
+        if (.not. same_arena(parameter, connection%coordinate(1))) return
+        do k = 1, DIM
+            if (.not. is_valid(curve(k))) return
+            if (.not. same_arena(curve(k), connection%coordinate(1))) return
+        end do
+
+        do k = 1, DIM
+            velocity(k) = diff(curve(k), parameter)
+        end do
+        do a = 1, DIM
+            value(a) = diff(diff(curve(a), parameter), parameter)
+            do b = 1, DIM
+                do k = 1, DIM
+                    term = substitute_curve(connection%component(a, b, k), &
+                        connection%coordinate, curve)
+                    value(a) = value(a) + term*velocity(b)*velocity(k)
+                end do
+            end do
+        end do
+    end function geodesic_residual_connection
 
     function substitute_curve(expression, coordinates, curve) result(value)
         type(expr_t), intent(in) :: expression, coordinates(DIM), curve(DIM)

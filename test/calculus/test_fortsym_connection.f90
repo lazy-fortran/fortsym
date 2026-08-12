@@ -60,6 +60,7 @@ program test_fortsym_connection
     type(expr_t) :: cylindrical_u(DIM), cylindrical_position(DIM)
     type(expr_t) :: geodesic_curve(DIM), geodesic_parameter
     type(expr_t) :: geodesic_value(DIM), metric_geodesic_value(DIM)
+    type(expr_t) :: supplied_geodesic_value(DIM)
     type(engine_result_t) :: nonzero_result
     integer :: indices(MAX_RANK), four_indices(4)
 
@@ -217,6 +218,19 @@ program test_fortsym_connection
         tensor_vector(polynomial, supplied_vector))
     call check_identity(suite, engine, "supplied divergence", &
         tensor_component(supplied_divergence, indices(1:0)) - (3 + u(1)*u(2)))
+
+    geodesic_parameter = sym(arena, "connection_lambda")
+    geodesic_curve(1) = geodesic_parameter
+    geodesic_curve(2) = geodesic_parameter
+    geodesic_curve(3) = num(arena, 0)
+    supplied_geodesic_value = geodesic_residual(supplied_connection, &
+        geodesic_curve, geodesic_parameter)
+    call check_identity(suite, engine, "supplied connection geodesic", &
+        supplied_geodesic_value(1) - 3*geodesic_parameter)
+    call check_identity(suite, engine, "supplied connection geodesic y", &
+        supplied_geodesic_value(2))
+    call check_identity(suite, engine, "supplied connection geodesic z", &
+        supplied_geodesic_value(3))
 
     cylindrical = make_cylindrical_chart()
     cylindrical_metric = metric_from_chart(cylindrical)

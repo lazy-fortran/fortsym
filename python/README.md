@@ -87,6 +87,8 @@ or a supplied `Gamma^a_bc` owner. `Connection.torsion()`,
 connection owner. `Connection.riemann()` differentiates supplied coefficients
 without requiring a metric; `Tensor.covariant_diff(connection)` and
 `Tensor.covariant_divergence(connection)` are matching convenience spellings.
+`Connection.geodesic_residual(curve, parameter)` evaluates the same geodesic
+equation directly from supplied coefficients, without requiring a metric.
 `SpacetimeForm.interior(vector)` and `.lie(vector)` provide contraction and
 the Cartan Lie derivative, with `interior_product` and `lie_derivative` as
 matching aliases. `.laplace_de_rham()` composes the same native `d` and

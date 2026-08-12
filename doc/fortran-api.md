@@ -303,10 +303,11 @@ connection and is exposed as a residual rather than a hidden Boolean.
 now preserves that derivative slot and exposes the same residual through the
 Python/SymPy facade.
 `geodesic_residual(chart, curve, parameter)` and its coordinate-aware
-`metric_t` overload return `x''^a + Gamma^a_bc x'^b x'^c`, after substituting
-the parameterized curve into the connection. The current owner is fixed to
-three-dimensional charts; geodesic solving and variational mechanics remain
-separate roadmap work.
+`metric_t` and supplied `connection_t` overloads return
+`x''^a + Gamma^a_bc x'^b x'^c`, after substituting the parameterized curve into
+the connection. The supplied-connection view does not require a metric. The
+current owner is fixed to three-dimensional charts; geodesic solving and
+variational mechanics remain separate roadmap work.
 
 `connection_t` is the explicit affine-connection owner. Construct the
 coordinate Levi-Civita owner with `connection_from_chart(chart)` or
