@@ -1130,8 +1130,14 @@ between the two-dimensional gradient, scalar curl, and divergence.
   reciprocal basis, `B_i`, `B^i`, vector-density components, and the Fourier
   mode derivative as native toolkit operations rather than script-specific
   code.
+- [x] Add the generic fixed-3D Fourier curl-curl/current owner
+  `j_fourier(chart, reluctivity, potential, mode)` with the paper's
+  `d/du3 = i*n` reduction, C ABI, Python facade, and independent SymPy and
+  native identities. The paper's block reduction is now a specialization of
+  this operator.
 - [ ] Add the Levi-Civita density, constitutive tensor transformation, and
-  zero/nonzero mode curl-curl reduction as reusable toolkit operations.
+  zero/nonzero mode reduction as reusable toolkit operations beyond this
+  current operator.
 - [ ] Generate the paper's scalar longitudinal and transverse weak forms and
   source terms from those operations. Preserve the distinction between nodal
   scalar elements and two-dimensional edge elements in the generated metadata.

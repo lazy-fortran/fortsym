@@ -55,7 +55,8 @@ operators follow from that one map. Basis matrices use component-first,
 basis-second ordering, so `basis(k, i)` is the Cartesian component `k` of
 the basis vector associated with coordinate `u(i)`.
 `fortsym_magnetic` owns the derived magnetic views: `b_con`, `b_cov`,
-`b_density`, `b_fourier`, and `b_fourier_density`. The `b_fourier` interfaces
+`b_density`, `b_fourier`, `b_fourier_density`, and `j_fourier`. The
+`b_fourier` interfaces
 accept either an integer mode or an expression mode, so a paper derivation can
 use a literal mode while a symbolic check keeps `n` in the expression tree.
 The chart also owns `grad`, `divergence`, `curl`, and `laplacian`; `curl` takes
@@ -80,6 +81,8 @@ A(2) = u(2)
 A(3) = num(a, 0)
 chart = chart_create(a, u, x)
 B = b_fourier(chart, A, n)
+! For a 3x3 reluctivity nu, J = curl(nu curl(A)):
+! J = j_fourier(chart, nu, A, n)
 ```
 
 The convenience facade and the lower-level modules call the same owners; they

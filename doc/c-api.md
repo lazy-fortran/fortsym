@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 26). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 27). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -13,6 +13,9 @@ rejected.
 Chart operations reject maps whose forward or inverse Jacobian is identically
 zero, while a determinant that can vanish only on a coordinate locus remains a
 conditional map and is not silently treated as globally singular.
+`fortsym_chart_j_fourier` exposes the generic fixed-3D Fourier curl-curl
+operator `J = curl(nu curl(A))`; its 3x3 reluctivity is passed in
+first-slot-fastest (column-major) order and the symmetry derivative is `i*n`.
 The native library retains an
 arena while any expression handle refers to it; callers may therefore release
 the arena before releasing its expressions.

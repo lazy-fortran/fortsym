@@ -24,7 +24,10 @@ condition are refused by the C ABI.
 magnetic, tensor, connection, and form owners. It accepts three coordinate
 expressions and their Cartesian position map, then exposes `sqrtg()`, metric
 and curvature views, covariant differentiation, `b_fourier()`,
-`b_fourier_density()`, and `b_cov()`. `Chart.one_form()`, `two_form()`, and
+`b_fourier_density()`, `j_fourier()`, and `b_cov()`. `j_fourier(nu, A, n)`
+computes the native fixed-3D Fourier curl-curl operator; `nu` accepts a nested
+3x3 matrix or a nine-entry first-slot-fastest (column-major) sequence.
+`Chart.one_form()`, `two_form()`, and
 `three_form()` construct native `Form` objects. Forms expose the fixed
 three-dimensional basis-mask components plus `d()`, `wedge()`, `star()`,
 `interior()`, `lie()`, `flat()`, and `sharp()`; `form * form` is the concise

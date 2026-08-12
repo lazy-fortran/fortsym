@@ -263,6 +263,29 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_paper_magnetic_fourier_current_matches_sympy(self):
+        x1, x2, x3, n = sp.symbols(
+            "current_x1 current_x2 current_x3 current_n"
+        )
+        chart = sp.Chart((x1, x2, x3), (x1, x2, x3))
+        reluctivity = ((2, 3, 0), (5, 7, 0), (0, 0, 11))
+        potential = (x1*x2, x1**2, 0)
+        actual = chart.j_fourier(reluctivity, potential, n)
+
+        ox, oy, on = oracle.symbols("current_x1 current_x2 current_n")
+        expected = (
+            on**2*(7*ox*oy - 5*ox**2),
+            on**2*(-3*ox*oy + 2*ox**2) - 11,
+            oracle.I*on*(-13*ox + 7*oy),
+        )
+        actual = tuple(
+            oracle.sympify(str(value.simplify()), locals={"i": oracle.I})
+            for value in actual
+        )
+        for actual_value, expected_value in zip(actual, expected):
+            self.assertEqual(oracle.simplify(actual_value - expected_value), 0)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_diffgeom_names_use_native_owner_and_match_oracle(self):
         from sympy.diffgeom import (
             CoordSystem as OracleCoordSystem,
