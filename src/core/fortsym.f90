@@ -55,6 +55,13 @@ module fortsym
         signature_valid, signature_dimension, signature_component, &
         signature_positive_count, signature_negative_count, &
         signature_is_lorentzian
+    use fortsym_registry, only: toolkit_probe, toolkit_record_t, &
+        toolkit_registry_t, registry_init, registry_register, registry_find, &
+        registry_count, registry_name, registry_version, registry_owner, &
+        registry_capability, registry_refusal, registry_enabled, registry_probe, &
+        register_builtin_geometry, REGISTRY_MAX_TOOLKITS, &
+        REGISTRY_NAME_LENGTH, REGISTRY_VERSION_LENGTH, REGISTRY_OWNER_LENGTH, &
+        REGISTRY_DESCRIPTION_LENGTH, REGISTRY_MESSAGE_LENGTH
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
         chart_map_has_source_patch, chart_map_has_target_patch, &
         chart_map_source_patch, chart_map_target_patch, map_valid, map_jacobian, &
@@ -275,6 +282,12 @@ module fortsym
         lower, tensor_product, contract, trace, permute, symmetrize, &
         antisymmetrize, metric_covariant_tensor, &
         metric_contravariant_tensor, UPPER, LOWER_VARIANCE, MAX_RANK, &
+        toolkit_probe, toolkit_record_t, toolkit_registry_t, registry_init, &
+        registry_register, registry_find, registry_count, registry_name, &
+        registry_version, registry_owner, registry_capability, registry_refusal, &
+        registry_enabled, registry_probe, register_builtin_geometry, &
+        REGISTRY_MAX_TOOLKITS, REGISTRY_NAME_LENGTH, REGISTRY_VERSION_LENGTH, &
+        REGISTRY_OWNER_LENGTH, REGISTRY_DESCRIPTION_LENGTH, REGISTRY_MESSAGE_LENGTH, &
         index_type_t, index_t, index_type, make_index, index_valid, &
         index_space_valid, index_dimension, index_category, index_space_name, &
         index_label, index_slot, index_variance, index_is_dummy, &

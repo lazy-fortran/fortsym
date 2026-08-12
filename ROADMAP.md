@@ -1282,12 +1282,14 @@ conversion only. They do not maintain a second geometry implementation.
   short declarations such as `B%up(1)` and `B%down(1)` or named index maps,
   but it must remain ordinary Fortran preprocessing or library calls, with no
   custom compiler or hidden global state.
-- [ ] Define a small central toolkit registry for optional geometry modules.
-  Registration is explicit Fortran procedure registration, without linker
-  discovery or a dependency from the core expression arena to a physics
-  package. Each toolkit has a capability record, version, owner module, and
-  refusal boundary so a later plugin system can replace the registry without
-  turning the engine into a monolith.
+- [x] Define a small central toolkit registry for optional geometry modules.
+  `fortsym_registry` provides explicit `toolkit_registry_t` initialization,
+  metadata registration, duplicate refusal, and optional procedure-pointer
+  probes without linker discovery or a dependency from the core expression
+  arena to a physics package. `register_builtin_geometry` registers the ten
+  shipped owners with capability and refusal records. The independent
+  `test_fortsym_registry` test covers the metadata contract, duplicate and
+  malformed-input refusal, probe dispatch, and built-in registration.
 
 ### Reciprocal bases, metric, and densities
 
@@ -1962,6 +1964,10 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     microseconds and cold differentiation from 29.64 to 29.28 microseconds.
     The current expansion diagnostic fell from 1.91 to 0.87 milliseconds, with
     all rows still independently validated.
+  - [x] Add the explicit `fortsym_registry` owner for modular geometry
+    capabilities. Its ten built-in records and procedure-pointer probe path
+    are covered by `test_fortsym_registry`; registration remains caller-owned
+    and has no hidden initialization or linker discovery.
   - [x] Add the exact `log(i)`/`log(-i)` branch points to the correctness and
     performance matrix. Their cold and warm rows are enforced and measured at
     0.016x and 0.053x SymPy; the 58 substantive rows remain enforced with
