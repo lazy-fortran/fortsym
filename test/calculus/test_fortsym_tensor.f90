@@ -28,7 +28,7 @@ program test_fortsym_tensor
     type(expr_t) :: u(DIM), position(DIM), values(DIM), expected
     type(expr_t) :: vector_values(DIM), tensor_values(DIM), covector_values(DIM)
     type(expr_t) :: components(27), matrix_components(9)
-    type(tensor_t) :: vup, vcov, vdown, roundtrip, weighted, outer, dot
+    type(tensor_t) :: vup, vcov, vdown, roundtrip, weighted, scaled_density, outer, dot
     type(tensor_t) :: metric_down, mixed, rank_three
     type(tensor_t) :: permuted, matrix, symmetric, antisymmetric
     type(tensor_t) :: scalar, vector_field, vector_lie, covector_field, &
@@ -115,6 +115,13 @@ program test_fortsym_tensor
     weighted = density(vup, 2)
     call check_metadata(suite, weighted, 1, UPPER, 2, &
         "vector density metadata")
+
+    scaled_density = density(vup, u(1) + 2)
+    call check_metadata(suite, scaled_density, 1, UPPER, 1, &
+        "component density metadata")
+    indices(1) = 1
+    call check_identity(suite, engine, "component density factor", &
+        tensor_component(scaled_density, indices(1:1)) - (u(1) + 2)*values(1))
 
     outer = tensor_product(weighted, vdown)
     call check_metadata(suite, outer, 2, UPPER, 2, &

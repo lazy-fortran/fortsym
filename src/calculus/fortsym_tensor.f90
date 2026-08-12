@@ -31,7 +31,8 @@ module fortsym_tensor
     public :: tensor_from_components, tensor_from_matrix
     public :: tensor_from_storage, tensor_from_arena
     public :: tensor_component, tensor_rank, tensor_variance
-    public :: tensor_density_weight, tensor_valid, tensor_same_arena, density
+    public :: tensor_density_weight, tensor_valid, tensor_same_arena, density, &
+        density_factor
     public :: vector, covector, raise, lower
     public :: tensor_product, contract, contract_slots, trace
     public :: permute, symmetrize, antisymmetrize
@@ -73,6 +74,11 @@ module fortsym_tensor
         module procedure contract_slots
         module procedure contract_indices
     end interface contract
+
+    interface density
+        module procedure density_weight
+        module procedure density_factor
+    end interface density
 
     interface metric_covariant_tensor
         module procedure metric_covariant_tensor_chart
@@ -340,7 +346,7 @@ contains
     end function tensor_valid
 
     !> Change only the density metadata, preserving all components.
-    function density(tensor_value, weight) result(result)
+    function density_weight(tensor_value, weight) result(result)
         type(tensor_t), intent(in) :: tensor_value
         integer, intent(in) :: weight
         type(tensor_t) :: result
@@ -348,7 +354,28 @@ contains
         if (.not. tensor_valid(tensor_value)) return
         result = tensor_value
         result%density_weight = weight
-    end function density
+    end function density_weight
+
+    !> Multiply components by one scalar density factor and increment weight.
+    !>
+    !> This is the generic owner for objects such as `sqrtg B^i`. The factor
+    !> is an expression in the tensor's arena, so the operation preserves the
+    !> existing component representation and adds no parallel density store.
+    function density_factor(tensor_value, factor) result(result)
+        type(tensor_t), intent(in) :: tensor_value
+        type(expr_t), intent(in) :: factor
+        type(tensor_t) :: result
+        integer :: k
+
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. is_valid(factor)) return
+        if (.not. associated(factor%a, tensor_value%a)) return
+        result = tensor_value
+        result%density_weight = tensor_value%density_weight + 1
+        do k = 0, component_count(tensor_value%rank) - 1
+            result%component(k) = factor*tensor_value%component(k)
+        end do
+    end function density_factor
 
     !> Coordinate Lie derivative of a typed tensor along an ordinary vector.
     !>

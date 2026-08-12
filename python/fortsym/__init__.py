@@ -843,6 +843,12 @@ def _configure(lib):
          ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
          ctypes.c_int, ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_tensor_density_factor = declare(
+        "fortsym_chart_tensor_density_factor", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+         ctypes.c_int, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.chart_tensor_permute = declare(
         "fortsym_chart_tensor_permute", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
@@ -2212,6 +2218,28 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "tensor_density")
+        return tuple(Expr(self, output[index]) for index in range(output_count))
+
+    def _chart_tensor_density_factor(self, chart, tensor, factor):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        component_values = [self._check(value) for value in tensor.components]
+        component_handles = (_CVOID * len(component_values))(
+            *[value._handle for value in component_values]
+        )
+        variance_values = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        factor = self._check(factor)
+        output_count = 3 ** tensor.rank
+        output = (_CVOID * output_count)()
+        message = _message()
+        status = self._lib.chart_tensor_density_factor(
+            self._require(), coordinate_handles, position_handles,
+            component_handles, tensor.rank, variance_values,
+            tensor.density_weight, factor._handle, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "tensor_density_factor")
         return tuple(Expr(self, output[index]) for index in range(output_count))
 
     def _chart_tensor_permute(self, chart, tensor, order):
@@ -4202,10 +4230,25 @@ class Tensor:
             self.chart, components, variance, self.density_weight, _owned=True
         )
 
-    def density(self, weight):
-        """Return this tensor with native density metadata set to ``weight``."""
+    def density(self, weight_or_factor):
+        """Set density metadata or multiply by one density factor.
+
+        An integer sets the metadata as before. An ``Expr`` factor creates the
+        corresponding component density, for example ``density(sqrtg)`` for
+        ``sqrt(g) B**i``.
+        """
+        if isinstance(weight_or_factor, Expr):
+            factor = self._arena._check(weight_or_factor)
+            components = self._arena._chart_tensor_density_factor(
+                self.chart, self, factor
+            )
+            return Tensor(
+                self.chart, components, self.variance,
+                self.density_weight + 1, _owned=True,
+            )
+        weight = int(weight_or_factor)
         components = self._arena._chart_tensor_density(self.chart, self, weight)
-        return Tensor(self.chart, components, self.variance, int(weight), _owned=True)
+        return Tensor(self.chart, components, self.variance, weight, _owned=True)
 
     with_density = density
 

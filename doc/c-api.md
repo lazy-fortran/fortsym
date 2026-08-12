@@ -29,6 +29,10 @@ subset; it never substitutes an unverified numerical result.
 `(B_label, d1 B1, d2 B1, d1 B2, d2 B2)` for a selected label. These calls
 share the `fortsym_flux` owner and expose residuals for an independent zero
 oracle; they do not construct an equilibrium.
+`fortsym_chart_tensor_density` changes only density metadata. The companion
+`fortsym_chart_tensor_density_factor` multiplies every component by one
+arena-owned scalar factor and increments the density weight, so it is the
+native C spelling of `sqrtg B^i` when the factor is `sqrtg`.
 `fortsym_chart_tensor_permute` reorders typed tensor slots, and
 `fortsym_chart_tensor_symmetrize` projects two slots to their symmetric or
 antisymmetric part while preserving variance and density metadata.

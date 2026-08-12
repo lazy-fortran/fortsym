@@ -518,6 +518,12 @@ int fortsym_chart_tensor_density(
     size_t rank, const int variance[], int density_weight,
     int new_density_weight, fortsym_expr *out[], char *message,
     size_t capacity);
+int fortsym_chart_tensor_density_factor(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    size_t rank, const int variance[], int density_weight,
+    const fortsym_expr *factor, fortsym_expr *out[], char *message,
+    size_t capacity);
 int fortsym_chart_tensor_permute(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *components[],
