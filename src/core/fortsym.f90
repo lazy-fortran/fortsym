@@ -70,7 +70,7 @@ module fortsym
         INDEX_USER
     use fortsym_connection, only: covariant_diff, covariant_derivative, &
         covariant_divergence, christoffel_tensor, riemann_tensor, &
-        first_bianchi_residual, ricci_tensor, scalar_curvature, &
+        first_bianchi_residual, second_bianchi_residual, ricci_tensor, scalar_curvature, &
         einstein_tensor
     use fortsym_magnetic, only: b_con, b_cov, b_density, b_fourier, &
         b_fourier_density, j_fourier
@@ -189,6 +189,7 @@ module fortsym
         INDEX_COTANGENT, INDEX_SPACETIME, INDEX_INTERNAL, INDEX_USER, &
         covariant_diff, covariant_derivative, covariant_divergence, &
         christoffel_tensor, riemann_tensor, first_bianchi_residual, &
+        second_bianchi_residual, &
         ricci_tensor, scalar_curvature, einstein_tensor
     public :: operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), operator(/=)

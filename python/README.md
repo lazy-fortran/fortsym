@@ -42,7 +42,7 @@ oriented covariant tensor by default or the contravariant tensor when passed
 `"contravariant"`; neither operation hides orientation in `sqrtg()`.
 `SpacetimeMetric` is the dimension-aware four-coordinate facade for the
 relativity owner. It exposes `sqrtg()`, inverse metric, Christoffel, Riemann,
-Ricci, scalar curvature, and Einstein views using the same native expression
+Ricci, scalar curvature, Einstein, and second-Bianchi views using the same native expression
 arena and first-slot-fastest indexing. Its `one_form()`, `two_form()`,
 `three_form()`, and `four_form()` constructors return native `SpacetimeForm`
 owners; `scalar_form()` constructs degree zero. These expose
@@ -104,6 +104,7 @@ v_density = chart.vector((Z, R, phi), density_weight=1)
 divergence = v_density.covariant_divergence()
 R = chart.riemann()
 bianchi = chart.first_bianchi_residual()
+second_bianchi = chart.second_bianchi_residual()
 scalar_R = chart.scalar_curvature()
 x, y, z = sp.symbols("x y z")
 alpha = chart.one_form((y*z, x**2, y + z**2))

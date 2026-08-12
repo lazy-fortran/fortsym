@@ -32,7 +32,7 @@ module fortsym_connection
 
     public :: covariant_diff, covariant_derivative, covariant_divergence
     public :: christoffel_tensor, riemann_tensor, first_bianchi_residual, &
-        ricci_tensor
+        second_bianchi_residual, ricci_tensor
     public :: scalar_curvature, einstein_tensor
 
     interface covariant_diff
@@ -64,6 +64,11 @@ module fortsym_connection
         module procedure first_bianchi_residual_chart
         module procedure first_bianchi_residual_metric
     end interface first_bianchi_residual
+
+    interface second_bianchi_residual
+        module procedure second_bianchi_residual_chart
+        module procedure second_bianchi_residual_metric
+    end interface second_bianchi_residual
 
     interface ricci_tensor
         module procedure ricci_tensor_chart
@@ -399,6 +404,31 @@ contains
         result = first_bianchi_from_riemann(metric_arena(g), riemann)
     end function first_bianchi_residual_metric
 
+    !> Second differential Bianchi residual for a torsion-free metric
+    !> connection:
+    !>   nabla_e R^a_bcd + nabla_c R^a_bde + nabla_d R^a_bec = 0.
+    function second_bianchi_residual_chart(c) result(result)
+        type(chart_t), intent(in) :: c
+        type(tensor_t) :: result, riemann, differentiated
+
+        if (.not. associated(c%a)) return
+        riemann = riemann_tensor_chart(c)
+        differentiated = covariant_diff_chart(c, riemann)
+        result = second_bianchi_from_derivative(c%a, differentiated)
+    end function second_bianchi_residual_chart
+
+    !> Metric-owner overload of the second differential Bianchi residual.
+    function second_bianchi_residual_metric(g) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t) :: result, riemann, differentiated
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        riemann = riemann_tensor_metric(g)
+        differentiated = covariant_diff_metric(g, riemann)
+        result = second_bianchi_from_derivative(metric_arena(g), differentiated)
+    end function second_bianchi_residual_metric
+
     !> Ricci tensor R_bd = R^a_bad, returned covariant in both slots.
     function ricci_tensor_chart(c) result(result)
         type(chart_t), intent(in) :: c
@@ -567,7 +597,7 @@ contains
         type(tensor_t), intent(in) :: riemann
         type(tensor_t) :: result
         type(expr_t) :: values(0:MAX_COMPONENTS - 1), value
-        integer :: indices(4), variances(4)
+        integer :: indices(MAX_RANK), four_indices(4), variances(MAX_RANK)
         integer :: a, b, cindex, d
 
         if (.not. tensor_valid(riemann)) return
@@ -584,15 +614,25 @@ contains
                         indices(2) = b
                         indices(3) = cindex
                         indices(4) = d
-                        value = tensor_component(riemann, indices)
+                        four_indices(1) = a
+                        four_indices(2) = b
+                        four_indices(3) = cindex
+                        four_indices(4) = d
+                        value = tensor_component(riemann, four_indices)
                         indices(2) = cindex
                         indices(3) = d
                         indices(4) = b
-                        value = value + tensor_component(riemann, indices)
+                        four_indices(2) = cindex
+                        four_indices(3) = d
+                        four_indices(4) = b
+                        value = value + tensor_component(riemann, four_indices)
                         indices(2) = d
                         indices(3) = b
                         indices(4) = cindex
-                        value = value + tensor_component(riemann, indices)
+                        four_indices(2) = d
+                        four_indices(3) = b
+                        four_indices(4) = cindex
+                        value = value + tensor_component(riemann, four_indices)
                         indices(2) = b
                         indices(3) = cindex
                         indices(4) = d
@@ -603,6 +643,60 @@ contains
         end do
         result = tensor_from_arena(owner, 4, values, variances)
     end function first_bianchi_from_riemann
+
+    function second_bianchi_from_derivative(owner, differentiated) result(result)
+        type(arena_t), pointer, intent(in) :: owner
+        type(tensor_t), intent(in) :: differentiated
+        type(tensor_t) :: result
+        type(expr_t) :: values(0:MAX_COMPONENTS - 1), value
+        integer :: indices(5), variances(5)
+        integer :: a, b, cindex, d, e
+
+        if (.not. tensor_valid(differentiated)) return
+        if (tensor_rank(differentiated) /= 5) return
+        variances = 0
+        variances(1) = UPPER
+        variances(2) = LOWER_VARIANCE
+        variances(3) = LOWER_VARIANCE
+        variances(4) = LOWER_VARIANCE
+        variances(5) = LOWER_VARIANCE
+        do a = 1, DIM
+            do b = 1, DIM
+                do cindex = 1, DIM
+                    do d = 1, DIM
+                        do e = 1, DIM
+                            ! The derivative slot is last:
+                            ! differentiated(a,b,c,d,e) = nabla_e R^a_bcd.
+                            indices(1) = a
+                            indices(2) = b
+                            indices(3) = cindex
+                            indices(4) = d
+                            indices(5) = e
+                            value = tensor_component(differentiated, indices)
+
+                            ! nabla_c R^a_bde.
+                            indices(3) = d
+                            indices(4) = e
+                            indices(5) = cindex
+                            value = value + tensor_component(differentiated, indices)
+
+                            ! nabla_d R^a_bec.
+                            indices(3) = e
+                            indices(4) = cindex
+                            indices(5) = d
+                            value = value + tensor_component(differentiated, indices)
+
+                            indices(3) = cindex
+                            indices(4) = d
+                            indices(5) = e
+                            values(encode_index(indices, 5)) = value
+                        end do
+                    end do
+                end do
+            end do
+        end do
+        result = tensor_from_arena(owner, 5, values, variances)
+    end function second_bianchi_from_derivative
 
     subroutine riemann_components(gamma, coordinates, values)
         type(expr_t), intent(in) :: gamma(DIM, DIM, DIM), coordinates(DIM)

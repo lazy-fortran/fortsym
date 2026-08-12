@@ -81,7 +81,7 @@ enum fortsym_tensor_variance {
 
 enum {
     FORTSYM_GEOMETRY_DIMENSION = 3,
-    FORTSYM_TENSOR_MAX_RANK = 4,
+    FORTSYM_TENSOR_MAX_RANK = 5,
     FORTSYM_FORM_COMPONENTS = 8,
     FORTSYM_FORM_MAX_DEGREE = 4
 };
@@ -461,6 +461,10 @@ int fortsym_chart_riemann(
     const fortsym_expr *position[], fortsym_expr *out[], char *message,
     size_t capacity);
 int fortsym_chart_first_bianchi_residual(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_chart_second_bianchi_residual(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], fortsym_expr *out[], char *message,
     size_t capacity);
