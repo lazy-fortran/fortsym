@@ -8,13 +8,12 @@ module fortsym_form
     ! small, explicit, and keeps antisymmetry in the owner rather than in a
     ! caller convention.
     use fortsym_arena, only: arena_t
-    use fortsym_chart, only: chart_t, DIM, metric_covariant, &
+    use fortsym_chart, only: chart_t, DIM, chart_valid, metric_covariant, &
         metric_contravariant, sqrtg
     use fortsym_metric, only: metric_t, metric_valid, metric_arena, &
         metric_orientation, metric_sqrtg, metric_signature, &
-        metric_coordinates, metric_has_coordinates, &
-        metric_contravariant_owner => metric_contravariant, &
-        metric_same_arena
+        metric_coordinate, metric_coordinates, metric_has_coordinates, &
+        metric_contravariant_owner => metric_contravariant
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, num, is_valid, operator(+), operator(-), &
         operator(*), operator(/), operator(==)
@@ -25,6 +24,9 @@ module fortsym_form
     public :: form_zero
     public :: volume_form, volume
     public :: form_component, form_degree, form_valid
+    public :: form_chart_bound, form_same_chart, form_chart_compatible, &
+        form_metric_compatible, form_bind_chart, form_bind_metric, &
+        form_copy_owner, form_merge_owner
     public :: add_forms, subtract_forms, negate_form
     public :: wedge, d, exterior_diff, star, hodge_star
     public :: codifferential, codiff, laplace_de_rham
@@ -35,6 +37,10 @@ module fortsym_form
         type(arena_t), pointer :: a => null()
         integer :: degree = -1
         logical :: zero_extension = .false.
+        logical :: chart_bound = .false.
+        logical :: chart_has_position = .false.
+        type(expr_t) :: chart_coordinates(DIM)
+        type(expr_t) :: chart_position(DIM)
         type(expr_t) :: component(0:2**DIM - 1)
     end type form_t
 
@@ -107,6 +113,7 @@ contains
         if (.not. associated(c%a)) return
         if (degree < 0 .or. degree > DIM + 1) return
         alpha = zero_form(c%a, degree)
+        call form_bind_chart(alpha, c)
     end function form_zero
 
     !> Construct a zero k-form in an existing expression arena.
@@ -144,6 +151,7 @@ contains
 
         alpha = zero_form(c%a, 1)
         if (.not. associated(c%a)) return
+        call form_bind_chart(alpha, c)
         do i = 1, DIM
             if (.not. is_valid(values(i))) then
                 alpha = form_t()
@@ -166,6 +174,7 @@ contains
 
         alpha = zero_form(c%a, 2)
         if (.not. associated(c%a)) return
+        call form_bind_chart(alpha, c)
         do i = 1, 3
             if (.not. is_valid(values(i))) then
                 alpha = form_t()
@@ -189,6 +198,7 @@ contains
 
         alpha = zero_form(c%a, 3)
         if (.not. associated(c%a)) return
+        call form_bind_chart(alpha, c)
         if (.not. is_valid(value)) then
             alpha = form_t()
             return
@@ -234,6 +244,7 @@ contains
         coefficient = metric_sqrtg(g)
         if (sign < 0) coefficient = -coefficient
         alpha = zero_form(metric_arena(g), 3)
+        call form_bind_metric(alpha, g)
         alpha%component(7) = coefficient
     end function volume_form_metric
 
@@ -266,11 +277,152 @@ contains
         if (.not. associated(alpha%a)) return
         if (alpha%degree < 0 .or. alpha%degree > DIM + 1) return
         if (alpha%degree > DIM .and. .not. alpha%zero_extension) return
+        if (alpha%chart_bound) then
+            do mask = 1, DIM
+                if (.not. is_valid(alpha%chart_coordinates(mask))) return
+                if (.not. associated(alpha%chart_coordinates(mask)%a, alpha%a)) return
+                if (alpha%chart_has_position) then
+                    if (.not. is_valid(alpha%chart_position(mask))) return
+                    if (.not. associated(alpha%chart_position(mask)%a, alpha%a)) return
+                end if
+            end do
+        end if
         do mask = 0, 2**DIM - 1
             if (.not. is_valid(alpha%component(mask))) return
         end do
         valid = .true.
     end function form_valid
+
+    !> Whether a form carries an explicit chart/map owner.
+    function form_chart_bound(alpha) result(bound)
+        type(form_t), intent(in) :: alpha
+        logical :: bound
+
+        bound = form_valid(alpha) .and. alpha%chart_bound
+    end function form_chart_bound
+
+    !> Bind a form created from a chart to its value-semantic key.
+    subroutine form_bind_chart(alpha, c)
+        type(form_t), intent(inout) :: alpha
+        type(chart_t), intent(in) :: c
+
+        if (.not. chart_valid(c)) return
+        if (.not. associated(alpha%a, c%a)) return
+        alpha%chart_bound = .true.
+        alpha%chart_has_position = .true.
+        alpha%chart_coordinates = c%u
+        alpha%chart_position = c%x
+    end subroutine form_bind_chart
+
+    !> Bind a form created from an explicit metric to its coordinates.
+    subroutine form_bind_metric(alpha, g)
+        type(form_t), intent(inout) :: alpha
+        type(metric_t), intent(in) :: g
+        integer :: i
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        if (.not. associated(alpha%a, metric_arena(g))) return
+        alpha%chart_bound = .true.
+        alpha%chart_has_position = .false.
+        do i = 1, DIM
+            alpha%chart_coordinates(i) = metric_coordinate(g, i)
+        end do
+    end subroutine form_bind_metric
+
+    !> Copy chart/map ownership through a form view.
+    subroutine form_copy_owner(target, source)
+        type(form_t), intent(inout) :: target
+        type(form_t), intent(in) :: source
+
+        target%chart_bound = source%chart_bound
+        target%chart_has_position = source%chart_has_position
+        target%chart_coordinates = source%chart_coordinates
+        target%chart_position = source%chart_position
+    end subroutine form_copy_owner
+
+    !> Merge ownership for a wedge, sum, or transport involving two forms.
+    subroutine form_merge_owner(target, left, right)
+        type(form_t), intent(inout) :: target
+        type(form_t), intent(in) :: left, right
+
+        if (left%chart_bound) then
+            call form_copy_owner(target, left)
+        else if (right%chart_bound) then
+            call form_copy_owner(target, right)
+        end if
+    end subroutine form_merge_owner
+
+    !> Check whether a chart-bound form belongs to the supplied chart.
+    function form_chart_compatible(alpha, c) result(same)
+        type(form_t), intent(in) :: alpha
+        type(chart_t), intent(in) :: c
+        logical :: same
+        integer :: i
+
+        same = .false.
+        if (.not. chart_valid(c)) return
+        if (.not. form_valid(alpha)) return
+        if (.not. associated(alpha%a, c%a)) return
+        if (.not. alpha%chart_bound) then
+            same = .true.
+            return
+        end if
+        do i = 1, DIM
+            if (.not. (alpha%chart_coordinates(i) == c%u(i))) return
+            if (alpha%chart_has_position) then
+                if (.not. (alpha%chart_position(i) == c%x(i))) return
+            end if
+        end do
+        same = .true.
+    end function form_chart_compatible
+
+    !> Check whether a chart-bound form belongs to an explicit metric.
+    function form_metric_compatible(alpha, g) result(same)
+        type(form_t), intent(in) :: alpha
+        type(metric_t), intent(in) :: g
+        logical :: same
+        type(expr_t) :: coordinates(DIM)
+        integer :: i
+
+        same = .false.
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        if (.not. form_valid(alpha)) return
+        if (.not. associated(alpha%a, metric_arena(g))) return
+        if (.not. alpha%chart_bound) then
+            same = .true.
+            return
+        end if
+        coordinates = metric_coordinates(g)
+        do i = 1, DIM
+            if (.not. (alpha%chart_coordinates(i) == coordinates(i))) return
+        end do
+        same = .true.
+    end function form_metric_compatible
+
+    !> Check whether two forms can be combined without changing coordinates.
+    function form_same_chart(left, right) result(same)
+        type(form_t), intent(in) :: left, right
+        logical :: same
+        integer :: i
+
+        same = .false.
+        if (.not. form_valid(left)) return
+        if (.not. form_valid(right)) return
+        if (.not. associated(left%a, right%a)) return
+        if (.not. left%chart_bound .or. .not. right%chart_bound) then
+            same = .true.
+            return
+        end if
+        do i = 1, DIM
+            if (.not. (left%chart_coordinates(i) == right%chart_coordinates(i))) return
+            if (left%chart_has_position .and. right%chart_has_position) then
+                if (.not. (left%chart_position(i) == right%chart_position(i))) return
+            end if
+        end do
+        same = .true.
+    end function form_same_chart
 
     !> Exterior product, with the sign fixed by the ordered coordinate coframe.
     function wedge(left, right) result(result)
@@ -280,10 +432,11 @@ contains
 
         if (.not. form_valid(left)) return
         if (.not. form_valid(right)) return
-        if (.not. associated(left%a, right%a)) return
+        if (.not. form_same_chart(left, right)) return
         if (left%degree > DIM .or. right%degree > DIM) return
 
         result = zero_form(left%a, left%degree + right%degree)
+        call form_merge_owner(result, left, right)
         if (left%degree + right%degree > DIM) return
         do left_mask = 0, 2**DIM - 1
             if (mask_degree(left_mask) /= left%degree) cycle
@@ -306,8 +459,9 @@ contains
         if (.not. form_valid(left)) return
         if (.not. form_valid(right)) return
         if (left%degree /= right%degree) return
-        if (.not. associated(left%a, right%a)) return
+        if (.not. form_same_chart(left, right)) return
         result = zero_form(left%a, left%degree)
+        call form_merge_owner(result, left, right)
         do mask = 0, 2**DIM - 1
             result%component(mask) = left%component(mask) + right%component(mask)
         end do
@@ -327,6 +481,7 @@ contains
 
         if (.not. form_valid(alpha)) return
         result = zero_form(alpha%a, alpha%degree)
+        call form_copy_owner(result, alpha)
         result%zero_extension = alpha%zero_extension
         do mask = 0, 2**DIM - 1
             result%component(mask) = -alpha%component(mask)
@@ -344,6 +499,7 @@ contains
         if (.not. is_valid(factor)) return
         if (.not. associated(factor%a, alpha%a)) return
         result = zero_form(alpha%a, alpha%degree)
+        call form_copy_owner(result, alpha)
         result%zero_extension = alpha%zero_extension
         do mask = 0, 2**DIM - 1
             result%component(mask) = factor*alpha%component(mask)
@@ -356,10 +512,11 @@ contains
         type(form_t), intent(in) :: alpha
         type(form_t) :: result
 
-        if (.not. associated(c%a)) return
+        if (.not. chart_valid(c)) return
         if (.not. form_valid(alpha)) return
-        if (.not. associated(alpha%a, c%a)) return
+        if (.not. form_chart_compatible(alpha, c)) return
         result = exterior_diff_components(c%a, c%u, alpha)
+        call form_bind_chart(result, c)
     end function exterior_diff_chart
 
     function exterior_diff_metric(g, alpha) result(result)
@@ -371,9 +528,10 @@ contains
         if (.not. metric_valid(g)) return
         if (.not. metric_has_coordinates(g)) return
         if (.not. form_valid(alpha)) return
-        if (.not. metric_same_arena(g, alpha%a)) return
+        if (.not. form_metric_compatible(alpha, g)) return
         coordinates = metric_coordinates(g)
         result = exterior_diff_components(metric_arena(g), coordinates, alpha)
+        call form_bind_metric(result, g)
     end function exterior_diff_metric
 
     function exterior_diff_components(a, coordinates, alpha) result(result)
@@ -417,9 +575,9 @@ contains
         type(form_t), intent(in) :: alpha
         type(form_t) :: result, first, second
 
-        if (.not. associated(c%a)) return
+        if (.not. chart_valid(c)) return
         if (.not. form_valid(alpha)) return
-        if (.not. associated(alpha%a, c%a)) return
+        if (.not. form_chart_compatible(alpha, c)) return
         if (alpha%degree < 1 .or. alpha%degree > DIM) return
         first = hodge_star_chart(c, alpha)
         second = exterior_diff_chart(c, first)
@@ -436,7 +594,7 @@ contains
         if (.not. metric_valid(g)) return
         if (.not. metric_has_coordinates(g)) return
         if (.not. form_valid(alpha)) return
-        if (.not. metric_same_arena(g, alpha%a)) return
+        if (.not. form_metric_compatible(alpha, g)) return
         if (alpha%degree < 1 .or. alpha%degree > DIM) return
         first = hodge_star_metric(g, alpha)
         second = exterior_diff_metric(g, first)
@@ -451,11 +609,12 @@ contains
         type(form_t), intent(in) :: alpha
         type(form_t) :: result, first, second
 
-        if (.not. associated(c%a)) return
+        if (.not. chart_valid(c)) return
         if (.not. form_valid(alpha)) return
-        if (.not. associated(alpha%a, c%a)) return
+        if (.not. form_chart_compatible(alpha, c)) return
         if (alpha%degree > DIM) return
         result = zero_form(c%a, alpha%degree)
+        call form_bind_chart(result, c)
         if (alpha%degree > 0) then
             first = codifferential_chart(c, alpha)
             result = exterior_diff_chart(c, first)
@@ -475,9 +634,10 @@ contains
         if (.not. metric_valid(g)) return
         if (.not. metric_has_coordinates(g)) return
         if (.not. form_valid(alpha)) return
-        if (.not. metric_same_arena(g, alpha%a)) return
+        if (.not. form_metric_compatible(alpha, g)) return
         if (alpha%degree > DIM) return
         result = zero_form(metric_arena(g), alpha%degree)
+        call form_bind_metric(result, g)
         if (alpha%degree > 0) then
             first = codifferential_metric(g, alpha)
             result = exterior_diff_metric(g, first)
@@ -505,14 +665,15 @@ contains
         type(form_t) :: result
         type(expr_t) :: ginv(DIM, DIM), volume
 
-        if (.not. associated(c%a)) return
+        if (.not. chart_valid(c)) return
         if (.not. form_valid(alpha)) return
-        if (.not. associated(alpha%a, c%a)) return
+        if (.not. form_chart_compatible(alpha, c)) return
         if (alpha%degree > DIM) return
 
         ginv = metric_contravariant(c)
         volume = sqrtg(c)
         result = hodge_star_components(c%a, alpha, ginv, volume, 1)
+        call form_bind_chart(result, c)
     end function hodge_star_chart
 
     !> Hodge star from an explicit metric owner.
@@ -529,13 +690,14 @@ contains
 
         if (.not. metric_valid(g)) return
         if (.not. form_valid(alpha)) return
-        if (.not. metric_same_arena(g, alpha%a)) return
+        if (.not. form_metric_compatible(alpha, g)) return
         if (alpha%degree > DIM) return
 
         ginv = metric_contravariant_owner(g)
         volume = metric_sqrtg(g)
         result = hodge_star_components(metric_arena(g), alpha, ginv, volume, &
             metric_orientation(g))
+        call form_bind_metric(result, g)
     end function hodge_star_metric
 
     function hodge_star_components(a, alpha, ginv, volume, orientation) &
@@ -596,9 +758,9 @@ contains
         integer :: i, input_mask, output_mask, rank, mask
         integer :: sign
 
-        if (.not. associated(c%a)) return
+        if (.not. chart_valid(c)) return
         if (.not. form_valid(alpha)) return
-        if (.not. associated(alpha%a, c%a)) return
+        if (.not. form_chart_compatible(alpha, c)) return
         if (alpha%degree < 1 .or. alpha%degree > DIM) return
         do i = 1, DIM
             if (.not. is_valid(vector(i))) return
@@ -606,6 +768,7 @@ contains
         end do
 
         result = zero_form(c%a, alpha%degree - 1)
+        call form_bind_chart(result, c)
         do input_mask = 0, 2**DIM - 1
             if (mask_degree(input_mask) /= alpha%degree) cycle
             do i = 1, DIM
@@ -631,15 +794,16 @@ contains
         type(form_t) :: result, first, second, contraction
         integer :: i
 
-        if (.not. associated(c%a)) return
+        if (.not. chart_valid(c)) return
         if (.not. form_valid(alpha)) return
-        if (.not. associated(alpha%a, c%a)) return
+        if (.not. form_chart_compatible(alpha, c)) return
         do i = 1, DIM
             if (.not. is_valid(vector(i))) return
             if (.not. associated(vector(i)%a, c%a)) return
         end do
         if (alpha%degree == 0) then
             result = form_scalar(num(c%a, 0))
+            call form_bind_chart(result, c)
             do i = 1, DIM
                 result%component(0) = result%component(0) + vector(i)* &
                     diff(alpha%component(0), c%u(i))
@@ -650,6 +814,7 @@ contains
         second = exterior_diff(c, contraction)
         if (alpha%degree == DIM) then
             first = zero_form(c%a, alpha%degree)
+            call form_bind_chart(first, c)
         else
             first = interior_product(c, vector, exterior_diff(c, alpha))
         end if
@@ -664,7 +829,7 @@ contains
         type(expr_t) :: g(DIM, DIM), values(DIM)
         integer :: i, j
 
-        if (.not. associated(c%a)) return
+        if (.not. chart_valid(c)) return
         do i = 1, DIM
             if (.not. is_valid(vector(i))) return
             if (.not. associated(vector(i)%a, c%a)) return
@@ -687,10 +852,10 @@ contains
         type(expr_t) :: ginv(DIM, DIM)
         integer :: i, j
 
-        if (.not. associated(c%a)) return
+        if (.not. chart_valid(c)) return
         if (.not. form_valid(alpha)) return
         if (alpha%degree /= 1) return
-        if (.not. associated(alpha%a, c%a)) return
+        if (.not. form_chart_compatible(alpha, c)) return
         ginv = metric_contravariant(c)
         do i = 1, DIM
             vector(i) = ginv(i, 1)*alpha%component(1)

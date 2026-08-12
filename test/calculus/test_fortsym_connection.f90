@@ -32,7 +32,7 @@ program test_fortsym_connection
     type(symengine_engine_t) :: engine
     type(native_engine_t) :: native
     type(suite_t) :: suite
-    type(chart_t) :: polynomial
+    type(chart_t) :: polynomial, foreign_chart
     type(chart_t) :: cylindrical
     type(metric_t) :: metric_owner
     type(metric_t) :: cylindrical_metric
@@ -41,6 +41,7 @@ program test_fortsym_connection
     type(connection_t) :: chart_connection, metric_connection, supplied_connection
     type(connection_t) :: opposite_connection
     type(expr_t) :: u(DIM), position(DIM), scalar_value
+    type(expr_t) :: foreign_u(DIM), foreign_position(DIM), foreign_values(DIM)
     type(expr_t) :: gamma(DIM, DIM, DIM), expected
     type(tensor_t) :: scalar, gradient, metric, metric_derivative
     type(tensor_t) :: metric_gradient, metric_owner_value
@@ -55,7 +56,7 @@ program test_fortsym_connection
     type(tensor_t) :: chart_torsion, metric_torsion, supplied_torsion
     type(tensor_t) :: chart_nonmetricity, metric_nonmetricity
     type(tensor_t) :: supplied_nonmetricity, supplied_derivative, supplied_divergence
-    type(tensor_t) :: supplied_riemann
+    type(tensor_t) :: supplied_riemann, foreign_vector, rejected_derivative
     type(expr_t) :: metric_scalar
     type(expr_t) :: curved_components(DIM, DIM)
     type(expr_t) :: cartesian_components(DIM, DIM)
@@ -172,6 +173,17 @@ program test_fortsym_connection
     if (connection_convention(chart_connection) /= CONNECTION_STANDARD) then
         error stop "connection convention failed"
     end if
+    foreign_u(1) = sym(arena, "foreign_x")
+    foreign_u(2) = sym(arena, "foreign_y")
+    foreign_u(3) = sym(arena, "foreign_z")
+    foreign_position = foreign_u
+    foreign_chart = chart_create(arena, foreign_u, foreign_position)
+    foreign_values = num(arena, 0)
+    foreign_values(1) = num(arena, 1)
+    foreign_vector = tensor_vector(foreign_chart, foreign_values)
+    rejected_derivative = covariant_diff(chart_connection, foreign_vector)
+    call check(suite, .not. tensor_valid(rejected_derivative), &
+        "connection rejects a different coordinate owner")
     chart_torsion = torsion(chart_connection)
     metric_torsion = torsion(metric_connection)
     indices(1) = 1
@@ -316,6 +328,21 @@ program test_fortsym_connection
     print *, "test_fortsym_connection: all checks passed"
 
 contains
+
+    subroutine check(s, condition, label)
+        type(suite_t), intent(inout) :: s
+        logical, intent(in) :: condition
+        character(*), intent(in) :: label
+
+        s%total = s%total + 1
+        if (condition) then
+            s%passed = s%passed + 1
+            print *, "PASS ", label
+        else
+            s%failed = s%failed + 1
+            print *, "FAIL ", label
+        end if
+    end subroutine check
 
     function make_polynomial_chart() result(c)
         type(chart_t) :: c

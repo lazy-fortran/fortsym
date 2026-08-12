@@ -171,6 +171,20 @@ contains
             end if
         end if
 
+        ! Leaves are already canonical arena nodes. Avoid allocating and
+        ! clearing the recursive workspace for the overwhelmingly common
+        ! simplify(symbol/number) call; the result and cache entry are exact.
+        select case (e%kind())
+        case (NK_INT, NK_RAT, NK_REAL, NK_CONST, NK_SYM, NK_BIG_INT, &
+                NK_BIG_RAT, NK_ALGEBRAIC)
+            r%ok = .true.
+            if (.not. associated(self%assumptions)) then
+                self%simplify_cache(e%id) = e%id
+            end if
+            r%seconds = wall_seconds() - started
+            return
+        end select
+
         call reset_workspace(self%simplify_memo, self%simplify_stamp, &
             self%simplify_epoch, e%a%size())
         simplified_id = simplify_id(e%a, e%id, self%simplify_memo, &

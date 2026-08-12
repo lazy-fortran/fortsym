@@ -1006,10 +1006,15 @@ The first-class object model is staged around these metadata owners:
   nonmetricity, covariant differentiation, and divergence share the native
   slot/density kernel, with supplied-connection Riemann curvature through C ABI
   56, Python/SymPy access, and independent component oracles.
-- [ ] `tensor_t` and `form_t` retain the owner metadata through all views.
-  A form is an antisymmetric covariant tensor with a degree, and a density is
-  a tensor with an explicit integer weight. `form_t` and `tensor_t` share
-  conversion checks without sharing storage layouts.
+- [x] `tensor_t` and `form_t` retain value-semantic owner metadata through all
+  supported views. Chart-created objects retain their coordinate tuple and
+  position map; explicit metric-created objects retain their coordinate tuple
+  without inventing an embedding. Products, contractions, index views,
+  derivatives, form/tensor conversion, connections, and chart-map transport
+  preserve the owner and refuse incompatible chart keys. A form remains an
+  antisymmetric covariant tensor with a degree, and a density remains a tensor
+  with an explicit integer weight; the two owners share checks without
+  sharing storage layouts.
 - [x] Add the fixed-three-dimensional `fortsym_form_tensor` bridge. Exact
   weight-zero lower antisymmetric tensors convert to and from the compact form
   owner through one native operation, with C ABI/Python facade transport and
@@ -1221,6 +1226,12 @@ conversion only. They do not maintain a second geometry implementation.
   `signature_t`, and publish one module graph and naming audit. The source
   synthesis and executable derivation contracts are documented here; the
   native metadata owners remain open.
+- [x] **7A.0b Chart-key boundary.** Give fixed-three-dimensional tensor and
+  form results an explicit chart owner key `(u, x)` or a metric coordinate key
+  `u`. Merge unbound scalar convenience values into a bound result, propagate
+  keys through every supported view, and refuse cross-chart products,
+  derivatives, metric operations, conversions, and map transport. Python uses
+  the same boundary with its chart-object identity checks.
 - [x] **7A.0a Physicist/mathematician notation gate.** The registered
   `test_fortsym_notation` acceptance test distinguishes `B^i` from `B_i`,
   `sqrtg B^i` from `B^i`, and an oriented `Omega` from positive `sqrtg`.
@@ -1371,7 +1382,8 @@ conversion only. They do not maintain a second geometry implementation.
   facade, `g = metric(chart)`, `b = vector(chart, "B")`, `b_lower = lower(b,
   g)`, and `sqrtg = volume(chart, g)` must be sufficient for common work. In
   explicit mode, every object carries its arena and chart and cross-arena or
-  cross-chart operations fail at the boundary with a useful message.
+  cross-chart operations fail at the boundary with a useful message (native
+  Fortran returns an invalid owner-safe result; Python raises `ValueError`).
 - [ ] Document and test the intended short form. It should look like this,
   with the same names available through the lower-level modules:
 
@@ -1482,6 +1494,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Add native composition of two fixed-three-dimensional chart maps and
   prove tensor and form transport composition through the Fortran facade and
   Python/SymPy boundary.
+- [x] Make chart-map transport honor the tensor/form owner key: source
+  compatibility is checked before substitution and every target result is
+  bound to the target chart. Independent Fortran and Python/SymPy refusal tests
+  cover distinct position maps in one expression arena.
 - [x] Add metric-owner overloads of `raise`, `lower`,
   `metric_covariant_tensor`, and `metric_contravariant_tensor`. They preserve
   the underlying geometric object, update slot variance, and reject a
@@ -2254,6 +2270,10 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     diagnostic is now 0.104 ms versus 0.297 ms for SymEngine (0.35x), with
     the warm row at 0.117 versus 0.264 microseconds. This is a local
     diagnostic and not yet the complete SymPy performance gate.
+  - [x] Keep canonical leaf simplification on the native cache/return path,
+    without recursive workspace reset or traversal. This removes avoidable
+    overhead for symbols and literal values; the complete SymPy performance
+    gate remains open.
 - [x] Cache immutable explicit metric determinant, inverse, and positive
   `sqrtg` views in the native `metric_t` owner. Repeated gradient, divergence,
   Laplace--Beltrami, Hodge, and raise/lower calls reuse the same expression

@@ -9,10 +9,10 @@ module fortsym_form_tensor
     ! with non-antisymmetric or nonzero-density components is refused rather
     ! than silently projected into a different mathematical object.
     use fortsym_chart, only: chart_t, DIM
-    use fortsym_form, only: form_t, form_valid
+    use fortsym_form, only: form_t, form_valid, form_chart_compatible
     use fortsym_tensor, only: tensor_t, MAX_RANK, LOWER_VARIANCE, tensor_valid, &
         tensor_rank, tensor_variance, tensor_density_weight, tensor_from_arena, &
-        ANTISYMMETRIC
+        tensor_bind_chart, ANTISYMMETRIC
     use fortsym_expr, only: expr_t, num, operator(-), operator(==)
     implicit none
     private
@@ -49,6 +49,10 @@ contains
         do mask = 0, 2**DIM - 1
             alpha%component(mask) = zero
         end do
+        alpha%chart_bound = tensor_value%chart_bound
+        alpha%chart_has_position = tensor_value%chart_has_position
+        alpha%chart_coordinates = tensor_value%chart_coordinates
+        alpha%chart_position = tensor_value%chart_position
         do mask = 0, 2**DIM - 1
             if (mask_degree(mask) /= degree) cycle
             call mask_indices(mask, degree, indices)
@@ -92,7 +96,7 @@ contains
 
         if (.not. associated(c%a)) return
         if (.not. form_valid(alpha)) return
-        if (.not. associated(alpha%a, c%a)) return
+        if (.not. form_chart_compatible(alpha, c)) return
         degree = alpha%degree
         if (degree > DIM) return
 
@@ -113,6 +117,7 @@ contains
         end do
 
         tensor_value = tensor_from_arena(c%a, degree, values, variance, 0)
+        call tensor_bind_chart(tensor_value, c)
         do k = 1, degree
             do flat = k + 1, degree
                 tensor_value%symmetry(k, flat) = ANTISYMMETRIC

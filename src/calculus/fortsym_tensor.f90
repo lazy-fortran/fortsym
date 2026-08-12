@@ -8,10 +8,10 @@ module fortsym_tensor
     ! larger objects
     ! return an invalid tensor instead of silently losing index information.
     use fortsym_arena, only: arena_t
-    use fortsym_chart, only: chart_t, DIM, metric_covariant, &
+    use fortsym_chart, only: chart_t, DIM, chart_valid, metric_covariant, &
         metric_contravariant
-    use fortsym_metric, only: metric_t, metric_valid, metric_same_arena, &
-        metric_arena, metric_has_coordinates, metric_coordinates, &
+    use fortsym_metric, only: metric_t, metric_valid, &
+        metric_arena, metric_has_coordinates, metric_coordinate, metric_coordinates, &
         owner_metric_covariant => metric_covariant, &
         owner_metric_contravariant => metric_contravariant
     use fortsym_diff, only: diff
@@ -38,6 +38,10 @@ module fortsym_tensor
     public :: tensor_symmetry, declare_symmetry
     public :: tensor_density_weight, tensor_valid, tensor_same_arena, density, &
         density_factor
+    public :: tensor_chart_bound, tensor_same_chart, tensor_chart_compatible, &
+        tensor_coordinates_compatible, tensor_metric_compatible, &
+        tensor_bind_chart, tensor_bind_metric, &
+        tensor_copy_owner, tensor_merge_owner
     public :: vector, covector, raise, lower
     public :: tensor_product, contract, contract_slots, trace
     public :: permute, symmetrize, antisymmetrize
@@ -50,6 +54,10 @@ module fortsym_tensor
         integer :: variance(MAX_RANK) = 0
         integer :: symmetry(MAX_RANK, MAX_RANK) = 0
         integer :: density_weight = 0
+        logical :: chart_bound = .false.
+        logical :: chart_has_position = .false.
+        type(expr_t) :: chart_coordinates(DIM)
+        type(expr_t) :: chart_position(DIM)
         type(expr_t) :: component(0:MAX_COMPONENTS - 1)
     end type tensor_t
 
@@ -134,6 +142,7 @@ contains
         metadata = 0
         metadata(1) = UPPER
         result = zero_tensor(c%a, 1, metadata, optional_weight(density_weight))
+        call tensor_bind_chart(result, c)
         do i = 1, DIM
             result%component(i - 1) = values(i)
         end do
@@ -156,6 +165,7 @@ contains
         metadata = 0
         metadata(1) = LOWER_VARIANCE
         result = zero_tensor(c%a, 1, metadata, optional_weight(density_weight))
+        call tensor_bind_chart(result, c)
         do i = 1, DIM
             result%component(i - 1) = values(i)
         end do
@@ -189,6 +199,7 @@ contains
         end do
         weight = optional_weight(density_weight)
         result = zero_tensor(c%a, rank, metadata, weight)
+        call tensor_bind_chart(result, c)
         do k = 1, count
             result%component(k - 1) = values(k)
         end do
@@ -222,6 +233,7 @@ contains
         end do
         weight = optional_weight(density_weight)
         result = zero_tensor(c%a, rank, metadata, weight)
+        call tensor_bind_chart(result, c)
         do k = 0, count - 1
             result%component(k) = values(k)
         end do
@@ -284,6 +296,7 @@ contains
         metadata(2) = second_variance
         weight = optional_weight(density_weight)
         result = zero_tensor(c%a, 2, metadata, weight)
+        call tensor_bind_chart(result, c)
         do i = 1, DIM
             do j = 1, DIM
                 result%component(encode_pair(i, j)) = values(i, j)
@@ -397,6 +410,164 @@ contains
         same = associated(tensor_value%a, c%a)
     end function tensor_same_arena
 
+    !> Whether a tensor carries an explicit chart/map owner.
+    function tensor_chart_bound(tensor_value) result(bound)
+        type(tensor_t), intent(in) :: tensor_value
+        logical :: bound
+
+        bound = tensor_valid(tensor_value) .and. tensor_value%chart_bound
+    end function tensor_chart_bound
+
+    !> Bind a tensor created from a chart to that chart's value-semantic key.
+    subroutine tensor_bind_chart(tensor_value, c)
+        type(tensor_t), intent(inout) :: tensor_value
+        type(chart_t), intent(in) :: c
+
+        if (.not. chart_valid(c)) return
+        if (.not. tensor_chart_compatible(tensor_value, c)) return
+        tensor_value%chart_bound = .true.
+        tensor_value%chart_has_position = .true.
+        tensor_value%chart_coordinates = c%u
+        tensor_value%chart_position = c%x
+    end subroutine tensor_bind_chart
+
+    !> Bind a tensor created from an explicit metric to its coordinates.
+    subroutine tensor_bind_metric(tensor_value, g)
+        type(tensor_t), intent(inout) :: tensor_value
+        type(metric_t), intent(in) :: g
+        integer :: i
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        if (.not. associated(tensor_value%a, metric_arena(g))) return
+        tensor_value%chart_bound = .true.
+        tensor_value%chart_has_position = .false.
+        do i = 1, DIM
+            tensor_value%chart_coordinates(i) = metric_coordinate(g, i)
+        end do
+    end subroutine tensor_bind_metric
+
+    !> Copy chart/map ownership through a tensor view.
+    subroutine tensor_copy_owner(target, source)
+        type(tensor_t), intent(inout) :: target
+        type(tensor_t), intent(in) :: source
+
+        target%chart_bound = source%chart_bound
+        target%chart_has_position = source%chart_has_position
+        target%chart_coordinates = source%chart_coordinates
+        target%chart_position = source%chart_position
+    end subroutine tensor_copy_owner
+
+    !> Merge ownership for a product or transport involving two tensors.
+    subroutine tensor_merge_owner(target, left, right)
+        type(tensor_t), intent(inout) :: target
+        type(tensor_t), intent(in) :: left, right
+
+        if (left%chart_bound) then
+            call tensor_copy_owner(target, left)
+        else if (right%chart_bound) then
+            call tensor_copy_owner(target, right)
+        end if
+    end subroutine tensor_merge_owner
+
+    !> Check whether a chart-bound tensor belongs to the supplied chart.
+    function tensor_chart_compatible(tensor_value, c) result(same)
+        type(tensor_t), intent(in) :: tensor_value
+        type(chart_t), intent(in) :: c
+        logical :: same
+        integer :: i
+
+        same = .false.
+        if (.not. chart_valid(c)) return
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. associated(tensor_value%a, c%a)) return
+        if (.not. tensor_value%chart_bound) then
+            same = .true.
+            return
+        end if
+        do i = 1, DIM
+            if (.not. (tensor_value%chart_coordinates(i) == c%u(i))) return
+            if (tensor_value%chart_has_position) then
+                if (.not. (tensor_value%chart_position(i) == c%x(i))) return
+            end if
+        end do
+        same = .true.
+    end function tensor_chart_compatible
+
+    !> Check whether a chart-bound tensor belongs to an explicit metric.
+    function tensor_metric_compatible(tensor_value, g) result(same)
+        type(tensor_t), intent(in) :: tensor_value
+        type(metric_t), intent(in) :: g
+        logical :: same
+        type(expr_t) :: coordinates(DIM)
+        integer :: i
+
+        same = .false.
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. associated(tensor_value%a, metric_arena(g))) return
+        if (.not. tensor_value%chart_bound) then
+            same = .true.
+            return
+        end if
+        coordinates = metric_coordinates(g)
+        do i = 1, DIM
+            if (.not. (tensor_value%chart_coordinates(i) == coordinates(i))) return
+        end do
+        same = .true.
+    end function tensor_metric_compatible
+
+    !> Check whether a tensor belongs to a supplied coordinate tuple.
+    !> Connections have coordinates but no embedding map, so this is the
+    !> coordinate-only counterpart of tensor_chart_compatible.
+    function tensor_coordinates_compatible(tensor_value, coordinates) result(same)
+        type(tensor_t), intent(in) :: tensor_value
+        type(expr_t), intent(in) :: coordinates(DIM)
+        logical :: same
+        integer :: i
+
+        same = .false.
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. is_valid(coordinates(1))) return
+        if (.not. associated(tensor_value%a, coordinates(1)%a)) return
+        do i = 1, DIM
+            if (.not. is_valid(coordinates(i))) return
+            if (.not. associated(coordinates(i)%a, tensor_value%a)) return
+        end do
+        if (.not. tensor_value%chart_bound) then
+            same = .true.
+            return
+        end if
+        do i = 1, DIM
+            if (.not. (tensor_value%chart_coordinates(i) == coordinates(i))) return
+        end do
+        same = .true.
+    end function tensor_coordinates_compatible
+
+    !> Check whether two tensors can be combined without changing coordinates.
+    function tensor_same_chart(left, right) result(same)
+        type(tensor_t), intent(in) :: left, right
+        logical :: same
+        integer :: i
+
+        same = .false.
+        if (.not. tensor_valid(left)) return
+        if (.not. tensor_valid(right)) return
+        if (.not. associated(left%a, right%a)) return
+        if (.not. left%chart_bound .or. .not. right%chart_bound) then
+            same = .true.
+            return
+        end if
+        do i = 1, DIM
+            if (.not. (left%chart_coordinates(i) == right%chart_coordinates(i))) return
+            if (left%chart_has_position .and. right%chart_has_position) then
+                if (.not. (left%chart_position(i) == right%chart_position(i))) return
+            end if
+        end do
+        same = .true.
+    end function tensor_same_chart
+
     function tensor_valid(tensor_value) result(valid)
         type(tensor_t), intent(in) :: tensor_value
         logical :: valid
@@ -408,6 +579,18 @@ contains
         do k = 1, tensor_value%rank
             if (.not. valid_variance(tensor_value%variance(k))) return
         end do
+        if (tensor_value%chart_bound) then
+            do k = 1, DIM
+                if (.not. is_valid(tensor_value%chart_coordinates(k))) return
+                if (.not. associated(tensor_value%chart_coordinates(k)%a, &
+                    tensor_value%a)) return
+                if (tensor_value%chart_has_position) then
+                    if (.not. is_valid(tensor_value%chart_position(k))) return
+                    if (.not. associated(tensor_value%chart_position(k)%a, &
+                        tensor_value%a)) return
+                end if
+            end do
+        end if
         do k = 1, tensor_value%rank
             if (tensor_value%symmetry(k, k) /= SYMMETRY_NONE) return
             do j = 1, tensor_value%rank
@@ -475,8 +658,8 @@ contains
         if (.not. associated(c%a)) return
         if (.not. tensor_valid(vector_value)) return
         if (.not. tensor_valid(tensor_value)) return
-        if (.not. associated(vector_value%a, c%a)) return
-        if (.not. associated(tensor_value%a, c%a)) return
+        if (.not. tensor_chart_compatible(vector_value, c)) return
+        if (.not. tensor_chart_compatible(tensor_value, c)) return
         result = tensor_lie_derivative_components(c%a, c%u, vector_value, &
             tensor_value)
     end function tensor_lie_derivative
@@ -493,8 +676,8 @@ contains
         if (.not. metric_has_coordinates(g)) return
         if (.not. tensor_valid(vector_value)) return
         if (.not. tensor_valid(tensor_value)) return
-        if (.not. metric_same_arena(g, vector_value%a)) return
-        if (.not. metric_same_arena(g, tensor_value%a)) return
+        if (.not. tensor_metric_compatible(vector_value, g)) return
+        if (.not. tensor_metric_compatible(tensor_value, g)) return
         coordinates = metric_coordinates(g)
         result = tensor_lie_derivative_components(metric_arena(g), coordinates, &
             vector_value, tensor_value)
@@ -512,7 +695,7 @@ contains
 
         if (.not. associated(c%a)) return
         if (.not. tensor_valid(vector_value)) return
-        if (.not. associated(vector_value%a, c%a)) return
+        if (.not. tensor_chart_compatible(vector_value, c)) return
         metric_value = metric_covariant_tensor_chart(c)
         result = tensor_lie_derivative(c, vector_value, metric_value)
     end function killing_chart
@@ -524,7 +707,7 @@ contains
 
         if (.not. metric_valid(g)) return
         if (.not. tensor_valid(vector_value)) return
-        if (.not. metric_same_arena(g, vector_value%a)) return
+        if (.not. tensor_metric_compatible(vector_value, g)) return
         metric_value = metric_covariant_tensor_metric(g)
         result = tensor_lie_derivative_metric(g, vector_value, metric_value)
     end function killing_metric
@@ -552,6 +735,7 @@ contains
         count = component_count(rank)
         result = zero_tensor(a, rank, tensor_value%variance, &
             tensor_density_weight(tensor_value))
+        call tensor_merge_owner(result, vector_value, tensor_value)
         result%symmetry = tensor_value%symmetry
         divergence = num(a, 0)
         do k = 1, DIM
@@ -617,7 +801,7 @@ contains
         type(tensor_t) :: result
         type(expr_t) :: metric(DIM, DIM)
 
-        if (.not. metric_same_arena(g, tensor_value%a)) return
+        if (.not. tensor_metric_compatible(tensor_value, g)) return
         if (.not. valid_tensor_slot(tensor_value, slot, LOWER_VARIANCE)) return
         metric = owner_metric_contravariant(g)
         result = raise_components(tensor_value, metric, slot)
@@ -644,7 +828,7 @@ contains
         type(tensor_t) :: result
         type(expr_t) :: metric(DIM, DIM)
 
-        if (.not. metric_same_arena(g, tensor_value%a)) return
+        if (.not. tensor_metric_compatible(tensor_value, g)) return
         if (.not. valid_tensor_slot(tensor_value, slot, UPPER)) return
         metric = owner_metric_covariant(g)
         result = lower_components(tensor_value, metric, slot)
@@ -658,7 +842,7 @@ contains
 
         if (.not. tensor_valid(left)) return
         if (.not. tensor_valid(right)) return
-        if (.not. associated(left%a, right%a)) return
+        if (.not. tensor_same_chart(left, right)) return
         if (left%rank + right%rank > MAX_RANK) return
         metadata = 0
         do k = 1, left%rank
@@ -669,6 +853,7 @@ contains
         end do
         result = zero_tensor(left%a, left%rank + right%rank, metadata, &
             left%density_weight + right%density_weight)
+        call tensor_merge_owner(result, left, right)
         do i = 1, left%rank
             do j = 1, left%rank
                 result%symmetry(i, j) = left%symmetry(i, j)
@@ -714,6 +899,7 @@ contains
         end do
         result = zero_tensor(tensor_value%a, tensor_value%rank - 2, metadata, &
             tensor_value%density_weight)
+        call tensor_copy_owner(result, tensor_value)
         do old_slot = 1, tensor_value%rank
             if (old_slot == first .or. old_slot == second) cycle
             free_first = 0
@@ -805,6 +991,7 @@ contains
         end do
         result = zero_tensor(tensor_value%a, tensor_value%rank, metadata, &
             tensor_value%density_weight)
+        call tensor_copy_owner(result, tensor_value)
         do slot = 1, tensor_value%rank
             do i = 1, tensor_value%rank
                 result%symmetry(slot, i) = &
@@ -863,6 +1050,7 @@ contains
         metadata(1) = LOWER_VARIANCE
         metadata(2) = LOWER_VARIANCE
         result = zero_tensor(metric_arena(g), 2, metadata, 0)
+        call tensor_bind_metric(result, g)
         do j = 1, DIM
             do i = 1, DIM
                 result%component(encode_pair(i, j)) = values(i, j)
@@ -894,6 +1082,7 @@ contains
         metadata(1) = UPPER
         metadata(2) = UPPER
         result = zero_tensor(metric_arena(g), 2, metadata, 0)
+        call tensor_bind_metric(result, g)
         do j = 1, DIM
             do i = 1, DIM
                 result%component(encode_pair(i, j)) = values(i, j)
@@ -914,6 +1103,7 @@ contains
         metadata(slot) = UPPER
         result = zero_tensor(tensor_value%a, tensor_value%rank, metadata, &
             tensor_value%density_weight)
+        call tensor_copy_owner(result, tensor_value)
         result%symmetry = tensor_value%symmetry
         do i = 1, tensor_value%rank
             result%symmetry(slot, i) = SYMMETRY_NONE
@@ -945,6 +1135,7 @@ contains
         metadata(slot) = LOWER_VARIANCE
         result = zero_tensor(tensor_value%a, tensor_value%rank, metadata, &
             tensor_value%density_weight)
+        call tensor_copy_owner(result, tensor_value)
         result%symmetry = tensor_value%symmetry
         do i = 1, tensor_value%rank
             result%symmetry(slot, i) = SYMMETRY_NONE
@@ -979,6 +1170,7 @@ contains
         if (tensor_value%variance(first) /= tensor_value%variance(second)) return
         result = zero_tensor(tensor_value%a, tensor_value%rank, &
             tensor_value%variance, tensor_value%density_weight)
+        call tensor_copy_owner(result, tensor_value)
         result%symmetry = 0
         do output_index = 0, component_count(tensor_value%rank) - 1
             call decode_index(output_index, tensor_value%rank, indices)
@@ -1028,7 +1220,7 @@ contains
         valid = .false.
         if (.not. associated(c%a)) return
         if (.not. tensor_valid(tensor_value)) return
-        if (.not. associated(tensor_value%a, c%a)) return
+        if (.not. tensor_chart_compatible(tensor_value, c)) return
         if (slot < 1 .or. slot > tensor_value%rank) return
         if (tensor_value%variance(slot) /= expected) return
         valid = .true.

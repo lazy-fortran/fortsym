@@ -25,7 +25,8 @@ module fortsym_connection
     use fortsym_tensor, only: tensor_t, MAX_RANK, UPPER, LOWER_VARIANCE, &
         tensor_from_components, tensor_from_matrix, tensor_from_arena, tensor_component, &
         tensor_rank, tensor_variance, tensor_density_weight, tensor_valid, &
-        tensor_same_arena, contract_slots
+        tensor_chart_compatible, tensor_coordinates_compatible, &
+        tensor_metric_compatible, tensor_copy_owner, tensor_bind_metric, contract_slots
     implicit none
     private
 
@@ -437,7 +438,7 @@ contains
 
         if (.not. associated(c%a)) return
         if (.not. tensor_valid(tensor_value)) return
-        if (.not. tensor_same_arena(tensor_value, c)) return
+        if (.not. tensor_chart_compatible(tensor_value, c)) return
         gamma = chart_christoffel(c)
         result = covariant_diff_components(c%a, c%u, &
             gamma, tensor_value)
@@ -450,9 +451,9 @@ contains
         type(tensor_t) :: result
         type(expr_t) :: coordinates(DIM), gamma(DIM, DIM, DIM)
 
-        if (.not. metric_same_arena(g, tensor_value%a)) return
         if (.not. tensor_valid(tensor_value)) return
         if (.not. metric_has_coordinates(g)) return
+        if (.not. tensor_metric_compatible(tensor_value, g)) return
         coordinates = metric_coordinates(g)
         gamma = metric_christoffel_components(g)
         result = covariant_diff_components(metric_arena(g), coordinates, &
@@ -467,7 +468,8 @@ contains
 
         if (.not. connection_valid(connection)) return
         if (.not. tensor_valid(tensor_value)) return
-        if (.not. associated(tensor_value%a, connection%a)) return
+        if (.not. tensor_coordinates_compatible(tensor_value, &
+            connection%coordinate)) return
         result = covariant_diff_components(connection%a, connection%coordinate, &
             connection%component, tensor_value)
     end function covariant_diff_connection
@@ -509,7 +511,7 @@ contains
 
         if (.not. associated(c%a)) return
         if (.not. tensor_valid(tensor_value)) return
-        if (.not. tensor_same_arena(tensor_value, c)) return
+        if (.not. tensor_chart_compatible(tensor_value, c)) return
         rank = tensor_rank(tensor_value)
         if (rank < 1) return
         if (tensor_variance(tensor_value, 1) /= UPPER) return
@@ -524,8 +526,9 @@ contains
         type(tensor_t) :: result, differentiated
         integer :: rank
 
-        if (.not. metric_same_arena(g, tensor_value%a)) return
         if (.not. tensor_valid(tensor_value)) return
+        if (.not. metric_has_coordinates(g)) return
+        if (.not. tensor_metric_compatible(tensor_value, g)) return
         rank = tensor_rank(tensor_value)
         if (rank < 1) return
         if (tensor_variance(tensor_value, 1) /= UPPER) return
@@ -542,7 +545,8 @@ contains
 
         if (.not. connection_valid(connection)) return
         if (.not. tensor_valid(tensor_value)) return
-        if (.not. associated(tensor_value%a, connection%a)) return
+        if (.not. tensor_coordinates_compatible(tensor_value, &
+            connection%coordinate)) return
         rank = tensor_rank(tensor_value)
         if (rank < 1) return
         if (tensor_variance(tensor_value, 1) /= UPPER) return
@@ -610,6 +614,7 @@ contains
         end do
 
         result = tensor_from_arena(a, output_rank, values, variances, weight)
+        call tensor_copy_owner(result, tensor_value)
         do slot = 1, rank
             do m = 1, rank
                 result%symmetry(slot, m) = tensor_value%symmetry(slot, m)
@@ -703,6 +708,7 @@ contains
         variances(2) = LOWER_VARIANCE
         variances(3) = LOWER_VARIANCE
         result = tensor_from_arena(metric_arena(g), 3, values, variances)
+        call tensor_bind_metric(result, g)
     end function christoffel_tensor_metric
 
     !> Riemann tensor R^a_bcd in the convention declared above.
@@ -762,6 +768,7 @@ contains
         variances(3) = LOWER_VARIANCE
         variances(4) = LOWER_VARIANCE
         result = tensor_from_arena(metric_arena(g), 4, values, variances)
+        call tensor_bind_metric(result, g)
     end function riemann_tensor_metric
 
     !> Riemann tensor for a supplied affine connection.
@@ -898,6 +905,7 @@ contains
         variances(1) = LOWER_VARIANCE
         variances(2) = LOWER_VARIANCE
         result = tensor_from_arena(metric_arena(g), 2, values, variances)
+        call tensor_bind_metric(result, g)
     end function ricci_tensor_metric
 
     !> Scalar curvature R = g^bd R_bd.
@@ -1002,6 +1010,7 @@ contains
         variances(1) = LOWER_VARIANCE
         variances(2) = LOWER_VARIANCE
         result = tensor_from_arena(metric_arena(g), 2, values, variances)
+        call tensor_bind_metric(result, g)
     end function einstein_tensor_metric
 
     function first_bianchi_from_riemann(owner, riemann) result(result)
@@ -1054,6 +1063,7 @@ contains
             end do
         end do
         result = tensor_from_arena(owner, 4, values, variances)
+        call tensor_copy_owner(result, riemann)
     end function first_bianchi_from_riemann
 
     function second_bianchi_from_derivative(owner, differentiated) result(result)
@@ -1108,6 +1118,7 @@ contains
             end do
         end do
         result = tensor_from_arena(owner, 5, values, variances)
+        call tensor_copy_owner(result, differentiated)
     end function second_bianchi_from_derivative
 
     subroutine riemann_components(gamma, coordinates, values)

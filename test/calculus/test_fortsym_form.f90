@@ -13,7 +13,8 @@ program test_fortsym_form
     use fortsym_magnetic, only: b_con
     use fortsym_form, only: form_t, form, form_one, form_zero, form_valid, &
         form_component, form_degree, wedge, d, exterior_diff, star, interior, lie, &
-        flat, sharp, scale_form, volume_form, codifferential, laplace_de_rham
+        flat, sharp, scale_form, volume_form, codifferential, laplace_de_rham, &
+        form_chart_compatible, form_same_chart
     use fortsym_form_tensor, only: form_from_tensor, tensor_from_form
     use fortsym_tensor, only: tensor_t, tensor_from_matrix, tensor_component, &
         tensor_variance, tensor_valid, density, LOWER_VARIANCE
@@ -23,7 +24,7 @@ program test_fortsym_form
     type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
-    type(chart_t) :: shear
+    type(chart_t) :: shear, other_chart
     type(chart_t) :: cartesian
     type(metric_t) :: metric_owner
     type(metric_t) :: cartesian_metric
@@ -40,6 +41,7 @@ program test_fortsym_form
     type(form_t) :: cartan_first, cartan_second
     type(form_t) :: top_zero, top_from_d
     type(form_t) :: two_form, round_form
+    type(form_t) :: other_form, mismatched_wedge, mismatched_derivative
     type(tensor_t) :: form_tensor, density_tensor, nonsymmetric
     type(expr_t) :: tensor_matrix(DIM, DIM)
     integer :: pair(2)
@@ -78,6 +80,21 @@ program test_fortsym_form
     vector(3) = u(3)
     one_form = form_one(shear, vector)
     two_form = wedge(one_form, derivative)
+
+    other_chart = make_other_chart()
+    other_form = form_one(other_chart, vector)
+    call check(suite, form_chart_compatible(one_form, shear), &
+        "form keeps its chart owner")
+    call check(suite, .not. form_chart_compatible(one_form, other_chart), &
+        "form rejects a different position map")
+    call check(suite, .not. form_same_chart(one_form, other_form), &
+        "form comparison rejects different chart owners")
+    mismatched_wedge = wedge(one_form, other_form)
+    call check(suite, .not. form_valid(mismatched_wedge), &
+        "wedge rejects different chart owners")
+    mismatched_derivative = d(other_chart, one_form)
+    call check(suite, .not. form_valid(mismatched_derivative), &
+        "exterior derivative rejects a different chart owner")
 
     ! Forms and tensors share one conversion owner. A two-form becomes a
     ! fully antisymmetric lower tensor, including the sign of reversed slots,
@@ -272,5 +289,29 @@ contains
 
         c = chart_create(arena, u, u)
     end function make_cartesian_chart
+
+    function make_other_chart() result(c)
+        type(chart_t) :: c
+        type(expr_t) :: other_position(DIM)
+
+        other_position = position
+        other_position(1) = position(1) + 1
+        c = chart_create(arena, u, other_position)
+    end function make_other_chart
+
+    subroutine check(s, condition, label)
+        type(suite_t), intent(inout) :: s
+        logical, intent(in) :: condition
+        character(*), intent(in) :: label
+
+        s%total = s%total + 1
+        if (condition) then
+            s%passed = s%passed + 1
+            print *, "PASS ", label
+        else
+            s%failed = s%failed + 1
+            print *, "FAIL ", label
+        end if
+    end subroutine check
 
 end program test_fortsym_form

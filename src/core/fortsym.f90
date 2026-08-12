@@ -72,13 +72,17 @@ module fortsym
         subtract_forms, negate_form, wedge, d, &
         exterior_diff, star, hodge_star, interior, interior_product, &
         form_lie_derivative => lie_derivative, flat, sharp, scale_form, volume_form, &
-        codifferential, codiff, laplace_de_rham
+        codifferential, codiff, laplace_de_rham, form_chart_bound, form_same_chart, &
+        form_chart_compatible, form_metric_compatible
     use fortsym_form_tensor, only: form_from_tensor, tensor_from_form
     use fortsym_tensor, only: tensor_t, tensor, tensor_scalar, tensor_vector, &
         tensor_covector, tensor_from_components, tensor_from_matrix, &
         tensor_component, tensor_rank, tensor_variance, tensor_symmetry, killing, &
         declare_symmetry, SYMMETRY_NONE, SYMMETRIC, ANTISYMMETRIC, &
-        tensor_density_weight, tensor_valid, tensor_same_arena, density, density_factor, &
+        tensor_density_weight, tensor_valid, tensor_same_arena, tensor_chart_bound, &
+        tensor_same_chart, tensor_chart_compatible, tensor_coordinates_compatible, &
+        tensor_metric_compatible, &
+        density, density_factor, &
         vector, covector, &
         raise, lower, tensor_product, contract, trace, permute, symmetrize, &
         antisymmetrize, &
@@ -119,7 +123,8 @@ module fortsym
         metric_det, metric_sqrtg, &
         metric_surface_measure, metric_inner, &
         metric_signature, metric_orientation, metric_valid, metric_arena, &
-        metric_same_arena, metric_coordinates, metric_has_coordinates, &
+        metric_same_arena, metric_coordinate, metric_coordinates, &
+        metric_has_coordinates, &
         metric_grad, metric_divergence, metric_laplacian, &
         metric_signature_type, metric_orientation_type, metric_create_metadata
     use fortsym_volume, only: metric_volume_density, levi_civita_symbol, &
@@ -287,7 +292,7 @@ module fortsym
         metric_grad, metric_divergence, metric_laplacian, &
         metric_volume_density, levi_civita_symbol, metric_levi_civita, &
         metric_orientation, metric_valid, metric_arena, metric_same_arena, &
-        metric_coordinates, metric_has_coordinates, &
+        metric_coordinate, metric_coordinates, metric_has_coordinates, &
         metric_signature_type, metric_orientation_type, metric_create_metadata, &
         orientation_t, signature_t, orientation_create, orientation_valid, &
         orientation_value, orientation_is_positive, orientation_is_negative, &
@@ -333,7 +338,8 @@ module fortsym
         SPACETIME_UPPER, SPACETIME_LOWER, &
         maxwell_field_strength, maxwell_gauge_transform, maxwell_residual, &
         form_t, form, form_scalar, form_one, form_two, &
-        form_three, form_component, form_degree, form_valid, add_forms, &
+        form_three, form_component, form_degree, form_valid, form_chart_bound, &
+        form_same_chart, form_chart_compatible, form_metric_compatible, add_forms, &
         subtract_forms, negate_form, wedge, d, &
         exterior_diff, star, hodge_star, interior, interior_product, lie, &
         lie_derivative, flat, sharp, scale_form, volume_form, codifferential, codiff, &
@@ -343,7 +349,10 @@ module fortsym
         tensor_from_matrix, tensor_component, tensor_rank, tensor_variance, &
         tensor_symmetry, killing, declare_symmetry, SYMMETRY_NONE, SYMMETRIC, &
         ANTISYMMETRIC, &
-        tensor_density_weight, tensor_valid, tensor_same_arena, density, density_factor, &
+        tensor_density_weight, tensor_valid, tensor_same_arena, tensor_chart_bound, &
+        tensor_same_chart, tensor_chart_compatible, tensor_coordinates_compatible, &
+        tensor_metric_compatible, &
+        density, density_factor, &
         vector, covector, raise, &
         lower, tensor_product, contract, trace, permute, symmetrize, &
         antisymmetrize, metric_covariant_tensor, &

@@ -13,9 +13,10 @@ module fortsym_chart_map
         operator(-), operator(*), operator(/), operator(**), operator(==)
     use fortsym_subs, only: subs_many
     use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
-        form_zero, form_component, form_degree, form_valid
+        form_zero, form_component, form_degree, form_valid, &
+        form_chart_compatible, form_bind_chart
     use fortsym_tensor, only: tensor_t, MAX_RANK, UPPER, LOWER_VARIANCE, &
-        tensor_valid, tensor_from_storage
+        tensor_valid, tensor_from_storage, tensor_chart_compatible, tensor_bind_chart
     implicit none
     private
 
@@ -174,7 +175,7 @@ contains
 
         if (.not. map_valid(map)) return
         if (.not. tensor_valid(source_tensor)) return
-        if (.not. associated(source_tensor%a, map%source%a)) return
+        if (.not. tensor_chart_compatible(source_tensor, map%source)) return
 
         rank = source_tensor%rank
         count = component_count(rank)
@@ -209,6 +210,7 @@ contains
         end do
         result = tensor_from_storage(map%target, rank, values, variance, &
             source_tensor%density_weight)
+        call tensor_bind_chart(result, map%target)
     end function transform_tensor
 
     !> Express a source differential form in the target coordinate coframe.
@@ -228,7 +230,7 @@ contains
 
         if (.not. map_valid(map)) return
         if (.not. form_valid(source_form)) return
-        if (.not. associated(source_form%a, map%source%a)) return
+        if (.not. form_chart_compatible(source_form, map%source)) return
         degree = form_degree(source_form)
         if (degree < 0 .or. degree > DIM + 1) return
 
@@ -238,6 +240,7 @@ contains
             coefficient = subs_many(form_component(source_form, 0), &
                 map%source%u, map%inverse)
             result = form_scalar(coefficient)
+            call form_bind_chart(result, map%target)
         case (1)
             one_values = num(map%target%a, 0)
             do j = 1, DIM
