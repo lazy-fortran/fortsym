@@ -1763,6 +1763,47 @@ between the two-dimensional gradient, scalar curl, and divergence.
   Update the module graph, API inventory, naming audit, feature matrix,
   refusal table, and generated examples together with each completed slice.
 
+### Geometry finish queue
+
+The first native slice is deliberately useful now, but it is not yet a claim
+of full differential-geometry parity. Finish the remaining work in this order;
+each item is a separately reviewable owner, test corpus, and benchmark row:
+
+- [x] **F0 — notation and ownership baseline.** Keep `chart_t`, `metric_t`,
+  `tensor_t`, `form_t`, `connection_t`, and `magnetic_chart_t` as the single
+  native owners. Preserve the short Fortran names and expose SymPy spellings
+  only in the Python adapter.
+- [x] **F1 — fixed-3D physics baseline.** Verify reciprocal bases, signed
+  `J`, positive `sqrtg`, `B^i`, `B_i`, `sqrtg B^i`, `beta=i_B(Omega)`, Boozer
+  representation, relativity curvature, and the first Fourier/FEM branches
+  against independent component identities.
+- [ ] **F2 — dimension and index generalization.** Replace fixed-size geometry
+  arrays with dimension-owned storage, retain fast 3D/4D kernels, and add named
+  index spaces, arbitrary supported rank, symmetry declarations, canonical
+  dummy-index renaming, and explicit refusal for incompatible contractions.
+- [ ] **F3 — one tensor/form calculus.** Derive vector calculus from shared
+  metric, volume, connection, and form owners; add arbitrary-degree forms,
+  pullback composition, codifferential, Laplace--de Rham, Hodge signatures,
+  Maxwell source/gauge equations, and patch/boundary/topology conditions.
+- [ ] **F4 — coordinate systems used by physicists.** Add reusable Clebsch,
+  straight-field-line, Boozer, and Hamada descriptors with flux-function,
+  field-line, Jacobian, current, and consistency identities. Construction of
+  equilibria stays outside the generic toolkit.
+- [ ] **F5 — Fourier FEM completion.** Complete the Albert--Bíro--Lainer
+  `n=0` and `n!=0` weak forms, density/constitutive transformations, traces,
+  current compatibility, and a readable Fortran/Python derivation example.
+- [ ] **F6 — frontend and corpus parity.** Translate supported Wolfram and
+  Python records through one native IR, preserve assumptions and refusals,
+  and generate the same cases for `fortsym`, `fortsym.sympy`, and Fortran.
+- [ ] **F7 — independent verification.** Add determinant/component, numerical
+  point-sample, finite-difference, residual, coordinate-composition, and
+  finite-element checks. SymPy remains the correctness and performance oracle,
+  but never the only test oracle.
+- [ ] **F8 — performance and release closure.** Benchmark cold construction,
+  warm operations, conversion, memory, expression growth, and generated
+  kernels against matched SymPy workloads; then gate supported compilers,
+  CUDA, CMake/CTest, Python, Wolfram, and the no-array-temporary policy.
+
 ## Phase 8 — functions, discrete mathematics, and domains
 
 - [ ] Complete elementary, combinatorial, distribution, gamma, Bessel, Airy,
@@ -1985,6 +2026,10 @@ between the two-dimensional gradient, scalar curl, and divergence.
     performance coverage. The 118-row matrix measured native/SymPy ratios of
     0.459x cold and 0.0050x warm, with 101 correctness cases, zero correctness
     failures, and zero unwaived violations.
+- [x] Cache immutable explicit metric determinant, inverse, and positive
+  `sqrtg` views in the native `metric_t` owner. Repeated gradient, divergence,
+  Laplace--Beltrami, Hodge, and raise/lower calls reuse the same expression
+  handles instead of rebuilding the metric algebra.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

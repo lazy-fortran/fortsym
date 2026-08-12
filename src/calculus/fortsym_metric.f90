@@ -34,6 +34,14 @@ module fortsym_metric
         type(arena_t), pointer :: a => null()
         type(expr_t) :: component(DIM, DIM)
         type(expr_t) :: coordinate(DIM)
+        ! The metric is value-semantic and its components never change after
+        ! construction. Cache the small inverse/determinant views once so
+        ! repeated vector-calculus and Hodge operations do not rebuild the
+        ! same symbolic expression graph.
+        type(expr_t) :: determinant_cache
+        type(expr_t) :: inverse_cache(DIM, DIM)
+        type(expr_t) :: sqrtg_cache
+        logical :: cache_ready = .false.
         type(signature_t) :: signature_metadata
         type(orientation_t) :: orientation_metadata
         logical :: valid = .false.
@@ -125,6 +133,7 @@ contains
         end if
         result%valid = .true.
         if (.not. metric_valid(result)) result%valid = .false.
+        if (result%valid) call fill_metric_cache(result)
     end function metric_create_with_metadata
 
     !> Materialize the metric induced by a chart with explicit metadata.
@@ -152,11 +161,14 @@ contains
     function metric_contravariant(g) result(inverse)
         type(metric_t), intent(in) :: g
         type(expr_t) :: inverse(DIM, DIM)
-        type(expr_t) :: determinant
-        type(expr_t) :: one
+        type(expr_t) :: determinant, one
         integer :: i, j
 
         if (.not. g%valid) return
+        if (g%cache_ready) then
+            inverse = g%inverse_cache
+            return
+        end if
         if (is_diagonal_metric(g)) then
             one = num(g%a, 1)
             inverse = num(g%a, 0)
@@ -165,7 +177,7 @@ contains
             end do
             return
         end if
-        determinant = metric_det(g)
+        determinant = determinant_value(g)
         do i = 1, DIM
             do j = 1, DIM
                 inverse(i, j) = cofactor(g, j, i)/determinant
@@ -179,16 +191,11 @@ contains
         type(expr_t) :: determinant
 
         if (.not. g%valid) return
-        if (is_diagonal_metric(g)) then
-            determinant = g%component(1, 1)*g%component(2, 2)*g%component(3, 3)
-            return
+        if (g%cache_ready) then
+            determinant = g%determinant_cache
+        else
+            determinant = determinant_value(g)
         end if
-        determinant = g%component(1, 1)*(g%component(2, 2)*g%component(3, 3) - &
-            g%component(2, 3)*g%component(3, 2)) - &
-            g%component(1, 2)*(g%component(2, 1)*g%component(3, 3) - &
-            g%component(2, 3)*g%component(3, 1)) + &
-            g%component(1, 3)*(g%component(2, 1)*g%component(3, 2) - &
-            g%component(2, 2)*g%component(3, 1))
     end function metric_det
 
     !> Positive metric volume density sqrt(abs(det(g))).
@@ -200,7 +207,11 @@ contains
         type(expr_t) :: value
 
         if (.not. g%valid) return
-        value = sqrt(expr_abs(metric_det(g)))
+        if (g%cache_ready) then
+            value = g%sqrtg_cache
+        else
+            value = sqrt(expr_abs(metric_det(g)))
+        end if
     end function metric_sqrtg
 
     !> Positive induced measure on u(normal_index)=const.
@@ -439,6 +450,53 @@ contains
 
         has_coordinates = metric_valid(g) .and. g%has_coordinates
     end function metric_has_coordinates
+
+    !> Fill the immutable small-metric cache after construction.
+    !>
+    !> This is intentionally scalar-indexed: the cache is part of the owner,
+    !> so repeated metric operations share expression handles without
+    !> materializing temporary matrix expressions in hot paths.
+    subroutine fill_metric_cache(g)
+        type(metric_t), intent(inout) :: g
+        type(expr_t) :: one
+        integer :: i, j
+
+        g%determinant_cache = determinant_value(g)
+        g%sqrtg_cache = sqrt(expr_abs(g%determinant_cache))
+        g%inverse_cache = num(g%a, 0)
+        if (is_diagonal_metric(g)) then
+            one = num(g%a, 1)
+            do i = 1, DIM
+                g%inverse_cache(i, i) = one/g%component(i, i)
+            end do
+        else
+            do i = 1, DIM
+                do j = 1, DIM
+                    g%inverse_cache(i, j) = cofactor(g, j, i)/ &
+                        g%determinant_cache
+                end do
+            end do
+        end if
+        g%cache_ready = .true.
+    end subroutine fill_metric_cache
+
+    !> Determinant without consulting the cache being constructed.
+    function determinant_value(g) result(determinant)
+        type(metric_t), intent(in) :: g
+        type(expr_t) :: determinant
+
+        if (is_diagonal_metric(g)) then
+            determinant = g%component(1, 1)*g%component(2, 2)* &
+                g%component(3, 3)
+            return
+        end if
+        determinant = g%component(1, 1)*(g%component(2, 2)*g%component(3, 3) - &
+            g%component(2, 3)*g%component(3, 2)) - &
+            g%component(1, 2)*(g%component(2, 1)*g%component(3, 3) - &
+            g%component(2, 3)*g%component(3, 1)) + &
+            g%component(1, 3)*(g%component(2, 1)*g%component(3, 2) - &
+            g%component(2, 2)*g%component(3, 1))
+    end function determinant_value
 
     function cofactor(g, i, j) result(value)
         type(metric_t), intent(in) :: g
