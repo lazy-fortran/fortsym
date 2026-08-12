@@ -308,6 +308,14 @@ def _configure(lib):
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
          ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_field_line_derivative = declare(
+        "fortsym_chart_field_line_derivative", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CVOID, ctypes.POINTER(_CVOID),
+            _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.chart_curl = declare(
         "fortsym_chart_curl", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
@@ -2324,6 +2332,35 @@ class Chart:
             self.coordinates, self.position, vector,
         )
 
+    def field_line_derivative(self, vector, scalar):
+        """Return ``vector**i*diff(scalar, coordinate_i)``."""
+        scalar, temporary = self._arena._coerce(scalar)
+        try:
+            coordinate_handles, position_handles = self._arena._chart_inputs(
+                self.coordinates, self.position
+            )
+            values = tuple(self._arena._check(value) for value in vector)
+            if len(values) != 3:
+                raise ValueError(
+                    "field-line derivatives require three vector components"
+                )
+            vector_handles = (_CVOID * 3)(*[value._handle for value in values])
+            output = _CVOID()
+            message = _message()
+            status = self._arena._lib.chart_field_line_derivative(
+                self._arena._require(), coordinate_handles, position_handles,
+                vector_handles, scalar._handle, ctypes.byref(output), message,
+                len(message),
+            )
+            if status:
+                raise FortSymError(
+                    status, _decode(message), "field_line_derivative"
+                )
+            return Expr(self._arena, output)
+        finally:
+            if temporary is not None:
+                temporary.close()
+
     div = divergence
 
     def div_density(self, vector_density):
@@ -2571,6 +2608,10 @@ class MagneticField:
         covariant = self.h_cov(reluctivity)
         components = self.chart.h_con(covariant)
         return Tensor(self.chart, components, (1,), _owned=True)
+
+    def field_line_derivative(self, scalar):
+        """Return the derivative of a scalar along this magnetic field."""
+        return self.chart.field_line_derivative(self.upper, scalar)
 
 
 class Metric:

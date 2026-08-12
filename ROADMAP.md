@@ -1517,8 +1517,10 @@ without an explicit volume factor.
   clear SymPy names in Python.
 - [x] Add `H_cov` and `H_con` conversions with the explicit constitutive
   convention `H_i = nu_ij B^j` and metric raising `H^i = g^ij H_j`.
-- [ ] Add field-line derivatives, magnetic surfaces, flux-surface averages, and
-  Jacobian-weighted divergence.
+- [x] Add the generic field-line derivative `B^i partial_i f` through the
+  chart owner, C ABI 52, Python facade, and flux-surface identity test.
+- [ ] Add magnetic surfaces, flux-surface averages, and Jacobian-weighted
+  divergence.
 - [x] Provide metric contraction for `B**2` through the shared `metric_inner`
   owner.
 - [ ] Support Clebsch, straight-field-line, Boozer, and Hamada coordinate

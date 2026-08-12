@@ -48,6 +48,9 @@ three-component contravariant vector. `Metric.inner(left, right)` contracts
 contravariant components with the metric, and `Metric.norm_squared(vector)`
 is its self-contraction convenience for quantities such as `B**2`; both use
 the same native nonorthogonal-metric path.
+`Chart.field_line_derivative(vector, scalar)` returns the directional derivative
+`vector[i] * diff(scalar, coordinate[i])`. A `MagneticField` exposes the same
+operation as `field.field_line_derivative(scalar)` using its typed `B^i` view.
 `Chart.h_cov(reluctivity, vector)` applies `H_i = nu_ij B^j`, and
 `Chart.h_con(covariant)` raises `H_i` with the chart metric.
 `MagneticField.h_cov()` and `.h_con()` provide typed covariant and

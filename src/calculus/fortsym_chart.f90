@@ -27,7 +27,8 @@ module fortsym_chart
     public :: covariant_basis, reciprocal_basis
     public :: metric_covariant, metric_contravariant, sqrtg
     public :: jacobian, christoffel
-    public :: grad, divergence, div_density, curl, curl_density, laplacian
+    public :: grad, divergence, div_density, field_line_derivative, curl, &
+        curl_density, laplacian
     public :: mms_source
 
     integer, parameter :: dp = real64
@@ -255,6 +256,21 @@ contains
             end do
         end do
     end function grad
+
+    !> Directional derivative along a contravariant coordinate vector.
+    !>
+    !> For a magnetic field this is the field-line derivative
+    !> B^i partial_i f. It is a chart operation rather than a plasma-specific
+    !> one, so the same owner serves characteristics, flow lines, and magnetic
+    !> surfaces without introducing a second vector-calculus implementation.
+    function field_line_derivative(c, vector, f) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: vector(DIM), f
+        type(expr_t) :: value
+
+        value = vector(1)*diff(f, c%u(1)) + vector(2)*diff(f, c%u(2)) + &
+            vector(3)*diff(f, c%u(3))
+    end function field_line_derivative
 
     !> Divergence of a contravariant vector field:
     !>

@@ -198,6 +198,11 @@ int fortsym_chart_div_density(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *vector[],
     fortsym_expr **out, char *message, size_t capacity);
+int fortsym_chart_field_line_derivative(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *vector[],
+    const fortsym_expr *scalar, fortsym_expr **out, char *message,
+    size_t capacity);
 int fortsym_chart_curl(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *covector[],

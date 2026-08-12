@@ -40,6 +40,7 @@ module fortsym
     use fortsym_ode, only: solve_ode
     use fortsym_chart, only: DIM, chart_t, chart_create, covariant_basis, &
         reciprocal_basis, metric_covariant, metric_contravariant, sqrtg, &
+        field_line_derivative, &
         jacobian, christoffel, chart_grad => grad, &
         chart_divergence => divergence, curl, chart_laplacian => laplacian
     use fortsym_domain, only: manifold_t, patch_t, manifold_create, patch_create, &
@@ -161,7 +162,8 @@ module fortsym
     public :: solve_ode
     public :: DIM, chart_t, chart_create, covariant_basis, reciprocal_basis, &
         metric_covariant, metric_contravariant, sqrtg, jacobian, christoffel, &
-        grad, divergence, curl, laplacian, chart_map_t, chart_map_create, compose_maps, &
+        grad, divergence, field_line_derivative, curl, laplacian, chart_map_t, &
+        chart_map_create, compose_maps, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form, &
         pullback, b_con, &
         b_cov, b_density, h_cov, h_con, b_fourier, b_fourier_density, j_fourier, &

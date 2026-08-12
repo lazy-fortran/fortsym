@@ -625,6 +625,20 @@ class SympySubsetTest(unittest.TestCase):
             oracle.sympify(str(chart.divergence((u, v, w)).simplify())),
             expected_divergence,
         )
+        expected_field_line = sum(
+            vector*oracle.diff(scalar, coordinate)
+            for vector, scalar, coordinate in zip(
+                (oracle_v*oracle_w, oracle_u**2, oracle_u*oracle_v),
+                (oracle_u + oracle_v*oracle_w,)*3,
+                (oracle_u, oracle_v, oracle_w),
+            )
+        )
+        actual_field_line = oracle.sympify(str(
+            chart.field_line_derivative(
+                (v*w, u**2, u*v), u + v*w
+            ).simplify()
+        ))
+        self.assertEqual(actual_field_line, expected_field_line)
         density_vector = (u**2, u*v, sp.sin(w))
         oracle_density_vector = (
             oracle_u**2, oracle_u*oracle_v, oracle.sin(oracle_w)

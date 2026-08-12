@@ -10,7 +10,8 @@ program test_fortsym_magnetic
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create, covariant_basis, &
-        reciprocal_basis, metric_covariant, jacobian, sqrtg
+        reciprocal_basis, metric_covariant, jacobian, sqrtg, &
+        field_line_derivative
     use fortsym_magnetic, only: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
         b_fourier_density, j_fourier, magnetic_field_t, magnetic_field, &
         magnetic_upper, magnetic_lower, magnetic_density
@@ -101,6 +102,8 @@ program test_fortsym_magnetic
     call check_identity(suite, engine, "B^2 from covariant potential", b_up(2) - u(2))
     call check_identity(suite, engine, "B^3 from covariant potential", &
         b_up(3) - (2*u(1) - u(3)))
+    call check_identity(suite, engine, "field-line derivative of u1", &
+        field_line_derivative(shear, b_up, u(1)) - 1)
     call check_identity(suite, engine, "metric lowering gives B_1", &
         b_down(1) - (1 + u(2)))
     call check_identity(suite, engine, "metric lowering gives B_2", &
