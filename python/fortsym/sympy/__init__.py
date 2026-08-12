@@ -19,6 +19,7 @@ from .. import (
     SPACE_NONE, SPACE_NODAL, SPACE_EDGE, TRACE_NONE, TRACE_NORMAL,
     TRACE_TANGENTIAL, _Assumption, _CONFLICT, _FACT_INTEGER, _FACT_RATIONAL,
     _FACT_ALGEBRAIC, SPACETIME_DIM, _default,
+    tensor_product as _tensor_product, contract as _contract,
 )
 
 
@@ -71,6 +72,31 @@ def _has_numeric_factor(expression):
     finally:
         for argument in arguments:
             argument.close()
+
+
+def tensorproduct(*args):
+    """SymPy spelling for the native tensor-product owner."""
+    if not args:
+        raise TypeError("tensorproduct requires at least one tensor")
+    result = args[0]
+    for value in args[1:]:
+        if not isinstance(result, Tensor) or not isinstance(value, Tensor):
+            return TensorProduct(*args)
+        result = _tensor_product(result, value)
+    return result
+
+
+def tensorcontraction(tensor, *pairs):
+    """SymPy spelling for checked native tensor contractions."""
+    if len(pairs) == 1 and isinstance(pairs[0], (tuple, list)) and pairs[0] and \
+            isinstance(pairs[0][0], (tuple, list)):
+        pairs = tuple(pairs[0])
+    result = tensor
+    for pair in pairs:
+        if len(pair) != 2:
+            raise ValueError("tensorcontraction pairs must contain two slots")
+        result = _contract(result, pair[0], pair[1])
+    return result
 
 
 def _combine_owned(values, operation, owned):
@@ -1239,6 +1265,6 @@ __all__ = [
     "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
     "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
-    "integrate", "limit", "series", "solve", "Matrix", "pi", "E", "I",
+    "integrate", "limit", "series", "solve", "Matrix", "tensorproduct", "tensorcontraction", "pi", "E", "I",
     "oo", "zoo", "nan",
 ]

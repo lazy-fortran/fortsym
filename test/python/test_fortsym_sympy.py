@@ -38,6 +38,12 @@ class SympySubsetTest(unittest.TestCase):
         form = chart.one_form((y, z, x))
         self.assertIsInstance(form, sp.Form)
         self.assertEqual(form.d().degree, 2)
+        mixed = chart.tensor(tuple(range(1, 10)), variance=(1, -1))
+        self.assertEqual(mixed.trace(0, 1).component().simplify(), 15)
+        self.assertEqual(sp.tensorcontraction(mixed, (0, 1)).component().simplify(), 15)
+        product = sp.tensorproduct(chart.vector((1, 2, 3)), chart.covector((4, 5, 6)))
+        self.assertEqual(product.variance, (1, -1))
+        self.assertEqual(product[0, 0].simplify(), 4)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_tensor_index_labels_contract_through_native_owner(self):

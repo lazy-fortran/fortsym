@@ -2890,6 +2890,10 @@ class Tensor:
 
     tensor_product = product
 
+    def trace(self, first, second):
+        """Contract two opposite-variance slots using the short native name."""
+        return self.contract(first, second)
+
     def covariant_diff(self):
         return self.chart.covariant_diff(self)
 
@@ -3851,6 +3855,9 @@ def subs_many(expression: Expr, old, new): return expression._subs_many(old, new
 def factor(expression: Expr): return expression.factor()
 def operation_count(expression: Expr): return expression.operation_count()
 def free_symbols(expression: Expr): return expression.free_symbols
+def tensor_product(left: Tensor, right: Tensor): return left.product(right)
+def contract(tensor: Tensor, first, second): return tensor.contract(first, second)
+def trace(tensor: Tensor, first, second): return tensor.trace(first, second)
 
 
 __all__ = [
@@ -3858,6 +3865,6 @@ __all__ = [
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

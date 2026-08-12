@@ -62,6 +62,9 @@ slot operations using zero-based Python slot numbers.
 `Tensor.product(other)` (also `tensor_product`) routes the outer product
 through the same native owner; left slots precede right slots and density
 weights add.
+The native `Tensor.trace()`/`trace()` spellings and compatibility
+`tensorcontraction(tensor, (i, j))` all use the same checked contraction owner;
+`fortsym.sympy.tensorproduct` is the SymPy spelling for the native product.
 `IndexType(name, dimension, category)` and `IndexType.index(slot, variance,
 label, dummy)` provide checked, zero-based named slots; `Tensor.contract(i, j)`
 accepts those labels and validates their space, variance, and dummy name before
