@@ -912,6 +912,9 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Expose metric-owned `raise` and `lower` for chart-bound tensor slots
   through the C ABI and Python `Tensor`, preserving density weight and
   checking the round trip against an independent metric matrix.
+- [x] Expose native density metadata changes and concise `Chart.vector` and
+  `Chart.covector` constructors. A density conversion preserves components,
+  variance, and chart ownership while changing only its explicit weight.
 - [ ] Add reciprocal bases, inverse coordinate maps when available, signed
   Jacobians, `sqrtg`, volume forms, surface measures, and metric signature
   checks. Singular maps and incompatible dimensions become named refusals.

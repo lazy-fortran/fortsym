@@ -22,7 +22,8 @@ module fortsym_public_capi
     use fortsym_magnetic, only: b_cov, b_fourier, b_fourier_density
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_component, tensor_valid, metric_covariant_tensor, &
-        metric_contravariant_tensor, raise_tensor => raise, lower_tensor => lower
+        metric_contravariant_tensor, density_tensor => density, &
+        raise_tensor => raise, lower_tensor => lower
     use fortsym_connection, only: covariant_diff, christoffel_tensor, &
         riemann_tensor, ricci_tensor, scalar_curvature, einstein_tensor
     use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
@@ -94,6 +95,7 @@ module fortsym_public_capi
         fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
         fortsym_chart_christoffel, fortsym_chart_covariant_diff, &
         fortsym_chart_tensor_raise, fortsym_chart_tensor_lower, &
+        fortsym_chart_tensor_density, &
         fortsym_chart_riemann, fortsym_chart_ricci, &
         fortsym_chart_scalar_curvature, fortsym_chart_einstein, &
         fortsym_chart_form_add, fortsym_chart_form_subtract, &
@@ -116,7 +118,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 20_c_int
+        v = 21_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -958,6 +960,30 @@ contains
         end if
         call make_tensor_array(a, value, int(rank), out, status, message, capacity)
     end function fortsym_chart_tensor_lower
+
+    function fortsym_chart_tensor_density(raw, coordinates, position, components, &
+            rank, variance, density_weight, new_density_weight, out, message, &
+            capacity) bind(c, name="fortsym_chart_tensor_density") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, variance, out
+        integer(c_size_t), value :: rank
+        integer(c_int), value :: density_weight, new_density_weight
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: input, value
+
+        call get_chart_tensor_input(raw, coordinates, position, components, rank, &
+            variance, density_weight, chart, a, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = density_tensor(input, int(new_density_weight))
+        if (.not. tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call make_tensor_array(a, value, int(rank), out, status, message, capacity)
+    end function fortsym_chart_tensor_density
 
     function fortsym_chart_riemann(raw, coordinates, position, out, message, &
             capacity) bind(c, name="fortsym_chart_riemann") result(status)

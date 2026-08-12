@@ -226,6 +226,13 @@ def _configure(lib):
                 tensor_metric_arguments,
             ),
         )
+    lib.chart_tensor_density = declare(
+        "fortsym_chart_tensor_density",
+        ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
+         ctypes.c_int, ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.chart_scalar_curvature = declare(
         "fortsym_chart_scalar_curvature",
         ctypes.c_int,
@@ -675,6 +682,28 @@ class Arena:
             raise FortSymError(status, _decode(message), operation.__name__)
         return tuple(Expr(self, output[index]) for index in range(output_count))
 
+    def _chart_tensor_density(self, chart, tensor, density_weight):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        component_values = [self._check(value) for value in tensor.components]
+        component_handles = (_CVOID * len(component_values))(
+            *[value._handle for value in component_values]
+        )
+        variance_values = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output_count = 3 ** tensor.rank
+        output = (_CVOID * output_count)()
+        message = _message()
+        status = self._lib.chart_tensor_density(
+            self._require(), coordinate_handles, position_handles,
+            component_handles, tensor.rank, variance_values,
+            tensor.density_weight, int(density_weight), output, message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "tensor_density")
+        return tuple(Expr(self, output[index]) for index in range(output_count))
+
     def _chart_scalar(self, operation, coordinates, position):
         coordinate_handles, position_handles = self._chart_inputs(
             coordinates, position
@@ -869,6 +898,12 @@ class Chart:
 
     def tensor(self, components, variance=(), density_weight=0):
         return Tensor(self, components, variance, density_weight)
+
+    def vector(self, components, density_weight=0):
+        return Tensor(self, components, (1,), density_weight)
+
+    def covector(self, components, density_weight=0):
+        return Tensor(self, components, (-1,), density_weight)
 
     def scalar(self, value, density_weight=0):
         return self.tensor((value,), (), density_weight)
@@ -1084,6 +1119,13 @@ class Tensor:
         return Tensor(
             self.chart, components, variance, self.density_weight, _owned=True
         )
+
+    def density(self, weight):
+        """Return this tensor with native density metadata set to ``weight``."""
+        components = self._arena._chart_tensor_density(self.chart, self, weight)
+        return Tensor(self.chart, components, self.variance, int(weight), _owned=True)
+
+    with_density = density
 
     def close(self):
         if self._owned:

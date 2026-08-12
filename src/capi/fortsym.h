@@ -230,6 +230,12 @@ int fortsym_chart_tensor_lower(
     const fortsym_expr *position[], const fortsym_expr *components[],
     size_t rank, const int variance[], int density_weight, size_t slot,
     fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_tensor_density(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *components[],
+    size_t rank, const int variance[], int density_weight,
+    int new_density_weight, fortsym_expr *out[], char *message,
+    size_t capacity);
 int fortsym_chart_riemann(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], fortsym_expr *out[], char *message,
