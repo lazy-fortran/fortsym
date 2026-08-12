@@ -15,6 +15,8 @@ program test_fortsym_tensor
         tensor_density_weight, tensor_valid, density, raise, lower, &
         tensor_product, contract, trace, permute, symmetrize, antisymmetrize, &
         metric_covariant_tensor, UPPER, LOWER_VARIANCE
+    use fortsym_index, only: index_type_t, index_t, index_type, make_index, &
+        index_valid, compatible_indices, INDEX_TANGENT, INDEX_INTERNAL
     implicit none
 
     type(arena_t), target :: arena
@@ -27,6 +29,8 @@ program test_fortsym_tensor
     type(tensor_t) :: vup, vcov, vdown, roundtrip, weighted, outer, dot
     type(tensor_t) :: metric_down, mixed, rank_three
     type(tensor_t) :: permuted, matrix, symmetric, antisymmetric
+    type(index_type_t) :: tangent_space, internal_space
+    type(index_t) :: upper_i, lower_i, lower_j, internal_i
     integer :: indices(4), empty(0), rank_three_variance(3), i, j, k
 
     call arena%init()
@@ -71,6 +75,24 @@ program test_fortsym_tensor
     expected = expected + values(3)*tensor_component(vdown, indices(1:1))
     call check_identity(suite, engine, "upper/lower contraction", &
         tensor_component(dot, empty) - expected)
+
+    tangent_space = index_type("tangent", DIM, INDEX_TANGENT)
+    internal_space = index_type("internal", DIM, INDEX_INTERNAL)
+    upper_i = make_index(tangent_space, 1, UPPER, "i", .true.)
+    lower_i = make_index(tangent_space, 2, LOWER_VARIANCE, "i", .true.)
+    lower_j = make_index(tangent_space, 2, LOWER_VARIANCE, "j", .true.)
+    internal_i = make_index(internal_space, 2, LOWER_VARIANCE, "i", .true.)
+    if (.not. index_valid(upper_i)) error stop "upper index invalid"
+    if (.not. compatible_indices(upper_i, lower_i)) then
+        error stop "compatible indices rejected"
+    end if
+    if (compatible_indices(upper_i, lower_j)) error stop "label mismatch accepted"
+    if (compatible_indices(upper_i, internal_i)) error stop "space mismatch accepted"
+    dot = contract(outer, upper_i, lower_i)
+    call check_identity(suite, engine, "typed upper/lower contraction", &
+        tensor_component(dot, empty) - expected)
+    dot = contract(outer, upper_i, lower_j)
+    if (tensor_valid(dot)) error stop "mismatched typed labels contracted"
 
     metric_down = metric_covariant_tensor(metric_owner)
     call check_metadata(suite, metric_down, 2, LOWER_VARIANCE, 0, &

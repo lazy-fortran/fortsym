@@ -12,6 +12,8 @@ module fortsym_tensor
     use fortsym_metric, only: metric_t, metric_valid, metric_same_arena, &
         metric_arena, owner_metric_covariant => metric_covariant, &
         owner_metric_contravariant => metric_contravariant
+    use fortsym_index, only: index_t, index_valid, index_dimension, index_slot, &
+        index_variance, compatible_indices
     use fortsym_expr, only: expr_t, num, is_valid, operator(+), operator(-), &
         operator(*), &
         operator(/)
@@ -29,7 +31,7 @@ module fortsym_tensor
     public :: tensor_component, tensor_rank, tensor_variance
     public :: tensor_density_weight, tensor_valid, tensor_same_arena, density
     public :: vector, covector, raise, lower
-    public :: tensor_product, contract, trace
+    public :: tensor_product, contract, contract_slots, trace
     public :: permute, symmetrize, antisymmetrize
     public :: metric_covariant_tensor, metric_contravariant_tensor
 
@@ -63,6 +65,11 @@ module fortsym_tensor
         module procedure lower_chart
         module procedure lower_metric
     end interface lower
+
+    interface contract
+        module procedure contract_slots
+        module procedure contract_indices
+    end interface contract
 
     interface metric_covariant_tensor
         module procedure metric_covariant_tensor_chart
@@ -424,7 +431,7 @@ contains
     end function tensor_product
 
     !> Contract two opposite-variance slots, preserving all free slot order.
-    function contract(tensor_value, first, second) result(result)
+    function contract_slots(tensor_value, first, second) result(result)
         type(tensor_t), intent(in) :: tensor_value
         integer, intent(in) :: first, second
         type(tensor_t) :: result
@@ -464,14 +471,37 @@ contains
                     tensor_value%component(old_index)
             end do
         end do
-    end function contract
+    end function contract_slots
+
+    !> Checked contraction using two typed index labels. The labels must name
+    !> the same index space with opposite variance; nonempty labels must match.
+    function contract_indices(tensor_value, first, second) result(result)
+        type(tensor_t), intent(in) :: tensor_value
+        type(index_t), intent(in) :: first, second
+        type(tensor_t) :: result
+        integer :: first_slot, second_slot
+
+        if (.not. tensor_valid(tensor_value)) return
+        if (.not. index_valid(first)) return
+        if (.not. index_valid(second)) return
+        if (.not. compatible_indices(first, second)) return
+        if (index_dimension(first) /= DIM) return
+        if (index_dimension(second) /= DIM) return
+        first_slot = index_slot(first)
+        second_slot = index_slot(second)
+        if (first_slot < 1 .or. first_slot > tensor_value%rank) return
+        if (second_slot < 1 .or. second_slot > tensor_value%rank) return
+        if (tensor_value%variance(first_slot) /= index_variance(first)) return
+        if (tensor_value%variance(second_slot) /= index_variance(second)) return
+        result = contract_slots(tensor_value, first_slot, second_slot)
+    end function contract_indices
 
     function trace(tensor_value, first, second) result(result)
         type(tensor_t), intent(in) :: tensor_value
         integer, intent(in) :: first, second
         type(tensor_t) :: result
 
-        result = contract(tensor_value, first, second)
+        result = contract_slots(tensor_value, first, second)
     end function trace
 
     !> Reorder tensor slots. `order(k)` gives the old slot at new slot k.

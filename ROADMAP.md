@@ -795,10 +795,11 @@ The first-class object model is staged around these metadata owners:
   stores an open coordinate domain and its parent manifold. `chart_t` stores
   coordinate expressions, a chart map, and orientation, while a chart map
   records its source and target patches and its forward and inverse maps.
-- [ ] `index_type_t` stores dimension, name, and whether an index space is
+- [x] `index_type_t` stores dimension, name, and whether an index space is
   tangent, cotangent, spacetime, internal, or a user-declared compatible
-  space. `index_t` stores variance and free/dummy role. Dummy contraction
-  requires the same index space and opposite variance.
+  space. `index_t` stores variance and free/dummy role. The first native
+  fixed-3D contraction slice requires the same index space, opposite variance,
+  and matching nonempty labels.
 - [ ] `metric_t` stores a nondegenerate component tensor, signature
   `(n_plus, n_minus, n_zero)`, orientation compatibility, and its inverse.
   `metric_from_chart` is a convenience constructor, not a second metric
@@ -1242,6 +1243,13 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   antisymmetrization through the native owner, C ABI, Python facade, and
   independent Fortran/SymPy checks. Named index spaces, arbitrary-rank
   symmetry declarations, and dummy-index canonicalization remain open.
+- [x] Add the first value-semantic named-index slice: native `index_type_t` /
+  `index_t` spaces, variance and dummy metadata, compatible-label checks, and
+  an overloaded native `contract`. Expose the same checked operation through
+  C ABI 41, `fortsym.IndexType`/`Index`, and the SymPy spelling aliases
+  `TensorIndexType`/`TensorIndex`. Native slots are one-based; Python slots
+  are zero-based. Arbitrary dimensions, index declarations independent of a
+  fixed chart, canonical dummy renaming, and `TensorHead` remain open.
 - [ ] Implement covariant differentiation of arbitrary tensor valence,
   including the correct Christoffel term for every upper and lower slot. The
   existing `christoffel` operation becomes a special case of the connection
