@@ -72,7 +72,8 @@ principal-square-root powers, direct domain-function simplification of
 points, exact `log(0)`, exact negative-real `log`, exact `log(±i)` branch
 points, exact `atanh(1)`/`atanh(-1)`, exact `atanh(±i)` and `atan(±i)` branch
 points, exact `acosh(0)`, `acosh(-1)`, `acosh(±i)`, `asin(±i)`, and
-`acos(±i)`, exact real unit-circle `asin`/`acos` values, gamma-family domain-head
+`acos(±i)`, exact real unit-circle `asin`/`acos` values, exact real tangent
+`atan` values, gamma-family domain-head
 simplification, inverse domain-head
 simplification, and reciprocal-hyperbolic domain-head simplification embedded
 in a symbolic fourth-degree expression, directed-infinity `atan2` domain-head
@@ -160,13 +161,17 @@ exact branch rewrite is faster than SymPy: the recorded ratios were 0.002x and
 before the real unit-circle rows are added. The `domain_asin_special` and
 `domain_acos_special` cold rows are enforced at 0.020x and 0.020x SymPy; their
 warm rows are 0.044x and 0.044x. The matrix has 80 rows, 74 enforced rows, and
-zero unwaived violations before the negative-square-root rows are added. The
+zero unwaived violations before the real tangent row is added. The
+`domain_atan_special` cold and warm rows are enforced because the native exact
+branch rewrite is faster than SymPy: the recorded ratios were 0.029x and
+0.043x. The matrix has 82 rows, 76 enforced rows, and zero unwaived violations
+before the negative-square-root rows are added. The
 `domain_sqrt_negative_square` cold and warm rows are enforced because the
 native principal-root rewrite is faster than SymPy: the recorded ratios were
-0.029x and 0.062x. The final matrix has 82 rows, 76 enforced rows, and zero
+0.029x and 0.062x. The final matrix has 84 rows, 78 enforced rows, and zero
 unwaived violations. The `domain_asinh_imaginary` cold and warm rows are
 enforced because the native exact branch rewrite is faster than SymPy: the
-recorded ratios were 0.018x and 0.051x. The final matrix has 84 rows, 78
+recorded ratios were 0.018x and 0.051x. The final matrix has 86 rows, 80
 enforced rows, and zero unwaived violations.
 
 Run it from a built checkout with:
@@ -282,6 +287,7 @@ was 5.34× cold and 4.15× warm; `domain_atanh_imaginary` was 0.014× cold and
 `domain_acos_imaginary` was 0.002× cold and 0.015× warm;
 `domain_asin_special` was 0.020× cold and 0.044× warm;
 `domain_acos_special` was 0.020× cold and 0.044× warm;
+`domain_atan_special` was 0.029× cold and 0.043× warm;
 `domain_sqrt_negative_square` was 0.029× cold and 0.062× warm.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including

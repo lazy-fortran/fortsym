@@ -133,6 +133,8 @@ The exact principal real unit-circle values are also canonicalized:
 `asin(±1/2)`, `asin(±sqrt(2)/2)`, and `asin(±sqrt(3)/2)` return signed
 `pi/6`, `pi/4`, and `pi/3`, while the matching `acos` values return their
 principal angles from `pi/6` through `5*pi/6`.
+The exact real tangent values `atan(±sqrt(3))` and `atan(±1/sqrt(3))` return
+signed `pi/3` and `pi/6`; other exact tangent arguments remain unevaluated.
 The exact imaginary branch points `asinh(i)` and `asinh(-i)` are canonicalized
 to `i*pi/2` and `-i*pi/2`; broader complex inverse branches remain unevaluated.
 The reciprocal-hyperbolic heads `csch`, `sech`, and `coth` likewise have

@@ -96,6 +96,8 @@ int main(void)
     fortsym_expr *negative_log_simplified = NULL;
     fortsym_expr *negative_four = NULL;
     fortsym_expr *half = NULL;
+    fortsym_expr *three = NULL;
+    fortsym_expr *sqrt_three = NULL;
     fortsym_expr *negative_imaginary = NULL;
     fortsym_expr *pole = NULL;
     fortsym_expr *pole_simplified = NULL;
@@ -682,6 +684,24 @@ int main(void)
     fortsym_expr_free(branch);
     branch_simplified = NULL;
     branch = NULL;
+    status = fortsym_int(arena, 3, &three, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    root_argument[0] = three;
+    status = fortsym_function(arena, "sqrt", root_argument, 1, &sqrt_three,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    root_argument[0] = sqrt_three;
+    status = fortsym_function(arena, "atan", root_argument, 1, &branch,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, branch, &branch_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(branch_simplified, "pi*1/3");
+    fortsym_expr_free(branch_simplified);
+    fortsym_expr_free(branch);
+    branch_simplified = NULL;
+    branch = NULL;
     status = fortsym_rational(arena, 2, 3, &two_thirds, message,
                               sizeof message);
     assert(status == FORTSYM_OK);
@@ -772,6 +792,8 @@ int main(void)
     fortsym_expr_free(negative_two);
     fortsym_expr_free(negative_four);
     fortsym_expr_free(half);
+    fortsym_expr_free(sqrt_three);
+    fortsym_expr_free(three);
     fortsym_expr_free(negative_imaginary);
     fortsym_expr_free(pole_simplified);
     fortsym_expr_free(pole);

@@ -505,6 +505,9 @@ Every checklist item requires all of the following:
     signed `pi/6`, `pi/4`, and `pi/3` angles; `acos(±1/2)`,
     `acos(±sqrt(2)/2)`, and `acos(±sqrt(3)/2)` map to the corresponding
     principal angles through `5*pi/6`.
+  - [x] Canonicalize exact principal real tangent inverse branches:
+    `atan(±sqrt(3))` maps to signed `pi/3`, and `atan(±1/sqrt(3))` maps to
+    signed `pi/6`; other exact tangent arguments remain unevaluated.
   - [x] Canonicalize principal square roots of exact negative perfect-square
     rationals: `sqrt(-1)` becomes `i` and `sqrt(-4)` becomes `i*2`; irrational
     negative roots remain unevaluated and Gaussian-rational results stay in
@@ -718,14 +721,17 @@ Every checklist item requires all of the following:
   - [x] Add exact real unit-circle `asin`/`acos` values to the correctness and
     performance matrix. The two cold rows are enforced at 0.020x SymPy and the
     two warm rows at 0.044x; the 74 substantive rows remain enforced
-    with zero unwaived violations.
+    with zero unwaived violations before the real tangent rows are added.
+  - [x] Add exact real tangent `atan` values to the correctness and performance
+    matrix. Its cold and warm rows are enforced at 0.029x and 0.043x SymPy;
+    the 76 substantive rows remain enforced with zero unwaived violations.
   - [x] Add exact negative perfect-square roots to the correctness and
     performance matrix. The cold and warm rows are enforced and measured at
-    0.029x and 0.062x SymPy; the 76 substantive rows remain enforced with
+    0.029x and 0.062x SymPy; the 78 substantive rows remain enforced with
     zero unwaived violations.
   - [x] Add the exact `asinh(i)`/`asinh(-i)` branch points to the correctness
     and performance matrix. Their cold and warm rows are enforced and measured
-    at 0.018x and 0.051x SymPy; the 78 substantive rows remain enforced with
+    at 0.018x and 0.051x SymPy; the 80 substantive rows remain enforced with
     zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
