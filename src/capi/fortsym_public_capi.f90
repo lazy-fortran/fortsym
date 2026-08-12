@@ -202,7 +202,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 57_c_int
+        v = 58_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1663,9 +1663,10 @@ contains
     end function fortsym_chart_connection_covariant_diff
 
     function fortsym_chart_connection_riemann(raw, coordinates, position, &
-            components, out, message, capacity) bind(c, &
+            components, convention, out, message, capacity) bind(c, &
             name="fortsym_chart_connection_riemann") result(status)
         type(c_ptr), value :: raw, coordinates, position, components, out
+        integer(c_int), value :: convention
         character(kind=c_char), intent(out) :: message(*)
         integer(c_size_t), value :: capacity
         integer(c_int) :: status
@@ -1675,7 +1676,7 @@ contains
         type(tensor_t) :: value
 
         call get_chart_connection_input(raw, coordinates, position, components, &
-            chart, a, connection, status, message, capacity)
+            chart, a, connection, status, message, capacity, convention)
         if (status /= FORTSYM_OK) return
         value = riemann_tensor(connection)
         call make_tensor_array(a, value, 4, out, status, message, capacity)
@@ -4050,7 +4051,7 @@ contains
     end subroutine get_chart_inputs
 
     subroutine get_chart_connection_input(raw, coordinates, position, components, &
-            chart, a, connection, status, message, capacity)
+            chart, a, connection, status, message, capacity, convention)
         type(c_ptr), value :: raw, coordinates, position, components
         type(chart_t), intent(out) :: chart
         type(arena_owner_t), pointer :: a
@@ -4058,6 +4059,7 @@ contains
         integer(c_int), intent(out) :: status
         character(kind=c_char), intent(out) :: message(*)
         integer(c_size_t), value :: capacity
+        integer(c_int), optional, intent(in) :: convention
         type(c_ptr), pointer :: component_values(:)
         type(expr_owner_t), pointer :: owner
         type(expr_t) :: values(DIM, DIM, DIM)
@@ -4087,7 +4089,11 @@ contains
                 end do
             end do
         end do
-        connection = connection_create(values, chart%u)
+        if (present(convention)) then
+            connection = connection_create(values, chart%u, convention)
+        else
+            connection = connection_create(values, chart%u)
+        end if
         if (.not. connection_valid(connection)) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return

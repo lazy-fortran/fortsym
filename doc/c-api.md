@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 57). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 58). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -37,7 +37,8 @@ first-slot-fastest order: `fortsym_chart_connection_torsion` returns
 coefficients for arbitrary typed tensors and preserve their density metadata.
 `fortsym_chart_connection_riemann` returns the rank-four `R^a_bcd` tensor
 computed directly from supplied coefficients and their coordinate tuple, so
-curvature does not require a metric owner.
+curvature does not require a metric owner. Its `convention` argument accepts
+`1` for the standard sign and `-1` for the exact opposite sign.
 `fortsym_chart_covariant_divergence` contracts the first contravariant tensor
 slot with the derivative slot and preserves the remaining slot metadata.
 `fortsym_chart_first_bianchi_residual` returns the native rank-four residual
