@@ -150,9 +150,9 @@ module fortsym
     use fortsym_flux, only: flux_coordinate_t, flux_coordinates, &
         flux_coordinate_valid, flux_coordinate_label, flux_coordinate_kind, &
         flux_coordinate_angles, flux_normal_residual, &
-        straight_field_line_residual, boozer_residuals, FLUX_GENERIC, &
+        straight_field_line_residual, boozer_residuals, hamada_residuals, FLUX_GENERIC, &
         FLUX_CLEBSCH, FLUX_STRAIGHT_FIELD_LINE, FLUX_BOOZER, FLUX_HAMADA, &
-        BOOZER_RESIDUAL_COUNT
+        BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT
     use fortsym_maxwell, only: maxwell_field_strength, maxwell_gauge_transform, &
         maxwell_residual
     implicit none
@@ -254,8 +254,9 @@ module fortsym
         flux_coordinate_t, flux_coordinates, flux_coordinate_valid, &
         flux_coordinate_label, flux_coordinate_kind, flux_coordinate_angles, &
         flux_normal_residual, straight_field_line_residual, boozer_residuals, &
+        hamada_residuals, &
         FLUX_GENERIC, FLUX_CLEBSCH, FLUX_STRAIGHT_FIELD_LINE, FLUX_BOOZER, &
-        FLUX_HAMADA, BOOZER_RESIDUAL_COUNT, &
+        FLUX_HAMADA, BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT, &
         fourier_constitutive, fourier_constitutive_t, fourier_weak_form, &
         fourier_weak_form_t, current_compatibility, nubar, &
         fourier_constitutive_valid, fourier_weak_form_valid, FOURIER_INVALID, &

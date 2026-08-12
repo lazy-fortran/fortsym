@@ -1706,9 +1706,14 @@ without an explicit volume factor.
   owner, exposes the label and ordered angles, and delegates zero decisions to
   the native engine. The C ABI and Python/SymPy facades do not duplicate these
   formulas.
+- [x] Add the Hamada residual descriptor as the contravariant counterpart to
+  Boozer: `B^label` plus the four angular derivatives, exposed by the native
+  owner, C ABI 61, and both Python facades with independent Fortran, C, and
+  SymPy-oracle checks.
 - [ ] Complete Clebsch, Hamada, equilibrium-surface construction, symbolic
-  consistency/refusal checks, and current/Jacobian identities. Do not encode a
-  particular equilibrium solver in this toolkit.
+  consistency/refusal checks, equilibrium-surface construction, and
+  current/Jacobian identities. Do not encode a particular equilibrium solver in
+  this toolkit.
 - [ ] Add the common plasma identities `B dot grad(psi) = 0`, the reciprocal
   basis relations, `B = B^i e_i = B_i e^i`, `div(B) = 0`, and the magnetic
   differential equation in both component and form notation.

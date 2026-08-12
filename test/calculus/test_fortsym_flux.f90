@@ -13,14 +13,14 @@ program test_fortsym_flux
         flux_coordinate_valid, flux_coordinate_label, flux_coordinate_kind, &
         flux_coordinate_angles, flux_normal_residual, &
         straight_field_line_residual, boozer_residuals, FLUX_GENERIC, &
-        FLUX_BOOZER
+        hamada_residuals, FLUX_BOOZER, FLUX_HAMADA, HAMADA_RESIDUAL_COUNT
     implicit none
 
     type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
     type(chart_t) :: chart
-    type(flux_coordinate_t) :: boozer, generic, relabelled
+    type(flux_coordinate_t) :: boozer, hamada, generic, relabelled
     type(expr_t) :: coordinates(DIM), b_up(DIM), b_cov(DIM)
     type(expr_t) :: psi, theta, phi, iota, i_flux, g_flux
     type(expr_t) :: i_relabel, g_relabel
@@ -42,6 +42,7 @@ program test_fortsym_flux
     coordinates(3) = phi
     chart = chart_create(arena, coordinates, coordinates)
     boozer = flux_coordinates(chart, 1, FLUX_BOOZER)
+    hamada = flux_coordinates(chart, 1, FLUX_HAMADA)
     generic = flux_coordinates(chart, 1, FLUX_GENERIC)
     relabelled = flux_coordinates(chart, 2, FLUX_BOOZER)
 
@@ -78,6 +79,27 @@ program test_fortsym_flux
     call check_identity(suite, engine, "non-flux B_theta phi derivative", &
         residuals(3))
 
+    b_up(2) = i_flux
+    b_up(3) = g_flux
+    residuals = hamada_residuals(hamada, b_up)
+    if (size(residuals) /= HAMADA_RESIDUAL_COUNT) then
+        error stop "Hamada residual count changed unexpectedly"
+    end if
+    call check_identity(suite, engine, "Hamada B_psi residual", residuals(1))
+    call check_identity(suite, engine, "d_theta B^theta residual", residuals(2))
+    call check_identity(suite, engine, "d_phi B^theta residual", residuals(3))
+    call check_identity(suite, engine, "d_theta B^phi residual", residuals(4))
+    call check_identity(suite, engine, "d_phi B^phi residual", residuals(5))
+
+    b_up(2) = i_flux + theta
+    residuals = hamada_residuals(hamada, b_up)
+    call check_identity(suite, engine, "non-flux B^theta is detected", &
+        residuals(2) - 1)
+    residuals = hamada_residuals(boozer, b_up)
+    if (is_valid(residuals(1))) error stop "Boozer descriptor accepted Hamada residuals"
+
+    b_up(2) = iota
+    b_up(3) = num(arena, 1)
     residual = flux_normal_residual(boozer, b_up)
     call check_identity(suite, engine, "normal field residual", residual)
     residual = straight_field_line_residual(boozer, b_up, iota)

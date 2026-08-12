@@ -252,6 +252,12 @@ The native Fortran example and the SymPy-oracle test check the metric form,
 the angular derivatives of `B_cov`, the raised components, zero divergence,
 and this flux two-form.
 
+Hamada coordinates use the contravariant counterpart of this contract: the
+angular components `B^theta` and `B^phi` are flux functions. Use
+`chart.flux_coordinates(1, kind=sp.FLUX_HAMADA)` and
+`hamada_residuals(chart.vector((Bpsi, Btheta, Bphi)))` to obtain the same five
+residuals, or `hamada_valid(...)` for the native zero verdict.
+
 `ChartMap` transforms components between two charts. Its `forward` tuple maps
 source coordinates to target coordinates and its `inverse` tuple maps back.
 Upper tensor slots use the forward Jacobian, lower slots use the inverse
