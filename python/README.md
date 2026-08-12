@@ -103,6 +103,10 @@ coordinates remain zero ABI slots, while `star()` and all de Rham operators
 use the metric's runtime dimension. See
 `example/example_2d_spacetime_forms.f90` and its matching SymPy-oracle test
 for a compact 2D example.
+`SpacetimeMetric.covariant()` and `.contravariant()` return typed metric
+tensors. `SpacetimeMetric.vector()`/`.covector()` create explicit component
+views, and `SpacetimeTensor.raise_()`/`.lower()` plus `.density(factor)` keep
+variance and density weight visible instead of inferring them from names.
 `SpacetimeMetric.flat(vector)` lowers a vector into a native one-form and
 `SpacetimeMetric.sharp(one_form)` raises it back; the returned vector carries
 upper variance metadata. `grad(scalar)` returns a contravariant metric

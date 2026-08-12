@@ -149,6 +149,18 @@ module fortsym
         spacetime_codifferential, spacetime_interior, &
         spacetime_interior_product, spacetime_lie, spacetime_lie_derivative, &
         spacetime_laplace_de_rham
+    use fortsym_spacetime_tensor, only: spacetime_tensor_t, &
+        spacetime_tensor_scalar, spacetime_tensor_vector, &
+        spacetime_tensor_covector, spacetime_tensor_from_components, &
+        spacetime_tensor_component, spacetime_tensor_component_flat, &
+        spacetime_tensor_rank, spacetime_tensor_dimension, &
+        spacetime_tensor_variance, spacetime_tensor_density_weight, &
+        spacetime_tensor_valid, spacetime_tensor_same_arena, &
+        spacetime_tensor_density, spacetime_tensor_density_factor, &
+        spacetime_tensor_raise, spacetime_tensor_lower, &
+        spacetime_tensor_product, spacetime_tensor_contract, &
+        spacetime_tensor_permute, spacetime_metric_covariant_tensor, &
+        spacetime_metric_contravariant_tensor, SPACETIME_UPPER, SPACETIME_LOWER
     use fortsym_flux, only: flux_coordinate_t, flux_coordinates, &
         flux_coordinate_valid, flux_coordinate_label, flux_coordinate_kind, &
         flux_coordinate_angles, flux_normal_residual, &
@@ -298,6 +310,17 @@ module fortsym
         spacetime_codifferential, spacetime_interior, &
         spacetime_interior_product, spacetime_lie, spacetime_lie_derivative, &
         spacetime_laplace_de_rham, &
+        spacetime_tensor_t, spacetime_tensor_scalar, spacetime_tensor_vector, &
+        spacetime_tensor_covector, spacetime_tensor_from_components, &
+        spacetime_tensor_component, spacetime_tensor_component_flat, &
+        spacetime_tensor_rank, spacetime_tensor_dimension, &
+        spacetime_tensor_variance, spacetime_tensor_density_weight, &
+        spacetime_tensor_valid, spacetime_tensor_same_arena, &
+        spacetime_tensor_density, spacetime_tensor_density_factor, &
+        spacetime_tensor_raise, spacetime_tensor_lower, spacetime_tensor_product, &
+        spacetime_tensor_contract, spacetime_tensor_permute, &
+        spacetime_metric_covariant_tensor, spacetime_metric_contravariant_tensor, &
+        SPACETIME_UPPER, SPACETIME_LOWER, &
         maxwell_field_strength, maxwell_gauge_transform, maxwell_residual, &
         form_t, form, form_scalar, form_one, form_two, &
         form_three, form_component, form_degree, form_valid, add_forms, &
@@ -344,6 +367,7 @@ module fortsym
     public :: assignment(=)
 
     type(arena_t), target, save :: default_store
+    type(native_engine_t), save :: default_engine
     logical, save :: default_ready = .false.
 
     interface assignment(=)
@@ -373,6 +397,7 @@ contains
     !> including handles whose node index is reused after the next construction.
     subroutine reset()
         call default_store%clear()
+        default_engine = make_native_engine(default_store)
         default_ready = .false.
     end subroutine reset
 
@@ -467,6 +492,10 @@ contains
             call report_failure(result, "diff: assumptions belong to a different arena")
             return
         end if
+        if (use_default_engine(expression, assumptions)) then
+            result = default_engine%diff(expression, variable)
+            return
+        end if
         if (present(assumptions)) then
             engine = make_native_engine(expression%a, assumptions)
         else
@@ -490,6 +519,10 @@ contains
         if (.not. context_matches(expression, assumptions)) then
             call report_failure(result, &
                 "simplify: assumptions belong to a different arena")
+            return
+        end if
+        if (use_default_engine(expression, assumptions)) then
+            result = default_engine%simplify(expression)
             return
         end if
         if (present(assumptions)) then
@@ -550,6 +583,10 @@ contains
                 "expand: assumptions belong to a different arena")
             return
         end if
+        if (use_default_engine(expression, assumptions)) then
+            result = default_engine%expand(expression)
+            return
+        end if
         if (present(assumptions)) then
             engine = make_native_engine(expression%a, assumptions)
         else
@@ -573,6 +610,10 @@ contains
         if (.not. context_matches(expression, assumptions)) then
             call report_failure(result, &
                 "factor: assumptions belong to a different arena")
+            return
+        end if
+        if (use_default_engine(expression, assumptions)) then
+            result = default_engine%factor(expression)
             return
         end if
         if (present(assumptions)) then
@@ -599,6 +640,10 @@ contains
         if (.not. context_matches(expression, assumptions)) then
             call report_failure(result, &
                 "zero_test: assumptions belong to a different arena")
+            return
+        end if
+        if (use_default_engine(expression, assumptions)) then
+            result = default_engine%zero_test(expression)
             return
         end if
         if (present(assumptions)) then
@@ -758,6 +803,16 @@ contains
         if (matches) matches = associated(assumptions%home, expression%a)
     end function context_matches
 
+    logical function use_default_engine(expression, assumptions) result(use_it)
+        type(expr_t), intent(in) :: expression
+        type(assumption_context_t), optional, intent(in) :: assumptions
+
+        use_it = .false.
+        if (present(assumptions)) return
+        if (.not. default_ready) return
+        use_it = associated(expression%a, default_store)
+    end function use_default_engine
+
     !> Read up to eight whitespace- or comma-separated symbol names into scalar
     !> outputs. A missing output or an extra name sets ok=.false.; every output
     !> remains a valid symbol only when a corresponding name was present.
@@ -799,6 +854,7 @@ contains
     subroutine ensure_default()
         if (default_ready) return
         call default_store%init()
+        default_engine = make_native_engine(default_store)
         default_ready = .true.
     end subroutine ensure_default
 

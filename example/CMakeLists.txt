@@ -26,3 +26,6 @@ target_link_libraries(example_killing_vectors PRIVATE fortsym)
 
 add_executable(example_2d_spacetime_forms example_2d_spacetime_forms.f90)
 target_link_libraries(example_2d_spacetime_forms PRIVATE fortsym)
+
+add_executable(example_spacetime_tensor_calculus example_spacetime_tensor_calculus.f90)
+target_link_libraries(example_spacetime_tensor_calculus PRIVATE fortsym)

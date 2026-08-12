@@ -1239,6 +1239,10 @@ conversion only. They do not maintain a second geometry implementation.
   and Lorentzian charts. The ordinary chart divergence now uses positive
   `sqrtg`; the remaining stage work is the complete transformation and
   left-handed/Lorentzian gate.
+  - [x] Add the first runtime-dimension spacetime tensor owner for dimensions
+    1--4. `spacetime_tensor_t` carries rank, upper/lower slot variance, and
+    density weight; metric `raise`/`lower` and density-factor views use the
+    same metric arena and leave inactive fixed-ABI slots zero.
 - [ ] **7A.3 Indexed tensor algebra.** Add arbitrary supported rank, products,
   contractions, permutation, symmetry, traces, canonical dummy indices, and
   refusal messages for variance or index-space errors. Match SymPy's
@@ -2025,9 +2029,9 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
   - [x] Close the complex-domain warm-cache gap for the supported `sinh`/`cosh`
     scope: native is 22x faster than the matched warm SymPy 1.14.0
     `expand_complex` workload. Broader complex-domain workloads remain open.
-  - [x] Retain one native engine and its memoization caches per C-ABI arena;
-    synchronize scoped assumptions before each call so warm native workloads
-    do not discard their cache state.
+  - [x] Retain one native engine and its memoization caches per C-ABI arena
+    and per Fortran default-state arena; synchronize scoped assumptions before
+    each C-ABI call so warm native workloads do not discard their cache state.
   - [x] Make the linked SymEngine conversion DAG-aware for larger expressions:
     cache one backend handle per shared arena node during a call, while keeping
     the lean uncached path for small expressions so conversion bookkeeping does
@@ -2238,6 +2242,11 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
   - [x] Compile generated Fortran with `nvfortran` 26.5 and generated CUDA with
     `nvcc` 13.3 on the visible RTX 5060 Ti; broader compiler/corpus coverage
     remains open.
+  - [x] Add the first runtime-dimension spacetime tensor transport slice:
+    non-diagonal 2D inverse metrics, `V^i`/`V_i` round trips, metric tensor
+    views, density factors, and fixed-slot permutation are checked natively
+    and through the Python/SymPy facade. General spacetime tensor products,
+    contraction transport, and arbitrary rank remain open.
 - [ ] Publish the compatibility matrix, performance baseline, refusal table,
   and migration notes.
 - [ ] Replace temporary aliases with the final canonical API.
