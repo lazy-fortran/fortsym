@@ -22,7 +22,8 @@ module fortsym_public_capi
         curl, curl_density, laplacian
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form
-    use fortsym_magnetic, only: b_cov, b_fourier, b_fourier_density, j_fourier
+    use fortsym_magnetic, only: b_cov, b_density, b_fourier, b_fourier_density, &
+        j_fourier
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_from_storage, tensor_component, tensor_valid, metric_covariant_tensor, &
         metric_contravariant_tensor, density_tensor => density, &
@@ -99,7 +100,7 @@ module fortsym_public_capi
         fortsym_chart_laplacian, &
         fortsym_chart_map_jacobian, fortsym_chart_map_inverse_jacobian, &
         fortsym_chart_map_tensor, fortsym_chart_map_form, fortsym_chart_map_compose, &
-        fortsym_chart_b_cov, &
+        fortsym_chart_b_cov, fortsym_chart_b_density, &
         fortsym_chart_b_fourier, fortsym_chart_b_fourier_density, &
         fortsym_chart_j_fourier, &
         fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
@@ -128,7 +129,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 28_c_int
+        v = 29_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1628,6 +1629,39 @@ contains
         value = b_cov(chart, input)
         call make_array_handles(a, value, output, status, message, capacity)
     end function fortsym_chart_b_cov
+
+    function fortsym_chart_b_density(raw, coordinates, position, vector, out, &
+            message, capacity) bind(c, name="fortsym_chart_b_density") result(status)
+        type(c_ptr), value :: raw, out
+        type(c_ptr), value :: coordinates, position, vector
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(expr_t) :: input(DIM), value(DIM)
+        type(c_ptr), pointer :: output(:), vector_values(:)
+        integer :: k, shape(1)
+
+        shape(1) = DIM
+        call c_f_pointer(out, output, shape)
+        call c_f_pointer(vector, vector_values, shape)
+        call clear_array_outputs(output)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        do k = 1, DIM
+            call get_expr(vector_values(k), owner, input(k), status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        value = b_density(chart, input)
+        call make_array_handles(a, value, output, status, message, capacity)
+    end function fortsym_chart_b_density
 
     function fortsym_chart_b_fourier(raw, coordinates, position, potential, &
             mode, out, message, capacity) bind(c, name="fortsym_chart_b_fourier") &
