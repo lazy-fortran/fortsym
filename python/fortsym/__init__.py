@@ -234,6 +234,10 @@ def _configure(lib):
         "fortsym_expr_node_count", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
     )
+    lib.expr_operation_count = declare(
+        "fortsym_expr_operation_count", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
+    )
     for name in ("text", "name", "exact_text"):
         setattr(
             lib,
@@ -799,6 +803,16 @@ class Expr:
         if status: raise FortSymError(status, _decode(message), "expr_argument")
         return Expr(self._arena, output)
 
+    def operation_count(self):
+        count = _SIZE()
+        message = _message()
+        status = self._lib.expr_operation_count(
+            self._require(), ctypes.byref(count), message, len(message)
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "expr_operation_count")
+        return count.value
+
     def _text(self, accessor):
         size = 128
         while True:
@@ -946,9 +960,10 @@ def Function(name: str): return lambda *args: _default().function(name, args)
 def diff(expression: Expr, variable: Expr): return expression.diff(variable)
 def subs(expression: Expr, old: Expr, new: Expr): return expression.subs(old, new)
 def factor(expression: Expr): return expression.factor()
+def operation_count(expression: Expr): return expression.operation_count()
 
 
 __all__ = [
     "Arena", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
-    "Rational", "Float", "Function", "diff", "subs", "factor",
+    "Rational", "Float", "Function", "diff", "subs", "factor", "operation_count",
 ]

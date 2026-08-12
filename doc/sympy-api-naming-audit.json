@@ -389,6 +389,24 @@
       ]
     },
     {
+      "action": "Keep the tree traversal in the native arena owner and expose only spelling adapters at the language boundaries.",
+      "description": "Count operation occurrences in an expression tree.",
+      "finding": "The native facade names the scalar structural query operation_count; the Python compatibility layer preserves SymPy's count_ops spelling while visual operation expressions remain outside the bounded subset.",
+      "fortran_facade": [
+        "operation_count"
+      ],
+      "id": "operation-count",
+      "python_facade": [
+        "operation_count"
+      ],
+      "sympy_adapter": [
+        "count_ops"
+      ],
+      "sympy_reference": [
+        "count_ops"
+      ]
+    },
+    {
       "action": "Keep one relation recorder in fortsym_assume; expose compatibility spellings only at the Python adapter boundary and refuse unsupported relation inference explicitly.",
       "description": "Construct symbolic equality and ordering relations.",
       "finding": "The Fortran facade keeps relation constructors snake_case. The Python adapter preserves SymPy's constructor spellings and maps comparison operators to the same native relation nodes.",
@@ -1228,6 +1246,12 @@
       },
       {
         "concepts": [
+          "operation-count"
+        ],
+        "name": "operation_count"
+      },
+      {
+        "concepts": [
           "operator-overloads"
         ],
         "name": "operator(*)"
@@ -1466,6 +1490,7 @@
       "Symbol",
       "diff",
       "factor",
+      "operation_count",
       "subs",
       "symbols"
     ],
@@ -1517,6 +1542,7 @@
       "cos",
       "cosh",
       "coth",
+      "count_ops",
       "csch",
       "diff",
       "erf",
@@ -1571,11 +1597,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 173,
-    "concept_groups": 29,
-    "fortran_facade_exports": 136,
-    "python_facade_exports": 12,
-    "sympy_adapter_exports": 84,
+    "assigned_names": 175,
+    "concept_groups": 30,
+    "fortran_facade_exports": 137,
+    "python_facade_exports": 13,
+    "sympy_adapter_exports": 85,
     "unmapped_fortran_exports": 1
   },
   "sympy_version": "1.14.0",

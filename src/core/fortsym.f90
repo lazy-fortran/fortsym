@@ -53,7 +53,7 @@ module fortsym
         zero, negative, nonpositive, positive, nonnegative, nonzero, real_valued, &
         rational_valued, integer_valued, positive_integer, algebraic_valued
     public :: str, chars
-    public :: subs, diff, simplify, refine, expand, factor
+    public :: subs, diff, simplify, refine, expand, factor, operation_count
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -196,6 +196,14 @@ contains
             result = simplify(expression)
         end if
     end function refine
+
+    !> Count operation occurrences using the same tree semantics as SymPy's
+    !> count_ops. This is structural and does not simplify the expression.
+    function operation_count(expression) result(n)
+        type(expr_t), intent(in) :: expression
+        integer                  :: n
+        n = expression%operation_count()
+    end function operation_count
 
     !> Expand an expression with the native engine in its owning arena.
     function expand(expression, assumptions) result(result)

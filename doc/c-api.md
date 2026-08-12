@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 12). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 13). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, and differentiation. The native library retains an
 arena while any expression handle refers to it; callers may therefore release
@@ -28,6 +28,12 @@ return `FORTSYM_ZERO_TRUE`; proven transcendental values return
 The classification is owned by `fortsym_predicates:is_algebraic` and is not
 reimplemented in the ABI or Python adapter. `FORTSYM_FACT_ALGEBRAIC` is also
 accepted by the assumption APIs and closes over the native exact-domain facts.
+
+`fortsym_expr_operation_count` counts operation occurrences in the expression
+tree using SymPy's `count_ops` semantics: n-ary sums and products count one
+operation per operand link, and shared native nodes count once per tree
+occurrence. Canonical reciprocal products are counted as divisions. It is
+distinct from `fortsym_expr_node_count`, which counts shared DAG nodes.
 
 `fortsym_assumption_has` reports whether the arena proves one of the supported
 facts (`real`, `zero`, `negative`, `nonpositive`, `positive`, `nonnegative`,

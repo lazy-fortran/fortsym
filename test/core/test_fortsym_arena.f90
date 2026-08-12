@@ -29,6 +29,7 @@ program test_fortsym_arena
     call test_structural_sharing()
     call test_no_premature_simplification()
     call test_node_count()
+    call test_operation_count()
     call test_growth()
 
     if (nfail == 0) then
@@ -395,6 +396,40 @@ contains
         call ok("shared subterm counted once", &
             e%node_count() < 2*shared%node_count() + 3)
     end subroutine test_node_count
+
+    subroutine test_operation_count()
+        type(arena_t), target :: a
+        type(expr_t) :: x, y, sum, product, power, quotient, rational, shared, e
+
+        call a%init()
+        x = sym(a, "x")
+        y = sym(a, "y")
+        sum = x + y + 1
+        product = (x + 1)*y
+        power = product**2
+        quotient = x/(y + 1)
+        rational = rat(a, 2_int64, 3_int64)
+
+        ! Operation occurrences follow SymPy's tree semantics, not the arena's
+        ! distinct-node measure: atoms cost zero, and n-ary sums/products cost
+        ! one operation per link between operands.
+        call ok("symbol has no operations", x%operation_count() == 0)
+        call ok("three-term sum has two additions", &
+            sum%operation_count() == 2)
+        call ok("product and power add their operation heads", &
+            power%operation_count() == 3)
+        call ok("reciprocal product counts as division", &
+            quotient%operation_count() == 2)
+        call ok("rational counts its division", &
+            rational%operation_count() == 1)
+
+        ! The same interned child is still three function occurrences in the
+        ! written tree, matching SymPy's count_ops rather than node_count.
+        shared = sin(x)
+        e = shared + shared*shared
+        call ok("repeated shared child counts per occurrence", &
+            e%operation_count() == 5)
+    end subroutine test_operation_count
 
     subroutine test_growth()
         type(arena_t), target :: a
