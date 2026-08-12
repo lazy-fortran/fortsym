@@ -137,6 +137,20 @@ class SympySubsetTest(unittest.TestCase):
             oracle.sympify(str(chart.divergence((u, v, w)).simplify())),
             expected_divergence,
         )
+        density_vector = (u**2, u*v, sp.sin(w))
+        oracle_density_vector = (
+            oracle_u**2, oracle_u*oracle_v, oracle.sin(oracle_w)
+        )
+        expected_density_divergence = sum(
+            oracle.diff(component, coordinate)
+            for component, coordinate in zip(
+                oracle_density_vector, (oracle_u, oracle_v, oracle_w)
+            )
+        )
+        self.assertEqual(
+            oracle.sympify(str(chart.div_density(density_vector).simplify())),
+            expected_density_divergence,
+        )
 
         covector = (oracle_v*oracle_w, oracle_u**2, oracle_u*oracle_v)
         expected_curl = oracle.Matrix((
@@ -144,11 +158,21 @@ class SympySubsetTest(unittest.TestCase):
             oracle.diff(covector[0], oracle_w) - oracle.diff(covector[2], oracle_u),
             oracle.diff(covector[1], oracle_u) - oracle.diff(covector[0], oracle_v),
         )) / expected_covariant.det()
+        expected_curl_density = oracle.Matrix((
+            oracle.diff(covector[2], oracle_v) - oracle.diff(covector[1], oracle_w),
+            oracle.diff(covector[0], oracle_w) - oracle.diff(covector[2], oracle_u),
+            oracle.diff(covector[1], oracle_u) - oracle.diff(covector[0], oracle_v),
+        ))
         actual_curl = oracle.Matrix(tuple(
             oracle.sympify(str(value.simplify()))
             for value in chart.curl((v*w, u**2, u*v))
         ))
         self.assertEqual(actual_curl, expected_curl)
+        actual_curl_density = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify()))
+            for value in chart.curl_density((v*w, u**2, u*v))
+        ))
+        self.assertEqual(actual_curl_density, expected_curl_density)
         expected_laplacian = sum(
             oracle.diff(expected_covariant.det()*expected_gradient[index], coordinate)
             for index, coordinate in enumerate((oracle_u, oracle_v, oracle_w))

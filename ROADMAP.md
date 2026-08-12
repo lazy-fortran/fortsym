@@ -1164,6 +1164,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Expose the chart-owned `grad`, `divergence`, `curl`, and `laplacian`
   operators through the C ABI and Python `Chart`, keeping curl's covector
   input and contravariant output convention explicit.
+- [x] Expose the metric-free weight-`+1` density operators `curl_density` and
+  `div_density` through the same native, C, and Python owners. Their tests use
+  independently constructed symbolic alternating and componentwise
+  derivatives; ordinary `curl` and `divergence` retain their vector semantics.
 - [x] Add the independent `fortsym_chart_map` owner for bidirectional
   coordinate transitions. It transforms scalar, vector, covector, mixed
   tensor, density, and differential-form components into target coordinates
