@@ -92,6 +92,7 @@ target_sources(fortsym PRIVATE
     calculus/fortsym_magnetic.f90
     calculus/fortsym_magnetic_weak.f90
     calculus/fortsym_products.f90
+    calculus/fortsym_relativity.f90
     calculus/fortsym_tensor.f90
     calculus/fortsym_connection.f90
     calculus/fortsym_toroidal.f90

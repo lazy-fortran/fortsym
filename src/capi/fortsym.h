@@ -290,6 +290,34 @@ int fortsym_chart_form_star_metric(
     const fortsym_expr *position[], const fortsym_expr *components[],
     const int signature[], int orientation, const fortsym_expr *input[],
     size_t degree, fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_spacetime_metric_sqrtg(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    fortsym_expr **out, char *message, size_t capacity);
+int fortsym_spacetime_metric_contravariant(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_spacetime_christoffel(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_spacetime_riemann(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_spacetime_ricci(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_spacetime_scalar_curvature(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    fortsym_expr **out, char *message, size_t capacity);
+int fortsym_spacetime_einstein(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    fortsym_expr *out[], char *message, size_t capacity);
 /* Geometry tensor arrays use first-slot-fastest order, matching the native
  * `tensor_component` convention. The caller supplies an output array with
  * `3**rank` slots and releases each returned handle with fortsym_expr_free. */
