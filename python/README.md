@@ -128,6 +128,10 @@ codifferential owners.
 derivative for typed tensors. The vector must be an ordinary weight-zero
 contravariant tensor; a tensor density of weight `w` receives the explicit
 `+w*T*diff(vector[i], coordinate[i])` transport term.
+`Chart.killing(vector)` and `Metric.killing(vector)` return the symmetric lower
+tensor `L_vector(g)`. A zero result is the native Killing-vector condition;
+both methods reuse the tensor-Lie owner and require an ordinary weight-zero
+contravariant vector.
 `Tensor.permute()`, `symmetrize()`, and `antisymmetrize()` perform native
 slot operations using zero-based Python slot numbers.
 `Tensor.symmetry(i, j)` returns `SYMMETRY_NONE`, `SYMMETRIC`, or

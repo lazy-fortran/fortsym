@@ -75,7 +75,7 @@ module fortsym
     use fortsym_form_tensor, only: form_from_tensor, tensor_from_form
     use fortsym_tensor, only: tensor_t, tensor, tensor_scalar, tensor_vector, &
         tensor_covector, tensor_from_components, tensor_from_matrix, &
-        tensor_component, tensor_rank, tensor_variance, tensor_symmetry, &
+        tensor_component, tensor_rank, tensor_variance, tensor_symmetry, killing, &
         declare_symmetry, SYMMETRY_NONE, SYMMETRIC, ANTISYMMETRIC, &
         tensor_density_weight, tensor_valid, tensor_same_arena, density, density_factor, &
         vector, covector, &
@@ -304,7 +304,7 @@ module fortsym
         tensor_from_form, tensor_t, tensor, &
         tensor_scalar, tensor_vector, tensor_covector, tensor_from_components, &
         tensor_from_matrix, tensor_component, tensor_rank, tensor_variance, &
-        tensor_symmetry, declare_symmetry, SYMMETRY_NONE, SYMMETRIC, &
+        tensor_symmetry, killing, declare_symmetry, SYMMETRY_NONE, SYMMETRIC, &
         ANTISYMMETRIC, &
         tensor_density_weight, tensor_valid, tensor_same_arena, density, density_factor, &
         vector, covector, raise, &

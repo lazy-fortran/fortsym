@@ -3115,6 +3115,10 @@ class Chart:
 
     lie_derivative = lie
 
+    def killing(self, vector):
+        """Return the Killing residual ``L_vector(g)`` for this chart metric."""
+        return self.lie(vector, self.metric_covariant())
+
     def riemann(self):
         return self._tensor_result(
             self._arena._lib.chart_riemann, 4, (1, -1, -1, -1)
@@ -3592,6 +3596,18 @@ class Metric:
         return Form(self.chart, components, 3 - form.degree, _owned=True)
 
     hodge = hodge_star
+
+    def killing(self, vector):
+        """Return the Killing residual ``L_vector(g)`` for this metric."""
+        if not isinstance(vector, Tensor) or vector.chart is not self.chart:
+            raise ValueError("killing expects a vector on this metric's chart")
+        if vector.rank != 1 or vector.variance != (1,) or vector.density_weight != 0:
+            raise ValueError("killing expects a weight-zero contravariant vector")
+        metric_tensor = Tensor(
+            self.chart, self.components, (-1, -1), _owned=False,
+            _symmetries=((0, 1, SYMMETRIC),),
+        )
+        return self.chart.lie(vector, metric_tensor)
 
     def close(self):
         for temporary in self._temporaries:

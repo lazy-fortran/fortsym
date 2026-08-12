@@ -59,6 +59,20 @@ class SympySubsetTest(unittest.TestCase):
         metric = chart.metric()
         self.assertIsInstance(metric, sp.Tensor)
         self.assertEqual(metric.variance, (-1, -1))
+        translation_killing = chart.killing(chart.vector((0, 0, 1)))
+        for row in range(3):
+            for column in range(3):
+                self.assertEqual(translation_killing[row, column].simplify(), 0)
+
+        explicit_metric = chart.metric_owner(
+            ((1, 0, 0), (0, 1 + x**2, 0), (0, 0, 1)),
+        )
+        explicit_killing = explicit_metric.killing(chart.vector((0, 0, 1)))
+        for row in range(3):
+            for column in range(3):
+                self.assertEqual(explicit_killing[row, column].simplify(), 0)
+        non_killing = explicit_metric.killing(chart.vector((1, 0, 0)))
+        self.assertEqual(non_killing[1, 1].simplify(), 2*x)
 
         rho, theta, zeta = sp.symbols("geometry_rho geometry_theta geometry_zeta")
         parameter = sp.Symbol("geometry_lambda")

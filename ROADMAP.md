@@ -994,6 +994,11 @@ The first-class object model is staged around these metadata owners:
   the explicit `+w*T*partial_i(X^i)` term for a weight-`w` tensor density.
   The Fortran `lie`/`lie_derivative` facade, C ABI 54, Python `Tensor.lie`, and
   independent scalar/vector/covector/density checks all share this owner.
+- [x] Add the native Killing residual `killing(X) = L_X(g)` for chart-induced
+  and coordinate-aware explicit metrics. It returns a symmetric lower rank-two
+  tensor and reuses the same Lie-derivative kernel. Python `Chart.killing` and
+  `Metric.killing` are convenience views over the existing native tensor-Lie
+  ABI, with independent isometry and non-isometry checks.
 - [x] `connection_t` stores the connection coefficients and its convention.
   `connection_from_chart` and `connection_from_metric` construct the
   torsion-free, metric-compatible owner; `connection_create` accepts a
@@ -1518,6 +1523,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   derivative slot, applies every slot's Christoffel term, and honors density
   weight. Metric compatibility and an independent nonlinear nonorthogonal
   chart check are required gates.
+- [x] Add the first Killing-vector test owner: `killing(X)` returns the metric
+  Lie derivative with explicit lower-slot symmetry for both chart and
+  coordinate-aware metric paths. The independent `partial_z` translation and
+  `K_yy[partial_x] = 2*x` checks cover an isometry and a deliberate failure.
 - [x] Implement the first fixed-three-dimensional torsion/nonmetricity owner
   for supplied affine connections, including independent covariant derivative
   and divergence checks.
