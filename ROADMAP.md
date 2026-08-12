@@ -2193,6 +2193,13 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     7.46 microseconds for cold simplify, 7.90 microseconds for cold
     differentiation, and 0.121/0.101 microseconds for the corresponding warm
     calls; the broader SymPy corpus gate remains open.
+  - [x] Bypass the general native multinomial coefficient collector when the
+    exponent map is provably injective for pairwise-distinct atomic bases.
+    Dependent and duplicate bases retain the general path. Independent
+    expansion tests remain green; the 2026-08-12 local `expand_power` cold
+    diagnostic is now 0.104 ms versus 0.297 ms for SymEngine (0.35x), with
+    the warm row at 0.117 versus 0.264 microseconds. This is a local
+    diagnostic and not yet the complete SymPy performance gate.
 - [x] Cache immutable explicit metric determinant, inverse, and positive
   `sqrtg` views in the native `metric_t` owner. Repeated gradient, divergence,
   Laplace--Beltrami, Hodge, and raise/lower calls reuse the same expression

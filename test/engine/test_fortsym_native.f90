@@ -368,6 +368,18 @@ contains
                 abs(expanded_value - expected_value) <= 1.0e-13_dp*scale)
         end do
 
+        ! Composite bases remain on the general collection path: x and 2*x
+        ! are algebraically dependent even though their node kinds differ.
+        original = (x + 2*x)**3
+        r = engine%expand(original)
+        expected = 27*x**3
+        call check("dependent multinomial bases expand", r%ok)
+        call check("dependent multinomial bases collect", r%value == expected)
+        original = (x + x)**3
+        r = engine%expand(original)
+        expected = 8*x**3
+        call check("duplicate multinomial bases collect", r%value == expected)
+
         original = (x*y + sin(x) + 2)**4
         r = engine%expand(original)
         call check("non-atomic multinomial expansion succeeds", r%ok)

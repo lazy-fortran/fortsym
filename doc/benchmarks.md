@@ -330,6 +330,16 @@ microseconds for `simplify_collect`, 7.90 microseconds for
 behavioral check. These are still local SymEngine diagnostics, not a matched
 SymPy parity claim.
 
+The next conservative multinomial fast path bypasses `simplify_add` when the
+sum base has pairwise-distinct atomic terms and therefore an injective exponent
+map. Composite or dependent bases still use the general coefficient collector.
+In the same local harness, cold native `expand_power` fell to 0.104 ms versus
+0.297 ms for SymEngine (0.35x native/SymEngine, 65% less native time); the
+warm row was 0.117 microseconds versus 0.264 microseconds (0.44x). Every row,
+including duplicate and dependent-base fallback cases, passed its independent
+behavioral check. This remains a local diagnostic rather than a SymPy parity
+claim.
+
 `fo exec bench_complexdom` writes the `complexdom_v1` native rows used for the
 complex-domain cache comparison. Its cold scope clears the assumption-context
 pair and single-result caches before each split or conjugation call; its warm

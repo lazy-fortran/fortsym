@@ -4312,7 +4312,7 @@ contains
         integer, allocatable :: factors(:), terms(:)
         integer(int64) :: term_count
         integer :: index, nterms
-        logical :: count_ok
+        logical :: count_ok, unique_monomials
 
         out = base
         success = .false.
@@ -4332,6 +4332,7 @@ contains
 
         allocate (factors(a%nargs_of(base) + 1))
         allocate (terms(nterms))
+        unique_monomials = multinomial_base_is_independent(a, base)
         index = 0
         success = .true.
         call enumerate_multinomial(a, base, exponent, 1, composition, terms, &
@@ -4341,8 +4342,51 @@ contains
             success = .false.
             return
         end if
-        out = simplify_add(a, terms)
+        if (unique_monomials) then
+            ! Distinct atomic bases give an injective exponent map, so every
+            ! generated monomial is already a distinct canonical term. Avoid
+            ! the general coefficient collector in this common case.
+            out = a%add(terms)
+        else
+            out = simplify_add(a, terms)
+        end if
     end function expand_sum_power
+
+    !> Whether multinomial terms are guaranteed to be distinct without
+    !> polynomial collection. Composite factors can be algebraically
+    !> dependent (x and 2*x, x and x**2, ...), so they deliberately retain
+    !> the general simplify_add path.
+    function multinomial_base_is_independent(a, base) result(independent)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: base
+        logical :: independent
+        integer :: i, j, operand, numeric_count
+
+        independent = .true.
+        numeric_count = 0
+        do i = 1, a%nargs_of(base)
+            operand = a%arg_of(base, i)
+            do j = 1, i - 1
+                if (operand == a%arg_of(base, j)) then
+                    independent = .false.
+                    return
+                end if
+            end do
+            select case (a%kind_of(operand))
+            case (NK_INT, NK_RAT, NK_BIG_INT, NK_BIG_RAT, NK_REAL)
+                numeric_count = numeric_count + 1
+                if (numeric_count > 1) then
+                    independent = .false.
+                    return
+                end if
+            case (NK_SYM, NK_FUNC)
+                continue
+            case default
+                independent = .false.
+                return
+            end select
+        end do
+    end function multinomial_base_is_independent
 
     recursive subroutine validate_multinomial(remaining, position, &
             composition, success, limit)
