@@ -16,6 +16,7 @@ program test_fortsym_tensor
         tensor_density_weight, tensor_valid, density, raise, lower, &
         tensor_product, contract, trace, permute, symmetrize, antisymmetrize, &
         metric_covariant_tensor, tensor_lie_derivative, tensor_symmetry, &
+        tensor_chart_compatible, tensor_same_chart, &
         killing, &
         declare_symmetry, SYMMETRY_NONE, SYMMETRIC, ANTISYMMETRIC, UPPER, &
         LOWER_VARIANCE
@@ -26,13 +27,14 @@ program test_fortsym_tensor
     type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
-    type(chart_t) :: shear
+    type(chart_t) :: shear, other_chart
     type(metric_t) :: metric_owner
     type(expr_t) :: u(DIM), position(DIM), values(DIM), expected
     type(expr_t) :: vector_values(DIM), tensor_values(DIM), covector_values(DIM)
     type(expr_t) :: translation_values(DIM)
     type(expr_t) :: components(27), matrix_components(9)
     type(tensor_t) :: vup, vcov, vdown, roundtrip, weighted, scaled_density, outer, dot
+    type(tensor_t) :: other_vector, mismatched_product, mismatched_lower
     type(tensor_t) :: metric_down, mixed, rank_three
     type(tensor_t) :: permuted, matrix, symmetric_value, antisymmetric_value
     type(tensor_t) :: scalar, vector_field, vector_lie, covector_field, &
@@ -57,6 +59,21 @@ program test_fortsym_tensor
     vcov = tensor_covector(shear, values)
     call check_metadata(suite, vcov, 1, LOWER_VARIANCE, 0, &
         "covariant vector metadata")
+
+    other_chart = make_other_chart()
+    other_vector = tensor_vector(other_chart, values)
+    call check(suite, tensor_chart_compatible(vup, shear), &
+        "tensor keeps its chart owner")
+    call check(suite, .not. tensor_chart_compatible(vup, other_chart), &
+        "tensor rejects a different position map")
+    call check(suite, .not. tensor_same_chart(vup, other_vector), &
+        "tensor comparison rejects different chart owners")
+    mismatched_product = tensor_product(vup, other_vector)
+    call check(suite, .not. tensor_valid(mismatched_product), &
+        "tensor product rejects different chart owners")
+    mismatched_lower = lower(other_chart, vup, 1)
+    call check(suite, .not. tensor_valid(mismatched_lower), &
+        "metric operation rejects a different chart owner")
 
     vector_values = num(arena, 0)
     vector_values(1) = u(1)
@@ -342,5 +359,14 @@ contains
         position(3) = u(3)
         c = chart_create(arena, u, position)
     end function make_shear_chart
+
+    function make_other_chart() result(c)
+        type(chart_t) :: c
+        type(expr_t) :: other_position(DIM)
+
+        other_position = position
+        other_position(1) = position(1) + 1
+        c = chart_create(arena, u, other_position)
+    end function make_other_chart
 
 end program test_fortsym_tensor

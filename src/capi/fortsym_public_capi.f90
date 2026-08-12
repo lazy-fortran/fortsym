@@ -3209,11 +3209,8 @@ contains
         type(metric_t) :: metric
         type(form_t) :: input_value, value
 
-        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
-            chart, a, status, message, capacity)
-        if (status /= FORTSYM_OK) return
-        call get_metric_input(raw, components, signature, orientation, a, metric, &
-            status, message, capacity)
+        call get_metric_chart_input(raw, coordinates, position, components, &
+            signature, orientation, chart, metric, a, status, message, capacity)
         if (status /= FORTSYM_OK) return
         call get_form_input(chart, a, input, degree, input_value, status, message, &
             capacity)

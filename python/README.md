@@ -298,7 +298,10 @@ Upper tensor slots use the forward Jacobian, lower slots use the inverse
 Jacobian, and density weights are applied through the absolute Jacobian
 determinant. Forms use the inverse Jacobian on each coframe factor, with the
 signed determinant for top forms. The result is expressed in the target
-coordinate symbols. A map exposes the source and target declarations through
+coordinate symbols. Native tensor and form owners retain a value-semantic
+chart key (coordinate tuple plus position map), so a transform refuses an
+object from a different source chart even when it shares the same expression
+arena. A map exposes the source and target declarations through
 `source_patch` and `target_patch` when its charts belong to explicit patches;
 composition requires the intermediate chart and patch to match. Identically
 singular forward or inverse Jacobians are

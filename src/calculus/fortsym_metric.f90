@@ -27,7 +27,7 @@ module fortsym_metric
     public :: metric_signature_type, metric_orientation_type
     public :: metric_create_metadata
     public :: metric_arena, metric_same_arena
-    public :: metric_coordinates, metric_has_coordinates
+    public :: metric_coordinate, metric_coordinates, metric_has_coordinates
 
     type :: metric_t
         private
@@ -442,6 +442,17 @@ contains
         if (.not. metric_has_coordinates(g)) return
         coordinates = g%coordinate
     end function metric_coordinates
+
+    !> Return one coordinate without materializing the coordinate tuple.
+    function metric_coordinate(g, i) result(coordinate)
+        type(metric_t), intent(in) :: g
+        integer, intent(in) :: i
+        type(expr_t) :: coordinate
+
+        if (.not. metric_has_coordinates(g)) return
+        if (i < 1 .or. i > DIM) return
+        coordinate = g%coordinate(i)
+    end function metric_coordinate
 
     !> Whether the metric carries an explicit coordinate tuple.
     function metric_has_coordinates(g) result(has_coordinates)

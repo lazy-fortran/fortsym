@@ -1502,6 +1502,15 @@ class SympySubsetTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "matching intermediate charts"):
             transition.compose(mismatched)
 
+        wrong_source = sp.Chart((x, y, z), (x + y + 1, y, z))
+        wrong_owner = sp.ChartMap(
+            wrong_source, target, (2*x + y, y, z), ((p - q)/2, q, s)
+        )
+        with self.assertRaisesRegex(ValueError, "source chart"):
+            wrong_owner.transform(source.vector((x, y, z)))
+        with self.assertRaisesRegex(ValueError, "source chart"):
+            wrong_owner.transform(source.one_form((x, y, z)))
+
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_paper_magnetic_fourier_current_matches_sympy(self):
         x1, x2, x3, n = sp.symbols(

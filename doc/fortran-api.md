@@ -127,6 +127,8 @@ always pass the signature and orientation when they are physically meaningful.
 `orientation_t` and `signature_t` are the shared declaration owners. Use
 `metric_create_metadata` when typed declarations are already available;
 `metric_signature_type` and `metric_orientation_type` return typed views.
+Use `metric_coordinate(g, i)` when a single coordinate is needed in a hot
+path; it avoids materializing the full coordinate tuple.
 The dimension-aware `spacetime_metric_t` owner uses the same metadata types
 through `spacetime_metric_create_metadata` and its corresponding typed-view
 accessors.
@@ -259,7 +261,14 @@ the same vocabulary as `chart.tensor_from_form(form)`,
 
 `fortsym_tensor` owns the first typed tensor subset. A `tensor_t` is bound to a
 chart arena and records rank, the variance of every slot (`UPPER` or
-`LOWER_VARIANCE`), and an integer density weight. The facade aliases
+`LOWER_VARIANCE`), and an integer density weight. Chart-created tensors also
+retain a value-semantic owner key consisting of the coordinate tuple and
+position map. Metric-created tensors retain their explicit coordinate tuple
+without inventing a position map. `tensor_same_chart` and
+`tensor_chart_compatible` expose this boundary; products, metric operations,
+derivatives, conversions, and chart-map transport refuse incompatible owners.
+Unbound scalar tensors remain convenient and acquire the bound owner when
+combined with a chart-owned result. The facade aliases
 `vector`/`covector` are the short constructors; `tensor_from_components` and
 `tensor_from_matrix` cover general fixed-rank data. Components use
 first-slot-fastest indexing and are read with an explicit index tuple.
@@ -332,7 +341,11 @@ multiplies every component by the scalar `factor` and increments the density
 weight. Thus `Bden = density(Bup, sqrtg(chart))` is the generic native spelling
 of `sqrtg B^i`, while `density(Bup, 1)` remains a metadata-only view.
 
-Forms and tensors are converted only through `fortsym_form_tensor`; neither
+`fortsym_form` follows the same owner contract. `form_same_chart` and
+`form_chart_compatible` compare the coordinate tuple and, when present, the
+position map; `form_t` views preserve that key through wedge, `d`, Hodge,
+contraction, Lie, metric, conversion, and chart-map operations. Forms and
+tensors are converted only through `fortsym_form_tensor`; neither
 owner imports the other's storage layout. This keeps the short facade names
 consistent with the lower-level owners and makes the exact antisymmetry and
 density boundary visible at every API layer.

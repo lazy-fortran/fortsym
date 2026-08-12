@@ -20,23 +20,25 @@ program test_fortsym_chart_map
         facade_chart_map_create => chart_map_create, &
         facade_transform_tensor => transform_tensor
     use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, &
-        density
+        density, tensor_valid
     use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
-        form_component
+        form_component, form_valid
     implicit none
 
     type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
     type(chart_t) :: source, target, middle, final
-    type(chart_t) :: mismatched_middle
+    type(chart_t) :: mismatched_middle, wrong_source
     type(chart_map_t) :: transition, reverse_transition, second_transition, &
-        composed, singular, mismatched_transition, mismatched_composed
+        composed, singular, mismatched_transition, mismatched_composed, &
+        wrong_owner_transition
     type(manifold_t) :: manifold
     type(patch_t) :: source_patch, target_patch, final_patch, other_patch
     type(facade_chart_map_t) :: facade_transition
     type(expr_t) :: source_u(DIM), target_u(DIM), final_u(DIM)
     type(expr_t) :: source_position(DIM), target_position(DIM), final_position(DIM)
+    type(expr_t) :: wrong_position(DIM)
     type(expr_t) :: forward(DIM), inverse(DIM)
     type(expr_t) :: reverse_forward(DIM), reverse_inverse(DIM)
     type(expr_t) :: second_forward(DIM), second_inverse(DIM)
@@ -73,6 +75,10 @@ program test_fortsym_chart_map
     inverse(2) = target_u(2)
     inverse(3) = target_u(3)
     transition = chart_map_create(source, target, forward, inverse)
+    wrong_position = source_position
+    wrong_position(1) = source_position(1) + 1
+    wrong_source = chart_create(arena, source_u, wrong_position)
+    wrong_owner_transition = chart_map_create(wrong_source, target, forward, inverse)
 
     reverse_forward(1) = -source_u(1)
     reverse_forward(2) = source_u(2)
@@ -155,6 +161,8 @@ program test_fortsym_chart_map
     source_values = source_u
     vector = tensor_vector(source, source_values)
     vector_target = transform_tensor(transition, vector)
+    call check(suite, .not. tensor_valid(transform_tensor(wrong_owner_transition, vector)), &
+        "tensor transport rejects a different source chart")
     call check_identity(suite, engine, "contravariant p component", &
         vector_target%component(0) - target_u(1))
     call check_identity(suite, engine, "contravariant q component", &
@@ -201,6 +209,8 @@ program test_fortsym_chart_map
         form_component(scalar_target, 0) - target_u(1))
 
     one_form = form_one(source, source_values)
+    call check(suite, .not. form_valid(transform_form(wrong_owner_transition, one_form)), &
+        "form transport rejects a different source chart")
     one_target = transform_form(transition, one_form)
     call check_identity(suite, engine, "one-form p component", &
         form_component(one_target, 1) - (target_u(1) - target_u(2))/4)
@@ -266,6 +276,21 @@ program test_fortsym_chart_map
     print *, "test_fortsym_chart_map: all checks passed"
 
 contains
+
+    subroutine check(s, condition, label)
+        type(suite_t), intent(inout) :: s
+        logical, intent(in) :: condition
+        character(*), intent(in) :: label
+
+        s%total = s%total + 1
+        if (condition) then
+            s%passed = s%passed + 1
+            print *, "PASS ", label
+        else
+            s%failed = s%failed + 1
+            print *, "FAIL ", label
+        end if
+    end subroutine check
 
     subroutine make_symbols()
         source_u(1) = sym(arena, "map_x")
