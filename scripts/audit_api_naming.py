@@ -180,9 +180,9 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         concept(
             "substitution",
             "Replace expressions.",
-            ["subs", "subs_many"], ["subs", "subs_many"], ["subs", "Subs", "xreplace"], ["Expr", "Subs"],
-            "The native facade forwards both substitution shapes from the single owning module; the Python adapter applies SymPy's unordered mapping order and maps the simultaneous and exact-node options at the boundary.",
-            "Keep structural substitution in fortsym_subs, expose only its concise single-pair and explicit paired-sequence spellings from the native facade, and keep xreplace at the SymPy adapter boundary.",
+            ["subs", "subs_many"], ["subs", "subs_many"], ["subs", "Subs", "xreplace", "match"], ["Expr", "Subs"],
+            "The native facade forwards both substitution shapes from the single owning module; the Python adapter applies SymPy's unordered mapping order and maps the simultaneous, exact-node, and exact non-wildcard match boundaries.",
+            "Keep structural substitution in fortsym_subs, expose only its concise single-pair and explicit paired-sequence spellings from the native facade, and keep xreplace and exact non-wildcard match at the SymPy adapter boundary.",
         ),
         concept(
             "transformation-functions",

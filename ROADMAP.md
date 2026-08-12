@@ -224,6 +224,10 @@ Every checklist item requires all of the following:
     simultaneous substitution owner. It replaces only matched DAG nodes,
     performs normal constructor evaluation without a final `expand`, and
     refuses non-mapping inputs without adding a native alias or second walk.
+  - [x] Add exact non-wildcard `Expr.match` through the existing native
+    equality owner. Equal structural expressions return `{}`, unequal
+    expressions return `None`, and wildcard patterns remain unsupported until
+    their compatibility vocabulary is defined.
 - [ ] Complete exact integer/rational/real/complex and algebraic domains.
   - [x] Preserve arbitrary-size integer and rational construction and native
     arithmetic in the current scalar fragment. `num`, `rat`, and `exact` share
@@ -795,9 +799,9 @@ Every checklist item requires all of the following:
   - [x] Add exact-node `xreplace` correctness and performance coverage. The
     108-row matrix measured native/SymPy ratios of 0.227x cold and 0.590x warm
     with zero unwaived violations.
-  - [x] Add exact-node `xreplace` correctness and performance coverage. The
-    108-row matrix measured native/SymPy ratios of 0.227x cold and 0.590x warm
-    with zero unwaived violations.
+  - [x] Add exact non-wildcard `match` correctness and performance coverage.
+    The 110-row matrix measured native/SymPy ratios of 0.699x cold and 0.526x
+    warm, with zero correctness failures and zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

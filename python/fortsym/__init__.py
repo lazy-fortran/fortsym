@@ -666,6 +666,23 @@ class Expr:
             tuple(substitutions), tuple(substitutions.values())
         )
 
+    def match(self, pattern, old=False):
+        """Return an empty binding for an exact, non-wildcard match.
+
+        Wildcard pattern construction is owned by the compatibility layer's
+        future pattern vocabulary.  Until that vocabulary exists, this method
+        deliberately implements only SymPy's exact structural boundary.
+        ``old`` has no effect when no wildcard is present.
+        """
+        pattern, temporary = self._arena._coerce(pattern)
+        try:
+            if self is pattern or self == pattern:
+                return {}
+            return None
+        finally:
+            if temporary is not None:
+                temporary.close()
+
     def diff(self, variable):
         variable = self._arena._check(variable)
         return self._arena._result(self._lib.differentiate, self._arena._require(),

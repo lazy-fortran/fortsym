@@ -19,7 +19,7 @@ it.
 | Complex and algebraic domains | bounded `qqbar` atoms, mixed coefficient folding, exact `Re`/`Im`, conjugation, principal-branch `log` including exact `log(±i)`, exact `asin(±i)`, `acos(±i)`, exact real unit-circle `asin`/`acos` values, exact real tangent `atan` values, exact real `asinh(±1)` values, `atan(±i)`, `atanh(±i)`, and `acosh(±i)` branch points, principal-branch `sqrt`, exact negative perfect-square roots, exact `asinh(±i)` branch points, `tan`/`sinh`/`cosh`/`tanh` rectangular splitting, lossless text IO, and checked real binary64 kernel projection | exact Gaussian-rational conversion; higher-degree atoms refused | partial | full expression promotion, higher-degree conversion, and complex code generation |
 | Applied functions and Bessel `J` | yes | opaque Bessel head | partial | broader special-function rules |
 | Parse, print, and Fortran dialect | deterministic | yes | yes | versioned serialization format |
-| Structural, simultaneous, and exact-node substitution | yes | conversion | conversion | rule-based applied-function substitution |
+| Structural, simultaneous, exact-node substitution, and exact structural matching | yes | conversion | conversion | wildcard and rule-based applied-function substitution |
 | Operation counting | SymPy-compatible non-visual tree count | conversion | conversion | visual operation expression and CSE |
 | Differentiation | yes | yes | Yacas concrete method | memoization and domain-sensitive rules |
 | Multivariate symbolic partials | yes | opaque | opaque | function assumptions and rewrite rules |
