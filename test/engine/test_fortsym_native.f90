@@ -1322,6 +1322,7 @@ contains
         type(expr_t) :: quarter_pi, imaginary_quarter_pi
         type(expr_t) :: negative_imaginary_quarter_pi
         type(expr_t) :: imaginary_infinity, negative_imaginary_infinity
+        type(expr_t) :: log_one_plus_sqrt_two
 
         infinity = oo_expr(arena)
         complex_infinity = zoo_expr(arena)
@@ -1338,6 +1339,8 @@ contains
         imaginary_infinity = i_expr(arena)*infinity
         negative_imaginary_infinity = rat(arena, -1_int64, 1_int64)* &
             i_expr(arena)*infinity
+        log_one_plus_sqrt_two = log(num(arena, 1_int64) + &
+            sqrt(num(arena, 2_int64)))
 
         r = engine%simplify(asin(infinity))
         call check("asin(oo) is negative i oo", &
@@ -1388,6 +1391,12 @@ contains
         r = engine%simplify(acosh(num(arena, -1_int64)))
         call check("acosh(-1) is i pi", &
             r%value == i_expr(arena)*pi_expr(arena))
+        r = engine%simplify(acosh(i_expr(arena)))
+        call check("acosh(i) is log(1 + sqrt(2)) plus i pi over two", &
+            r%value == log_one_plus_sqrt_two + imaginary_half_pi)
+        r = engine%simplify(acosh(-i_expr(arena)))
+        call check("acosh(-i) is log(1 + sqrt(2)) minus i pi over two", &
+            r%value == log_one_plus_sqrt_two + negative_imaginary_half_pi)
         r = engine%simplify(atanh(infinity))
         call check("atanh(oo) is negative i pi over two", &
             r%value == negative_imaginary_half_pi)

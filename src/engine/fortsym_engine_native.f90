@@ -2594,7 +2594,8 @@ contains
             else if (is_minus_one_id(a, id)) then
                 out = mul_pair(a, a%const("i"), a%const("pi"))
             else
-                return
+                call exact_acosh_imaginary_value(a, id, out, ok)
+                if (.not. ok) return
             end if
         case ("atanh")
             if (is_zero_id(a, id)) then
@@ -2613,6 +2614,61 @@ contains
         ok = .true.
     end subroutine exact_inverse_value
 
+    subroutine exact_acosh_imaginary_value(a, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer :: positive, magnitude, half_pi, imaginary_half_pi
+        logical :: negated, magnitude_ok
+
+        out = id
+        ok = .false.
+        call exact_imaginary_argument(a, id, positive, negated, ok)
+        if (.not. ok) return
+        call exact_log_one_plus_sqrt_two(a, magnitude, magnitude_ok)
+        if (.not. magnitude_ok) return
+        half_pi = mul_pair(a, a%rat(1_int64, 2_int64), a%const("pi"))
+        imaginary_half_pi = mul_pair(a, a%const("i"), half_pi)
+        if (negated) then
+            imaginary_half_pi = mul_pair(a, a%int(-1_int64), &
+                imaginary_half_pi)
+        end if
+        out = add_pair(a, magnitude, imaginary_half_pi)
+        ok = .true.
+    end subroutine exact_acosh_imaginary_value
+
+    subroutine exact_log_one_plus_sqrt_two(a, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer :: one_arg(1), root_two, one_plus_root_two
+
+        out = a%int(0_int64)
+        ok = .false.
+        one_arg(1) = a%int(2_int64)
+        root_two = a%func("sqrt", one_arg)
+        one_plus_root_two = add_pair(a, a%int(1_int64), root_two)
+        one_arg(1) = one_plus_root_two
+        out = a%func("log", one_arg)
+        ok = .true.
+    end subroutine exact_log_one_plus_sqrt_two
+
+    subroutine exact_imaginary_argument(a, id, positive, negated, ok)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: positive
+        logical, intent(out) :: negated, ok
+
+        positive = id
+        negated = .false.
+        ok = .false.
+        call split_negated_argument(a, id, positive, negated)
+        if (a%kind_of(positive) /= NK_CONST) return
+        if (chars(a%name_of(positive)) /= "i") return
+        ok = .true.
+    end subroutine exact_imaginary_argument
+
     subroutine exact_odd_imaginary_value(a, id, angle, out, ok)
         type(arena_t), intent(inout) :: a
         integer, intent(in) :: id, angle
@@ -2623,9 +2679,8 @@ contains
 
         out = id
         ok = .false.
-        call split_negated_argument(a, id, positive, negated)
-        if (a%kind_of(positive) /= NK_CONST) return
-        if (chars(a%name_of(positive)) /= "i") return
+        call exact_imaginary_argument(a, id, positive, negated, ok)
+        if (.not. ok) return
         out = mul_pair(a, a%const("i"), angle)
         if (negated) out = mul_pair(a, a%int(-1_int64), out)
         ok = .true.
