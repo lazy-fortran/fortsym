@@ -634,9 +634,353 @@ Every checklist item requires all of the following:
 - [ ] Complete N-dimensional arrays, indexed objects, reshaping, contraction,
   tensor products, and tensor canonicalization.
 - [ ] Add vector calculus, differential geometry, manifolds, and geometric
-  intersection/measurement operations.
+  intersection/measurement operations. The first-class physics and geometry
+  scope is specified in Phase 7A below.
 - [ ] Preserve exact symbolic pivots and return conditions rather than making
   unconditional simplifications.
+
+## Phase 7A — differential geometry, tensor calculus, forms, and magnetic coordinates
+
+This toolkit is a primary product surface, not an example layered on top of
+the scalar engine. It must serve the notation used by relativity, continuum
+mechanics, electromagnetics, and magnetically confined plasmas while retaining
+the short Fortran spelling and the SymPy-compatible Python boundary.
+
+### Source synthesis and executable corpus
+
+The design follows the reciprocal-basis and flux-coordinate treatment in
+D'haeseleer, Hitchon, Callen, and Shohet, *Flux Coordinates and Magnetic Field
+Structure* (Springer, 1991), especially the chapters on tensorial objects,
+coordinate transformations, and divergence. It also follows Albert, Bíró, and
+Lainer, *2D Fourier finite element formulation for magnetostatics in curvilinear
+coordinates with a symmetry direction*, Computer Physics Communications 277,
+108401 (2022), [arXiv:2008.13681](https://arxiv.org/abs/2008.13681).
+The latter is the source of the `paper_magnetic` derivations used in the
+companion `fortsym-bench` corpus. The differential-form layer will use the
+coordinate-free plasma formulation in [Differential forms for plasma
+physics](https://doi.org/10.1017/S0022377819000928) as a second physics
+reference.
+
+The existing Wolfram scripts and their generated Python translations are
+requirements for this work. The native Fortran implementation, the
+`fortsym.sympy` adapter, and the Wolfram input frontend must execute the same
+derivation records. SymPy 1.14.0 remains the behavioral and performance oracle.
+Wolfram or Mathics results are additional differential evidence and a source
+of input coverage. A translated script is not accepted merely because it
+reproduces its own expected strings.
+
+### Conventions and object model
+
+- [ ] Freeze one notation table for coordinates, bases, components, metrics,
+  orientations, and densities. Coordinate components use Einstein indices:
+  `A(i)` is contravariant, `A_(i)` is covariant, and a repeated upper/lower
+  index is a contraction. The printed forms remain easy to read in Fortran
+  and Python even when the internal representation stores explicit index
+  metadata.
+- [ ] Represent every tensor field with its dimension, valence `(p, q)`, index
+  types, slot variance, symmetry declarations, and density weight. A density
+  is never represented as an unmarked tensor with a suggestive name.
+- [ ] Make coordinate charts, maps, manifolds, patches, tangent/cotangent
+  spaces, and orientation explicit owners. A chart is the map and its
+  coordinate variables. A metric is a separate object that can be induced by
+  a Euclidean embedding or supplied directly, including pseudo-Riemannian
+  signatures for relativity.
+- [ ] Keep the canonical Fortran vocabulary short and shared by internals and
+  the facade: `chart_t`, `metric_t`, `tensor_t`, `form_t`, `basis`, `metric`,
+  `jacobian`, `sqrtg`, `raise`, `lower`, `contract`, `covariant_diff`, `div`,
+  `curl`, `grad`, `wedge`, `d`, `star`, and `pullback`. The Python adapter
+  exposes the selected SymPy names such as `CoordSystem`, `TensorIndexType`,
+  `TensorIndex`, `TensorHead`, `TensorProduct`, `WedgeProduct`, and
+  `Differential`, with one conversion path to the native objects.
+- [ ] Define the supported tensor-density convention, including the sign and
+  absolute-value behavior of Jacobians, and test composition of two coordinate
+  changes. `sqrtg` carries orientation separately from the positive metric
+  volume factor. No operation may silently replace a signed Jacobian with
+  `sqrt(det(g))`.
+- [ ] Keep geometry as independent modules with declared downward
+  dependencies: `fortsym_geom` owns charts and bases, `fortsym_metric` owns
+  metrics and volume forms, `fortsym_tensor` owns indexed algebra,
+  `fortsym_form` owns exterior algebra, `fortsym_connection` owns covariant
+  derivatives and curvature, and `fortsym_magnetic` owns flux-coordinate
+  constructions. The facade only registers and forwards operations.
+- [ ] Translate every supported geometry derivation into native `fortsym`
+  construction. The Wolfram and Python scripts are coverage inputs and
+  differential tests. They are never the implementation behind a native
+  result, and the native path never shells out to either frontend.
+- [ ] Add a natural Fortran authoring layer for geometry: character assignment
+  for coordinates and tensor labels, generic constructors for scalar/vector/
+  covector/tensor fields, array constructors that preserve index metadata,
+  overloaded `(*)` for metric contraction where the slots are unambiguous,
+  explicit `contract` for readable Einstein sums, and derived-type methods
+  for `raise`, `lower`, `diff`, `div`, `curl`, and `star`. The simple path must
+  read like the mathematics while `explicit_arena` and explicit index objects
+  remain available for concurrency and library code.
+- [ ] Provide compact named constructors for the recurring objects:
+  `coords`, `chart`, `metric`, `basis`, `vector`, `covector`, `tensor`,
+  `density`, and `form`. Optional keyword arguments select variance, density
+  weight, symmetry, orientation, and assumptions without introducing a
+  second family of near-synonyms.
+- [ ] Make index-safe operations pleasant in both modes. In the default
+  facade, `g = metric(chart)`, `b = vector(chart, "B")`, `b_lower = lower(b,
+  g)`, and `sqrtg = volume(chart, g)` must be sufficient for common work. In
+  explicit mode, every object carries its arena and chart and cross-arena or
+  cross-chart operations fail at the boundary with a useful message.
+- [ ] Document and test the intended short form. It should look like this,
+  with the same names available through the lower-level modules:
+
+  ```fortran
+  Z = "Z"
+  R = "R"
+  phi = "phi"
+  u = coords(Z, R, phi)
+  c = chart(u, position)
+  g = metric(c)
+  A = covector(c, "A")
+  B = curl(c, A)
+  Bup = raise(B, g)
+  Bden = density(Bup, sqrtg(c))
+  ```
+
+  The convenience constructors may allocate expression handles, but native
+  tensor contractions and generated kernels must not create compiler array
+  temporaries.
+- [ ] Add a small Einstein-notation frontend for Fortran source, limited to a
+  documented grammar that lowers to the same native tensor IR. It may use
+  short declarations such as `B%up(1)` and `B%down(1)` or named index maps,
+  but it must remain ordinary Fortran preprocessing or library calls, with no
+  custom compiler or hidden global state.
+- [ ] Define a small central toolkit registry for optional geometry modules.
+  Registration is explicit Fortran procedure registration, without linker
+  discovery or a dependency from the core expression arena to a physics
+  package. Each toolkit has a capability record, version, owner module, and
+  refusal boundary so a later plugin system can replace the registry without
+  turning the engine into a monolith.
+
+### Reciprocal bases, metric, and densities
+
+For a coordinate map `x^a = x^a(u^i)`, the toolkit must derive and verify the
+following chain without asking users to manually transpose an array:
+
+```text
+e_i       = partial_i x                  tangent/covariant basis
+e^i       = grad(u^i)                    reciprocal/contravariant basis
+e^i dot e_j = delta^i_j
+g_ij      = e_i dot e_j
+g^ij      = inverse(g_ij)
+J         = det(partial_i x^a)           signed orientation Jacobian
+sqrtg     = sqrt(det(g_ij))              positive metric volume factor
+```
+
+- [ ] Generalize the existing `fortsym_chart` implementation beyond a fixed
+  three-dimensional Euclidean embedding while preserving its simple chart
+  constructor and explicit-arena form.
+- [ ] Add reciprocal bases, inverse coordinate maps when available, signed
+  Jacobians, `sqrtg`, volume forms, surface measures, and metric signature
+  checks. Singular maps and incompatible dimensions become named refusals.
+- [ ] Add exact identities for `g^ik g_kj = delta^i_j`, `det(g) = J**2` in a
+  positive Euclidean chart, `e^i dot e_j = delta^i_j`, and the chain rule for
+  two composed charts. Include nonorthogonal toroidal, cylindrical, and
+  spherical charts so a diagonal metric cannot hide an index error.
+- [ ] Add coordinate transformations for scalar, vector, covector, general
+  tensor, and tensor-density components. Verify round trips and composition
+  against independently constructed Jacobian matrices.
+- [ ] Add `raise` and `lower` as metric-owned operations. They must preserve
+  the underlying geometric object, update slot variance, and refuse a missing
+  or singular metric instead of guessing.
+
+### Tensor algebra and covariant calculus
+
+- [ ] Implement indexed tensor construction, tensor products, Einstein
+  contraction, permutation, symmetrization, antisymmetrization, trace,
+  component extraction, and canonical dummy-index renaming. All contractions
+  are checked for variance and index-space compatibility before expression
+  construction.
+- [ ] Implement covariant differentiation of arbitrary tensor valence,
+  including the correct Christoffel term for every upper and lower slot. The
+  existing `christoffel` operation becomes a special case of the connection
+  owner and remains available through the facade.
+- [ ] Implement torsion, nonmetricity, Riemann curvature, Ricci tensor, scalar
+  curvature, Einstein tensor, geodesics, Lie derivatives, and the first and
+  second Bianchi identities. Support both Riemannian and pseudo-Riemannian
+  metrics and make sign conventions a named metric/connection option.
+- [ ] Derive vector calculus from tensor/forms primitives. `grad`, `div`,
+  `curl`, and `laplacian` must share the same metric, orientation, and density
+  conventions rather than maintaining separate coordinate formulas.
+- [ ] Add invariant checks for tensor type, density weight, free-index shape,
+  symmetry, and dimensional consistency. Refusal messages must identify the
+  offending index or convention.
+
+### Differential forms and the de Rham layer
+
+- [ ] Implement degree-`k` forms with antisymmetric slots, scalar and function
+  coefficients, `wedge`, exterior derivative `d`, pullback, interior product,
+  Lie derivative, and exact/closed checks.
+- [ ] Implement metric-dependent Hodge `star`, codifferential, Laplace-de Rham
+  operator, and the conversion between vectors and one-forms using `flat` and
+  `sharp`. Orientation and metric signature are explicit inputs to `star`.
+- [ ] Prove and test the structural identities `d(d(alpha)) = 0`, the graded
+  Leibniz rule, pullback composition, Cartan's identity, and the appropriate
+  signed `star(star(alpha))` rule in each supported signature.
+- [ ] Add a Maxwell and plasma vocabulary built from forms: vector potential
+  one-form `A`, magnetic flux two-form `beta = i_B(volume)`, `d(beta) = 0`,
+  `beta = d(A)` on a declared simply connected patch, electric field form,
+  Faraday law, and gauge transformations. Vector-calculus spellings remain
+  derived convenience views.
+- [ ] Add Python compatibility for the selected `sympy.diffgeom` and
+  `sympy.tensor` operations, while keeping the native form algebra independent
+  of SymPy at runtime. Add Wolfram translations for the corresponding
+  `ExteriorDerivative`, wedge, tensor-product, and contraction records where
+  the corpus uses them.
+
+### Magnetic and flux-coordinate toolkit
+
+The plasma convention distinguishes the tangent basis `e_i` from the
+reciprocal basis `e^i`. A vector has both component forms:
+
+```text
+B = B^i e_i = B_i e^i
+B_i = g_ij B^j
+B^i = g^ij B_j
+div(B) = (1/sqrtg) partial_i(sqrtg B^i)
+```
+
+`B_i` is a covector component. `B^i` is a contravariant vector component.
+`sqrtg B^i` is a contravariant vector density of weight `+1` in the selected
+convention. These are separate typed objects even when a plasma code stores
+only the density because the density is the quantity that differentiates
+without an explicit volume factor.
+
+- [ ] Add `magnetic_chart` and flux-surface metadata without coupling the
+  generic chart or tensor modules to a particular equilibrium code.
+- [ ] Implement `B_cov`, `B_con`, `B_density`, `H_cov`, and `H_con` conversions,
+  metric contraction for `B**2`, field-line derivatives, magnetic surfaces,
+  flux-surface averages, and Jacobian-weighted divergence. The spelling is
+  concise in Fortran and maps to clear SymPy names in Python.
+- [ ] Support Clebsch, straight-field-line, Boozer, and Hamada coordinate
+  descriptors as data and verified identities. Start with symbolic relations
+  and refusal on inconsistent or singular input. Do not encode a particular
+  equilibrium solver in this toolkit.
+- [ ] Add the common plasma identities `B dot grad(psi) = 0`, the reciprocal
+  basis relations, `B = B^i e_i = B_i e^i`, `div(B) = 0`, and the magnetic
+  differential equation in both component and form notation.
+- [ ] Make flux-surface and line integrals carry their measure and orientation
+  explicitly. A result such as `sqrtg B^theta = f(psi)` must retain whether it
+  is a density identity, a scalar identity, or an equality after averaging.
+- [ ] Add transformations between physical vector components, coordinate
+  components, covariant components, contravariant components, and density
+  components to the Python and Wolfram frontends. Round-trip tests must use
+  nonorthogonal, left-handed, and periodic coordinates.
+
+### Albert, Bíró, and Lainer 2D Fourier FEM derivation
+
+The `paper_magnetic` corpus is the first end-to-end geometry derivation. For
+coordinates `(x^1, x^2, x^3) = (Z, R, phi)` with an axisymmetric block metric,
+
+```text
+g_ij = [[g11, g12, 0],
+        [g12, g22, 0],
+        [0,   0,   g33]]
+sqrtg = sqrt(det(g_ij))
+A_i(x^1, x^2, x^3) = A_i,n(x^1, x^2) exp(i n x^3)
+```
+
+the magnetic field of the covariant vector potential has the component
+derivation
+
+```text
+B^1_n = -i n A_2,n / sqrtg
+B^2_n =  i n A_1,n / sqrtg
+B^3_n = (partial_1 A_2,n - partial_2 A_1,n) / sqrtg
+B_1,n = g11 B^1_n + g12 B^2_n
+B_2,n = g12 B^1_n + g22 B^2_n
+B_3,n = g33 B^3_n
+```
+
+Thus `sqrtg B^i_n` is the natural contravariant density in the reduced
+problem. The corpus also derives the antisymmetric density
+`E = [[0, 1/J], [-1/J, 0]]`, the constitutive transform
+`nubar = -E nut E`, the cylindrical/cartesian tensor transforms, the
+zero-mode and nonzero-mode curl-curl equations, and the de Rham relations
+between the two-dimensional gradient, scalar curl, and divergence.
+
+- [ ] Import every `paper_magnetic*.wl`, `levicivita.wl`, cylindrical,
+  spherical, and determinant derivation into the named geometry corpus and
+  record its translated Python counterpart, source assumptions, outputs, and
+  unsupported statements.
+- [ ] Make the Wolfram reader and Python frontend execute those scripts through
+  one normalized assignment/derivation representation. Compare native
+  Fortran, `fortsym.sympy`, SymPy, and independent residual identities for
+  every supported result.
+- [ ] Add a native translator for the supported Wolfram/Python derivation
+  subset. It must emit ordinary `fortsym` calls and operators, preserve
+  assumptions, index variance, density weight, forms, and refusal conditions,
+  and produce a manifest that points from each source assignment to its
+  owning native module. Translation is complete only when the native result
+  passes semantic comparison and an independent identity check.
+- [ ] Implement the metric block, `sqrtg`, reciprocal basis, `B_i`, `B^i`,
+  vector-density components, Levi-Civita density, constitutive tensor
+  transformation, Fourier mode derivative, and zero/nonzero mode curl-curl
+  reduction as reusable toolkit operations rather than script-specific code.
+- [ ] Generate the paper's scalar longitudinal and transverse weak forms and
+  source terms from those operations. Preserve the distinction between nodal
+  scalar elements and two-dimensional edge elements in the generated metadata.
+- [ ] Add independent checks for the paper identities, including the de Rham
+  diagram, `n = 0` reduction to the full three-dimensional curl-curl form,
+  `n != 0` transverse reduction, tensor transformation round trips, and
+  boundary/singularity behavior at the cylindrical axis.
+- [ ] Add Fortran and Python examples that derive the formulas in the same
+  order as the paper, then emit compact Fortran kernels for selected Fourier
+  modes. The generated kernel must preserve density components and avoid
+  array temporaries.
+- [ ] Add a native `paper_magnetic` example that is readable without the
+  source scripts: declare `Z`, `R`, `phi`, `n`, `A`, and `g`, construct
+  `sqrtg`, `B%up`, `B%down`, and the Fourier curl, and assert the paper's
+  equations through native `zero_test`. Add the corresponding Python and
+  Wolfram frontend examples and compare all three result trees.
+
+### Relativity and geometry examples
+
+- [ ] Add a flat Cartesian-to-polar/cylindrical example that derives
+  `sqrtg`, reciprocal bases, Christoffel symbols, and the scalar Laplacian.
+- [ ] Add spherical coordinates and verify the volume element, gradient,
+  divergence, curl, and Laplace--Beltrami operator against independent
+  component formulas and SymPy.
+- [ ] Add a nonorthogonal torus and a flux-coordinate chart with off-diagonal
+  metric terms. Verify that raising, lowering, reciprocal bases, and
+  Jacobian-weighted operators remain correct.
+- [ ] Add a pseudo-Riemannian two-dimensional and four-dimensional example
+  with geodesics, curvature, Ricci, scalar curvature, and Einstein tensor.
+  Include a flat-space zero-curvature case and a curved-space case with an
+  independently known invariant.
+- [ ] Add electromagnetic forms, a magnetic two-form, and a gauge-equivalent
+  vector-potential example. Compare the form and tensor/vector outputs in both
+  frontends.
+- [ ] Publish short Fortran, Python, and Wolfram examples for every completed
+  derivation. Each example must show construction, simplification, a named
+  identity check, and code generation where applicable.
+
+### Verification, performance, and release gates
+
+- [ ] Add a geometry differential harness that runs the original Wolfram
+  inputs, generated Python inputs, native Fortran inputs, and SymPy oracle
+  checks from one case manifest. It must compare expressions semantically,
+  preserve unevaluated conditions, and report unsupported branches by name.
+- [ ] Add independent verification from coordinate-change composition,
+  determinant identities, index contractions, exterior-algebra identities,
+  finite differences, numerical point samples, and residuals of generated
+  kernels. SymPy agreement alone is insufficient.
+- [ ] Benchmark cold construction, warm symbolic operations, tensor
+  canonicalization, density transforms, form operations, and code generation
+  against equivalent SymPy workloads. Benchmark the paper's Fourier mode
+  derivation at several mode numbers and expression sizes. Enforce the
+  SymPy performance rule for every supported row.
+- [ ] Add resource limits for tensor rank, form degree, dummy-index search,
+  Fourier mode count, expression growth, and singular chart detection. A
+  limit produces a stable refusal with the offending budget.
+- [ ] Keep the toolkit modules usable without the Python or Wolfram frontends,
+  and keep both frontends usable without importing SymPy at native runtime.
+  Update the module graph, API inventory, naming audit, feature matrix,
+  refusal table, and generated examples together with each completed slice.
 
 ## Phase 8 — functions, discrete mathematics, and domains
 
