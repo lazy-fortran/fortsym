@@ -27,6 +27,9 @@ target_link_libraries(gen_toroidal_kernels PRIVATE fortsym)
 add_executable(bench_native bench_native.f90)
 target_link_libraries(bench_native PRIVATE fortsym)
 
+add_executable(bench_chart_geometry bench_chart_geometry.f90)
+target_link_libraries(bench_chart_geometry PRIVATE fortsym)
+
 add_executable(bench_algebraic bench_algebraic.f90)
 target_link_libraries(bench_algebraic PRIVATE fortsym)
 
