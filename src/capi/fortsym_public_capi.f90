@@ -66,7 +66,8 @@ module fortsym_public_capi
         density_factor_tensor => density_factor, &
         tensor_product_native => tensor_product, contract_slots, &
         raise_tensor => raise, lower_tensor => lower, permute_tensor => permute, &
-        symmetrize_tensor => symmetrize, antisymmetrize_tensor => antisymmetrize
+        symmetrize_tensor => symmetrize, antisymmetrize_tensor => antisymmetrize, &
+        declare_symmetry, SYMMETRIC, ANTISYMMETRIC
     use fortsym_tensor, only: tensor_lie_derivative
     use fortsym_connection, only: covariant_diff, covariant_divergence, &
         connection_t, connection_create, connection_valid, torsion, nonmetricity, &
@@ -169,6 +170,7 @@ module fortsym_public_capi
         fortsym_chart_tensor_permute, &
         fortsym_chart_tensor_contract, fortsym_chart_tensor_product, &
         fortsym_chart_tensor_symmetrize, &
+        fortsym_chart_tensor_declare_symmetry, &
         fortsym_chart_tensor_lie, &
         fortsym_chart_connection_torsion, &
         fortsym_chart_connection_nonmetricity, &
@@ -215,7 +217,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 59_c_int
+        v = 60_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1616,6 +1618,40 @@ contains
         end if
         call make_tensor_array(a, value, int(rank), out, status, message, capacity)
     end function fortsym_chart_tensor_symmetrize
+
+    function fortsym_chart_tensor_declare_symmetry(raw, coordinates, position, &
+            components, rank, variance, density_weight, first_slot, second_slot, &
+            symmetry, out, message, capacity) bind(c, &
+            name="fortsym_chart_tensor_declare_symmetry") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, variance, out
+        integer(c_size_t), value :: rank, first_slot, second_slot
+        integer(c_int), value :: density_weight, symmetry
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: input, value
+
+        call get_chart_tensor_input(raw, coordinates, position, components, rank, &
+            variance, density_weight, chart, a, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (first_slot < 1_c_size_t .or. first_slot > rank .or. &
+            second_slot < 1_c_size_t .or. second_slot > rank .or. &
+            first_slot == second_slot .or. &
+            (symmetry /= int(SYMMETRIC, c_int) .and. &
+            symmetry /= int(ANTISYMMETRIC, c_int))) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = declare_symmetry(input, int(first_slot), int(second_slot), &
+            int(symmetry))
+        if (.not. tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call make_tensor_array(a, value, int(rank), out, status, message, capacity)
+    end function fortsym_chart_tensor_declare_symmetry
 
     function fortsym_chart_tensor_lie(raw, coordinates, position, &
             vector_components, vector_rank, vector_variance, &

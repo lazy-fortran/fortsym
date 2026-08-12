@@ -112,23 +112,59 @@ int main(void)
     fortsym_expr *legendre = NULL;
     fortsym_expr *legendre_simplified = NULL;
     fortsym_expr *unknown_head = NULL;
+    fortsym_expr *coordinates[3];
+    fortsym_expr *position[3];
+    fortsym_expr *symmetric_tensor[9] = {0};
+    const fortsym_expr *tensor_components[9];
+    int tensor_variance[2] = {FORTSYM_UPPER_VARIANCE, FORTSYM_UPPER_VARIANCE};
     const fortsym_expr *root_argument[1];
     const fortsym_expr *substitution_old[2];
     const fortsym_expr *substitution_new[2];
     const fortsym_expr *special_arguments[2];
     const fortsym_expr *legendre_arguments[3];
 
-    assert(fortsym_abi_version() == 59);
+    assert(fortsym_abi_version() == 60);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
     assert(status == FORTSYM_OK);
     status = fortsym_symbol(arena, "y", &y, message, sizeof message);
     assert(status == FORTSYM_OK);
+    status = fortsym_symbol(arena, "z", &coordinates[2], message, sizeof message);
+    assert(status == FORTSYM_OK);
+    coordinates[0] = x;
+    coordinates[1] = y;
+    position[0] = x;
+    position[1] = y;
+    position[2] = coordinates[2];
     status = fortsym_int(arena, 1, &one, message, sizeof message);
     assert(status == FORTSYM_OK);
     status = fortsym_int(arena, 0, &zero, message, sizeof message);
     assert(status == FORTSYM_OK);
+    tensor_components[0] = one;
+    tensor_components[1] = zero;
+    tensor_components[2] = zero;
+    tensor_components[3] = zero;
+    tensor_components[4] = one;
+    tensor_components[5] = zero;
+    tensor_components[6] = zero;
+    tensor_components[7] = zero;
+    tensor_components[8] = one;
+    status = fortsym_chart_tensor_declare_symmetry(
+        arena, (const fortsym_expr **)coordinates,
+        (const fortsym_expr **)position, tensor_components, 2,
+        tensor_variance, 0, 1, 2, FORTSYM_SYMMETRIC, symmetric_tensor,
+        message, sizeof message);
+    assert(status == FORTSYM_OK);
+    for (size_t index = 0; index < 9; ++index)
+        fortsym_expr_free(symmetric_tensor[index]);
+    tensor_components[1] = one;
+    status = fortsym_chart_tensor_declare_symmetry(
+        arena, (const fortsym_expr **)coordinates,
+        (const fortsym_expr **)position, tensor_components, 2,
+        tensor_variance, 0, 1, 2, FORTSYM_SYMMETRIC, symmetric_tensor,
+        message, sizeof message);
+    assert(status == FORTSYM_INVALID_ARGUMENT);
     status = fortsym_add(arena, x, one, &sum, message, sizeof message);
     assert(status == FORTSYM_OK);
     status = fortsym_multiply(arena, sum, y, &product, message, sizeof message);

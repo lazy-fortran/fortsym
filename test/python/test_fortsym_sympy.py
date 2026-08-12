@@ -129,6 +129,44 @@ class SympySubsetTest(unittest.TestCase):
             tensor.density(1).to_form()
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_tensor_symmetry_metadata_matches_sympy_vocabulary(self):
+        from sympy.tensor.tensor import TensorSymmetry as OracleTensorSymmetry
+
+        x, y, z = sp.symbols("tensor_symmetry_x tensor_symmetry_y tensor_symmetry_z")
+        chart = sp.Chart((x, y, z), (x, y, z))
+        descriptor = sp.TensorSymmetry.pair_symmetric(2, 0, 1)
+        oracle_descriptor = OracleTensorSymmetry.fully_symmetric(2)
+        self.assertEqual(descriptor.rank, oracle_descriptor.rank)
+
+        matrix = chart.tensor(
+            (1, 2, 3, 2, 4, 5, 3, 5, 6), variance=(1, 1),
+            symmetries=descriptor,
+        )
+        self.assertEqual(matrix.symmetry(0, 1), sp.SYMMETRIC)
+        self.assertEqual(matrix.symmetries, ((0, 1, sp.SYMMETRIC),))
+        self.assertEqual(
+            oracle.Matrix(
+                3, 3,
+                lambda row, column: oracle.sympify(str(matrix[row, column])),
+            ),
+            oracle.Matrix(((1, 2, 3), (2, 4, 5), (3, 5, 6))),
+        )
+        self.assertEqual(matrix.permute((1, 0)).symmetry(0, 1), sp.SYMMETRIC)
+        self.assertEqual(matrix.lower(0).symmetry(0, 1), sp.SYMMETRY_NONE)
+
+        product = matrix.product(chart.vector((x, y, z)))
+        self.assertEqual(product.symmetry(0, 1), sp.SYMMETRIC)
+        self.assertEqual(product.covariant_diff().symmetry(0, 1), sp.SYMMETRIC)
+
+        form_tensor = chart.two_form((x, y, z)).to_tensor()
+        self.assertEqual(form_tensor.symmetry(0, 1), sp.ANTISYMMETRIC)
+        false_declaration = chart.tensor(
+            (1, 2, 3, 4, 5, 6, 7, 8, 9), variance=(1, 1)
+        )
+        with self.assertRaises(fortsym.FortSymError):
+            false_declaration.declare_symmetry(0, 1, sp.SYMMETRIC)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_flux_coordinate_residuals_match_sympy(self):
         psi, theta, phi = sp.symbols("flux_owner_psi flux_owner_theta flux_owner_phi")
         i0, i1, g0, g1 = sp.symbols(

@@ -302,7 +302,7 @@ three-dimensional charts. A checked overload also accepts `index_t` values
 from `fortsym_index`: `index_type("T", 3)` declares a space and
 `make_index(space, slot, variance, label, dummy)` declares a one-based native
 slot. It requires the same space, opposite variance, and matching nonempty
-labels. Arbitrary dimensions, C/Python symmetry transport, and full Python
+labels. Arbitrary dimensions, full symmetry-group transport, and full Python
 tensor parity remain roadmap work; the fixed-rank Python transport is
 documented in `python/README.md`.
 The tensor owner records pairwise symmetry metadata with

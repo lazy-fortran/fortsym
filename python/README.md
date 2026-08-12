@@ -130,6 +130,13 @@ contravariant tensor; a tensor density of weight `w` receives the explicit
 `+w*T*diff(vector[i], coordinate[i])` transport term.
 `Tensor.permute()`, `symmetrize()`, and `antisymmetrize()` perform native
 slot operations using zero-based Python slot numbers.
+`Tensor.symmetry(i, j)` returns `SYMMETRY_NONE`, `SYMMETRIC`, or
+`ANTISYMMETRIC`. `Tensor.declare_symmetry(i, j, kind)` checks every component
+through the native C ABI before recording the declaration. A false declaration
+raises `FortSymError`. `Tensor.symmetries` returns declared pairs as
+`(i, j, kind)` tuples. The SymPy spelling facade provides
+`TensorSymmetry.no_symmetry`, `.fully_symmetric`, `.fully_antisymmetric`, and
+pair constructors for `Chart.tensor(..., symmetries=...)`.
 `Tensor.product(other)` (also `tensor_product`) routes the outer product
 through the same native owner; left slots precede right slots and density
 weights add.

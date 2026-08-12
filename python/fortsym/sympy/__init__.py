@@ -23,6 +23,7 @@ from .. import (
     TRACE_TANGENTIAL, _Assumption, _CONFLICT, _FACT_INTEGER, _FACT_RATIONAL,
     _FACT_ALGEBRAIC, SPACETIME_DIM, CONNECTION_STANDARD, CONNECTION_OPPOSITE,
     _default,
+    SYMMETRY_NONE, SYMMETRIC, ANTISYMMETRIC,
     tensor_product as _tensor_product, contract as _contract,
 )
 
@@ -43,6 +44,58 @@ class UnsupportedOperationError(NotImplementedError):
 
 class InconsistentAssumptions(ValueError):
     """The supplied assumptions cannot hold simultaneously."""
+
+
+class TensorSymmetry:
+    """SymPy-named pair-symmetry descriptor for native chart tensors.
+
+    The native fixed-rank owner currently records pair declarations. The
+    descriptor keeps that vocabulary at the compatibility boundary and
+    supplies declarations to ``Chart.tensor(..., symmetries=...)``.
+    """
+
+    def __init__(self, rank, pairs=()):
+        self.rank = int(rank)
+        if self.rank < 0:
+            raise ValueError("tensor symmetry rank must be nonnegative")
+        normalized = []
+        for first, second, kind in pairs:
+            first, second = int(first), int(second)
+            if first < 0 or second < 0 or first >= self.rank or second >= self.rank:
+                raise IndexError("tensor symmetry slot is outside the tensor rank")
+            normalized.append((first, second, kind))
+        self.pairs = tuple(normalized)
+
+    @classmethod
+    def no_symmetry(cls, rank):
+        return cls(rank)
+
+    @classmethod
+    def fully_symmetric(cls, rank):
+        return cls(rank, (
+            (first, second, SYMMETRIC)
+            for first in range(int(rank))
+            for second in range(first + 1, int(rank))
+        ))
+
+    @classmethod
+    def fully_antisymmetric(cls, rank):
+        return cls(rank, (
+            (first, second, ANTISYMMETRIC)
+            for first in range(int(rank))
+            for second in range(first + 1, int(rank))
+        ))
+
+    @classmethod
+    def pair_symmetric(cls, rank, first, second):
+        return cls(rank, ((first, second, SYMMETRIC),))
+
+    @classmethod
+    def pair_antisymmetric(cls, rank, first, second):
+        return cls(rank, ((first, second, ANTISYMMETRIC),))
+
+    def __repr__(self):
+        return f"TensorSymmetry({self.rank}, {self.pairs!r})"
 
 
 _WILD_COUNTER = count()
@@ -1253,10 +1306,11 @@ nan = _default().constant("nan")
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "FluxSurface", "FluxCoordinates", "MagneticChart", "MagneticField", "FourierWeakForm", "Metric", "Connection", "Orientation", "Signature", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "TensorIndexType", "TensorIndex", "Form", "Expr", "FortSymError", "UnsupportedOperationError",
+    "Arena", "Chart", "ChartMap", "FluxSurface", "FluxCoordinates", "MagneticChart", "MagneticField", "FourierWeakForm", "Metric", "Connection", "Orientation", "Signature", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "TensorIndexType", "TensorIndex", "TensorSymmetry", "Form", "Expr", "FortSymError", "UnsupportedOperationError",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL", "FLUX_GENERIC", "FLUX_CLEBSCH", "FLUX_STRAIGHT_FIELD_LINE", "FLUX_BOOZER", "FLUX_HAMADA", "BOOZER_RESIDUAL_COUNT",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
+    "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
     "Manifold", "Patch", "CoordSystem", "CoordinateSymbol", "BaseScalarField",
     "BaseVectorField", "Differential", "WedgeProduct", "TensorProduct", "LieDerivative",
     "InconsistentAssumptions",
