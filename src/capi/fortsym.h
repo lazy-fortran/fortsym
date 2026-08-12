@@ -431,6 +431,13 @@ int fortsym_chart_tensor_contract(
     const fortsym_expr *position[], const fortsym_expr *components[],
     size_t rank, const int variance[], int density_weight, size_t first_slot,
     size_t second_slot, fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_tensor_product(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *left_components[],
+    size_t left_rank, const int left_variance[], int left_density_weight,
+    const fortsym_expr *right_components[], size_t right_rank,
+    const int right_variance[], int right_density_weight, fortsym_expr *out[],
+    char *message, size_t capacity);
 /* `antisymmetric` is zero for symmetrization and nonzero for
  * antisymmetrization. Slots are one-based, matching the native Fortran API. */
 int fortsym_chart_tensor_symmetrize(

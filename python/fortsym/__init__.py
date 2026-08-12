@@ -622,6 +622,13 @@ def _configure(lib):
          ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int),
          ctypes.c_int, _SIZE, _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_tensor_product = declare(
+        "fortsym_chart_tensor_product", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+         ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.chart_tensor_symmetrize = declare(
         "fortsym_chart_tensor_symmetrize", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
@@ -1554,6 +1561,30 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "tensor_contract")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
+    def _chart_tensor_product(self, chart, left, right):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        left_values = (_CVOID * len(left.components))(
+            *[self._check(value)._handle for value in left.components]
+        )
+        right_values = (_CVOID * len(right.components))(
+            *[self._check(value)._handle for value in right.components]
+        )
+        left_variance = (ctypes.c_int * left.rank)(*left.variance)
+        right_variance = (ctypes.c_int * right.rank)(*right.variance)
+        output = (_CVOID * (3 ** (left.rank + right.rank)))()
+        message = _message()
+        status = self._lib.chart_tensor_product(
+            self._require(), coordinate_handles, position_handles, left_values,
+            left.rank, left_variance, left.density_weight, right_values,
+            right.rank, right_variance, right.density_weight, output, message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "tensor_product")
         return tuple(Expr(self, output[index]) for index in range(len(output)))
 
     def _chart_tensor_symmetrize(self, chart, tensor, first, second, antisymmetric):
@@ -2793,6 +2824,20 @@ class Tensor:
         return Tensor(
             self.chart, components, variance, self.density_weight, _owned=True
         )
+
+    def product(self, other):
+        """Return the native tensor product, with left slots first."""
+        if not isinstance(other, Tensor) or other.chart is not self.chart:
+            raise ValueError("tensor factors must belong to the same chart")
+        if self.rank + other.rank > 4:
+            raise ValueError("native tensors support rank at most four")
+        components = self._arena._chart_tensor_product(self.chart, self, other)
+        return Tensor(
+            self.chart, components, self.variance + other.variance,
+            self.density_weight + other.density_weight, _owned=True
+        )
+
+    tensor_product = product
 
     def covariant_diff(self):
         return self.chart.covariant_diff(self)

@@ -49,7 +49,8 @@ module fortsym_public_capi
         maxwell_residual
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_from_storage, tensor_component, tensor_valid, metric_covariant_tensor, &
-        metric_contravariant_tensor, density_tensor => density, contract_slots, &
+        metric_contravariant_tensor, density_tensor => density, &
+        tensor_product_native => tensor_product, contract_slots, &
         raise_tensor => raise, lower_tensor => lower, permute_tensor => permute, &
         symmetrize_tensor => symmetrize, antisymmetrize_tensor => antisymmetrize
     use fortsym_connection, only: covariant_diff, christoffel_tensor, &
@@ -134,7 +135,7 @@ module fortsym_public_capi
         fortsym_chart_christoffel, fortsym_chart_covariant_diff, &
         fortsym_chart_tensor_raise, fortsym_chart_tensor_lower, &
         fortsym_chart_tensor_density, fortsym_chart_tensor_permute, &
-        fortsym_chart_tensor_contract, &
+        fortsym_chart_tensor_contract, fortsym_chart_tensor_product, &
         fortsym_chart_tensor_symmetrize, &
         fortsym_chart_riemann, fortsym_chart_ricci, &
         fortsym_chart_scalar_curvature, fortsym_chart_einstein, &
@@ -168,7 +169,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 41_c_int
+        v = 42_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1358,6 +1359,43 @@ contains
         call make_tensor_array(a, value, int(rank) - 2, out, status, message, &
             capacity)
     end function fortsym_chart_tensor_contract
+
+    function fortsym_chart_tensor_product(raw, coordinates, position, &
+            left_components, left_rank, left_variance, left_density_weight, &
+            right_components, right_rank, right_variance, &
+            right_density_weight, out, message, capacity) bind(c, &
+            name="fortsym_chart_tensor_product") result(status)
+        type(c_ptr), value :: raw, coordinates, position, left_components, &
+            left_variance, right_components, right_variance, out
+        integer(c_size_t), value :: left_rank, right_rank
+        integer(c_int), value :: left_density_weight, right_density_weight
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: left, right, value
+
+        call get_chart_tensor_input(raw, coordinates, position, left_components, &
+            left_rank, left_variance, left_density_weight, chart, a, left, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_chart_tensor_input(raw, coordinates, position, right_components, &
+            right_rank, right_variance, right_density_weight, chart, a, right, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (left_rank + right_rank > int(MAX_RANK, c_size_t)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = tensor_product_native(left, right)
+        if (.not. tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call make_tensor_array(a, value, int(left_rank + right_rank), out, &
+            status, message, capacity)
+    end function fortsym_chart_tensor_product
 
     function fortsym_chart_tensor_symmetrize(raw, coordinates, position, components, &
             rank, variance, density_weight, first_slot, second_slot, &

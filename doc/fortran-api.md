@@ -207,6 +207,8 @@ slot. It requires the same space, opposite variance, and matching nonempty
 labels. Symmetry declarations, arbitrary dimensions, and full Python tensor
 parity remain roadmap work; the fixed-rank Python transport is documented in
 `python/README.md`.
+`tensor_product(left, right)` is the single native outer-product owner; the
+left slots precede the right slots and density weights add.
 
 ## Connections and curvature
 
