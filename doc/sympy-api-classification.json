@@ -1,6 +1,6 @@
 {
   "adapter_profile": {
-    "declared_count": 87,
+    "declared_count": 88,
     "explicit_refusals": [
       "Matrix",
       "apart",
@@ -39,6 +39,7 @@
       "Rational",
       "Subs",
       "Symbol",
+      "Tensor",
       "UnsupportedOperationError",
       "Wild",
       "acos",
@@ -2365,6 +2366,94 @@
         "id": "fortsym_public_capi.fortsym_chart_b_fourier_density",
         "module": "fortsym_public_capi",
         "name": "fortsym_chart_b_fourier_density",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_metric_covariant",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_metric_covariant",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_metric_contravariant",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_metric_contravariant",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_christoffel",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_christoffel",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_covariant_diff",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_covariant_diff",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_riemann",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_riemann",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_ricci",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_ricci",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_scalar_curvature",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_scalar_curvature",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_einstein",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_einstein",
         "owner": "src/capi/fortsym_public_capi.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -9311,12 +9400,12 @@
     "classification_counts": {
       "delegated": 2529,
       "external": 10,
-      "facade": 264,
-      "native": 3333,
+      "facade": 272,
+      "native": 3341,
       "python-adapter": 2485,
       "refused": 25309
     },
-    "fortran_public_exports": 892,
+    "fortran_public_exports": 900,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

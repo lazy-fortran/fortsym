@@ -63,7 +63,7 @@
     {
       "from": "capi",
       "to": "calculus",
-      "uses": 3
+      "uses": 5
     },
     {
       "from": "capi",
@@ -876,6 +876,7 @@
         "fortsym_assume_api",
         "fortsym_chart",
         "fortsym_complexdom",
+        "fortsym_connection",
         "fortsym_diff",
         "fortsym_engine",
         "fortsym_engine_native",
@@ -885,7 +886,8 @@
         "fortsym_predicates",
         "fortsym_print",
         "fortsym_string",
-        "fortsym_subs"
+        "fortsym_subs",
+        "fortsym_tensor"
       ],
       "name": "fortsym_public_capi",
       "owner": "capi",
@@ -1104,7 +1106,7 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 335,
+    "internal_edges": 337,
     "module_file_mismatches": 0,
     "module_units": 69,
     "modules": 69,

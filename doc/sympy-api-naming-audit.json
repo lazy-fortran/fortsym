@@ -708,6 +708,10 @@
         "name": "BACKEND_UNKNOWN"
       },
       {
+        "concepts": [],
+        "name": "DIM"
+      },
+      {
         "concepts": [
           "backend-protocol"
         ],
@@ -718,6 +722,14 @@
           "code-generation"
         ],
         "name": "KERNEL_SUBROUTINE"
+      },
+      {
+        "concepts": [],
+        "name": "LOWER_VARIANCE"
+      },
+      {
+        "concepts": [],
+        "name": "MAX_RANK"
       },
       {
         "concepts": [
@@ -798,6 +810,10 @@
         "name": "NK_SYM"
       },
       {
+        "concepts": [],
+        "name": "UPPER"
+      },
+      {
         "concepts": [
           "three-valued-query"
         ],
@@ -838,6 +854,10 @@
           "elementary-functions"
         ],
         "name": "acosh"
+      },
+      {
+        "concepts": [],
+        "name": "add_forms"
       },
       {
         "concepts": [
@@ -916,6 +936,26 @@
         "name": "atanh"
       },
       {
+        "concepts": [],
+        "name": "b_con"
+      },
+      {
+        "concepts": [],
+        "name": "b_cov"
+      },
+      {
+        "concepts": [],
+        "name": "b_density"
+      },
+      {
+        "concepts": [],
+        "name": "b_fourier"
+      },
+      {
+        "concepts": [],
+        "name": "b_fourier_density"
+      },
+      {
         "concepts": [
           "backend-evidence"
         ],
@@ -946,6 +986,22 @@
         "name": "chars"
       },
       {
+        "concepts": [],
+        "name": "chart_create"
+      },
+      {
+        "concepts": [],
+        "name": "chart_t"
+      },
+      {
+        "concepts": [],
+        "name": "christoffel"
+      },
+      {
+        "concepts": [],
+        "name": "christoffel_tensor"
+      },
+      {
         "concepts": [
           "complex-domain-functions"
         ],
@@ -964,6 +1020,10 @@
         "name": "const"
       },
       {
+        "concepts": [],
+        "name": "contract"
+      },
+      {
         "concepts": [
           "elementary-functions"
         ],
@@ -976,10 +1036,38 @@
         "name": "cosh"
       },
       {
+        "concepts": [],
+        "name": "covariant_basis"
+      },
+      {
+        "concepts": [],
+        "name": "covariant_derivative"
+      },
+      {
+        "concepts": [],
+        "name": "covariant_diff"
+      },
+      {
+        "concepts": [],
+        "name": "covector"
+      },
+      {
+        "concepts": [],
+        "name": "curl"
+      },
+      {
+        "concepts": [],
+        "name": "d"
+      },
+      {
         "concepts": [
           "arena-and-expression"
         ],
         "name": "default_arena"
+      },
+      {
+        "concepts": [],
+        "name": "density"
       },
       {
         "concepts": [
@@ -994,10 +1082,18 @@
         "name": "diff"
       },
       {
+        "concepts": [],
+        "name": "divergence"
+      },
+      {
         "concepts": [
           "constants"
         ],
         "name": "e_expr"
+      },
+      {
+        "concepts": [],
+        "name": "einstein_tensor"
       },
       {
         "concepts": [
@@ -1066,10 +1162,54 @@
         "name": "expr_t"
       },
       {
+        "concepts": [],
+        "name": "exterior_diff"
+      },
+      {
         "concepts": [
           "transformation-functions"
         ],
         "name": "factor"
+      },
+      {
+        "concepts": [],
+        "name": "flat"
+      },
+      {
+        "concepts": [],
+        "name": "form"
+      },
+      {
+        "concepts": [],
+        "name": "form_component"
+      },
+      {
+        "concepts": [],
+        "name": "form_degree"
+      },
+      {
+        "concepts": [],
+        "name": "form_one"
+      },
+      {
+        "concepts": [],
+        "name": "form_scalar"
+      },
+      {
+        "concepts": [],
+        "name": "form_t"
+      },
+      {
+        "concepts": [],
+        "name": "form_three"
+      },
+      {
+        "concepts": [],
+        "name": "form_two"
+      },
+      {
+        "concepts": [],
+        "name": "form_valid"
       },
       {
         "concepts": [
@@ -1096,6 +1236,10 @@
         "name": "gamma"
       },
       {
+        "concepts": [],
+        "name": "grad"
+      },
+      {
         "concepts": [
           "relational-constructors"
         ],
@@ -1106,6 +1250,10 @@
           "relational-constructors"
         ],
         "name": "greater_equal"
+      },
+      {
+        "concepts": [],
+        "name": "hodge_star"
       },
       {
         "concepts": [
@@ -1126,6 +1274,14 @@
         "name": "integer_valued"
       },
       {
+        "concepts": [],
+        "name": "interior"
+      },
+      {
+        "concepts": [],
+        "name": "interior_product"
+      },
+      {
         "concepts": [
           "algebraic-predicate"
         ],
@@ -1144,10 +1300,18 @@
         "name": "is_valid"
       },
       {
+        "concepts": [],
+        "name": "jacobian"
+      },
+      {
         "concepts": [
           "code-generation"
         ],
         "name": "kernel_spec_t"
+      },
+      {
+        "concepts": [],
+        "name": "laplacian"
       },
       {
         "concepts": [
@@ -1174,10 +1338,22 @@
         "name": "less_equal"
       },
       {
+        "concepts": [],
+        "name": "lie"
+      },
+      {
+        "concepts": [],
+        "name": "lie_derivative"
+      },
+      {
         "concepts": [
           "elementary-functions"
         ],
         "name": "log"
+      },
+      {
+        "concepts": [],
+        "name": "lower"
       },
       {
         "concepts": [
@@ -1186,10 +1362,30 @@
         "name": "make_assumption_context"
       },
       {
+        "concepts": [],
+        "name": "metric_contravariant"
+      },
+      {
+        "concepts": [],
+        "name": "metric_contravariant_tensor"
+      },
+      {
+        "concepts": [],
+        "name": "metric_covariant"
+      },
+      {
+        "concepts": [],
+        "name": "metric_covariant_tensor"
+      },
+      {
         "concepts": [
           "constants"
         ],
         "name": "nan_expr"
+      },
+      {
+        "concepts": [],
+        "name": "negate_form"
       },
       {
         "concepts": [
@@ -1348,6 +1544,10 @@
         "name": "positive_integer"
       },
       {
+        "concepts": [],
+        "name": "raise"
+      },
+      {
         "concepts": [
           "rational-construction"
         ],
@@ -1384,6 +1584,10 @@
         "name": "real_valued"
       },
       {
+        "concepts": [],
+        "name": "reciprocal_basis"
+      },
+      {
         "concepts": [
           "transformation-functions"
         ],
@@ -1396,16 +1600,36 @@
         "name": "reset"
       },
       {
+        "concepts": [],
+        "name": "ricci_tensor"
+      },
+      {
+        "concepts": [],
+        "name": "riemann_tensor"
+      },
+      {
         "concepts": [
           "identity-and-validity"
         ],
         "name": "same_arena"
       },
       {
+        "concepts": [],
+        "name": "scalar_curvature"
+      },
+      {
+        "concepts": [],
+        "name": "scale_form"
+      },
+      {
         "concepts": [
           "backend-evidence"
         ],
         "name": "serialize_expression"
+      },
+      {
+        "concepts": [],
+        "name": "sharp"
       },
       {
         "concepts": [
@@ -1438,6 +1662,14 @@
         "name": "sqrt"
       },
       {
+        "concepts": [],
+        "name": "sqrtg"
+      },
+      {
+        "concepts": [],
+        "name": "star"
+      },
+      {
         "concepts": [
           "string-conversion"
         ],
@@ -1454,6 +1686,10 @@
           "substitution"
         ],
         "name": "subs_many"
+      },
+      {
+        "concepts": [],
+        "name": "subtract_forms"
       },
       {
         "concepts": [
@@ -1480,16 +1716,84 @@
         "name": "tanh"
       },
       {
+        "concepts": [],
+        "name": "tensor"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_component"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_covector"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_density_weight"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_from_components"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_from_matrix"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_product"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_rank"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_same_arena"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_scalar"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_t"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_valid"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_variance"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_vector"
+      },
+      {
+        "concepts": [],
+        "name": "trace"
+      },
+      {
         "concepts": [
           "relational-constructors"
         ],
         "name": "unequal"
       },
       {
+        "concepts": [],
+        "name": "vector"
+      },
+      {
         "concepts": [
           "three-valued-query"
         ],
         "name": "verdict_name"
+      },
+      {
+        "concepts": [],
+        "name": "wedge"
       },
       {
         "concepts": [
@@ -1518,6 +1822,7 @@
     ],
     "python_facade": [
       "Arena",
+      "Chart",
       "Expr",
       "Float",
       "FortSymError",
@@ -1525,6 +1830,7 @@
       "Integer",
       "Rational",
       "Symbol",
+      "Tensor",
       "diff",
       "factor",
       "free_symbols",
@@ -1538,6 +1844,7 @@
       "Add",
       "And",
       "Arena",
+      "Chart",
       "Derivative",
       "E",
       "Eq",
@@ -1560,6 +1867,7 @@
       "Rational",
       "Subs",
       "Symbol",
+      "Tensor",
       "UnsupportedOperationError",
       "Wild",
       "acos",
@@ -1667,13 +1975,89 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 139,
-    "python_facade_exports": 15,
-    "sympy_adapter_exports": 114,
-    "unmapped_fortran_exports": 1
+    "fortran_facade_exports": 215,
+    "python_facade_exports": 17,
+    "sympy_adapter_exports": 116,
+    "unmapped_fortran_exports": 77
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
-    "algebraic_valued"
+    "DIM",
+    "LOWER_VARIANCE",
+    "MAX_RANK",
+    "UPPER",
+    "add_forms",
+    "algebraic_valued",
+    "b_con",
+    "b_cov",
+    "b_density",
+    "b_fourier",
+    "b_fourier_density",
+    "chart_create",
+    "chart_t",
+    "christoffel",
+    "christoffel_tensor",
+    "contract",
+    "covariant_basis",
+    "covariant_derivative",
+    "covariant_diff",
+    "covector",
+    "curl",
+    "d",
+    "density",
+    "divergence",
+    "einstein_tensor",
+    "exterior_diff",
+    "flat",
+    "form",
+    "form_component",
+    "form_degree",
+    "form_one",
+    "form_scalar",
+    "form_t",
+    "form_three",
+    "form_two",
+    "form_valid",
+    "grad",
+    "hodge_star",
+    "interior",
+    "interior_product",
+    "jacobian",
+    "laplacian",
+    "lie",
+    "lie_derivative",
+    "lower",
+    "metric_contravariant",
+    "metric_contravariant_tensor",
+    "metric_covariant",
+    "metric_covariant_tensor",
+    "negate_form",
+    "raise",
+    "reciprocal_basis",
+    "ricci_tensor",
+    "riemann_tensor",
+    "scalar_curvature",
+    "scale_form",
+    "sharp",
+    "sqrtg",
+    "star",
+    "subtract_forms",
+    "tensor",
+    "tensor_component",
+    "tensor_covector",
+    "tensor_density_weight",
+    "tensor_from_components",
+    "tensor_from_matrix",
+    "tensor_product",
+    "tensor_rank",
+    "tensor_same_arena",
+    "tensor_scalar",
+    "tensor_t",
+    "tensor_valid",
+    "tensor_variance",
+    "tensor_vector",
+    "trace",
+    "vector",
+    "wedge"
   ]
 }

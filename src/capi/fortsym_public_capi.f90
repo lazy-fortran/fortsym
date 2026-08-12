@@ -19,6 +19,11 @@ module fortsym_public_capi
     use fortsym_diff, only: diff
     use fortsym_chart, only: chart_t, chart_create, DIM, sqrtg
     use fortsym_magnetic, only: b_cov, b_fourier, b_fourier_density
+    use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
+        tensor_component, tensor_valid, metric_covariant_tensor, &
+        metric_contravariant_tensor
+    use fortsym_connection, only: covariant_diff, christoffel_tensor, &
+        riemann_tensor, ricci_tensor, scalar_curvature, einstein_tensor
     use fortsym_assume_api, only: assumption_context_t, init_assumption_context, &
         clone_assumption_context, record_assumption, &
         record_relation, &
@@ -44,6 +49,7 @@ module fortsym_public_capi
     integer(c_int), parameter, public :: FORTSYM_UNSUPPORTED = 5_c_int
     integer(c_int), parameter, public :: FORTSYM_RESOURCE_LIMIT = 6_c_int
     integer(c_int), parameter, public :: FORTSYM_CONFLICT = 7_c_int
+    integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
 
     type :: assumption_frame_t
         type(assumption_context_t), pointer :: context => null()
@@ -75,7 +81,11 @@ module fortsym_public_capi
         fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor
     public :: fortsym_chart_sqrtg, fortsym_chart_b_cov, &
-        fortsym_chart_b_fourier, fortsym_chart_b_fourier_density
+        fortsym_chart_b_fourier, fortsym_chart_b_fourier_density, &
+        fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
+        fortsym_chart_christoffel, fortsym_chart_covariant_diff, &
+        fortsym_chart_riemann, fortsym_chart_ricci, &
+        fortsym_chart_scalar_curvature, fortsym_chart_einstein
     public :: fortsym_complex_operation
     public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
@@ -90,7 +100,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 16_c_int
+        v = 17_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -747,6 +757,194 @@ contains
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_chart_sqrtg
 
+    function fortsym_chart_metric_covariant(raw, coordinates, position, out, &
+            message, capacity) bind(c, name="fortsym_chart_metric_covariant") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = metric_covariant_tensor(chart)
+        call make_tensor_array(a, value, 2, out, status, message, capacity)
+    end function fortsym_chart_metric_covariant
+
+    function fortsym_chart_metric_contravariant(raw, coordinates, position, out, &
+            message, capacity) bind(c, name="fortsym_chart_metric_contravariant") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = metric_contravariant_tensor(chart)
+        call make_tensor_array(a, value, 2, out, status, message, capacity)
+    end function fortsym_chart_metric_contravariant
+
+    function fortsym_chart_christoffel(raw, coordinates, position, out, &
+            message, capacity) bind(c, name="fortsym_chart_christoffel") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = christoffel_tensor(chart)
+        call make_tensor_array(a, value, 3, out, status, message, capacity)
+    end function fortsym_chart_christoffel
+
+    function fortsym_chart_covariant_diff(raw, coordinates, position, components, &
+            rank, variance, density_weight, out, message, capacity) &
+            bind(c, name="fortsym_chart_covariant_diff") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, variance, out
+        integer(c_size_t), value :: rank
+        integer(c_int), value :: density_weight
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(tensor_t) :: input, value
+        type(expr_t) :: values(MAX_COMPONENTS)
+        type(c_ptr), pointer :: component_values(:)
+        integer(c_int), pointer :: variance_values(:)
+        integer :: count, flat, k
+        integer :: metadata(MAX_RANK), shape(1)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (rank > int(MAX_RANK - 1, c_size_t)) then
+            call fail(status, message, capacity, FORTSYM_RESOURCE_LIMIT)
+            return
+        end if
+        count = component_count(int(rank))
+        if (.not. c_associated(components) .or. .not. c_associated(variance)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape(1) = count
+        call c_f_pointer(components, component_values, shape)
+        shape(1) = int(rank)
+        call c_f_pointer(variance, variance_values, shape)
+        metadata = 0
+        do k = 1, int(rank)
+            if (variance_values(k) /= 1_c_int .and. &
+                variance_values(k) /= -1_c_int) then
+                call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+                return
+            end if
+            metadata(k) = int(variance_values(k))
+        end do
+        do flat = 1, count
+            call get_expr(component_values(flat), owner, values(flat), status, &
+                message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        input = tensor_from_components(chart, int(rank), values(1:count), &
+            metadata(1:int(rank)), int(density_weight))
+        if (.not. tensor_valid(input)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = covariant_diff(chart, input)
+        call make_tensor_array(a, value, int(rank) + 1, out, status, message, &
+            capacity)
+    end function fortsym_chart_covariant_diff
+
+    function fortsym_chart_riemann(raw, coordinates, position, out, message, &
+            capacity) bind(c, name="fortsym_chart_riemann") result(status)
+        type(c_ptr), value :: raw, coordinates, position, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = riemann_tensor(chart)
+        call make_tensor_array(a, value, 4, out, status, message, capacity)
+    end function fortsym_chart_riemann
+
+    function fortsym_chart_ricci(raw, coordinates, position, out, message, &
+            capacity) bind(c, name="fortsym_chart_ricci") result(status)
+        type(c_ptr), value :: raw, coordinates, position, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = ricci_tensor(chart)
+        call make_tensor_array(a, value, 2, out, status, message, capacity)
+    end function fortsym_chart_ricci
+
+    function fortsym_chart_scalar_curvature(raw, coordinates, position, out, &
+            message, capacity) bind(c, name="fortsym_chart_scalar_curvature") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: value
+
+        call begin_output(out, message, capacity)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = scalar_curvature(chart)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_chart_scalar_curvature
+
+    function fortsym_chart_einstein(raw, coordinates, position, out, message, &
+            capacity) bind(c, name="fortsym_chart_einstein") result(status)
+        type(c_ptr), value :: raw, coordinates, position, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(tensor_t) :: value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = einstein_tensor(chart)
+        call make_tensor_array(a, value, 2, out, status, message, capacity)
+    end function fortsym_chart_einstein
+
     function fortsym_chart_b_cov(raw, coordinates, position, vector, out, &
             message, capacity) bind(c, name="fortsym_chart_b_cov") result(status)
         type(c_ptr), value :: raw, out
@@ -759,10 +957,11 @@ contains
         type(chart_t) :: chart
         type(expr_t) :: input(DIM), value(DIM)
         type(c_ptr), pointer :: output(:), vector_values(:)
-        integer :: k
+        integer :: k, shape(1)
 
-        call c_f_pointer(out, output, [DIM])
-        call c_f_pointer(vector, vector_values, [DIM])
+        shape(1) = DIM
+        call c_f_pointer(out, output, shape)
+        call c_f_pointer(vector, vector_values, shape)
         call clear_array_outputs(output)
         call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
             chart, a, status, message, capacity)
@@ -792,10 +991,11 @@ contains
         type(chart_t) :: chart
         type(expr_t) :: input(DIM), mode_value, value(DIM)
         type(c_ptr), pointer :: output(:), potential_values(:)
-        integer :: k
+        integer :: k, shape(1)
 
-        call c_f_pointer(out, output, [DIM])
-        call c_f_pointer(potential, potential_values, [DIM])
+        shape(1) = DIM
+        call c_f_pointer(out, output, shape)
+        call c_f_pointer(potential, potential_values, shape)
         call clear_array_outputs(output)
         call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
             chart, a, status, message, capacity)
@@ -831,10 +1031,11 @@ contains
         type(chart_t) :: chart
         type(expr_t) :: input(DIM), mode_value, value(DIM)
         type(c_ptr), pointer :: output(:), potential_values(:)
-        integer :: k
+        integer :: k, shape(1)
 
-        call c_f_pointer(out, output, [DIM])
-        call c_f_pointer(potential, potential_values, [DIM])
+        shape(1) = DIM
+        call c_f_pointer(out, output, shape)
+        call c_f_pointer(potential, potential_values, shape)
         call clear_array_outputs(output)
         call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
             chart, a, status, message, capacity)
@@ -1336,7 +1537,7 @@ contains
         type(expr_owner_t), pointer :: owner
         type(expr_t) :: u(DIM), x(DIM)
         type(c_ptr), pointer :: coordinate_values(:), position_values(:)
-        integer :: k
+        integer :: k, shape(1)
 
         call get_arena(raw, a, status, message, capacity)
         if (status /= FORTSYM_OK) return
@@ -1344,8 +1545,9 @@ contains
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if
-        call c_f_pointer(coordinates, coordinate_values, [DIM])
-        call c_f_pointer(position, position_values, [DIM])
+        shape(1) = DIM
+        call c_f_pointer(coordinates, coordinate_values, shape)
+        call c_f_pointer(position, position_values, shape)
         do k = 1, DIM
             call get_expr(coordinate_values(k), owner, u(k), status, message, capacity)
             if (status /= FORTSYM_OK) return
@@ -1365,12 +1567,129 @@ contains
 
     subroutine clear_array_outputs(out)
         type(c_ptr), pointer, intent(inout) :: out(:)
+        call clear_handles(out, DIM)
+    end subroutine clear_array_outputs
+
+    subroutine clear_handles(out, count)
+        type(c_ptr), pointer, intent(inout) :: out(:)
+        integer, intent(in) :: count
         integer :: k
 
-        do k = 1, DIM
+        do k = 1, count
             out(k) = c_null_ptr
         end do
-    end subroutine clear_array_outputs
+    end subroutine clear_handles
+
+    subroutine prepare_expr_array(out, count, status, message, capacity)
+        type(c_ptr), value :: out
+        integer, intent(in) :: count
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(c_ptr), pointer :: output(:)
+        integer :: shape(1)
+
+        status = FORTSYM_INVALID_ARGUMENT
+        if (count <= 0 .or. .not. c_associated(out)) then
+            call put_error(message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape(1) = count
+        call c_f_pointer(out, output, shape)
+        call clear_handles(output, count)
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end subroutine prepare_expr_array
+
+    subroutine make_expr_array(a, values, out, count, status, message, capacity)
+        type(arena_owner_t), pointer :: a
+        type(expr_t), intent(in) :: values(:)
+        type(c_ptr), value :: out
+        integer, intent(in) :: count
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(c_ptr), pointer :: output(:)
+        type(expr_owner_t), pointer :: p
+        integer :: k, shape(1)
+
+        call prepare_expr_array(out, count, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (size(values) < count) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape(1) = count
+        call c_f_pointer(out, output, shape)
+        do k = 1, count
+            if (.not. is_valid(values(k))) then
+                call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+                return
+            end if
+            nullify(p)
+            allocate (p)
+            p%arena => a
+            p%id = values(k)%id
+            a%references = a%references + 1
+            output(k) = c_loc(p)
+        end do
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end subroutine make_expr_array
+
+    subroutine make_tensor_array(a, value, rank, out, status, message, capacity)
+        type(arena_owner_t), pointer :: a
+        type(tensor_t), intent(in) :: value
+        integer, intent(in) :: rank
+        type(c_ptr), value :: out
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(expr_t) :: values(MAX_COMPONENTS)
+        integer :: count, flat, indices(MAX_RANK), empty(0)
+
+        if (rank < 0 .or. rank > MAX_RANK) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        count = component_count(rank)
+        if (.not. tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        do flat = 0, count - 1
+            call decode_index(flat, rank, indices)
+            if (rank == 0) then
+                values(flat + 1) = tensor_component(value, empty)
+            else
+                values(flat + 1) = tensor_component(value, indices(1:rank))
+            end if
+        end do
+        call make_expr_array(a, values, out, count, status, message, capacity)
+    end subroutine make_tensor_array
+
+    pure function component_count(rank) result(count)
+        integer, intent(in) :: rank
+        integer :: count, k
+
+        count = 1
+        do k = 1, rank
+            count = count*DIM
+        end do
+    end function component_count
+
+    subroutine decode_index(flat, rank, indices)
+        integer, intent(in) :: flat, rank
+        integer, intent(out) :: indices(MAX_RANK)
+        integer :: value, k
+
+        indices = 1
+        value = flat
+        do k = 1, rank
+            indices(k) = mod(value, DIM) + 1
+            value = value/DIM
+        end do
+    end subroutine decode_index
 
     subroutine make_array_handles(a, values, out, status, message, capacity)
         type(arena_owner_t), pointer :: a
@@ -1422,7 +1741,11 @@ contains
             return
         end if
         call c_f_pointer(raw, a)
-        if (.not. associated(a) .or. .not. allocated(a%value%nodes)) then
+        if (.not. associated(a)) then
+            call put_error(message, capacity, FORTSYM_INVALID_HANDLE)
+            return
+        end if
+        if (.not. allocated(a%value%nodes)) then
             nullify(a)
             call put_error(message, capacity, FORTSYM_INVALID_HANDLE)
             return
@@ -1447,7 +1770,11 @@ contains
             return
         end if
         call c_f_pointer(raw, p)
-        if (.not. associated(p) .or. .not. associated(p%arena)) then
+        if (.not. associated(p)) then
+            call put_error(message, capacity, FORTSYM_INVALID_HANDLE)
+            return
+        end if
+        if (.not. associated(p%arena)) then
             nullify(p)
             call put_error(message, capacity, FORTSYM_INVALID_HANDLE)
             return

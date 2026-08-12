@@ -154,8 +154,8 @@ Every checklist item requires all of the following:
 - [x] Audit every public export for duplicate concepts and inconsistent names
   with [`scripts/audit_api_naming.py`](scripts/audit_api_naming.py) and
   [`doc/sympy-api-naming-audit.json`](doc/sympy-api-naming-audit.json).
-  The audit covers all 130 `use fortsym` exports, all 12 native Python facade
-  exports, and all 84 `fortsym.sympy` adapter exports. It keeps the concise
+  The audit currently records all 215 `use fortsym` exports, 17 native Python
+  facade exports, and 116 public adapter names/methods. It keeps the concise
   native vocabulary separate from the SymPy compatibility vocabulary and
   records the remaining canonical-name decisions for the next checklist item.
 - [x] Select canonical short names for constructors, functions, predicates,
@@ -868,6 +868,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   of SymPy at runtime. Add Wolfram translations for the corresponding
   `ExteriorDerivative`, wedge, tensor-product, and contraction records where
   the corpus uses them.
+- [x] Expose the first fixed-three-dimensional tensor/connection subset through
+  the C ABI and both Python facades: chart metrics, Christoffel/Riemann/Ricci/
+  Einstein views, scalar curvature, typed variance/density metadata, and
+  covariant differentiation. Python transports native handles and does not
+  duplicate geometry formulas; broader `diffgeom`/tensor parity remains open.
 
 ### Magnetic and flux-coordinate toolkit
 
