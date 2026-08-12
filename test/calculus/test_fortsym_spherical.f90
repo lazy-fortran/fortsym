@@ -11,7 +11,7 @@ program test_fortsym_spherical
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create, covariant_basis, &
-        reciprocal_basis, metric_covariant, jacobian, curl
+        reciprocal_basis, metric_covariant, jacobian, surface_measure, curl
     use fortsym_metric, only: metric_t, metric_create, &
         metric_contravariant, metric_valid, metric_grad, metric_divergence, &
         metric_laplacian
@@ -71,6 +71,8 @@ program test_fortsym_spherical
         chart_metric(3, 3) - radius**2*sin(theta)**2)
     call check_identity(suite, engine, "signed spherical Jacobian", &
         jacobian(spherical) - radius**2*sin(theta))
+    call check_identity(suite, engine, "spherical surface measure squared", &
+        surface_measure(spherical, 1)**2 - radius**4*sin(theta)**2)
 
     metric_values = num(arena, 0)
     metric_values(1, 1) = num(arena, 1)

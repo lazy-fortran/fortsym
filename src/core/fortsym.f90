@@ -40,7 +40,7 @@ module fortsym
     use fortsym_ode, only: solve_ode
     use fortsym_chart, only: DIM, chart_t, chart_create, covariant_basis, &
         reciprocal_basis, metric_covariant, metric_contravariant, sqrtg, &
-        field_line_derivative, &
+        surface_measure, field_line_derivative, &
         jacobian, christoffel, chart_grad => grad, &
         chart_divergence => divergence, curl, chart_laplacian => laplacian
     use fortsym_domain, only: manifold_t, patch_t, manifold_create, patch_create, &
@@ -84,7 +84,7 @@ module fortsym
         TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
         metric_det, metric_sqrtg, &
-        metric_inner, &
+        metric_surface_measure, metric_inner, &
         metric_signature, metric_orientation, metric_valid, metric_arena, &
         metric_same_arena, metric_coordinates, metric_has_coordinates, &
         metric_grad, metric_divergence, metric_laplacian
@@ -161,8 +161,9 @@ module fortsym
         evidence_json, emit_backend_kernel
     public :: solve_ode
     public :: DIM, chart_t, chart_create, covariant_basis, reciprocal_basis, &
-        metric_covariant, metric_contravariant, sqrtg, jacobian, christoffel, &
-        grad, divergence, field_line_derivative, curl, laplacian, chart_map_t, &
+        metric_covariant, metric_contravariant, sqrtg, surface_measure, jacobian, &
+        christoffel, grad, divergence, field_line_derivative, curl, laplacian, &
+        chart_map_t, &
         chart_map_create, compose_maps, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form, &
         pullback, b_con, &
@@ -173,7 +174,7 @@ module fortsym
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, &
         SPACE_EDGE, TRACE_NONE, TRACE_NORMAL, TRACE_TANGENTIAL, &
         metric_t, metric_create, metric_from_chart, metric_det, metric_sqrtg, &
-        metric_inner, &
+        metric_surface_measure, metric_inner, &
         metric_grad, metric_divergence, metric_laplacian, &
         metric_volume_density, levi_civita_symbol, metric_levi_civita, &
         metric_orientation, metric_valid, metric_arena, metric_same_arena, &

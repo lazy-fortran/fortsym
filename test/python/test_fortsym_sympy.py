@@ -335,6 +335,15 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(
             oracle.sympify(str(upper[0, 1, 2].simplify())), expected_upper
         )
+        self.assertEqual(
+            oracle.sympify(str(metric.surface_measure(1).simplify())), 6
+        )
+        self.assertEqual(
+            oracle.sympify(str(metric.surface_measure(2).simplify())), 3
+        )
+        self.assertEqual(
+            oracle.sympify(str(metric.surface_measure(3).simplify())), 2
+        )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_metric_inner_matches_sympy_on_nonorthogonal_metric(self):
@@ -543,6 +552,12 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(
             actual_reciprocal.T * actual_covariant,
             oracle.eye(3),
+        )
+        tangent = expected_covariant[:, 1:]
+        expected_surface = oracle.sqrt((tangent.T * tangent).det())
+        self.assertEqual(
+            oracle.sympify(str(chart.surface_measure(1).simplify())),
+            expected_surface,
         )
 
         vector = chart.tensor((1, 2, 3), variance=(1,))

@@ -17,6 +17,7 @@ module fortsym_metric
 
     public :: metric_t, metric_create, metric_from_chart
     public :: metric_covariant, metric_contravariant, metric_det, metric_sqrtg
+    public :: metric_surface_measure
     public :: metric_inner
     public :: metric_grad, metric_divergence, metric_laplacian
     public :: metric_signature, metric_orientation, metric_valid
@@ -155,6 +156,26 @@ contains
         if (.not. g%valid) return
         value = sqrt(expr_abs(metric_det(g)))
     end function metric_sqrtg
+
+    !> Positive induced measure on u(normal_index)=const.
+    !>
+    !> The absolute value is required because an explicit metric may be
+    !> pseudo-Riemannian. Orientation remains separate and is not folded into
+    !> this positive surface density.
+    function metric_surface_measure(g, normal_index) result(value)
+        type(metric_t), intent(in) :: g
+        integer, intent(in) :: normal_index
+        type(expr_t) :: value
+        type(expr_t) :: minor
+        integer :: first, second
+
+        if (.not. metric_valid(g)) return
+        if (normal_index < 1 .or. normal_index > DIM) return
+        call other_indices(normal_index, first, second)
+        minor = g%component(first, first)*g%component(second, second) - &
+            g%component(first, second)*g%component(second, first)
+        value = sqrt(expr_abs(minor))
+    end function metric_surface_measure
 
     !> Metric inner product of two contravariant component vectors.
     !>

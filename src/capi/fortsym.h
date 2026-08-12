@@ -171,6 +171,10 @@ int fortsym_chart_sqrtg(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], size_t dimension, fortsym_expr **out,
     char *message, size_t capacity);
+int fortsym_chart_surface_measure(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], int normal_index, fortsym_expr **out,
+    char *message, size_t capacity);
 int fortsym_chart_jacobian(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], size_t dimension, fortsym_expr **out,
@@ -299,6 +303,10 @@ int fortsym_metric_volume_density(
     fortsym_arena *arena, const fortsym_expr *components[],
     const int signature[], int orientation, fortsym_expr **out,
     char *message, size_t capacity);
+int fortsym_metric_surface_measure(
+    fortsym_arena *arena, const fortsym_expr *components[],
+    const int signature[], int orientation, int normal_index,
+    fortsym_expr **out, char *message, size_t capacity);
 /* `variance` is -1 for the covariant and +1 for the contravariant
  * Levi-Civita tensor. Output uses first-slot-fastest order and has 27 slots. */
 int fortsym_metric_levi_civita(

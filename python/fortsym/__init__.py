@@ -287,6 +287,11 @@ def _configure(lib):
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _SIZE,
          ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_surface_measure = declare(
+        "fortsym_chart_surface_measure", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), ctypes.c_int,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.chart_jacobian = declare(
         "fortsym_chart_jacobian",
         ctypes.c_int,
@@ -455,6 +460,14 @@ def _configure(lib):
         [
             _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int),
             ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.metric_surface_measure = declare(
+        "fortsym_metric_surface_measure", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int),
+            ctypes.c_int, ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR,
+            _SIZE,
         ],
     )
     lib.metric_levi_civita = declare(
@@ -1103,6 +1116,22 @@ class Arena:
             self._require(), coordinate_handles, position_handles, 3,
         )
 
+    def _chart_surface_measure(self, coordinates, position, normal_index):
+        if int(normal_index) not in (1, 2, 3):
+            raise ValueError("surface normal index must be 1, 2, or 3")
+        coordinate_handles, position_handles = self._chart_inputs(
+            coordinates, position
+        )
+        output = _CVOID()
+        message = _message()
+        status = self._lib.chart_surface_measure(
+            self._require(), coordinate_handles, position_handles,
+            int(normal_index), ctypes.byref(output), message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "surface_measure")
+        return Expr(self, output)
+
     def _chart_jacobian(self, coordinates, position):
         coordinate_handles, position_handles = self._chart_inputs(
             coordinates, position
@@ -1443,6 +1472,20 @@ class Arena:
             raise FortSymError(
                 status, _decode(message), "metric_volume_density"
             )
+        return Expr(self, output)
+
+    def _metric_surface_measure(self, metric, normal_index):
+        if int(normal_index) not in (1, 2, 3):
+            raise ValueError("surface normal index must be 1, 2, or 3")
+        components, signature = self._metric_inputs(metric)
+        output = _CVOID()
+        message = _message()
+        status = self._lib.metric_surface_measure(
+            self._require(), components, signature, metric.orientation,
+            int(normal_index), ctypes.byref(output), message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "surface_measure")
         return Expr(self, output)
 
     def _metric_levi_civita(self, metric, variance):
@@ -2317,6 +2360,12 @@ class Chart:
     def sqrtg(self):
         return self._arena._chart_sqrtg(self.coordinates, self.position)
 
+    def surface_measure(self, normal_index=1):
+        """Return the positive measure on ``coordinate[normal_index]=const``."""
+        return self._arena._chart_surface_measure(
+            self.coordinates, self.position, normal_index
+        )
+
     def jacobian(self):
         """Return the signed determinant of the chart Jacobian."""
         return self._arena._chart_jacobian(self.coordinates, self.position)
@@ -2645,6 +2694,10 @@ class Metric:
 
     def volume_density(self):
         return self._arena._metric_volume_density(self)
+
+    def surface_measure(self, normal_index=1):
+        """Return the positive induced measure on a coordinate surface."""
+        return self._arena._metric_surface_measure(self, normal_index)
 
     def levi_civita(self, variance="covariant"):
         if variance in ("covariant", "lower", -1):
