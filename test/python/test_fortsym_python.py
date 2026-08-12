@@ -145,6 +145,11 @@ class NativePackageTest(unittest.TestCase):
             self.assertEqual(owner.upper[2].simplify(), 1)
             self.assertEqual(owner.divergence().simplify(), 0)
             self.assertEqual(owner.field_line_derivative(psi).simplify(), 0)
+            self.assertEqual(owner.potential_form().degree, 1)
+            flux_form = owner.flux_form()
+            self.assertEqual(flux_form.degree, 2)
+            self.assertEqual(flux_form[3].simplify(), 1)
+            self.assertTrue(flux_form.is_closed)
 
     def test_native_tensor_and_connection_frontend(self):
         with fortsym.Arena() as arena:

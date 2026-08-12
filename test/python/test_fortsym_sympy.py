@@ -109,6 +109,9 @@ class SympySubsetTest(unittest.TestCase):
         )
         self.assertEqual(actual, expected)
         self.assertEqual(oracle.sympify(str(owner.divergence().simplify())), 0)
+        flux_form = owner.flux_form()
+        self.assertEqual(oracle.sympify(str(flux_form[3].simplify())), 1)
+        self.assertTrue(flux_form.is_closed)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_tensor_lie_derivative_matches_independent_sympy_formula(self):

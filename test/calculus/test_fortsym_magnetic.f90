@@ -19,9 +19,12 @@ program test_fortsym_magnetic
         flux_surface_measure, flux_surface_average, magnetic_chart_t, &
         magnetic_chart, magnetic_chart_valid, magnetic_chart_surface, &
         magnetic_chart_field, magnetic_chart_upper, magnetic_chart_lower, &
-        magnetic_chart_density, magnetic_chart_average
+        magnetic_chart_density, magnetic_chart_average, &
+        magnetic_chart_potential_form, magnetic_chart_flux_form
     use fortsym_tensor, only: tensor_t, tensor_component, tensor_variance, &
         tensor_density_weight, tensor_valid
+    use fortsym_form, only: form_t, form_component, form_degree, form_valid, &
+        volume_form, interior, d
     implicit none
 
     type(arena_t), target :: arena
@@ -42,6 +45,8 @@ program test_fortsym_magnetic
     type(flux_surface_t) :: magnetic_surface_owner
     type(magnetic_field_t) :: magnetic_field_owner
     type(tensor_t) :: magnetic_up_owner, magnetic_down_owner, magnetic_density_owner
+    type(form_t) :: potential_form_owner, flux_form_owner, field_flux_form, closed_form
+    type(form_t) :: volume_form_owner
     type(tensor_t) :: typed_up, typed_down, typed_density
     integer :: tensor_index(1)
     type(engine_result_t) :: reduced
@@ -159,6 +164,31 @@ program test_fortsym_magnetic
     end if
     call check_identity(suite, engine, "magnetic chart periodic average", &
         average - 1)
+    potential_form_owner = magnetic_chart_potential_form(magnetic_chart_owner)
+    flux_form_owner = magnetic_chart_flux_form(magnetic_chart_owner)
+    volume_form_owner = volume_form(shear)
+    field_flux_form = interior(shear, b_up, volume_form_owner)
+    closed_form = d(shear, flux_form_owner)
+    if (.not. form_valid(potential_form_owner)) then
+        error stop "magnetic potential form is invalid"
+    end if
+    if (.not. form_valid(flux_form_owner)) then
+        error stop "magnetic flux form is invalid"
+    end if
+    if (form_degree(potential_form_owner) /= 1) then
+        error stop "magnetic potential form degree failed"
+    end if
+    if (form_degree(flux_form_owner) /= 2) then
+        error stop "magnetic flux form degree failed"
+    end if
+    call check_identity(suite, engine, "magnetic beta psi-theta", &
+        form_component(flux_form_owner, 3) - form_component(field_flux_form, 3))
+    call check_identity(suite, engine, "magnetic beta psi-phi", &
+        form_component(flux_form_owner, 5) - form_component(field_flux_form, 5))
+    call check_identity(suite, engine, "magnetic beta theta-phi", &
+        form_component(flux_form_owner, 6) - form_component(field_flux_form, 6))
+    call check_identity(suite, engine, "magnetic beta is closed", &
+        form_component(closed_form, 7))
 
     call check_identity(suite, engine, "B^1 from covariant potential", b_up(1) - 1)
     call check_identity(suite, engine, "B^2 from covariant potential", b_up(2) - u(2))

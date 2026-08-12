@@ -3004,7 +3004,10 @@ class MagneticChart:
             raise TypeError("MagneticChart requires a fortsym Chart")
         self.chart = chart
         self.surface = chart.flux_surface(label_index)
-        self.field = chart.magnetic_field(potential)
+        self.potential = tuple(chart._arena._check(value) for value in potential)
+        if len(self.potential) != 3:
+            raise ValueError("magnetic potentials require three components")
+        self.field = chart.magnetic_field(self.potential)
 
     @property
     def label(self):
@@ -3027,6 +3030,14 @@ class MagneticChart:
 
     def average(self, scalar):
         return self.surface.average(scalar)
+
+    def potential_form(self):
+        """Return the stored covariant potential one-form ``A``."""
+        return self.chart.one_form(self.potential)
+
+    def flux_form(self):
+        """Return the magnetic flux two-form ``beta = d(A)``."""
+        return self.potential_form().d()
 
     def divergence(self):
         """Return the chart divergence of the contravariant B view."""

@@ -68,7 +68,9 @@ the numerator or normalization.
 facade bundling that surface with the native `MagneticField` views. Its
 `.upper`, `.lower`, and `.density` properties retain the `B^i`, `B_i`, and
 weight-one `sqrtg B^i` metadata; `.divergence()`, `.field_line_derivative()`,
-and `.average()` delegate to the same chart and field owners.
+and `.average()` delegate to the same chart and field owners. `.potential_form()`
+returns `A` and `.flux_form()` returns the closed magnetic two-form
+`beta = d(A)`.
 `Chart.h_cov(reluctivity, vector)` applies `H_i = nu_ij B^j`, and
 `Chart.h_con(covariant)` raises `H_i` with the chart metric.
 `MagneticField.h_cov()` and `.h_con()` provide typed covariant and

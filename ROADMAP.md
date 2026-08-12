@@ -1104,7 +1104,7 @@ and independent oracle. The minimum case set is:
 - [ ] A nonorthogonal torus or flux chart with off-diagonal metric terms,
   including signed Jacobian, raise/lower, density transformation, and a
   round-trip coordinate change.
-- [ ] A magnetic potential `A` with `beta = d(A) = i_B(Omega)`, followed by
+- [x] A magnetic potential `A` with `beta = d(A) = i_B(Omega)`, followed by
   `d(beta) = 0`, divergence, and the component/form comparison.
 - [ ] The Albert, Bíró, and Lainer Fourier reduction, with separate `n = 0`
   and `n != 0` branches, density components, constitutive transformation, and
@@ -1493,6 +1493,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   `d(beta) = 0` for the native chart/magnetic owners. Keep the full Maxwell,
   gauge, and topology vocabulary open until the form domain carries patch
   and boundary metadata.
+- [x] Expose that identity directly on `magnetic_chart_t`: the stored
+  potential yields `magnetic_chart_potential_form` and the native
+  `magnetic_chart_flux_form`, while the Python/SymPy facades provide
+  `.potential_form()` and `.flux_form()` without duplicating form algebra.
 - [x] Add native-backed `Form.is_closed` and `SpacetimeForm.is_closed` with
   the shared three-valued zero-verdict contract. Closedness is computed from
   the native exterior derivative and remains `None` when any coefficient is
