@@ -482,6 +482,9 @@ Every checklist item requires all of the following:
   - [x] Canonicalize the exact real inverse-hyperbolic poles:
     `atanh(1)` becomes `oo` and `atanh(-1)` becomes `-oo`; unsupported
     accumulation and complex-infinity cases remain refused or applied.
+  - [x] Canonicalize the exact imaginary inverse-hyperbolic branch points:
+    `atanh(i)` becomes `i*pi/4` and `atanh(-i)` becomes `-i*pi/4`; broader
+    complex inverse branches remain unevaluated.
   - [x] Canonicalize the exact principal inverse-hyperbolic branch points:
     `acosh(0)` becomes `i*pi/2` and `acosh(-1)` becomes `i*pi`; unsupported
     negative-real branches remain unevaluated.
@@ -671,17 +674,21 @@ Every checklist item requires all of the following:
     performance matrix. Their cold and warm one-node simplification rows are
     explicit ABI diagnostics, measured at 5.34x and 4.15x SymPy respectively;
     the 58 substantive rows remain enforced with zero unwaived violations.
+  - [x] Add the exact `atanh(i)`/`atanh(-i)` branch points to the correctness
+    and performance matrix. Their cold and warm rows are enforced and measured
+    at 0.014x and 0.044x SymPy; the 60 substantive rows remain enforced with
+    zero unwaived violations.
   - [x] Add the exact `acosh(0)`/`acosh(-1)` branch points to the correctness
     and performance matrix. Their cold and warm rows are enforced and measured
-    at 0.017x and 0.058x SymPy; the 60 substantive rows remain enforced with
+    at 0.017x and 0.058x SymPy; the 62 substantive rows remain enforced with
     zero unwaived violations.
   - [x] Add exact negative perfect-square roots to the correctness and
     performance matrix. The cold and warm rows are enforced and measured at
-    0.029x and 0.062x SymPy; the 62 substantive rows remain enforced with
+    0.029x and 0.062x SymPy; the 64 substantive rows remain enforced with
     zero unwaived violations.
   - [x] Add the exact `asinh(i)`/`asinh(-i)` branch points to the correctness
     and performance matrix. Their cold and warm rows are enforced and measured
-    at 0.018x and 0.051x SymPy; the 64 substantive rows remain enforced with
+    at 0.018x and 0.051x SymPy; the 66 substantive rows remain enforced with
     zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.

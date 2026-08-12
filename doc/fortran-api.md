@@ -116,6 +116,8 @@ accumulation-bound results for `atan(zoo)` and `atanh(zoo)` remain applied
 heads until a compatible bounded-set representation exists.
 The exact real poles `atanh(1)` and `atanh(-1)` are canonicalized to `oo` and
 `-oo`; unsupported complex and accumulation-bound cases remain unevaluated.
+The exact imaginary branch points `atanh(i)` and `atanh(-i)` are canonicalized
+to `i*pi/4` and `-i*pi/4`; broader complex inverse branches remain unevaluated.
 The exact principal branch points `acosh(0)` and `acosh(-1)` are likewise
 canonicalized to `i*pi/2` and `i*pi`; other negative-real branches remain
 unevaluated.
