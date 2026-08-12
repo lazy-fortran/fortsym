@@ -5,7 +5,9 @@ module fortsym_chart_map
     ! in the source variables and then expressed in target variables through
     ! the supplied inverse map. This makes the coordinate dependence explicit
     ! and prevents a target tensor from carrying source-coordinate expressions.
-    use fortsym_chart, only: chart_t, DIM
+    use fortsym_chart, only: chart_t, DIM, chart_valid, chart_has_patch, &
+        chart_patch
+    use fortsym_domain, only: patch_t, same_patch
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, num, abs, is_valid, operator(+), &
         operator(-), operator(*), operator(/), operator(**), operator(==)
@@ -20,6 +22,8 @@ module fortsym_chart_map
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
 
     public :: chart_map_t, chart_map_create, compose_maps, map_valid
+    public :: chart_map_has_source_patch, chart_map_has_target_patch
+    public :: chart_map_source_patch, chart_map_target_patch
     public :: map_jacobian, inverse_jacobian, transform_tensor, transform_form
     public :: pullback
 
@@ -44,8 +48,8 @@ contains
         type(chart_map_t) :: result
         integer :: k
 
-        if (.not. associated(source%a)) return
-        if (.not. associated(target%a)) return
+        if (.not. chart_valid(source)) return
+        if (.not. chart_valid(target)) return
         if (.not. associated(source%a, target%a)) return
         do k = 1, DIM
             if (.not. is_valid(forward(k))) return
@@ -61,6 +65,44 @@ contains
             result = chart_map_t()
         end if
     end function chart_map_create
+
+    !> Whether the source chart carries an explicit patch declaration.
+    function chart_map_has_source_patch(map) result(has_patch)
+        type(chart_map_t), intent(in) :: map
+        logical :: has_patch
+
+        has_patch = chart_valid(map%source)
+        if (.not. has_patch) return
+        has_patch = chart_has_patch(map%source)
+    end function chart_map_has_source_patch
+
+    !> Whether the target chart carries an explicit patch declaration.
+    function chart_map_has_target_patch(map) result(has_patch)
+        type(chart_map_t), intent(in) :: map
+        logical :: has_patch
+
+        has_patch = chart_valid(map%target)
+        if (.not. has_patch) return
+        has_patch = chart_has_patch(map%target)
+    end function chart_map_has_target_patch
+
+    !> Return the source patch, or an invalid value when it is undeclared.
+    function chart_map_source_patch(map) result(patch)
+        type(chart_map_t), intent(in) :: map
+        type(patch_t) :: patch
+
+        if (.not. chart_map_has_source_patch(map)) return
+        patch = chart_patch(map%source)
+    end function chart_map_source_patch
+
+    !> Return the target patch, or an invalid value when it is undeclared.
+    function chart_map_target_patch(map) result(patch)
+        type(chart_map_t), intent(in) :: map
+        type(patch_t) :: patch
+
+        if (.not. chart_map_has_target_patch(map)) return
+        patch = chart_patch(map%target)
+    end function chart_map_target_patch
 
     !> Compose two transitions. `following` is applied after `first`.
     function compose_maps(first, following) result(result)
@@ -269,8 +311,8 @@ contains
         integer :: k
 
         valid = .false.
-        if (.not. associated(map%source%a)) return
-        if (.not. associated(map%target%a)) return
+        if (.not. chart_valid(map%source)) return
+        if (.not. chart_valid(map%target)) return
         if (.not. associated(map%source%a, map%target%a)) return
         do k = 1, DIM
             if (.not. is_valid(map%forward(k))) return
@@ -294,6 +336,12 @@ contains
             if (.not. (left%u(k) == right%u(k))) return
             if (.not. (left%x(k) == right%x(k))) return
         end do
+        if (chart_has_patch(left)) then
+            if (.not. chart_has_patch(right)) return
+            if (.not. same_patch(chart_patch(left), chart_patch(right))) return
+        else
+            if (chart_has_patch(right)) return
+        end if
         same = .true.
     end function same_chart
 

@@ -48,7 +48,7 @@ module fortsym
         manifold_valid, manifold_dimension, manifold_name, manifold_has_boundary, &
         manifold_simply_connected, patch_valid, patch_dimension, patch_name, &
         patch_manifold, patch_is_open, patch_has_boundary, &
-        patch_simply_connected, same_manifold, same_patch_parent
+        patch_simply_connected, same_manifold, same_patch_parent, same_patch
     use fortsym_geometry_metadata, only: orientation_t, signature_t, &
         orientation_create, orientation_valid, orientation_value, &
         orientation_is_positive, orientation_is_negative, signature_create, &
@@ -56,7 +56,8 @@ module fortsym
         signature_positive_count, signature_negative_count, &
         signature_is_lorentzian
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
-        map_valid, map_jacobian, &
+        chart_map_has_source_patch, chart_map_has_target_patch, &
+        chart_map_source_patch, chart_map_target_patch, map_valid, map_jacobian, &
         inverse_jacobian, transform_tensor, transform_form, pullback
     use fortsym_form, only: form_t, form, form_scalar, form_one, form_two, &
         form_three, form_zero, form_component, form_degree, form_valid, add_forms, &
@@ -198,6 +199,8 @@ module fortsym
         christoffel, grad, divergence, field_line_derivative, curl, laplacian, &
         chart_map_t, &
         chart_map_create, compose_maps, &
+        chart_map_has_source_patch, chart_map_has_target_patch, &
+        chart_map_source_patch, chart_map_target_patch, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form, &
         pullback, magnetic_field_t, magnetic_field, magnetic_upper, magnetic_lower, &
         magnetic_density, magnetic_chart_t, magnetic_chart, magnetic_chart_valid, &

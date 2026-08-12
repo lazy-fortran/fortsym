@@ -9,10 +9,13 @@ program test_fortsym_chart_map
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
-    use fortsym_chart, only: DIM, chart_t, chart_create
+    use fortsym_chart, only: DIM, chart_t, chart_create, chart_create_on_patch
+    use fortsym_domain, only: manifold_t, patch_t, manifold_create, patch_create, &
+        same_patch
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, &
-        transform_form, pullback
+        transform_form, pullback, chart_map_has_source_patch, &
+        chart_map_has_target_patch, chart_map_source_patch, chart_map_target_patch
     use fortsym, only: facade_chart_map_t => chart_map_t, &
         facade_chart_map_create => chart_map_create, &
         facade_transform_tensor => transform_tensor
@@ -26,8 +29,11 @@ program test_fortsym_chart_map
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
     type(chart_t) :: source, target, middle, final
+    type(chart_t) :: mismatched_middle
     type(chart_map_t) :: transition, reverse_transition, second_transition, &
-        composed, singular
+        composed, singular, mismatched_transition, mismatched_composed
+    type(manifold_t) :: manifold
+    type(patch_t) :: source_patch, target_patch, final_patch, other_patch
     type(facade_chart_map_t) :: facade_transition
     type(expr_t) :: source_u(DIM), target_u(DIM), final_u(DIM)
     type(expr_t) :: source_position(DIM), target_position(DIM), final_position(DIM)
@@ -48,12 +54,17 @@ program test_fortsym_chart_map
     call arena%init()
     engine = make_symengine_engine(arena)
     call make_symbols()
+    manifold = manifold_create("map_M", DIM)
+    source_patch = patch_create(manifold, "source")
+    target_patch = patch_create(manifold, "target")
+    final_patch = patch_create(manifold, "final")
+    other_patch = patch_create(manifold, "other")
     source_position = source_u
     target_position(1) = (target_u(1) - target_u(2))/2
     target_position(2) = target_u(2)
     target_position(3) = target_u(3)
-    source = chart_create(arena, source_u, source_position)
-    target = chart_create(arena, target_u, target_position)
+    source = chart_create_on_patch(arena, source_patch, source_u, source_position)
+    target = chart_create_on_patch(arena, target_patch, target_u, target_position)
 
     forward(1) = 2*source_u(1) + source_u(2)
     forward(2) = source_u(2)
@@ -72,8 +83,8 @@ program test_fortsym_chart_map
     reverse_transition = chart_map_create(source, target, reverse_forward, &
         reverse_inverse)
 
-    middle = chart_create(arena, target_u, target_position)
-    final = chart_create(arena, final_u, final_position)
+    middle = chart_create_on_patch(arena, target_patch, target_u, target_position)
+    final = chart_create_on_patch(arena, final_patch, final_u, final_position)
     second_forward(1) = target_u(1) + target_u(2)
     second_forward(2) = target_u(2)
     second_forward(3) = target_u(3)
@@ -84,7 +95,34 @@ program test_fortsym_chart_map
         second_inverse)
     composed = compose_maps(transition, second_transition)
 
+    mismatched_middle = chart_create_on_patch(arena, other_patch, target_u, &
+        target_position)
+    mismatched_transition = chart_map_create(mismatched_middle, final, &
+        second_forward, second_inverse)
+    mismatched_composed = compose_maps(transition, mismatched_transition)
+
     call suite_begin(suite, "chart map transformations")
+    suite%total = suite%total + 1
+    if (chart_map_has_source_patch(transition) .and. &
+        chart_map_has_target_patch(transition) .and. &
+        same_patch(chart_map_source_patch(transition), source_patch) .and. &
+        same_patch(chart_map_target_patch(transition), target_patch)) then
+        suite%passed = suite%passed + 1
+        suite%proved = suite%proved + 1
+        print *, "PASS         chart map patch ownership"
+    else
+        suite%failed = suite%failed + 1
+        print *, "FAIL         chart map patch ownership"
+    end if
+    suite%total = suite%total + 1
+    if (.not. map_valid(mismatched_composed)) then
+        suite%passed = suite%passed + 1
+        suite%proved = suite%proved + 1
+        print *, "PASS         mismatched intermediate patch is refused"
+    else
+        suite%failed = suite%failed + 1
+        print *, "FAIL         mismatched intermediate patch is refused"
+    end if
     jacobian = map_jacobian(transition)
     inverse_map = inverse_jacobian(transition)
     call check_identity(suite, engine, "forward map K11", jacobian(1, 1) - 2)

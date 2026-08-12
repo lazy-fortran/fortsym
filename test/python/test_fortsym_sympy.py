@@ -1011,11 +1011,18 @@ class SympySubsetTest(unittest.TestCase):
         x, y, z, p, q, s = sp.symbols(
             "map_x map_y map_z map_p map_q map_s"
         )
-        source = sp.Chart((x, y, z), (x, y, z))
-        target = sp.Chart((p, q, s), ((p - q)/2, q, s))
+        manifold = sp.Manifold("map_M", 3)
+        source_patch = sp.Patch("source", manifold)
+        target_patch = sp.Patch("target", manifold)
+        source = sp.Chart((x, y, z), (x, y, z), patch=source_patch)
+        target = sp.Chart(
+            (p, q, s), ((p - q)/2, q, s), patch=target_patch
+        )
         transition = sp.ChartMap(
             source, target, (2*x + y, y, z), ((p - q)/2, q, s)
         )
+        self.assertIs(transition.source_patch, source_patch)
+        self.assertIs(transition.target_patch, target_patch)
         singular = sp.ChartMap(
             source, target, (x, x, z), (p, q, s)
         )
@@ -1116,6 +1123,16 @@ class SympySubsetTest(unittest.TestCase):
              (-oracle.Symbol("map_r") + 4*oracle.Symbol("map_t"))/2,
              oracle.Symbol("map_v")),
         )
+
+        other_patch = sp.Patch("other", manifold)
+        mismatched_middle = sp.Chart(
+            (p, q, s), ((p - q)/2, q, s), patch=other_patch
+        )
+        mismatched = sp.ChartMap(
+            mismatched_middle, final, (p + q, q, s), (r - t, t, v)
+        )
+        with self.assertRaisesRegex(ValueError, "matching intermediate charts"):
+            transition.compose(mismatched)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_paper_magnetic_fourier_current_matches_sympy(self):
