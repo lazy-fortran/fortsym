@@ -45,6 +45,8 @@ module fortsym_public_capi
         spacetime_wedge, spacetime_hodge, spacetime_codifferential
     use fortsym_spacetime_form, only: spacetime_interior, spacetime_lie, &
         spacetime_laplace_de_rham
+    use fortsym_maxwell, only: maxwell_field_strength, maxwell_gauge_transform, &
+        maxwell_residual
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_from_storage, tensor_component, tensor_valid, metric_covariant_tensor, &
         metric_contravariant_tensor, density_tensor => density, &
@@ -147,7 +149,8 @@ module fortsym_public_capi
         fortsym_spacetime_form_d, fortsym_spacetime_form_wedge, &
         fortsym_spacetime_form_star, fortsym_spacetime_form_codifferential, &
         fortsym_spacetime_form_interior, fortsym_spacetime_form_lie, &
-        fortsym_spacetime_form_laplace_de_rham
+        fortsym_spacetime_form_laplace_de_rham, fortsym_spacetime_field_strength, &
+        fortsym_spacetime_gauge_transform, fortsym_spacetime_maxwell_residual
     public :: fortsym_complex_operation
     public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
@@ -162,7 +165,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 38_c_int
+        v = 39_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -2496,6 +2499,84 @@ contains
         value = spacetime_laplace_de_rham(metric, input_value)
         call make_spacetime_form_array(a, value, out, status, message, capacity)
     end function fortsym_spacetime_form_laplace_de_rham
+
+    function fortsym_spacetime_field_strength(raw, components, dimension, &
+            coordinates, signature, orientation, potential, out, message, &
+            capacity) bind(c, name="fortsym_spacetime_field_strength") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, potential, out
+        integer(c_int), value :: dimension, orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_form_t) :: input_value, value
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, potential, 1_c_size_t, &
+            input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = maxwell_field_strength(metric, input_value)
+        call make_spacetime_form_array(a, value, out, status, message, capacity)
+    end function fortsym_spacetime_field_strength
+
+    function fortsym_spacetime_gauge_transform(raw, components, dimension, &
+            coordinates, signature, orientation, potential, chi, out, message, &
+            capacity) bind(c, name="fortsym_spacetime_gauge_transform") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, potential, chi, out
+        integer(c_int), value :: dimension, orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: chi_owner
+        type(spacetime_metric_t) :: metric
+        type(spacetime_form_t) :: input_value, value
+        type(expr_t) :: chi_value
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, potential, 1_c_size_t, &
+            input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(chi, chi_owner, chi_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(chi_owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        value = maxwell_gauge_transform(metric, input_value, chi_value)
+        call make_spacetime_form_array(a, value, out, status, message, capacity)
+    end function fortsym_spacetime_gauge_transform
+
+    function fortsym_spacetime_maxwell_residual(raw, components, dimension, &
+            coordinates, signature, orientation, potential, current, out, &
+            message, capacity) bind(c, name="fortsym_spacetime_maxwell_residual") &
+            result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, potential, current, out
+        integer(c_int), value :: dimension, orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_form_t) :: potential_value, current_value, value
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, potential, 1_c_size_t, &
+            potential_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, current, 3_c_size_t, &
+            current_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = maxwell_residual(metric, potential_value, current_value)
+        call make_spacetime_form_array(a, value, out, status, message, capacity)
+    end function fortsym_spacetime_maxwell_residual
 
     function fortsym_expand(raw, expression_raw, out, message, capacity) &
             bind(c, name="fortsym_expand") result(status)

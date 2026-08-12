@@ -449,6 +449,28 @@ def _configure(lib):
             _SIZE,
         ],
     )
+    spacetime_maxwell_field_arguments = [
+        _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+        ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+        ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+    ]
+    lib.spacetime_field_strength = declare(
+        "fortsym_spacetime_field_strength", ctypes.c_int,
+        spacetime_maxwell_field_arguments,
+    )
+    lib.spacetime_gauge_transform = declare(
+        "fortsym_spacetime_gauge_transform", ctypes.c_int,
+        spacetime_maxwell_field_arguments[:-4] + [ctypes.POINTER(_CVOID),
+                                                   _CVOID,
+                                                   ctypes.POINTER(_CVOID),
+                                                   _CHAR_PTR, _SIZE],
+    )
+    lib.spacetime_maxwell_residual = declare(
+        "fortsym_spacetime_maxwell_residual", ctypes.c_int,
+        spacetime_maxwell_field_arguments[:-3] + [ctypes.POINTER(_CVOID),
+                                                   ctypes.POINTER(_CVOID),
+                                                   _CHAR_PTR, _SIZE],
+    )
     lib.spacetime_form_wedge = declare(
         "fortsym_spacetime_form_wedge", ctypes.c_int,
         [
@@ -1273,6 +1295,51 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message), operation.__name__)
         return tuple(Expr(self, output[index]) for index in range(16)), output_degree
+
+    def _spacetime_field_strength(self, metric, potential):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * 16)(*[value._handle for value in potential.components])
+        output = (_CVOID * 16)()
+        message = _message()
+        status = self._lib.spacetime_field_strength(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "field_strength")
+        return tuple(Expr(self, output[index]) for index in range(16))
+
+    def _spacetime_gauge_transform(self, metric, potential, chi):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * 16)(*[value._handle for value in potential.components])
+        output = (_CVOID * 16)()
+        message = _message()
+        status = self._lib.spacetime_gauge_transform(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, chi._handle, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "gauge_transform")
+        return tuple(Expr(self, output[index]) for index in range(16))
+
+    def _spacetime_maxwell_residual(self, metric, potential, current):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        potential_values = (_CVOID * 16)(
+            *[value._handle for value in potential.components]
+        )
+        current_values = (_CVOID * 16)(
+            *[value._handle for value in current.components]
+        )
+        output = (_CVOID * 16)()
+        message = _message()
+        status = self._lib.spacetime_maxwell_residual(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, potential_values, current_values, output, message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "maxwell_residual")
+        return tuple(Expr(self, output[index]) for index in range(16))
 
     def _chart_tensor(self, operation, coordinates, position, rank):
         coordinate_handles, position_handles = self._chart_inputs(
@@ -2207,6 +2274,35 @@ class SpacetimeForm:
         return SpacetimeForm(self.metric, components, degree, _owned=True)
 
     exterior_diff = d
+
+    def field_strength(self):
+        if self.degree != 1:
+            raise ValueError("field_strength requires a potential one-form")
+        components = self._arena._spacetime_field_strength(self.metric, self)
+        return SpacetimeForm(self.metric, components, 2, _owned=True)
+
+    def gauge_transform(self, chi):
+        expression, temporary = self._arena._coerce(chi)
+        try:
+            components = self._arena._spacetime_gauge_transform(
+                self.metric, self, expression
+            )
+            return SpacetimeForm(self.metric, components, 1, _owned=True)
+        finally:
+            if temporary is not None:
+                temporary.close()
+
+    def maxwell_residual(self, current):
+        if self.degree != 1:
+            raise ValueError("maxwell_residual requires a potential one-form")
+        if not isinstance(current, SpacetimeForm) or current.metric is not self.metric:
+            raise ValueError("maxwell_residual requires a current on this metric")
+        if current.degree != 3:
+            raise ValueError("Maxwell current must be a three-form")
+        components = self._arena._spacetime_maxwell_residual(
+            self.metric, self, current
+        )
+        return SpacetimeForm(self.metric, components, 3, _owned=True)
 
     def star(self):
         components, degree = self._arena._spacetime_form_unary(

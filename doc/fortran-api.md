@@ -75,6 +75,9 @@ The `fortsym_volume` owner adds `metric_volume_density` for the positive
 volume density, `levi_civita_symbol(i,j,k)` for the raw alternating symbol,
 and `metric_levi_civita(metric_owner, variance)` for the oriented covariant
 (`variance=-1`) or contravariant (`variance=1`) tensor.
+The `fortsym_maxwell` owner adds `maxwell_field_strength`,
+`maxwell_gauge_transform`, and `maxwell_residual` for the native
+four-dimensional form equations `F=d(A)`, `A+d(chi)`, and `d(*F)-J`.
 
 ```fortran
 use fortsym_chart, only: DIM

@@ -26,12 +26,22 @@ int main(void)
     const fortsym_expr *metric[16];
     const fortsym_expr *coordinates[4];
     const fortsym_expr *input[16];
+    const fortsym_expr *current_input[16];
+    const fortsym_expr *dual_input[16];
+    const fortsym_expr *field_input[16];
+    const fortsym_expr *gauge_input[16];
     const fortsym_expr *curve[4];
     const fortsym_expr *vector[4];
     fortsym_expr *geodesic_output[4] = {0};
     fortsym_expr *interior_output[16] = {0};
     fortsym_expr *lie_output[16] = {0};
     fortsym_expr *laplace_output[16] = {0};
+    fortsym_expr *field_output[16] = {0};
+    fortsym_expr *gauge_output[16] = {0};
+    fortsym_expr *gauge_field_output[16] = {0};
+    fortsym_expr *dual_output[16] = {0};
+    fortsym_expr *current_output[16] = {0};
+    fortsym_expr *maxwell_output[16] = {0};
 
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -80,6 +90,58 @@ int main(void)
     assert(fortsym_zero_test(arena, check, &verdict, message,
                              sizeof message) == FORTSYM_OK);
     assert(verdict == FORTSYM_ZERO_TRUE);
+    fortsym_expr_free(check);
+    check = NULL;
+
+    status = fortsym_spacetime_field_strength(
+        arena, metric, 4, coordinates, signature, 1, input, field_output,
+        message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_spacetime_gauge_transform(
+        arena, metric, 4, coordinates, signature, 1, input, t, gauge_output,
+        message, sizeof message);
+    assert(status == FORTSYM_OK);
+    for (mask = 0; mask < 16; ++mask)
+        gauge_input[mask] = gauge_output[mask];
+    status = fortsym_spacetime_field_strength(
+        arena, metric, 4, coordinates, signature, 1, gauge_input,
+        gauge_field_output, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    for (mask = 0; mask < 16; ++mask) {
+        assert(fortsym_subtract(arena, gauge_field_output[mask],
+                                field_output[mask], &check, message,
+                                sizeof message) == FORTSYM_OK);
+        assert(fortsym_zero_test(arena, check, &verdict, message,
+                                 sizeof message) == FORTSYM_OK);
+        assert(verdict == FORTSYM_ZERO_TRUE);
+        fortsym_expr_free(check);
+        check = NULL;
+    }
+    for (mask = 0; mask < 16; ++mask)
+        field_input[mask] = field_output[mask];
+    status = fortsym_spacetime_form_star(
+        arena, metric, 4, coordinates, signature, 1, field_input, 2,
+        dual_output, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    for (mask = 0; mask < 16; ++mask)
+        dual_input[mask] = dual_output[mask];
+    status = fortsym_spacetime_form_d(
+        arena, metric, 4, coordinates, signature, 1, dual_input, 2,
+        current_output, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    for (mask = 0; mask < 16; ++mask)
+        current_input[mask] = current_output[mask];
+    status = fortsym_spacetime_maxwell_residual(
+        arena, metric, 4, coordinates, signature, 1, input, current_input,
+        maxwell_output, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    for (mask = 0; mask < 16; ++mask) {
+        if (mask != 7 && mask != 11 && mask != 13 && mask != 14)
+            continue;
+        assert(fortsym_zero_test(arena, maxwell_output[mask], &verdict,
+                                 message, sizeof message) == FORTSYM_OK);
+        assert(verdict == FORTSYM_ZERO_TRUE);
+    }
 
     status = fortsym_spacetime_geodesic_residual(
         arena, metric, 4, coordinates, signature, 1, curve, parameter,
@@ -133,6 +195,12 @@ int main(void)
         fortsym_expr_free(interior_output[mask]);
         fortsym_expr_free(lie_output[mask]);
         fortsym_expr_free(laplace_output[mask]);
+        fortsym_expr_free(field_output[mask]);
+        fortsym_expr_free(gauge_output[mask]);
+        fortsym_expr_free(gauge_field_output[mask]);
+        fortsym_expr_free(dual_output[mask]);
+        fortsym_expr_free(current_output[mask]);
+        fortsym_expr_free(maxwell_output[mask]);
     }
     fortsym_expr_free(two);
     fortsym_expr_free(minus_one);
