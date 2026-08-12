@@ -123,7 +123,8 @@ module fortsym_public_capi
     integer(c_int), parameter, public :: FORTSYM_RESOURCE_LIMIT = 6_c_int
     integer(c_int), parameter, public :: FORTSYM_CONFLICT = 7_c_int
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
-    integer, parameter :: SPACETIME_TENSOR_COMPONENTS = SPACETIME_DIM**4
+    integer, parameter :: SPACETIME_TENSOR_COMPONENTS = &
+        SPACETIME_DIM**SPACETIME_TENSOR_MAX_RANK
     integer, parameter :: FORM_COMPONENTS = 2**DIM
     integer, parameter :: FORM_MAX_DEGREE = DIM + 1
 

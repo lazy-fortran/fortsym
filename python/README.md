@@ -112,7 +112,8 @@ the same native runtime-dimension tensor owner; slot variance and summed
 density weight remain explicit in the returned view.
 `SpacetimeTensor.covariant_diff()` (alias `.covariant_derivative()`) appends a
 lower derivative slot, applies the metric Christoffel terms to every slot, and
-preserves density weight for supported input rank at most three.
+preserves density weight for supported input rank at most four. The rank-five
+output is the native ceiling and covers derivatives of curvature-like tensors.
 `SpacetimeTensor.covariant_divergence()` (alias `.divergence()`) contracts
 the first contravariant slot with the derivative slot using a direct native
 kernel, preserving the remaining variance and density weight. It supports

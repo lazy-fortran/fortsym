@@ -1265,6 +1265,12 @@ conversion only. They do not maintain a second geometry implementation.
     both Python facades. Returned fixed-slot arrays retain inactive zeros,
     slot variance, and summed density weight; arbitrary rank and canonical
     dummy-index naming remain open.
+  - [x] Raise the runtime spacetime tensor ceiling to rank five so a rank-four
+    curvature-like tensor can be covariantly differentiated into the natural
+    rank-five second-Bianchi representation. Covariant differentiation and Lie
+    transport now write directly into their owned result tensors instead of
+    copying through a second full component buffer; native, Python, and
+    independent flat-component checks cover the new boundary.
 - [ ] **7A.4 Connections and vector calculus.** Extend covariant derivatives to
   every slot and every density weight, then derive `grad`, `curl`, `div`, and
   `laplacian` from the same metric, volume, and connection owners. Add
@@ -1545,6 +1551,13 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   Python `.covariant_divergence()`/`.divergence()` views. Vector, density,
   contravariant-metric, and independent SymPy checks cover the cancellation
   and metric-compatibility identities.
+- [x] Extend the runtime spacetime tensor ceiling from rank four to rank five.
+  A rank-four curvature-like object can now be covariantly differentiated into
+  the natural rank-five second-Bianchi representation through Fortran, C, and
+  Python. The covariant-difference and Lie-transport owners fill their result
+  tensors directly, removing a redundant full component-buffer copy; flat
+  rank-five component checks and the independent Python/SymPy boundary test
+  cover the new limit.
 - [x] Implement the first fixed-three-dimensional subset for typed tensors of
   rank at most three: `covariant_diff`/`covariant_derivative` appends a lower
   derivative slot, applies every slot's Christoffel term, and honors density

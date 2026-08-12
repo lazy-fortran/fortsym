@@ -123,6 +123,19 @@ class NativePackageTest(unittest.TestCase):
                 (density_derivative[1, 0] - exp_t).simplify(), 0
             )
 
+            # Rank five is the runtime ceiling and is needed for a covariant
+            # derivative of a rank-four curvature-like tensor.
+            zero = arena.integer(0)
+            rank_four_components = [zero] * (fortsym.SPACETIME_DIM ** 4)
+            rank_four_components[0] = t
+            rank_four = fortsym.SpacetimeTensor(
+                metric, rank_four_components, (4, 4, 4, 4),
+                variance=(1, -1, 1, -1),
+            )
+            rank_five = rank_four.covariant_diff()
+            self.assertEqual(rank_five.rank, 5)
+            self.assertEqual((rank_five[0, 0, 0, 0, 0] - 1).simplify(), 0)
+
     def test_native_construction_and_transformations(self):
         with fortsym.Arena() as arena:
             x = arena.symbol("x")
