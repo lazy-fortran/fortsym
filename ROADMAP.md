@@ -105,8 +105,10 @@ physicist's component notation and the mathematician's coordinate-free
 notation. The source basis is [D'haeseleer, Hitchon, Callen, and
 Shohet, *Flux Coordinates and Magnetic Field Structure*](https://doi.org/10.1007/978-3-642-75595-8),
 especially its chapters on curvilinear vector algebra, tensorial objects,
-flux coordinates, component transformations, and divergence. The
-[open-access Albert--Bíro--Lainer derivation](https://arxiv.org/abs/2008.13681)
+flux coordinates, component transformations, and divergence. A
+[KU Leuven-hosted copy](https://www.mech.kuleuven.be/en/tme/research/energy-systems-integration-modeling/pdf-publications/Dhaeseleer_et_al_Flux_Coordinates_and_Magnetic_Field_Structure_DEF/view)
+is available subject to the host's terms. The
+[open Albert--Bíro--Lainer derivation](https://arxiv.org/abs/2008.13681)
 supplies the Fourier/FEM workload, while the review [*Magnetic Coordinate
 Systems*](https://arxiv.org/abs/1611.10321) supplies an independent check on
 non-orthogonal magnetic coordinates and coordinate-conversion pitfalls. The
@@ -144,12 +146,36 @@ signature and orientation: `nabla_a`, `R^a_bcd`, `R_ab`, `R`, `G_ab`, and
 formula templates. The de Sitter and weak-field/GPS examples remain the
 small regression pair for curved and Newtonian limits.
 
+The source-backed derivation ledger in
+[`doc/geometry-derivations.md`](doc/geometry-derivations.md) is the canonical
+example index. It fixes the source location, convention, owner, assumptions,
+independent oracle, and refusal for each record. In particular it makes three
+objects that are often collapsed in plasma notation explicit:
+
+```text
+B_ij                 covariant antisymmetric magnetic 2-form
+B^i                  contravariant magnetic vector
+mathcal B^i=sqrtg B^i contravariant vector density, weight +1
+```
+
+For a vector potential `A_i`, the bridge is
+`F_ij = partial_i A_j - partial_j A_i`,
+`mathcal B^i = 1/2 epsilon^ijk F_jk`, and
+`beta = i_B(Omega) = d(A)`. The Albert--Bíro--Lainer record additionally
+keeps `A_k` as a covariant vector, `mathcal J^k` as a contravariant current
+density, and `nu_kl` as a covariant reluctivity density of weight `-1`; the
+`n=0` longitudinal and `n/=0` transverse weak forms are separate branches.
+
 The staged implementation contract is:
 
 - [ ] **G0 — source and convention manifest.** Record the source chapter or
   paper equation, coordinate assumptions, signature, orientation, index
   variance, density weight, and expected refusal for every geometry example.
   Do not copy source-specific notation into the canonical API.
+  - [x] Record the initial D'haeseleer/Callen, Carroll, MacKay, and
+    Albert--Bíro--Lainer source map and worked derivation ledger in
+    `doc/geometry-derivations.md`; executable records still remain open where
+    the checklist below says so.
 - [ ] **G1 — one native geometric IR.** Make chart, metric, tensor, density,
   connection, form, and magnetic owners exchange typed metadata through one
   checked representation. Python/SymPy and Wolfram records lower to this IR;
@@ -738,12 +764,14 @@ The geometry toolkit combines four views that are often taught separately:
    Field Structure* (Springer, 1991), supplies the physicist's coordinate-first
    language: tangent and reciprocal bases, covariant and contravariant
    components, metric coefficients, Jacobians, tensor transformations, and
-   divergence. Chapters 2--3 are the notation bridge, Chapters 5--8 develop
-   Clebsch, straight-field-line, Boozer, and Hamada systems, and Chapters
-   13--14 make component transformations and divergence explicit. The local
-   reference is the copy in the shared documents; the bibliographic record and
-   publisher link are kept in [`doc/provenance.md`](doc/provenance.md). The
-   freely accessible publisher scan is the working reference for this track.
+   divergence. Sections 2.2--2.6 (printed pages 8--38) are the notation
+   bridge, Chapters 5--8 develop Clebsch, straight-field-line, Boozer, and
+   Hamada systems, and Chapters 13--14 (printed pages 201--214) make component
+   transformations and divergence explicit. The local reference is the copy
+   in the shared documents; the bibliographic record and KU Leuven host link
+   are kept in [`doc/provenance.md`](doc/provenance.md). Use the hosted copy
+   subject to its terms; no pages, figures, or source text are copied into
+   fortsym.
 2. Carroll's free [Lecture Notes on General Relativity](https://arxiv.org/abs/gr-qc/9712019)
    supplies the relativity progression: manifold, chart, tangent and dual
    spaces, tensor densities, volume forms, connections, geodesics, curvature,
