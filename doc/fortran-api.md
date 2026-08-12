@@ -203,6 +203,9 @@ chart and a typed tensor, appends the derivative as a lower slot, applies the
 Christoffel term for every upper and lower slot, and applies the documented
 `-w*Gamma^m_mk*T` density-weight term. `covariant_derivative` is the readable
 alias of the short `covariant_diff` name; both are exported by the facade.
+`christoffel_tensor` also accepts a `metric_t` carrying explicit coordinates;
+metrics without coordinates are intentionally refused for derivative-based
+connection construction.
 
 ```fortran
 type(tensor_t) :: metric_value, metric_derivative, curvature
