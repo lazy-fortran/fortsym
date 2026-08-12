@@ -95,6 +95,56 @@ class SympySubsetTest(unittest.TestCase):
         )
         native.close()
 
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_paper_magnetic_transverse_form_translation(self):
+        from sympy.diffgeom import (
+            CoordSystem as OracleCoordSystem,
+            Differential as OracleDifferential,
+            Manifold as OracleManifold,
+            Patch as OraclePatch,
+        )
+
+        native_x1, native_x2, native_x3 = sp.symbols(
+            "paper_x1 paper_x2 paper_x3"
+        )
+        native_manifold = sp.Manifold("paper_M", 3)
+        native_patch = sp.Patch("paper_P", native_manifold)
+        native = sp.CoordSystem(
+            "paper_c", native_patch,
+            symbols=(native_x1, native_x2, native_x3),
+        )
+        x1, x2, x3 = native.base_scalars()
+        dx, dy, dz = native.base_oneforms()
+        a1 = x1*x2 + x2**2
+        a2 = x1**2 + x1*x2
+        potential = a1*dx + a2*dy
+        magnetic = potential.d()
+
+        oracle_manifold = OracleManifold("paper_M_ref", 3)
+        oracle_patch = OraclePatch("paper_P_ref", oracle_manifold)
+        reference = OracleCoordSystem(
+            "paper_c", oracle_patch,
+            symbols=tuple(
+                oracle.Symbol(name, real=True)
+                for name in ("paper_x1", "paper_x2", "paper_x3")
+            ),
+        )
+        ox1, ox2, ox3 = reference.base_scalars()
+        ovx, ovy, _ = reference.base_vectors()
+        oa1 = ox1*ox2 + ox2**2
+        oa2 = ox1**2 + ox1*ox2
+        expected_curl = (
+            OracleDifferential(oa2).rcall(ovx)
+            - OracleDifferential(oa1).rcall(ovy)
+        )
+
+        actual = magnetic[3].simplify()
+        expected = oracle.sympify(str(expected_curl))
+        actual = oracle.sympify(str(actual))
+        self.assertEqual(oracle.simplify(actual - expected), 0)
+        self.assertEqual(magnetic.d()[7].simplify(), 0)
+        native.close()
+
     def test_simultaneous_substitution(self):
         x, y = sp.symbols("simultaneous_x simultaneous_y")
         self.assertEqual(
