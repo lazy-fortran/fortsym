@@ -1404,12 +1404,14 @@ between the two-dimensional gradient, scalar curl, and divergence.
   `d/du3 = i*n` reduction, C ABI, Python facade, and independent SymPy and
   native identities. The paper's block reduction is now a specialization of
   this operator.
-- [ ] Add the Levi-Civita density, constitutive tensor transformation, and
-  zero/nonzero mode reduction as reusable toolkit operations beyond this
-  current operator.
-- [ ] Generate the paper's scalar longitudinal and transverse weak forms and
-  source terms from those operations. Preserve the distinction between nodal
-  scalar elements and two-dimensional edge elements in the generated metadata.
+- [ ] Add the Levi-Civita density as a reusable owner. The constitutive
+  transformation `nubar_t = -E_t nu_t E_t` and the zero/nonzero mode branch
+  reduction are implemented natively; density ownership remains open.
+- [x] Generate the paper's scalar longitudinal and transverse weak-form
+  coefficient blocks from the native constitutive owner. The descriptor
+  preserves scalar nodal versus two-dimensional edge spaces, normal versus
+  tangential boundary traces, and the mode-dependent transverse mass block.
+  Source assembly and generated source terms remain open.
 - [ ] Add independent checks for the paper identities, including the de Rham
   diagram, `n = 0` reduction to the full three-dimensional curl-curl form,
   `n != 0` transverse reduction, tensor transformation round trips, and
@@ -1424,8 +1426,9 @@ between the two-dimensional gradient, scalar curl, and divergence.
   equations through native `zero_test`.
 - [x] Add the native Python `Chart` facade for the same first subset, with
   native C-ABI transport and no duplicate geometry implementation.
-- [ ] Add the corresponding Python and Wolfram frontend examples and compare
-  all three result trees.
+- [x] Add the Python/SymPy facade for the weak-form descriptor and compare its
+  branch metadata and constitutive coefficients with SymPy. The corresponding
+  Wolfram frontend records and all-three result-tree comparison remain open.
 
 ### Relativity and geometry examples
 

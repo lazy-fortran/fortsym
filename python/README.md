@@ -27,6 +27,12 @@ and curvature views, covariant differentiation, `b_fourier()`,
 `b_fourier_density()`, `j_fourier()`, and `b_cov()`. `j_fourier(nu, A, n)`
 computes the native fixed-3D Fourier curl-curl operator; `nu` accepts a nested
 3x3 matrix or a nine-entry first-slot-fastest (column-major) sequence.
+`Chart.fourier_weak_form(nu, n)` returns the native Albert--Bíro--Lainer
+branch descriptor. `n=0` selects a scalar nodal form with a normal boundary
+trace; `n!=0` selects a two-component edge form with the transformed
+transverse mass block and a tangential boundary trace. The returned
+`FourierWeakForm` contains native expression handles and integer metadata;
+the Python layer does not recalculate the constitutive reduction.
 `Chart.one_form()`, `two_form()`, and
 `three_form()` construct native `Form` objects. Forms expose the fixed
 three-dimensional basis-mask components plus `d()`, `wedge()`, `star()`,
@@ -48,6 +54,10 @@ A2 = sp.Function("A2")(Z, R)
 A = (A1, A2, sp.Integer(0))
 B_up = chart.b_fourier(A, n)
 B_density = chart.b_fourier_density(A, n)
+weak = chart.fourier_weak_form(
+    ((2, 3, 0), (5, 7, 0), (0, 0, sp.Symbol("nu33"))), 2,
+)
+assert weak.branch_name == "transverse"
 g = chart.metric_covariant()
 dg = g.covariant_diff()
 R = chart.riemann()

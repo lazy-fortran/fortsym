@@ -322,6 +322,40 @@ class SympySubsetTest(unittest.TestCase):
             self.assertEqual(oracle.simplify(actual_value - expected_value), 0)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_paper_fourier_weak_form_branch_matches_sympy(self):
+        u1, u2, u3, nu33 = sp.symbols(
+            "weak_u1 weak_u2 weak_u3 weak_nu33"
+        )
+        chart = sp.Chart((u1, u2, u3), (u1, u2, u3))
+        reluctivity = ((2, 3, 0), (5, 7, 0), (0, 0, nu33))
+
+        longitudinal = chart.fourier_weak_form(reluctivity, 0)
+        self.assertEqual(longitudinal.branch, sp.FOURIER_LONGITUDINAL)
+        self.assertEqual(longitudinal.branch_name, "longitudinal")
+        self.assertEqual(longitudinal.trial_space, sp.SPACE_NODAL)
+        self.assertEqual(longitudinal.boundary_trace, sp.TRACE_NORMAL)
+        self.assertEqual(longitudinal.scalar_coefficient.simplify(), nu33)
+        self.assertTrue(longitudinal.has_gradient_term)
+        self.assertFalse(longitudinal.has_mass_term)
+
+        transverse = chart.fourier_weak_form(reluctivity, 2)
+        self.assertEqual(transverse.branch, sp.FOURIER_TRANSVERSE)
+        self.assertEqual(transverse.trial_space, sp.SPACE_EDGE)
+        self.assertEqual(transverse.boundary_trace, sp.TRACE_TANGENTIAL)
+        self.assertEqual(
+            transverse.transverse_curl_coefficient.simplify(), nu33
+        )
+        expected_mass = oracle.Matrix(((28, -20), (-12, 8)))
+        actual_mass = oracle.Matrix(2, 2, lambda row, column: oracle.sympify(
+            str(transverse.transverse_mass[row][column].simplify())
+        ))
+        self.assertEqual(actual_mass, expected_mass)
+        current = chart.current_compatibility((u1**2, u2**2, u3), 3)
+        self.assertEqual(
+            current.simplify(), 2*u1 + 2*u2 + 3*sp.I*u3
+        )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_diffgeom_names_use_native_owner_and_match_oracle(self):
         from sympy.diffgeom import (
             CoordSystem as OracleCoordSystem,
