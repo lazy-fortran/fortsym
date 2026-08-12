@@ -295,6 +295,14 @@ redundant general simplifier, the same local rerun measured 0.398 ms versus
 comparisons, not release claims, because the runs did not control CPU affinity
 or governor.
 
+The next local engine diagnostic replaced full memo-workspace clears with
+generation stamps and removed heap child buffers from unary functions and
+binary powers. Correctness stayed true for every benchmark row. Cold native
+`simplify_collect` moved from 18.63 to 18.19 microseconds and cold native
+`expand_power` from 0.824 to 0.808 milliseconds in the paired runs. These are
+small implementation-level gains on this workload; larger expansion cases and
+the complete SymPy performance gate remain open.
+
 `fo exec bench_complexdom` writes the `complexdom_v1` native rows used for the
 complex-domain cache comparison. Its cold scope clears the assumption-context
 pair and single-result caches before each split or conjugation call; its warm

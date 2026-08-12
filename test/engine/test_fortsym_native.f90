@@ -39,6 +39,7 @@ program test_fortsym_native
     x = sym(arena, "x")
 
     call test_exact_arithmetic()
+    call test_workspace_reuse()
     call test_like_terms_and_powers()
     call test_common_rational_factor()
     call test_polynomial_cancellation()
@@ -82,6 +83,22 @@ contains
             print *, "FAIL ", label
         end if
     end subroutine check
+
+    subroutine test_workspace_reuse()
+        type(engine_result_t) :: r
+        type(expr_t) :: marker
+        integer :: i
+
+        ! Each marker is a fresh arena node.  The expected identity is the
+        ! elementary cancellation (x + m) - m = x, so this also checks that a
+        ! new generation never reads a previous call's memo entry.
+        do i = 1, 64
+            marker = sym(arena, "workspace_marker_"//chars(str(i)))
+            r = engine%simplify((x + marker) - marker)
+            call check("fresh simplification workspace preserves cancellation", &
+                r%ok .and. r%value == x)
+        end do
+    end subroutine test_workspace_reuse
 
     subroutine test_exact_arithmetic()
         type(engine_result_t) :: r

@@ -1858,6 +1858,13 @@ between the two-dimensional gradient, scalar curl, and divergence.
     0.398 ms after the canonical multinomial result began bypassing the general
     simplifier (about 1.35x SymEngine and 52% less native time in the latest
     local diagnostic).
+  - [x] Replace per-call full memo-workspace clears with generation stamps and
+    keep unary-function and binary-power child handles on the stack. The
+    independent cancellation, exact-arithmetic, expansion, differentiation,
+    and domain suites remain green; the same local diagnostic reduced cold
+    simplify from 18.63 to 18.19 microseconds and cold expansion from 0.824 to
+    0.808 milliseconds without introducing compiler-generated array-temporary
+    warnings.
   - [x] Add the exact `log(i)`/`log(-i)` branch points to the correctness and
     performance matrix. Their cold and warm rows are enforced and measured at
     0.016x and 0.053x SymPy; the 58 substantive rows remain enforced with
