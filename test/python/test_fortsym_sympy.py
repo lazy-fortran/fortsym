@@ -569,6 +569,7 @@ class SympySubsetTest(unittest.TestCase):
             LieDerivative as OracleLieDerivative,
             Manifold as OracleManifold,
             Patch as OraclePatch,
+            TensorProduct as OracleTensorProduct,
             WedgeProduct as OracleWedgeProduct,
         )
 
@@ -603,6 +604,12 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(
             scalar_text(native_wedge.rcall(nvx)[2].simplify()),
             oracle_wedge.rcall(ovx).rcall(ovy),
+        )
+        native_product = sp.TensorProduct(ndx, ndy).doit()
+        oracle_product = OracleTensorProduct(odx, ody)
+        self.assertEqual(
+            scalar_text(native_product[0, 1].simplify()),
+            oracle_product.rcall(ovx).rcall(ovy),
         )
 
         native_lie = sp.LieDerivative(nvx, ndy).doit()

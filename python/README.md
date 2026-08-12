@@ -59,6 +59,9 @@ matching aliases. `.laplace_de_rham()` composes the same native `d` and
 codifferential owners.
 `Tensor.permute()`, `symmetrize()`, and `antisymmetrize()` perform native
 slot operations using zero-based Python slot numbers.
+`Tensor.product(other)` (also `tensor_product`) routes the outer product
+through the same native owner; left slots precede right slots and density
+weights add.
 `IndexType(name, dimension, category)` and `IndexType.index(slot, variance,
 label, dummy)` provide checked, zero-based named slots; `Tensor.contract(i, j)`
 accepts those labels and validates their space, variance, and dummy name before

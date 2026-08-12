@@ -486,12 +486,9 @@ class TensorProduct:
         if len(fields) != 2:
             raise NotImplementedError("native TensorProduct currently has two slots")
         left, right = fields
-        components = []
-        for column in range(3):
-            for row in range(3):
-                components.append(left[row + 1 if row == 0 else (1 << row)] *
-                                 right[column + 1 if column == 0 else (1 << column)])
-        result = Tensor(left.chart, components, variance=(-1, -1), _owned=True)
+        left_tensor = left.chart.covector(tuple(left.form[mask] for mask in (1, 2, 4)))
+        right_tensor = right.chart.covector(tuple(right.form[mask] for mask in (1, 2, 4)))
+        result = left_tensor.product(right_tensor)
         result._tensor_owners = fields
         return result
 

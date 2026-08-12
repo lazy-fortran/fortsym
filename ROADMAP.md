@@ -1250,6 +1250,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   `TensorIndexType`/`TensorIndex`. Native slots are one-based; Python slots
   are zero-based. Arbitrary dimensions, index declarations independent of a
   fixed chart, canonical dummy renaming, and `TensorHead` remain open.
+- [x] Route tensor products through the native owner at C ABI 42 and the
+  Python/SymPy facade. `Tensor.product`/`tensor_product` now preserves slot
+  order and summed density weight, and `diffgeom.TensorProduct` no longer
+  reconstructs components in Python.
 - [ ] Implement covariant differentiation of arbitrary tensor valence,
   including the correct Christoffel term for every upper and lower slot. The
   existing `christoffel` operation becomes a special case of the connection
