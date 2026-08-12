@@ -287,6 +287,12 @@ distinct-expression rows use unique small real shifts and bypass those cache
 entries. The CSV row records separate warmup, repetition, and batch counts for
 the two scopes.
 
+In the 2026-08-12 diagnostic run, the native `expand_power` cold row measured
+0.835 ms per distinct expression versus 0.296 ms for SymEngine (2.8x native /
+SymEngine). The native row was 1.36 ms before the expansion workspace reuse and
+expanded-form fast path; this is a diagnostic comparison, not a release claim,
+because the run did not control CPU affinity or governor.
+
 `fo exec bench_complexdom` writes the `complexdom_v1` native rows used for the
 complex-domain cache comparison. Its cold scope clears the assumption-context
 pair and single-result caches before each split or conjugation call; its warm

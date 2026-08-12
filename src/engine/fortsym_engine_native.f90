@@ -61,6 +61,10 @@ module fortsym_engine_native
         type(assumption_context_t), pointer :: assumptions => null()
         integer, allocatable :: simplify_cache(:)
         integer, allocatable :: expand_cache(:)
+        integer, allocatable :: simplify_memo(:)
+        logical, allocatable :: simplify_done(:)
+        integer, allocatable :: expand_memo(:)
+        logical, allocatable :: expand_done(:)
     contains
         procedure :: zero_test => native_zero_test
         procedure :: simplify => native_simplify
@@ -94,8 +98,8 @@ contains
         type(expr_t),           intent(in)    :: e
         type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                 :: r
-        integer, allocatable :: memo(:), contextual_memo(:)
-        logical, allocatable :: done(:), contextual_done(:)
+        integer, allocatable :: contextual_memo(:)
+        logical, allocatable :: contextual_done(:)
         integer :: cached_id, simplified_id
         real(dp) :: started
         logical :: refused
@@ -153,9 +157,9 @@ contains
             end if
         end if
 
-        allocate (memo(e%a%size()), source=0)
-        allocate (done(e%a%size()), source=.false.)
-        simplified_id = simplify_id(e%a, e%id, memo, done, active_limit)
+        call reset_workspace(self%simplify_memo, self%simplify_done, e%a%size())
+        simplified_id = simplify_id(e%a, e%id, self%simplify_memo, &
+            self%simplify_done, active_limit)
         if (active_limit%exceeded_kind /= 0) then
             r%message = str(resource_failure("simplify", active_limit))
             r%seconds = wall_seconds() - started
@@ -181,10 +185,10 @@ contains
                 r%seconds = wall_seconds() - started
                 return
             end if
-            deallocate (memo, done)
-            allocate (memo(e%a%size()), source=0)
-            allocate (done(e%a%size()), source=.false.)
-            simplified_id = simplify_id(e%a, simplified_id, memo, done, active_limit)
+            call reset_workspace(self%simplify_memo, self%simplify_done, &
+                e%a%size())
+            simplified_id = simplify_id(e%a, simplified_id, &
+                self%simplify_memo, self%simplify_done, active_limit)
             if (active_limit%exceeded_kind /= 0) then
                 r%message = str(resource_failure("simplify", active_limit))
                 r%seconds = wall_seconds() - started
@@ -203,11 +207,10 @@ contains
                 call poly_cancel(e%a, simplified_expr, cancelled, cancel_ok, &
                     cancel_reason)
                 if (cancel_ok) then
-                    deallocate (memo, done)
-                    allocate (memo(e%a%size()), source=0)
-                    allocate (done(e%a%size()), source=.false.)
-                    cancelled%id = simplify_id(e%a, cancelled%id, memo, done, &
-                        active_limit)
+                    call reset_workspace(self%simplify_memo, &
+                        self%simplify_done, e%a%size())
+                    cancelled%id = simplify_id(e%a, cancelled%id, &
+                        self%simplify_memo, self%simplify_done, active_limit)
                     if (cancelled%node_count() < &
                         simplified_expr%node_count()) then
                         simplified_id = cancelled%id
@@ -222,11 +225,10 @@ contains
                     call poly_factor(e%a, simplified_expr, cancelled, &
                         cancel_ok, cancel_reason)
                     if (cancel_ok) then
-                        deallocate (memo, done)
-                        allocate (memo(e%a%size()), source=0)
-                        allocate (done(e%a%size()), source=.false.)
-                        cancelled%id = simplify_id(e%a, cancelled%id, memo, &
-                            done, active_limit)
+                        call reset_workspace(self%simplify_memo, &
+                            self%simplify_done, e%a%size())
+                        cancelled%id = simplify_id(e%a, cancelled%id, &
+                            self%simplify_memo, self%simplify_done, active_limit)
                         if (cancelled%node_count() < &
                             simplified_expr%node_count()) then
                             simplified_id = cancelled%id
@@ -421,8 +423,6 @@ contains
         type(expr_t),           intent(in)    :: e
         type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                 :: r
-        integer, allocatable :: memo(:)
-        logical, allocatable :: done(:)
         type(expr_t) :: expanded, reexpanded
         real(dp) :: started
         logical :: refused
@@ -455,10 +455,10 @@ contains
             end if
         end if
 
-        allocate (memo(e%a%size()), source=0)
-        allocate (done(e%a%size()), source=.false.)
+        call reset_workspace(self%expand_memo, self%expand_done, e%a%size())
         expanded = e
-        expanded%id = expand_id(e%a, e%id, memo, done, active_limit)
+        expanded%id = expand_id(e%a, e%id, self%expand_memo, &
+            self%expand_done, active_limit)
         if (active_limit%exceeded_kind /= 0) then
             r%message = str(resource_failure("expand", active_limit))
             r%seconds = wall_seconds() - started
@@ -466,30 +466,32 @@ contains
         end if
         r = self%simplify(expanded, limit)
         if (r%ok) then
-            ! Simplification may select a compact factored candidate.  Expand
-            ! that result once more so this operation keeps its public
-            ! expanded-form contract.
-            deallocate (memo, done)
-            allocate (memo(e%a%size()), source=0)
-            allocate (done(e%a%size()), source=.false.)
-            reexpanded = r%value
-            reexpanded%id = expand_id(e%a, r%value%id, memo, done, &
-                active_limit)
-            if (active_limit%exceeded_kind /= 0) then
-                r%ok = .false.
-                r%message = str(resource_failure("expand", active_limit))
-            else
-                deallocate (memo, done)
-                allocate (memo(e%a%size()), source=0)
-                allocate (done(e%a%size()), source=.false.)
-                reexpanded%id = simplify_id(e%a, reexpanded%id, memo, done, &
-                    active_limit)
+            ! Simplification may select a compact factored candidate.  Only
+            ! expand that result again when it still contains a distributable
+            ! product or positive power.  The common multinomial path already
+            ! produces a canonical expanded sum; walking it through a second
+            ! expand/simplify pair was pure overhead.
+            if (.not. is_expanded_id(e%a, r%value%id)) then
+                call reset_workspace(self%expand_memo, self%expand_done, &
+                    e%a%size())
+                reexpanded = r%value
+                reexpanded%id = expand_id(e%a, r%value%id, self%expand_memo, &
+                    self%expand_done, active_limit)
                 if (active_limit%exceeded_kind /= 0) then
                     r%ok = .false.
                     r%message = str(resource_failure("expand", active_limit))
-                    r%value = e
                 else
-                    r%value = reexpanded
+                    call reset_workspace(self%simplify_memo, &
+                        self%simplify_done, e%a%size())
+                    reexpanded%id = simplify_id(e%a, reexpanded%id, &
+                        self%simplify_memo, self%simplify_done, active_limit)
+                    if (active_limit%exceeded_kind /= 0) then
+                        r%ok = .false.
+                        r%message = str(resource_failure("expand", active_limit))
+                        r%value = e
+                    else
+                        r%value = reexpanded
+                    end if
                 end if
             end if
         end if
@@ -521,6 +523,67 @@ contains
         larger(1:size(cache)) = cache
         call move_alloc(larger, cache)
     end subroutine ensure_cache
+
+    subroutine reset_workspace(memo, done, needed)
+        integer, allocatable, intent(inout) :: memo(:)
+        logical, allocatable, intent(inout) :: done(:)
+        integer, intent(in) :: needed
+        integer, allocatable :: larger_memo(:)
+        logical, allocatable :: larger_done(:)
+        integer :: capacity
+
+        if (.not. allocated(memo)) then
+            capacity = max(256, needed)
+            allocate (memo(capacity), source=0)
+            allocate (done(capacity), source=.false.)
+        else if (size(memo) < needed) then
+            capacity = size(memo)
+            do while (capacity < needed)
+                capacity = 2*capacity
+            end do
+            allocate (larger_memo(capacity), source=0)
+            allocate (larger_done(capacity), source=.false.)
+            call move_alloc(larger_memo, memo)
+            call move_alloc(larger_done, done)
+        end if
+        memo = 0
+        done = .false.
+    end subroutine reset_workspace
+
+    recursive function is_expanded_id(a, id) result(expanded)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical :: expanded
+        integer :: k
+        integer(int64) :: exponent, denominator
+        logical :: exact
+
+        expanded = .true.
+        select case (a%kind_of(id))
+        case (NK_ADD, NK_MUL, NK_FUNC)
+            do k = 1, a%nargs_of(id)
+                if (a%kind_of(id) == NK_MUL) then
+                    if (a%kind_of(a%arg_of(id, k)) == NK_ADD) then
+                        expanded = .false.
+                        return
+                    end if
+                end if
+                if (.not. is_expanded_id(a, a%arg_of(id, k))) then
+                    expanded = .false.
+                    return
+                end if
+            end do
+        case (NK_POW)
+            if (.not. is_expanded_id(a, a%arg_of(id, 1))) return
+            if (.not. is_expanded_id(a, a%arg_of(id, 2))) return
+            call exact_value(a, a%arg_of(id, 2), exponent, denominator, exact)
+            if (exact .and. denominator == 1_int64 .and. exponent > 1_int64) then
+                if (a%kind_of(a%arg_of(id, 1)) == NK_ADD) expanded = .false.
+            end if
+        case default
+            continue
+        end select
+    end function is_expanded_id
 
     function native_series_coeff(self, e, v, point, order, limit) result(r)
         class(native_engine_t), intent(inout) :: self
