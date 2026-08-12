@@ -98,6 +98,11 @@ and `codifferential()`/`codiff()` with degree-aware components and the explicit
 metric signature and orientation. `SpacetimeForm.field_strength()` returns
 `F=d(A)`, `gauge_transform(chi)` returns `A+d(chi)`, and
 `maxwell_residual(current)` returns the native source residual `d(star(F))-J`.
+The same `SpacetimeForm` owner supports metric dimensions 1--4; unused
+coordinates remain zero ABI slots, while `star()` and all de Rham operators
+use the metric's runtime dimension. See
+`example/example_2d_spacetime_forms.f90` and its matching SymPy-oracle test
+for a compact 2D example.
 `SpacetimeMetric.flat(vector)` lowers a vector into a native one-form and
 `SpacetimeMetric.sharp(one_form)` raises it back; the returned vector carries
 upper variance metadata. `grad(scalar)` returns a contravariant metric

@@ -142,7 +142,8 @@ module fortsym
     use fortsym_spacetime_form, only: spacetime_form_t, spacetime_form_zero, &
         spacetime_form_scalar, spacetime_form_one, spacetime_form_two, &
         spacetime_form_three, spacetime_form_four, spacetime_form_component, &
-        spacetime_form_degree, spacetime_form_valid, spacetime_form_same_arena, &
+        spacetime_form_degree, spacetime_form_dimension, spacetime_form_valid, &
+        spacetime_form_same_arena, &
         spacetime_wedge, &
         spacetime_d, spacetime_exterior_diff, spacetime_hodge, spacetime_star, &
         spacetime_codifferential, spacetime_interior, &
@@ -291,6 +292,7 @@ module fortsym
         spacetime_form_t, spacetime_form_zero, spacetime_form_scalar, &
         spacetime_form_one, spacetime_form_two, spacetime_form_three, &
         spacetime_form_four, spacetime_form_component, spacetime_form_degree, &
+        spacetime_form_dimension, &
         spacetime_form_valid, spacetime_form_same_arena, spacetime_wedge, spacetime_d, &
         spacetime_exterior_diff, spacetime_hodge, spacetime_star, &
         spacetime_codifferential, spacetime_interior, &

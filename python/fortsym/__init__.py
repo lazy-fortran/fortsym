@@ -4028,7 +4028,7 @@ class SpacetimeForm:
     def star(self):
         components, degree = self._arena._spacetime_form_unary(
             self._arena._lib.spacetime_form_star, self.metric, self,
-            4 - self.degree,
+            self.metric.dimension - self.degree,
         )
         return SpacetimeForm(self.metric, components, degree, _owned=True)
 

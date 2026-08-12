@@ -1598,13 +1598,16 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   coordinate-aware `d`, Lorentzian/Riemannian metric `star`, and the native
   `codifferential` path. The owner proves `d(d(A)) = 0`, graded antisymmetry,
   and the signature-dependent Hodge involution on the Minkowski baseline.
-  The current ABI and both Python facades transport `d`, `wedge`, and `star`;
-  pullback, arbitrary dimension, and topology remain open.
+  The same owner now honors runtime metric dimensions 1--4 while retaining
+  the fixed four-coordinate ABI. Pullback, arbitrary dimensions beyond four,
+  and topology remain open.
 - [x] Transport the native spacetime codifferential, contraction, Cartan Lie
   derivative, and Laplace--de Rham composition through the current ABI and
   Python facades. Their Minkowski identities are checked against direct signed
-  divergence and wave-operator formulas; arbitrary-dimensional forms and
-  source equations remain open.
+  divergence and wave-operator formulas. A separate 2D native/Fortran/SymPy
+  check covers `d`, `d(d(A))`, Hodge involution, and the scalar
+  Laplace--de Rham operator; arbitrary dimensions beyond four and source
+  equations remain open.
 - [ ] Generalize codifferential, Laplace-de Rham, and the conversion between
   vectors and one-forms using `flat` and `sharp` beyond the implemented
   fixed-three-dimensional and dimension-aware spacetime owners. Higher-degree
