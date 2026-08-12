@@ -11,7 +11,7 @@ program test_fortsym_chart_map
         make_symengine_engine
     use fortsym_chart, only: DIM, chart_t, chart_create
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
-        map_jacobian, inverse_jacobian, transform_tensor, transform_form
+        map_jacobian, inverse_jacobian, transform_tensor, transform_form, pullback
     use fortsym, only: facade_chart_map_t => chart_map_t, &
         facade_chart_map_create => chart_map_create, &
         facade_transform_tensor => transform_tensor
@@ -150,6 +150,9 @@ program test_fortsym_chart_map
         form_component(one_target, 2) - (-target_u(1) + 5*target_u(2))/4)
     call check_identity(suite, engine, "one-form s component", &
         form_component(one_target, 4) - target_u(3))
+    one_target = pullback(transition, one_form)
+    call check_identity(suite, engine, "pullback alias", &
+        form_component(one_target, 1) - (target_u(1) - target_u(2))/4)
 
     two_form = form_two(source, source_values)
     two_target = transform_form(transition, two_form)

@@ -21,6 +21,7 @@ module fortsym_chart_map
 
     public :: chart_map_t, chart_map_create, compose_maps
     public :: map_jacobian, inverse_jacobian, transform_tensor, transform_form
+    public :: pullback
 
     type :: chart_map_t
         type(chart_t) :: source
@@ -28,6 +29,10 @@ module fortsym_chart_map
         type(expr_t) :: forward(DIM)
         type(expr_t) :: inverse(DIM)
     end type chart_map_t
+
+    interface pullback
+        module procedure transform_form
+    end interface pullback
 
 contains
 
