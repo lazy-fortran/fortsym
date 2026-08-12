@@ -1448,6 +1448,12 @@ contains
         call check("asinh(-oo) is negative oo", r%value == negative_infinity)
         r = engine%simplify(asinh(complex_infinity))
         call check("asinh(zoo) is zoo", r%value == complex_infinity)
+        r = engine%simplify(asinh(num(arena, 1_int64)))
+        call check("asinh(1) is log(1 + sqrt(2))", &
+            r%value == log_one_plus_sqrt_two)
+        r = engine%simplify(asinh(num(arena, -1_int64)))
+        call check("asinh(-1) is negative log(1 + sqrt(2))", &
+            r%value == -log_one_plus_sqrt_two)
         r = engine%simplify(asinh(i_expr(arena)))
         call check("asinh(i) is i pi over two", r%value == imaginary_half_pi)
         r = engine%simplify(asinh(-i_expr(arena)))

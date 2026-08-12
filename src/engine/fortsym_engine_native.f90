@@ -2592,6 +2592,8 @@ contains
             if (is_zero_id(a, id)) then
                 out = a%int(0_int64)
             else
+                call exact_odd_real_log_value(a, id, out, ok)
+                if (ok) return
                 call exact_odd_imaginary_value(a, id, half_pi, out, ok)
                 if (.not. ok) return
             end if
@@ -2804,6 +2806,30 @@ contains
         call signed_imaginary_value(a, magnitude, negated, out)
         ok = .true.
     end subroutine exact_odd_imaginary_log_value
+
+    subroutine exact_odd_real_log_value(a, id, out, ok)
+        type(arena_t), intent(inout) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: out
+        logical, intent(out) :: ok
+        integer :: positive, magnitude
+        logical :: negated, magnitude_ok
+
+        out = id
+        ok = .false.
+        if (is_minus_one_id(a, id)) then
+            positive = a%int(1_int64)
+            negated = .true.
+        else
+            call split_negated_argument(a, id, positive, negated)
+        end if
+        if (.not. is_one_id(a, positive)) return
+        call exact_log_one_plus_sqrt_two(a, magnitude, magnitude_ok)
+        if (.not. magnitude_ok) return
+        out = magnitude
+        if (negated) out = mul_pair(a, a%int(-1_int64), out)
+        ok = .true.
+    end subroutine exact_odd_real_log_value
 
     subroutine signed_imaginary_value(a, value, negated, out)
         type(arena_t), intent(inout) :: a

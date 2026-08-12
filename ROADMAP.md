@@ -508,6 +508,10 @@ Every checklist item requires all of the following:
   - [x] Canonicalize exact principal real tangent inverse branches:
     `atan(±sqrt(3))` maps to signed `pi/3`, and `atan(±1/sqrt(3))` maps to
     signed `pi/6`; other exact tangent arguments remain unevaluated.
+  - [x] Canonicalize exact real inverse-hyperbolic branch points:
+    `asinh(1)` becomes `log(sqrt(2) + 1)` and `asinh(-1)` becomes
+    `-log(sqrt(2) + 1)`; broader real inverse-hyperbolic branches remain
+    unevaluated.
   - [x] Canonicalize principal square roots of exact negative perfect-square
     rationals: `sqrt(-1)` becomes `i` and `sqrt(-4)` becomes `i*2`; irrational
     negative roots remain unevaluated and Gaussian-rational results stay in
@@ -725,13 +729,16 @@ Every checklist item requires all of the following:
   - [x] Add exact real tangent `atan` values to the correctness and performance
     matrix. Its cold and warm rows are enforced at 0.029x and 0.043x SymPy;
     the 76 substantive rows remain enforced with zero unwaived violations.
+  - [x] Add exact real `asinh(±1)` values to the correctness and performance
+    matrix. Its cold and warm rows are enforced at 0.008x and 0.008x SymPy;
+    the 78 substantive rows remain enforced with zero unwaived violations.
   - [x] Add exact negative perfect-square roots to the correctness and
     performance matrix. The cold and warm rows are enforced and measured at
-    0.029x and 0.062x SymPy; the 78 substantive rows remain enforced with
+    0.029x and 0.062x SymPy; the 80 substantive rows remain enforced with
     zero unwaived violations.
   - [x] Add the exact `asinh(i)`/`asinh(-i)` branch points to the correctness
     and performance matrix. Their cold and warm rows are enforced and measured
-    at 0.018x and 0.051x SymPy; the 80 substantive rows remain enforced with
+    at 0.018x and 0.051x SymPy; the 82 substantive rows remain enforced with
     zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
