@@ -19,6 +19,8 @@ program test_fortsym_spacetime_tensor
         spacetime_tensor_product, spacetime_tensor_contract, &
         spacetime_tensor_permute, spacetime_metric_covariant_tensor, &
         spacetime_metric_contravariant_tensor, spacetime_tensor_covariant_diff, &
+        spacetime_tensor_lie_derivative, &
+        spacetime_killing, &
         SPACETIME_UPPER, SPACETIME_LOWER
     implicit none
 
@@ -30,6 +32,7 @@ program test_fortsym_spacetime_tensor
     type(spacetime_tensor_t) :: product, scalar, permuted, density_value
     type(spacetime_metric_t) :: curved_metric
     type(spacetime_tensor_t) :: curved_vector, derivative, metric_derivative
+    type(spacetime_tensor_t) :: lie_result, density_scalar, dilation_vector
     type(spacetime_tensor_t) :: curved_density, density_derivative, scalar_tensor
     type(expr_t) :: coordinates(SPACETIME_DIM)
     type(expr_t) :: components(SPACETIME_DIM, SPACETIME_DIM)
@@ -139,6 +142,35 @@ program test_fortsym_spacetime_tensor
     derivative_indices(3) = 1
     call check_identity(suite, engine, "nabla_1 g_22", &
         spacetime_tensor_component(metric_derivative, derivative_indices))
+    lie_result = spacetime_killing(curved_metric, curved_vector)
+    indices(1) = 2
+    indices(2) = 2
+    call check_identity(suite, engine, "L_d/dx g_22", &
+        spacetime_tensor_component(lie_result, indices))
+    values = num(arena, 0)
+    values(1) = coordinates(1)
+    dilation_vector = spacetime_tensor_vector(curved_metric, values)
+    lie_result = spacetime_tensor_lie_derivative(curved_metric, &
+        dilation_vector, covariant)
+    indices(1) = 1
+    indices(2) = 1
+    call check_identity(suite, engine, "L_(t d/dt) g_11", &
+        spacetime_tensor_component(lie_result, indices) - 2)
+    indices(1) = 2
+    indices(2) = 2
+    call check_identity(suite, engine, "L_(t d/dt) g_22", &
+        spacetime_tensor_component(lie_result, indices) - &
+        2*coordinates(1)*exp(2*coordinates(1)))
+    scalar_tensor = spacetime_tensor_scalar(curved_metric, coordinates(1))
+    lie_result = spacetime_tensor_lie_derivative(curved_metric, &
+        dilation_vector, scalar_tensor)
+    call check_identity(suite, engine, "L_(t d/dt) t", &
+        spacetime_tensor_component(lie_result, empty) - coordinates(1))
+    density_scalar = spacetime_tensor_scalar(curved_metric, num(arena, 1), 1)
+    lie_result = spacetime_tensor_lie_derivative(curved_metric, &
+        dilation_vector, density_scalar)
+    call check_identity(suite, engine, "L_(t d/dt) density", &
+        spacetime_tensor_component(lie_result, empty) - 1)
     density_values = num(arena, 0)
     density_values(2) = exp(coordinates(1))
     curved_density = spacetime_tensor_vector(curved_metric, density_values, 1)

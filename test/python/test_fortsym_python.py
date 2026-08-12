@@ -89,6 +89,21 @@ class NativePackageTest(unittest.TestCase):
             self.assertEqual(derivative[1, 1].simplify(), 0)
             metric_derivative = curved.covariant().covariant_diff()
             self.assertEqual(metric_derivative[1, 1, 0].simplify(), 0)
+            killing = curved.killing(curved_vector)
+            self.assertEqual(killing[1, 1].simplify(), 0)
+            dilation = curved.vector((t, 0, 0, 0))
+            lie_metric = curved.lie(dilation, curved.covariant())
+            self.assertEqual((lie_metric[0, 0] - 2).simplify(), 0)
+            self.assertEqual(
+                (lie_metric[1, 1] - 2*t*exp_2t).simplify(), 0
+            )
+            self.assertEqual(
+                (curved.lie(dilation, curved.scalar(t))[()] - t).simplify(), 0
+            )
+            density_scalar = curved.scalar(1, density_weight=1)
+            self.assertEqual(
+                curved.lie(dilation, density_scalar)[()].simplify(), 1
+            )
             curved_density = curved.vector((0, exp_t, 0, 0), density_weight=1)
             density_derivative = curved_density.covariant_diff()
             self.assertEqual(

@@ -1532,6 +1532,12 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   slot, applies every upper/lower Christoffel term, and includes the explicit
   density-weight trace term. C ABI 63 and both Python facades expose the same
   owner; scalar, curved-vector, and weight-one-density checks are independent.
+- [x] Add runtime-dimension coordinate Lie transport for every supported tensor
+  rank. `spacetime_tensor_lie_derivative` preserves variance and density weight,
+  requires an ordinary weight-zero vector, and supplies the metric Killing
+  residual through the same owner. C ABI 64, the Fortran `lie` generic, and
+  both Python facades share the kernel; curved-metric, scalar, and density
+  identities are checked independently.
 - [x] Implement the first fixed-three-dimensional subset for typed tensors of
   rank at most three: `covariant_diff`/`covariant_derivative` appends a lower
   derivative slot, applies every slot's Christoffel term, and honors density
@@ -1877,6 +1883,10 @@ between the two-dimensional gradient, scalar curl, and divergence.
   metric `g = diag(1, exp(2x))`, the known scalar curvature `R = -2`, and
   native-zero unused tensor slots. General 2D pseudo-Riemannian and curved
   invariant coverage remains open.
+- [x] Extend the compact curved 2D relativity example with coordinate Lie
+  transport: `L_(d/dx)g = 0`, `L_(x d/dx)g_11 = 2`, scalar transport, and
+  weight-one density transport. The same identities are checked natively and
+  against the SymPy oracle.
 - [x] Transport that four-dimensional owner through the ABI and both Python
   facades, including inverse metric, Christoffel, Riemann, Ricci, scalar, and
   Einstein views. The Python result trees are differentially checked against

@@ -61,6 +61,7 @@ module fortsym_public_capi
         spacetime_laplace_de_rham
     use fortsym_spacetime_tensor, only: spacetime_tensor_t, &
         SPACETIME_TENSOR_MAX_RANK, &
+        spacetime_tensor_vector, &
         spacetime_tensor_from_storage, spacetime_tensor_valid, &
         spacetime_tensor_dimension, spacetime_tensor_component_flat, &
         spacetime_tensor_raise_native => spacetime_tensor_raise, &
@@ -69,7 +70,8 @@ module fortsym_public_capi
         spacetime_tensor_permute_native => spacetime_tensor_permute, &
         spacetime_tensor_contract_native => spacetime_tensor_contract, &
         spacetime_tensor_product_native => spacetime_tensor_product, &
-        spacetime_tensor_covariant_diff_native => spacetime_tensor_covariant_diff
+        spacetime_tensor_covariant_diff_native => spacetime_tensor_covariant_diff, &
+        spacetime_tensor_lie_native => spacetime_tensor_lie_derivative
     use fortsym_maxwell, only: maxwell_field_strength, maxwell_gauge_transform, &
         maxwell_residual
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
@@ -214,6 +216,7 @@ module fortsym_public_capi
         fortsym_spacetime_tensor_permute, fortsym_spacetime_tensor_contract, &
         fortsym_spacetime_tensor_product, &
         fortsym_spacetime_tensor_covariant_diff, &
+        fortsym_spacetime_tensor_lie, &
         fortsym_spacetime_christoffel, &
         fortsym_spacetime_riemann, fortsym_spacetime_ricci, &
         fortsym_spacetime_scalar_curvature, fortsym_spacetime_einstein, &
@@ -238,7 +241,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 63_c_int
+        v = 64_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -3699,6 +3702,45 @@ contains
         call make_spacetime_tensor_array(a, value, int(rank) + 1, out, status, &
             message, capacity)
     end function fortsym_spacetime_tensor_covariant_diff
+
+    function fortsym_spacetime_tensor_lie(raw, components, dimension, &
+            coordinates, signature, orientation, vector, input, rank, variance, &
+            density_weight, out, message, capacity) bind(c, &
+            name="fortsym_spacetime_tensor_lie") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, vector, input, out
+        type(c_ptr), value :: variance
+        integer(c_int), value :: dimension, orientation, density_weight
+        integer(c_size_t), value :: rank
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_tensor_t) :: vector_value, input_value, value
+        type(expr_t) :: vector_components(SPACETIME_DIM)
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_vector_input(a, vector, vector_components, status, &
+            message, capacity)
+        if (status /= FORTSYM_OK) return
+        vector_value = spacetime_tensor_vector(metric, vector_components)
+        if (.not. spacetime_tensor_valid(vector_value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call get_spacetime_tensor_input(metric, a, input, rank, variance, &
+            density_weight, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_tensor_lie_native(metric, vector_value, input_value)
+        if (.not. spacetime_tensor_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call make_spacetime_tensor_array(a, value, int(rank), out, status, &
+            message, capacity)
+    end function fortsym_spacetime_tensor_lie
 
     function fortsym_spacetime_christoffel(raw, components, dimension, &
             coordinates, signature, orientation, out, message, capacity) bind(c, &
