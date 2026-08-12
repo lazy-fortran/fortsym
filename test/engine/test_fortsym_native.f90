@@ -530,6 +530,22 @@ contains
         r = engine%simplify(func("factorial", factorial_args))
         call check("factorial(-1) is the complex-infinity pole", &
             r%value == zoo_expr(arena))
+        factorial_args(1) = num(arena, 0_int64)
+        r = engine%simplify(func("factorial", factorial_args))
+        call check("factorial(0) simplifies to one", &
+            r%value == num(arena, 1_int64))
+        factorial_args(1) = num(arena, 5_int64)
+        r = engine%simplify(func("factorial", factorial_args))
+        call check("factorial(5) simplifies to 120", &
+            r%value == num(arena, 120_int64))
+        factorial_args(1) = num(arena, 20_int64)
+        r = engine%simplify(func("factorial", factorial_args))
+        call check("factorial(20) remains exact", &
+            r%value == num(arena, 2432902008176640000_int64))
+        factorial_args(1) = num(arena, 21_int64)
+        r = engine%simplify(func("factorial", factorial_args))
+        call check("factorial(21) refuses compact overflow", &
+            r%value%kind() == NK_FUNC)
 
         loggamma_args(1) = num(arena, 1_int64)
         r = engine%simplify(func("log10", loggamma_args))
