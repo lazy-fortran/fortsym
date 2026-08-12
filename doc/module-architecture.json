@@ -38,7 +38,7 @@
     {
       "from": "calculus",
       "to": "core",
-      "uses": 16
+      "uses": 17
     },
     {
       "from": "calculus",
@@ -123,7 +123,7 @@
     {
       "from": "core",
       "to": "calculus",
-      "uses": 5
+      "uses": 6
     },
     {
       "from": "core",
@@ -289,6 +289,7 @@
         "fortsym_backend",
         "fortsym_chart",
         "fortsym_complexdom",
+        "fortsym_connection",
         "fortsym_engine",
         "fortsym_engine_native",
         "fortsym_eval",
@@ -426,6 +427,17 @@
       "name": "fortsym_complexdom",
       "owner": "algebra",
       "path": "src/algebra/fortsym_complexdom.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_chart",
+        "fortsym_diff",
+        "fortsym_expr",
+        "fortsym_tensor"
+      ],
+      "name": "fortsym_connection",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_connection.f90"
     },
     {
       "dependencies": [
@@ -1092,11 +1104,11 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 330,
+    "internal_edges": 335,
     "module_file_mismatches": 0,
-    "module_units": 68,
-    "modules": 68,
-    "source_units": 69,
+    "module_units": 69,
+    "modules": 69,
+    "source_units": 70,
     "unknown_internal_dependencies": 0
   },
   "violations": {

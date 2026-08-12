@@ -150,6 +150,11 @@ chart metric, and `tensor_product` plus `contract` handle the first indexed
 algebra subset. The same `tensor_t` owner backs the facade and lower-level
 modules, including density weights.
 
+The native `connection_native` example extends this with covariant
+differentiation and typed curvature views. `fortsym_connection` owns
+Christoffel, Riemann, Ricci, scalar-curvature, and Einstein construction, with
+independent checks for metric compatibility and tensor-density weights.
+
 **Read Fortran back.** Point it at a source file and a variable name and it
 returns the symbolic expression that file computes, so a hand-written kernel can
 be checked against its definition without anyone transcribing the code into the

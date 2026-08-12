@@ -49,10 +49,13 @@ module fortsym
     use fortsym_tensor, only: tensor_t, tensor, tensor_scalar, tensor_vector, &
         tensor_covector, tensor_from_components, tensor_from_matrix, &
         tensor_component, tensor_rank, tensor_variance, &
-        tensor_density_weight, tensor_valid, density, vector, covector, &
+        tensor_density_weight, tensor_valid, tensor_same_arena, density, vector, covector, &
         raise, lower, tensor_product, contract, trace, &
         metric_covariant_tensor, metric_contravariant_tensor, UPPER, LOWER_VARIANCE, &
         MAX_RANK
+    use fortsym_connection, only: covariant_diff, covariant_derivative, &
+        christoffel_tensor, riemann_tensor, ricci_tensor, scalar_curvature, &
+        einstein_tensor
     use fortsym_magnetic, only: b_con, b_cov, b_density, b_fourier, &
         b_fourier_density
     implicit none
@@ -96,9 +99,11 @@ module fortsym
         lie_derivative, flat, sharp, scale_form, tensor_t, tensor, &
         tensor_scalar, tensor_vector, tensor_covector, tensor_from_components, &
         tensor_from_matrix, tensor_component, tensor_rank, tensor_variance, &
-        tensor_density_weight, tensor_valid, density, vector, covector, raise, &
+        tensor_density_weight, tensor_valid, tensor_same_arena, density, vector, covector, raise, &
         lower, tensor_product, contract, trace, metric_covariant_tensor, &
-        metric_contravariant_tensor, UPPER, LOWER_VARIANCE, MAX_RANK
+        metric_contravariant_tensor, UPPER, LOWER_VARIANCE, MAX_RANK, &
+        covariant_diff, covariant_derivative, christoffel_tensor, &
+        riemann_tensor, ricci_tensor, scalar_curvature, einstein_tensor
     public :: operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), operator(/=)
     public :: sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, tanh, &

@@ -706,6 +706,9 @@ reproduces its own expected strings.
   `fortsym_form` owns exterior algebra, `fortsym_connection` owns covariant
   derivatives and curvature, and `fortsym_magnetic` owns flux-coordinate
   constructions. The facade only registers and forwards operations.
+- [x] Add `fortsym_connection` as the independent owner of the first
+  covariant-derivative and curvature subset; keep the facade as a forwarding
+  layer and avoid coupling the connection module to magnetic physics.
 - [x] Add the first independent `fortsym_form` owner for fixed three-dimensional
   coordinate forms. It stores antisymmetric components once and provides the
   native exterior-algebra operations without coupling the expression arena to
@@ -814,10 +817,19 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   including the correct Christoffel term for every upper and lower slot. The
   existing `christoffel` operation becomes a special case of the connection
   owner and remains available through the facade.
+- [x] Implement the first fixed-three-dimensional subset for typed tensors of
+  rank at most three: `covariant_diff`/`covariant_derivative` appends a lower
+  derivative slot, applies every slot's Christoffel term, and honors density
+  weight. Metric compatibility and an independent nonlinear nonorthogonal
+  chart check are required gates.
 - [ ] Implement torsion, nonmetricity, Riemann curvature, Ricci tensor, scalar
   curvature, Einstein tensor, geodesics, Lie derivatives, and the first and
   second Bianchi identities. Support both Riemannian and pseudo-Riemannian
   metrics and make sign conventions a named metric/connection option.
+- [x] Implement the first fixed-three-dimensional curvature views:
+  Christoffel, Riemann, Ricci, scalar curvature, and Einstein tensors, with a
+  named Riemann convention and independent flat-chart identities. Full
+  pseudo-Riemannian and relativity parity remains open.
 - [ ] Derive vector calculus from tensor/forms primitives. `grad`, `div`,
   `curl`, and `laplacian` must share the same metric, orientation, and density
   conventions rather than maintaining separate coordinate formulas.

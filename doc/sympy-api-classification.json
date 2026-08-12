@@ -1259,6 +1259,76 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_connection.covariant_diff",
+        "module": "fortsym_connection",
+        "name": "covariant_diff",
+        "owner": "src/calculus/fortsym_connection.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_connection.covariant_derivative",
+        "module": "fortsym_connection",
+        "name": "covariant_derivative",
+        "owner": "src/calculus/fortsym_connection.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_connection.christoffel_tensor",
+        "module": "fortsym_connection",
+        "name": "christoffel_tensor",
+        "owner": "src/calculus/fortsym_connection.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_connection.riemann_tensor",
+        "module": "fortsym_connection",
+        "name": "riemann_tensor",
+        "owner": "src/calculus/fortsym_connection.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_connection.ricci_tensor",
+        "module": "fortsym_connection",
+        "name": "ricci_tensor",
+        "owner": "src/calculus/fortsym_connection.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_connection.scalar_curvature",
+        "module": "fortsym_connection",
+        "name": "scalar_curvature",
+        "owner": "src/calculus/fortsym_connection.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_connection.einstein_tensor",
+        "module": "fortsym_connection",
+        "name": "einstein_tensor",
+        "owner": "src/calculus/fortsym_connection.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_diff.diff",
         "module": "fortsym_diff",
         "name": "diff",
@@ -1782,6 +1852,16 @@
         "id": "fortsym_tensor.tensor_valid",
         "module": "fortsym_tensor",
         "name": "tensor_valid",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_same_arena",
+        "module": "fortsym_tensor",
+        "name": "tensor_same_arena",
         "owner": "src/calculus/fortsym_tensor.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -5159,6 +5239,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym.tensor_same_arena",
+        "module": "fortsym",
+        "name": "tensor_same_arena",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym.density",
         "module": "fortsym",
         "name": "density",
@@ -5294,6 +5385,83 @@
         "id": "fortsym.MAX_RANK",
         "module": "fortsym",
         "name": "MAX_RANK",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.covariant_diff",
+        "module": "fortsym",
+        "name": "covariant_diff",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.covariant_derivative",
+        "module": "fortsym",
+        "name": "covariant_derivative",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.christoffel_tensor",
+        "module": "fortsym",
+        "name": "christoffel_tensor",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.riemann_tensor",
+        "module": "fortsym",
+        "name": "riemann_tensor",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.ricci_tensor",
+        "module": "fortsym",
+        "name": "ricci_tensor",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.scalar_curvature",
+        "module": "fortsym",
+        "name": "scalar_curvature",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.einstein_tensor",
+        "module": "fortsym",
+        "name": "einstein_tensor",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -9143,12 +9311,12 @@
     "classification_counts": {
       "delegated": 2529,
       "external": 10,
-      "facade": 256,
-      "native": 3317,
+      "facade": 264,
+      "native": 3333,
       "python-adapter": 2485,
       "refused": 25309
     },
-    "fortran_public_exports": 876,
+    "fortran_public_exports": 892,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
