@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 45). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 47). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -27,6 +27,9 @@ slot with the derivative slot and preserves the remaining slot metadata.
 with their own zero oracle.
 `fortsym_chart_second_bianchi_residual` returns the native rank-five residual
 `nabla_e R^a_bcd + nabla_c R^a_bde + nabla_d R^a_bec`.
+`fortsym_chart_geodesic_residual` returns the three chart components of
+`x''^a + Gamma^a_bc x'^b x'^c`, substituting the parameterized curve into the
+chart connection before returning the residual.
 `fortsym_chart_form_closed` and `fortsym_spacetime_form_closed` return the
 three-valued zero verdict for every coefficient of `d(form)`.
 `fortsym_chart_b_density` exposes the native `sqrtg B^i` magnetic view alongside

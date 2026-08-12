@@ -590,6 +590,14 @@ def _configure(lib):
                  ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
             ),
         )
+    lib.chart_geodesic_residual = declare(
+        "fortsym_chart_geodesic_residual", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CVOID, ctypes.POINTER(_CVOID),
+            _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.chart_covariant_diff = declare(
         "fortsym_chart_covariant_diff",
         ctypes.c_int,
@@ -1099,6 +1107,41 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message), operation.__name__)
         return tuple(Expr(self, output[index]) for index in range(3))
+
+    def _chart_geodesic_residual(self, chart, curve, parameter):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        curve_values = tuple(curve)
+        if len(curve_values) != 3:
+            raise ValueError("geodesic curves require three components")
+        coerced = []
+        temporaries = []
+        try:
+            for value in curve_values:
+                expression, temporary = self._coerce(value)
+                coerced.append(expression)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            parameter_value, temporary = self._coerce(parameter)
+            if temporary is not None:
+                temporaries.append(temporary)
+            curve_handles = (_CVOID * 3)(
+                *[value._handle for value in coerced]
+            )
+            output = (_CVOID * 3)()
+            message = _message()
+            status = self._lib.chart_geodesic_residual(
+                self._require(), coordinate_handles, position_handles,
+                curve_handles, parameter_value._handle, output, message,
+                len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), "geodesic_residual")
+            return tuple(Expr(self, output[index]) for index in range(3))
+        finally:
+            for temporary in temporaries:
+                temporary.close()
 
     def _chart_many(self, operation, coordinates, position, values, mode=None):
         coordinate_handles, position_handles = self._chart_inputs(
@@ -2094,6 +2137,10 @@ class Chart:
             self._arena._lib.chart_second_bianchi_residual,
             5, (1, -1, -1, -1, -1),
         )
+
+    def geodesic_residual(self, curve, parameter):
+        """Return ``x''^a + Gamma^a_bc x'^b x'^c`` on this chart."""
+        return self._arena._chart_geodesic_residual(self, curve, parameter)
 
     def ricci(self):
         return self._tensor_result(

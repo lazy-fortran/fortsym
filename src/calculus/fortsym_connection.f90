@@ -19,7 +19,8 @@ module fortsym_connection
         owner_metric_covariant => metric_covariant, &
         owner_metric_contravariant => metric_contravariant
     use fortsym_diff, only: diff
-    use fortsym_expr, only: expr_t, num, operator(+), operator(-), &
+    use fortsym_subs, only: subs
+    use fortsym_expr, only: expr_t, num, is_valid, same_arena, operator(+), operator(-), &
         operator(*), operator(/)
     use fortsym_tensor, only: tensor_t, MAX_RANK, UPPER, LOWER_VARIANCE, &
         tensor_from_components, tensor_from_matrix, tensor_from_arena, tensor_component, &
@@ -31,6 +32,7 @@ module fortsym_connection
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
 
     public :: covariant_diff, covariant_derivative, covariant_divergence
+    public :: geodesic_residual
     public :: christoffel_tensor, riemann_tensor, first_bianchi_residual, &
         second_bianchi_residual, ricci_tensor
     public :: scalar_curvature, einstein_tensor
@@ -49,6 +51,11 @@ module fortsym_connection
         module procedure covariant_divergence_chart
         module procedure covariant_divergence_metric
     end interface covariant_divergence
+
+    interface geodesic_residual
+        module procedure geodesic_residual_chart
+        module procedure geodesic_residual_metric
+    end interface geodesic_residual
 
     interface christoffel_tensor
         module procedure christoffel_tensor_chart
@@ -86,6 +93,87 @@ module fortsym_connection
     end interface einstein_tensor
 
 contains
+
+    !> Coordinate geodesic residual x''^a + Gamma^a_bc x'^b x'^c.
+    !>
+    !> The curve is expressed in the chart's coordinate variables.  The
+    !> Christoffel symbols are evaluated on that curve before the residual is
+    !> returned, matching the spacetime owner without coupling this module to
+    !> a particular physics domain.
+    function geodesic_residual_chart(c, curve, parameter) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: curve(DIM), parameter
+        type(expr_t) :: value(DIM)
+        type(expr_t) :: gamma(DIM, DIM, DIM), velocity(DIM), term
+        integer :: a, b, k
+
+        if (.not. associated(c%a)) return
+        if (.not. is_valid(parameter)) return
+        if (.not. same_arena(parameter, c%u(1))) return
+        do k = 1, DIM
+            if (.not. is_valid(curve(k))) return
+            if (.not. same_arena(curve(k), c%u(1))) return
+        end do
+
+        gamma = chart_christoffel(c)
+        do k = 1, DIM
+            velocity(k) = diff(curve(k), parameter)
+        end do
+        do a = 1, DIM
+            value(a) = diff(diff(curve(a), parameter), parameter)
+            do b = 1, DIM
+                do k = 1, DIM
+                    term = substitute_curve(gamma(a, b, k), c%u, curve)
+                    value(a) = value(a) + term*velocity(b)*velocity(k)
+                end do
+            end do
+        end do
+    end function geodesic_residual_chart
+
+    !> Metric-owner overload of the coordinate geodesic residual.
+    function geodesic_residual_metric(g, curve, parameter) result(value)
+        type(metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: curve(DIM), parameter
+        type(expr_t) :: value(DIM)
+        type(expr_t) :: coordinates(DIM), gamma(DIM, DIM, DIM)
+        type(expr_t) :: velocity(DIM), term
+        integer :: a, b, k
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        coordinates = metric_coordinates(g)
+        if (.not. is_valid(parameter)) return
+        if (.not. same_arena(parameter, coordinates(1))) return
+        do k = 1, DIM
+            if (.not. is_valid(curve(k))) return
+            if (.not. same_arena(curve(k), coordinates(1))) return
+        end do
+
+        gamma = metric_christoffel_components(g)
+        do k = 1, DIM
+            velocity(k) = diff(curve(k), parameter)
+        end do
+        do a = 1, DIM
+            value(a) = diff(diff(curve(a), parameter), parameter)
+            do b = 1, DIM
+                do k = 1, DIM
+                    term = substitute_curve(gamma(a, b, k), coordinates, curve)
+                    value(a) = value(a) + term*velocity(b)*velocity(k)
+                end do
+            end do
+        end do
+    end function geodesic_residual_metric
+
+    function substitute_curve(expression, coordinates, curve) result(value)
+        type(expr_t), intent(in) :: expression, coordinates(DIM), curve(DIM)
+        type(expr_t) :: value
+        integer :: k
+
+        value = expression
+        do k = 1, DIM
+            value = subs(value, coordinates(k), curve(k))
+        end do
+    end function substitute_curve
 
     !> Full covariant derivative, with the derivative index as the last slot.
     function covariant_diff_chart(c, tensor_value) result(result)

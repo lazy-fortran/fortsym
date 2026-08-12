@@ -33,6 +33,20 @@ class SympySubsetTest(unittest.TestCase):
         metric = chart.metric()
         self.assertIsInstance(metric, sp.Tensor)
         self.assertEqual(metric.variance, (-1, -1))
+
+        rho, theta, zeta = sp.symbols("geometry_rho geometry_theta geometry_zeta")
+        parameter = sp.Symbol("geometry_lambda")
+        radius = sp.Symbol("geometry_R0")
+        cylindrical = sp.Chart(
+            (rho, theta, zeta),
+            (rho*sp.cos(theta), rho*sp.sin(theta), zeta),
+        )
+        residual = cylindrical.geodesic_residual(
+            (radius, parameter, 0), parameter
+        )
+        self.assertEqual((residual[0] + radius).simplify(), 0)
+        self.assertEqual(residual[1].simplify(), 0)
+        self.assertEqual(residual[2].simplify(), 0)
         self.assertEqual(metric[0, 0].simplify(), 1)
         self.assertEqual(chart.scalar_curvature().simplify(), 0)
         self.assertEqual(chart.first_bianchi_residual()[0, 1, 0, 1].simplify(), 0)
