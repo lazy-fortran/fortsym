@@ -8,7 +8,7 @@ program forms_native
 
     type(arena_t), pointer :: arena
     type(chart_t) :: chart
-    type(expr_t) :: u(DIM), position(DIM), potential(DIM), vector(DIM)
+    type(expr_t) :: u(DIM), position(DIM), potential(DIM), b_vector(DIM)
     type(expr_t) :: args(2)
     type(form_t) :: potential_form, magnetic_form, volume, flux_form
     type(engine_result_t) :: checked
@@ -31,9 +31,9 @@ program forms_native
     potential(3) = num(arena, 0)
     potential_form = form_one(chart, potential)
     magnetic_form = d(chart, potential_form)
-    vector = b_con(chart, potential)
+    b_vector = b_con(chart, potential)
     volume = star(chart, form(num(arena, 1)))
-    flux_form = interior(chart, vector, volume)
+    flux_form = interior(chart, b_vector, volume)
 
     do mask = 3, 6
         if (mask == 4) cycle

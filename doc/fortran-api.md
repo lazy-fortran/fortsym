@@ -101,6 +101,39 @@ On an orientation-preserving chart, `flux_form` and `B_form` agree and
 `d(chart, flux_form)` is zero. Higher-dimensional manifolds, arbitrary tensor
 rank, and Python form transport remain explicit roadmap work.
 
+## Typed coordinate tensors
+
+`fortsym_tensor` owns the first typed tensor subset. A `tensor_t` is bound to a
+chart arena and records rank, the variance of every slot (`UPPER` or
+`LOWER_VARIANCE`), and an integer density weight. The facade aliases
+`vector`/`covector` are the short constructors; `tensor_from_components` and
+`tensor_from_matrix` cover general fixed-rank data. Components use
+first-slot-fastest indexing and are read with an explicit index tuple.
+
+```fortran
+type(tensor_t) :: Bup, Bdown, outer, scalar
+type(expr_t) :: B(DIM), value
+integer :: index(1), none(0)
+
+B(1) = "B1"
+B(2) = "B2"
+B(3) = "B3"
+Bup = vector(chart, B)
+Bdown = lower(chart, Bup, 1)
+Bup = raise(chart, Bdown, 1)
+outer = tensor_product(Bup, Bdown)
+scalar = contract(outer, 1, 2)
+index(1) = 1
+value = tensor_component(Bup, index)
+value = tensor_component(scalar, none)
+```
+
+`raise` and `lower` preserve density weight and all non-selected slots.
+`contract` requires opposite variance and removes the two selected slots;
+`trace` is its named alias. The current native subset is rank four or less in
+three-dimensional charts. Symmetry declarations, arbitrary dimensions,
+covariant differentiation, and Python tensor transport remain roadmap work.
+
 `symbols` assigns whitespace- or comma-separated names to scalar outputs:
 
 ```fortran

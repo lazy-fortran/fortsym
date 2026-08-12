@@ -680,6 +680,9 @@ reproduces its own expected strings.
 - [ ] Represent every tensor field with its dimension, valence `(p, q)`, index
   types, slot variance, symmetry declarations, and density weight. A density
   is never represented as an unmarked tensor with a suggestive name.
+- [x] Implement the first chart-bound metadata subset: `tensor_t` records the
+  three-dimensional chart arena, rank through four, every slot's upper/lower
+  variance, and an explicit density weight.
 - [ ] Make coordinate charts, maps, manifolds, patches, tangent/cotangent
   spaces, and orientation explicit owners. A chart is the map and its
   coordinate variables. A metric is a separate object that can be induced by
@@ -791,6 +794,9 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [ ] Add `raise` and `lower` as metric-owned operations. They must preserve
   the underlying geometric object, update slot variance, and refuse a missing
   or singular metric instead of guessing.
+- [x] Implement the first nonorthogonal-chart `raise`/`lower` subset. It uses
+  the chart metric and inverse metric, preserves density weight and untouched
+  slots, and refuses cross-arena or wrong-variance inputs.
 
 ### Tensor algebra and covariant calculus
 
@@ -799,6 +805,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   component extraction, and canonical dummy-index renaming. All contractions
   are checked for variance and index-space compatibility before expression
   construction.
+- [x] Implement the first fixed-rank subset: component construction and
+  extraction, tensor products, opposite-variance contraction, and trace, with
+  independent nonorthogonal-chart checks. Components use a documented
+  first-slot-fastest ordering; permutation, symmetry, and dummy-index
+  canonicalization remain open.
 - [ ] Implement covariant differentiation of arbitrary tensor valence,
   including the correct Christoffel term for every upper and lower slot. The
   existing `christoffel` operation becomes a special case of the connection
