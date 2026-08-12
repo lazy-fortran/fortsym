@@ -70,6 +70,31 @@ connection, and fixed-three-dimensional form subsets. The
 Wolfram/Python source-script translator and full three-frontend differential
 comparison remain roadmap work.
 
+## `fortsym.sympy` diffgeom compatibility subset
+
+The compatibility facade also exports the familiar first `sympy.diffgeom`
+names without importing SymPy. `Manifold`, `Patch`, and `CoordSystem` create a
+fixed-three-dimensional identity chart by default; pass `symbols=(...)` and
+`position=(...)` to bind another native chart. `base_scalars()`,
+`base_vectors()`, and `base_oneforms()` provide coordinate fields, while
+`Differential`, `WedgeProduct`, `TensorProduct`, and `LieDerivative` evaluate
+through the native expression, tensor, and form owners.
+
+```python
+M = sp.Manifold("M", 3)
+P = sp.Patch("P", M)
+C = sp.CoordSystem("C", P, symbols=("x", "y", "z"))
+x, y, z = C.base_scalars()
+dx, dy, dz = C.base_oneforms()
+beta = sp.WedgeProduct(dx, dy)
+assert beta.rcall(C.base_vector(0))[2].simplify() == 1
+assert sp.Differential(x + y).rcall(C.base_vector(0)).simplify() == 1
+```
+
+This is the first native-backed naming bridge, not full `diffgeom` parity:
+coordinate transformations, arbitrary dimensions, covariant derivative
+operators, and broader tensor products remain explicit roadmap items.
+
 ## `fortsym.sympy` compatibility subset
 
 `fortsym.sympy` is a drop-in import spelling for the declared subset below. It

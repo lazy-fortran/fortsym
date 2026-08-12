@@ -5,6 +5,11 @@ import unittest
 import fortsym
 import fortsym.sympy as sp
 
+try:
+    import sympy as oracle
+except ModuleNotFoundError:
+    oracle = None
+
 
 class SympySubsetTest(unittest.TestCase):
     def test_native_subset_and_kind_classes(self):
@@ -33,6 +38,62 @@ class SympySubsetTest(unittest.TestCase):
         form = chart.one_form((y, z, x))
         self.assertIsInstance(form, sp.Form)
         self.assertEqual(form.d().degree, 2)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_diffgeom_names_use_native_owner_and_match_oracle(self):
+        from sympy.diffgeom import (
+            CoordSystem as OracleCoordSystem,
+            Differential as OracleDifferential,
+            LieDerivative as OracleLieDerivative,
+            Manifold as OracleManifold,
+            Patch as OraclePatch,
+            WedgeProduct as OracleWedgeProduct,
+        )
+
+        native_manifold = sp.Manifold("native_M", 3)
+        native_patch = sp.Patch("native_P", native_manifold)
+        native = sp.CoordSystem("native_c", native_patch)
+        nx, ny, nz = native.base_scalars()
+        nvx, nvy, _ = native.base_vectors()
+        ndx, ndy, _ = native.base_oneforms()
+
+        oracle_manifold = OracleManifold("oracle_M", 3)
+        oracle_patch = OraclePatch("oracle_P", oracle_manifold)
+        reference = OracleCoordSystem("oracle_c", oracle_patch)
+        ox, oy, oz = reference.base_scalars()
+        ovx, ovy, _ = reference.base_vectors()
+        odx, ody, _ = reference.base_oneforms()
+
+        def scalar_text(value):
+            if isinstance(value, fortsym.Expr):
+                value = value.simplify()
+            return oracle.sympify(str(value))
+
+        native_differential = sp.Differential(nx + ny)
+        oracle_differential = OracleDifferential(ox + oy)
+        self.assertEqual(
+            scalar_text(native_differential.rcall(nvx)),
+            oracle_differential.rcall(ovx),
+        )
+
+        native_wedge = sp.WedgeProduct(ndx, ndy)
+        oracle_wedge = OracleWedgeProduct(odx, ody)
+        self.assertEqual(
+            scalar_text(native_wedge.rcall(nvx)[2].simplify()),
+            oracle_wedge.rcall(ovx).rcall(ovy),
+        )
+
+        native_lie = sp.LieDerivative(nvx, ndy).doit()
+        oracle_lie = OracleLieDerivative(ovx, ody)
+        self.assertEqual(
+            scalar_text(native_lie.rcall(nvy)),
+            oracle_lie.rcall(ovy),
+        )
+        self.assertEqual(
+            scalar_text(sp.LieDerivative(nvx, nx + ny).doit()),
+            OracleLieDerivative(ovx, ox + oy).doit(),
+        )
+        native.close()
 
     def test_simultaneous_substitution(self):
         x, y = sp.symbols("simultaneous_x simultaneous_y")

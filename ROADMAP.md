@@ -155,7 +155,7 @@ Every checklist item requires all of the following:
   with [`scripts/audit_api_naming.py`](scripts/audit_api_naming.py) and
   [`doc/sympy-api-naming-audit.json`](doc/sympy-api-naming-audit.json).
   The audit currently records all 215 `use fortsym` exports, 18 native Python
-  facade exports, and 117 public adapter names/methods. It keeps the concise
+  facade exports, and 127 public adapter names/methods. It keeps the concise
   native vocabulary separate from the SymPy compatibility vocabulary and
   records the remaining canonical-name decisions for the next checklist item.
 - [x] Select canonical short names for constructors, functions, predicates,
@@ -872,6 +872,12 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   C ABI and both Python facades: form construction, `d`, wedge, `star`,
   interior, Lie, `flat`, and `sharp`. Python transports native handles and
   leaves broader `diffgeom`/form parity open.
+- [x] Add the first native-backed SymPy `diffgeom` naming bridge:
+  `Manifold`, `Patch`, `CoordSystem`, coordinate fields, `Differential`,
+  `WedgeProduct`, `TensorProduct`, and `LieDerivative`. Compare contractions
+  and Lie derivatives against SymPy's independent diffgeom oracle; keep
+  coordinate transformations, arbitrary dimensions, and full tensor parity
+  open.
 - [x] Expose the first fixed-three-dimensional tensor/connection subset through
   the C ABI and both Python facades: chart metrics, Christoffel/Riemann/Ricci/
   Einstein views, scalar curvature, typed variance/density metadata, and
