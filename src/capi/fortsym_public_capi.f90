@@ -4588,6 +4588,7 @@ contains
         call c_f_pointer(coordinates, coordinate_values, shape_coordinates)
         call c_f_pointer(signature, signature_values, shape_signature)
         values = num(a%value, 0)
+        signature_fortran = 1
         do j = 1, int(dimension)
             do i = 1, int(dimension)
                 flat = (j - 1)*SPACETIME_DIM + i
@@ -4654,7 +4655,7 @@ contains
         end do
         select case (int(degree))
         case (0)
-            value = spacetime_form_scalar(values(1))
+            value = spacetime_form_scalar(metric, values(1))
         case (1)
             coefficients4(1) = values(2)
             coefficients4(2) = values(3)

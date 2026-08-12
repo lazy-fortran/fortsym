@@ -6,7 +6,7 @@ program test_fortsym_spacetime_form
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
-        spacetime_metric_create
+        spacetime_metric_create, spacetime_metric_valid, spacetime_metric_sqrtg
     use fortsym_spacetime_form, only: spacetime_form_t, spacetime_form_one, &
         spacetime_form_two, spacetime_form_component, spacetime_d, &
         spacetime_wedge, spacetime_hodge, spacetime_form_four, &
@@ -19,7 +19,7 @@ program test_fortsym_spacetime_form
     type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
-    type(spacetime_metric_t) :: metric
+    type(spacetime_metric_t) :: metric, metric_2d
     type(expr_t) :: u(SPACETIME_DIM), components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: potential_components(SPACETIME_DIM), vector(SPACETIME_DIM)
     type(expr_t) :: two_components(6), residual
@@ -27,6 +27,11 @@ program test_fortsym_spacetime_form
     type(spacetime_form_t) :: contraction, lie_field, cartan
     type(spacetime_form_t) :: scalar_form, laplace, gauge, gauge_field, current
     type(spacetime_form_t) :: maxwell_error
+    type(spacetime_form_t) :: alpha_2d, beta_2d, alpha_star_2d
+    type(spacetime_form_t) :: alpha_star_star_2d, scalar_2d, scalar_star_2d
+    type(spacetime_form_t) :: laplace_2d
+    type(expr_t) :: values_2d(SPACETIME_DIM), components_2d(SPACETIME_DIM, &
+        SPACETIME_DIM)
     integer :: signature(SPACETIME_DIM), mask
 
     call arena%init()
@@ -130,6 +135,44 @@ program test_fortsym_spacetime_form
     hodge = spacetime_hodge(metric, field)
     call check_identity(suite, engine, "star volume is signed scalar", &
         spacetime_form_component(hodge, 0) + 1)
+
+    ! The same owner must honor a lower runtime dimension.  This is a flat
+    ! two-dimensional Riemannian metric, so the Hodge degree and
+    ! Laplace--de Rham sign are independently visible.
+    components_2d = num(arena, 0)
+    components_2d(1, 1) = num(arena, 1)
+    components_2d(2, 2) = num(arena, 1)
+    signature = 1
+    metric_2d = spacetime_metric_create(components_2d, 2, u, signature, 1)
+    if (.not. spacetime_metric_valid(metric_2d)) error stop &
+        "invalid two-dimensional form metric"
+
+    values_2d = num(arena, 0)
+    values_2d(1) = u(2)
+    values_2d(2) = u(1)**2
+    alpha_2d = spacetime_form_one(metric_2d, values_2d)
+    beta_2d = spacetime_d(metric_2d, alpha_2d)
+    call check_identity(suite, engine, "2D exterior derivative", &
+        spacetime_form_component(beta_2d, 3) - (2*u(1) - 1))
+    call check_identity(suite, engine, "2D d(dA)=0", &
+        spacetime_form_component(spacetime_d(metric_2d, beta_2d), 0))
+
+    alpha_star_2d = spacetime_hodge(metric_2d, alpha_2d)
+    alpha_star_star_2d = spacetime_hodge(metric_2d, alpha_star_2d)
+    do mask = 1, 2
+        call check_identity(suite, engine, "2D Hodge involution on one-form", &
+            spacetime_form_component(alpha_star_star_2d, 2**(mask - 1)) + &
+            spacetime_form_component(alpha_2d, 2**(mask - 1)))
+    end do
+
+    scalar_2d = spacetime_form_scalar(metric_2d, u(1)**2)
+    scalar_star_2d = spacetime_hodge(metric_2d, scalar_2d)
+    call check_identity(suite, engine, "2D Hodge scalar volume factor", &
+        spacetime_form_component(scalar_star_2d, 3) - &
+        spacetime_metric_sqrtg(metric_2d)*u(1)**2)
+    laplace_2d = spacetime_laplace_de_rham(metric_2d, scalar_2d)
+    call check_identity(suite, engine, "2D Laplace-de Rham", &
+        spacetime_form_component(laplace_2d, 0) + 2)
 
     if (suite%failed /= 0) then
         print *, "test_fortsym_spacetime_form: ", suite%failed, &

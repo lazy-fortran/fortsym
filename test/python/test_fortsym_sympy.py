@@ -899,6 +899,36 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_runtime_two_dimensional_spacetime_forms_match_sympy(self):
+        t, x, y, z = sp.symbols("form2_t form2_x form2_y form2_z")
+        metric = sp.SpacetimeMetric(
+            (t, x, y, z),
+            ((1, 0, 0, 0), (0, 1, 0, 0),
+             (0, 0, 0, 0), (0, 0, 0, 0)),
+            dimension=2,
+            signature=(1, 1, 1, 1),
+        )
+        alpha = metric.one_form((x, t**2, 0, 0))
+        field = alpha.d()
+        self.assertEqual(field.degree, 2)
+        self.assertEqual((field[3] - (2*t - 1)).simplify(), 0)
+        self.assertTrue(field.is_closed)
+
+        alpha_star_star = alpha.star().star()
+        for mask in (1, 2):
+            self.assertEqual(
+                (alpha_star_star[mask] + alpha[mask]).simplify(), 0
+            )
+
+        scalar = metric.scalar_form(t**2)
+        scalar_star = scalar.star()
+        scalar_star_star = scalar_star.star()
+        self.assertEqual(scalar_star.degree, 2)
+        self.assertEqual(scalar_star_star.degree, 0)
+        self.assertEqual((scalar_star_star[0] - t**2).simplify(), 0)
+        self.assertEqual((scalar.laplace_de_rham()[0] + 2).simplify(), 0)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_chart_jacobian_and_dual_basis_match_sympy(self):
         u, v, w = sp.symbols("basis_u basis_v basis_w")
         chart = sp.Chart((u, v, w), (u + v, 2*v + w, w))
