@@ -2583,6 +2583,8 @@ contains
             else if (is_minus_one_id(a, id)) then
                 out = mul_pair(a, a%int(-1_int64), quarter_pi)
             else
+                call exact_inverse_trig_special_value(a, "atan", id, out, ok)
+                if (ok) return
                 call exact_odd_imaginary_value(a, id, a%const("oo"), out, ok)
                 if (.not. ok) return
             end if
@@ -2667,6 +2669,18 @@ contains
                 out, ok)
             if (ok) return
             call exact_inverse_trig_candidate(a, "cos", id, 5_int64, 6_int64, &
+                out, ok)
+        case ("atan")
+            call exact_inverse_trig_candidate(a, "tan", id, 1_int64, 6_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "tan", id, -1_int64, 6_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "tan", id, 1_int64, 3_int64, &
+                out, ok)
+            if (ok) return
+            call exact_inverse_trig_candidate(a, "tan", id, -1_int64, 3_int64, &
                 out, ok)
         end select
     end subroutine exact_inverse_trig_special_value

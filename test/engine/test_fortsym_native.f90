@@ -1327,6 +1327,7 @@ contains
         type(expr_t) :: negative_imaginary_log_one_plus_sqrt_two
         type(expr_t) :: sixth_pi, third_pi, three_quarters_pi, five_sixths_pi
         type(expr_t) :: half_root_two, half_root_three
+        type(expr_t) :: inverse_root_three
 
         infinity = oo_expr(arena)
         complex_infinity = zoo_expr(arena)
@@ -1356,6 +1357,8 @@ contains
             rat(arena, 1_int64, 2_int64)
         half_root_three = sqrt(num(arena, 3_int64))* &
             rat(arena, 1_int64, 2_int64)
+        inverse_root_three = sqrt(num(arena, 3_int64))** &
+            rat(arena, -1_int64, 1_int64)
 
         r = engine%simplify(asin(infinity))
         call check("asin(oo) is negative i oo", &
@@ -1417,6 +1420,16 @@ contains
         r = engine%simplify(acos(-half_root_three))
         call check("acos(-sqrt(3)/2) is five pi over six", &
             r%value == five_sixths_pi)
+        r = engine%simplify(atan(sqrt(num(arena, 3_int64))))
+        call check("atan(sqrt(3)) is pi over three", r%value == third_pi)
+        r = engine%simplify(atan(-sqrt(num(arena, 3_int64))))
+        call check("atan(-sqrt(3)) is negative pi over three", &
+            r%value == rat(arena, -1_int64, 3_int64)*pi_expr(arena))
+        r = engine%simplify(atan(inverse_root_three))
+        call check("atan(1/sqrt(3)) is pi over six", r%value == sixth_pi)
+        r = engine%simplify(atan(-inverse_root_three))
+        call check("atan(-1/sqrt(3)) is negative pi over six", &
+            r%value == rat(arena, -1_int64, 6_int64)*pi_expr(arena))
         r = engine%simplify(atan(infinity))
         call check("atan(oo) is pi over two", r%value == half_pi)
         r = engine%simplify(atan(negative_infinity))
