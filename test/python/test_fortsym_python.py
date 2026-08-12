@@ -72,6 +72,28 @@ class NativePackageTest(unittest.TestCase):
             self.assertEqual(
                 density.product(lower).density_weight, 1
             )
+            exp_2t = arena.function("exp", (2*t,))
+            exp_t = arena.function("exp", (t,))
+            curved = fortsym.SpacetimeMetric(
+                (t, x, y, z),
+                ((1, 0, 0, 0), (0, exp_2t, 0, 0),
+                 (0, 0, 0, 0), (0, 0, 0, 0)),
+                dimension=2,
+                signature=(1, 1, 1, 1),
+            )
+            curved_vector = curved.vector((0, 1, 0, 0))
+            derivative = curved_vector.covariant_diff()
+            self.assertEqual(derivative.variance, (1, -1))
+            self.assertEqual((derivative[1, 0] - 1).simplify(), 0)
+            self.assertEqual((derivative[0, 1] + exp_2t).simplify(), 0)
+            self.assertEqual(derivative[1, 1].simplify(), 0)
+            metric_derivative = curved.covariant().covariant_diff()
+            self.assertEqual(metric_derivative[1, 1, 0].simplify(), 0)
+            curved_density = curved.vector((0, exp_t, 0, 0), density_weight=1)
+            density_derivative = curved_density.covariant_diff()
+            self.assertEqual(
+                (density_derivative[1, 0] - exp_t).simplify(), 0
+            )
 
     def test_native_construction_and_transformations(self):
         with fortsym.Arena() as arena:

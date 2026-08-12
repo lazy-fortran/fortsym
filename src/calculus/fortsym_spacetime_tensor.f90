@@ -7,11 +7,13 @@ module fortsym_spacetime_tensor
     ! silently pass through a three-dimensional representation.
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, num, is_valid, same_arena, &
-        operator(+), operator(*)
+        operator(+), operator(-), operator(*)
+    use fortsym_diff, only: diff
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
         spacetime_metric_valid, spacetime_metric_arena, &
         spacetime_metric_dimension, spacetime_metric_covariant, &
-        spacetime_metric_contravariant
+        spacetime_metric_contravariant, spacetime_metric_has_coordinates, &
+        spacetime_metric_coordinates, spacetime_christoffel
     implicit none
     private
 
@@ -44,6 +46,7 @@ module fortsym_spacetime_tensor
     public :: spacetime_tensor_raise, spacetime_tensor_lower
     public :: spacetime_tensor_product, spacetime_tensor_contract
     public :: spacetime_tensor_permute
+    public :: spacetime_tensor_covariant_diff
 
 contains
 
@@ -514,6 +517,79 @@ contains
             result%component(output_index) = tensor_value%component(source_index)
         end do
     end function spacetime_tensor_permute
+
+    !> Full metric covariant derivative with the derivative slot last.
+    !>
+    !> A tensor density of weight w receives the physicists' transport term
+    !> -w Gamma^m_mk T. The native rank bound is deliberate: a rank-r input
+    !> produces rank r+1, and the owner stores at most four slots.
+    function spacetime_tensor_covariant_diff(g, tensor_value) result(result)
+        type(spacetime_metric_t), intent(in) :: g
+        type(spacetime_tensor_t), intent(in) :: tensor_value
+        type(spacetime_tensor_t) :: result
+        type(expr_t) :: coordinates(SPACETIME_DIM)
+        type(expr_t) :: gamma(SPACETIME_DIM, SPACETIME_DIM, SPACETIME_DIM)
+        type(expr_t) :: values(0:MAX_COMPONENTS - 1)
+        type(expr_t) :: base, term, trace_gamma(SPACETIME_DIM)
+        integer :: rank, output_rank, count, output_index, dimension
+        integer :: indices(SPACETIME_TENSOR_MAX_RANK)
+        integer :: old_indices(SPACETIME_TENSOR_MAX_RANK)
+        integer :: metadata(SPACETIME_TENSOR_MAX_RANK)
+        integer :: k, i, m, slot, weight
+
+        if (.not. spacetime_metric_valid(g)) return
+        if (.not. spacetime_metric_has_coordinates(g)) return
+        if (.not. spacetime_tensor_same_arena(tensor_value, g)) return
+        rank = tensor_value%rank
+        if (rank < 0 .or. rank >= SPACETIME_TENSOR_MAX_RANK) return
+        dimension = spacetime_metric_dimension(g)
+        output_rank = rank + 1
+        count = component_count(output_rank, dimension)
+        coordinates = spacetime_metric_coordinates(g)
+        gamma = spacetime_christoffel(g)
+        metadata = 0
+        do slot = 1, rank
+            metadata(slot) = tensor_value%variance(slot)
+        end do
+        metadata(output_rank) = SPACETIME_LOWER
+        weight = tensor_value%density_weight
+        values = num(tensor_value%a, 0)
+        if (weight /= 0) then
+            do k = 1, dimension
+                trace_gamma(k) = num(tensor_value%a, 0)
+                do m = 1, dimension
+                    trace_gamma(k) = trace_gamma(k) + gamma(m, m, k)
+                end do
+            end do
+        end if
+
+        do output_index = 0, count - 1
+            call decode_index(output_index, output_rank, indices, dimension)
+            k = indices(output_rank)
+            base = tensor_value%component(encode_index(indices, rank, dimension))
+            term = diff(base, coordinates(k))
+            if (weight /= 0) then
+                term = term - num(tensor_value%a, weight)*trace_gamma(k)*base
+            end if
+            do slot = 1, rank
+                i = indices(slot)
+                do m = 1, dimension
+                    old_indices = indices
+                    old_indices(slot) = m
+                    if (tensor_value%variance(slot) == SPACETIME_UPPER) then
+                        term = term + gamma(i, k, m)* &
+                            tensor_value%component(encode_index(old_indices, rank, dimension))
+                    else
+                        term = term - gamma(m, k, i)* &
+                            tensor_value%component(encode_index(old_indices, rank, dimension))
+                    end if
+                end do
+            end do
+            values(output_index) = term
+        end do
+
+        result = spacetime_tensor_from_storage(g, output_rank, values, metadata, weight)
+    end function spacetime_tensor_covariant_diff
 
     function zero_tensor(a, dimension, rank, metadata, weight) result(result)
         type(arena_t), pointer, intent(in) :: a

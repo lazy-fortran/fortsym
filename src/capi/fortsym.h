@@ -458,6 +458,11 @@ int fortsym_spacetime_tensor_product(
     int left_density_weight, const fortsym_expr *right[], size_t right_rank,
     const int right_variance[], int right_density_weight, fortsym_expr *out[],
     char *message, size_t capacity);
+int fortsym_spacetime_tensor_covariant_diff(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *input[], size_t rank, const int variance[],
+    int density_weight, fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_spacetime_christoffel(
     fortsym_arena *arena, const fortsym_expr *components[], int dimension,
     const fortsym_expr *coordinates[], const int signature[], int orientation,

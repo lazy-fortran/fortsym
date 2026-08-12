@@ -800,6 +800,12 @@ def _configure(lib):
             _CHAR_PTR, _SIZE,
         ],
     )
+    lib.spacetime_tensor_covariant_diff = declare(
+        "fortsym_spacetime_tensor_covariant_diff", ctypes.c_int,
+        spacetime_tensor_arguments[:-4] + [
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.spacetime_geodesic_residual = declare(
         "fortsym_spacetime_geodesic_residual", ctypes.c_int,
         [
@@ -2155,6 +2161,30 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "spacetime_tensor_product")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
+    def _spacetime_tensor_covariant_diff(self, metric, tensor):
+        if not isinstance(tensor, SpacetimeTensor) or tensor.metric is not metric:
+            raise ValueError("spacetime tensor must belong to this metric")
+        if tensor.variance is None:
+            raise ValueError("spacetime covariant differentiation needs slot variance")
+        if tensor.rank >= SPACETIME_TENSOR_MAX_RANK:
+            raise ValueError("native spacetime covariant derivative supports input rank at most three")
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * (SPACETIME_DIM ** tensor.rank))(
+            *[value._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output_rank = tensor.rank + 1
+        output = (_CVOID * (SPACETIME_DIM ** output_rank))()
+        message = _message()
+        status = self._lib.spacetime_tensor_covariant_diff(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, tensor.rank, variance,
+            tensor.density_weight, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "spacetime_tensor_covariant_diff")
         return tuple(Expr(self, output[index]) for index in range(len(output)))
 
     def _spacetime_scalar(self, operation, metric):
@@ -3987,6 +4017,18 @@ class SpacetimeTensor:
         )
 
     tensor_product = product
+
+    def covariant_diff(self):
+        """Append the lower derivative slot using the metric connection."""
+        components = self._arena._spacetime_tensor_covariant_diff(
+            self.metric, self
+        )
+        return SpacetimeTensor(
+            self.metric, components, (4,) * (self.rank + 1),
+            self.variance + (-1,), self.density_weight, _owned=True,
+        )
+
+    covariant_derivative = covariant_diff
 
     def close(self):
         if self._owned:

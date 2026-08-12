@@ -748,6 +748,37 @@ class SympySubsetTest(unittest.TestCase):
             tuple(oracle.sympify(str(product[j, i].simplify()))
                   for i, j in ((0, 1), (1, 0))),
         )
+        curved_metric = sp.SpacetimeMetric(
+            (t, x, y, z),
+            ((1, 0, 0, 0), (0, sp.exp(2*t), 0, 0),
+             (0, 0, 0, 0), (0, 0, 0, 0)),
+            dimension=2,
+            signature=(1, 1, 1, 1),
+        )
+        curved_vector = curved_metric.vector((0, 1, 0, 0))
+        derivative = curved_vector.covariant_diff()
+        self.assertEqual(
+            oracle.sympify(str(derivative[1, 0].simplify())), 1
+        )
+        self.assertEqual(
+            oracle.sympify(str(derivative[0, 1].simplify())),
+            -oracle.exp(2*oracle.Symbol("tensor_oracle_t")),
+        )
+        self.assertEqual(
+            oracle.sympify(str(derivative[1, 1].simplify())), 0
+        )
+        metric_derivative = curved_metric.covariant().covariant_diff()
+        self.assertEqual(
+            oracle.sympify(str(metric_derivative[1, 1, 0].simplify())), 0
+        )
+        curved_density = curved_metric.vector(
+            (0, sp.exp(t), 0, 0), density_weight=1
+        )
+        density_derivative = curved_density.covariant_diff()
+        self.assertEqual(
+            oracle.sympify(str(density_derivative[1, 0].simplify())),
+            oracle.exp(oracle.Symbol("tensor_oracle_t")),
+        )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_metric_volume_and_levi_civita_match_sympy(self):
