@@ -810,6 +810,12 @@ def _configure(lib):
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
          ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_connection_geodesic_residual = declare(
+        "fortsym_chart_connection_geodesic_residual", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CVOID,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.chart_scalar_curvature = declare(
         "fortsym_chart_scalar_curvature",
         ctypes.c_int,
@@ -2187,6 +2193,46 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message), "connection_riemann")
         return tuple(Expr(self, output[index]) for index in range(81))
+
+    def _chart_connection_geodesic_residual(self, connection, curve, parameter):
+        coordinate_handles, position_handles = self._chart_inputs(
+            connection.chart.coordinates, connection.chart.position
+        )
+        connection_values = (_CVOID * 27)(
+            *[self._check(value)._handle for value in connection.components]
+        )
+        curve_values = tuple(curve)
+        if len(curve_values) != 3:
+            raise ValueError("geodesic curves require three components")
+        coerced = []
+        temporaries = []
+        try:
+            for value in curve_values:
+                expression, temporary = self._coerce(value)
+                coerced.append(expression)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            parameter_value, temporary = self._coerce(parameter)
+            if temporary is not None:
+                temporaries.append(temporary)
+            curve_handles = (_CVOID * 3)(
+                *[value._handle for value in coerced]
+            )
+            output = (_CVOID * 3)()
+            message = _message()
+            status = self._lib.chart_connection_geodesic_residual(
+                self._require(), coordinate_handles, position_handles,
+                connection_values, curve_handles, parameter_value._handle,
+                output, message, len(message),
+            )
+            if status:
+                raise FortSymError(
+                    status, _decode(message), "connection_geodesic_residual"
+                )
+            return tuple(Expr(self, output[index]) for index in range(3))
+        finally:
+            for temporary in temporaries:
+                temporary.close()
 
     def _chart_connection_tensor(self, operation, connection, tensor, output_rank):
         coordinate_handles, position_handles = self._chart_inputs(
@@ -3813,6 +3859,12 @@ class Connection:
         return Tensor(self.chart, components, (1, -1, -1, -1), _owned=True)
 
     curvature = riemann
+
+    def geodesic_residual(self, curve, parameter):
+        """Return ``x''^a + Gamma^a_bc x'^b x'^c`` for this connection."""
+        return self._arena._chart_connection_geodesic_residual(
+            self, curve, parameter
+        )
 
     def covariant_diff(self, tensor):
         if not isinstance(tensor, Tensor) or tensor.chart is not self.chart:

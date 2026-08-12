@@ -158,6 +158,16 @@ class SympySubsetTest(unittest.TestCase):
         )
         self.assertEqual(actual_riemann, -2*ox*oy)
 
+        parameter = sp.Symbol("connection_lambda")
+        actual_geodesic = tuple(
+            oracle.sympify(str(value.simplify()))
+            for value in connection.geodesic_residual(
+                (parameter, parameter, 0), parameter
+            )
+        )
+        olambda = oracle.Symbol("connection_lambda")
+        self.assertEqual(actual_geodesic, (3*olambda, 0, 0))
+
         expected_nonmetricity = []
         for k in range(3):
             for j in range(3):

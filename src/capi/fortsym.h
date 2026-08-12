@@ -557,6 +557,11 @@ int fortsym_chart_connection_riemann(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *connection[],
     fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_connection_geodesic_residual(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *connection[],
+    const fortsym_expr *curve[], const fortsym_expr *parameter,
+    fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_chart_riemann(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], fortsym_expr *out[], char *message,
