@@ -1955,6 +1955,13 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     simplify from 18.63 to 18.19 microseconds and cold expansion from 0.824 to
     0.808 milliseconds without introducing compiler-generated array-temporary
     warnings.
+  - [x] Keep the common binary `+`, `*`, and two-argument function simplifier
+    recursion on fixed stack handles instead of allocating a child array at
+    every node. The native correctness suite and full `fo` gate remain green;
+    the matched local diagnostic reduced cold simplify from 19.64 to 19.17
+    microseconds and cold differentiation from 29.64 to 29.28 microseconds.
+    The current expansion diagnostic fell from 1.91 to 0.87 milliseconds, with
+    all rows still independently validated.
   - [x] Add the exact `log(i)`/`log(-i)` branch points to the correctness and
     performance matrix. Their cold and warm rows are enforced and measured at
     0.016x and 0.053x SymPy; the 58 substantive rows remain enforced with

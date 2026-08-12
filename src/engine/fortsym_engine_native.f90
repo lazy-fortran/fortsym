@@ -1091,7 +1091,7 @@ contains
         type(resource_limit_t), intent(inout), optional :: limit
         integer                      :: out
         integer, allocatable :: children(:)
-        integer :: k, child
+        integer :: k, child, nargs
         integer :: pair(2), unary(1)
         logical :: refused
         character(:), allocatable :: reason
@@ -1111,24 +1111,40 @@ contains
 
         select case (a%kind_of(id))
         case (NK_ADD, NK_MUL)
-            allocate (children(a%nargs_of(id)))
-            do k = 1, size(children)
-                children(k) = simplify_id(a, a%arg_of(id, k), memo, stamp, epoch, limit)
-            end do
-            select case (a%kind_of(id))
-            case (NK_ADD)
-                out = simplify_add(a, children)
-            case default
-                out = simplify_mul(a, children)
-            end select
+            nargs = a%nargs_of(id)
+            if (nargs == 2) then
+                pair(1) = simplify_id(a, a%arg_of(id, 1), memo, stamp, epoch, limit)
+                pair(2) = simplify_id(a, a%arg_of(id, 2), memo, stamp, epoch, limit)
+                if (a%kind_of(id) == NK_ADD) then
+                    out = simplify_add(a, pair)
+                else
+                    out = simplify_mul(a, pair)
+                end if
+            else
+                allocate (children(nargs))
+                do k = 1, nargs
+                    children(k) = simplify_id(a, a%arg_of(id, k), memo, stamp, &
+                        epoch, limit)
+                end do
+                if (a%kind_of(id) == NK_ADD) then
+                    out = simplify_add(a, children)
+                else
+                    out = simplify_mul(a, children)
+                end if
+            end if
         case (NK_FUNC)
-            if (a%nargs_of(id) == 1) then
+            nargs = a%nargs_of(id)
+            if (nargs == 1) then
                 child = simplify_id(a, a%arg_of(id, 1), memo, stamp, epoch, limit)
                 unary(1) = child
                 out = simplify_function(a, chars(a%name_of(id)), unary)
+            else if (nargs == 2) then
+                pair(1) = simplify_id(a, a%arg_of(id, 1), memo, stamp, epoch, limit)
+                pair(2) = simplify_id(a, a%arg_of(id, 2), memo, stamp, epoch, limit)
+                out = simplify_function(a, chars(a%name_of(id)), pair)
             else
-                allocate (children(a%nargs_of(id)))
-                do k = 1, size(children)
+                allocate (children(nargs))
+                do k = 1, nargs
                     children(k) = simplify_id(a, a%arg_of(id, k), memo, stamp, &
                         epoch, limit)
                 end do
