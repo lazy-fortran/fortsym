@@ -344,7 +344,7 @@
     {
       "action": "Keep structural substitution in fortsym_subs and expose only its concise single-pair and explicit paired-sequence spellings from the facade.",
       "description": "Replace expressions.",
-      "finding": "The native facade forwards both substitution shapes from the single owning module; the Python adapter maps only SymPy's simultaneous option at the boundary.",
+      "finding": "The native facade forwards both substitution shapes from the single owning module; the Python adapter applies SymPy's unordered mapping order and maps only the simultaneous option at the boundary.",
       "fortran_facade": [
         "subs",
         "subs_many"

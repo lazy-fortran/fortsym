@@ -202,8 +202,10 @@ the Python facade caches the immutable handle set on the owning expression, so
 both rows remain enforced. The latest matrix therefore has 102 rows, 86
 enforced rows, and zero unwaived violations. The simultaneous-substitution
 workload adds two correctness-checked rows; its cold and warm ratios were
-0.330x and 0.370x SymPy, so both rows remain enforced. The latest matrix
-therefore has 104 rows, 88 enforced rows, and zero unwaived violations.
+0.330x and 0.370x SymPy, so both rows remain enforced. The unordered mapping
+substitution workload adds two more correctness-checked rows; its cold and warm
+ratios were 0.575x and 0.276x SymPy, so both rows remain enforced. The latest
+matrix therefore has 106 rows, 90 enforced rows, and zero unwaived violations.
 
 Run it from a built checkout with:
 
@@ -299,10 +301,12 @@ engine and memoization caches across warm calls, while scoped assumptions are
 synchronized before each operation. The Python facade also reuses an expanded
 result for the same expression until the arena's assumption epoch changes,
 reuses simplified derivatives for repeated `(expression, variable)` calls, and
-caches the immutable `Expr.free_symbols` handle set for repeated access.
+caches the immutable `Expr.free_symbols` handle set for repeated access. It
+also caches up to eight identity-checked, non-cascading mapping results per
+expression and assumption epoch.
 The matched differentiation diagnostic after that cache was added measured
 native/SymPy ratios of about 0.14 cold and 0.06 warm; the remaining full-suite
-104-workload parity run also passed with zero correctness failures and zero
+106-workload parity run also passed with zero correctness failures and zero
 parity violations; the warm predicate and algebraic-assumption rows were
 all at or below the SymPy 1.14.0 median in the recorded run on 2026-08-12.
 The warm `number_predicate` and `algebraic_predicate` ratios were 0.32× and
@@ -327,7 +331,8 @@ the waived `domain_gamma_pole`, `domain_loggamma_pole`, and
 cold/warm respectively; the waived `domain_factorial_value` rows were
 5.25×/3.25× cold/warm; the waived `domain_factorial_large` rows were
 5.57×/3.57× cold/warm; `free_symbols` was 0.236×/0.054× cold/warm;
-`subs_simultaneous` was 0.330×/0.370× cold/warm.
+`subs_simultaneous` was 0.330×/0.370× cold/warm; `subs_mapping` was
+0.575×/0.276× cold/warm.
 
 `fo exec bench_algebraic` measures the public Fortran `qqbar1` bridge, including
 text validation, FLINT reconstruction, the exact operation, canonical

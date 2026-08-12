@@ -283,6 +283,35 @@ class SympyDifferentialTest(unittest.TestCase):
                     "simultaneous substitution", expected, actual
                 )
 
+    def test_unordered_mapping_substitution_matches_oracle(self):
+        def cases(api):
+            x, y, z = api.symbols(
+                "mapping_order_x mapping_order_y mapping_order_z"
+            )
+            f = api.Function("mapping_order_f")
+            return [
+                (f(x**2 + x), {x: y, x**2: z}),
+                (f(api.sin(x)), {
+                    api.cos(x): z, api.sin(x): api.cos(x)
+                }),
+                (api.sin(x * api.exp(x)), {x: y, api.exp(x): 3}),
+                (x + y, {x: y, y: 2}),
+                (x + y, {x: y + 1, y: 2}),
+            ]
+
+        oracle_cases = cases(oracle)
+        native_cases = cases(native)
+        for index, ((oracle_expression, oracle_mapping),
+                    (native_expression, native_mapping)) in enumerate(
+                        zip(oracle_cases, native_cases)
+                    ):
+            with self.subTest(index=index):
+                expected = oracle_expression.subs(oracle_mapping)
+                actual = native.subs(native_expression, native_mapping)
+                self.assert_equivalent(
+                    "unordered mapping substitution", expected, actual
+                )
+
     def test_free_symbols_matches_oracle(self):
         def names(api, expression):
             if api is oracle:

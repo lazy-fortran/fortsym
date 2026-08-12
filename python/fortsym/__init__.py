@@ -506,6 +506,7 @@ class Expr:
         self._complex_results = {}
         self._number_value = None
         self._free_symbols_cache = None
+        self._node_count_cache = None
         self._borrowed = False
 
     def _require(self):
@@ -520,6 +521,7 @@ class Expr:
         self._diff_results.clear()
         self._complex_results.clear()
         self._number_value = None
+        self._node_count_cache = None
         if self._free_symbols_cache is not None:
             for symbol in self._free_symbols_cache:
                 symbol._release()
@@ -587,21 +589,25 @@ class Expr:
             return float(str(self)) != 0.0
         raise TypeError("symbolic expressions do not have a truth value")
 
-    def subs(self, old, new):
+    def _subs_raw(self, old, new):
         old, old_temporary = self._arena._coerce(old)
         new, new_temporary = self._arena._coerce(new)
         try:
-            result = self._arena._result(
+            return self._arena._result(
                 self._lib.substitute, self._arena._require(), self._require(),
                 old._handle, new._handle)
-            expanded = result.expand()
-            result.close()
-            return expanded
         finally:
             if old_temporary:
                 old.close()
             if new_temporary:
                 new.close()
+
+    def subs(self, old, new):
+        result = self._subs_raw(old, new)
+        try:
+            return result.expand()
+        finally:
+            result.close()
 
     def _subs_many(self, old, new):
         if len(old) != len(new):
@@ -875,6 +881,20 @@ class Expr:
         )
         if status:
             raise FortSymError(status, _decode(message), "expr_operation_count")
+        return count.value
+
+    @property
+    def node_count(self):
+        if self._node_count_cache is not None:
+            return self._node_count_cache
+        count = _SIZE()
+        message = _message()
+        status = self._lib.expr_node_count(
+            self._require(), ctypes.byref(count), message, len(message)
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "expr_node_count")
+        self._node_count_cache = count.value
         return count.value
 
     @property

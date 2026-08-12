@@ -32,6 +32,20 @@ class SympySubsetTest(unittest.TestCase):
         )
         self.assertEqual(sp.subs(x + y, {}), x + y)
 
+    def test_unordered_mapping_uses_sympy_order(self):
+        x, y, z = sp.symbols("mapping_order_x mapping_order_y mapping_order_z")
+        f = sp.Function("mapping_order_f")
+        self.assertEqual(
+            sp.subs(f(x**2 + x), {x: y, x**2: z}), f(y + z)
+        )
+        self.assertEqual(
+            sp.subs(f(sp.sin(x)), {
+                sp.cos(x): z, sp.sin(x): sp.cos(x)
+            }), f(z)
+        )
+        self.assertEqual(sp.subs(x + y, {x: y, y: 2}), 4)
+        self.assertEqual(sp.subs(x + y, {x: y + 1, y: 2}), 5)
+
     def test_refusal_and_truth_contract(self):
         self.assertFalse(bool(sp.Integer(0)))
         with self.assertRaises(TypeError):
