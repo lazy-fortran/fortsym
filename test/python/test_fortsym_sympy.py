@@ -46,6 +46,19 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(sp.subs(x + y, {x: y, y: 2}), 4)
         self.assertEqual(sp.subs(x + y, {x: y + 1, y: 2}), 5)
 
+    def test_xreplace_uses_exact_nodes_without_expanding(self):
+        x, y, z = sp.symbols("xreplace_x xreplace_y xreplace_z")
+        f = sp.Function("xreplace_f")
+        self.assertEqual(f(x).xreplace({x: y}), f(y))
+        self.assertEqual((x**2 + x).xreplace({x**2: y}), x + y)
+        self.assertEqual(
+            f(x + y).xreplace({x + y: z, y: x + y}), f(z)
+        )
+        expression = (x + 1)**2
+        self.assertIs(expression.xreplace({}), expression)
+        with self.assertRaises(TypeError):
+            expression.xreplace([(x, y)])
+
     def test_refusal_and_truth_contract(self):
         self.assertFalse(bool(sp.Integer(0)))
         with self.assertRaises(TypeError):

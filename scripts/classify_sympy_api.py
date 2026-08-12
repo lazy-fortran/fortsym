@@ -78,15 +78,27 @@ def adapter_method_names(tree: ast.AST) -> set[str]:
     return names
 
 
-def adapter_profile(path: Path) -> dict[str, Any]:
+def adapter_profile(path: Path, native_path: Path | None = None) -> dict[str, Any]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     declared = string_list_assignment(tree, "__all__")
     refused = explicit_refusals(tree)
+    methods = adapter_method_names(tree)
+    if native_path is not None:
+        native_tree = ast.parse(
+            native_path.read_text(encoding="utf-8"), filename=str(native_path)
+        )
+        for node in ast.walk(native_tree):
+            if isinstance(node, ast.ClassDef) and node.name == "Expr":
+                methods.update(
+                    child.name for child in node.body
+                    if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
+                    and not child.name.startswith("_")
+                )
     return {
         "declared": declared,
         "supported": declared - refused,
         "refused": refused,
-        "methods": adapter_method_names(tree),
+        "methods": methods,
     }
 
 
@@ -229,7 +241,10 @@ def fortran_classification(path: Path, root: Path) -> dict[str, Any]:
 
 
 def build_report(inventory: dict[str, Any], root: Path) -> dict[str, Any]:
-    profile = adapter_profile(root / "python/fortsym/sympy/__init__.py")
+    profile = adapter_profile(
+        root / "python/fortsym/sympy/__init__.py",
+        root / "python/fortsym/__init__.py",
+    )
     root_by_name = {record["name"]: record for record in inventory["root_exports"]}
     supported_class_ids = {
         record["class_id"]

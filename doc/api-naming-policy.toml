@@ -77,8 +77,8 @@ canonical_native = ["subs", "subs_many", "expand", "simplify", "refine", "factor
 current_native = ["subs", "subs_many", "expand", "simplify", "refine", "factor"]
 transition_aliases = []
 python_facade = ["subs", "subs_many", "factor"]
-sympy_adapter = ["subs", "Subs", "expand", "simplify", "refine", "factor"]
-decision = "Expose the native operations under the same short names from one facade owner. Keep subs_many as the explicit paired-sequence native spelling, apply SymPy's unordered mapping order and map only the simultaneous option at the adapter boundary, keep refine as the named assumption-aware entry point, and keep Subs as an adapter-only typed wrapper."
+sympy_adapter = ["subs", "Subs", "xreplace", "expand", "simplify", "refine", "factor"]
+decision = "Expose the native operations under the same short names from one facade owner. Keep subs_many as the explicit paired-sequence native spelling, apply SymPy's unordered mapping order, map the simultaneous option, and expose exact-node xreplace at the adapter boundary; keep refine as the named assumption-aware entry point, and keep Subs and xreplace as adapter-only compatibility surfaces."
 
 [[family]]
 id = "operation-count"

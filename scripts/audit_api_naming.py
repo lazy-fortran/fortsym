@@ -25,6 +25,22 @@ def exported_names(path: Path) -> list[str]:
     raise ValueError(f"{path}: no literal __all__ found")
 
 
+def public_methods(path: Path, class_name: str | None = None) -> set[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    methods: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+        if class_name is not None and node.name != class_name:
+            continue
+        methods.update(
+            child.name for child in node.body
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and not child.name.startswith("_")
+        )
+    return methods
+
+
 def concept(
     identifier: str,
     description: str,
@@ -54,7 +70,11 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         if item["owner"] == "src/core/fortsym.f90"
     )
     python_facade = exported_names(root / "python/fortsym/__init__.py")
-    adapter = exported_names(root / "python/fortsym/sympy/__init__.py")
+    adapter = sorted(
+        set(exported_names(root / "python/fortsym/sympy/__init__.py")) |
+        public_methods(root / "python/fortsym/sympy/__init__.py") |
+        public_methods(root / "python/fortsym/__init__.py", "Expr")
+    )
     concepts = [
         concept(
             "symbol-construction",
@@ -160,9 +180,9 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         concept(
             "substitution",
             "Replace expressions.",
-            ["subs", "subs_many"], ["subs", "subs_many"], ["subs", "Subs"], ["Expr", "Subs"],
-            "The native facade forwards both substitution shapes from the single owning module; the Python adapter applies SymPy's unordered mapping order and maps only the simultaneous option at the boundary.",
-            "Keep structural substitution in fortsym_subs and expose only its concise single-pair and explicit paired-sequence spellings from the facade.",
+            ["subs", "subs_many"], ["subs", "subs_many"], ["subs", "Subs", "xreplace"], ["Expr", "Subs"],
+            "The native facade forwards both substitution shapes from the single owning module; the Python adapter applies SymPy's unordered mapping order and maps the simultaneous and exact-node options at the boundary.",
+            "Keep structural substitution in fortsym_subs, expose only its concise single-pair and explicit paired-sequence spellings from the native facade, and keep xreplace at the SymPy adapter boundary.",
         ),
         concept(
             "transformation-functions",
