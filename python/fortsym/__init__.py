@@ -407,6 +407,15 @@ def _configure(lib):
             _SIZE,
         ],
     )
+    lib.spacetime_form_codifferential = declare(
+        "fortsym_spacetime_form_codifferential", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR,
+            _SIZE,
+        ],
+    )
     lib.spacetime_form_wedge = declare(
         "fortsym_spacetime_form_wedge", ctypes.c_int,
         [
@@ -2055,6 +2064,15 @@ class SpacetimeForm:
         return SpacetimeForm(self.metric, components, degree, _owned=True)
 
     hodge_star = star
+
+    def codifferential(self):
+        components, degree = self._arena._spacetime_form_unary(
+            self._arena._lib.spacetime_form_codifferential, self.metric, self,
+            self.degree - 1,
+        )
+        return SpacetimeForm(self.metric, components, degree, _owned=True)
+
+    codiff = codifferential
 
     def wedge(self, other):
         if not isinstance(other, SpacetimeForm) or other.metric is not self.metric:

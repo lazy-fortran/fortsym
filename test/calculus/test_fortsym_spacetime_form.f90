@@ -9,7 +9,8 @@ program test_fortsym_spacetime_form
         spacetime_metric_create
     use fortsym_spacetime_form, only: spacetime_form_t, spacetime_form_one, &
         spacetime_form_two, spacetime_form_component, spacetime_d, &
-        spacetime_wedge, spacetime_hodge, spacetime_form_four
+        spacetime_wedge, spacetime_hodge, spacetime_form_four, &
+        spacetime_codifferential
     implicit none
 
     type(arena_t), target :: arena
@@ -19,7 +20,7 @@ program test_fortsym_spacetime_form
     type(expr_t) :: u(SPACETIME_DIM), components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: potential_components(SPACETIME_DIM)
     type(expr_t) :: two_components(6), residual
-    type(spacetime_form_t) :: potential, field, closed, hodge, hodge_hodge
+    type(spacetime_form_t) :: potential, field, closed, hodge, hodge_hodge, codiff
     integer :: signature(SPACETIME_DIM), mask
 
     call arena%init()
@@ -49,6 +50,11 @@ program test_fortsym_spacetime_form
         call check_identity(suite, engine, "d(dA)=0", &
             spacetime_form_component(closed, mask))
     end do
+
+    potential = spacetime_form_one(metric, u)
+    codiff = spacetime_codifferential(metric, potential)
+    call check_identity(suite, engine, "codifferential of radial one-form", &
+        spacetime_form_component(codiff, 0) + 2)
 
     two_components(1) = num(arena, 1)
     two_components(2) = num(arena, 2)

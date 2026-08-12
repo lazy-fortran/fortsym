@@ -42,8 +42,9 @@ relativity owner. It exposes `sqrtg()`, inverse metric, Christoffel, Riemann,
 Ricci, scalar curvature, and Einstein views using the same native expression
 arena and first-slot-fastest indexing. Its `one_form()`, `two_form()`,
 `three_form()`, and `four_form()` constructors return native `SpacetimeForm`
-owners. These expose `d()`/`exterior_diff`, `wedge()`, and `star()`/`hodge_star`
-with degree-aware components and the explicit metric signature and orientation.
+owners. These expose `d()`/`exterior_diff`, `wedge()`, `star()`/`hodge_star`,
+and `codifferential()`/`codiff()` with degree-aware components and the explicit
+metric signature and orientation.
 `Chart.one_form()`, `two_form()`, and
 `three_form()` construct native `Form` objects. Forms expose the fixed
 three-dimensional basis-mask components plus `d()`, `wedge()`, `star()`,

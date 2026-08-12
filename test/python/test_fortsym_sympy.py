@@ -126,6 +126,11 @@ class SympySubsetTest(unittest.TestCase):
         closed = field.d()
         for mask in range(16):
             self.assertEqual(closed[mask].simplify(), 0)
+        radial = metric.one_form((t, x, y, z))
+        self.assertEqual((radial.codifferential()[0] + 2).simplify(), 0)
+        self.assertEqual(
+            (radial.codiff()[0] - radial.codifferential()[0]).simplify(), 0
+        )
 
         two_form = metric.two_form((1, 2, 3, 4, 5, 6))
         double_star = two_form.star().star()

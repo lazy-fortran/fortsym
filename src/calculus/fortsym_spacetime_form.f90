@@ -8,7 +8,8 @@ module fortsym_spacetime_form
         spacetime_metric_t, spacetime_metric_valid, spacetime_metric_arena, &
         spacetime_metric_has_coordinates, spacetime_metric_coordinates, &
         spacetime_metric_contravariant, spacetime_metric_sqrtg, &
-        spacetime_metric_signature, spacetime_metric_orientation
+        spacetime_metric_signature, spacetime_metric_orientation, &
+        spacetime_metric_dimension
     implicit none
     private
 
@@ -285,6 +286,10 @@ contains
 
         if (.not. spacetime_form_valid(form)) return
         if (form%degree == 0) return
+        if (form%degree == 1) then
+            value = codifferential_one_form(g, form)
+            return
+        end if
         first = spacetime_hodge(g, form)
         second = spacetime_exterior_diff(g, first)
         value = spacetime_hodge(g, second)
@@ -298,6 +303,31 @@ contains
         if (mod(exponent, 2) == 1) sign = -1
         if (sign < 0) value = negate_form(value)
     end function spacetime_codifferential
+
+    function codifferential_one_form(g, form) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        type(spacetime_form_t), intent(in) :: form
+        type(spacetime_form_t) :: value
+        type(expr_t) :: inverse(SPACETIME_DIM, SPACETIME_DIM), volume
+        type(expr_t) :: coordinates(SPACETIME_DIM), term, flux
+        integer :: i, j, dimension
+
+        if (.not. spacetime_metric_has_coordinates(g)) return
+        if (.not. associated(form%a, spacetime_metric_arena(g))) return
+        inverse = spacetime_metric_contravariant(g)
+        volume = spacetime_metric_sqrtg(g)
+        coordinates = spacetime_metric_coordinates(g)
+        dimension = spacetime_metric_dimension(g)
+        value = zero_form_arena(form%a, 0)
+        term = num(form%a, 0)
+        do i = 1, dimension
+            do j = 1, dimension
+                flux = volume*inverse(i, j)*form%component(2**(j - 1))
+                term = term + diff(flux, coordinates(i))/volume
+            end do
+        end do
+        value%component(0) = -term
+    end function codifferential_one_form
 
     function zero_form_arena(a, degree) result(value)
         type(arena_t), pointer, intent(in) :: a
