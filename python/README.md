@@ -65,6 +65,23 @@ bit masks `1`, `2`, `4` for `dx`, `dy`, `dz`; `3`, `5`, `6` for the ordered
 two-form basis; and `7` for the volume form. Full arbitrary-dimensional
 `diffgeom` parity, pullbacks, and metric signatures remain roadmap work.
 
+`ChartMap` transforms components between two charts. Its `forward` tuple maps
+source coordinates to target coordinates and its `inverse` tuple maps back.
+Upper tensor slots use the forward Jacobian, lower slots use the inverse
+Jacobian, and density weights are applied through the absolute Jacobian
+determinant. The result is expressed in the target coordinate symbols:
+
+```python
+x, y, z, p, q, s = sp.symbols("x y z p q s")
+source = sp.Chart((x, y, z), (x, y, z))
+target = sp.Chart((p, q, s), ((p - q)/2, q, s))
+transition = sp.ChartMap(
+    source, target, (2*x + y, y, z), ((p - q)/2, q, s)
+)
+target_vector = transition.transform(source.vector((x, y, z)))
+assert tuple(value.simplify() for value in target_vector) == (p, q, s)
+```
+
 The geometry API currently covers the first magnetic-paper, fixed-rank
 connection, and fixed-three-dimensional form subsets. The
 Wolfram/Python source-script translator and full three-frontend differential

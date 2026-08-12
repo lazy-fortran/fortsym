@@ -921,6 +921,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Expose the chart-owned `grad`, `divergence`, `curl`, and `laplacian`
   operators through the C ABI and Python `Chart`, keeping curl's covector
   input and contravariant output convention explicit.
+- [x] Add the independent `fortsym_chart_map` owner for bidirectional
+  coordinate transitions. It transforms scalar, vector, covector, mixed
+  tensor, and density components into target coordinates through explicit
+  forward and inverse maps, with native and SymPy matrix oracles.
 - [ ] Add reciprocal bases, inverse coordinate maps when available, signed
   Jacobians, `sqrtg`, volume forms, surface measures, and metric signature
   checks. Singular maps and incompatible dimensions become named refusals.
@@ -928,9 +932,13 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   positive Euclidean chart, `e^i dot e_j = delta^i_j`, and the chain rule for
   two composed charts. Include nonorthogonal toroidal, cylindrical, and
   spherical charts so a diagonal metric cannot hide an index error.
-- [ ] Add coordinate transformations for scalar, vector, covector, general
-  tensor, and tensor-density components. Verify round trips and composition
-  against independently constructed Jacobian matrices.
+- [x] Add the fixed-three-dimensional `chart_map_t` transition subset for
+  scalar, vector, covector, mixed tensor, and tensor-density components.
+  Forward and inverse coordinate maps are explicit, and results are returned
+  in target coordinates.
+- [ ] Generalize coordinate transformations across supported dimensions and
+  chart-map compositions. Verify round trips and composition against
+  independently constructed Jacobian matrices.
 - [ ] Add `raise` and `lower` as metric-owned operations. They must preserve
   the underlying geometric object, update slot variance, and refuse a missing
   or singular metric instead of guessing.

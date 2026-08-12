@@ -164,6 +164,58 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(left_handed.reciprocal_basis()[0].simplify(), -1)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_chart_map_transforms_tensor_slots_and_densities(self):
+        x, y, z, p, q, s = sp.symbols(
+            "map_x map_y map_z map_p map_q map_s"
+        )
+        source = sp.Chart((x, y, z), (x, y, z))
+        target = sp.Chart((p, q, s), ((p - q)/2, q, s))
+        transition = sp.ChartMap(
+            source, target, (2*x + y, y, z), ((p - q)/2, q, s)
+        )
+        op, oq, os = oracle.symbols("map_p map_q map_s")
+
+        jacobian = oracle.Matrix(3, 3, lambda row, column: oracle.sympify(
+            str(transition.jacobian()[row + 3*column].simplify())
+        ))
+        inverse = oracle.Matrix(3, 3, lambda row, column: oracle.sympify(
+            str(transition.inverse_jacobian()[row + 3*column].simplify())
+        ))
+        self.assertEqual(jacobian, oracle.Matrix(((2, 1, 0), (0, 1, 0), (0, 0, 1))))
+        self.assertEqual(
+            inverse,
+            oracle.Matrix(((oracle.Rational(1, 2), -oracle.Rational(1, 2), 0),
+                           (0, 1, 0), (0, 0, 1))),
+        )
+
+        vector = transition.transform(source.vector((x, y, z)))
+        self.assertEqual(
+            tuple(oracle.sympify(str(vector[index].simplify())) for index in range(3)),
+            (op, oq, os),
+        )
+        covector = transition.transform(source.covector((2*x, y, z)))
+        self.assertEqual(
+            tuple(oracle.sympify(str(covector[index].simplify())) for index in range(3)),
+            ((op - oq)/2, (-op + 3*oq)/2, os),
+        )
+
+        matrix_values = tuple(range(1, 10))
+        mixed = source.tensor(matrix_values, variance=(1, -1))
+        transformed = transition.transform(mixed)
+        source_matrix = oracle.Matrix(3, 3, lambda row, column: matrix_values[row + 3*column])
+        expected = jacobian * source_matrix * inverse
+        actual = oracle.Matrix(3, 3, lambda row, column: oracle.sympify(
+            str(transformed[row, column].simplify())
+        ))
+        self.assertEqual(actual, expected)
+
+        density = transition.transform(source.vector((x, y, z), density_weight=1))
+        self.assertEqual(
+            tuple(oracle.sympify(str(density[index].simplify())) for index in range(3)),
+            (2*op, 2*oq, 2*os),
+        )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_diffgeom_names_use_native_owner_and_match_oracle(self):
         from sympy.diffgeom import (
             CoordSystem as OracleCoordSystem,
