@@ -27,6 +27,10 @@ module fortsym_public_capi
         b_fourier_density, flux_surface_t, flux_surface, flux_surface_valid, &
         flux_surface_average, &
         j_fourier
+    use fortsym_flux, only: flux_coordinate_t, flux_coordinates, &
+        flux_coordinate_valid, flux_normal_residual, &
+        straight_field_line_residual, boozer_residuals, &
+        FLUX_BOOZER, BOOZER_RESIDUAL_COUNT
     use fortsym_magnetic_weak, only: fourier_constitutive, fourier_weak_form, &
         current_compatibility, &
         fourier_constitutive_t, fourier_weak_form_t, &
@@ -143,6 +147,9 @@ module fortsym_public_capi
         fortsym_chart_map_jacobian, fortsym_chart_map_inverse_jacobian, &
         fortsym_chart_map_tensor, fortsym_chart_map_form, fortsym_chart_map_compose, &
         fortsym_chart_b_cov, fortsym_chart_b_density, &
+        fortsym_chart_flux_normal_residual, &
+        fortsym_chart_straight_field_line_residual, &
+        fortsym_chart_boozer_residuals, &
         fortsym_chart_h_cov, fortsym_chart_h_con, &
         fortsym_chart_b_fourier, fortsym_chart_b_fourier_density, &
         fortsym_chart_j_fourier, fortsym_chart_fourier_weak_form, &
@@ -2330,6 +2337,93 @@ contains
         value = b_density(chart, input)
         call make_array_handles(a, value, output, status, message, capacity)
     end function fortsym_chart_b_density
+
+    function fortsym_chart_flux_normal_residual(raw, coordinates, position, &
+            vector, label_index, out, message, capacity) bind(c, &
+            name="fortsym_chart_flux_normal_residual") result(status)
+        type(c_ptr), value :: raw, coordinates, position, vector, out
+        integer(c_int), value :: label_index
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: input(DIM), value
+        type(flux_coordinate_t) :: owner
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_vector_input(a, vector, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        owner = flux_coordinates(chart, int(label_index))
+        if (.not. flux_coordinate_valid(owner)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = flux_normal_residual(owner, input)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_chart_flux_normal_residual
+
+    function fortsym_chart_straight_field_line_residual(raw, coordinates, &
+            position, vector, label_index, rotational_transform, out, message, &
+            capacity) bind(c, name="fortsym_chart_straight_field_line_residual") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, vector, &
+            rotational_transform, out
+        integer(c_int), value :: label_index
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: input(DIM), iota, value
+        type(flux_coordinate_t) :: owner
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_vector_input(a, vector, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_scalar_input(a, rotational_transform, iota, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        owner = flux_coordinates(chart, int(label_index))
+        if (.not. flux_coordinate_valid(owner)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = straight_field_line_residual(owner, input, iota)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_chart_straight_field_line_residual
+
+    function fortsym_chart_boozer_residuals(raw, coordinates, position, vector, &
+            label_index, out, message, capacity) bind(c, &
+            name="fortsym_chart_boozer_residuals") result(status)
+        type(c_ptr), value :: raw, coordinates, position, vector, out
+        integer(c_int), value :: label_index
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: covariant(DIM), value(BOOZER_RESIDUAL_COUNT)
+        type(flux_coordinate_t) :: owner
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_vector_input(a, vector, covariant, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        owner = flux_coordinates(chart, int(label_index), FLUX_BOOZER)
+        if (.not. flux_coordinate_valid(owner)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = boozer_residuals(owner, covariant)
+        call make_expr_array(a, value, out, BOOZER_RESIDUAL_COUNT, status, &
+            message, capacity)
+    end function fortsym_chart_boozer_residuals
 
     function fortsym_chart_h_cov(raw, coordinates, position, reluctivity, vector, &
             out, message, capacity) bind(c, name="fortsym_chart_h_cov") &

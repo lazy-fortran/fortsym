@@ -94,6 +94,43 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_flux_coordinate_residuals_match_sympy(self):
+        psi, theta, phi = sp.symbols("flux_owner_psi flux_owner_theta flux_owner_phi")
+        i0, i1, g0, g1 = sp.symbols(
+            "flux_owner_I0 flux_owner_I1 flux_owner_G0 flux_owner_G1"
+        )
+        chart = sp.Chart((psi, theta, phi), (psi, theta, phi))
+        owner = chart.flux_coordinates(1, kind=sp.FLUX_BOOZER)
+        self.assertIsInstance(owner, sp.FluxCoordinates)
+        self.assertEqual(owner.angle_indices, (2, 3))
+        self.assertEqual(owner.kind_name, "boozer")
+
+        i_flux = i0 + i1*psi
+        g_flux = g0 + g1*psi
+        covariant = chart.covector((0, i_flux, g_flux))
+        residuals = owner.boozer_residuals(covariant)
+        self.assertEqual(
+            tuple(oracle.sympify(str(value.simplify())) for value in residuals),
+            (0, 0, 0, 0, 0),
+        )
+        self.assertTrue(owner.boozer_valid(covariant))
+
+        bad = chart.covector((0, i_flux + theta, g_flux))
+        self.assertEqual(
+            oracle.sympify(str(owner.boozer_residuals(bad)[1].simplify())), 1
+        )
+        self.assertFalse(owner.boozer_valid(bad))
+        self.assertEqual(
+            oracle.sympify(str(owner.normal(chart.vector((0, i_flux, g_flux))).simplify())),
+            0,
+        )
+        straight = owner.straight_field_residual(
+            chart.vector((0, sp.Symbol("flux_owner_iota"), 1)),
+            sp.Symbol("flux_owner_iota"),
+        )
+        self.assertEqual(oracle.sympify(str(straight.simplify())), 0)
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_flux_surface_average_matches_sympy(self):
         x, y, z = sp.symbols("average_x average_y average_z")
         chart = sp.Chart((x, y, z), (x, y, z))

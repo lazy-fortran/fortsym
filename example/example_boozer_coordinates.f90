@@ -21,7 +21,9 @@ program example_boozer_coordinates
     type(expr_t) :: i_flux, g_flux
     type(expr_t) :: metric_components(DIM, DIM), b_covariant_values(DIM)
     type(expr_t) :: b_contravariant_values(DIM), volume_density
+    type(expr_t) :: boozer_residual(BOOZER_RESIDUAL_COUNT)
     type(expr_t) :: grad_psi(DIM), b_dot_grad_psi
+    type(flux_coordinate_t) :: flux_owner
     integer :: indices_empty(0)
     type(tensor_t) :: b_covariant, b_contravariant, divergence_value
     type(form_t) :: metric_volume_value, volume_value, flux_form, closed_form
@@ -46,6 +48,10 @@ program example_boozer_coordinates
     ! a harmless identity chart here, not a Cartesian equilibrium embedding.
     position = coordinates
     boozer_chart = chart_create(arena, coordinates, position)
+    flux_owner = flux_coordinates(boozer_chart, 1, FLUX_BOOZER)
+    if (.not. flux_coordinate_valid(flux_owner)) then
+        error stop "Boozer flux-coordinate owner invalid"
+    end if
 
     metric_components = num(arena, 0)
     metric_components(1, 1) = num(arena, 1)
@@ -83,18 +89,12 @@ program example_boozer_coordinates
         "Boozer positive metric volume density")
     call assert_zero(form_component(metric_volume_value, 7)**2 - &
         abs(metric_det(metric_owner)), "Boozer oriented volume form")
-    checked = diff(b_covariant_values(2), theta)
-    call assert_zero_result(checked, &
-        "B_theta is independent of theta")
-    checked = diff(b_covariant_values(2), phi)
-    call assert_zero_result(checked, &
-        "B_theta is independent of phi")
-    checked = diff(b_covariant_values(3), theta)
-    call assert_zero_result(checked, &
-        "B_phi is independent of theta")
-    checked = diff(b_covariant_values(3), phi)
-    call assert_zero_result(checked, &
-        "B_phi is independent of phi")
+    boozer_residual = boozer_residuals(flux_owner, b_covariant_values)
+    call assert_zero(boozer_residual(1), "B_psi = 0")
+    call assert_zero(boozer_residual(2), "B_theta is independent of theta")
+    call assert_zero(boozer_residual(3), "B_theta is independent of phi")
+    call assert_zero(boozer_residual(4), "B_phi is independent of theta")
+    call assert_zero(boozer_residual(5), "B_phi is independent of phi")
 
     indices(1) = 1
     call assert_zero(tensor_component(b_contravariant, indices), &
@@ -139,16 +139,5 @@ contains
             error stop 1
         end if
     end subroutine assert_zero
-
-    subroutine assert_zero_result(result, label)
-        type(engine_result_t), intent(in) :: result
-        character(*), intent(in) :: label
-
-        if (.not. result%ok) then
-            write (*, '(a)') "FAILED: "//label
-            error stop 1
-        end if
-        call assert_zero(result%value, label)
-    end subroutine assert_zero_result
 
 end program example_boozer_coordinates

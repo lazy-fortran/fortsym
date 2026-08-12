@@ -140,7 +140,9 @@ the map-derived metric and operators, `fortsym_chart_map` owns bidirectional
 coordinate transitions and form pullbacks, `fortsym_magnetic` owns variance and
 density views,
 `fortsym_tensor` owns typed components, `fortsym_form` owns exterior algebra,
-and `fortsym_connection` owns covariant/curvature views. `fortsym_magnetic`
+`fortsym_connection` owns covariant/curvature views, and `fortsym_flux` owns
+coordinate-label metadata and flux-coordinate residual identities.
+`fortsym_magnetic`
 also packages its `B^i`, `B_i`, and vector-density views as typed tensors
 without duplicating their component derivation. Chart maps retain source and
 target patch declarations and validate the intermediate patch during
