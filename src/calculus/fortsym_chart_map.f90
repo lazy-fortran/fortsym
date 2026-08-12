@@ -5,12 +5,13 @@ module fortsym_chart_map
     ! in the source variables and then expressed in target variables through
     ! the supplied inverse map. This makes the coordinate dependence explicit
     ! and prevents a target tensor from carrying source-coordinate expressions.
-    use fortsym_arena, only: arena_t
     use fortsym_chart, only: chart_t, DIM
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, num, abs, is_valid, operator(+), &
         operator(-), operator(*), operator(/), operator(**)
     use fortsym_subs, only: subs_many
+    use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
+        form_component, form_degree, form_valid
     use fortsym_tensor, only: tensor_t, MAX_RANK, UPPER, LOWER_VARIANCE, &
         tensor_valid, tensor_from_storage
     implicit none
@@ -19,7 +20,7 @@ module fortsym_chart_map
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
 
     public :: chart_map_t, chart_map_create
-    public :: map_jacobian, inverse_jacobian, transform_tensor
+    public :: map_jacobian, inverse_jacobian, transform_tensor, transform_form
 
     type :: chart_map_t
         type(chart_t) :: source
@@ -134,6 +135,70 @@ contains
             source_tensor%density_weight)
     end function transform_tensor
 
+    !> Express a source differential form in the target coordinate coframe.
+    !>
+    !> This is the pullback along the supplied inverse coordinate map: every
+    !> covector factor uses L(i,j) = partial(source i)/partial(target j),
+    !> while the coefficient is simultaneously expressed in target symbols.
+    !> The top-form rule is signed, so orientation reversal is preserved.
+    function transform_form(map, source_form) result(result)
+        type(chart_map_t), intent(in) :: map
+        type(form_t), intent(in) :: source_form
+        type(form_t) :: result
+        type(expr_t) :: lower_map(DIM, DIM)
+        type(expr_t) :: one_values(DIM), two_values(3), coefficient
+        type(expr_t) :: source_12, source_13, source_23
+        integer :: degree, i, j
+
+        if (.not. map_valid(map)) return
+        if (.not. form_valid(source_form)) return
+        if (.not. associated(source_form%a, map%source%a)) return
+        degree = form_degree(source_form)
+        if (degree < 0 .or. degree > DIM) return
+
+        lower_map = inverse_jacobian(map)
+        select case (degree)
+        case (0)
+            coefficient = subs_many(form_component(source_form, 0), &
+                map%source%u, map%inverse)
+            result = form_scalar(coefficient)
+        case (1)
+            one_values = num(map%target%a, 0)
+            do j = 1, DIM
+                do i = 1, DIM
+                    coefficient = subs_many(form_component(source_form, &
+                        2**(i - 1)), map%source%u, map%inverse)
+                    one_values(j) = one_values(j) + lower_map(i, j)*coefficient
+                end do
+            end do
+            result = form_one(map%target, one_values)
+        case (2)
+            two_values = num(map%target%a, 0)
+            source_12 = subs_many(form_component(source_form, 3), &
+                map%source%u, map%inverse)
+            source_13 = subs_many(form_component(source_form, 5), &
+                map%source%u, map%inverse)
+            source_23 = subs_many(form_component(source_form, 6), &
+                map%source%u, map%inverse)
+            do j = 1, DIM
+                do i = j + 1, DIM
+                    two_values(pair_index(j, i)) = &
+                        source_12*(lower_map(1, j)*lower_map(2, i) - &
+                        lower_map(1, i)*lower_map(2, j)) + &
+                        source_13*(lower_map(1, j)*lower_map(3, i) - &
+                        lower_map(1, i)*lower_map(3, j)) + &
+                        source_23*(lower_map(2, j)*lower_map(3, i) - &
+                        lower_map(2, i)*lower_map(3, j))
+                end do
+            end do
+            result = form_two(map%target, two_values)
+        case (3)
+            coefficient = subs_many(form_component(source_form, 7), &
+                map%source%u, map%inverse)
+            result = form_three(map%target, coefficient*det3(lower_map))
+        end select
+    end function transform_form
+
     function target_jacobian(map) result(result)
         type(chart_map_t), intent(in) :: map
         type(expr_t) :: result(DIM, DIM)
@@ -177,6 +242,19 @@ contains
             matrix(1, 3)*(matrix(2, 1)*matrix(3, 2) - &
             matrix(2, 2)*matrix(3, 1))
     end function det3
+
+    pure function pair_index(first, second) result(index)
+        integer, intent(in) :: first, second
+        integer :: index
+
+        if (first == 1 .and. second == 2) then
+            index = 1
+        else if (first == 1 .and. second == 3) then
+            index = 2
+        else
+            index = 3
+        end if
+    end function pair_index
 
     pure function component_count(rank) result(count)
         integer, intent(in) :: rank

@@ -215,6 +215,24 @@ class SympySubsetTest(unittest.TestCase):
             (2*op, 2*oq, 2*os),
         )
 
+        one_form = transition.transform(source.one_form((x, y, z)))
+        self.assertEqual(
+            tuple(oracle.sympify(str(one_form[mask].simplify()))
+                  for mask in (1, 2, 4)),
+            ((op - oq)/4, (-op + 5*oq)/4, os),
+        )
+        two_form = transition.transform(source.two_form((x, y, z)))
+        self.assertEqual(
+            tuple(oracle.sympify(str(two_form[mask].simplify()))
+                  for mask in (3, 5, 6)),
+            ((op - oq)/4, oq/2, -oq/2 + os),
+        )
+        three_form = transition.transform(source.three_form(1))
+        self.assertEqual(
+            oracle.sympify(str(three_form[7].simplify())),
+            oracle.Rational(1, 2),
+        )
+
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_diffgeom_names_use_native_owner_and_match_oracle(self):
         from sympy.diffgeom import (

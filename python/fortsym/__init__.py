@@ -223,6 +223,17 @@ def _configure(lib):
             ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    lib.chart_map_form = declare(
+        "fortsym_chart_map_form", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID),
+            _CHAR_PTR, _SIZE,
+        ],
+    )
     for name in ("b_cov", "b_fourier", "b_fourier_density"):
         arguments = [
             _CVOID,
@@ -1002,6 +1013,21 @@ class Arena:
             raise FortSymError(status, _decode(message), "map_tensor")
         return tuple(Expr(self, output[index]) for index in range(output_count))
 
+    def _chart_map_form(self, chart_map, form):
+        arguments = self._chart_map_inputs(chart_map)
+        component_handles = (_CVOID * 8)(
+            *[self._check(value)._handle for value in form.components]
+        )
+        output = (_CVOID * 8)()
+        message = _message()
+        status = self._lib.chart_map_form(
+            self._require(), *arguments, component_handles, form.degree,
+            output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "map_form")
+        return tuple(Expr(self, output[index]) for index in range(8))
+
     def relation(self, left: "Expr", right: "Expr", name: str):
         left = self._check(left)
         right, temporary = self._coerce(right)
@@ -1262,13 +1288,20 @@ class ChartMap:
         )
 
     def transform(self, tensor):
-        if not isinstance(tensor, Tensor) or tensor.chart is not self.source:
-            raise ValueError("ChartMap.transform expects a tensor from its source chart")
-        components = self._arena._chart_map_tensor(self, tensor)
-        return Tensor(
-            self.target, components, tensor.variance, tensor.density_weight,
-            _owned=True,
-        )
+        if isinstance(tensor, Tensor):
+            if tensor.chart is not self.source:
+                raise ValueError("ChartMap.transform expects a tensor from its source chart")
+            components = self._arena._chart_map_tensor(self, tensor)
+            return Tensor(
+                self.target, components, tensor.variance, tensor.density_weight,
+                _owned=True,
+            )
+        if isinstance(tensor, Form):
+            if tensor.chart is not self.source:
+                raise ValueError("ChartMap.transform expects a form from its source chart")
+            components = self._arena._chart_map_form(self, tensor)
+            return Form(self.target, components, tensor.degree, _owned=True)
+        raise TypeError("ChartMap.transform expects a Tensor or Form")
 
     pushforward = transform
 

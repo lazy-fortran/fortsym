@@ -131,7 +131,8 @@ they add only result/error transport and SymPy spelling translation, so there
 is no second projection or conjugation implementation at a public boundary.
 The same ownership rule applies to coordinate charts: `fortsym_chart` owns
 the map-derived metric and operators, `fortsym_chart_map` owns bidirectional
-coordinate transitions, `fortsym_magnetic` owns variance and density views,
+coordinate transitions and form pullbacks, `fortsym_magnetic` owns variance and
+density views,
 `fortsym_tensor` owns typed components, `fortsym_form` owns exterior algebra,
 and `fortsym_connection` owns covariant/curvature views. The Python `Chart`,
 `ChartMap`, `Tensor`, and `Form` classes only transport handles and metadata

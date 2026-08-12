@@ -923,8 +923,8 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   input and contravariant output convention explicit.
 - [x] Add the independent `fortsym_chart_map` owner for bidirectional
   coordinate transitions. It transforms scalar, vector, covector, mixed
-  tensor, and density components into target coordinates through explicit
-  forward and inverse maps, with native and SymPy matrix oracles.
+  tensor, density, and differential-form components into target coordinates
+  through explicit forward and inverse maps, with native and SymPy oracles.
 - [ ] Add reciprocal bases, inverse coordinate maps when available, signed
   Jacobians, `sqrtg`, volume forms, surface measures, and metric signature
   checks. Singular maps and incompatible dimensions become named refusals.
@@ -999,6 +999,9 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Prove the first coordinate-form identities independently on a
   nonorthogonal chart: `d(d(alpha)) = 0`, graded Leibniz, Cartan's identity,
   Euclidean-signature Hodge involution, and `sharp(flat(v)) = v`.
+- [x] Add fixed-three-dimensional chart-map form transport for degrees zero
+  through three, including signed top-form Jacobians and independent native
+  and SymPy coframe checks.
 - [ ] Add a Maxwell and plasma vocabulary built from forms: vector potential
   one-form `A`, magnetic flux two-form `beta = i_B(volume)`, `d(beta) = 0`,
   `beta = d(A)` on a declared simply connected patch, electric field form,

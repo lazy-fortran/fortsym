@@ -42,7 +42,7 @@ module fortsym
         reciprocal_basis, metric_covariant, metric_contravariant, sqrtg, &
         jacobian, christoffel, grad, divergence, curl, laplacian
     use fortsym_chart_map, only: chart_map_t, chart_map_create, map_jacobian, &
-        inverse_jacobian, transform_tensor
+        inverse_jacobian, transform_tensor, transform_form
     use fortsym_form, only: form_t, form, form_scalar, form_one, form_two, &
         form_three, form_component, form_degree, form_valid, add_forms, &
         subtract_forms, negate_form, wedge, d, &
@@ -94,7 +94,8 @@ module fortsym
     public :: DIM, chart_t, chart_create, covariant_basis, reciprocal_basis, &
         metric_covariant, metric_contravariant, sqrtg, jacobian, christoffel, &
         grad, divergence, curl, laplacian, chart_map_t, chart_map_create, &
-        map_jacobian, inverse_jacobian, transform_tensor, b_con, b_cov, b_density, b_fourier, &
+        map_jacobian, inverse_jacobian, transform_tensor, transform_form, b_con, &
+        b_cov, b_density, b_fourier, &
         b_fourier_density, form_t, form, form_scalar, form_one, form_two, &
         form_three, form_component, form_degree, form_valid, add_forms, &
         subtract_forms, negate_form, wedge, d, &
