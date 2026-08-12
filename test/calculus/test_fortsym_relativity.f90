@@ -3,7 +3,7 @@ program test_fortsym_relativity
     ! nonzero Christoffel symbols. This catches dimension, signature, and
     ! curvature-index errors simultaneously.
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, num, sin, cos, &
+    use fortsym_expr, only: expr_t, sym, num, sin, cos, exp, &
         expr_abs => abs, operator(*), &
         operator(/), operator(+), operator(-), operator(**)
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
@@ -20,12 +20,14 @@ program test_fortsym_relativity
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
     type(spacetime_metric_t) :: metric
+    type(spacetime_metric_t) :: metric_2d
     type(expr_t) :: u(SPACETIME_DIM), components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: inverse(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: gamma(SPACETIME_DIM, SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: ricci(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: einstein(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: scalar, determinant, volume
+    type(expr_t) :: components_2d(SPACETIME_DIM, SPACETIME_DIM), scalar_2d
     type(expr_t) :: parameter, curve(SPACETIME_DIM), residual(SPACETIME_DIM)
     integer :: signature(SPACETIME_DIM), i, j
 
@@ -93,6 +95,18 @@ program test_fortsym_relativity
             call check_identity(suite, engine, "flat Einstein component", einstein(i, j))
         end do
     end do
+
+    components_2d = num(arena, 0)
+    components_2d(1, 1) = num(arena, 1)
+    components_2d(2, 2) = exp(2*u(1))
+    metric_2d = spacetime_metric_create(components_2d, 2, u, &
+        [1, 1, 1, 1], 1)
+    scalar_2d = spacetime_scalar_curvature(metric_2d)
+    call check_identity(suite, engine, "curved two-dimensional scalar curvature", &
+        scalar_2d + 2)
+    inverse = spacetime_metric_contravariant(metric_2d)
+    call check_identity(suite, engine, "unused two-dimensional inverse slot", &
+        inverse(3, 3))
 
     if (suite%failed /= 0) then
         print *, "test_fortsym_relativity: ", suite%failed, " check(s) FAILED"

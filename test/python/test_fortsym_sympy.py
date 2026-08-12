@@ -111,6 +111,16 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(metric.ricci()[0, 0].simplify(), 0)
         self.assertEqual(metric.einstein()[3, 3].simplify(), 0)
 
+        curved_2d = sp.SpacetimeMetric(
+            (t, r, theta, phi),
+            ((1, 0, 0, 0), (0, sp.exp(2*t), 0, 0),
+             (0, 0, 0, 0), (0, 0, 0, 0)),
+            dimension=2,
+            signature=(1, 1, 1, 1),
+        )
+        self.assertEqual((curved_2d.scalar_curvature() + 2).simplify(), 0)
+        self.assertEqual(curved_2d.contravariant()[2, 2].simplify(), 0)
+
         parameter = sp.Symbol("geodesic_lambda")
         curve = (parameter, 1, parameter, 0)
         residual = metric.geodesic_residual(curve, parameter)
