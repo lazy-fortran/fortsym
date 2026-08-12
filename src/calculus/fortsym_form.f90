@@ -17,6 +17,7 @@ module fortsym_form
     private
 
     public :: form_t, form, form_scalar, form_one, form_two, form_three
+    public :: volume_form, volume
     public :: form_component, form_degree, form_valid
     public :: add_forms, subtract_forms, negate_form
     public :: wedge, d, exterior_diff, star, hodge_star
@@ -41,6 +42,10 @@ module fortsym_form
     interface star
         module procedure hodge_star
     end interface star
+
+    interface volume
+        module procedure volume_form
+    end interface volume
 
     interface interior
         module procedure interior_product
@@ -142,6 +147,22 @@ contains
         end if
         alpha%component(7) = value
     end function form_three
+
+    !> Oriented metric volume form sigma*sqrt(g) du^1^du^2^du^3.
+    function volume_form(c, orientation) result(alpha)
+        type(chart_t), intent(in) :: c
+        integer, optional, intent(in) :: orientation
+        type(form_t) :: alpha
+        type(expr_t) :: coefficient
+        integer :: sign
+
+        sign = 1
+        if (present(orientation)) sign = orientation
+        if (sign /= 1 .and. sign /= -1) return
+        coefficient = sqrtg(c)
+        if (sign < 0) coefficient = -coefficient
+        alpha = form_three(c, coefficient)
+    end function volume_form
 
     !> Return a coefficient by its ordered basis mask.
     function form_component(alpha, mask) result(value)

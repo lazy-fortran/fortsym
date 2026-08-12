@@ -915,6 +915,9 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Expose native density metadata changes and concise `Chart.vector` and
   `Chart.covector` constructors. A density conversion preserves components,
   variance, and chart ownership while changing only its explicit weight.
+- [x] Add an oriented metric `volume_form` and `Chart.volume(orientation)`
+  owner. The sign is explicit and independent from positive `sqrtg`, with
+  native and SymPy-backed checks for both orientations.
 - [ ] Add reciprocal bases, inverse coordinate maps when available, signed
   Jacobians, `sqrtg`, volume forms, surface measures, and metric signature
   checks. Singular maps and incompatible dimensions become named refusals.

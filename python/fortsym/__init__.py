@@ -296,6 +296,11 @@ def _configure(lib):
         "fortsym_chart_form_sharp", ctypes.c_int,
         form_unary_arguments,
     )
+    lib.chart_form_volume = declare(
+        "fortsym_chart_form_volume", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.expand = declare(
         "fortsym_expand",
         ctypes.c_int,
@@ -791,6 +796,20 @@ class Arena:
             [vector_handles], 8,
         )
 
+    def _chart_form_volume(self, chart, orientation):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        output = (_CVOID * 8)()
+        message = _message()
+        status = self._lib.chart_form_volume(
+            self._require(), coordinate_handles, position_handles,
+            int(orientation), output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "form_volume")
+        return tuple(Expr(self, output[index]) for index in range(8))
+
     def _chart_form_sharp(self, form):
         components = (_CVOID * 8)(
             *[self._check(value)._handle for value in form.components]
@@ -988,6 +1007,12 @@ class Chart:
 
     def three_form(self, value):
         return Form(self, (value,), 3)
+
+    def volume(self, orientation=1):
+        if int(orientation) not in (-1, 1):
+            raise ValueError("volume orientation must be 1 or -1")
+        components = self._arena._chart_form_volume(self, orientation)
+        return Form(self, components, 3, _owned=True)
 
     def flat(self, vector):
         components = self._arena._chart_form_flat(self, vector)

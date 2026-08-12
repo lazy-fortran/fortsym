@@ -306,6 +306,10 @@ int fortsym_chart_form_sharp(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *input[], size_t degree,
     fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_form_volume(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], int orientation, fortsym_expr *out[],
+    char *message, size_t capacity);
 int fortsym_zero_test(fortsym_arena *arena, const fortsym_expr *expression,
                       int *verdict, char *message, size_t capacity);
 /* operation is one of "re", "im", "conjugate", "arg", "abs", or

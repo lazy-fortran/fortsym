@@ -29,7 +29,7 @@ module fortsym_public_capi
     use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
         form_component, form_valid, add_forms, subtract_forms, negate_form, &
         wedge, exterior_diff, hodge_star, interior_product, lie_derivative, &
-        flat, sharp, scale_form
+        flat, sharp, scale_form, volume_form
     use fortsym_assume_api, only: assumption_context_t, init_assumption_context, &
         clone_assumption_context, record_assumption, &
         record_relation, &
@@ -103,7 +103,7 @@ module fortsym_public_capi
         fortsym_chart_form_d, fortsym_chart_form_wedge, &
         fortsym_chart_form_star, fortsym_chart_form_interior, &
         fortsym_chart_form_lie, fortsym_chart_form_flat, &
-        fortsym_chart_form_sharp
+        fortsym_chart_form_sharp, fortsym_chart_form_volume
     public :: fortsym_complex_operation
     public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
@@ -118,7 +118,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 21_c_int
+        v = 22_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1307,6 +1307,29 @@ contains
         value = sharp(chart, input_value)
         call make_expr_array(a, value, out, DIM, status, message, capacity)
     end function fortsym_chart_form_sharp
+
+    function fortsym_chart_form_volume(raw, coordinates, position, orientation, &
+            out, message, capacity) bind(c, name="fortsym_chart_form_volume") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, out
+        integer(c_int), value :: orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (orientation /= 1_c_int .and. orientation /= -1_c_int) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = volume_form(chart, int(orientation))
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_volume
 
     function fortsym_chart_b_cov(raw, coordinates, position, vector, out, &
             message, capacity) bind(c, name="fortsym_chart_b_cov") result(status)
