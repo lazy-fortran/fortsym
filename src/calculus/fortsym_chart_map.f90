@@ -11,7 +11,7 @@ module fortsym_chart_map
         operator(-), operator(*), operator(/), operator(**), operator(==)
     use fortsym_subs, only: subs_many
     use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
-        form_component, form_degree, form_valid
+        form_zero, form_component, form_degree, form_valid
     use fortsym_tensor, only: tensor_t, MAX_RANK, UPPER, LOWER_VARIANCE, &
         tensor_valid, tensor_from_storage
     implicit none
@@ -178,7 +178,7 @@ contains
         if (.not. form_valid(source_form)) return
         if (.not. associated(source_form%a, map%source%a)) return
         degree = form_degree(source_form)
-        if (degree < 0 .or. degree > DIM) return
+        if (degree < 0 .or. degree > DIM + 1) return
 
         lower_map = inverse_jacobian(map)
         select case (degree)
@@ -220,6 +220,8 @@ contains
             coefficient = subs_many(form_component(source_form, 7), &
                 map%source%u, map%inverse)
             result = form_three(map%target, coefficient*det3(lower_map))
+        case (DIM + 1)
+            result = form_zero(map%target, DIM + 1)
         end select
     end function transform_form
 

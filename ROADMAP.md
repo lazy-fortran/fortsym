@@ -1006,7 +1006,8 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   Euclidean-signature Hodge involution, and `sharp(flat(v)) = v`.
 - [x] Add fixed-three-dimensional chart-map form transport for degrees zero
   through three, including signed top-form Jacobians and independent native
-  and SymPy coframe checks.
+  and SymPy coframe checks; preserve the degree-four zero extension returned
+  by `d` of a three-form across the C/Python boundary.
 - [ ] Add a Maxwell and plasma vocabulary built from forms: vector potential
   one-form `A`, magnetic flux two-form `beta = i_B(volume)`, `d(beta) = 0`,
   `beta = d(A)` on a declared simply connected patch, electric field form,

@@ -45,7 +45,7 @@ module fortsym
         map_jacobian, &
         inverse_jacobian, transform_tensor, transform_form, pullback
     use fortsym_form, only: form_t, form, form_scalar, form_one, form_two, &
-        form_three, form_component, form_degree, form_valid, add_forms, &
+        form_three, form_zero, form_component, form_degree, form_valid, add_forms, &
         subtract_forms, negate_form, wedge, d, &
         exterior_diff, star, hodge_star, interior, interior_product, lie, &
         lie_derivative, flat, sharp, scale_form

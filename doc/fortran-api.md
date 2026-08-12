@@ -92,11 +92,12 @@ the density weight, and returns components expressed in the target coordinates.
 
 ```fortran
 use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
-    transform_tensor, transform_form
+    transform_tensor, transform_form, pullback
 type(chart_map_t) :: transition
 transition = chart_map_create(source, target, target_in_source, source_in_target)
 target_tensor = transform_tensor(transition, source_tensor)
 target_form = transform_form(transition, source_form)
+target_form = pullback(transition, source_form)
 combined = compose_maps(transition, following)
 ```
 
@@ -104,6 +105,8 @@ The first native differential-form layer is three-dimensional and uses the
 coordinate coframe. `form_scalar`, `form_one`, `form_two`, and `form_three`
 construct typed forms; `d`, `wedge`, `star`, `interior`, and `lie` operate on
 them. `flat` and `sharp` are the metric-owned one-form/vector conversions.
+`form_zero(chart, 4)` names the explicit zero extension returned by `d` of a
+three-form; it is preserved by native form operations and chart-map transport.
 The magnetic two-form is therefore a derived identity, not a second magnetic
 field representation:
 

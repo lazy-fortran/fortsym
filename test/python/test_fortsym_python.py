@@ -139,6 +139,16 @@ class NativePackageTest(unittest.TestCase):
             contracted = derivative.interior((x, y, z))[1]
             self.assertEqual((contracted + 2*x*y - 2*y*z).simplify(), 0)
 
+    def test_top_degree_zero_form_crosses_python_boundary(self):
+        with fortsym.Arena() as arena:
+            x, y, z = [arena.symbol(name) for name in ("top_x", "top_y", "top_z")]
+            chart = fortsym.Chart((x, y, z), (x, y, z))
+            top = chart.three_form(x + y + z).d()
+
+            self.assertEqual(top.degree, 4)
+            self.assertEqual(top[0].simplify(), 0)
+            self.assertEqual(top.d()[0].simplify(), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

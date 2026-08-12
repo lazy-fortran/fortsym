@@ -29,6 +29,7 @@ module fortsym_public_capi
     use fortsym_connection, only: covariant_diff, christoffel_tensor, &
         riemann_tensor, ricci_tensor, scalar_curvature, einstein_tensor
     use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
+        form_zero, &
         form_component, form_valid, add_forms, subtract_forms, negate_form, &
         wedge, exterior_diff, hodge_star, interior_product, lie_derivative, &
         flat, sharp, scale_form, volume_form
@@ -59,7 +60,7 @@ module fortsym_public_capi
     integer(c_int), parameter, public :: FORTSYM_CONFLICT = 7_c_int
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
     integer, parameter :: FORM_COMPONENTS = 2**DIM
-    integer, parameter :: FORM_MAX_DEGREE = DIM
+    integer, parameter :: FORM_MAX_DEGREE = DIM + 1
 
     type :: assumption_frame_t
         type(assumption_context_t), pointer :: context => null()
@@ -124,7 +125,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 25_c_int
+        v = 26_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -2453,8 +2454,9 @@ contains
         integer(c_size_t), value :: capacity
         type(c_ptr), pointer :: component_values(:)
         type(expr_t) :: coefficients(3)
-        type(expr_t) :: scalar_value
-        integer :: shape(1), degree_value
+        type(expr_t) :: scalar_value, component_value
+        type(engine_result_t) :: zero_result
+        integer :: shape(1), degree_value, mask
 
         value = form_t()
         status = FORTSYM_INVALID_ARGUMENT
@@ -2499,6 +2501,19 @@ contains
                 status, message, capacity)
             if (status /= FORTSYM_OK) return
             value = form_three(chart, scalar_value)
+        case (DIM + 1)
+            do mask = 0, FORM_COMPONENTS - 1
+                call get_form_component(a, component_values, mask, &
+                    component_value, status, message, capacity)
+                if (status /= FORTSYM_OK) return
+                zero_result = a%engine%zero_test(component_value)
+                if (.not. zero_result%ok .or. &
+                    zero_result%verdict /= VERDICT_TRUE) then
+                    call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+                    return
+                end if
+            end do
+            value = form_zero(chart, DIM + 1)
         end select
         if (.not. form_valid(value)) then
             call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)

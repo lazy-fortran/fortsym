@@ -232,6 +232,9 @@ class SympySubsetTest(unittest.TestCase):
             oracle.sympify(str(three_form[7].simplify())),
             oracle.Rational(1, 2),
         )
+        top_zero = transition.transform(source.three_form(1).d())
+        self.assertEqual(top_zero.degree, 4)
+        self.assertEqual(oracle.sympify(str(top_zero[0].simplify())), 0)
 
         r, t, v = sp.symbols("map_r map_t map_v")
         final = sp.Chart((r, t, v), ((r - t)/2, t, v))
