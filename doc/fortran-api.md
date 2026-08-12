@@ -119,6 +119,8 @@ The exact real poles `atanh(1)` and `atanh(-1)` are canonicalized to `oo` and
 The exact principal branch points `acosh(0)` and `acosh(-1)` are likewise
 canonicalized to `i*pi/2` and `i*pi`; other negative-real branches remain
 unevaluated.
+The exact imaginary branch points `asinh(i)` and `asinh(-i)` are canonicalized
+to `i*pi/2` and `-i*pi/2`; broader complex inverse branches remain unevaluated.
 The reciprocal-hyperbolic heads `csch`, `sech`, and `coth` likewise have
 direct scalar rules: `csch` and `sech` tend to zero, while `coth` tends to
 the corresponding signed one; every `zoo` case becomes `nan`.

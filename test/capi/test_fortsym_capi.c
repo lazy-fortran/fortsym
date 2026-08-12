@@ -95,6 +95,7 @@ int main(void)
     fortsym_expr *negative_log = NULL;
     fortsym_expr *negative_log_simplified = NULL;
     fortsym_expr *negative_four = NULL;
+    fortsym_expr *negative_imaginary = NULL;
     fortsym_expr *pole = NULL;
     fortsym_expr *pole_simplified = NULL;
     fortsym_expr *branch = NULL;
@@ -480,6 +481,33 @@ int main(void)
     fortsym_expr_free(branch);
     branch_simplified = NULL;
     branch = NULL;
+    root_argument[0] = imaginary;
+    status = fortsym_function(arena, "asinh", root_argument, 1, &branch,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, branch, &branch_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(branch_simplified, "i*pi*1/2");
+    fortsym_expr_free(branch_simplified);
+    fortsym_expr_free(branch);
+    branch_simplified = NULL;
+    branch = NULL;
+    status = fortsym_multiply(arena, minus_one, imaginary, &negative_imaginary,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    root_argument[0] = negative_imaginary;
+    status = fortsym_function(arena, "asinh", root_argument, 1, &branch,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, branch, &branch_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(branch_simplified, "-i*pi*1/2");
+    fortsym_expr_free(branch_simplified);
+    fortsym_expr_free(branch);
+    branch_simplified = NULL;
+    branch = NULL;
     status = fortsym_multiply(arena, minus_one, infinity, &negative_infinity,
                               message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -572,6 +600,7 @@ int main(void)
     fortsym_expr_free(negative_log);
     fortsym_expr_free(negative_two);
     fortsym_expr_free(negative_four);
+    fortsym_expr_free(negative_imaginary);
     fortsym_expr_free(pole_simplified);
     fortsym_expr_free(pole);
     fortsym_expr_free(branch_simplified);
