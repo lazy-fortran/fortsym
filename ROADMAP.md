@@ -1559,7 +1559,13 @@ without an explicit volume factor.
 - [x] Add coordinate-surface measures as the foundation for flux-surface
   integrals and FEM boundary terms; positive measures remain distinct from
   magnetic vector densities and oriented volume forms.
-- [ ] Add magnetic surfaces, flux-surface averages, and Jacobian-weighted
+- [x] Add the first typed coordinate-surface owner: `flux_surface_t` records
+  the label and ordered angular coordinates, exposes the positive induced
+  measure, and computes verified periodic averages in the native Fortran
+  owner, C ABI 59, and both Python facades. Unsupported symbolic integrals
+  return an explicit refusal; no numerical fallback is hidden in the API.
+- [ ] Extend that owner to magnetic-equilibrium surfaces, configurable
+  periodic domains, line/surface integral measures, and Jacobian-weighted
   divergence.
 - [x] Provide metric contraction for `B**2` through the shared `metric_inner`
   owner.

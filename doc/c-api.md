@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 58). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 59). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -17,6 +17,11 @@ remain the ordinary vector operations.
 `fortsym_chart_surface_measure` returns the positive induced two-dimensional
 measure on a coordinate surface `u[normal_index] = constant`; the explicit
 metric owner provides the corresponding `fortsym_metric_surface_measure`.
+`fortsym_chart_flux_surface_average` owns the matching coordinate-surface
+metadata and averages a scalar over both remaining coordinates on
+`[0,2*pi]`. It returns `FORTSYM_UNSUPPORTED` when either the weighted
+numerator or normalization falls outside the verified native definite-integral
+subset; it never substitutes an unverified numerical result.
 `fortsym_chart_tensor_permute` reorders typed tensor slots, and
 `fortsym_chart_tensor_symmetrize` projects two slots to their symmetric or
 antisymmetric part while preserving variance and density metadata.

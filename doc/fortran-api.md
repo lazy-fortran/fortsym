@@ -72,6 +72,12 @@ views with variance and density weight retained across the three representations
 The chart operation `surface_measure(chart, normal_index)` returns the positive
 induced measure on `u(normal_index)=constant`; `metric_surface_measure` is the
 same operation for an explicit metric and uses `sqrt(abs(det(g_surface)))`.
+`flux_surface(chart, label_index)` packages that label and the two remaining
+angle coordinates as a `flux_surface_t`. `flux_surface_measure` returns its
+positive induced measure, while `flux_surface_average` verifies the weighted
+numerator and normalization with `definite_integral` on `[0,2*pi]` (or supplied
+upper bounds) before returning a result. Unsupported symbolic integrals return
+`ok=.false.` and a diagnostic instead of an unverified value.
 The generic chart operation `field_line_derivative(chart, vector, scalar)`
 returns `vector(i) * d(scalar)/du(i)` and is also the magnetic `B dot grad`
 operation.

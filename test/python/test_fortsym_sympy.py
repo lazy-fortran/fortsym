@@ -37,6 +37,10 @@ class SympySubsetTest(unittest.TestCase):
     def test_geometry_classes_are_reexported(self):
         x, y, z = sp.symbols("geometry_x geometry_y geometry_z")
         chart = sp.Chart((x, y, z), (x, y, z))
+        surface = chart.flux_surface(1)
+        self.assertIsInstance(surface, sp.FluxSurface)
+        self.assertEqual(surface.label, x)
+        self.assertEqual(surface.average(1 + sp.sin(y) + sp.cos(z)).simplify(), 1)
         metric = chart.metric()
         self.assertIsInstance(metric, sp.Tensor)
         self.assertEqual(metric.variance, (-1, -1))
@@ -73,6 +77,19 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(
             density_vector.covariant_divergence().component().simplify(), 3
         )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_flux_surface_average_matches_sympy(self):
+        x, y, z = sp.symbols("average_x average_y average_z")
+        chart = sp.Chart((x, y, z), (x, y, z))
+        actual = chart.flux_surface(1).average(1 + sp.sin(y) + sp.cos(z))
+        ox, oy, oz = oracle.symbols("average_x average_y average_z")
+        integrand = 1 + oracle.sin(oy) + oracle.cos(oz)
+        expected = oracle.integrate(
+            oracle.integrate(integrand, (oy, 0, 2*oracle.pi)),
+            (oz, 0, 2*oracle.pi),
+        ) / (2*oracle.pi)**2
+        self.assertEqual(oracle.sympify(str(actual.simplify())), expected)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_tensor_lie_derivative_matches_independent_sympy_formula(self):

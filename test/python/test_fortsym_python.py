@@ -115,6 +115,20 @@ class NativePackageTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 fortsym.Chart((z, r), (r, z))
 
+    def test_native_flux_surface_owner(self):
+        with fortsym.Arena() as arena:
+            psi, theta, phi = [arena.symbol(name)
+                               for name in ("surface_psi", "surface_theta",
+                                            "surface_phi")]
+            chart = fortsym.Chart((psi, theta, phi), (psi, theta, phi))
+            surface = chart.flux_surface(1)
+            self.assertEqual(surface.label, psi)
+            self.assertEqual(surface.angle_indices, (2, 3))
+            self.assertEqual(surface.measure().simplify(), 1)
+            scalar = 1 + arena.function("sin", (theta,)) + \
+                arena.function("cos", (phi,))
+            self.assertEqual(surface.average(scalar).simplify(), 1)
+
     def test_native_tensor_and_connection_frontend(self):
         with fortsym.Arena() as arena:
             z, r, phi = [arena.symbol(name)

@@ -8,17 +8,21 @@ module fortsym_magnetic
     ! and sqrt(g) B^i distinct without coupling the generic expression arena to
     ! a plasma equilibrium package.
     use, intrinsic :: iso_fortran_env, only: int64
+    use fortsym_arena, only: arena_t
     use fortsym_chart, only: chart_t, DIM, curl, metric_covariant, &
-        metric_contravariant, sqrtg
+        metric_contravariant, sqrtg, chart_surface_measure => surface_measure
+    use fortsym_defint, only: definite_integral
     use fortsym_diff, only: diff
-    use fortsym_expr, only: expr_t, i_expr, num, is_valid, operator(+), &
-        operator(-), operator(*), operator(/)
+    use fortsym_expr, only: expr_t, i_expr, num, pi_expr, is_valid, &
+        operator(+), operator(-), operator(*), operator(/)
     use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, density
     implicit none
     private
 
     public :: magnetic_field_t, magnetic_field, magnetic_upper, magnetic_lower
     public :: magnetic_density
+    public :: flux_surface_t, flux_surface, flux_surface_valid, &
+        flux_surface_label, flux_surface_measure, flux_surface_average
     public :: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
         b_fourier_density, j_fourier
 
@@ -27,6 +31,20 @@ module fortsym_magnetic
         type(tensor_t) :: lower
         type(tensor_t) :: density
     end type magnetic_field_t
+
+    !> A coordinate flux surface u(label_index)=constant.
+    !>
+    !> The two remaining coordinates are ordered as the integration angles.
+    !> This is metadata only: it does not claim that an arbitrary chart is a
+    !> magnetic equilibrium. A caller supplies a field and proves tangency
+    !> through its label component.
+    type :: flux_surface_t
+        type(chart_t) :: chart
+        integer :: label_index = 0
+        integer :: angle_one = 0
+        integer :: angle_two = 0
+        logical :: valid = .false.
+    end type flux_surface_t
 
     interface b_fourier
         module procedure b_fourier_integer, b_fourier_expression
@@ -41,6 +59,164 @@ module fortsym_magnetic
     end interface j_fourier
 
 contains
+
+    !> Describe the coordinate surface u(label_index)=constant.
+    function flux_surface(c, label_index) result(surface)
+        type(chart_t), intent(in) :: c
+        integer, intent(in) :: label_index
+        type(flux_surface_t) :: surface
+
+        if (.not. associated(c%a)) return
+        if (label_index < 1 .or. label_index > DIM) return
+        surface%chart = c
+        surface%label_index = label_index
+        select case (label_index)
+        case (1)
+            surface%angle_one = 2
+            surface%angle_two = 3
+        case (2)
+            surface%angle_one = 1
+            surface%angle_two = 3
+        case (3)
+            surface%angle_one = 1
+            surface%angle_two = 2
+        end select
+        surface%valid = .true.
+    end function flux_surface
+
+    !> Validate the chart and its label/angle metadata.
+    function flux_surface_valid(surface) result(valid)
+        type(flux_surface_t), intent(in) :: surface
+        logical :: valid
+
+        valid = .false.
+        if (.not. surface%valid) return
+        if (.not. associated(surface%chart%a)) return
+        if (surface%label_index < 1 .or. surface%label_index > DIM) return
+        if (surface%angle_one < 1 .or. surface%angle_one > DIM) return
+        if (surface%angle_two < 1 .or. surface%angle_two > DIM) return
+        if (surface%angle_one == surface%label_index) return
+        if (surface%angle_two == surface%label_index) return
+        if (surface%angle_one == surface%angle_two) return
+        if (.not. is_valid(surface%chart%u(surface%label_index))) return
+        valid = .true.
+    end function flux_surface_valid
+
+    !> Return the coordinate expression labelling the surface.
+    function flux_surface_label(surface) result(label)
+        type(flux_surface_t), intent(in) :: surface
+        type(expr_t) :: label
+
+        if (.not. flux_surface_valid(surface)) return
+        label = surface%chart%u(surface%label_index)
+    end function flux_surface_label
+
+    !> Return the positive induced measure on the coordinate surface.
+    function flux_surface_measure(surface) result(value)
+        type(flux_surface_t), intent(in) :: surface
+        type(expr_t) :: value
+
+        if (.not. flux_surface_valid(surface)) return
+        value = chart_surface_measure(surface%chart, surface%label_index)
+    end function flux_surface_measure
+
+    !> Average a scalar over the two angular coordinates.
+    !>
+    !> The default integration domain is [0,2*pi] in each angle. Optional
+    !> upper bounds make the operation usable for non-2*pi periodic charts;
+    !> the lower bounds are zero. The result is returned only when both the
+    !> numerator and normalization integrals are verified by definite_integral.
+    subroutine flux_surface_average(surface, scalar, value, ok, why, period_one, &
+            period_two)
+        type(flux_surface_t), intent(in) :: surface
+        type(expr_t), intent(in) :: scalar
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(expr_t), optional, intent(in) :: period_one, period_two
+        type(arena_t), pointer :: a
+        type(expr_t) :: lower, upper_one, upper_two, weight
+        type(expr_t) :: numerator, denominator, first_numerator
+        type(expr_t) :: first_denominator, integrated_numerator
+        type(expr_t) :: integrated_denominator
+        logical :: numerator_ok, denominator_ok
+        character(:), allocatable :: reason
+
+        ok = .false.
+        why = ""
+        value = expr_t()
+        if (.not. flux_surface_valid(surface)) then
+            why = "flux surface metadata is invalid"
+            return
+        end if
+        a => surface%chart%a
+        if (.not. is_valid(scalar)) then
+            why = "surface-average scalar is invalid"
+            return
+        end if
+        if (.not. associated(scalar%a, a)) then
+            why = "surface-average scalar belongs to another arena"
+            return
+        end if
+
+        lower = num(a, 0)
+        upper_one = 2*pi_expr(a)
+        upper_two = upper_one
+        if (present(period_one)) then
+            if (.not. is_valid(period_one)) then
+                why = "first angular upper bound is invalid"
+                return
+            end if
+            if (.not. associated(period_one%a, a)) then
+                why = "first angular upper bound belongs to another arena"
+                return
+            end if
+            upper_one = period_one
+        end if
+        if (present(period_two)) then
+            if (.not. is_valid(period_two)) then
+                why = "second angular upper bound is invalid"
+                return
+            end if
+            if (.not. associated(period_two%a, a)) then
+                why = "second angular upper bound belongs to another arena"
+                return
+            end if
+            upper_two = period_two
+        end if
+
+        weight = flux_surface_measure(surface)
+        numerator = scalar*weight
+        denominator = weight
+        call definite_integral(a, numerator, surface%chart%u(surface%angle_one), &
+            lower, upper_one, first_numerator, numerator_ok, reason)
+        if (.not. numerator_ok) then
+            why = "surface numerator: "//reason
+            return
+        end if
+        call definite_integral(a, first_numerator, &
+            surface%chart%u(surface%angle_two), lower, upper_two, &
+            integrated_numerator, numerator_ok, reason)
+        if (.not. numerator_ok) then
+            why = "surface numerator: "//reason
+            return
+        end if
+        call definite_integral(a, denominator, surface%chart%u(surface%angle_one), &
+            lower, upper_one, first_denominator, denominator_ok, reason)
+        if (.not. denominator_ok) then
+            why = "surface normalization: "//reason
+            return
+        end if
+        call definite_integral(a, first_denominator, &
+            surface%chart%u(surface%angle_two), lower, upper_two, &
+            integrated_denominator, denominator_ok, reason)
+        if (.not. denominator_ok) then
+            why = "surface normalization: "//reason
+            return
+        end if
+        value = integrated_numerator/integrated_denominator
+        ok = .true.
+    end subroutine flux_surface_average
 
     !> Assemble the three typed views of one magnetic field.
     !>
