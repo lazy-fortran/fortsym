@@ -25,6 +25,7 @@ class InconsistentAssumptions(ValueError):
 
 
 _WILD_COUNTER = count()
+_MAX_PARTITION_WILDCARDS = 3
 
 
 def _wildcard_accepts(wildcard, expression):
@@ -62,6 +63,101 @@ def _combine_owned(values, operation, owned):
         result = operation(result, value)
         owned.append(result)
     return result
+
+
+def _partition_arguments(expression):
+    arguments = list(expression.args)
+    arguments.sort(key=_sympy_sort_key)
+    return tuple(arguments)
+
+
+def _commutative_partition(expression, pattern, wildcards):
+    """Partition one associative root among distinct direct Wild nodes."""
+    if pattern.kind not in (6, 7):
+        return None
+    if pattern.kind == 6 and expression.kind == 7:
+        return None
+    pattern_args = pattern.args
+    actual_args = ()
+    actual_from_root = False
+    owned = []
+    bindings = {}
+    try:
+        fixed = []
+        wildcard_sequence = []
+        for argument in pattern_args:
+            wildcard = _direct_wildcard(argument, wildcards)
+            if wildcard is not None:
+                wildcard_sequence.append(wildcard)
+            elif _has_wildcard(argument):
+                return None
+            else:
+                fixed.append(argument)
+        present = set(wildcard_sequence)
+        if (len(present) < 2 or
+                len(present) > _MAX_PARTITION_WILDCARDS or
+                len(present) != len(wildcard_sequence)):
+            return None
+        wildcard_sequence = [
+            wildcard for wildcard in wildcards.values()
+            if wildcard in present
+        ]
+
+        if expression.kind == pattern.kind:
+            actual_args = _partition_arguments(expression)
+            actual_from_root = True
+        else:
+            actual_args = (expression,)
+
+        used = set()
+        for expected in fixed:
+            match = next(
+                (index for index, actual in enumerate(actual_args)
+                 if index not in used and actual == expected),
+                None,
+            )
+            if match is None:
+                return None
+            used.add(match)
+        remaining = [
+            actual for index, actual in enumerate(actual_args)
+            if index not in used
+        ]
+        if fixed and not actual_from_root and remaining:
+            return None
+
+        identity = (0 if pattern.kind == 6 else 1)
+        for offset, wildcard in enumerate(reversed(wildcard_sequence)):
+            if offset < len(wildcard_sequence) - 1:
+                values = [remaining.pop()] if remaining else []
+            else:
+                values = remaining
+                remaining = []
+            if not values:
+                value = expression._arena.integer(identity)
+                owned.append(value)
+            elif len(values) == 1:
+                value = values[0]
+            else:
+                operation = (lambda left, right: left + right
+                             if pattern.kind == 6 else left * right)
+                value = _combine_owned(values, operation, owned)
+            if not _wildcard_accepts(wildcard, value):
+                return None
+            bindings[wildcard] = value
+
+        return bindings
+    finally:
+        keep = {id(value) for value in bindings.values()}
+        for child in pattern_args:
+            child.close()
+        if actual_from_root:
+            for child in actual_args:
+                if id(child) not in keep:
+                    child.close()
+        for temporary in owned:
+            if id(temporary) not in keep:
+                temporary.close()
 
 
 def _commutative_remainder(expression, pattern, wildcards):
@@ -211,7 +307,11 @@ def _match_pattern(expression, pattern, old=False):
     remainder_attempted = False
     if pattern.kind in (6, 7) and wildcards:
         remainder_attempted = True
-        remainder = _commutative_remainder(expression, pattern, wildcards)
+        remainder = None
+        if len(wildcards) >= 2:
+            remainder = _commutative_partition(expression, pattern, wildcards)
+        if remainder is None:
+            remainder = _commutative_remainder(expression, pattern, wildcards)
         if remainder is not None:
             return remainder
     bindings = {}
@@ -219,6 +319,11 @@ def _match_pattern(expression, pattern, old=False):
     pattern_children = []
 
     def visit(actual, expected):
+        if expected.kind in (6, 7) and len(wildcards) >= 2:
+            partition = _commutative_partition(actual, expected, wildcards)
+            if partition is not None:
+                bindings.update(partition)
+                return True
         wildcard = (wildcards.get(expected.name)
                     if expected.kind == 4 else None)
         if wildcard is not None:
