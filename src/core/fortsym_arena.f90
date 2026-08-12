@@ -127,6 +127,7 @@ module fortsym_arena
         procedure :: nargs_of => arena_nargs_of
         procedure :: arg_of => arena_arg_of
         procedure :: node_count => arena_node_count
+        procedure :: operation_count => arena_operation_count
     end type arena_t
 
 contains
@@ -1122,5 +1123,43 @@ contains
             call visit(self, self%args(self%nodes(idx)%first_arg + i - 1), seen, n)
         end do
     end subroutine visit
+
+    !> Count operation occurrences in the expression tree. Unlike node_count,
+    !> repeated references to an interned child count once per occurrence, as
+    !> they do in SymPy's count_ops. N-ary sums and products contribute one
+    !> operation per link between operands.
+    recursive function arena_operation_count(self, idx) result(n)
+        class(arena_t), intent(in) :: self
+        integer,        intent(in) :: idx
+        integer                    :: n, i, child, exponent
+        logical                    :: has_reciprocal
+
+        has_reciprocal = .false.
+        select case (self%nodes(idx)%kind)
+        case (NK_ADD, NK_MUL)
+            n = max(0, self%nodes(idx)%n_args - 1)
+        case (NK_POW, NK_FUNC, NK_RAT, NK_BIG_RAT)
+            n = 1
+        case default
+            n = 0
+        end select
+        do i = 1, self%nodes(idx)%n_args
+            child = self%args(self%nodes(idx)%first_arg + i - 1)
+            if (self%nodes(idx)%kind == NK_MUL) then
+                if (self%nodes(child)%kind == NK_POW) then
+                    if (self%nodes(child)%n_args == 2) then
+                        exponent = self%args(self%nodes(child)%first_arg + 1)
+                        if (self%nodes(exponent)%kind == NK_INT) then
+                            if (self%nodes(exponent)%num == -1_int64) then
+                                has_reciprocal = .true.
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+            n = n + self%operation_count(child)
+        end do
+        if (has_reciprocal) n = n - 1
+    end function arena_operation_count
 
 end module fortsym_arena

@@ -537,6 +537,8 @@ Every checklist item requires all of the following:
   `hyperexpand`, `logcombine`, `posify`, and `refine`.
 - [ ] Implement structural tools such as `count_ops`, `cse`, `collect`,
   `expand`, `rewrite`, `replace`, and `match`.
+    - [x] Implement non-visual `count_ops` through one native operation-count
+      owner, with SymPy tree semantics and an explicit `visual=True` refusal.
 
 ## Phase 4 — polynomial and rational algebra
 

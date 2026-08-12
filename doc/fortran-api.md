@@ -64,6 +64,12 @@ huge = exact(default_arena(), "9223372036854775808", ok=good)
 half = exact(default_arena(), "6/-8", ok=good)
 ```
 
+`operation_count(expression)` counts operation occurrences with SymPy's
+`count_ops` tree semantics. Atoms cost zero; n-ary sums and products count one
+operation per operand link; repeated references to an interned child count once
+per written occurrence; canonical reciprocal products count as divisions.
+`expr_t%node_count()` remains the separate shared-DAG node measure.
+
 `oo_expr` constructs the positive-infinity sentinel. It remains a structural
 domain value, not a finite real literal. Native simplification currently
 matches the finite scalar and integer-power rules for `oo` and `zoo`: known

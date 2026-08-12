@@ -73,6 +73,8 @@ program test_fortsym_convenience
     mixed = mu + sigma
     call check("default expression participates in ordinary operators", &
         is_valid(mixed), failures)
+    call check("facade exposes SymPy-style operation counting", &
+        operation_count((mu + 1)**2) == 2, failures)
     sine = sin(mu)
     call check("facade uses the intrinsic spelling for expression functions", &
         chars(print_expr(sine)) == "sin(mu)", failures)

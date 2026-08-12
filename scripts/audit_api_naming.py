@@ -172,6 +172,13 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "Keep one native engine owner and expose the concise transformation names from the easy facade.",
         ),
         concept(
+            "operation-count",
+            "Count operation occurrences in an expression tree.",
+            ["operation_count"], ["operation_count"], ["count_ops"], ["count_ops"],
+            "The native facade names the scalar structural query operation_count; the Python compatibility layer preserves SymPy's count_ops spelling while visual operation expressions remain outside the bounded subset.",
+            "Keep the tree traversal in the native arena owner and expose only spelling adapters at the language boundaries.",
+        ),
+        concept(
             "relational-constructors",
             "Construct symbolic equality and ordering relations.",
             ["equal", "unequal", "less", "less_equal", "greater", "greater_equal"],

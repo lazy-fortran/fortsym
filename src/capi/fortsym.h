@@ -170,6 +170,8 @@ int fortsym_expr_equal(const fortsym_expr *left, const fortsym_expr *right,
                        int *equal, char *message, size_t capacity);
 int fortsym_expr_node_count(const fortsym_expr *expression, size_t *count,
                             char *message, size_t capacity);
+int fortsym_expr_operation_count(const fortsym_expr *expression, size_t *count,
+                                 char *message, size_t capacity);
 int fortsym_expr_text(const fortsym_expr *expression, char *buffer,
                       size_t capacity, size_t *required, char *message,
                       size_t message_capacity);

@@ -19,6 +19,7 @@ it.
 | Applied functions and Bessel `J` | yes | opaque Bessel head | partial | broader special-function rules |
 | Parse, print, and Fortran dialect | deterministic | yes | yes | versioned serialization format |
 | Structural and simultaneous substitution | yes | conversion | conversion | rule-based applied-function substitution |
+| Operation counting | SymPy-compatible non-visual tree count | conversion | conversion | visual operation expression and CSE |
 | Differentiation | yes | yes | Yacas concrete method | memoization and domain-sensitive rules |
 | Multivariate symbolic partials | yes | opaque | opaque | function assumptions and rewrite rules |
 | JVP, VJP, gradient, and HVP | yes | verification | verification | consumer conformance corpus |

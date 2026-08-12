@@ -524,6 +524,12 @@ def expand(expression, **_):
     return sympify(expression).expand()
 
 
+def count_ops(expression, visual=False):
+    if visual:
+        raise UnsupportedOperationError("count_ops(visual=True)")
+    return sympify(expression).operation_count()
+
+
 def simplify(expression, **_):
     if _:
         raise UnsupportedOperationError("simplification options")
@@ -574,7 +580,7 @@ __all__ = [
     "besselj", "besseli", "legendre", "expand_complex",
     "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign",
     "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
-    "simplify", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
+    "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
     "integrate", "limit", "series", "solve", "Matrix", "pi", "E", "I",
     "oo", "zoo", "nan",

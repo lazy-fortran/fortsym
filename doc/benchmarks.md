@@ -193,6 +193,10 @@ correctness-checked one-node ABI diagnostics. Its cold and warm ratios were
 5.57x and 3.57x SymPy, so both rows are explicitly waived for the same
 construction-versus-simplification boundary. The final matrix has 98 rows,
 82 enforced rows, and zero unwaived violations.
+The native `count_ops` workload adds two correctness-checked structural-query
+rows. Its cold and warm ratios were 0.35x and 0.18x SymPy, so both rows remain
+enforced. The final matrix has 100 rows, 84 enforced rows, and zero unwaived
+violations.
 
 Run it from a built checkout with:
 

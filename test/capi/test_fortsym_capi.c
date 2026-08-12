@@ -114,7 +114,7 @@ int main(void)
     const fortsym_expr *special_arguments[2];
     const fortsym_expr *legendre_arguments[3];
 
-    assert(fortsym_abi_version() == 12);
+    assert(fortsym_abi_version() == 13);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
@@ -132,6 +132,10 @@ int main(void)
     expect_text(product, "y*(x + 1)");
     status = fortsym_expr_is_number(product, &number, message, sizeof message);
     assert(status == FORTSYM_OK && number == 0);
+    size_t operation_count = 0;
+    status = fortsym_expr_operation_count(product, &operation_count, message,
+                                          sizeof message);
+    assert(status == FORTSYM_OK && operation_count == 2);
 
     status = fortsym_expr_kind(one, &kind, message, sizeof message);
     assert(status == FORTSYM_OK && kind == FORTSYM_INT);

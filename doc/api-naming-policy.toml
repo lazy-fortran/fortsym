@@ -81,6 +81,16 @@ sympy_adapter = ["subs", "Subs", "expand", "simplify", "refine", "factor"]
 decision = "Expose the native operations under the same short names from one facade owner. Keep refine as the named assumption-aware entry point while the native simplifier owns guarded rewrites. Keep Subs as an adapter-only typed wrapper and keep options/refusals in the Python boundary."
 
 [[family]]
+id = "operation-count"
+audit_concepts = ["operation-count"]
+canonical_native = ["operation_count"]
+current_native = ["operation_count"]
+transition_aliases = []
+python_facade = ["operation_count"]
+sympy_adapter = ["count_ops"]
+decision = "Keep one native tree traversal under operation_count and map only the Python compatibility spelling count_ops; visual operation expressions remain an explicit bounded refusal."
+
+[[family]]
 id = "relations"
 audit_concepts = ["relational-constructors"]
 canonical_native = ["equal", "unequal", "less", "less_equal", "greater", "greater_equal"]

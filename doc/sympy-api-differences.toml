@@ -122,6 +122,14 @@ fortsym = "Native expansion is bounded and supports the implemented polynomial f
 difference = "Supported algebraic forms, option semantics, and resource-bounded refusal differ."
 
 [[semantic]]
+id = "operation-count"
+affected = ["count_ops"]
+parity = "partial"
+sympy = "SymPy count_ops returns a scalar operation count or, with visual=True, an expression formed from operation symbols."
+fortsym = "The native arena owns the non-visual tree count; n-ary sums and products count operand links, canonical reciprocal products count as divisions, and repeated shared children count per occurrence."
+difference = "The visual=True operation-expression form is an explicit refusal until its native expression vocabulary and printer semantics are defined."
+
+[[semantic]]
 id = "simplification"
 affected = ["simplify"]
 parity = "partial"

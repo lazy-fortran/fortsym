@@ -57,6 +57,7 @@ module fortsym_expr
         procedure :: algebraic_text => expr_algebraic_text
         procedure :: exact_text => expr_exact_text
         procedure :: node_count => expr_node_count
+        procedure :: operation_count => expr_operation_count
     end type expr_t
 
     interface num
@@ -419,6 +420,14 @@ contains
         integer                   :: n
         n = self%a%node_count(self%id)
     end function expr_node_count
+
+    !> SymPy-compatible operation occurrences in the expression tree. Shared
+    !> arena nodes are counted once for each occurrence in this expression.
+    function expr_operation_count(self) result(n)
+        class(expr_t), intent(in) :: self
+        integer                   :: n
+        n = self%a%operation_count(self%id)
+    end function expr_operation_count
 
     ! ----------------------------------------------------------- operators --
 

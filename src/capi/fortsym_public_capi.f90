@@ -73,7 +73,8 @@ module fortsym_public_capi
     public :: fortsym_complex_operation
     public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
-    public :: fortsym_expr_equal, fortsym_expr_node_count, fortsym_expr_text
+    public :: fortsym_expr_equal, fortsym_expr_node_count, &
+        fortsym_expr_operation_count, fortsym_expr_text
     public :: fortsym_expr_name, fortsym_expr_exact_text
     public :: fortsym_expr_int_value, fortsym_expr_real_value
     public :: fortsym_expr_is_number, fortsym_expr_is_algebraic
@@ -82,7 +83,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 12_c_int
+        v = 13_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1001,6 +1002,23 @@ contains
         call get_expr(raw, p, e, status, message, capacity)
         if (status == FORTSYM_OK) count = int(e%node_count(), c_size_t)
     end function fortsym_expr_node_count
+
+    function fortsym_expr_operation_count(raw, count, message, capacity) &
+            bind(c, name="fortsym_expr_operation_count") result(status)
+        type(c_ptr), value :: raw
+        integer(c_size_t), intent(out) :: count
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(expr_owner_t), pointer :: p
+        type(expr_t) :: e
+
+        count = 0_c_size_t
+        call get_expr(raw, p, e, status, message, capacity)
+        if (status == FORTSYM_OK) then
+            count = int(e%operation_count(), c_size_t)
+        end if
+    end function fortsym_expr_operation_count
 
     function fortsym_expr_text(raw, buffer, capacity, required, message, &
             message_capacity) bind(c, name="fortsym_expr_text") result(status)

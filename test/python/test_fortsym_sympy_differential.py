@@ -226,6 +226,32 @@ class SympyDifferentialTest(unittest.TestCase):
                 self.assertEqual(native_cases[label].is_number,
                                  expected.is_number)
 
+    def test_count_ops_matches_oracle(self):
+        def cases(api):
+            x, y, z = api.symbols("count_ops_x count_ops_y count_ops_z")
+            return {
+                "symbol": x,
+                "sum": x + y + z,
+                "product": (x + 1) * y,
+                "power": (x + 1)**2,
+                "quotient": x / (y + 1),
+                "function": api.sin(x * y),
+                "rational": api.Rational(2, 3),
+                "relation": api.Eq(x, 1),
+                "compound": api.And(x > 0, x < 1),
+            }
+
+        oracle_cases = cases(oracle)
+        native_cases = cases(native)
+        for label, expected in oracle_cases.items():
+            with self.subTest(label=label):
+                self.assertEqual(
+                    native.count_ops(native_cases[label]),
+                    oracle.count_ops(expected),
+                )
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.count_ops(native_cases["symbol"], visual=True)
+
     def test_algebraic_predicate_matches_oracle(self):
         def cases(api):
             unknown = api.Symbol("algebraic_predicate_unknown")
