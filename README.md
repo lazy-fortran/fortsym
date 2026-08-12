@@ -132,6 +132,14 @@ grad/div/curl/laplacian. The tests assert the identities rather than stored
 answers -- `g^ik g_kj = delta`, `det g = J^2`, `curl grad = 0`, `div curl = 0` --
 which is what catches a raised index left lowered or a missing Jacobian weight.
 
+The native `paper_magnetic_native` example extends that surface to the
+Albert--Bíró--Lainer Fourier reduction: `b_fourier` accepts either an integer
+mode or a symbolic `n`, while `b_cov` and `b_fourier_density` keep covariant,
+contravariant, and density components distinct. The Wolfram runner accepts the
+companion `paper_magnetic.wl` assignments through the same expression arena.
+The Python `fortsym.Chart` facade exposes the same native operations; it is
+also re-exported from `fortsym.sympy` without importing SymPy.
+
 **Read Fortran back.** Point it at a source file and a variable name and it
 returns the symbolic expression that file computes, so a hand-written kernel can
 be checked against its definition without anyone transcribing the code into the

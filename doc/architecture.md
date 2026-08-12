@@ -39,7 +39,7 @@ The structural module audit is reproducible with:
 python3 scripts/audit_module_architecture.py doc/module-architecture.json
 ```
 
-At the current revision it covers 66 Fortran modules and 319 internal `use`
+At the current revision it covers 66 Fortran modules and 321 internal `use`
 edges. It requires one named module per source owner, matching filenames,
 known internal dependencies, an acyclic module graph, and no implementation
 module importing the convenience facade. The generated report records the
@@ -128,6 +128,10 @@ reconstructing the expected parts from the splitter.
 The `fortsym` facade, C ABI, and `fortsym.sympy` adapter all call this owner;
 they add only result/error transport and SymPy spelling translation, so there
 is no second projection or conjugation implementation at a public boundary.
+The same ownership rule applies to coordinate charts: `fortsym_chart` owns
+the map-derived metric and operators, `fortsym_magnetic` owns variance and
+density views, and the Python `Chart` class only transports handles through
+the C ABI.
 
 The native limit layer proves continuity substitutions, bounded L'Hopital
 steps, polynomial degree ratios at infinity, and a restricted single-monomial

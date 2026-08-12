@@ -63,7 +63,7 @@
     {
       "from": "capi",
       "to": "calculus",
-      "uses": 1
+      "uses": 3
     },
     {
       "from": "capi",
@@ -849,12 +849,14 @@
       "dependencies": [
         "fortsym_arena",
         "fortsym_assume_api",
+        "fortsym_chart",
         "fortsym_complexdom",
         "fortsym_diff",
         "fortsym_engine",
         "fortsym_engine_native",
         "fortsym_eval",
         "fortsym_expr",
+        "fortsym_magnetic",
         "fortsym_predicates",
         "fortsym_print",
         "fortsym_string",
@@ -1067,7 +1069,7 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 319,
+    "internal_edges": 321,
     "module_file_mismatches": 0,
     "module_units": 66,
     "modules": 66,

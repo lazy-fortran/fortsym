@@ -46,6 +46,40 @@ node index is reused later. The arena pointer remains usable after reset.
 Discard pre-reset expressions at every reset boundary. Use explicit arenas for
 concurrency, isolation, and library code that outlives one problem.
 
+## Coordinate charts and magnetic views
+
+`fortsym_chart` owns the generic three-dimensional chart. Give it coordinate
+expressions and a Cartesian position map; `metric_covariant`, `sqrtg`,
+`reciprocal_basis`, and the differential operators follow from that one map.
+`fortsym_magnetic` owns the derived magnetic views: `b_con`, `b_cov`,
+`b_density`, `b_fourier`, and `b_fourier_density`. The `b_fourier` interfaces
+accept either an integer mode or an expression mode, so a paper derivation can
+use a literal mode while a symbolic check keeps `n` in the expression tree.
+
+```fortran
+use fortsym
+type(arena_t), target :: a
+type(chart_t) :: chart
+type(expr_t) :: u(DIM), x(DIM), A(DIM), B(DIM), n
+
+call a%init()
+u(1) = "Z"
+u(2) = "R"
+u(3) = "phi"
+x(1) = u(2)*cos(u(3))
+x(2) = u(2)*sin(u(3))
+x(3) = u(1)
+n = "n"
+A(1) = u(1)
+A(2) = u(2)
+A(3) = num(a, 0)
+chart = chart_create(a, u, x)
+B = b_fourier(chart, A, n)
+```
+
+The convenience facade and the lower-level modules call the same owners; they
+do not maintain separate metric, variance, or density representations.
+
 `symbols` assigns whitespace- or comma-separated names to scalar outputs:
 
 ```fortran

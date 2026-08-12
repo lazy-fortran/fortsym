@@ -38,7 +38,7 @@ module fortsym
         serialize_expression, deserialize_expression, assess_identity, &
         assess_equivalence, evidence_json, emit_backend_kernel
     use fortsym_ode, only: solve_ode
-    use fortsym_chart, only: chart_t, chart_create, covariant_basis, &
+    use fortsym_chart, only: DIM, chart_t, chart_create, covariant_basis, &
         reciprocal_basis, metric_covariant, metric_contravariant, sqrtg, &
         jacobian, christoffel, grad, divergence, curl, laplacian
     use fortsym_magnetic, only: b_con, b_cov, b_density, b_fourier, &
@@ -74,7 +74,7 @@ module fortsym
         deserialize_expression, assess_identity, assess_equivalence, &
         evidence_json, emit_backend_kernel
     public :: solve_ode
-    public :: chart_t, chart_create, covariant_basis, reciprocal_basis, &
+    public :: DIM, chart_t, chart_create, covariant_basis, reciprocal_basis, &
         metric_covariant, metric_contravariant, sqrtg, jacobian, christoffel, &
         grad, divergence, curl, laplacian, b_con, b_cov, b_density, b_fourier, &
         b_fourier_density

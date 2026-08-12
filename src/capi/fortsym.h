@@ -150,6 +150,29 @@ int fortsym_simplify(fortsym_arena *arena, const fortsym_expr *expression,
                      fortsym_expr **out, char *message, size_t capacity);
 int fortsym_factor(fortsym_arena *arena, const fortsym_expr *expression,
                    fortsym_expr **out, char *message, size_t capacity);
+/* Coordinate and magnetic operations use three expressions for both the
+ * coordinate symbols and their Cartesian position map. The dimension
+ * argument is retained in the ABI so callers can validate the fixed native
+ * chart dimension explicitly. Each magnetic result array has three owned
+ * expression handles and must be released element by element. */
+int fortsym_chart_sqrtg(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], size_t dimension, fortsym_expr **out,
+    char *message, size_t capacity);
+int fortsym_chart_b_cov(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *vector[],
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_b_fourier(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *potential[],
+    const fortsym_expr *mode, fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_chart_b_fourier_density(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *potential[],
+    const fortsym_expr *mode, fortsym_expr *out[], char *message,
+    size_t capacity);
 int fortsym_zero_test(fortsym_arena *arena, const fortsym_expr *expression,
                       int *verdict, char *message, size_t capacity);
 /* operation is one of "re", "im", "conjugate", "arg", "abs", or

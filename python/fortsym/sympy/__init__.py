@@ -11,7 +11,7 @@ from fractions import Fraction
 from itertools import count
 
 from .. import (
-    Arena, Expr, FortSymError, _Assumption, _CONFLICT, _FACT_INTEGER,
+    Arena, Chart, Expr, FortSymError, _Assumption, _CONFLICT, _FACT_INTEGER,
     _FACT_RATIONAL, _FACT_ALGEBRAIC, _default,
 )
 
@@ -1207,7 +1207,7 @@ nan = _default().constant("nan")
 
 
 __all__ = [
-    "Arena", "Expr", "FortSymError", "UnsupportedOperationError",
+    "Arena", "Chart", "Expr", "FortSymError", "UnsupportedOperationError",
     "InconsistentAssumptions",
     "Symbol", "symbols", "sympify", "Integer", "Rational", "Float",
     "Add", "Mul", "Pow", "Function", "Wild", "Derivative", "Subs", "sin", "cos",

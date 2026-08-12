@@ -17,6 +17,14 @@ module fortsym_magnetic
 
     public :: b_con, b_cov, b_density, b_fourier, b_fourier_density
 
+    interface b_fourier
+        module procedure b_fourier_integer, b_fourier_expression
+    end interface b_fourier
+
+    interface b_fourier_density
+        module procedure b_fourier_density_integer, b_fourier_density_expression
+    end interface b_fourier_density
+
 contains
 
     !> Contravariant magnetic components from a covariant vector potential.
@@ -71,29 +79,7 @@ contains
     !> whose input is a full coordinate-dependent field. The chart must have
     !> an orientation-preserving, block metric for the usual plasma convention
     !> in which the positive factor sqrt(g) is the signed Jacobian.
-    function b_fourier(c, potential, mode) result(value)
-        type(chart_t), intent(in) :: c
-        type(expr_t), intent(in)   :: potential(DIM)
-        integer, intent(in)        :: mode
-        type(expr_t)               :: value(DIM)
-        type(expr_t) :: volume, mode_derivative
-
-        volume = sqrtg(c)
-        mode_derivative = i_expr(c%a)*num(c%a, int(mode, int64))
-        value(1) = (diff(potential(3), c%u(2)) - &
-            mode_derivative*potential(2))/volume
-        value(2) = (mode_derivative*potential(1) - &
-            diff(potential(3), c%u(1)))/volume
-        value(3) = (diff(potential(2), c%u(1)) - &
-            diff(potential(1), c%u(2)))/volume
-    end function b_fourier
-
-    !> Fourier-mode magnetic density sqrt(g) B^i for symmetry coordinate u^3.
-    !>
-    !> Returning the density directly avoids introducing a division followed
-    !> by a multiplication in generated kernels and preserves the paper's
-    !> natural finite-element unknowns.
-    function b_fourier_density(c, potential, mode) result(value)
+    function b_fourier_integer(c, potential, mode) result(value)
         type(chart_t), intent(in) :: c
         type(expr_t), intent(in)   :: potential(DIM)
         integer, intent(in)        :: mode
@@ -101,12 +87,74 @@ contains
         type(expr_t) :: mode_derivative
 
         mode_derivative = i_expr(c%a)*num(c%a, int(mode, int64))
+        value = b_fourier_from_factor(c, potential, mode_derivative)
+    end function b_fourier_integer
+
+    !> Symbolic Fourier-mode curl, useful when the mode number is itself part
+    !> of a derivation rather than a compile-time integer.
+    function b_fourier_expression(c, potential, mode) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in)   :: potential(DIM), mode
+        type(expr_t)               :: value(DIM)
+        type(expr_t) :: mode_derivative
+
+        mode_derivative = i_expr(c%a)*mode
+        value = b_fourier_from_factor(c, potential, mode_derivative)
+    end function b_fourier_expression
+
+    function b_fourier_from_factor(c, potential, mode_derivative) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in)   :: potential(DIM), mode_derivative
+        type(expr_t)               :: value(DIM)
+        type(expr_t) :: volume
+
+        volume = sqrtg(c)
+        value(1) = (diff(potential(3), c%u(2)) - &
+            mode_derivative*potential(2))/volume
+        value(2) = (mode_derivative*potential(1) - &
+            diff(potential(3), c%u(1)))/volume
+        value(3) = (diff(potential(2), c%u(1)) - &
+            diff(potential(1), c%u(2)))/volume
+    end function b_fourier_from_factor
+
+    !> Fourier-mode magnetic density sqrt(g) B^i for symmetry coordinate u^3.
+    !>
+    !> Returning the density directly avoids introducing a division followed
+    !> by a multiplication in generated kernels and preserves the paper's
+    !> natural finite-element unknowns.
+    function b_fourier_density_integer(c, potential, mode) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in)   :: potential(DIM)
+        integer, intent(in)        :: mode
+        type(expr_t)               :: value(DIM)
+        type(expr_t) :: mode_derivative
+
+        mode_derivative = i_expr(c%a)*num(c%a, int(mode, int64))
+        value = b_fourier_density_from_factor(c, potential, mode_derivative)
+    end function b_fourier_density_integer
+
+    function b_fourier_density_expression(c, potential, mode) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in)   :: potential(DIM), mode
+        type(expr_t)               :: value(DIM)
+        type(expr_t) :: mode_derivative
+
+        mode_derivative = i_expr(c%a)*mode
+        value = b_fourier_density_from_factor(c, potential, mode_derivative)
+    end function b_fourier_density_expression
+
+    function b_fourier_density_from_factor(c, potential, mode_derivative) &
+            result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in)   :: potential(DIM), mode_derivative
+        type(expr_t)               :: value(DIM)
+
         value(1) = diff(potential(3), c%u(2)) - &
             mode_derivative*potential(2)
         value(2) = mode_derivative*potential(1) - &
             diff(potential(3), c%u(1))
         value(3) = diff(potential(2), c%u(1)) - &
             diff(potential(1), c%u(2))
-    end function b_fourier_density
+    end function b_fourier_density_from_factor
 
 end module fortsym_magnetic

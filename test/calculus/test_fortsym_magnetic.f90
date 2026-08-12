@@ -22,6 +22,7 @@ program test_fortsym_magnetic
     type(expr_t) :: reciprocal(DIM, DIM), metric(DIM, DIM)
     type(expr_t) :: potential(DIM), b_up(DIM), b_down(DIM), b_den(DIM)
     type(expr_t) :: fourier_potential(DIM), fourier_up(DIM), fourier_den(DIM)
+    type(expr_t) :: fourier_integer(DIM), mode
     type(expr_t) :: residual, det_metric, volume, signed_jacobian
     integer :: i, j
     character(len=64) :: label
@@ -86,18 +87,22 @@ program test_fortsym_magnetic
     fourier_potential(1) = u(1)*u(2)
     fourier_potential(2) = u(1)**2
     fourier_potential(3) = num(arena, 0)
-    fourier_up = b_fourier(shear, fourier_potential, 2)
-    fourier_den = b_fourier_density(shear, fourier_potential, 2)
+    mode = sym(arena, "n")
+    fourier_up = b_fourier(shear, fourier_potential, mode)
+    fourier_den = b_fourier_density(shear, fourier_potential, mode)
     call check_identity(suite, engine, "Fourier B^1", &
-        fourier_up(1) + 2*i_expr(arena)*u(1)**2)
+        fourier_up(1) + i_expr(arena)*mode*u(1)**2)
     call check_identity(suite, engine, "Fourier B^2", &
-        fourier_up(2) - 2*i_expr(arena)*u(1)*u(2))
+        fourier_up(2) - i_expr(arena)*mode*u(1)*u(2))
     call check_identity(suite, engine, "Fourier B^3", fourier_up(3) - u(1))
     call check_identity(suite, engine, "Fourier density B^1", &
-        fourier_den(1) + 2*i_expr(arena)*u(1)**2)
+        fourier_den(1) + i_expr(arena)*mode*u(1)**2)
     call check_identity(suite, engine, "Fourier density B^2", &
-        fourier_den(2) - 2*i_expr(arena)*u(1)*u(2))
+        fourier_den(2) - i_expr(arena)*mode*u(1)*u(2))
     call check_identity(suite, engine, "Fourier density B^3", fourier_den(3) - u(1))
+    fourier_integer = b_fourier(shear, fourier_potential, 2)
+    call check_identity(suite, engine, "integer Fourier mode overload", &
+        fourier_integer(1) + 2*i_expr(arena)*u(1)**2)
 
     if (suite%failed /= 0) then
         print *, "test_fortsym_magnetic: ", suite%failed, " check(s) FAILED"

@@ -164,6 +164,27 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_sqrtg = declare(
+        "fortsym_chart_sqrtg",
+        ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _SIZE,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    for name in ("b_cov", "b_fourier", "b_fourier_density"):
+        arguments = [
+            _CVOID,
+            ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID),
+        ]
+        if name != "b_cov":
+            arguments.append(_CVOID)
+        arguments.extend([ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE])
+        setattr(
+            lib,
+            "chart_" + name,
+            declare("fortsym_chart_" + name, ctypes.c_int, arguments),
+        )
     lib.expand = declare(
         "fortsym_expand",
         ctypes.c_int,
@@ -446,6 +467,56 @@ class Arena:
             raise FortSymError(status, _decode(message), "function")
         return Expr(self, output)
 
+    def _chart_sqrtg(self, coordinates, position):
+        coordinate_handles, position_handles = self._chart_inputs(
+            coordinates, position
+        )
+        return self._result(
+            self._lib.chart_sqrtg,
+            self._require(), coordinate_handles, position_handles, 3,
+        )
+
+    def _chart_many(self, operation, coordinates, position, values, mode=None):
+        coordinate_handles, position_handles = self._chart_inputs(
+            coordinates, position
+        )
+        checked = [self._check(value) for value in values]
+        value_handles = (_CVOID * 3)(*[value._handle for value in checked])
+        output = (_CVOID * 3)()
+        message = _message()
+        arguments = [
+            self._require(), coordinate_handles, position_handles, value_handles,
+        ]
+        if mode is not None:
+            mode, temporary = self._coerce(mode)
+            try:
+                arguments.append(mode._handle)
+                arguments.extend([output, message, len(message)])
+                status = operation(*arguments)
+            finally:
+                if temporary is not None:
+                    temporary.close()
+        else:
+            arguments.extend([output, message, len(message)])
+            status = operation(*arguments)
+        if status:
+            name = operation.__name__.removeprefix("fortsym_chart_")
+            raise FortSymError(status, _decode(message), name)
+        return tuple(Expr(self, output[index]) for index in range(3))
+
+    def _chart_inputs(self, coordinates, position):
+        coordinates = tuple(self._check(value) for value in coordinates)
+        position = tuple(self._check(value) for value in position)
+        if len(coordinates) != 3 or len(position) != 3:
+            raise ValueError("fortsym charts require three coordinates and positions")
+        coordinate_handles = (_CVOID * 3)(
+            *[value._handle for value in coordinates]
+        )
+        position_handles = (_CVOID * 3)(
+            *[value._handle for value in position]
+        )
+        return coordinate_handles, position_handles
+
     def relation(self, left: "Expr", right: "Expr", name: str):
         left = self._check(left)
         right, temporary = self._coerce(right)
@@ -495,6 +566,43 @@ class Arena:
             raise ValueError("expression belongs to another arena")
         expression._require()
         return expression
+
+
+class Chart:
+    """A native three-dimensional coordinate chart.
+
+    The object is only a Python lifetime and spelling facade. Metric, volume,
+    variance, and Fourier operations execute in the native Fortran owner.
+    """
+
+    def __init__(self, coordinates, position):
+        self.coordinates = tuple(coordinates)
+        self.position = tuple(position)
+        if len(self.coordinates) != 3 or len(self.position) != 3:
+            raise ValueError("fortsym charts require three coordinates and positions")
+        self._arena = self.coordinates[0]._arena
+        self._arena._chart_inputs(self.coordinates, self.position)
+
+    def sqrtg(self):
+        return self._arena._chart_sqrtg(self.coordinates, self.position)
+
+    def b_cov(self, vector):
+        return self._arena._chart_many(
+            self._arena._lib.chart_b_cov,
+            self.coordinates, self.position, vector,
+        )
+
+    def b_fourier(self, potential, mode):
+        return self._arena._chart_many(
+            self._arena._lib.chart_b_fourier,
+            self.coordinates, self.position, potential, mode,
+        )
+
+    def b_fourier_density(self, potential, mode):
+        return self._arena._chart_many(
+            self._arena._lib.chart_b_fourier_density,
+            self.coordinates, self.position, potential, mode,
+        )
 
 
 class Expr:
@@ -1223,7 +1331,7 @@ def free_symbols(expression: Expr): return expression.free_symbols
 
 
 __all__ = [
-    "Arena", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count",
     "free_symbols",
 ]

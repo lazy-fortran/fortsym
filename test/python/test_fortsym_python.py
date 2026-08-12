@@ -65,6 +65,31 @@ class NativePackageTest(unittest.TestCase):
             left.close()
             right.close()
 
+    def test_native_chart_frontend_uses_geometry_owner(self):
+        with fortsym.Arena() as arena:
+            z, r, phi, mode = [arena.symbol(name)
+                                for name in ("Z", "R", "phi", "n")]
+            cos_phi = arena.function("cos", (phi,))
+            sin_phi = arena.function("sin", (phi,))
+            chart = fortsym.Chart(
+                (z, r, phi), (r*cos_phi, r*sin_phi, z)
+            )
+            a1 = arena.function("A1", (z, r))
+            a2 = arena.function("A2", (z, r))
+            potential = (a1, a2, arena.integer(0))
+
+            density = chart.b_fourier_density(potential, mode)
+            expected_1 = (-arena.constant("i")*mode*a2).simplify()
+            expected_2 = (arena.constant("i")*mode*a1).simplify()
+            expected_3 = (a2.diff(z) - a1.diff(r)).simplify()
+            self.assertEqual(density[0].simplify(), expected_1)
+            self.assertEqual(density[1].simplify(), expected_2)
+            self.assertEqual(density[2].simplify(), expected_3)
+            self.assertEqual(len(chart.b_cov(chart.b_fourier(potential, mode))), 3)
+
+            with self.assertRaises(ValueError):
+                fortsym.Chart((z, r), (r, z))
+
 
 if __name__ == "__main__":
     unittest.main()
