@@ -2117,7 +2117,8 @@ contains
         integer :: periodic_constant
         integer :: positive_argument
         integer :: bessel_args(2), pair(2), one_arg(1)
-        logical :: domain_applied
+        integer :: integer_sign
+        logical :: domain_applied, integer_ok
 
         if (nan_propagates_function(name, a, args)) then
             out = nan_node(a)
@@ -2251,6 +2252,13 @@ contains
                 end if
             end if
         case ("gamma")
+            call exact_integer_sign(a, args(1), integer_sign, integer_ok)
+            if (integer_ok) then
+                if (integer_sign <= 0) then
+                    out = a%const("zoo")
+                    return
+                end if
+            end if
             call exact_value(a, args(1), order, den, exact)
             if (exact) then
                 if (den == 1_int64 .and. order >= 1_int64 .and. &
@@ -2263,7 +2271,19 @@ contains
                     out = a%func("sqrt", one_arg)
                 end if
             end if
+        case ("factorial")
+            call exact_integer_sign(a, args(1), integer_sign, integer_ok)
+            if (integer_ok) then
+                if (integer_sign < 0) out = a%const("zoo")
+            end if
         case ("loggamma")
+            call exact_integer_sign(a, args(1), integer_sign, integer_ok)
+            if (integer_ok) then
+                if (integer_sign <= 0) then
+                    out = a%const("oo")
+                    return
+                end if
+            end if
             call exact_loggamma_value(a, args(1), out, exact)
         case ("legendrep")
             call exact_legendre_value(a, args, out, exact)
@@ -3133,6 +3153,37 @@ contains
         out = a%func("log", one_arg)
         ok = .true.
     end subroutine exact_loggamma_value
+
+    subroutine exact_integer_sign(a, id, sign, ok)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: sign
+        logical, intent(out) :: ok
+        character(:), allocatable :: text
+
+        sign = 0
+        ok = .false.
+        select case (a%kind_of(id))
+        case (NK_INT)
+            if (a%num_of(id) < 0_int64) then
+                sign = -1
+            else if (a%num_of(id) > 0_int64) then
+                sign = 1
+            end if
+            ok = .true.
+        case (NK_BIG_INT)
+            text = chars(a%exact_text_of(id))
+            if (len(text) == 0) return
+            if (text(1:1) == "-") then
+                sign = -1
+            else if (text == "0") then
+                sign = 0
+            else
+                sign = 1
+            end if
+            ok = .true.
+        end select
+    end subroutine exact_integer_sign
 
     subroutine exact_atan2_value(a, args, out, ok)
         type(arena_t), intent(inout) :: a

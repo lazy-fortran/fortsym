@@ -474,6 +474,7 @@ contains
         type(engine_result_t) :: r
         type(expr_t) :: args(2)
         type(expr_t) :: loggamma_args(1)
+        type(expr_t) :: factorial_args(1)
         type(expr_t) :: extremum_args(3)
         type(expr_t) :: legendre_args(3)
 
@@ -490,6 +491,12 @@ contains
         r = engine%simplify(gamma(rat(arena, 1_int64, 2_int64)))
         call check("Gamma(1/2) simplifies to sqrt(pi)", &
             r%value == sqrt(pi_expr(arena)))
+        r = engine%simplify(gamma(num(arena, 0_int64)))
+        call check("Gamma(0) is the complex-infinity pole", &
+            r%value == zoo_expr(arena))
+        r = engine%simplify(gamma(num(arena, -3_int64)))
+        call check("Gamma(-3) is the complex-infinity pole", &
+            r%value == zoo_expr(arena))
 
         loggamma_args(1) = num(arena, 1_int64)
         r = engine%simplify(func("loggamma", loggamma_args))
@@ -513,7 +520,16 @@ contains
             r%value == log(sqrt(pi_expr(arena))*rat(arena, 3_int64, 4_int64)))
         loggamma_args(1) = num(arena, 0_int64)
         r = engine%simplify(func("loggamma", loggamma_args))
-        call check("loggamma pole remains opaque", r%value%kind() == NK_FUNC)
+        call check("loggamma pole is positive infinity", &
+            r%value == oo_expr(arena))
+        loggamma_args(1) = num(arena, -2_int64)
+        r = engine%simplify(func("loggamma", loggamma_args))
+        call check("loggamma(-2) is positive infinity", &
+            r%value == oo_expr(arena))
+        factorial_args(1) = num(arena, -1_int64)
+        r = engine%simplify(func("factorial", factorial_args))
+        call check("factorial(-1) is the complex-infinity pole", &
+            r%value == zoo_expr(arena))
 
         loggamma_args(1) = num(arena, 1_int64)
         r = engine%simplify(func("log10", loggamma_args))

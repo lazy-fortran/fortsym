@@ -378,6 +378,10 @@ Every checklist item requires all of the following:
   - [x] Match the representable negative-real Bessel-I phase: symbolic order
     returns `oo*(-1)**order`, integer order returns signed infinity, and
     unsupported exact non-integer orders remain explicit refusals.
+  - [x] Canonicalize finite gamma-family poles: exact non-positive integer
+    `gamma(n)` becomes `zoo`, exact non-positive integer `loggamma(n)` becomes
+    `oo`, and exact negative integer `factorial(n)` becomes `zoo`; broader
+    non-integer and accumulation-bound pole cases remain explicit refusals.
   - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
     non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
@@ -740,6 +744,10 @@ Every checklist item requires all of the following:
     and performance matrix. Their cold and warm rows are enforced and measured
     at 0.018x and 0.051x SymPy; the 82 substantive rows remain enforced with
     zero unwaived violations.
+  - [x] Add finite gamma-family pole cases to the correctness and performance
+    matrix. The six cold and warm rows are correctness-checked ABI diagnostics
+    and explicitly waived at 5.1--5.3x cold and 3.4x warm SymPy; the final
+    94-workload matrix retains 82 enforced rows with zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.
