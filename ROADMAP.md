@@ -1302,6 +1302,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   `beta = d(A)` on a declared simply connected patch, electric field form,
   Faraday law, and gauge transformations. Vector-calculus spellings remain
   derived convenience views.
+- [x] Add the first four-dimensional Maxwell-form owner: `F = d(A)`, the gauge
+  view `A -> A + d(chi)`, and the source residual `d(star(F)) - J` for a
+  degree-three current form. Native, C, Python, and SymPy differential checks
+  prove gauge invariance and a constructed zero residual; patch topology,
+  boundary conditions, constitutive media, and global exactness remain open.
 - [x] Add the first magnetic-form identity: `beta = i_B(volume) = d(A)` and
   `d(beta) = 0` for the native chart/magnetic owners. Keep the full Maxwell,
   gauge, and topology vocabulary open until the form domain carries patch

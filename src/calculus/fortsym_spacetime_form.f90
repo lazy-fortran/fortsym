@@ -24,7 +24,8 @@ module fortsym_spacetime_form
     public :: spacetime_form_zero, spacetime_form_scalar, spacetime_form_one
     public :: spacetime_form_two, spacetime_form_three, spacetime_form_four
     public :: spacetime_form_component, spacetime_form_degree
-    public :: spacetime_form_valid, spacetime_wedge, spacetime_d
+    public :: spacetime_form_valid, spacetime_form_same_arena, spacetime_wedge, spacetime_d
+    public :: spacetime_add, spacetime_subtract, spacetime_negate
     public :: spacetime_exterior_diff, spacetime_hodge, spacetime_star
     public :: spacetime_codifferential, spacetime_interior
     public :: spacetime_interior_product, spacetime_lie
@@ -184,6 +185,14 @@ contains
         end do
     end function spacetime_form_valid
 
+    function spacetime_form_same_arena(form, a) result(value)
+        type(spacetime_form_t), intent(in) :: form
+        type(arena_t), pointer, intent(in) :: a
+        logical :: value
+
+        value = spacetime_form_valid(form) .and. associated(form%a, a)
+    end function spacetime_form_same_arena
+
     function spacetime_wedge(left, right) result(value)
         type(spacetime_form_t), intent(in) :: left, right
         type(spacetime_form_t) :: value
@@ -206,6 +215,42 @@ contains
             end do
         end do
     end function spacetime_wedge
+
+    function spacetime_add(left, right) result(value)
+        type(spacetime_form_t), intent(in) :: left, right
+        type(spacetime_form_t) :: value
+        integer :: mask
+
+        if (.not. same_form_shape(left, right)) return
+        value = zero_form_arena(left%a, left%degree)
+        do mask = 0, 2**SPACETIME_DIM - 1
+            value%component(mask) = left%component(mask) + right%component(mask)
+        end do
+    end function spacetime_add
+
+    function spacetime_subtract(left, right) result(value)
+        type(spacetime_form_t), intent(in) :: left, right
+        type(spacetime_form_t) :: value
+        integer :: mask
+
+        if (.not. same_form_shape(left, right)) return
+        value = zero_form_arena(left%a, left%degree)
+        do mask = 0, 2**SPACETIME_DIM - 1
+            value%component(mask) = left%component(mask) - right%component(mask)
+        end do
+    end function spacetime_subtract
+
+    function spacetime_negate(form) result(value)
+        type(spacetime_form_t), intent(in) :: form
+        type(spacetime_form_t) :: value
+        integer :: mask
+
+        if (.not. spacetime_form_valid(form)) return
+        value = zero_form_arena(form%a, form%degree)
+        do mask = 0, 2**SPACETIME_DIM - 1
+            value%component(mask) = -form%component(mask)
+        end do
+    end function spacetime_negate
 
     function spacetime_d(g, form) result(value)
         type(spacetime_metric_t), intent(in) :: g
@@ -303,7 +348,7 @@ contains
         exponent = SPACETIME_DIM*(form%degree + 1) + negatives
         sign = 1
         if (mod(exponent, 2) == 1) sign = -1
-        if (sign < 0) value = negate_form(value)
+        if (sign < 0) value = spacetime_negate(value)
     end function spacetime_codifferential
 
     function spacetime_interior(vector, form) result(value)
@@ -557,16 +602,14 @@ contains
         end select
     end function hodge_term
 
-    function negate_form(form) result(value)
-        type(spacetime_form_t), intent(in) :: form
-        type(spacetime_form_t) :: value
-        integer :: mask
+    function same_form_shape(left, right) result(valid)
+        type(spacetime_form_t), intent(in) :: left, right
+        logical :: valid
 
-        value = zero_form_arena(form%a, form%degree)
-        do mask = 0, 2**SPACETIME_DIM - 1
-            value%component(mask) = -form%component(mask)
-        end do
-    end function negate_form
+        valid = spacetime_form_valid(left) .and. spacetime_form_valid(right)
+        if (.not. valid) return
+        valid = left%degree == right%degree .and. associated(left%a, right%a)
+    end function same_form_shape
 
     pure integer function mask_degree(mask)
         integer, intent(in) :: mask

@@ -12,6 +12,8 @@ program test_fortsym_spacetime_form
         spacetime_wedge, spacetime_hodge, spacetime_form_four, &
         spacetime_form_scalar, spacetime_codifferential, spacetime_interior, &
         spacetime_lie, spacetime_laplace_de_rham
+    use fortsym_maxwell, only: maxwell_field_strength, maxwell_gauge_transform, &
+        maxwell_residual
     implicit none
 
     type(arena_t), target :: arena
@@ -23,7 +25,8 @@ program test_fortsym_spacetime_form
     type(expr_t) :: two_components(6), residual
     type(spacetime_form_t) :: potential, field, closed, hodge, hodge_hodge, codiff
     type(spacetime_form_t) :: contraction, lie_field, cartan
-    type(spacetime_form_t) :: scalar_form, laplace
+    type(spacetime_form_t) :: scalar_form, laplace, gauge, gauge_field, current
+    type(spacetime_form_t) :: maxwell_error
     integer :: signature(SPACETIME_DIM), mask
 
     call arena%init()
@@ -80,6 +83,24 @@ program test_fortsym_spacetime_form
     laplace = spacetime_laplace_de_rham(metric, scalar_form)
     call check_identity(suite, engine, "Lorentzian scalar Laplace-de Rham", &
         spacetime_form_component(laplace, 0) + 4)
+
+    potential = spacetime_form_one(metric, potential_components)
+    field = maxwell_field_strength(metric, potential)
+    gauge = maxwell_gauge_transform(metric, potential, u(1)*u(2))
+    gauge_field = maxwell_field_strength(metric, gauge)
+    do mask = 0, 15
+        if (popcnt(mask) /= 2) cycle
+        call check_identity(suite, engine, "gauge transformation leaves F", &
+            spacetime_form_component(gauge_field, mask) - &
+            spacetime_form_component(field, mask))
+    end do
+    current = spacetime_d(metric, spacetime_hodge(metric, field))
+    maxwell_error = maxwell_residual(metric, potential, current)
+    do mask = 0, 15
+        if (popcnt(mask) /= 3) cycle
+        call check_identity(suite, engine, "Maxwell source residual", &
+            spacetime_form_component(maxwell_error, mask))
+    end do
 
     two_components(1) = num(arena, 1)
     two_components(2) = num(arena, 2)

@@ -166,11 +166,24 @@ class SympySubsetTest(unittest.TestCase):
         )
         potential = metric.one_form((x*y, t*z, t*x, t + y))
         field = potential.d()
+        self.assertEqual(
+            tuple(value.simplify() for value in potential.field_strength()),
+            tuple(value.simplify() for value in field),
+        )
         self.assertIsInstance(field, sp.SpacetimeForm)
         self.assertEqual((field[3] - (z - y)).simplify(), 0)
         closed = field.d()
         for mask in range(16):
             self.assertEqual(closed[mask].simplify(), 0)
+        gauge = potential.gauge_transform(t*x)
+        gauge_field = gauge.field_strength()
+        for mask in range(16):
+            self.assertEqual((gauge_field[mask] - field[mask]).simplify(), 0)
+        source = field.star().d()
+        residual = potential.maxwell_residual(source)
+        for mask in range(16):
+            if mask.bit_count() == 3:
+                self.assertEqual(residual[mask].simplify(), 0)
         radial = metric.one_form((t, x, y, z))
         self.assertEqual((radial.codifferential()[0] + 2).simplify(), 0)
         self.assertEqual(

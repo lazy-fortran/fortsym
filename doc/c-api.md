@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 38). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 39). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -43,6 +43,9 @@ residual call substitutes an explicit parameterized curve into the native
 Christoffel owner before assembling `x''^a + Gamma^a_bc x'^b x'^c`. The
 spacetime form boundary also transports contraction, the Cartan Lie derivative,
 and the Laplace--de Rham composition.
+The Maxwell form calls add native `F=d(A)`, gauge transformation
+`A -> A + d(chi)`, and the source residual `d(*F)-J`, with potentials and
+currents represented as degree-one and degree-three spacetime forms.
 The native library retains an
 arena while any expression handle refers to it; callers may therefore release
 the arena before releasing its expressions.

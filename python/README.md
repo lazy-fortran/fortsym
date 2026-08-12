@@ -48,8 +48,11 @@ arena and first-slot-fastest indexing. Its `one_form()`, `two_form()`,
 owners; `scalar_form()` constructs degree zero. These expose
 `d()`/`exterior_diff`, `wedge()`, `star()`/`hodge_star`,
 and `codifferential()`/`codiff()` with degree-aware components and the explicit
-metric signature and orientation. `geodesic_residual(curve, parameter)`
-returns the four native components of the parameterized geodesic equation.
+metric signature and orientation. `SpacetimeForm.field_strength()` returns
+`F=d(A)`, `gauge_transform(chi)` returns `A+d(chi)`, and
+`maxwell_residual(current)` returns the native source residual `d(star(F))-J`.
+`geodesic_residual(curve, parameter)` returns the four native components of
+the parameterized geodesic equation.
 `SpacetimeForm.interior(vector)` and `.lie(vector)` provide contraction and
 the Cartan Lie derivative, with `interior_product` and `lie_derivative` as
 matching aliases. `.laplace_de_rham()` composes the same native `d` and
