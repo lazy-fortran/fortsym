@@ -59,6 +59,16 @@ class SympySubsetTest(unittest.TestCase):
         with self.assertRaises(TypeError):
             expression.xreplace([(x, y)])
 
+    def test_match_uses_exact_structural_boundary(self):
+        x, y = sp.symbols("match_x match_y")
+        f = sp.Function("match_f")
+        self.assertEqual(x.match(x), {})
+        self.assertIsNone(x.match(y))
+        self.assertEqual((x + y).match(y + x), {})
+        self.assertEqual(f(x + 1).match(f(x + 1)), {})
+        self.assertIsNone(f(x + 1).match(f(x + 2)))
+        self.assertEqual(x.match(x, old=True), {})
+
     def test_refusal_and_truth_contract(self):
         self.assertFalse(bool(sp.Integer(0)))
         with self.assertRaises(TypeError):

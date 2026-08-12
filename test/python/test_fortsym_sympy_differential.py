@@ -336,6 +336,30 @@ class SympyDifferentialTest(unittest.TestCase):
                 actual = native_expression.xreplace(native_mapping)
                 self.assert_equivalent("xreplace", expected, actual)
 
+    def test_exact_match_matches_oracle(self):
+        def cases(api):
+            x, y = api.symbols("match_x match_y")
+            f = api.Function("match_f")
+            return [
+                (x, x),
+                (x, y),
+                (x + y, y + x),
+                (f(x + 1), f(x + 1)),
+                (f(x + 1), f(x + 2)),
+            ]
+
+        oracle_cases = cases(oracle)
+        native_cases = cases(native)
+        for index, ((oracle_expression, oracle_pattern),
+                    (native_expression, native_pattern)) in enumerate(
+                        zip(oracle_cases, native_cases)
+                    ):
+            with self.subTest(index=index):
+                self.assertEqual(
+                    native_expression.match(native_pattern),
+                    oracle_expression.match(oracle_pattern),
+                )
+
     def test_free_symbols_matches_oracle(self):
         def names(api, expression):
             if api is oracle:
