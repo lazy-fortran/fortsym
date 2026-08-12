@@ -46,6 +46,9 @@ owners. These expose `d()`/`exterior_diff`, `wedge()`, `star()`/`hodge_star`,
 and `codifferential()`/`codiff()` with degree-aware components and the explicit
 metric signature and orientation. `geodesic_residual(curve, parameter)`
 returns the four native components of the parameterized geodesic equation.
+`SpacetimeForm.interior(vector)` and `.lie(vector)` provide contraction and
+the Cartan Lie derivative, with `interior_product` and `lie_derivative` as
+matching aliases.
 `Chart.one_form()`, `two_form()`, and
 `three_form()` construct native `Form` objects. Forms expose the fixed
 three-dimensional basis-mask components plus `d()`, `wedge()`, `star()`,

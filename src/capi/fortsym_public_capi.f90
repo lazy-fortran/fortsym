@@ -42,6 +42,7 @@ module fortsym_public_capi
         spacetime_form_two, spacetime_form_three, spacetime_form_four, &
         spacetime_form_component, spacetime_form_valid, spacetime_d, &
         spacetime_wedge, spacetime_hodge, spacetime_codifferential
+    use fortsym_spacetime_form, only: spacetime_interior, spacetime_lie
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_from_storage, tensor_component, tensor_valid, metric_covariant_tensor, &
         metric_contravariant_tensor, density_tensor => density, &
@@ -141,7 +142,8 @@ module fortsym_public_capi
         fortsym_spacetime_scalar_curvature, fortsym_spacetime_einstein, &
         fortsym_spacetime_geodesic_residual, &
         fortsym_spacetime_form_d, fortsym_spacetime_form_wedge, &
-        fortsym_spacetime_form_star, fortsym_spacetime_form_codifferential
+        fortsym_spacetime_form_star, fortsym_spacetime_form_codifferential, &
+        fortsym_spacetime_form_interior, fortsym_spacetime_form_lie
     public :: fortsym_complex_operation
     public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
@@ -156,7 +158,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 35_c_int
+        v = 36_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -2360,6 +2362,63 @@ contains
         call make_spacetime_form_array(a, value, out, status, message, capacity)
     end function fortsym_spacetime_form_codifferential
 
+    function fortsym_spacetime_form_interior(raw, components, dimension, &
+            coordinates, signature, orientation, vector, input, degree, out, &
+            message, capacity) bind(c, name="fortsym_spacetime_form_interior") &
+            result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, vector
+        type(c_ptr), value :: input, out
+        integer(c_int), value :: dimension, orientation
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_form_t) :: input_value, value
+        type(expr_t) :: vector_value(SPACETIME_DIM)
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_vector_input(a, vector, vector_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, input, degree, input_value, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_interior(vector_value, input_value)
+        call make_spacetime_form_array(a, value, out, status, message, capacity)
+    end function fortsym_spacetime_form_interior
+
+    function fortsym_spacetime_form_lie(raw, components, dimension, coordinates, &
+            signature, orientation, vector, input, degree, out, message, capacity) &
+            bind(c, name="fortsym_spacetime_form_lie") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, vector
+        type(c_ptr), value :: input, out
+        integer(c_int), value :: dimension, orientation
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_form_t) :: input_value, value
+        type(expr_t) :: vector_value(SPACETIME_DIM)
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_vector_input(a, vector, vector_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, input, degree, input_value, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_lie(metric, vector_value, input_value)
+        call make_spacetime_form_array(a, value, out, status, message, capacity)
+    end function fortsym_spacetime_form_lie
+
     function fortsym_expand(raw, expression_raw, out, message, capacity) &
             bind(c, name="fortsym_expand") result(status)
         type(c_ptr), value :: raw, expression_raw, out
@@ -3056,6 +3115,35 @@ contains
         call put_error(message, capacity, FORTSYM_OK)
         status = FORTSYM_OK
     end subroutine get_spacetime_form_input
+
+    subroutine get_spacetime_vector_input(a, raw, value, status, message, capacity)
+        type(arena_owner_t), pointer :: a
+        type(c_ptr), value :: raw
+        type(expr_t), intent(out) :: value(SPACETIME_DIM)
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(c_ptr), pointer :: values(:)
+        type(expr_owner_t), pointer :: owner
+        integer :: i, shape(1)
+
+        if (.not. c_associated(raw)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape(1) = SPACETIME_DIM
+        call c_f_pointer(raw, values, shape)
+        do i = 1, SPACETIME_DIM
+            call get_expr(values(i), owner, value(i), status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end subroutine get_spacetime_vector_input
 
     subroutine make_spacetime_form_array(a, value, out, status, message, capacity)
         type(arena_owner_t), pointer :: a

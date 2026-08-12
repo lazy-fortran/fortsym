@@ -10,7 +10,7 @@ program test_fortsym_spacetime_form
     use fortsym_spacetime_form, only: spacetime_form_t, spacetime_form_one, &
         spacetime_form_two, spacetime_form_component, spacetime_d, &
         spacetime_wedge, spacetime_hodge, spacetime_form_four, &
-        spacetime_codifferential
+        spacetime_codifferential, spacetime_interior, spacetime_lie
     implicit none
 
     type(arena_t), target :: arena
@@ -18,9 +18,10 @@ program test_fortsym_spacetime_form
     type(suite_t) :: suite
     type(spacetime_metric_t) :: metric
     type(expr_t) :: u(SPACETIME_DIM), components(SPACETIME_DIM, SPACETIME_DIM)
-    type(expr_t) :: potential_components(SPACETIME_DIM)
+    type(expr_t) :: potential_components(SPACETIME_DIM), vector(SPACETIME_DIM)
     type(expr_t) :: two_components(6), residual
     type(spacetime_form_t) :: potential, field, closed, hodge, hodge_hodge, codiff
+    type(spacetime_form_t) :: contraction, lie_field, cartan
     integer :: signature(SPACETIME_DIM), mask
 
     call arena%init()
@@ -50,6 +51,23 @@ program test_fortsym_spacetime_form
         call check_identity(suite, engine, "d(dA)=0", &
             spacetime_form_component(closed, mask))
     end do
+
+    vector = num(arena, 0)
+    vector(1) = num(arena, 1)
+    two_components = num(arena, 0)
+    two_components(1) = u(4) - u(3)
+    two_components(3) = u(1)
+    field = spacetime_form_two(metric, two_components)
+    contraction = spacetime_interior(vector, field)
+    lie_field = spacetime_lie(metric, vector, field)
+    cartan = spacetime_d(metric, contraction)
+    call check_identity(suite, engine, "interior contraction", &
+        spacetime_form_component(contraction, 2) - (u(4) - u(3)))
+    call check_identity(suite, engine, "Cartan Lie derivative", &
+        spacetime_form_component(lie_field, 6) - 1)
+    call check_identity(suite, engine, "Cartan identity", &
+        spacetime_form_component(lie_field, 6) - &
+        spacetime_form_component(cartan, 6))
 
     potential = spacetime_form_one(metric, u)
     codiff = spacetime_codifferential(metric, potential)

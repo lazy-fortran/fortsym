@@ -26,7 +26,9 @@ module fortsym_spacetime_form
     public :: spacetime_form_component, spacetime_form_degree
     public :: spacetime_form_valid, spacetime_wedge, spacetime_d
     public :: spacetime_exterior_diff, spacetime_hodge, spacetime_star
-    public :: spacetime_codifferential
+    public :: spacetime_codifferential, spacetime_interior
+    public :: spacetime_interior_product, spacetime_lie
+    public :: spacetime_lie_derivative
 
 contains
 
@@ -303,6 +305,90 @@ contains
         if (mod(exponent, 2) == 1) sign = -1
         if (sign < 0) value = negate_form(value)
     end function spacetime_codifferential
+
+    function spacetime_interior(vector, form) result(value)
+        type(expr_t), intent(in) :: vector(SPACETIME_DIM)
+        type(spacetime_form_t), intent(in) :: form
+        type(spacetime_form_t) :: value
+        integer :: input_mask, output_mask, coordinate, position, sign, i
+
+        if (.not. spacetime_form_valid(form)) return
+        if (form%degree == 0) return
+        do i = 1, SPACETIME_DIM
+            if (.not. is_valid(vector(i))) return
+            if (.not. associated(vector(i)%a, form%a)) return
+        end do
+        value = zero_form_arena(form%a, form%degree - 1)
+        do input_mask = 0, 2**SPACETIME_DIM - 1
+            if (mask_degree(input_mask) /= form%degree) cycle
+            do coordinate = 1, SPACETIME_DIM
+                if (.not. btest(input_mask, coordinate - 1)) cycle
+                output_mask = ibclr(input_mask, coordinate - 1)
+                position = 1
+                do sign = 1, coordinate - 1
+                    if (btest(input_mask, sign - 1)) position = position + 1
+                end do
+                if (mod(position, 2) == 0) then
+                    value%component(output_mask) = value%component(output_mask) - &
+                        vector(coordinate)*form%component(input_mask)
+                else
+                    value%component(output_mask) = value%component(output_mask) + &
+                        vector(coordinate)*form%component(input_mask)
+                end if
+            end do
+        end do
+    end function spacetime_interior
+
+    function spacetime_interior_product(vector, form) result(value)
+        type(expr_t), intent(in) :: vector(SPACETIME_DIM)
+        type(spacetime_form_t), intent(in) :: form
+        type(spacetime_form_t) :: value
+
+        value = spacetime_interior(vector, form)
+    end function spacetime_interior_product
+
+    function spacetime_lie(g, vector, form) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: vector(SPACETIME_DIM)
+        type(spacetime_form_t), intent(in) :: form
+        type(spacetime_form_t) :: value, first, second, derivative, contraction
+        integer :: i
+
+        if (.not. spacetime_metric_valid(g)) return
+        if (.not. spacetime_form_valid(form)) return
+        if (.not. associated(form%a, spacetime_metric_arena(g))) return
+        do i = 1, SPACETIME_DIM
+            if (.not. is_valid(vector(i))) return
+            if (.not. associated(vector(i)%a, form%a)) return
+        end do
+        first = spacetime_form_t()
+        if (form%degree < SPACETIME_DIM) then
+            derivative = spacetime_exterior_diff(g, form)
+            first = spacetime_interior(vector, derivative)
+        else
+            first = zero_form_arena(form%a, form%degree)
+        end if
+        second = zero_form_arena(form%a, form%degree)
+        if (form%degree > 0) then
+            contraction = spacetime_interior(vector, form)
+            second = spacetime_exterior_diff(g, contraction)
+        end if
+        if (.not. spacetime_form_valid(first)) return
+        if (.not. spacetime_form_valid(second)) return
+        value = zero_form_arena(form%a, form%degree)
+        do i = 0, 2**SPACETIME_DIM - 1
+            value%component(i) = first%component(i) + second%component(i)
+        end do
+    end function spacetime_lie
+
+    function spacetime_lie_derivative(g, vector, form) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: vector(SPACETIME_DIM)
+        type(spacetime_form_t), intent(in) :: form
+        type(spacetime_form_t) :: value
+
+        value = spacetime_lie(g, vector, form)
+    end function spacetime_lie_derivative
 
     function codifferential_one_form(g, form) result(value)
         type(spacetime_metric_t), intent(in) :: g
