@@ -98,6 +98,83 @@ No external CAS is required by the native path. SymPy, SymEngine, Yacas,
 Maxima, and Mathics remain optional differential references or explicitly
 selected backends.
 
+## Differential geometry source synthesis and notation contract
+
+The geometry toolkit follows one contract that is readable in both the
+physicist's component notation and the mathematician's coordinate-free
+notation. The source basis is [D'haeseleer, Hitchon, Callen, and
+Shohet, *Flux Coordinates and Magnetic Field Structure*](https://doi.org/10.1007/978-3-642-75595-8),
+especially its chapters on curvilinear vector algebra, tensorial objects,
+flux coordinates, component transformations, and divergence. The
+[open-access Albert--Bíro--Lainer derivation](https://arxiv.org/abs/2008.13681)
+supplies the Fourier/FEM workload, while the review [*Magnetic Coordinate
+Systems*](https://arxiv.org/abs/1611.10321) supplies an independent check on
+non-orthogonal magnetic coordinates and coordinate-conversion pitfalls. The
+Callen plasma-physics material is used for the physical meaning of field-line
+and flux coordinates; the D'haeseleer volume is the common
+curvilinear/tensor reference for the implementation contract.
+
+The invariant layer is deliberately expressed without committing the core to
+one notation convention:
+
+```text
+x = x(u)                    coordinate map
+e_i = partial_i x           tangent/covariant basis
+e^i dot e_j = delta^i_j    reciprocal/contravariant basis
+g_ij = e_i dot e_j          metric;  g^ij = (g_ij)^(-1)
+J = det(partial_i x)        signed orientation Jacobian
+Omega = orientation*sqrt(|det(g)|) du^1^...^du^n
+A = A^i e_i = A_i e^i    A_i = g_ij A^j,  A^i = g^ij A_j
+div(A) = |g|^(-1/2) partial_i(|g|^(1/2) A^i)
+```
+
+The plasma and form views are two projections of those same objects:
+
+```text
+B = B^i e_i = B_i e^i
+B_density^i = sqrtg*B^i       contravariant density, weight +1
+beta = i_B(Omega)              magnetic flux two-form in 3D
+d(beta) = 0                    no magnetic monopoles
+beta = d(A)                    local vector-potential representation
+```
+
+The relativity view uses the same index and density metadata with an explicit
+signature and orientation: `nabla_a`, `R^a_bcd`, `R_ab`, `R`, `G_ab`, and
+`G_ab + Lambda*g_ab = 0` are typed operations, not strings or special-case
+formula templates. The de Sitter and weak-field/GPS examples remain the
+small regression pair for curved and Newtonian limits.
+
+The staged implementation contract is:
+
+- [ ] **G0 — source and convention manifest.** Record the source chapter or
+  paper equation, coordinate assumptions, signature, orientation, index
+  variance, density weight, and expected refusal for every geometry example.
+  Do not copy source-specific notation into the canonical API.
+- [ ] **G1 — one native geometric IR.** Make chart, metric, tensor, density,
+  connection, form, and magnetic owners exchange typed metadata through one
+  checked representation. Python/SymPy and Wolfram records lower to this IR;
+  neither frontend becomes a second implementation.
+- [ ] **G2 — physicist's component layer.** Support `B_i`, `B^i`,
+  `sqrtg*B^i`, mixed tensors, Einstein contractions, covariant derivatives,
+  curvature, and explicit signature/orientation in concise Fortran and
+  SymPy-named Python adapters.
+- [ ] **G3 — mathematician's form layer.** Support arbitrary supported form
+  degree, wedge, `d`, pullback, interior and Lie derivatives, Hodge star,
+  codifferential, Laplace--de Rham, exact/closed checks, and patch/topology
+  conditions, all backed by the same chart and metric owners.
+- [ ] **G4 — magnetic-coordinate layer.** Add Clebsch, straight-field-line,
+  Boozer, and Hamada descriptors, flux functions, Jacobian/current
+  identities, field-line and surface measures, and explicit non-orthogonal
+  coordinate transforms without embedding an equilibrium solver.
+- [ ] **G5 — derivation corpus and examples.** Translate the paper scripts and
+  the selected Callen/D'haeseleer derivations into one manifest, then produce
+  native Fortran, `fortsym.sympy`, and Wolfram examples with independent
+  component, numerical, residual, and coordinate-composition checks.
+- [ ] **G6 — performance and release gate.** Benchmark the same symbolic
+  derivations in SymPy and native code, separate conversion from core work,
+  preserve density/index metadata in generated kernels, and reject every new
+  array-temporary or expression-growth regression.
+
 ### Definition of done
 
 Every checklist item requires all of the following:
