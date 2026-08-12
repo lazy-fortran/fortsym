@@ -137,6 +137,10 @@ The exact real tangent values `atan(±sqrt(3))` and `atan(±1/sqrt(3))` return
 signed `pi/3` and `pi/6`; other exact tangent arguments remain unevaluated.
 The exact real inverse-hyperbolic values `asinh(1)` and `asinh(-1)` are
 canonicalized to `log(sqrt(2) + 1)` and `-log(sqrt(2) + 1)`.
+Finite gamma-family poles follow SymPy's representable boundaries: exact
+non-positive integer `gamma(n)` becomes `zoo`, exact non-positive integer
+`loggamma(n)` becomes `oo`, and exact negative integer `factorial(n)` becomes
+`zoo`; broader non-integer and accumulation-bound pole cases remain applied.
 The exact imaginary branch points `asinh(i)` and `asinh(-i)` are canonicalized
 to `i*pi/2` and `-i*pi/2`; broader complex inverse branches remain unevaluated.
 The reciprocal-hyperbolic heads `csch`, `sech`, and `coth` likewise have

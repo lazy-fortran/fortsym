@@ -380,6 +380,41 @@ int main(void)
                               message, sizeof message);
     assert(status == FORTSYM_OK);
     expect_text(negative_log_simplified, "log(2) + i*pi");
+    root_argument[0] = zero;
+    status = fortsym_function(arena, "gamma", root_argument, 1, &pole,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, pole, &pole_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(pole_simplified, "zoo");
+    fortsym_expr_free(pole_simplified);
+    fortsym_expr_free(pole);
+    pole_simplified = NULL;
+    pole = NULL;
+    root_argument[0] = negative_two;
+    status = fortsym_function(arena, "loggamma", root_argument, 1, &pole,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, pole, &pole_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(pole_simplified, "oo");
+    fortsym_expr_free(pole_simplified);
+    fortsym_expr_free(pole);
+    pole_simplified = NULL;
+    pole = NULL;
+    status = fortsym_function(arena, "factorial", root_argument, 1, &pole,
+                              message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_simplify(arena, pole, &pole_simplified, message,
+                              sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(pole_simplified, "zoo");
+    fortsym_expr_free(pole_simplified);
+    fortsym_expr_free(pole);
+    pole_simplified = NULL;
+    pole = NULL;
     special_arguments[0] = undefined;
     special_arguments[1] = x;
     status = fortsym_function(arena, "besselj", special_arguments, 2,
