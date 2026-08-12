@@ -52,6 +52,7 @@ program test_fortsym_connection
     type(tensor_t) :: chart_torsion, metric_torsion, supplied_torsion
     type(tensor_t) :: chart_nonmetricity, metric_nonmetricity
     type(tensor_t) :: supplied_nonmetricity, supplied_derivative, supplied_divergence
+    type(tensor_t) :: supplied_riemann
     type(expr_t) :: metric_scalar
     type(expr_t) :: curved_components(DIM, DIM)
     type(expr_t) :: cartesian_components(DIM, DIM)
@@ -202,6 +203,9 @@ program test_fortsym_connection
     supplied_nonmetricity = nonmetricity(supplied_connection, cartesian_metric)
     call check_identity(suite, engine, "supplied Q_112 = 4*R", &
         tensor_component(supplied_nonmetricity, indices(1:3)) - 4*u(2))
+    supplied_riemann = riemann_tensor(supplied_connection)
+    call check_identity(suite, engine, "supplied R^1_212 = -2*R*Z", &
+        tensor_component(supplied_riemann, [1, 2, 1, 2]) + 2*u(1)*u(2))
     supplied_vector = u
     supplied_derivative = covariant_diff(supplied_connection, &
         tensor_vector(polynomial, supplied_vector))

@@ -26,11 +26,13 @@ program test_fortsym_chart_map
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
     type(chart_t) :: source, target, middle, final
-    type(chart_map_t) :: transition, second_transition, composed, singular
+    type(chart_map_t) :: transition, reverse_transition, second_transition, &
+        composed, singular
     type(facade_chart_map_t) :: facade_transition
     type(expr_t) :: source_u(DIM), target_u(DIM), final_u(DIM)
     type(expr_t) :: source_position(DIM), target_position(DIM), final_position(DIM)
     type(expr_t) :: forward(DIM), inverse(DIM)
+    type(expr_t) :: reverse_forward(DIM), reverse_inverse(DIM)
     type(expr_t) :: second_forward(DIM), second_inverse(DIM)
     type(expr_t) :: jacobian(DIM, DIM), inverse_map(DIM, DIM)
     type(expr_t) :: composed_jacobian(DIM, DIM), composed_inverse(DIM, DIM)
@@ -60,6 +62,15 @@ program test_fortsym_chart_map
     inverse(2) = target_u(2)
     inverse(3) = target_u(3)
     transition = chart_map_create(source, target, forward, inverse)
+
+    reverse_forward(1) = -source_u(1)
+    reverse_forward(2) = source_u(2)
+    reverse_forward(3) = source_u(3)
+    reverse_inverse(1) = -target_u(1)
+    reverse_inverse(2) = target_u(2)
+    reverse_inverse(3) = target_u(3)
+    reverse_transition = chart_map_create(source, target, reverse_forward, &
+        reverse_inverse)
 
     middle = chart_create(arena, target_u, target_position)
     final = chart_create(arena, final_u, final_position)
@@ -127,11 +138,19 @@ program test_fortsym_chart_map
 
     vector_density = transform_tensor(transition, density(vector, 1))
     call check_identity(suite, engine, "density p component", &
-        vector_density%component(0) - 2*target_u(1))
+        vector_density%component(0) - target_u(1)/2)
     call check_identity(suite, engine, "density q component", &
-        vector_density%component(1) - 2*target_u(2))
+        vector_density%component(1) - target_u(2)/2)
     call check_identity(suite, engine, "density s component", &
-        vector_density%component(2) - 2*target_u(3))
+        vector_density%component(2) - target_u(3)/2)
+
+    vector_density = transform_tensor(reverse_transition, density(vector, 1))
+    call check_identity(suite, engine, "orientation-reversed density keeps p sign", &
+        vector_density%component(0) - target_u(1))
+    call check_identity(suite, engine, "orientation-reversed density keeps q", &
+        vector_density%component(1) - target_u(2))
+    call check_identity(suite, engine, "orientation-reversed density keeps s", &
+        vector_density%component(2) - target_u(3))
 
     facade_transition = facade_chart_map_create(source, target, forward, inverse)
     vector_target = facade_transform_tensor(facade_transition, vector)

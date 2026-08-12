@@ -805,6 +805,11 @@ def _configure(lib):
         "fortsym_chart_connection_covariant_divergence", ctypes.c_int,
         connection_tensor_arguments,
     )
+    lib.chart_connection_riemann = declare(
+        "fortsym_chart_connection_riemann", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.chart_scalar_curvature = declare(
         "fortsym_chart_scalar_curvature",
         ctypes.c_int,
@@ -2165,6 +2170,23 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message), "connection_nonmetricity")
         return tuple(Expr(self, output[index]) for index in range(27))
+
+    def _chart_connection_riemann(self, connection):
+        coordinate_handles, position_handles = self._chart_inputs(
+            connection.chart.coordinates, connection.chart.position
+        )
+        values = (_CVOID * 27)(
+            *[self._check(value)._handle for value in connection.components]
+        )
+        output = (_CVOID * 81)()
+        message = _message()
+        status = self._lib.chart_connection_riemann(
+            self._require(), coordinate_handles, position_handles, values, output,
+            message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "connection_riemann")
+        return tuple(Expr(self, output[index]) for index in range(81))
 
     def _chart_connection_tensor(self, operation, connection, tensor, output_rank):
         coordinate_handles, position_handles = self._chart_inputs(
@@ -3784,6 +3806,13 @@ class Connection:
             raise ValueError("nonmetricity requires a metric on this chart")
         components = self._arena._chart_connection_nonmetricity(self, metric)
         return Tensor(self.chart, components, (-1, -1, -1), _owned=True)
+
+    def riemann(self):
+        """Return the stored connection's typed ``R^a_bcd`` tensor."""
+        components = self._arena._chart_connection_riemann(self)
+        return Tensor(self.chart, components, (1, -1, -1, -1), _owned=True)
+
+    curvature = riemann
 
     def covariant_diff(self, tensor):
         if not isinstance(tensor, Tensor) or tensor.chart is not self.chart:

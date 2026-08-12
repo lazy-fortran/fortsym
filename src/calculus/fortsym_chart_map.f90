@@ -114,7 +114,10 @@ contains
     !> Transform every tensor slot and retain its density weight.
     !>
     !> Upper slots use K. Lower slots use L. A density of weight w receives
-    !> abs(det(K))**w. The result is expressed in the target coordinates.
+    !> abs(det(K))**(-w). The result is expressed in the target coordinates.
+    !> This is the standard coordinate-density law: a contravariant vector
+    !> density J^i = sqrt(g) B^i carries the inverse coordinate-volume factor
+    !> when its components move from u to u'.
     function transform_tensor(map, source_tensor) result(result)
         type(chart_map_t), intent(in) :: map
         type(tensor_t), intent(in) :: source_tensor
@@ -139,7 +142,7 @@ contains
         jacobian_det = det3(k_target)
         density_factor = num(map%target%a, 1)
         if (source_tensor%density_weight /= 0) then
-            density_factor = abs(jacobian_det)**source_tensor%density_weight
+            density_factor = abs(jacobian_det)**(-source_tensor%density_weight)
         end if
 
         do output_flat = 0, count - 1

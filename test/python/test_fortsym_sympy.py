@@ -151,6 +151,13 @@ class SympySubsetTest(unittest.TestCase):
         )
         self.assertEqual(actual_torsion, tuple(expected_torsion))
 
+        # R^1_212 = d_1 Gamma^1_22 - d_2 Gamma^1_12
+        #             + Gamma^1_1m Gamma^m_22 - Gamma^1_2m Gamma^m_12.
+        actual_riemann = oracle.sympify(
+            str(connection.riemann()[0, 1, 0, 1].simplify())
+        )
+        self.assertEqual(actual_riemann, -2*ox*oy)
+
         expected_nonmetricity = []
         for k in range(3):
             for j in range(3):
@@ -989,7 +996,19 @@ class SympySubsetTest(unittest.TestCase):
         density = transition.transform(source.vector((x, y, z), density_weight=1))
         self.assertEqual(
             tuple(oracle.sympify(str(density[index].simplify())) for index in range(3)),
-            (2*op, 2*oq, 2*os),
+            (op/2, oq/2, os/2),
+        )
+
+        reversed_transition = sp.ChartMap(
+            source, target, (-x, y, z), (-p, q, s)
+        )
+        reversed_density = reversed_transition.transform(
+            source.vector((x, y, z), density_weight=1)
+        )
+        self.assertEqual(
+            tuple(oracle.sympify(str(reversed_density[index].simplify()))
+                  for index in range(3)),
+            (op, oq, os),
         )
 
         one_form = transition.pullback(source.one_form((x, y, z)))

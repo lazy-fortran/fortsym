@@ -150,8 +150,11 @@ do not maintain separate metric, variance, or density representations.
 coordinates as functions of source coordinates and the inverse map explicitly.
 `map_valid` reports whether the transition passed the native structural
 validation; identically singular forward or inverse Jacobians are refused.
-The tensor transform applies `K` to upper slots, `L` to lower slots, preserves
-the density weight, and returns components expressed in the target coordinates.
+The tensor transform applies `K` to upper slots and `L` to lower slots. For a
+stored density weight `w`, it multiplies by `abs(det(K))**(-w)` before the
+slot transforms. This is the passive coordinate law for a density. In
+particular, `D^i = sqrtg*B^i` is a weight-`+1` contravariant density, while
+orientation remains a separate signed top-form choice.
 
 ```fortran
 use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
@@ -316,6 +319,9 @@ coordinate Levi-Civita owner with `connection_from_chart(chart)` or
 slot and density kernel as the chart and metric owners. The current native
 convention is `CONNECTION_STANDARD`; named alternate Riemann conventions and
 geodesic solving remain separate roadmap work.
+`riemann_tensor(connection)` differentiates the supplied coefficients directly
+and returns `R^a_bcd` without inferring or constructing a metric. The Python
+facade exposes the same view as `Connection.riemann()`.
 
 The dimension-aware `spacetime_metric_t` owner provides the matching
 relativity operations `spacetime_metric_flat`, `spacetime_metric_sharp`,

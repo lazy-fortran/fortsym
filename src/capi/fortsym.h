@@ -553,6 +553,10 @@ int fortsym_chart_connection_covariant_divergence(
     const fortsym_expr *position[], const fortsym_expr *connection[],
     const fortsym_expr *components[], size_t rank, const int variance[],
     int density_weight, fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_connection_riemann(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *connection[],
+    fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_chart_riemann(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], fortsym_expr *out[], char *message,

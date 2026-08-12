@@ -91,6 +91,7 @@ module fortsym_connection
     interface riemann_tensor
         module procedure riemann_tensor_chart
         module procedure riemann_tensor_metric
+        module procedure riemann_tensor_connection
     end interface riemann_tensor
 
     interface first_bianchi_residual
@@ -718,6 +719,27 @@ contains
         variances(4) = LOWER_VARIANCE
         result = tensor_from_arena(metric_arena(g), 4, values, variances)
     end function riemann_tensor_metric
+
+    !> Riemann tensor for a supplied affine connection.
+    !>
+    !> No metric is inferred here. The connection owns both the coefficients
+    !> and the coordinate tuple, so torsionful or nonmetric connections can be
+    !> differentiated without coupling this view to a metric owner.
+    function riemann_tensor_connection(connection) result(result)
+        type(connection_t), intent(in) :: connection
+        type(tensor_t) :: result
+        type(expr_t) :: values(0:MAX_COMPONENTS - 1)
+        integer :: variances(MAX_RANK)
+
+        if (.not. connection_valid(connection)) return
+        call riemann_components(connection%component, connection%coordinate, values)
+        variances = 0
+        variances(1) = UPPER
+        variances(2) = LOWER_VARIANCE
+        variances(3) = LOWER_VARIANCE
+        variances(4) = LOWER_VARIANCE
+        result = tensor_from_arena(connection%a, 4, values, variances)
+    end function riemann_tensor_connection
 
     !> First Bianchi residual R^a_bcd + R^a_cdb + R^a_dbc.
     !>
