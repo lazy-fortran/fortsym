@@ -302,6 +302,9 @@ contains
         call check("native factor operation succeeds", r%ok)
         call check("native factor operation returns the exact factorisation", &
             r%value == (x + 1)**2)
+        r = engine%factor(x**2 + 2*x + 1)
+        call check("native factor cache preserves the exact factorisation", &
+            r%ok .and. r%value == (x + 1)**2)
 
         r = engine%factor((x**2 - 1)/(x - 1))
         call check("native factor operation on a quotient succeeds", r%ok)
