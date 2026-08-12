@@ -1264,9 +1264,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Implement the first fixed-three-dimensional subset: `form_t`, scalar,
   one-, two-, and three-form constructors, `wedge`, `d`, metric `star`,
   interior product, Cartan `lie`, and metric `flat`/`sharp`.
-- [ ] Implement metric-dependent Hodge `star`, codifferential, Laplace-de Rham
-  operator, and the conversion between vectors and one-forms using `flat` and
-  `sharp`. Orientation and metric signature are explicit inputs to `star`.
+- [ ] Implement codifferential, Laplace-de Rham, and the conversion between
+  vectors and one-forms using `flat` and `sharp`. The fixed-three-dimensional
+  Hodge owner now accepts an explicit metric signature and orientation through
+  both Fortran and Python; higher-degree and arbitrary-dimensional forms remain
+  open.
 - [ ] Prove and test the structural identities `d(d(alpha)) = 0`, the graded
   Leibniz rule, pullback composition, Cartan's identity, and the appropriate
   signed `star(star(alpha))` rule in each supported signature.
@@ -1306,6 +1308,10 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   Einstein views, scalar curvature, typed variance/density metadata, and
   covariant differentiation. Python transports native handles and does not
   duplicate geometry formulas; broader `diffgeom`/tensor parity remains open.
+- [x] Add explicit metric-owner Hodge transport for supplied Riemannian or
+  Lorentzian component metrics, including inverse metric and positive
+  `sqrt(abs(det(g)))`. Keep the chart-induced convenience path and the explicit
+  metric path on one native Hodge implementation.
 
 ### Magnetic and flux-coordinate toolkit
 

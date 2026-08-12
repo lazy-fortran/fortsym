@@ -29,6 +29,8 @@ module fortsym_public_capi
         fourier_constitutive_t, fourier_weak_form_t, &
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NODAL, SPACE_EDGE, &
         TRACE_NORMAL, TRACE_TANGENTIAL
+    use fortsym_metric, only: metric_t, metric_create, metric_valid, &
+        metric_contravariant, metric_sqrtg
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_from_storage, tensor_component, tensor_valid, metric_covariant_tensor, &
         metric_contravariant_tensor, density_tensor => density, &
@@ -109,6 +111,7 @@ module fortsym_public_capi
         fortsym_chart_b_fourier, fortsym_chart_b_fourier_density, &
         fortsym_chart_j_fourier, fortsym_chart_fourier_weak_form, &
         fortsym_chart_current_compatibility, &
+        fortsym_metric_sqrtg, fortsym_metric_contravariant, &
         fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
         fortsym_chart_christoffel, fortsym_chart_covariant_diff, &
         fortsym_chart_tensor_raise, fortsym_chart_tensor_lower, &
@@ -120,7 +123,8 @@ module fortsym_public_capi
         fortsym_chart_form_d, fortsym_chart_form_wedge, &
         fortsym_chart_form_star, fortsym_chart_form_interior, &
         fortsym_chart_form_lie, fortsym_chart_form_flat, &
-        fortsym_chart_form_sharp, fortsym_chart_form_volume
+        fortsym_chart_form_sharp, fortsym_chart_form_volume, &
+        fortsym_chart_form_star_metric
     public :: fortsym_complex_operation
     public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
@@ -135,7 +139,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 30_c_int
+        v = 31_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -1928,6 +1932,81 @@ contains
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_chart_current_compatibility
 
+    function fortsym_metric_sqrtg(raw, components, signature, orientation, out, &
+            message, capacity) bind(c, name="fortsym_metric_sqrtg") result(status)
+        type(c_ptr), value :: raw, components, signature, out
+        integer(c_int), value :: orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(metric_t) :: metric
+        type(expr_t) :: value
+
+        call begin_output(out, message, capacity)
+        call get_metric_input(raw, components, signature, orientation, a, metric, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = metric_sqrtg(metric)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_metric_sqrtg
+
+    function fortsym_metric_contravariant(raw, components, signature, orientation, &
+            out, message, capacity) bind(c, name="fortsym_metric_contravariant") &
+            result(status)
+        type(c_ptr), value :: raw, components, signature, out
+        integer(c_int), value :: orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(metric_t) :: metric
+        type(expr_t) :: value(DIM, DIM), flat_values(DIM*DIM)
+        integer :: i, j, flat
+
+        call get_metric_input(raw, components, signature, orientation, a, metric, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = metric_contravariant(metric)
+        flat = 0
+        do j = 1, DIM
+            do i = 1, DIM
+                flat = flat + 1
+                flat_values(flat) = value(i, j)
+            end do
+        end do
+        call make_expr_array(a, flat_values, out, DIM*DIM, status, message, &
+            capacity)
+    end function fortsym_metric_contravariant
+
+    function fortsym_chart_form_star_metric(raw, coordinates, position, &
+            components, signature, orientation, input, degree, out, message, &
+            capacity) bind(c, name="fortsym_chart_form_star_metric") result(status)
+        type(c_ptr), value :: raw, coordinates, position, components, signature
+        integer(c_int), value :: orientation
+        type(c_ptr), value :: input, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(metric_t) :: metric
+        type(form_t) :: input_value, value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_metric_input(raw, components, signature, orientation, a, metric, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        value = hodge_star(metric, input_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_star_metric
+
     function fortsym_expand(raw, expression_raw, out, message, capacity) &
             bind(c, name="fortsym_expand") result(status)
         type(c_ptr), value :: raw, expression_raw, out
@@ -2434,6 +2513,58 @@ contains
         end do
         chart = chart_create(a%value, u, x)
     end subroutine get_chart_inputs
+
+    subroutine get_metric_input(raw, components, signature, orientation, a, &
+            metric, status, message, capacity)
+        type(c_ptr), value :: raw, components, signature
+        integer(c_int), value :: orientation
+        type(arena_owner_t), pointer :: a
+        type(metric_t), intent(out) :: metric
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(c_ptr), pointer :: component_values(:)
+        integer(c_int), pointer :: signature_values(:)
+        type(expr_owner_t), pointer :: owner
+        type(expr_t) :: values(DIM, DIM)
+        integer :: i, j, flat, shape_components(1), shape_signature(1)
+        integer :: signature_values_fortran(DIM)
+
+        metric = metric_t()
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. c_associated(components) .or. .not. c_associated(signature)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape_components(1) = DIM*DIM
+        shape_signature(1) = DIM
+        call c_f_pointer(components, component_values, shape_components)
+        call c_f_pointer(signature, signature_values, shape_signature)
+        flat = 0
+        do j = 1, DIM
+            do i = 1, DIM
+                flat = flat + 1
+                call get_expr(component_values(flat), owner, values(i, j), &
+                    status, message, capacity)
+                if (status /= FORTSYM_OK) return
+                if (.not. associated(owner%arena, a)) then
+                    call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                    return
+                end if
+            end do
+        end do
+        do i = 1, DIM
+            signature_values_fortran(i) = int(signature_values(i))
+        end do
+        metric = metric_create(values, signature_values_fortran, orientation)
+        if (.not. metric_valid(metric)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end subroutine get_metric_input
 
     subroutine get_chart_map_inputs(raw, source_coordinates, source_position, &
             target_coordinates, target_position, forward, inverse, map, a, &

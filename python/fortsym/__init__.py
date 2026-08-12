@@ -329,6 +329,29 @@ def _configure(lib):
             _CHAR_PTR, _SIZE,
         ],
     )
+    lib.metric_sqrtg = declare(
+        "fortsym_metric_sqrtg", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int),
+            ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.metric_contravariant = declare(
+        "fortsym_metric_contravariant", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int),
+            ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_form_star_metric = declare(
+        "fortsym_chart_form_star_metric", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR,
+            _SIZE,
+        ],
+    )
     for name in ("covariant_basis", "reciprocal_basis", "metric_covariant",
                  "metric_contravariant", "christoffel",
                  "riemann", "ricci", "einstein"):
@@ -955,6 +978,57 @@ class Arena:
             )
         return Expr(self, output)
 
+    def _metric_inputs(self, metric):
+        component_values = tuple(metric.components)
+        component_handles = (_CVOID * 9)(
+            *[value._handle for value in component_values]
+        )
+        signature = (ctypes.c_int * 3)(*metric.signature)
+        return component_handles, signature
+
+    def _metric_sqrtg(self, metric):
+        components, signature = self._metric_inputs(metric)
+        output = _CVOID()
+        message = _message()
+        status = self._lib.metric_sqrtg(
+            self._require(), components, signature, metric.orientation,
+            ctypes.byref(output), message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "metric_sqrtg")
+        return Expr(self, output)
+
+    def _metric_contravariant(self, metric):
+        components, signature = self._metric_inputs(metric)
+        output = (_CVOID * 9)()
+        message = _message()
+        status = self._lib.metric_contravariant(
+            self._require(), components, signature, metric.orientation,
+            output, message, len(message),
+        )
+        if status:
+            raise FortSymError(
+                status, _decode(message), "metric_contravariant"
+            )
+        return tuple(Expr(self, output[index]) for index in range(9))
+
+    def _metric_form_star(self, metric, form):
+        coordinate_handles, position_handles = self._chart_inputs(
+            form.chart.coordinates, form.chart.position
+        )
+        components, signature = self._metric_inputs(metric)
+        values = (_CVOID * 8)(*[value._handle for value in form.components])
+        output = (_CVOID * 8)()
+        message = _message()
+        status = self._lib.chart_form_star_metric(
+            self._require(), coordinate_handles, position_handles, components,
+            signature, metric.orientation, values, form.degree, output,
+            message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "metric_hodge_star")
+        return tuple(Expr(self, output[index]) for index in range(8))
+
     def _chart_tensor(self, operation, coordinates, position, rank):
         coordinate_handles, position_handles = self._chart_inputs(
             coordinates, position
@@ -1499,6 +1573,10 @@ class Chart:
             self, upper, self.b_cov(upper), self.b_density(upper)
         )
 
+    def metric_owner(self, components, signature=(1, 1, 1), orientation=1):
+        """Create a native metric owner for this chart's expression arena."""
+        return Metric(self, components, signature, orientation)
+
     def b_fourier(self, potential, mode):
         return self._arena._chart_many(
             self._arena._lib.chart_b_fourier,
@@ -1536,6 +1614,60 @@ class MagneticField:
         self.upper = Tensor(chart, upper, (1,))
         self.lower = Tensor(chart, lower, (-1,))
         self.density = Tensor(chart, density, (1,), 1)
+
+
+class Metric:
+    """Explicit native metric metadata and operations for one chart arena."""
+
+    def __init__(self, chart, components, signature=(1, 1, 1), orientation=1):
+        if not isinstance(chart, Chart):
+            raise TypeError("Metric requires a fortsym Chart")
+        if len(signature) != 3 or any(int(value) not in (-1, 1)
+                                      for value in signature):
+            raise ValueError("metric signature requires three entries of +/-1")
+        if int(orientation) not in (-1, 1):
+            raise ValueError("metric orientation must be 1 or -1")
+        values = _matrix3_values(components)
+        self.chart = chart
+        self._arena = chart._arena
+        component_values = []
+        temporaries = []
+        for value in values:
+            coerced, temporary = self._arena._coerce(value)
+            component_values.append(coerced)
+            if temporary is not None:
+                temporaries.append(temporary)
+        self.components = tuple(component_values)
+        self._temporaries = tuple(temporaries)
+        self.signature = tuple(int(value) for value in signature)
+        self.orientation = int(orientation)
+
+    def sqrtg(self):
+        return self._arena._metric_sqrtg(self)
+
+    def contravariant(self):
+        components = self._arena._metric_contravariant(self)
+        return Tensor(self.chart, components, (-1, -1), _owned=True)
+
+    def hodge_star(self, form):
+        if not isinstance(form, Form) or form.chart is not self.chart:
+            raise ValueError("metric Hodge star requires a form on its chart")
+        components = self._arena._metric_form_star(self, form)
+        return Form(self.chart, components, 3 - form.degree, _owned=True)
+
+    hodge = hodge_star
+
+    def close(self):
+        for temporary in self._temporaries:
+            temporary.close()
+        self._temporaries = ()
+        self.components = ()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
 
 
 class FourierWeakForm:
@@ -1856,7 +1988,9 @@ class Form:
 
     exterior_diff = d
 
-    def star(self):
+    def star(self, metric=None):
+        if metric is not None:
+            return metric.hodge_star(self)
         components = self._arena._chart_form_unary(
             self._arena._lib.chart_form_star, self
         )
@@ -2673,7 +2807,7 @@ def free_symbols(expression: Expr): return expression.free_symbols
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "ChartMap", "MagneticField", "FourierWeakForm", "Metric", "Tensor", "Form", "Expr", "FortSymError", "Symbol", "symbols", "Integer",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count",
     "free_symbols",

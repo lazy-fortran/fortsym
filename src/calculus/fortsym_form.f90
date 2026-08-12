@@ -11,7 +11,9 @@ module fortsym_form
     use fortsym_chart, only: chart_t, DIM, metric_covariant, &
         metric_contravariant, sqrtg
     use fortsym_metric, only: metric_t, metric_valid, metric_arena, &
-        metric_orientation, metric_sqrtg
+        metric_orientation, metric_sqrtg, &
+        metric_contravariant_owner => metric_contravariant, &
+        metric_same_arena
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, num, is_valid, operator(+), operator(-), &
         operator(*), operator(/), operator(==)
@@ -43,8 +45,14 @@ module fortsym_form
     end interface d
 
     interface star
-        module procedure hodge_star
+        module procedure hodge_star_chart
+        module procedure hodge_star_metric
     end interface star
+
+    interface hodge_star
+        module procedure hodge_star_chart
+        module procedure hodge_star_metric
+    end interface hodge_star
 
     interface volume
         module procedure volume_form_chart
@@ -356,25 +364,60 @@ contains
     end function exterior_diff
 
     !> Metric Hodge star with the chart orientation and positive sqrt(g).
-    function hodge_star(c, alpha) result(result)
+    function hodge_star_chart(c, alpha) result(result)
         type(chart_t), intent(in) :: c
         type(form_t), intent(in) :: alpha
         type(form_t) :: result
-        type(expr_t) :: ginv(DIM, DIM), volume, term
-        integer :: i, j, k, l, input_mask, output_mask
+        type(expr_t) :: ginv(DIM, DIM), volume
 
         if (.not. associated(c%a)) return
         if (.not. form_valid(alpha)) return
         if (.not. associated(alpha%a, c%a)) return
         if (alpha%degree > DIM) return
 
-        result = zero_form(c%a, DIM - alpha%degree)
+        ginv = metric_contravariant(c)
         volume = sqrtg(c)
+        result = hodge_star_components(c%a, alpha, ginv, volume, 1)
+    end function hodge_star_chart
+
+    !> Hodge star from an explicit metric owner.
+    !>
+    !> The inverse metric, absolute volume density, signature, and orientation
+    !> all come from the supplied owner. A Lorentzian metric therefore follows
+    !> the same formula as a Euclidean metric, with the signature signs entering
+    !> through the inverse metric rather than through an ad hoc branch.
+    function hodge_star_metric(g, alpha) result(result)
+        type(metric_t), intent(in) :: g
+        type(form_t), intent(in) :: alpha
+        type(form_t) :: result
+        type(expr_t) :: ginv(DIM, DIM), volume
+
+        if (.not. metric_valid(g)) return
+        if (.not. form_valid(alpha)) return
+        if (.not. metric_same_arena(g, alpha%a)) return
+        if (alpha%degree > DIM) return
+
+        ginv = metric_contravariant_owner(g)
+        volume = metric_sqrtg(g)
+        result = hodge_star_components(metric_arena(g), alpha, ginv, volume, &
+            metric_orientation(g))
+    end function hodge_star_metric
+
+    function hodge_star_components(a, alpha, ginv, volume, orientation) &
+            result(result)
+        type(arena_t), pointer, intent(in) :: a
+        type(form_t), intent(in) :: alpha
+        type(expr_t), intent(in) :: ginv(DIM, DIM), volume
+        integer, intent(in) :: orientation
+        type(form_t) :: result
+        type(expr_t) :: term
+        integer :: i, j, k, l, input_mask, output_mask
+
+        result = zero_form(a, DIM - alpha%degree)
         select case (alpha%degree)
         case (0)
-            result%component(7) = volume*alpha%component(0)
+            result%component(7) = orientation*volume*alpha%component(0)
         case (1)
-            ginv = metric_contravariant(c)
             do i = 1, DIM
                 input_mask = 2**(i - 1)
                 do k = 1, DIM
@@ -383,14 +426,13 @@ contains
                         do j = 1, DIM
                             term = epsilon3(j, k, l)*ginv(i, j)
                             result%component(output_mask) = &
-                                result%component(output_mask) + volume* &
+                                result%component(output_mask) + orientation*volume* &
                                 alpha%component(input_mask)*term
                         end do
                     end do
                 end do
             end do
         case (2)
-            ginv = metric_contravariant(c)
             do input_mask = 0, 2**DIM - 1
                 if (mask_degree(input_mask) /= 2) cycle
                 do k = 1, DIM
@@ -399,16 +441,16 @@ contains
                             term = ginv(mask_first(input_mask), i)* &
                                 ginv(mask_second(input_mask), j)*epsilon3(i, j, k)
                             result%component(2**(k - 1)) = &
-                                result%component(2**(k - 1)) + volume* &
+                                result%component(2**(k - 1)) + orientation*volume* &
                                 alpha%component(input_mask)*term
                         end do
                     end do
                 end do
             end do
         case (3)
-            result%component(0) = alpha%component(7)/volume
+            result%component(0) = orientation*alpha%component(7)/volume
         end select
-    end function hodge_star
+    end function hodge_star_components
 
     !> Interior product i_v alpha for a contravariant coordinate vector.
     function interior_product(c, vector, alpha) result(result)
