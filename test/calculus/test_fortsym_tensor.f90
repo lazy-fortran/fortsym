@@ -1,0 +1,177 @@
+program test_fortsym_tensor
+    ! Independent tensor oracles: raising/lowering must be inverse metric
+    ! actions, mixed metric contraction is the dimension, and contraction of
+    ! an upper/lower product is the ordinary component dot product.
+    use fortsym_arena, only: arena_t
+    use fortsym_expr, only: expr_t, sym, num, operator(+), operator(-), &
+        operator(*), operator(**)
+    use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
+    use fortsym_engine_symengine, only: symengine_engine_t, &
+        make_symengine_engine
+    use fortsym_chart, only: DIM, chart_t, chart_create
+    use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, &
+        tensor_from_components, tensor_component, tensor_rank, tensor_variance, &
+        tensor_density_weight, tensor_valid, density, raise, lower, &
+        tensor_product, contract, trace, metric_covariant_tensor, UPPER, LOWER_VARIANCE
+    implicit none
+
+    type(arena_t), target :: arena
+    type(symengine_engine_t) :: engine
+    type(suite_t) :: suite
+    type(chart_t) :: shear
+    type(expr_t) :: u(DIM), position(DIM), values(DIM), expected
+    type(expr_t) :: components(27)
+    type(tensor_t) :: vup, vcov, vdown, roundtrip, weighted, outer, dot
+    type(tensor_t) :: metric_down, mixed, rank_three
+    integer :: indices(4), empty(0), rank_three_variance(3), i, j, k
+
+    call arena%init()
+    engine = make_symengine_engine(arena)
+    shear = make_shear_chart()
+    call suite_begin(suite, "typed tensors")
+
+    values(1) = u(1)
+    values(2) = u(2)
+    values(3) = u(3)
+    vup = tensor_vector(shear, values)
+    call check_metadata(suite, vup, 1, UPPER, 0, &
+        "contravariant vector metadata")
+    vcov = tensor_covector(shear, values)
+    call check_metadata(suite, vcov, 1, LOWER_VARIANCE, 0, &
+        "covariant vector metadata")
+
+    vdown = lower(shear, vup, 1)
+    call check_metadata(suite, vdown, 1, LOWER_VARIANCE, 0, &
+        "lowered vector metadata")
+    roundtrip = raise(shear, vdown, 1)
+    do i = 1, DIM
+        indices(1) = i
+        call check_identity(suite, engine, "raise(lower(v)) returns v", &
+            tensor_component(roundtrip, indices(1:1)) - values(i))
+    end do
+
+    weighted = density(vup, 2)
+    call check_metadata(suite, weighted, 1, UPPER, 2, &
+        "vector density metadata")
+
+    outer = tensor_product(weighted, vdown)
+    call check_metadata(suite, outer, 2, UPPER, 2, &
+        "tensor product metadata")
+    dot = contract(outer, 1, 2)
+    indices(1) = 1
+    expected = values(1)*tensor_component(vdown, indices(1:1))
+    indices(1) = 2
+    expected = expected + values(2)*tensor_component(vdown, indices(1:1))
+    indices(1) = 3
+    expected = expected + values(3)*tensor_component(vdown, indices(1:1))
+    call check_identity(suite, engine, "upper/lower contraction", &
+        tensor_component(dot, empty) - expected)
+
+    metric_down = metric_covariant_tensor(shear)
+    call check_metadata(suite, metric_down, 2, LOWER_VARIANCE, 0, &
+        "covariant metric metadata")
+    mixed = raise(shear, metric_down, 1)
+    do i = 1, DIM
+        do j = 1, DIM
+            indices(1) = i
+            indices(2) = j
+            expected = num(arena, 0)
+            if (i == j) expected = num(arena, 1)
+            call check_identity(suite, engine, "metric raise gives Kronecker delta", &
+                tensor_component(mixed, indices(1:2)) - expected)
+        end do
+    end do
+    dot = trace(mixed, 1, 2)
+    call check_identity(suite, engine, "metric trace is dimension", &
+        tensor_component(dot, empty) - 3)
+
+    do k = 1, 27
+        components(k) = num(arena, k)
+    end do
+    rank_three_variance(1) = UPPER
+    rank_three_variance(2) = LOWER_VARIANCE
+    rank_three_variance(3) = UPPER
+    rank_three = tensor_from_components(shear, 3, components, &
+        rank_three_variance, -1)
+    call check_metadata(suite, rank_three, 3, UPPER, -1, &
+        "rank-three tensor metadata")
+    call check_slot_variances(suite, rank_three, LOWER_VARIANCE, UPPER, &
+        "rank-three slot variance metadata")
+    indices(1) = 2
+    indices(2) = 3
+    indices(3) = 1
+    call check_identity(suite, engine, "flat component ordering", &
+        tensor_component(rank_three, indices(1:3)) - 8)
+
+    rank_three_variance(1) = UPPER
+    rank_three_variance(2) = UPPER
+    rank_three_variance(3) = UPPER
+    rank_three = tensor_from_components(shear, 3, components, &
+        rank_three_variance, 0)
+    if (tensor_rank(rank_three) /= 3) error stop "rank metadata failed"
+    if (.not. tensor_valid(rank_three)) error stop "tensor validity failed"
+
+    if (suite%failed /= 0) then
+        print *, "test_fortsym_tensor: ", suite%failed, " check(s) FAILED"
+        error stop 1
+    end if
+    call suite_end(suite, "/tmp/fortsym_tensor.json")
+    print *, "test_fortsym_tensor: all checks passed"
+
+contains
+
+    subroutine check_metadata(s, value, expected_rank, expected_variance, &
+            expected_weight, label)
+        type(suite_t), intent(inout) :: s
+        type(tensor_t), intent(in) :: value
+        integer, intent(in) :: expected_rank, expected_variance, expected_weight
+        character(*), intent(in) :: label
+        logical :: okay
+
+        s%total = s%total + 1
+        okay = tensor_valid(value)
+        if (tensor_rank(value) /= expected_rank) okay = .false.
+        if (tensor_variance(value, 1) /= expected_variance) okay = .false.
+        if (tensor_density_weight(value) /= expected_weight) okay = .false.
+        if (.not. okay) then
+            s%failed = s%failed + 1
+            print *, "FAIL ", label
+        else
+            s%passed = s%passed + 1
+            print *, "PASS ", label
+        end if
+    end subroutine check_metadata
+
+    subroutine check_slot_variances(s, value, expected_second, expected_third, &
+            label)
+        type(suite_t), intent(inout) :: s
+        type(tensor_t), intent(in) :: value
+        integer, intent(in) :: expected_second, expected_third
+        character(*), intent(in) :: label
+        logical :: okay
+
+        s%total = s%total + 1
+        okay = tensor_variance(value, 2) == expected_second .and. &
+            tensor_variance(value, 3) == expected_third
+        if (.not. okay) then
+            s%failed = s%failed + 1
+            print *, "FAIL ", label
+        else
+            s%passed = s%passed + 1
+            print *, "PASS ", label
+        end if
+    end subroutine check_slot_variances
+
+    function make_shear_chart() result(c)
+        type(chart_t) :: c
+
+        u(1) = sym(arena, "u1")
+        u(2) = sym(arena, "u2")
+        u(3) = sym(arena, "u3")
+        position(1) = u(1) + u(2)
+        position(2) = u(2)
+        position(3) = u(3)
+        c = chart_create(arena, u, position)
+    end function make_shear_chart
+
+end program test_fortsym_tensor

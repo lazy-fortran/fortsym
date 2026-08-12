@@ -76,6 +76,7 @@ fortsym_add_test(test_fortsym_ode calculus/test_fortsym_ode.f90)
 fortsym_add_test(test_fortsym_chart calculus/test_fortsym_chart.f90)
 fortsym_add_test(test_fortsym_form calculus/test_fortsym_form.f90)
 fortsym_add_test(test_fortsym_magnetic calculus/test_fortsym_magnetic.f90)
+fortsym_add_test(test_fortsym_tensor calculus/test_fortsym_tensor.f90)
 fortsym_add_test(test_fortsym_products calculus/test_fortsym_products.f90)
 fortsym_add_test(test_fortsym_toroidal calculus/test_fortsym_toroidal.f90)
 

@@ -23,7 +23,8 @@ it.
 | Operation counting | SymPy-compatible non-visual tree count | conversion | conversion | visual operation expression and CSE |
 | Differentiation | yes | yes | Yacas concrete method | memoization and domain-sensitive rules |
 | Multivariate symbolic partials | yes | opaque | opaque | function assumptions and rewrite rules |
-| Coordinate charts, reciprocal bases, metrics, `sqrtg`, magnetic components, and Fourier modes | native first subset: charts, signed Jacobian, reciprocal basis, metric, `B^i`, `B_i`, `sqrtg B^i`, and symmetry-mode curl; Python `Chart` transport facade | conversion/oracle path | partial | differential forms, tensor variance and density types, flux-coordinate descriptors, and paper weak forms |
+| Coordinate charts, reciprocal bases, metrics, `sqrtg`, magnetic components, and Fourier modes | native first subset: charts, signed Jacobian, reciprocal basis, metric, `B^i`, `B_i`, `sqrtg B^i`, and symmetry-mode curl; Python `Chart` transport facade | conversion/oracle path | partial | flux-coordinate descriptors and paper weak forms |
+| Typed coordinate tensors and indexed algebra | native first subset: chart-bound `tensor_t`, rank/slot variance/density metadata, metric `raise`/`lower`, tensor product, opposite-variance contraction, trace, and independent nonorthogonal-chart checks | no public nodes | no | arbitrary dimensions, symmetry/canonicalization, covariant derivatives, and Python/SymPy transport |
 | Differential forms and de Rham identities | native fixed-3D coordinate forms: `form_t`, `d`, wedge, metric `star`, interior product, Cartan `lie`, `flat`, `sharp`, and magnetic `i_B(volume)=dA` checks | no public conversion yet | no | arbitrary dimension/rank, pullbacks, Hodge signatures, Maxwell vocabulary, and Python/SymPy transport |
 | JVP, VJP, gradient, and HVP | yes | verification | verification | consumer conformance corpus |
 | Simplification | partial: principal-square-root powers, guarded `sqrt`/`abs`, exact negative perfect-square roots, exact real unit-circle `asin`/`acos` values, exact real tangent `atan` values, exact real `asinh(±1)` values, exact `asin(±i)`, `acos(±i)`, and `asinh(±i)` branch points, exact `log(0)=zoo` with sentinel propagation, principal-branch exact negative real and imaginary logs, exact `atan(±i)` and `atanh(1)`/`atanh(-1)` poles plus `atanh(±i)` branch points, exact `acosh(0)`/`acosh(-1)` and `acosh(±i)` branch points, finite gamma-family poles, exact factorial values through `factorial(1000)`, and real/nonzero-guarded `log`/`exp` compositions | partial | partial | broader guarded elementary rewrites and polynomial normal form |
@@ -37,7 +38,7 @@ it.
 | Integration | no | no generic operation | Yacas concrete method | rational integration first |
 | Limits and asymptotics | no | no public operation | Yacas concrete method | Taylor limits, then Gruntz scales |
 | CSE and Fortran kernel generation | yes | candidate source | candidate source | runtime-aware cost model |
-| Symbolic matrices and tensors | exact dense rational systems over `expr_t` arrays | no public nodes | no | conditional symbolic pivots and broader matrix operations |
+| Symbolic matrices and general symbolic tensors | exact dense rational systems over `expr_t` arrays; coordinate tensors have a separate typed owner | no public nodes | no | conditional symbolic pivots and broader matrix operations |
 
 FortNum's required surface is construction, elementary functions, substitution,
 differentiation products, verification, CSE, Fortran emission, stability

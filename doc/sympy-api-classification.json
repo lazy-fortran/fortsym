@@ -1669,6 +1669,226 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_tensor.tensor_t",
+        "module": "fortsym_tensor",
+        "name": "tensor_t",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor",
+        "module": "fortsym_tensor",
+        "name": "tensor",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_scalar",
+        "module": "fortsym_tensor",
+        "name": "tensor_scalar",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_vector",
+        "module": "fortsym_tensor",
+        "name": "tensor_vector",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_covector",
+        "module": "fortsym_tensor",
+        "name": "tensor_covector",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_from_components",
+        "module": "fortsym_tensor",
+        "name": "tensor_from_components",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_from_matrix",
+        "module": "fortsym_tensor",
+        "name": "tensor_from_matrix",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_component",
+        "module": "fortsym_tensor",
+        "name": "tensor_component",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_rank",
+        "module": "fortsym_tensor",
+        "name": "tensor_rank",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_variance",
+        "module": "fortsym_tensor",
+        "name": "tensor_variance",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_density_weight",
+        "module": "fortsym_tensor",
+        "name": "tensor_density_weight",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_valid",
+        "module": "fortsym_tensor",
+        "name": "tensor_valid",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.density",
+        "module": "fortsym_tensor",
+        "name": "density",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.vector",
+        "module": "fortsym_tensor",
+        "name": "vector",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.covector",
+        "module": "fortsym_tensor",
+        "name": "covector",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.raise",
+        "module": "fortsym_tensor",
+        "name": "raise",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.lower",
+        "module": "fortsym_tensor",
+        "name": "lower",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_product",
+        "module": "fortsym_tensor",
+        "name": "tensor_product",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.contract",
+        "module": "fortsym_tensor",
+        "name": "contract",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.trace",
+        "module": "fortsym_tensor",
+        "name": "trace",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.metric_covariant_tensor",
+        "module": "fortsym_tensor",
+        "name": "metric_covariant_tensor",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.metric_contravariant_tensor",
+        "module": "fortsym_tensor",
+        "name": "metric_contravariant_tensor",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_toroidal.make_toroidal_chart",
         "module": "fortsym_toroidal",
         "name": "make_toroidal_chart",
@@ -4799,6 +5019,281 @@
         "id": "fortsym.scale_form",
         "module": "fortsym",
         "name": "scale_form",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor_t",
+        "module": "fortsym",
+        "name": "tensor_t",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor",
+        "module": "fortsym",
+        "name": "tensor",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor_scalar",
+        "module": "fortsym",
+        "name": "tensor_scalar",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor_vector",
+        "module": "fortsym",
+        "name": "tensor_vector",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor_covector",
+        "module": "fortsym",
+        "name": "tensor_covector",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor_from_components",
+        "module": "fortsym",
+        "name": "tensor_from_components",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor_from_matrix",
+        "module": "fortsym",
+        "name": "tensor_from_matrix",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor_component",
+        "module": "fortsym",
+        "name": "tensor_component",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor_rank",
+        "module": "fortsym",
+        "name": "tensor_rank",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor_variance",
+        "module": "fortsym",
+        "name": "tensor_variance",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor_density_weight",
+        "module": "fortsym",
+        "name": "tensor_density_weight",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor_valid",
+        "module": "fortsym",
+        "name": "tensor_valid",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.density",
+        "module": "fortsym",
+        "name": "density",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.vector",
+        "module": "fortsym",
+        "name": "vector",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.covector",
+        "module": "fortsym",
+        "name": "covector",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.raise",
+        "module": "fortsym",
+        "name": "raise",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.lower",
+        "module": "fortsym",
+        "name": "lower",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.tensor_product",
+        "module": "fortsym",
+        "name": "tensor_product",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.contract",
+        "module": "fortsym",
+        "name": "contract",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.trace",
+        "module": "fortsym",
+        "name": "trace",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.metric_covariant_tensor",
+        "module": "fortsym",
+        "name": "metric_covariant_tensor",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.metric_contravariant_tensor",
+        "module": "fortsym",
+        "name": "metric_contravariant_tensor",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.UPPER",
+        "module": "fortsym",
+        "name": "UPPER",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.LOWER_VARIANCE",
+        "module": "fortsym",
+        "name": "LOWER_VARIANCE",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.MAX_RANK",
+        "module": "fortsym",
+        "name": "MAX_RANK",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -8648,12 +9143,12 @@
     "classification_counts": {
       "delegated": 2529,
       "external": 10,
-      "facade": 231,
-      "native": 3270,
+      "facade": 256,
+      "native": 3317,
       "python-adapter": 2485,
       "refused": 25309
     },
-    "fortran_public_exports": 829,
+    "fortran_public_exports": 876,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

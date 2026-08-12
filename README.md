@@ -144,6 +144,12 @@ The native `forms_native` example shows the next layer: a covector potential
 `A`, its magnetic two-form `dA`, and the checked identity
 `i_B(volume) = dA`, with `d(dA) = 0` proved in the same expression arena.
 
+The native `tensor_native` example adds typed coordinate tensors: `vector` and
+`covector` constructors record slot variance, `raise` and `lower` use the
+chart metric, and `tensor_product` plus `contract` handle the first indexed
+algebra subset. The same `tensor_t` owner backs the facade and lower-level
+modules, including density weights.
+
 **Read Fortran back.** Point it at a source file and a variable name and it
 returns the symbolic expression that file computes, so a hand-written kernel can
 be checked against its definition without anyone transcribing the code into the
