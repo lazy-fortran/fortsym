@@ -35,6 +35,7 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(metric.variance, (-1, -1))
         self.assertEqual(metric[0, 0].simplify(), 1)
         self.assertEqual(chart.scalar_curvature().simplify(), 0)
+        self.assertEqual(chart.first_bianchi_residual()[0, 1, 0, 1].simplify(), 0)
         form = chart.one_form((y, z, x))
         self.assertIsInstance(form, sp.Form)
         self.assertEqual(form.d().degree, 2)

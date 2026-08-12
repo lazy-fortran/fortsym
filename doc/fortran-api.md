@@ -256,6 +256,9 @@ Ricci, and Einstein tensors. Its convention is
 `R^a_bcd = d_c Gamma^a_db - d_d Gamma^a_cb + Gamma^a_cm Gamma^m_db -`
 `Gamma^a_dm Gamma^m_cb`; the broader pseudo-Riemannian, torsion, geodesic,
 and arbitrary-rank surface remains roadmap work.
+`first_bianchi_residual` returns the rank-four residual
+`R^a_bcd + R^a_cdb + R^a_dbc`; it is zero for the torsion-free metric
+connection and is exposed as a residual rather than a hidden Boolean.
 
 `symbols` assigns whitespace- or comma-separated names to scalar outputs:
 

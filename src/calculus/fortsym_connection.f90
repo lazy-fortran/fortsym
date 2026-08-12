@@ -31,7 +31,8 @@ module fortsym_connection
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
 
     public :: covariant_diff, covariant_derivative, covariant_divergence
-    public :: christoffel_tensor, riemann_tensor, ricci_tensor
+    public :: christoffel_tensor, riemann_tensor, first_bianchi_residual, &
+        ricci_tensor
     public :: scalar_curvature, einstein_tensor
 
     interface covariant_diff
@@ -58,6 +59,11 @@ module fortsym_connection
         module procedure riemann_tensor_chart
         module procedure riemann_tensor_metric
     end interface riemann_tensor
+
+    interface first_bianchi_residual
+        module procedure first_bianchi_residual_chart
+        module procedure first_bianchi_residual_metric
+    end interface first_bianchi_residual
 
     interface ricci_tensor
         module procedure ricci_tensor_chart
@@ -368,6 +374,31 @@ contains
         result = tensor_from_arena(metric_arena(g), 4, values, variances)
     end function riemann_tensor_metric
 
+    !> First Bianchi residual R^a_bcd + R^a_cdb + R^a_dbc.
+    !>
+    !> The residual is zero for a torsion-free connection. This owner is
+    !> deliberately an identity residual rather than a Boolean so callers can
+    !> inspect, simplify, or pass it to an independent verifier.
+    function first_bianchi_residual_chart(c) result(result)
+        type(chart_t), intent(in) :: c
+        type(tensor_t) :: result, riemann
+
+        if (.not. associated(c%a)) return
+        riemann = riemann_tensor_chart(c)
+        result = first_bianchi_from_riemann(c%a, riemann)
+    end function first_bianchi_residual_chart
+
+    !> First Bianchi residual for a supplied coordinate-aware metric.
+    function first_bianchi_residual_metric(g) result(result)
+        type(metric_t), intent(in) :: g
+        type(tensor_t) :: result, riemann
+
+        if (.not. metric_valid(g)) return
+        if (.not. metric_has_coordinates(g)) return
+        riemann = riemann_tensor_metric(g)
+        result = first_bianchi_from_riemann(metric_arena(g), riemann)
+    end function first_bianchi_residual_metric
+
     !> Ricci tensor R_bd = R^a_bad, returned covariant in both slots.
     function ricci_tensor_chart(c) result(result)
         type(chart_t), intent(in) :: c
@@ -530,6 +561,32 @@ contains
         variances(2) = LOWER_VARIANCE
         result = tensor_from_arena(metric_arena(g), 2, values, variances)
     end function einstein_tensor_metric
+
+    function first_bianchi_from_riemann(owner, riemann) result(result)
+        type(arena_t), pointer, intent(in) :: owner
+        type(tensor_t), intent(in) :: riemann
+        type(tensor_t) :: result
+        type(expr_t) :: values(0:MAX_COMPONENTS - 1), value
+        integer :: indices(4), variances(4)
+        integer :: a, b, cindex, d
+
+        if (.not. tensor_valid(riemann)) return
+        variances = [UPPER, LOWER_VARIANCE, LOWER_VARIANCE, LOWER_VARIANCE]
+        do a = 1, DIM
+            do b = 1, DIM
+                do cindex = 1, DIM
+                    do d = 1, DIM
+                        indices = [a, b, cindex, d]
+                        value = tensor_component(riemann, indices) + &
+                            tensor_component(riemann, [a, cindex, d, b]) + &
+                            tensor_component(riemann, [a, d, b, cindex])
+                        values(encode_index(indices, 4)) = value
+                    end do
+                end do
+            end do
+        end do
+        result = tensor_from_arena(owner, 4, values, variances)
+    end function first_bianchi_from_riemann
 
     subroutine riemann_components(gamma, coordinates, values)
         type(expr_t), intent(in) :: gamma(DIM, DIM, DIM), coordinates(DIM)
