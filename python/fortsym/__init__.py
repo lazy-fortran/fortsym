@@ -578,7 +578,8 @@ def _configure(lib):
         )
     for name in ("covariant_basis", "reciprocal_basis", "metric_covariant",
                  "metric_contravariant", "christoffel",
-                 "riemann", "first_bianchi_residual", "ricci", "einstein"):
+                 "riemann", "first_bianchi_residual",
+                 "second_bianchi_residual", "ricci", "einstein"):
         setattr(
             lib,
             "chart_" + name,
@@ -2087,6 +2088,13 @@ class Chart:
             4, (1, -1, -1, -1),
         )
 
+    def second_bianchi_residual(self):
+        """Return ``nabla_e R^a_bcd + nabla_c R^a_bde + nabla_d R^a_bec``."""
+        return self._tensor_result(
+            self._arena._lib.chart_second_bianchi_residual,
+            5, (1, -1, -1, -1, -1),
+        )
+
     def ricci(self):
         return self._tensor_result(
             self._arena._lib.chart_ricci, 2, (-1, -1)
@@ -2791,8 +2799,8 @@ class Tensor:
         self._arena = chart._arena
         self.variance = tuple(int(value) for value in variance)
         self.rank = len(self.variance)
-        if self.rank > 4:
-            raise ValueError("native tensors support rank at most four")
+        if self.rank > 5:
+            raise ValueError("native tensors support rank at most five")
         expected = 3 ** self.rank
         values = tuple(components)
         if len(values) != expected:
@@ -2923,8 +2931,8 @@ class Tensor:
         """Return the native tensor product, with left slots first."""
         if not isinstance(other, Tensor) or other.chart is not self.chart:
             raise ValueError("tensor factors must belong to the same chart")
-        if self.rank + other.rank > 4:
-            raise ValueError("native tensors support rank at most four")
+        if self.rank + other.rank > 5:
+            raise ValueError("native tensors support rank at most five")
         components = self._arena._chart_tensor_product(self.chart, self, other)
         return Tensor(
             self.chart, components, self.variance + other.variance,

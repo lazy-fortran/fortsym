@@ -207,7 +207,7 @@ a chart. `metric_covariant_tensor(metric_owner)` and
 `metric_contravariant_tensor(metric_owner)` create typed metric tensors with
 the owner's arena and metadata contract.
 `contract` requires opposite variance and removes the two selected slots;
-`trace` is its named alias. The current native subset is rank four or less in
+`trace` is its named alias. The current native subset is rank five or less in
 three-dimensional charts. A checked overload also accepts `index_t` values
 from `fortsym_index`: `index_type("T", 3)` declares a space and
 `make_index(space, slot, variance, label, dummy)` declares a one-based native
@@ -259,6 +259,10 @@ and arbitrary-rank surface remains roadmap work.
 `first_bianchi_residual` returns the rank-four residual
 `R^a_bcd + R^a_cdb + R^a_dbc`; it is zero for the torsion-free metric
 connection and is exposed as a residual rather than a hidden Boolean.
+`second_bianchi_residual` returns the rank-five residual
+`nabla_e R^a_bcd + nabla_c R^a_bde + nabla_d R^a_bec`. The typed tensor owner
+now preserves that derivative slot and exposes the same residual through the
+Python/SymPy facade.
 
 ## Relativity and magnetic-flux examples
 

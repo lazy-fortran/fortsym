@@ -16,11 +16,11 @@ program test_fortsym_connection
         metric_valid
     use fortsym_tensor, only: tensor_t, tensor_scalar, tensor_component, &
         tensor_rank, tensor_variance, tensor_valid, metric_covariant_tensor, &
-        UPPER, LOWER_VARIANCE, tensor_vector, density
+        UPPER, LOWER_VARIANCE, MAX_RANK, tensor_vector, density
     use fortsym_connection, only: covariant_diff, covariant_divergence, &
         christoffel_tensor, &
         riemann_tensor, first_bianchi_residual, ricci_tensor, &
-        scalar_curvature, einstein_tensor
+        second_bianchi_residual, scalar_curvature, einstein_tensor
     implicit none
 
     type(arena_t), target :: arena
@@ -39,11 +39,13 @@ program test_fortsym_connection
     type(tensor_t) :: metric_gamma_value
     type(tensor_t) :: riemann, ricci, einstein
     type(tensor_t) :: metric_riemann, metric_ricci, metric_einstein
-    type(tensor_t) :: bianchi, metric_bianchi, curved_riemann, curved_bianchi
+    type(tensor_t) :: bianchi, metric_bianchi, second_bianchi
+    type(tensor_t) :: metric_second_bianchi, curved_riemann, curved_bianchi
+    type(tensor_t) :: curved_second_bianchi
     type(expr_t) :: metric_scalar
     type(expr_t) :: curved_components(DIM, DIM)
     type(engine_result_t) :: nonzero_result
-    integer :: indices(4)
+    integer :: indices(MAX_RANK), four_indices(4)
 
     call arena%init()
     engine = make_symengine_engine(arena)
@@ -147,6 +149,13 @@ program test_fortsym_connection
     call check_tensor_zero(suite, engine, native, metric_bianchi, &
         "metric-owner first Bianchi residual is zero")
 
+    second_bianchi = second_bianchi_residual(polynomial)
+    call check_tensor_zero(suite, engine, native, second_bianchi, &
+        "flat chart second Bianchi residual is zero")
+    metric_second_bianchi = second_bianchi_residual(metric_owner)
+    call check_tensor_zero(suite, engine, native, metric_second_bianchi, &
+        "metric-owner second Bianchi residual is zero")
+
     curved_components = num(arena, 0)
     curved_components(1, 1) = num(arena, 1)
     curved_components(2, 2) = (1 + u(1)**2)**2
@@ -158,11 +167,14 @@ program test_fortsym_connection
     curved_bianchi = first_bianchi_residual(curved_metric)
     call check_tensor_zero(suite, engine, native, curved_bianchi, &
         "non-flat metric first Bianchi residual is zero")
-    indices(1) = 1
-    indices(2) = 2
-    indices(3) = 1
-    indices(4) = 2
-    nonzero_result = engine%zero_test(tensor_component(curved_riemann, indices))
+    curved_second_bianchi = second_bianchi_residual(curved_metric)
+    call check_tensor_zero(suite, engine, native, curved_second_bianchi, &
+        "non-flat metric second Bianchi residual is zero")
+    four_indices(1) = 1
+    four_indices(2) = 2
+    four_indices(3) = 1
+    four_indices(4) = 2
+    nonzero_result = engine%zero_test(tensor_component(curved_riemann, four_indices))
     if (.not. nonzero_result%ok .or. nonzero_result%verdict /= VERDICT_FALSE) then
         error stop "non-flat metric did not produce nonzero curvature"
     end if
@@ -229,7 +241,7 @@ contains
 
     subroutine decode_index(flat, rank, component_indices)
         integer, intent(in) :: flat, rank
-        integer, intent(out) :: component_indices(4)
+        integer, intent(out) :: component_indices(MAX_RANK)
         integer :: value, k
 
         component_indices = 1

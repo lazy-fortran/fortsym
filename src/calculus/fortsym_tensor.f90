@@ -3,8 +3,9 @@ module fortsym_tensor
     !
     ! Components live in one flat, fixed-capacity store, while rank, slot
     ! variance, and density weight remain explicit metadata. The cap is a
-    ! deliberate native boundary: rank four is enough for the usual metric,
-    ! stress-energy, connection, and curvature objects, and larger objects
+    ! deliberate native boundary: rank five is enough for the usual metric,
+    ! stress-energy, connection, curvature, and second-Bianchi objects, and
+    ! larger objects
     ! return an invalid tensor instead of silently losing index information.
     use fortsym_arena, only: arena_t
     use fortsym_chart, only: chart_t, DIM, metric_covariant, &
@@ -22,7 +23,7 @@ module fortsym_tensor
 
     integer, parameter, public :: UPPER = 1
     integer, parameter, public :: LOWER_VARIANCE = -1
-    integer, parameter, public :: MAX_RANK = 4
+    integer, parameter, public :: MAX_RANK = 5
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
 
     public :: tensor_t, tensor, tensor_scalar, tensor_vector, tensor_covector

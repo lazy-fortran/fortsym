@@ -878,8 +878,9 @@ The first-class object model is staged around these metadata owners:
 - [x] Add the torsion-free first-Bianchi residual
   `R^a_bcd + R^a_cdb + R^a_dbc` as a native rank-four owner, with C ABI 45,
   Python/SymPy facade access, and an independent non-flat metric check. The
-  second Bianchi identity still requires a rank-five derivative representation
-  or a dedicated fixed-index residual owner.
+  second Bianchi identity now has the corresponding rank-five derivative
+  representation and independent flat/non-flat checks; arbitrary dimensions
+  and supplied non-Levi-Civita connections remain open.
 - [ ] `orientation_t` and the positive volume density are separate metadata.
   `volume_form(metric, orientation)` may change sign, while `sqrtg(metric)`
   never absorbs orientation. `epsilon` constructors distinguish the symbol,
@@ -1360,14 +1361,18 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   derivative slot, applies every slot's Christoffel term, and honors density
   weight. Metric compatibility and an independent nonlinear nonorthogonal
   chart check are required gates.
-- [ ] Implement torsion, nonmetricity, Riemann curvature, Ricci tensor, scalar
-  curvature, Einstein tensor, geodesics, Lie derivatives, and the first and
-  second Bianchi identities. Support both Riemannian and pseudo-Riemannian
-  metrics and make sign conventions a named metric/connection option.
+- [ ] Implement torsion, nonmetricity, geodesics, Lie derivatives, and named
+  Riemann-sign conventions. Support both Riemannian and pseudo-Riemannian
+  connections without coupling them to magnetic physics.
 - [x] Implement the first fixed-three-dimensional curvature views:
   Christoffel, Riemann, Ricci, scalar curvature, and Einstein tensors, with a
   named Riemann convention and independent flat-chart identities. Full
   pseudo-Riemannian and relativity parity remains open.
+- [x] Implement the fixed-three-dimensional second differential Bianchi
+  residual as a typed rank-five tensor, with C ABI 46 and Python/SymPy access.
+  Flat, nonorthogonal, and genuinely curved metric cases are checked against
+  SymEngine's independent zero oracle; arbitrary dimensions and non-Levi-Civita
+  connections remain open.
 - [ ] Derive vector calculus from tensor/forms primitives. `grad`, `div`,
   `curl`, and `laplacian` must share the same metric, orientation, and density
   conventions rather than maintaining separate coordinate formulas.

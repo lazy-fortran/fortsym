@@ -131,6 +131,8 @@ class NativePackageTest(unittest.TestCase):
             self.assertEqual(cartesian.riemann()[0, 0, 0, 0].simplify(), 0)
             bianchi = cartesian.first_bianchi_residual()
             self.assertEqual(bianchi[0, 1, 0, 1].simplify(), 0)
+            second_bianchi = cartesian.second_bianchi_residual()
+            self.assertEqual(second_bianchi[0, 1, 0, 1, 2].simplify(), 0)
 
     def test_native_differential_form_frontend(self):
         with fortsym.Arena() as arena:
