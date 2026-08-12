@@ -84,6 +84,10 @@ connection before evaluating it.
 the Cartan Lie derivative, with `interior_product` and `lie_derivative` as
 matching aliases. `.laplace_de_rham()` composes the same native `d` and
 codifferential owners.
+`Tensor.lie(vector)` and `.lie_derivative(vector)` provide the coordinate Lie
+derivative for typed tensors. The vector must be an ordinary weight-zero
+contravariant tensor; a tensor density of weight `w` receives the explicit
+`+w*T*diff(vector[i], coordinate[i])` transport term.
 `Tensor.permute()`, `symmetrize()`, and `antisymmetrize()` perform native
 slot operations using zero-based Python slot numbers.
 `Tensor.product(other)` (also `tensor_product`) routes the outer product

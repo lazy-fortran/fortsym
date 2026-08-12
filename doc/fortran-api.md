@@ -220,6 +220,22 @@ value = tensor_component(Bup, index)
 value = tensor_component(scalar, none)
 ```
 
+The typed tensor owner also provides the coordinate Lie derivative:
+
+```fortran
+type(tensor_t) :: X, T, transported
+X = vector(chart, B)
+T = tensor_scalar(value)
+transported = lie(chart, X, T)
+```
+
+`lie` and `lie_derivative` preserve tensor variance and density metadata. The
+transport vector must be an ordinary weight-zero contravariant vector. For a
+tensor density of weight `w`, the native coordinate formula includes
+`+w*T*d_i(X^i)`; upper slots contribute `-T(...,k,...)*d_k(X^i)` and lower
+slots contribute `+T(...,k,...)*d_i(X^k)`. The implementation writes directly
+into the fixed component store, without rank-dependent component arrays.
+
 `raise` and `lower` preserve density weight and all non-selected slots.
 They accept either a chart or an explicit `metric_t` owner, so the same tensor
 operation can be used for a supplied Lorentzian metric without reconstructing

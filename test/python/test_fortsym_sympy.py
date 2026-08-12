@@ -68,6 +68,60 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_tensor_lie_derivative_matches_independent_sympy_formula(self):
+        x, y, z = sp.symbols("lie_x lie_y lie_z")
+        chart = sp.Chart((x, y, z), (x, y, z))
+        vector = chart.vector((x, y, 0))
+        upper = chart.vector((x**2, x*y, z))
+        lower = chart.covector((x*y, z, 0))
+
+        actual_upper = upper.lie(vector)
+        actual_lower = lower.lie(vector)
+        oracle_coordinates = oracle.symbols("lie_x lie_y lie_z")
+        oracle_vector = (oracle_coordinates[0], oracle_coordinates[1], 0)
+        oracle_upper = (
+            oracle_coordinates[0]**2,
+            oracle_coordinates[0]*oracle_coordinates[1],
+            oracle_coordinates[2],
+        )
+        oracle_lower = (
+            oracle_coordinates[0]*oracle_coordinates[1],
+            oracle_coordinates[2],
+            0,
+        )
+        expected_upper = tuple(
+            sum(
+                oracle_vector[k] * oracle.diff(oracle_upper[i], oracle_coordinates[k])
+                - oracle_upper[k] * oracle.diff(oracle_vector[i], oracle_coordinates[k])
+                for k in range(3)
+            )
+            for i in range(3)
+        )
+        expected_lower = tuple(
+            sum(
+                oracle_vector[k] * oracle.diff(oracle_lower[i], oracle_coordinates[k])
+                + oracle_lower[k] * oracle.diff(oracle_vector[k], oracle_coordinates[i])
+                for k in range(3)
+            )
+            for i in range(3)
+        )
+        self.assertEqual(
+            tuple(oracle.sympify(str(actual_upper[i].simplify())) for i in range(3)),
+            expected_upper,
+        )
+        self.assertEqual(
+            tuple(oracle.sympify(str(actual_lower[i].simplify())) for i in range(3)),
+            expected_lower,
+        )
+
+        density = chart.scalar(x).density(1)
+        actual_density = chart.lie(vector, density)
+        self.assertEqual(
+            oracle.sympify(str(actual_density.component().simplify())),
+            3 * oracle_coordinates[0],
+        )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_tensor_index_labels_contract_through_native_owner(self):
         x, y, z = sp.symbols("index_x index_y index_z")
         chart = sp.Chart((x, y, z), (x, y, z))

@@ -897,6 +897,11 @@ The first-class object model is staged around these metadata owners:
   metrics. The native kernels compute the induced two-metric minor directly,
   without array temporaries; C ABI 53 and both Python facades keep this
   measure separate from signed `J`, positive `sqrtg`, and oriented volume.
+- [x] Add the first typed tensor Lie-derivative owner. `tensor_lie_derivative`
+  transports every upper and lower slot, preserves density metadata, and adds
+  the explicit `+w*T*partial_i(X^i)` term for a weight-`w` tensor density.
+  The Fortran `lie`/`lie_derivative` facade, C ABI 54, Python `Tensor.lie`, and
+  independent scalar/vector/covector/density checks all share this owner.
 - [ ] `connection_t` stores the connection coefficients and its convention.
   `levi_civita(metric)` is a constructor with torsion zero and metric
   compatibility. A supplied affine connection can have torsion or
@@ -1376,7 +1381,7 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   derivative slot, applies every slot's Christoffel term, and honors density
   weight. Metric compatibility and an independent nonlinear nonorthogonal
   chart check are required gates.
-- [ ] Implement torsion, nonmetricity, geodesic solving, Lie derivatives, and named
+- [ ] Implement torsion, nonmetricity, geodesic solving, and named
   Riemann-sign conventions. Support both Riemannian and pseudo-Riemannian
   connections without coupling them to magnetic physics.
 - [x] Implement the first fixed-three-dimensional curvature views:

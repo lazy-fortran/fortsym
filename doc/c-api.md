@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 53). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 54). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -25,6 +25,10 @@ slots and returns the remaining native tensor components; the Python facade
 adds named-index validation before calling this same operation.
 `fortsym_chart_tensor_product` forms a tensor product with left slots followed
 by right slots and preserves the summed density weight.
+`fortsym_chart_tensor_lie` computes the coordinate Lie derivative along a
+weight-zero contravariant vector tensor. It preserves the input tensor's
+variance and density weight; density weight `w` contributes the explicit
+`+w*T*partial_i(X^i)` term.
 `fortsym_chart_covariant_divergence` contracts the first contravariant tensor
 slot with the derivative slot and preserves the remaining slot metadata.
 `fortsym_chart_first_bianchi_residual` returns the native rank-four residual

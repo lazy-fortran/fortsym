@@ -54,8 +54,8 @@ module fortsym
     use fortsym_form, only: form_t, form, form_scalar, form_one, form_two, &
         form_three, form_zero, form_component, form_degree, form_valid, add_forms, &
         subtract_forms, negate_form, wedge, d, &
-        exterior_diff, star, hodge_star, interior, interior_product, lie, &
-        lie_derivative, flat, sharp, scale_form, volume_form
+        exterior_diff, star, hodge_star, interior, interior_product, &
+        form_lie_derivative => lie_derivative, flat, sharp, scale_form, volume_form
     use fortsym_tensor, only: tensor_t, tensor, tensor_scalar, tensor_vector, &
         tensor_covector, tensor_from_components, tensor_from_matrix, &
         tensor_component, tensor_rank, tensor_variance, &
@@ -63,7 +63,7 @@ module fortsym
         raise, lower, tensor_product, contract, trace, permute, symmetrize, &
         antisymmetrize, &
         metric_covariant_tensor, metric_contravariant_tensor, UPPER, LOWER_VARIANCE, &
-        MAX_RANK
+        MAX_RANK, tensor_lie_derivative
     use fortsym_index, only: index_type_t, index_t, index_type, make_index, &
         index_valid, index_space_valid, index_dimension, index_category, &
         index_space_name, index_label, index_slot, index_variance, &
@@ -131,6 +131,16 @@ module fortsym
         procedure :: chart_laplacian
         procedure :: metric_laplacian
     end interface laplacian
+
+    interface lie
+        procedure :: form_lie_derivative
+        procedure :: tensor_lie_derivative
+    end interface lie
+
+    interface lie_derivative
+        procedure :: form_lie_derivative
+        procedure :: tensor_lie_derivative
+    end interface lie_derivative
 
     public :: arena_t, node_kind_name
     public :: NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, &
