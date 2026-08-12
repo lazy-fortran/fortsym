@@ -1771,6 +1771,10 @@ between the two-dimensional gradient, scalar curl, and divergence.
   - [x] Retain one native engine and its memoization caches per C-ABI arena;
     synchronize scoped assumptions before each call so warm native workloads
     do not discard their cache state.
+  - [x] Make the linked SymEngine conversion DAG-aware for larger expressions:
+    cache one backend handle per shared arena node during a call, while keeping
+    the lean uncached path for small expressions so conversion bookkeeping does
+    not slow ordinary scalar workloads.
   - [x] Reuse a Python facade's expanded result while its assumption epoch is
     unchanged, and invalidate that result when assumptions change.
   - [x] Close the repeated `differentiate:warm_core` gap by caching one

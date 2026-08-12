@@ -18,7 +18,7 @@ module fortsym_engine_symengine
     !   per node. The text path reuses the printer and parser that the round-trip
     !   test already covers, so it is the better-tested of the two directions.
     use, intrinsic :: iso_c_binding, only: c_ptr, c_int, c_long, c_char, &
-        c_null_char, c_size_t
+        c_null_char, c_null_ptr, c_associated, c_size_t
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
@@ -40,6 +40,20 @@ module fortsym_engine_symengine
     integer, parameter :: dp = real64
     integer, parameter :: MAX_EVALF_DIGITS = 512
     integer, parameter :: MAX_EVALF_NODES = 8192
+    integer, parameter :: CACHE_MIN_NODES = 64
+
+    !> Per-call structural conversion cache.
+    !>
+    !> An arena is a hash-consed DAG, while the old converter treated it as a
+    !> tree and rebuilt every shared subtree for every occurrence. Geometry
+    !> expressions make this particularly expensive: the same metric factor
+    !> can occur in dozens of derivatives and products. The cache owns one
+    !> SymEngine handle per reachable fortsym node; callers receive cheap RCP
+    !> copies and continue to own those copies in the old way.
+    type :: conversion_cache_t
+        type(c_ptr), allocatable :: handle(:)
+        logical :: enabled = .false.
+    end type conversion_cache_t
 
     type, extends(engine_t) :: symengine_engine_t
         !> The arena results are parsed back into. Set at construction so a
@@ -110,13 +124,22 @@ contains
 
     !> Build a SymEngine handle for a fortsym node. The caller owns the result
     !> and must release it with basic_free_heap.
-    recursive function to_symengine(a, id) result(h)
+    recursive function to_symengine(a, id, cache) result(h)
         type(arena_t), intent(in) :: a
         integer,       intent(in) :: id
+        type(conversion_cache_t), intent(inout) :: cache
         type(c_ptr)               :: h
         type(c_ptr) :: lhs, rhs
         integer :: k, rc
         character(:), allocatable :: name
+
+        if (cache%enabled) then
+            if (c_associated(cache%handle(id))) then
+                h = basic_new_heap()
+                rc = basic_assign(h, cache%handle(id))
+                return
+            end if
+        end if
 
         h = basic_new_heap()
 
@@ -159,9 +182,9 @@ contains
             ! Fold left. SymEngine's add is binary at the C ABI even though its
             ! internal representation is n-ary.
             call basic_free_heap(h)
-            h = to_symengine(a, a%arg_of(id, 1))
+            h = to_symengine(a, a%arg_of(id, 1), cache)
             do k = 2, a%nargs_of(id)
-                rhs = to_symengine(a, a%arg_of(id, k))
+                rhs = to_symengine(a, a%arg_of(id, k), cache)
                 lhs = h
                 h = basic_new_heap()
                 rc = basic_add(h, lhs, rhs)
@@ -171,9 +194,9 @@ contains
 
         case (NK_MUL)
             call basic_free_heap(h)
-            h = to_symengine(a, a%arg_of(id, 1))
+            h = to_symengine(a, a%arg_of(id, 1), cache)
             do k = 2, a%nargs_of(id)
-                rhs = to_symengine(a, a%arg_of(id, k))
+                rhs = to_symengine(a, a%arg_of(id, k), cache)
                 lhs = h
                 h = basic_new_heap()
                 rc = basic_mul(h, lhs, rhs)
@@ -182,34 +205,40 @@ contains
             end do
 
         case (NK_POW)
-            lhs = to_symengine(a, a%arg_of(id, 1))
-            rhs = to_symengine(a, a%arg_of(id, 2))
+            lhs = to_symengine(a, a%arg_of(id, 1), cache)
+            rhs = to_symengine(a, a%arg_of(id, 2), cache)
             rc = basic_pow(h, lhs, rhs)
             call basic_free_heap(lhs)
             call basic_free_heap(rhs)
 
         case (NK_FUNC)
-            call apply_function(a, id, h)
+            call apply_function(a, id, h, cache)
 
         case default
             rc = integer_set_si(h, 0_c_long)
         end select
+
+        if (cache%enabled) then
+            cache%handle(id) = basic_new_heap()
+            rc = basic_assign(cache%handle(id), h)
+        end if
     end function to_symengine
 
     !> Dispatch a named function to its SymEngine entry point.
-    recursive subroutine apply_function(a, id, h)
+    recursive subroutine apply_function(a, id, h, cache)
         type(arena_t), intent(in)    :: a
         integer,       intent(in)    :: id
         type(c_ptr),   intent(inout) :: h
+        type(conversion_cache_t), intent(inout) :: cache
         type(c_ptr) :: x, y
         integer :: rc
         character(:), allocatable :: name
 
         name = chars(a%name_of(id))
-        x = to_symengine(a, a%arg_of(id, 1))
+        x = to_symengine(a, a%arg_of(id, 1), cache)
 
         if (name == "atan2") then
-            y = to_symengine(a, a%arg_of(id, 2))
+            y = to_symengine(a, a%arg_of(id, 2), cache)
             rc = basic_atan2(h, x, y)
             call basic_free_heap(y)
             call basic_free_heap(x)
@@ -246,7 +275,7 @@ contains
             ! application of the same head identical, so f(x) - f(y) would
             ! decide to zero -- a wrong ZERO, the one failure this whole design
             ! exists to prevent.
-            call apply_unknown(a, id, name, h)
+            call apply_unknown(a, id, name, h, cache)
         end select
 
         call basic_free_heap(x)
@@ -254,23 +283,56 @@ contains
 
     !> Build an opaque applied function f(a1, ..., an), preserving the head name
     !> and every argument.
-    recursive subroutine apply_unknown(a, id, name, h)
+    recursive subroutine apply_unknown(a, id, name, h, cache)
         type(arena_t), intent(in)    :: a
         integer,       intent(in)    :: id
         character(*),  intent(in)    :: name
         type(c_ptr),   intent(inout) :: h
+        type(conversion_cache_t), intent(inout) :: cache
         type(c_ptr) :: vec, arg
         integer :: k, rc
 
         vec = vecbasic_new()
         do k = 1, a%nargs_of(id)
-            arg = to_symengine(a, a%arg_of(id, k))
+            arg = to_symengine(a, a%arg_of(id, k), cache)
             rc = vecbasic_push_back(vec, arg)
             call basic_free_heap(arg)
         end do
         rc = function_symbol_set(h, cstr(name), vec)
         call vecbasic_free(vec)
     end subroutine apply_unknown
+
+    !> Allocate a direct node-id cache when the expression is large enough to
+    !> repay its one-time storage. Small scalar calls stay on the lean path.
+    subroutine init_conversion_cache(a, reachable, cache)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: reachable
+        type(conversion_cache_t), intent(out) :: cache
+        integer :: i
+
+        cache%enabled = reachable > CACHE_MIN_NODES
+        if (.not. cache%enabled) return
+        allocate (cache%handle(a%size()))
+        do i = 1, a%size()
+            cache%handle(i) = c_null_ptr
+        end do
+    end subroutine init_conversion_cache
+
+    !> Release the cache-owned SymEngine references after one conversion call.
+    subroutine release_conversion_cache(cache)
+        type(conversion_cache_t), intent(inout) :: cache
+        integer :: i
+
+        if (allocated(cache%handle)) then
+            do i = 1, size(cache%handle)
+                if (c_associated(cache%handle(i))) then
+                    call basic_free_heap(cache%handle(i))
+                end if
+            end do
+            deallocate (cache%handle)
+        end if
+        cache%enabled = .false.
+    end subroutine release_conversion_cache
 
     !> NUL-terminate for the C ABI.
     pure function cstr(s) result(c)
@@ -332,6 +394,7 @@ contains
         character(:), allocatable, intent(out) :: why
         character(:), allocatable              :: text
         type(c_ptr) :: h, out
+        type(conversion_cache_t) :: cache
         integer(c_long) :: bits
         integer(c_int) :: rc
         logical :: good
@@ -357,7 +420,8 @@ contains
         end if
 
         bits = int(real(digits + 8, dp)*3.321928094887362_dp, c_long)
-        h = to_symengine(e%a, e%id)
+        call init_conversion_cache(e%a, e%node_count(), cache)
+        h = to_symengine(e%a, e%id, cache)
         out = basic_new_heap()
         rc = basic_evalf(out, h, bits, 1_c_int)
         if (rc == SYMENGINE_NO_EXCEPTION) then
@@ -374,6 +438,7 @@ contains
         end if
         call basic_free_heap(out)
         call basic_free_heap(h)
+        call release_conversion_cache(cache)
     end function symengine_evalf_text
 
     !> Lexical guard for the text retained as NK_BIG_REAL. In particular this
@@ -444,6 +509,7 @@ contains
         type(expr_t),              intent(in)    :: e
         type(engine_result_t)                    :: r
         type(c_ptr) :: h
+        type(conversion_cache_t) :: cache
         real(dp) :: t0
         integer(c_int) :: v
 
@@ -456,9 +522,11 @@ contains
             r%seconds = wall_seconds() - t0
             return
         end if
-        h = to_symengine(e%a, e%id)
+        call init_conversion_cache(e%a, e%node_count(), cache)
+        h = to_symengine(e%a, e%id, cache)
         v = fsym_zero_test(h, 0_c_long)
         call basic_free_heap(h)
+        call release_conversion_cache(cache)
         r%seconds = wall_seconds() - t0
 
         ! The shim's verdict encoding matches fortsym's by construction; the
@@ -480,6 +548,7 @@ contains
         type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                    :: r
         type(c_ptr) :: h, out
+        type(conversion_cache_t) :: cache
         real(dp) :: t0
         integer(c_int) :: rc
         logical :: good
@@ -492,7 +561,8 @@ contains
             r%seconds = wall_seconds() - t0
             return
         end if
-        h = to_symengine(e%a, e%id)
+        call init_conversion_cache(e%a, e%node_count(), cache)
+        h = to_symengine(e%a, e%id, cache)
         out = basic_new_heap()
         rc = fsym_simplify(out, h)
 
@@ -508,6 +578,7 @@ contains
 
         call basic_free_heap(out)
         call basic_free_heap(h)
+        call release_conversion_cache(cache)
         r%seconds = wall_seconds() - t0
     end function se_simplify
 
@@ -516,6 +587,7 @@ contains
         type(expr_t),              intent(in)    :: e, v
         type(engine_result_t)                    :: r
         type(c_ptr) :: h, hv, out
+        type(conversion_cache_t) :: cache, variable_cache
         real(dp) :: t0
         integer(c_int) :: rc
         logical :: good
@@ -529,8 +601,14 @@ contains
             r%seconds = wall_seconds() - t0
             return
         end if
-        h = to_symengine(e%a, e%id)
-        hv = to_symengine(v%a, v%id)
+        call init_conversion_cache(e%a, e%node_count(), cache)
+        if (associated(e%a, v%a)) then
+            hv = to_symengine(v%a, v%id, cache)
+        else
+            call init_conversion_cache(v%a, v%node_count(), variable_cache)
+            hv = to_symengine(v%a, v%id, variable_cache)
+        end if
+        h = to_symengine(e%a, e%id, cache)
         out = basic_new_heap()
         rc = basic_diff(out, h, hv)
 
@@ -547,6 +625,8 @@ contains
         call basic_free_heap(out)
         call basic_free_heap(hv)
         call basic_free_heap(h)
+        call release_conversion_cache(variable_cache)
+        call release_conversion_cache(cache)
         r%seconds = wall_seconds() - t0
     end function se_diff
 
@@ -556,6 +636,7 @@ contains
         type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                    :: r
         type(c_ptr) :: h, out
+        type(conversion_cache_t) :: cache
         real(dp) :: t0
         integer(c_int) :: rc
         logical :: good
@@ -568,7 +649,8 @@ contains
             r%seconds = wall_seconds() - t0
             return
         end if
-        h = to_symengine(e%a, e%id)
+        call init_conversion_cache(e%a, e%node_count(), cache)
+        h = to_symengine(e%a, e%id, cache)
         out = basic_new_heap()
         rc = basic_expand(out, h)
 
@@ -583,6 +665,7 @@ contains
 
         call basic_free_heap(out)
         call basic_free_heap(h)
+        call release_conversion_cache(cache)
         r%seconds = wall_seconds() - t0
     end function se_expand
 
