@@ -1397,7 +1397,7 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   and full connection reuse remain open.
 - [x] Extend the dimension-aware relativity owner with metric `flat`/`sharp`,
   contravariant gradient, divergence, and Laplace--Beltrami/wave operator,
-  transported through the Fortran facade, C ABI 49, and Python
+  transported through the Fortran facade, C ABI 50, and Python
   `SpacetimeMetric`. Minkowski tests cover `sharp(flat(v))`, variance metadata,
   the signed gradient, divergence, and the linear-scalar wave identity;
   curved-space and arbitrary-dimensional tensor transport remain open.
@@ -1515,9 +1515,11 @@ without an explicit volume factor.
   `B_density`, reciprocal bases, `sqrtg`, and the Fourier-mode curl and density
   used by `paper_magnetic`. The spelling is concise in Fortran and maps to
   clear SymPy names in Python.
-- [ ] Add `H_cov` and `H_con` conversions, metric contraction for `B**2`,
-  field-line derivatives, magnetic surfaces, flux-surface averages, and
+- [ ] Add `H_cov` and `H_con` conversions, field-line derivatives, magnetic
+  surfaces, flux-surface averages, and
   Jacobian-weighted divergence.
+- [x] Provide metric contraction for `B**2` through the shared `metric_inner`
+  owner.
 - [ ] Support Clebsch, straight-field-line, Boozer, and Hamada coordinate
   descriptors as reusable data and verified identities. The analytic Boozer
   example is only the first representation fixture; add symbolic relations and
@@ -1775,6 +1777,9 @@ between the two-dimensional gradient, scalar curl, and divergence.
     cache one backend handle per shared arena node during a call, while keeping
     the lean uncached path for small expressions so conversion bookkeeping does
     not slow ordinary scalar workloads.
+  - [x] Add the fixed-size `metric_inner` contraction path without lowering a
+    vector into a temporary array; nonorthogonal metric norms now share one
+    native owner across Fortran, C, and Python.
   - [x] Reuse a Python facade's expanded result while its assumption epoch is
     unchanged, and invalidate that result when assumptions change.
   - [x] Close the repeated `differentiate:warm_core` gap by caching one

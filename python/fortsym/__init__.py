@@ -449,6 +449,14 @@ def _configure(lib):
             ctypes.c_int, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    lib.metric_inner = declare(
+        "fortsym_metric_inner", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int),
+            ctypes.c_int, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     metric_chart_scalar_arguments = [
         _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
         ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
@@ -1400,6 +1408,44 @@ class Arena:
                 status, _decode(message), "metric_contravariant"
             )
         return tuple(Expr(self, output[index]) for index in range(9))
+
+    def _metric_inner(self, metric, left, right):
+        components, signature = self._metric_inputs(metric)
+        left_values = []
+        right_values = []
+        temporaries = []
+        try:
+            for value in left:
+                value, temporary = self._coerce(value)
+                left_values.append(value)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            for value in right:
+                value, temporary = self._coerce(value)
+                right_values.append(value)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            if len(left_values) != 3 or len(right_values) != 3:
+                raise ValueError("metric inner products require three components")
+            left_handles = (_CVOID * 3)(
+                *[value._handle for value in left_values]
+            )
+            right_handles = (_CVOID * 3)(
+                *[value._handle for value in right_values]
+            )
+            output = _CVOID()
+            message = _message()
+            status = self._lib.metric_inner(
+                self._require(), components, signature, metric.orientation,
+                left_handles, right_handles, ctypes.byref(output), message,
+                len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), "metric_inner")
+            return Expr(self, output)
+        finally:
+            for temporary in temporaries:
+                temporary.close()
 
     def _metric_scalar_operation(self, operation, metric, scalar, count):
         coordinates, position, components, signature = self._metric_chart_inputs(
@@ -2496,6 +2542,14 @@ class Metric:
     def contravariant(self):
         components = self._arena._metric_contravariant(self)
         return Tensor(self.chart, components, (-1, -1), _owned=True)
+
+    def inner(self, left, right):
+        """Return ``g_ij*left**i*right**j`` for contravariant components."""
+        return self._arena._metric_inner(self, left, right)
+
+    def norm_squared(self, vector):
+        """Return the metric contraction of a vector with itself."""
+        return self.inner(vector, vector)
 
     def grad(self, scalar):
         """Return contravariant ``g^ij*diff(scalar, coordinates[j])``."""

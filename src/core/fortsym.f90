@@ -83,6 +83,7 @@ module fortsym
         TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
         metric_det, metric_sqrtg, &
+        metric_inner, &
         metric_signature, metric_orientation, metric_valid, metric_arena, &
         metric_same_arena, metric_coordinates, metric_has_coordinates, &
         metric_grad, metric_divergence, metric_laplacian
@@ -170,6 +171,7 @@ module fortsym
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, &
         SPACE_EDGE, TRACE_NONE, TRACE_NORMAL, TRACE_TANGENTIAL, &
         metric_t, metric_create, metric_from_chart, metric_det, metric_sqrtg, &
+        metric_inner, &
         metric_grad, metric_divergence, metric_laplacian, &
         metric_volume_density, levi_civita_symbol, metric_levi_civita, &
         metric_orientation, metric_valid, metric_arena, metric_same_arena, &

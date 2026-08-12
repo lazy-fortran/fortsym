@@ -295,6 +295,11 @@ int fortsym_metric_contravariant(
     fortsym_arena *arena, const fortsym_expr *components[],
     const int signature[], int orientation, fortsym_expr *out[],
     char *message, size_t capacity);
+int fortsym_metric_inner(
+    fortsym_arena *arena, const fortsym_expr *components[],
+    const int signature[], int orientation, const fortsym_expr *left[],
+    const fortsym_expr *right[], fortsym_expr **out, char *message,
+    size_t capacity);
 int fortsym_metric_grad(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *components[],

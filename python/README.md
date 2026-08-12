@@ -44,7 +44,10 @@ oriented covariant tensor by default or the contravariant tensor when passed
 `Metric.laplacian(scalar)` are the corresponding coordinate-aware operators;
 they use the metric inverse and positive `sqrt(abs(det(g)))` owned by the same
 metric. The returned gradient is contravariant, and divergence accepts a
-three-component contravariant vector.
+three-component contravariant vector. `Metric.inner(left, right)` contracts
+contravariant components with the metric, and `Metric.norm_squared(vector)`
+is its self-contraction convenience for quantities such as `B**2`; both use
+the same native nonorthogonal-metric path.
 `SpacetimeMetric` is the dimension-aware four-coordinate facade for the
 relativity owner. It exposes `sqrtg()`, inverse metric, Christoffel, Riemann,
 Ricci, scalar curvature, Einstein, and second-Bianchi views using the same native expression
