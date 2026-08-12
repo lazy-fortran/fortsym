@@ -79,7 +79,12 @@ enum fortsym_tensor_variance {
     FORTSYM_UPPER_VARIANCE = 1
 };
 
-enum { FORTSYM_GEOMETRY_DIMENSION = 3, FORTSYM_TENSOR_MAX_RANK = 4 };
+enum {
+    FORTSYM_GEOMETRY_DIMENSION = 3,
+    FORTSYM_TENSOR_MAX_RANK = 4,
+    FORTSYM_FORM_COMPONENTS = 8,
+    FORTSYM_FORM_MAX_DEGREE = 3
+};
 
 int fortsym_abi_version(void);
 
@@ -216,6 +221,60 @@ int fortsym_chart_einstein(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], fortsym_expr *out[], char *message,
     size_t capacity);
+/* Differential-form arrays contain all eight basis masks. Mask k is the
+ * coefficient of the ordered wedge basis represented by the bit mask k.
+ * Unused masks for a form degree are zero. Returned handles are owned by the
+ * caller and must be released element by element. */
+int fortsym_chart_form_add(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *left[], size_t left_degree,
+    const fortsym_expr *right[], size_t right_degree, fortsym_expr *out[],
+    char *message, size_t capacity);
+int fortsym_chart_form_subtract(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *left[], size_t left_degree,
+    const fortsym_expr *right[], size_t right_degree, fortsym_expr *out[],
+    char *message, size_t capacity);
+int fortsym_chart_form_negate(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *input[], size_t degree,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_form_scale(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *input[], size_t degree,
+    const fortsym_expr *factor, fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_chart_form_d(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *input[], size_t degree,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_form_wedge(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *left[], size_t left_degree,
+    const fortsym_expr *right[], size_t right_degree, fortsym_expr *out[],
+    char *message, size_t capacity);
+int fortsym_chart_form_star(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *input[], size_t degree,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_form_interior(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *vector[],
+    const fortsym_expr *input[], size_t degree, fortsym_expr *out[],
+    char *message, size_t capacity);
+int fortsym_chart_form_lie(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *vector[],
+    const fortsym_expr *input[], size_t degree, fortsym_expr *out[],
+    char *message, size_t capacity);
+int fortsym_chart_form_flat(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *vector[],
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_form_sharp(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *input[], size_t degree,
+    fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_zero_test(fortsym_arena *arena, const fortsym_expr *expression,
                       int *verdict, char *message, size_t capacity);
 /* operation is one of "re", "im", "conjugate", "arg", "abs", or

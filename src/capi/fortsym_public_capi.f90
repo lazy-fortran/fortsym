@@ -24,6 +24,10 @@ module fortsym_public_capi
         metric_contravariant_tensor
     use fortsym_connection, only: covariant_diff, christoffel_tensor, &
         riemann_tensor, ricci_tensor, scalar_curvature, einstein_tensor
+    use fortsym_form, only: form_t, form_scalar, form_one, form_two, form_three, &
+        form_component, form_valid, add_forms, subtract_forms, negate_form, &
+        wedge, exterior_diff, hodge_star, interior_product, lie_derivative, &
+        flat, sharp, scale_form
     use fortsym_assume_api, only: assumption_context_t, init_assumption_context, &
         clone_assumption_context, record_assumption, &
         record_relation, &
@@ -50,6 +54,8 @@ module fortsym_public_capi
     integer(c_int), parameter, public :: FORTSYM_RESOURCE_LIMIT = 6_c_int
     integer(c_int), parameter, public :: FORTSYM_CONFLICT = 7_c_int
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
+    integer, parameter :: FORM_COMPONENTS = 2**DIM
+    integer, parameter :: FORM_MAX_DEGREE = DIM
 
     type :: assumption_frame_t
         type(assumption_context_t), pointer :: context => null()
@@ -85,7 +91,13 @@ module fortsym_public_capi
         fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
         fortsym_chart_christoffel, fortsym_chart_covariant_diff, &
         fortsym_chart_riemann, fortsym_chart_ricci, &
-        fortsym_chart_scalar_curvature, fortsym_chart_einstein
+        fortsym_chart_scalar_curvature, fortsym_chart_einstein, &
+        fortsym_chart_form_add, fortsym_chart_form_subtract, &
+        fortsym_chart_form_negate, fortsym_chart_form_scale, &
+        fortsym_chart_form_d, fortsym_chart_form_wedge, &
+        fortsym_chart_form_star, fortsym_chart_form_interior, &
+        fortsym_chart_form_lie, fortsym_chart_form_flat, &
+        fortsym_chart_form_sharp
     public :: fortsym_complex_operation
     public :: fortsym_zero_test
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
@@ -100,7 +112,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 17_c_int
+        v = 18_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -945,6 +957,259 @@ contains
         call make_tensor_array(a, value, 2, out, status, message, capacity)
     end function fortsym_chart_einstein
 
+    function fortsym_chart_form_add(raw, coordinates, position, left, &
+            left_degree, right, right_degree, out, message, capacity) &
+            bind(c, name="fortsym_chart_form_add") result(status)
+        type(c_ptr), value :: raw, coordinates, position, left, right, out
+        integer(c_size_t), value :: left_degree, right_degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: left_value, right_value, value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, left, left_degree, left_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, right, right_degree, right_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        value = add_forms(left_value, right_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_add
+
+    function fortsym_chart_form_subtract(raw, coordinates, position, left, &
+            left_degree, right, right_degree, out, message, capacity) &
+            bind(c, name="fortsym_chart_form_subtract") result(status)
+        type(c_ptr), value :: raw, coordinates, position, left, right, out
+        integer(c_size_t), value :: left_degree, right_degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: left_value, right_value, value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, left, left_degree, left_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, right, right_degree, right_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        value = subtract_forms(left_value, right_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_subtract
+
+    function fortsym_chart_form_negate(raw, coordinates, position, input, degree, &
+            out, message, capacity) bind(c, name="fortsym_chart_form_negate") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, input, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: input_value, value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = negate_form(input_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_negate
+
+    function fortsym_chart_form_scale(raw, coordinates, position, input, degree, &
+            factor, out, message, capacity) bind(c, name="fortsym_chart_form_scale") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, input, factor, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(form_t) :: input_value, value
+        type(expr_t) :: factor_value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(factor, owner, factor_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        value = scale_form(input_value, factor_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_scale
+
+    function fortsym_chart_form_d(raw, coordinates, position, input, degree, out, &
+            message, capacity) bind(c, name="fortsym_chart_form_d") result(status)
+        type(c_ptr), value :: raw, coordinates, position, input, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: input_value, value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = exterior_diff(chart, input_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_d
+
+    function fortsym_chart_form_wedge(raw, coordinates, position, left, &
+            left_degree, right, right_degree, out, message, capacity) &
+            bind(c, name="fortsym_chart_form_wedge") result(status)
+        type(c_ptr), value :: raw, coordinates, position, left, right, out
+        integer(c_size_t), value :: left_degree, right_degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: left_value, right_value, value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, left, left_degree, left_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, right, right_degree, right_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        value = wedge(left_value, right_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_wedge
+
+    function fortsym_chart_form_star(raw, coordinates, position, input, degree, out, &
+            message, capacity) bind(c, name="fortsym_chart_form_star") result(status)
+        type(c_ptr), value :: raw, coordinates, position, input, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: input_value, value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = hodge_star(chart, input_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_star
+
+    function fortsym_chart_form_interior(raw, coordinates, position, vector, input, &
+            degree, out, message, capacity) bind(c, name="fortsym_chart_form_interior") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, vector, input, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: input_value, value
+        type(expr_t) :: vector_value(DIM)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_vector_input(a, vector, vector_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = interior_product(chart, vector_value, input_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_interior
+
+    function fortsym_chart_form_lie(raw, coordinates, position, vector, input, degree, &
+            out, message, capacity) bind(c, name="fortsym_chart_form_lie") result(status)
+        type(c_ptr), value :: raw, coordinates, position, vector, input, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: input_value, value
+        type(expr_t) :: vector_value(DIM)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_vector_input(a, vector, vector_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = lie_derivative(chart, vector_value, input_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_lie
+
+    function fortsym_chart_form_flat(raw, coordinates, position, vector, out, &
+            message, capacity) bind(c, name="fortsym_chart_form_flat") result(status)
+        type(c_ptr), value :: raw, coordinates, position, vector, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: value
+        type(expr_t) :: vector_value(DIM)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_vector_input(a, vector, vector_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = flat(chart, vector_value)
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_form_flat
+
+    function fortsym_chart_form_sharp(raw, coordinates, position, input, degree, out, &
+            message, capacity) bind(c, name="fortsym_chart_form_sharp") result(status)
+        type(c_ptr), value :: raw, coordinates, position, input, out
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(form_t) :: input_value
+        type(expr_t) :: value(DIM)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_form_input(chart, a, input, degree, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = sharp(chart, input_value)
+        call make_expr_array(a, value, out, DIM, status, message, capacity)
+    end function fortsym_chart_form_sharp
+
     function fortsym_chart_b_cov(raw, coordinates, position, vector, out, &
             message, capacity) bind(c, name="fortsym_chart_b_cov") result(status)
         type(c_ptr), value :: raw, out
@@ -1667,6 +1932,142 @@ contains
         end do
         call make_expr_array(a, values, out, count, status, message, capacity)
     end subroutine make_tensor_array
+
+    subroutine get_form_input(chart, a, raw, degree, value, status, message, capacity)
+        type(chart_t), intent(in) :: chart
+        type(arena_owner_t), pointer :: a
+        type(c_ptr), value :: raw
+        integer(c_size_t), value :: degree
+        type(form_t), intent(out) :: value
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(c_ptr), pointer :: component_values(:)
+        type(expr_t) :: coefficients(3)
+        type(expr_t) :: scalar_value
+        integer :: shape(1), degree_value
+
+        value = form_t()
+        status = FORTSYM_INVALID_ARGUMENT
+        if (degree > int(FORM_MAX_DEGREE, c_size_t) .or. &
+            .not. c_associated(raw)) then
+            call put_error(message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        degree_value = int(degree)
+        shape(1) = FORM_COMPONENTS
+        call c_f_pointer(raw, component_values, shape)
+        select case (degree_value)
+        case (0)
+            call get_form_component(a, component_values, 0, scalar_value, &
+                status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            value = form_scalar(scalar_value)
+        case (1)
+            call get_form_component(a, component_values, 1, coefficients(1), &
+                status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            call get_form_component(a, component_values, 2, coefficients(2), &
+                status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            call get_form_component(a, component_values, 4, coefficients(3), &
+                status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            value = form_one(chart, coefficients)
+        case (2)
+            call get_form_component(a, component_values, 3, coefficients(1), &
+                status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            call get_form_component(a, component_values, 5, coefficients(2), &
+                status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            call get_form_component(a, component_values, 6, coefficients(3), &
+                status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            value = form_two(chart, coefficients)
+        case (3)
+            call get_form_component(a, component_values, 7, scalar_value, &
+                status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            value = form_three(chart, scalar_value)
+        end select
+        if (.not. form_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end subroutine get_form_input
+
+    subroutine get_form_component(a, values, mask, value, status, message, capacity)
+        type(arena_owner_t), pointer :: a
+        type(c_ptr), intent(in) :: values(:)
+        integer, intent(in) :: mask
+        type(expr_t), intent(out) :: value
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(expr_owner_t), pointer :: owner
+
+        call get_expr(values(mask + 1), owner, value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+    end subroutine get_form_component
+
+    subroutine get_vector_input(a, raw, value, status, message, capacity)
+        type(arena_owner_t), pointer :: a
+        type(c_ptr), value :: raw
+        type(expr_t), intent(out) :: value(DIM)
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(c_ptr), pointer :: vector_values(:)
+        type(expr_owner_t), pointer :: owner
+        integer :: k, shape(1)
+
+        status = FORTSYM_INVALID_ARGUMENT
+        if (.not. c_associated(raw)) then
+            call put_error(message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape(1) = DIM
+        call c_f_pointer(raw, vector_values, shape)
+        do k = 1, DIM
+            call get_expr(vector_values(k), owner, value(k), status, message, &
+                capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end subroutine get_vector_input
+
+    subroutine make_form_array(a, value, out, status, message, capacity)
+        type(arena_owner_t), pointer :: a
+        type(form_t), intent(in) :: value
+        type(c_ptr), value :: out
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(expr_t) :: values(FORM_COMPONENTS)
+        integer :: mask
+
+        if (.not. form_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        do mask = 0, FORM_COMPONENTS - 1
+            values(mask + 1) = form_component(value, mask)
+        end do
+        call make_expr_array(a, values, out, FORM_COMPONENTS, status, &
+            message, capacity)
+    end subroutine make_form_array
 
     pure function component_count(rank) result(count)
         integer, intent(in) :: rank

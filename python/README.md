@@ -21,12 +21,16 @@ condition are refused by the C ABI.
 ## Native geometry facade
 
 `fortsym.Chart` is a small transport facade over the native Fortran chart and
-magnetic, tensor, and connection owners. It accepts three coordinate
+magnetic, tensor, connection, and form owners. It accepts three coordinate
 expressions and their Cartesian position map, then exposes `sqrtg()`, metric
 and curvature views, covariant differentiation, `b_fourier()`,
-`b_fourier_density()`, and `b_cov()`. The same classes are re-exported as
-`fortsym.sympy.Chart` and `fortsym.sympy.Tensor`; they do not reimplement
-geometry in Python.
+`b_fourier_density()`, and `b_cov()`. `Chart.one_form()`, `two_form()`, and
+`three_form()` construct native `Form` objects. Forms expose the fixed
+three-dimensional basis-mask components plus `d()`, `wedge()`, `star()`,
+`interior()`, `lie()`, `flat()`, and `sharp()`; `form * form` is the concise
+wedge spelling and scalar multiplication is coefficient scaling. The same
+classes are re-exported as `fortsym.sympy.Chart`, `fortsym.sympy.Tensor`, and
+`fortsym.sympy.Form`; they do not reimplement geometry in Python.
 
 ```python
 import fortsym.sympy as sp
@@ -45,17 +49,24 @@ g = chart.metric_covariant()
 dg = g.covariant_diff()
 R = chart.riemann()
 scalar_R = chart.scalar_curvature()
+x, y, z = sp.symbols("x y z")
+alpha = chart.one_form((y*z, x**2, y + z**2))
+beta = alpha.d()
+assert (beta[3] - (2*x - z)).simplify() == 0
 ```
 
 `Tensor` components use first-slot-fastest order and zero-based Python indices;
 `variance` is a tuple of `1` (upper) and `-1` (lower), and `density_weight`
 is explicit. `chart.metric()`, `chart.christoffel()`, `chart.ricci()`, and
 `chart.einstein()` return the corresponding native tensor views. `Tensor` and
-`Chart` are transport/lifetime facades: formulas and metadata validation stay
-in the native Fortran owners.
+`Form` and `Chart` are transport/lifetime facades: formulas and metadata
+validation stay in the native Fortran owners. Form components use the native
+bit masks `1`, `2`, `4` for `dx`, `dy`, `dz`; `3`, `5`, `6` for the ordered
+two-form basis; and `7` for the volume form. Full arbitrary-dimensional
+`diffgeom` parity, pullbacks, and metric signatures remain roadmap work.
 
-The geometry API currently covers the first magnetic-paper and fixed-rank
-connection subsets. The
+The geometry API currently covers the first magnetic-paper, fixed-rank
+connection, and fixed-three-dimensional form subsets. The
 Wolfram/Python source-script translator and full three-frontend differential
 comparison remain roadmap work.
 

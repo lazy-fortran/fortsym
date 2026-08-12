@@ -122,6 +122,23 @@ class NativePackageTest(unittest.TestCase):
             self.assertEqual(cartesian.scalar_curvature().simplify(), 0)
             self.assertEqual(cartesian.riemann()[0, 0, 0, 0].simplify(), 0)
 
+    def test_native_differential_form_frontend(self):
+        with fortsym.Arena() as arena:
+            x, y, z = [arena.symbol(name) for name in ("form_x", "form_y", "form_z")]
+            chart = fortsym.Chart((x, y, z), (x, y, z))
+            one = chart.one_form((y*z, x**2, y + z**2))
+            derivative = one.d()
+            self.assertEqual(derivative.degree, 2)
+            self.assertEqual((derivative[3] - (2*x - z)).simplify(), 0)
+            self.assertEqual((derivative[5] + y).simplify(), 0)
+            self.assertEqual((derivative[6] - 1).simplify(), 0)
+            self.assertEqual(derivative.d()[7].simplify(), 0)
+            self.assertEqual(one.wedge(one)[3].simplify(), 0)
+            self.assertEqual(one.star().star()[1].simplify(), y*z)
+            self.assertEqual(chart.flat((x, y, z)).sharp()[2].simplify(), z)
+            contracted = derivative.interior((x, y, z))[1]
+            self.assertEqual((contracted + 2*x*y - 2*y*z).simplify(), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

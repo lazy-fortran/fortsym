@@ -99,7 +99,8 @@ flux_form = interior(chart, b_con(chart, A), volume)
 
 On an orientation-preserving chart, `flux_form` and `B_form` agree and
 `d(chart, flux_form)` is zero. Higher-dimensional manifolds, arbitrary tensor
-rank, and Python form transport remain explicit roadmap work.
+rank, and full Python form parity remain explicit roadmap work; the fixed-3D
+transport facade is documented in `python/README.md`.
 
 ## Typed coordinate tensors
 
