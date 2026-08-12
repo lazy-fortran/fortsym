@@ -382,6 +382,10 @@ Every checklist item requires all of the following:
     `gamma(n)` becomes `zoo`, exact non-positive integer `loggamma(n)` becomes
     `oo`, and exact negative integer `factorial(n)` becomes `zoo`; broader
     non-integer and accumulation-bound pole cases remain explicit refusals.
+  - [x] Canonicalize compact exact nonnegative factorial values through the
+    existing checked `factorial_i64` owner: `factorial(0)` through
+    `factorial(20)` become exact integers; arbitrary-size, overflowing, and
+    non-integer inputs remain explicitly unevaluated.
   - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
     non-integer powers, functions, limits, assumptions, and numerical evaluation.
 - [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
@@ -748,6 +752,10 @@ Every checklist item requires all of the following:
     matrix. The six cold and warm rows are correctness-checked ABI diagnostics
     and explicitly waived at 5.1--5.3x cold and 3.4x warm SymPy; the final
     94-workload matrix retains 82 enforced rows with zero unwaived violations.
+  - [x] Add compact exact factorial values to the correctness and performance
+    matrix. The two cold and warm rows are correctness-checked ABI diagnostics
+    and explicitly waived at 5.25x cold and 3.25x warm SymPy; the final
+    96-workload matrix retains 82 enforced rows with zero unwaived violations.
 - [ ] Require native to meet or beat SymPy on every supported consumer and
   benchmark workload before marking that workload complete.
 - [ ] Keep the native Fortran build free of compiler-generated array temporaries.

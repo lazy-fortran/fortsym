@@ -2274,7 +2274,17 @@ contains
         case ("factorial")
             call exact_integer_sign(a, args(1), integer_sign, integer_ok)
             if (integer_ok) then
-                if (integer_sign < 0) out = a%const("zoo")
+                if (integer_sign < 0) then
+                    out = a%const("zoo")
+                    return
+                end if
+                call exact_value(a, args(1), order, den, exact)
+                if (exact) then
+                    if (den == 1_int64 .and. order <= 20_int64) then
+                        call factorial_i64(int(order), factorial, factorial_ok)
+                        if (factorial_ok) out = a%int(factorial)
+                    end if
+                end if
             end if
         case ("loggamma")
             call exact_integer_sign(a, args(1), integer_sign, integer_ok)
