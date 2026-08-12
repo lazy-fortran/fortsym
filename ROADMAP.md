@@ -918,6 +918,9 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Add an oriented metric `volume_form` and `Chart.volume(orientation)`
   owner. The sign is explicit and independent from positive `sqrtg`, with
   native and SymPy-backed checks for both orientations.
+- [x] Expose the chart-owned `grad`, `divergence`, `curl`, and `laplacian`
+  operators through the C ABI and Python `Chart`, keeping curl's covector
+  input and contravariant output convention explicit.
 - [ ] Add reciprocal bases, inverse coordinate maps when available, signed
   Jacobians, `sqrtg`, volume forms, surface measures, and metric signature
   checks. Singular maps and incompatible dimensions become named refusals.

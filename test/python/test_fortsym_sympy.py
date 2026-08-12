@@ -115,6 +115,49 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(actual_volume, expected_volume)
         self.assertEqual(actual_reversed_volume, -expected_volume)
 
+        scalar = oracle_u**2 + oracle_v*oracle_w
+        expected_gradient = (
+            expected_covariant.T * expected_covariant
+        ).inv() * oracle.Matrix((
+            oracle.diff(scalar, oracle_u),
+            oracle.diff(scalar, oracle_v),
+            oracle.diff(scalar, oracle_w),
+        ))
+        actual_gradient = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify()))
+            for value in chart.grad(u**2 + v*w)
+        ))
+        self.assertEqual(actual_gradient, expected_gradient)
+
+        expected_divergence = sum(
+            oracle.diff(coordinate, coordinate)
+            for coordinate in (oracle_u, oracle_v, oracle_w)
+        )
+        self.assertEqual(
+            oracle.sympify(str(chart.divergence((u, v, w)).simplify())),
+            expected_divergence,
+        )
+
+        covector = (oracle_v*oracle_w, oracle_u**2, oracle_u*oracle_v)
+        expected_curl = oracle.Matrix((
+            oracle.diff(covector[2], oracle_v) - oracle.diff(covector[1], oracle_w),
+            oracle.diff(covector[0], oracle_w) - oracle.diff(covector[2], oracle_u),
+            oracle.diff(covector[1], oracle_u) - oracle.diff(covector[0], oracle_v),
+        )) / expected_covariant.det()
+        actual_curl = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify()))
+            for value in chart.curl((v*w, u**2, u*v))
+        ))
+        self.assertEqual(actual_curl, expected_curl)
+        expected_laplacian = sum(
+            oracle.diff(expected_covariant.det()*expected_gradient[index], coordinate)
+            for index, coordinate in enumerate((oracle_u, oracle_v, oracle_w))
+        ) / expected_covariant.det()
+        self.assertEqual(
+            oracle.sympify(str(chart.laplacian(u**2 + v*w).simplify())),
+            expected_laplacian,
+        )
+
         left_handed = sp.Chart((u, v, w), (-u, v, w))
         self.assertEqual(left_handed.jacobian().simplify(), -1)
         self.assertEqual(left_handed.sqrtg().simplify(), 1)

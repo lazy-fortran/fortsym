@@ -18,7 +18,7 @@ module fortsym_public_capi
         predicate_is_algebraic => is_algebraic
     use fortsym_diff, only: diff
     use fortsym_chart, only: chart_t, chart_create, DIM, sqrtg, jacobian, &
-        covariant_basis, reciprocal_basis
+        covariant_basis, reciprocal_basis, grad, divergence, curl, laplacian
     use fortsym_magnetic, only: b_cov, b_fourier, b_fourier_density
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_component, tensor_valid, metric_covariant_tensor, &
@@ -90,6 +90,8 @@ module fortsym_public_capi
     public :: fortsym_expand, fortsym_simplify, fortsym_factor
     public :: fortsym_chart_sqrtg, fortsym_chart_jacobian, &
         fortsym_chart_covariant_basis, fortsym_chart_reciprocal_basis, &
+        fortsym_chart_grad, fortsym_chart_divergence, fortsym_chart_curl, &
+        fortsym_chart_laplacian, &
         fortsym_chart_b_cov, &
         fortsym_chart_b_fourier, fortsym_chart_b_fourier_density, &
         fortsym_chart_metric_covariant, fortsym_chart_metric_contravariant, &
@@ -118,7 +120,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 22_c_int
+        v = 23_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -794,6 +796,84 @@ contains
         value = jacobian(chart)
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_chart_jacobian
+
+    function fortsym_chart_grad(raw, coordinates, position, scalar, out, &
+            message, capacity) bind(c, name="fortsym_chart_grad") result(status)
+        type(c_ptr), value :: raw, coordinates, position, scalar, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: input, value(DIM)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_scalar_input(a, scalar, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = grad(chart, input)
+        call make_expr_array(a, value, out, DIM, status, message, capacity)
+    end function fortsym_chart_grad
+
+    function fortsym_chart_divergence(raw, coordinates, position, vector, out, &
+            message, capacity) bind(c, name="fortsym_chart_divergence") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, vector, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: input(DIM), value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_vector_input(a, vector, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = divergence(chart, input)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_chart_divergence
+
+    function fortsym_chart_curl(raw, coordinates, position, covector, out, &
+            message, capacity) bind(c, name="fortsym_chart_curl") result(status)
+        type(c_ptr), value :: raw, coordinates, position, covector, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: input(DIM), value(DIM)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_vector_input(a, covector, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = curl(chart, input)
+        call make_expr_array(a, value, out, DIM, status, message, capacity)
+    end function fortsym_chart_curl
+
+    function fortsym_chart_laplacian(raw, coordinates, position, scalar, out, &
+            message, capacity) bind(c, name="fortsym_chart_laplacian") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, scalar, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: input, value
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_scalar_input(a, scalar, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = laplacian(chart, input)
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_chart_laplacian
 
     function fortsym_chart_covariant_basis(raw, coordinates, position, out, &
             message, capacity) bind(c, name="fortsym_chart_covariant_basis") &
@@ -2251,6 +2331,25 @@ contains
         call put_error(message, capacity, FORTSYM_OK)
         status = FORTSYM_OK
     end subroutine get_vector_input
+
+    subroutine get_scalar_input(a, raw, value, status, message, capacity)
+        type(arena_owner_t), pointer :: a
+        type(c_ptr), value :: raw
+        type(expr_t), intent(out) :: value
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(expr_owner_t), pointer :: owner
+
+        call get_expr(raw, owner, value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call put_error(message, capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+    end subroutine get_scalar_input
 
     subroutine make_form_array(a, value, out, status, message, capacity)
         type(arena_owner_t), pointer :: a

@@ -58,6 +58,8 @@ the basis vector associated with coordinate `u(i)`.
 `b_density`, `b_fourier`, and `b_fourier_density`. The `b_fourier` interfaces
 accept either an integer mode or an expression mode, so a paper derivation can
 use a literal mode while a symbolic check keeps `n` in the expression tree.
+The chart also owns `grad`, `divergence`, `curl`, and `laplacian`; `curl` takes
+covector components and returns contravariant components.
 
 ```fortran
 use fortsym

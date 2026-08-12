@@ -176,6 +176,26 @@ def _configure(lib):
         [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _SIZE,
          ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.chart_grad = declare(
+        "fortsym_chart_grad", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CVOID,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    lib.chart_divergence = declare(
+        "fortsym_chart_divergence", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    lib.chart_curl = declare(
+        "fortsym_chart_curl", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+         ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    lib.chart_laplacian = declare(
+        "fortsym_chart_laplacian", ctypes.c_int,
+        [_CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CVOID,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     for name in ("b_cov", "b_fourier", "b_fourier_density"):
         arguments = [
             _CVOID,
@@ -601,6 +621,80 @@ class Arena:
             self._require(), coordinate_handles, position_handles, 3,
         )
 
+    def _chart_scalar_array(self, operation, coordinates, position, scalar):
+        coordinate_handles, position_handles = self._chart_inputs(
+            coordinates, position
+        )
+        scalar, temporary = self._coerce(scalar)
+        try:
+            output = (_CVOID * 3)()
+            message = _message()
+            status = operation(
+                self._require(), coordinate_handles, position_handles,
+                scalar._handle, output, message, len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), operation.__name__)
+            return tuple(Expr(self, output[index]) for index in range(3))
+        finally:
+            if temporary is not None:
+                temporary.close()
+
+    def _chart_scalar_scalar(self, operation, coordinates, position, scalar):
+        coordinate_handles, position_handles = self._chart_inputs(
+            coordinates, position
+        )
+        scalar, temporary = self._coerce(scalar)
+        try:
+            output = _CVOID()
+            message = _message()
+            status = operation(
+                self._require(), coordinate_handles, position_handles,
+                scalar._handle, ctypes.byref(output), message, len(message),
+            )
+            if status:
+                raise FortSymError(status, _decode(message), operation.__name__)
+            return Expr(self, output)
+        finally:
+            if temporary is not None:
+                temporary.close()
+
+    def _chart_vector_scalar(self, operation, coordinates, position, vector):
+        coordinate_handles, position_handles = self._chart_inputs(
+            coordinates, position
+        )
+        values = tuple(self._check(value) for value in vector)
+        if len(values) != 3:
+            raise ValueError("chart vector operators require three components")
+        vector_handles = (_CVOID * 3)(*[value._handle for value in values])
+        output = _CVOID()
+        message = _message()
+        status = operation(
+            self._require(), coordinate_handles, position_handles,
+            vector_handles, ctypes.byref(output), message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), operation.__name__)
+        return Expr(self, output)
+
+    def _chart_vector_array(self, operation, coordinates, position, vector):
+        coordinate_handles, position_handles = self._chart_inputs(
+            coordinates, position
+        )
+        values = tuple(self._check(value) for value in vector)
+        if len(values) != 3:
+            raise ValueError("chart vector operators require three components")
+        vector_handles = (_CVOID * 3)(*[value._handle for value in values])
+        output = (_CVOID * 3)()
+        message = _message()
+        status = operation(
+            self._require(), coordinate_handles, position_handles,
+            vector_handles, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), operation.__name__)
+        return tuple(Expr(self, output[index]) for index in range(3))
+
     def _chart_many(self, operation, coordinates, position, values, mode=None):
         coordinate_handles, position_handles = self._chart_inputs(
             coordinates, position
@@ -906,6 +1000,30 @@ class Chart:
     def jacobian(self):
         """Return the signed determinant of the chart Jacobian."""
         return self._arena._chart_jacobian(self.coordinates, self.position)
+
+    def grad(self, scalar):
+        return self._arena._chart_scalar_array(
+            self._arena._lib.chart_grad, self.coordinates, self.position, scalar
+        )
+
+    def divergence(self, vector):
+        return self._arena._chart_vector_scalar(
+            self._arena._lib.chart_divergence,
+            self.coordinates, self.position, vector,
+        )
+
+    div = divergence
+
+    def curl(self, covector):
+        return self._arena._chart_vector_array(
+            self._arena._lib.chart_curl, self.coordinates, self.position, covector
+        )
+
+    def laplacian(self, scalar):
+        return self._arena._chart_scalar_scalar(
+            self._arena._lib.chart_laplacian,
+            self.coordinates, self.position, scalar,
+        )
 
     def covariant_basis(self):
         """Return ``e(component, index)`` in component-first flat order."""
