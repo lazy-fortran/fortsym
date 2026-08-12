@@ -20,7 +20,7 @@ module fortsym_public_capi
     use fortsym_chart, only: chart_t, chart_create, DIM, sqrtg, jacobian, &
         covariant_basis, reciprocal_basis, grad, divergence, curl, laplacian
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
-        map_jacobian, inverse_jacobian, transform_tensor, transform_form
+        map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form
     use fortsym_magnetic, only: b_cov, b_fourier, b_fourier_density
     use fortsym_tensor, only: tensor_t, MAX_RANK, tensor_from_components, &
         tensor_from_storage, tensor_component, tensor_valid, metric_covariant_tensor, &
@@ -2202,8 +2202,9 @@ contains
         call get_expr_vector(a, inverse, inverse_values, status, message, capacity)
         if (status /= FORTSYM_OK) return
         map = chart_map_create(source, target, forward_values, inverse_values)
-        if (.not. associated(map%source%a)) then
-            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+        if (.not. map_valid(map)) then
+            call fail_reason(status, message, capacity, FORTSYM_INVALID_ARGUMENT, &
+                "chart map has an identically zero Jacobian")
             return
         end if
         call put_error(message, capacity, FORTSYM_OK)

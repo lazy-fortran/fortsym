@@ -938,9 +938,9 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   Forward and inverse coordinate maps are explicit, and results are returned
   in target coordinates.
 - [ ] Generalize coordinate transformations across supported dimensions and
-  chart-map validation. The fixed-three-dimensional composition subset is
-  complete; generalize dimensions and verify round trips against independently
-  constructed Jacobian matrices.
+      chart-map validation. The fixed-three-dimensional composition subset and
+      identically-singular-Jacobian refusal are complete; generalize dimensions
+      and verify round trips against independently constructed Jacobian matrices.
 - [x] Add native composition of two fixed-three-dimensional chart maps and
   prove tensor and form transport composition through the Fortran facade and
   Python/SymPy boundary.

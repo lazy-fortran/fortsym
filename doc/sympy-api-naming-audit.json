@@ -991,6 +991,14 @@
       },
       {
         "concepts": [],
+        "name": "chart_map_create"
+      },
+      {
+        "concepts": [],
+        "name": "chart_map_t"
+      },
+      {
+        "concepts": [],
         "name": "chart_t"
       },
       {
@@ -1006,6 +1014,10 @@
           "complex-domain-functions"
         ],
         "name": "complex_expand"
+      },
+      {
+        "concepts": [],
+        "name": "compose_maps"
       },
       {
         "concepts": [
@@ -1282,6 +1294,10 @@
         "name": "interior_product"
       },
       {
+        "concepts": [],
+        "name": "inverse_jacobian"
+      },
+      {
         "concepts": [
           "algebraic-predicate"
         ],
@@ -1360,6 +1376,14 @@
           "assumption-queries"
         ],
         "name": "make_assumption_context"
+      },
+      {
+        "concepts": [],
+        "name": "map_jacobian"
+      },
+      {
+        "concepts": [],
+        "name": "map_valid"
       },
       {
         "concepts": [],
@@ -1542,6 +1566,10 @@
           "assumption-queries"
         ],
         "name": "positive_integer"
+      },
+      {
+        "concepts": [],
+        "name": "pullback"
       },
       {
         "concepts": [],
@@ -1776,6 +1804,14 @@
         "name": "trace"
       },
       {
+        "concepts": [],
+        "name": "transform_form"
+      },
+      {
+        "concepts": [],
+        "name": "transform_tensor"
+      },
+      {
         "concepts": [
           "relational-constructors"
         ],
@@ -1823,6 +1859,7 @@
     "python_facade": [
       "Arena",
       "Chart",
+      "ChartMap",
       "Expr",
       "Float",
       "Form",
@@ -1848,6 +1885,7 @@
       "BaseScalarField",
       "BaseVectorField",
       "Chart",
+      "ChartMap",
       "CoordSystem",
       "CoordinateSymbol",
       "Derivative",
@@ -1987,10 +2025,10 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 215,
-    "python_facade_exports": 18,
-    "sympy_adapter_exports": 127,
-    "unmapped_fortran_exports": 77
+    "fortran_facade_exports": 224,
+    "python_facade_exports": 19,
+    "sympy_adapter_exports": 128,
+    "unmapped_fortran_exports": 86
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -2006,9 +2044,12 @@
     "b_fourier",
     "b_fourier_density",
     "chart_create",
+    "chart_map_create",
+    "chart_map_t",
     "chart_t",
     "christoffel",
     "christoffel_tensor",
+    "compose_maps",
     "contract",
     "covariant_basis",
     "covariant_derivative",
@@ -2034,16 +2075,20 @@
     "hodge_star",
     "interior",
     "interior_product",
+    "inverse_jacobian",
     "jacobian",
     "laplacian",
     "lie",
     "lie_derivative",
     "lower",
+    "map_jacobian",
+    "map_valid",
     "metric_contravariant",
     "metric_contravariant_tensor",
     "metric_covariant",
     "metric_covariant_tensor",
     "negate_form",
+    "pullback",
     "raise",
     "reciprocal_basis",
     "ricci_tensor",
@@ -2069,6 +2114,8 @@
     "tensor_variance",
     "tensor_vector",
     "trace",
+    "transform_form",
+    "transform_tensor",
     "vector",
     "wedge"
   ]

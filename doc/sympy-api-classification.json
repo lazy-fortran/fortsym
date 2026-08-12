@@ -1,6 +1,6 @@
 {
   "adapter_profile": {
-    "declared_count": 99,
+    "declared_count": 100,
     "explicit_refusals": [
       "Matrix",
       "apart",
@@ -20,6 +20,7 @@
       "BaseScalarField",
       "BaseVectorField",
       "Chart",
+      "ChartMap",
       "CoordSystem",
       "CoordinateSymbol",
       "Derivative",
@@ -1271,6 +1272,96 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_chart_map.chart_map_t",
+        "module": "fortsym_chart_map",
+        "name": "chart_map_t",
+        "owner": "src/calculus/fortsym_chart_map.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_chart_map.chart_map_create",
+        "module": "fortsym_chart_map",
+        "name": "chart_map_create",
+        "owner": "src/calculus/fortsym_chart_map.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_chart_map.compose_maps",
+        "module": "fortsym_chart_map",
+        "name": "compose_maps",
+        "owner": "src/calculus/fortsym_chart_map.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_chart_map.map_valid",
+        "module": "fortsym_chart_map",
+        "name": "map_valid",
+        "owner": "src/calculus/fortsym_chart_map.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_chart_map.map_jacobian",
+        "module": "fortsym_chart_map",
+        "name": "map_jacobian",
+        "owner": "src/calculus/fortsym_chart_map.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_chart_map.inverse_jacobian",
+        "module": "fortsym_chart_map",
+        "name": "inverse_jacobian",
+        "owner": "src/calculus/fortsym_chart_map.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_chart_map.transform_tensor",
+        "module": "fortsym_chart_map",
+        "name": "transform_tensor",
+        "owner": "src/calculus/fortsym_chart_map.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_chart_map.transform_form",
+        "module": "fortsym_chart_map",
+        "name": "transform_form",
+        "owner": "src/calculus/fortsym_chart_map.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_chart_map.pullback",
+        "module": "fortsym_chart_map",
+        "name": "pullback",
+        "owner": "src/calculus/fortsym_chart_map.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_connection.covariant_diff",
         "module": "fortsym_connection",
         "name": "covariant_diff",
@@ -1424,6 +1515,36 @@
         "id": "fortsym_form.form_three",
         "module": "fortsym_form",
         "name": "form_three",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.form_zero",
+        "module": "fortsym_form",
+        "name": "form_zero",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.volume_form",
+        "module": "fortsym_form",
+        "name": "volume_form",
+        "owner": "src/calculus/fortsym_form.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_form.volume",
+        "module": "fortsym_form",
+        "name": "volume",
         "owner": "src/calculus/fortsym_form.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -1814,6 +1935,16 @@
         "id": "fortsym_tensor.tensor_from_matrix",
         "module": "fortsym_tensor",
         "name": "tensor_from_matrix",
+        "owner": "src/calculus/fortsym_tensor.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_tensor.tensor_from_storage",
+        "module": "fortsym_tensor",
+        "name": "tensor_from_storage",
         "owner": "src/calculus/fortsym_tensor.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -2352,6 +2483,138 @@
           "facade",
           "native"
         ],
+        "id": "fortsym_public_capi.fortsym_chart_jacobian",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_jacobian",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_covariant_basis",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_covariant_basis",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_reciprocal_basis",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_reciprocal_basis",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_grad",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_grad",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_divergence",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_divergence",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_curl",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_curl",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_laplacian",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_laplacian",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_map_jacobian",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_map_jacobian",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_map_inverse_jacobian",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_map_inverse_jacobian",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_map_tensor",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_map_tensor",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_map_form",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_map_form",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_map_compose",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_map_compose",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym_public_capi.fortsym_chart_b_cov",
         "module": "fortsym_public_capi",
         "name": "fortsym_chart_b_cov",
@@ -2421,6 +2684,39 @@
         "id": "fortsym_public_capi.fortsym_chart_covariant_diff",
         "module": "fortsym_public_capi",
         "name": "fortsym_chart_covariant_diff",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_tensor_raise",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_tensor_raise",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_tensor_lower",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_tensor_lower",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_tensor_density",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_tensor_density",
         "owner": "src/capi/fortsym_public_capi.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -2586,6 +2882,17 @@
         "id": "fortsym_public_capi.fortsym_chart_form_sharp",
         "module": "fortsym_public_capi",
         "name": "fortsym_chart_form_sharp",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_chart_form_volume",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_chart_form_volume",
         "owner": "src/capi/fortsym_public_capi.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -5001,6 +5308,105 @@
         "id": "fortsym.laplacian",
         "module": "fortsym",
         "name": "laplacian",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.chart_map_t",
+        "module": "fortsym",
+        "name": "chart_map_t",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.chart_map_create",
+        "module": "fortsym",
+        "name": "chart_map_create",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.compose_maps",
+        "module": "fortsym",
+        "name": "compose_maps",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.map_valid",
+        "module": "fortsym",
+        "name": "map_valid",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.map_jacobian",
+        "module": "fortsym",
+        "name": "map_jacobian",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.inverse_jacobian",
+        "module": "fortsym",
+        "name": "inverse_jacobian",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.transform_tensor",
+        "module": "fortsym",
+        "name": "transform_tensor",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.transform_form",
+        "module": "fortsym",
+        "name": "transform_form",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.pullback",
+        "module": "fortsym",
+        "name": "pullback",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -9532,12 +9938,12 @@
     "classification_counts": {
       "delegated": 2529,
       "external": 10,
-      "facade": 283,
-      "native": 3352,
+      "facade": 308,
+      "native": 3390,
       "python-adapter": 2485,
       "refused": 25309
     },
-    "fortran_public_exports": 911,
+    "fortran_public_exports": 949,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
