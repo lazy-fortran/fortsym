@@ -323,6 +323,14 @@ int fortsym_chart_j_fourier(
     const fortsym_expr *position[], const fortsym_expr *reluctivity[],
     const fortsym_expr *potential[], const fortsym_expr *mode,
     fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_reluctivity_density_scalar(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *physical,
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_reluctivity_density_matrix(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *physical[],
+    fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_chart_fourier_weak_form(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *reluctivity[], int mode,

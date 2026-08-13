@@ -1211,8 +1211,19 @@ Here `E_t` is the two-dimensional antisymmetric density. The native owner must
 retain the distinction between raw components, density components, and the
 constitutive tensor. The current paper slice adds native strong residuals for
 the `n = 0` longitudinal scalar and symbolic/integer-mode transverse edge
-branches; the remaining variational boundary terms, density transformations,
-and finite-element assembly are still open.
+branches, boundary flux coefficients, and physical-to-coordinate constitutive
+conversion. General density transformations, source/load records, and
+finite-element assembly are still open.
+
+The physical constitutive bridge is:
+
+    nu_ij = e_i^a hat(nu)_ab e_j^b / sqrtg
+
+where `hat(nu)_ab` is a Cartesian physical reluctivity and
+`e_i^a = partial_i x^a`. `reluctivity_density` owns isotropic scalar and full
+Cartesian-matrix overloads; the Python/SymPy facade returns the result as a
+covariant rank-two tensor density of weight `-1`. The native component owner
+feeds `fourier_constitutive` without a duplicated frontend implementation.
 
 The implementation keeps the following distinctions visible in names and
 types. These are the Levi-Civita symbol, Levi-Civita tensor, and
@@ -1243,6 +1254,10 @@ and independent oracle. The minimum case set is:
 - [ ] The Albert, Bíró, and Lainer Fourier reduction, with separate `n = 0`
   and `n != 0` branches, density components, constitutive transformation, and
   weak-form metadata.
+  - [x] Add physical scalar/matrix to covariant weight-`-1` reluctivity
+    density conversion with native, C, Python, and SymPy-oracle coverage.
+  - [ ] Complete general density transformations, source/load records, and
+    finite-element basis/assembly owners.
 - [ ] Flat and curved pseudo-Riemannian examples with an explicit signature,
   connection sign convention, geodesic residual, and curvature invariant.
 
@@ -1335,6 +1350,8 @@ conversion only. They do not maintain a second geometry implementation.
   covariant angular components are flux functions, shows the metric form, and
   checks the raised-field divergence. Equilibrium construction plus
   Clebsch/Hamada descriptors and field-line labels remain open.
+  - [x] Add the native `reluctivity_density` constitutive bridge and expose
+    its covariant weight-`-1` result through the C/Python/SymPy facades.
 - [ ] **7A.7 Frontends and corpus.** Translate every supported Wolfram and
   Python corpus record to the native IR, preserve assumptions and refusal
   conditions, and expose SymPy-compatible names through one conversion path.

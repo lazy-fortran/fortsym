@@ -1647,6 +1647,64 @@ class SympySubsetTest(unittest.TestCase):
             self.assertEqual(oracle.simplify(parsed - expected_value), 0)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_physical_reluctivity_density_matches_sympy(self):
+        z, radius, phi, physical = sp.symbols(
+            "density_z density_R density_phi density_nu"
+        )
+        chart = sp.Chart(
+            (z, radius, phi),
+            (radius*sp.cos(phi), radius*sp.sin(phi), z),
+        )
+        scalar_density = chart.reluctivity_density(physical)
+        self.assertEqual(scalar_density.variance, (-1, -1))
+        self.assertEqual(scalar_density.density_weight, -1)
+        self.assertEqual(scalar_density.symmetry(0, 1), sp.SYMMETRIC)
+
+        oz, o_radius, o_phi, o_physical = oracle.symbols(
+            "density_z density_R density_phi density_nu"
+        )
+        oracle_coordinates = (oz, o_radius, o_phi)
+        oracle_position = (
+            o_radius*oracle.cos(o_phi),
+            o_radius*oracle.sin(o_phi),
+            oz,
+        )
+        jacobian = oracle.Matrix(oracle_position).jacobian(oracle_coordinates)
+        volume = oracle.sqrt(jacobian.det()**2)
+        expected_scalar = o_physical*(jacobian.T*jacobian)/volume
+
+        def parsed_tensor(tensor):
+            return oracle.Matrix(3, 3, lambda row, column: oracle.sympify(
+                str(tensor[row, column].simplify())
+            ))
+
+        actual_scalar = parsed_tensor(scalar_density)
+        for row in range(3):
+            for column in range(3):
+                self.assertEqual(
+                    oracle.simplify(actual_scalar[row, column] -
+                                    expected_scalar[row, column]),
+                    0,
+                )
+        longitudinal = chart.fourier_weak_form(scalar_density, 0)
+        self.assertEqual(longitudinal.branch, sp.FOURIER_LONGITUDINAL)
+
+        physical_matrix = ((2, 0, 0), (0, 3, 0), (0, 0, 5))
+        matrix_density = chart.reluctivity_density(physical_matrix)
+        self.assertEqual(matrix_density.variance, (-1, -1))
+        self.assertEqual(matrix_density.density_weight, -1)
+        oracle_physical = oracle.diag(2, 3, 5)
+        expected_matrix = jacobian.T*oracle_physical*jacobian/volume
+        actual_matrix = parsed_tensor(matrix_density)
+        for row in range(3):
+            for column in range(3):
+                self.assertEqual(
+                    oracle.simplify(actual_matrix[row, column] -
+                                    expected_matrix[row, column]),
+                    0,
+                )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_paper_fourier_weak_form_branch_matches_sympy(self):
         u1, u2, u3, nu33 = sp.symbols(
             "weak_u1 weak_u2 weak_u3 weak_nu33"

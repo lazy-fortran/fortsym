@@ -27,6 +27,11 @@ and curvature views, covariant differentiation, `b_fourier()`,
 `b_fourier_density()`, `j_fourier()`, and `b_cov()`. `j_fourier(nu, A, n)`
 computes the native fixed-3D Fourier curl-curl operator; `nu` accepts a nested
 3x3 matrix or a nine-entry first-slot-fastest (column-major) sequence.
+`Chart.reluctivity_density(physical)` converts an isotropic physical scalar or
+a Cartesian 3x3 reluctivity matrix to the covariant Fourier constitutive
+density `nu_ij = e_i^a physical_ab e_j^b / sqrtg`. It returns a `Tensor` with
+variance `(-1, -1)` and density weight `-1`, ready for the Fourier metadata and
+residual owners.
 `Chart.fourier_weak_form(nu, n)` returns the native Albert--Bíro--Lainer
 branch descriptor. `n=0` selects a scalar nodal form with a normal boundary
 trace and the `longitudinal_diffusion` block `nubar_t`; `n!=0` selects a

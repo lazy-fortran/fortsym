@@ -114,6 +114,7 @@ module fortsym
         flux_surface_valid, flux_surface_label, flux_surface_measure, &
         flux_surface_average
     use fortsym_magnetic_weak, only: fourier_constitutive, &
+        reluctivity_density, &
         fourier_constitutive_t, fourier_weak_form, fourier_weak_form_t, &
         current_compatibility, nubar, fourier_constitutive_valid, &
         fourier_weak_form_valid, fourier_longitudinal_residual, &
@@ -288,6 +289,7 @@ module fortsym
         FLUX_HAMADA, BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT, &
         fourier_constitutive, fourier_constitutive_t, fourier_weak_form, &
         fourier_weak_form_t, current_compatibility, nubar, &
+        reluctivity_density, &
         fourier_constitutive_valid, fourier_weak_form_valid, &
         fourier_longitudinal_residual, fourier_transverse_residual, &
         fourier_longitudinal_flux, fourier_transverse_flux, &

@@ -1,18 +1,18 @@
 program test_fortsym_magnetic_weak
     ! Independent symbolic checks for the two paper Fourier weak-form branches.
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, num, i_expr, operator(+), &
-        operator(-), operator(*), operator(**)
+    use fortsym_expr, only: expr_t, sym, num, i_expr, sin, cos, operator(+), &
+        operator(-), operator(*), operator(**), operator(/)
     use fortsym_diff, only: diff
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
-    use fortsym_chart, only: DIM, chart_t, chart_create
+    use fortsym_chart, only: DIM, chart_t, chart_create, sqrtg
     use fortsym_magnetic_weak, only: fourier_constitutive, &
         fourier_constitutive_t, fourier_constitutive_valid, fourier_weak_form, &
         fourier_weak_form_t, fourier_weak_form_valid, current_compatibility, &
         fourier_longitudinal_residual, fourier_transverse_residual, &
-        fourier_longitudinal_flux, fourier_transverse_flux, &
+        fourier_longitudinal_flux, fourier_transverse_flux, reluctivity_density, &
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NODAL, &
         SPACE_EDGE, TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_magnetic, only: j_fourier
@@ -21,11 +21,14 @@ program test_fortsym_magnetic_weak
     type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
-    type(chart_t) :: chart
+    type(chart_t) :: chart, cylindrical
     type(fourier_constitutive_t) :: material
     type(fourier_weak_form_t) :: longitudinal, transverse
-    type(expr_t) :: u(DIM), position(DIM), nu(DIM, DIM)
+    type(expr_t) :: u(DIM), position(DIM), cylindrical_position(DIM)
+    type(expr_t) :: nu(DIM, DIM)
     type(expr_t) :: current(DIM), residual, expected
+    type(expr_t) :: physical_scalar, physical_matrix(DIM, DIM)
+    type(expr_t) :: density_matrix(DIM, DIM), volume
     type(expr_t) :: full_potential(DIM), full_current(DIM), full_j(DIM)
     type(expr_t) :: scalar_potential, transverse_potential(2)
     type(expr_t) :: transverse_current(2), transverse_residual(2)
@@ -43,6 +46,10 @@ program test_fortsym_magnetic_weak
     position(2) = u(2)
     position(3) = u(3)
     chart = chart_create(arena, u, position)
+    cylindrical_position(1) = u(2)*cos(u(3))
+    cylindrical_position(2) = u(2)*sin(u(3))
+    cylindrical_position(3) = u(1)
+    cylindrical = chart_create(arena, u, cylindrical_position)
     call suite_begin(suite, "native Fourier weak forms")
 
     nu(1, 1) = num(arena, 2)
@@ -58,6 +65,33 @@ program test_fortsym_magnetic_weak
     if (.not. fourier_constitutive_valid(material)) then
         error stop "block constitutive owner was rejected"
     end if
+
+    physical_scalar = sym(arena, "nu_phys")
+    call reluctivity_density(cylindrical, physical_scalar, density_matrix)
+    volume = sqrtg(cylindrical)
+    call check_identity(suite, engine, "isotropic density ZZ", &
+        density_matrix(1, 1) - physical_scalar/volume)
+    call check_identity(suite, engine, "isotropic density RR", &
+        density_matrix(2, 2) - physical_scalar/volume)
+    call check_identity(suite, engine, "isotropic density phiphi", &
+        density_matrix(3, 3) - physical_scalar*u(2)**2/volume)
+    call check_identity(suite, engine, "isotropic density ZR", &
+        density_matrix(1, 2))
+
+    physical_matrix = num(arena, 0)
+    physical_matrix(1, 1) = num(arena, 2)
+    physical_matrix(2, 2) = num(arena, 3)
+    physical_matrix(3, 3) = num(arena, 5)
+    call reluctivity_density(cylindrical, physical_matrix, density_matrix)
+    call check_identity(suite, engine, "Cartesian density ZZ", &
+        density_matrix(1, 1) - 5/volume)
+    call check_identity(suite, engine, "Cartesian density RR", &
+        density_matrix(2, 2) - (2*cos(u(3))**2 + 3*sin(u(3))**2)/volume)
+    call check_identity(suite, engine, "Cartesian density phiphi", &
+        density_matrix(3, 3) - u(2)**2*(2*sin(u(3))**2 + &
+        3*cos(u(3))**2)/volume)
+    call check_identity(suite, engine, "Cartesian density Zphi", &
+        density_matrix(1, 3))
 
     call check_identity(suite, engine, "nubar(1,1)", &
         material%nubar_t(1, 1) - 7)
