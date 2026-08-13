@@ -5113,6 +5113,13 @@ class SpacetimeTensor:
         return value
 
     def __getitem__(self, indices):
+        if isinstance(indices, slice):
+            if self.rank != 1:
+                raise TypeError("tensor slices require a rank-one tensor")
+            start, stop, step = indices.indices(len(self.components))
+            return tuple(
+                self.component(index) for index in range(start, stop, step)
+            )
         if not isinstance(indices, tuple):
             indices = (indices,)
         return self.component(*indices)
