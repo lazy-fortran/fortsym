@@ -1408,6 +1408,11 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.matrix_trace = declare(
+        "fortsym_matrix_trace",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.matrix_rank = declare(
         "fortsym_matrix_rank",
         ctypes.c_int,
@@ -1600,9 +1605,10 @@ class Arena:
         self._lib = _load_library()
         self._handle = _CVOID()
         self._integer_cache = {}
+        self._result_message = _message()
         self._assumption_epoch = 0
         self._algebraic_cache = weakref.WeakSet()
-        message = _message()
+        message = self._result_message
         status = self._lib.arena_new(ctypes.byref(self._handle), message, len(message))
         if status:
             raise FortSymError(status, _decode(message), "arena_new")
@@ -1640,7 +1646,7 @@ class Arena:
 
     def _result(self, function, *arguments):
         output = _CVOID()
-        message = _message()
+        message = self._result_message
         status = function(*arguments, ctypes.byref(output), message, len(message))
         if status:
             operation = function.__name__.removeprefix("fortsym_")
@@ -7345,6 +7351,11 @@ class Expr:
             self._lib.matrix_det, self._arena._require(), self._require()
         )
 
+    def trace(self):
+        return self._arena._result(
+            self._lib.matrix_trace, self._arena._require(), self._require()
+        )
+
     def rank(self):
         return self._arena._result(
             self._lib.matrix_rank, self._arena._require(), self._require()
@@ -7960,7 +7971,14 @@ def operation_count(expression: Expr): return expression.operation_count()
 def free_symbols(expression: Expr): return expression.free_symbols
 def tensor_product(left: Tensor, right: Tensor): return left.product(right)
 def contract(tensor: Tensor, first, second): return tensor.contract(first, second)
-def trace(tensor: Tensor, first, second): return tensor.trace(first, second)
+def trace(expression, first=None, second=None):
+    if isinstance(expression, Tensor):
+        if first is None or second is None:
+            raise TypeError("tensor trace requires two indices")
+        return expression.trace(first, second)
+    if first is not None or second is not None:
+        raise TypeError("matrix trace does not accept indices")
+    return expression.trace()
 
 
 __all__ = [

@@ -2342,6 +2342,14 @@ class Matrix:
             if temporary is not None:
                 temporary.close()
 
+    def trace(self):
+        expression, temporary = self._matrix_expression()
+        try:
+            return _native_operation(expression.trace)
+        finally:
+            if temporary is not None:
+                temporary.close()
+
     def rank(self, **options):
         simplify = options.pop("simplify", False)
         if simplify not in (False, True) or options:
@@ -2514,6 +2522,12 @@ def det(matrix, **options):
     return matrix.det()
 
 
+def trace(matrix):
+    if not isinstance(matrix, Matrix):
+        raise UnsupportedOperationError("trace requires a Matrix")
+    return matrix.trace()
+
+
 def rank(matrix, **options):
     if not isinstance(matrix, Matrix):
         raise UnsupportedOperationError("rank requires a Matrix")
@@ -2546,6 +2560,6 @@ __all__ = [
     "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
     "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And", "Or", "Not", "Xor", "Implies", "Equivalent",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
-    "integrate", "limit", "series", "solve", "det", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Complement", "Tuple", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
+    "integrate", "limit", "series", "solve", "det", "trace", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Complement", "Tuple", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
     "oo", "zoo", "nan",
 ]

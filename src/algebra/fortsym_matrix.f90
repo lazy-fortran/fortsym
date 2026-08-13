@@ -23,7 +23,7 @@ module fortsym_matrix
 
     public :: is_list, is_matrix, matrix_shape
     public :: matrix_transpose, matrix_add, matrix_negate, matrix_divide, matrix_dot
-    public :: matrix_det, matrix_inverse
+    public :: matrix_det, matrix_trace, matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
     public :: matrix_rref_values
     public :: to_matrix, from_matrix
@@ -745,6 +745,69 @@ contains
         if (negated) r = num(a, -1)*r
         ok = .true.
     end function matrix_det
+
+    !> Trace by direct diagonal traversal without materializing a matrix array.
+    function matrix_trace(a, e, ok, why, canonical) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t),          intent(in)    :: e
+        logical,               intent(out)   :: ok
+        type(str_t),           intent(out)   :: why
+        logical, optional,     intent(out)   :: canonical
+        type(expr_t)                         :: r, row
+        integer :: rows, cols, k
+        logical :: fast
+
+        r = e
+        ok = .false.
+        why = str("")
+        if (present(canonical)) canonical = .false.
+        call matrix_shape(e, rows, cols)
+        if (rows == 0) then
+            why = str("Trace on something that is not a matrix")
+            return
+        end if
+        if (rows /= cols) then
+            why = str("Trace of a non-square matrix")
+            return
+        end if
+
+        call try_integer_trace(e, rows, r, fast)
+        if (fast) then
+            ok = .true.
+            if (present(canonical)) canonical = .true.
+            return
+        end if
+
+        row = e%arg(1)
+        r = row%arg(1)
+        do k = 2, rows
+            row = e%arg(k)
+            r = r + row%arg(k)
+        end do
+        ok = .true.
+    end function matrix_trace
+
+    subroutine try_integer_trace(e, rows, value, used)
+        type(expr_t), intent(in)  :: e
+        integer,      intent(in)  :: rows
+        type(expr_t), intent(out) :: value
+        logical,      intent(out) :: used
+        type(expr_t) :: row, diagonal
+        integer(int64) :: total
+        integer :: k
+
+        used = .false.
+        total = 0_int64
+        do k = 1, rows
+            row = e%arg(k)
+            diagonal = row%arg(k)
+            if (diagonal%kind() /= NK_INT) return
+            if (.not. integer_sum_fits(total, diagonal%int_value())) return
+            total = total + diagonal%int_value()
+        end do
+        value = num(e%a, total)
+        used = .true.
+    end subroutine try_integer_trace
 
     !> Inverse as adjugate over determinant.
     !>

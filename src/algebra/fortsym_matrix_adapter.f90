@@ -5,7 +5,7 @@ module fortsym_matrix_adapter
     use fortsym_arena, only: arena_t
     use fortsym_engine, only: engine_t, engine_result_t
     use fortsym_expr, only: expr_t
-    use fortsym_matrix, only: matrix_det, matrix_rank, matrix_inverse, &
+    use fortsym_matrix, only: matrix_det, matrix_trace, matrix_rank, matrix_inverse, &
         matrix_transpose, matrix_add, matrix_negate, matrix_divide, &
         matrix_null_space, &
         matrix_rref, matrix_dot
@@ -14,6 +14,7 @@ module fortsym_matrix_adapter
     private
 
     public :: calculate_matrix_det
+    public :: calculate_matrix_trace
     public :: calculate_matrix_rank
     public :: calculate_matrix_inverse
     public :: calculate_matrix_transpose
@@ -41,6 +42,22 @@ contains
         if (.not. ok) return
         call simplify_matrix_value(engine, value, ok, why)
     end subroutine calculate_matrix_det
+
+    subroutine calculate_matrix_trace(a, engine, expression, value, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: expression
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(str_t) :: message
+        logical :: canonical
+
+        value = matrix_trace(a, expression, ok, message, canonical)
+        why = chars(message)
+        if (.not. ok .or. canonical) return
+        call simplify_matrix_value(engine, value, ok, why)
+    end subroutine calculate_matrix_trace
 
     subroutine calculate_matrix_rank(a, engine, expression, value, ok, why)
         type(arena_t), target, intent(inout) :: a

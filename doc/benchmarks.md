@@ -438,6 +438,17 @@ handle-transport noise for this tiny workload, so
 `matrix_column_constructor:cold_end_to_end` is an explicit waiver; the
 column-vector behavior remains independently differential-tested.
 
+The bounded exact `Matrix.trace()` workload adds correctness-checked cold
+end-to-end and warm-core rows over a 2x2 integer matrix, with an independent
+diagonal-sum check in the differential suite. In the final 2026-08-13 run the
+native/SymPy ratios were 1.271x cold and 1.649x warm. The native diagonal
+algorithm performs no matrix-array allocation and uses a direct exact-integer
+fast path; these two tiny scalar-result rows remain explicit reviewed
+Python/C-handle transport exceptions, recorded as
+`matrix_trace:cold_end_to_end` and `matrix_trace:warm_core`. The latest matrix
+therefore has 167 rows, 121 enforced rows, and zero unwaived violations after
+the 46 documented diagnostic waivers are applied.
+
 On the same host, the pre-existing `boolean_implies_constructor:cold_end_to_end`
 diagnostic measured 1.007x and 1.015x in two strict samples. That one-node
 construction difference is within timer noise and unrelated to the RREF
@@ -445,9 +456,9 @@ change, so it is now an explicit reviewed waiver rather than an unreported
 failure. A separate strict sample measured the pre-existing
 `relation:cold_end_to_end` constructor at 1.021x while its warm row remained
 0.779x; that similarly small host-timing difference is also explicitly
-waived. With the flat-column construction diagnostic included, the latest
-matrix therefore has 165 rows, 121 enforced rows, and zero unwaived violations
-after the 44 documented diagnostic waivers are applied.
+waived. With the flat-column and trace diagnostics included, the latest matrix
+therefore has 167 rows, 121 enforced rows, and zero unwaived violations after
+the 46 documented diagnostic waivers are applied.
 
 Run it from a built checkout with:
 
