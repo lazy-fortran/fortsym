@@ -1,2583 +1,286 @@
 # fortsym roadmap
 
-This is the release plan for a Fortran-native symbolic system with the useful
-surface and semantics of SymPy, while remaining small, deterministic, and easy
-to embed in Fortran programs.
+FortSym is a Fortran-native symbolic algebra system with a small, consistent
+Fortran API and a SymPy-compatible Python facade. The target is parity with the
+pinned SymPy profile in [`doc/upstream-baselines.toml`](doc/upstream-baselines.toml),
+one well-defined compatibility slice at a time.
 
-The first compatibility target is the pinned SymPy 1.14.0 baseline in
-`doc/upstream-baselines.toml`. A later SymPy release gets a new compatibility
-profile; behaviour must not change silently underneath an existing profile.
+This roadmap is about symbolic computation. It is not a finite-element or
+finite-volume roadmap.
 
-The roadmap is deliberately broader than the current 384-file Wolfram corpus.
-The corpus remains an important workload, but it is not the definition of the
-whole public API.
+## Scope boundary: FortSym and FortFEM
 
-## Scope boundary with FortFEM
+FortSym owns:
 
-FortSym owns symbolic expressions, the SymPy-compatible Python surface,
-coordinate/tensor/form algebra, physics reductions, symbolic weak-form
-coefficients, typed traces and source/load records, and source-level kernel
-generation. It stops at those symbolic contracts.
+- expression construction, exact domains, assumptions, simplification, and
+  symbolic calculus;
+- polynomial, rational, equation, matrix, tensor, and differential-form
+  operations that are part of the declared SymPy-compatible surface;
+- symbolic coordinate and physics reductions when they are useful as general
+  symbolic operations;
+- the native Fortran facade, stable C ABI, Python facade, printers/parsers, and
+  source-level kernel generation.
 
-FortFEM owns numerical discretisation: meshes, finite-element families,
-finite-element basis evaluation, element/Piola maps, quadrature, degrees of
-freedom, local and global assembly, sparse matrices, and numerical solvers.
-FortSym must provide the symbolic records and generated kernels that FortFEM
-consumes, but must not duplicate those numerical owners. `basis` below means a
-coordinate basis unless it is explicitly qualified as a finite-element basis.
-Do not add physical-component, Piola, or density transformations solely to
-support a FortFEM implementation; add a transformation only when it closes an
-inventoried SymPy-compatible symbolic operation or a required native owner
-invariant.
+FortFEM owns meshes, finite-element families and bases, element/Piola maps,
+quadrature, degrees of freedom, local/global assembly, sparse systems, and
+numerical solvers. FortSym may provide expressions, typed symbolic records,
+and generated kernels for FortFEM, but must not add FE-specific owners to
+FortSym.
 
-## Governing rules
+Existing magnetic, relativity, tensor, form, and chart code remains useful
+native functionality. It is maintained and tested, but new work in those
+areas is a roadmap item only when it closes a SymPy-compatible symbolic gap or
+protects an existing public invariant. Paper-specific Fourier/FEM reductions,
+FE basis evaluation, assembly, and solver workflows are FortFEM work.
 
-### API shape
+## Non-negotiable design rules
 
-- The canonical Fortran API is internally consistent and concise. A good
-  short name is kept even when SymPy uses a longer name.
-- The convenience facade and lower-level Fortran modules use the same canonical
-  names. The facade adds defaults and overloads; it does not create a second
-  vocabulary.
-- The Python `fortsym.sympy` layer is the compatibility adapter. It uses SymPy
-  names, signatures, options, return conventions, and exceptions where they
-  are part of the compatibility target.
-- Existing names may change freely before the first stable release. During the
-  transition, an old name may be a documented deprecated alias, but every
-  concept has one canonical name.
-- Fortran features are preferred when they make the API simpler: generic
-  interfaces, operators, optional arguments, derived-type methods, and the
-  default arena. For example:
+- SymPy is the oracle for overlapping correctness and performance. Every
+  supported operation needs differential tests against the pinned SymPy
+  version and a benchmark on the same workload.
+- A SymPy result is not enough as the only proof. Use an independent
+  algebraic, numerical, residual, interval, recurrence, or compiler oracle as
+  appropriate.
+- A feature is either implemented and verified, delegated explicitly, or
+  refused with a useful diagnostic. No silent fallback or guessed result.
+- Every concept has one owner and one canonical internal name. The Fortran
+  facade and internals share that vocabulary; `fortsym.sympy` adapts names,
+  signatures, options, and return conventions only at the Python boundary.
+- Keep concise names where they are clearer than SymPy's name. When a name is
+  not already better, use SymPy's spelling so porting code is mechanical.
+- The default global-state facade is the easy mode. Explicit arenas and
+  assumption contexts use the same operations for isolation and concurrency.
+- Prefer operators, generic interfaces, optional arguments, derived-type
+  methods, and simple assignments such as `x = "x"` when they reduce syntax.
+- Keep hot paths free of avoidable array temporaries and expression copies.
+  Resource bounds must be explicit and failures deterministic.
+- Do not add a second implementation in a facade, backend adapter, test, or
+  example. Tests compare independently computed behaviour, not repository
+  state or duplicated formulas.
 
-  ```fortran
-  x = "x"
-  y = "y"
-  f = sin(x) + y
-  ```
+## Definition of done for every parity slice
 
-- The default facade is a simple process-local, single-threaded convenience
-  mode. Explicit arenas and assumption contexts are the same API with explicit
-  state for concurrency, isolation, and library embedding.
-- `fortsym_check` is a test/assertion module, not the symbolic user API.
-  `check_zero`, `check_identity`, and `probe_zero` must not multiply the public
-  symbolic naming surface. The user-facing query is `zero_test`, with the
-  existing `VERDICT_TRUE`, `VERDICT_FALSE`, and `VERDICT_UNKNOWN` outcomes.
+- [ ] SymPy 1.14.0 reference cases cover ordinary, boundary, branch, domain,
+      option, and refusal behaviour.
+- [ ] An independent behavioural oracle checks the result or invariant.
+- [ ] The canonical Fortran owner, convenience facade, C ABI, and Python
+      adapter are aligned wherever that layer is public.
+- [ ] The operation's names, signatures, return shape, exceptions, conditions,
+      precision, and refusal messages are documented.
+- [ ] Cold-start, warm-cache, and core-operation benchmarks compare with
+      SymPy; supported workloads are at least as fast as SymPy or have an
+      explicit reviewed exception.
+- [ ] Resource limits, singularities, invalid handles, foreign arenas, and
+      unsupported options are tested.
+- [ ] No avoidable array-temporary or expression-growth regression is added.
+- [ ] `FO_TEST_TIMEOUT=60 fo`, focused tests, and the relevant differential
+      and benchmark suites pass.
+- [ ] The feature matrix, API classification, naming audit, and benchmark
+      baseline are updated in the same change.
 
-### Architecture
+## Current baseline
 
-Every public concept has one owner:
+The following are already present as bounded native slices. Their boundaries
+are part of the public contract; a checked item here does not claim full
+SymPy parity for the entire family.
 
-| Responsibility | Owner |
-|---|---|
-| expression identity, literals, functions | `fortsym_arena`, `fortsym_expr` |
-| default state and short facade | `fortsym` |
-| assumptions and predicates | `fortsym_assume` and `fortsym_relation` |
-| substitution | `fortsym_subs` |
-| polynomial/rational algebra | `fortsym_poly` and focused algebra modules |
-| calculus | `fortsym_diff`, series, limits, integration, transforms |
-| equations and systems | solver modules |
-| matrices, arrays, tensors | matrix/tensor modules |
-| manifolds, patches, charts, coordinate bases, maps | geometry toolkit modules |
-| metrics, signatures, orientations, volume, epsilon | metric toolkit module |
-| indexed tensor algebra and densities | tensor toolkit module |
-| connections, covariant derivatives, curvature | connection toolkit module |
-| exterior algebra and de Rham operations | form toolkit module |
-| plasma and flux-coordinate constructions | magnetic toolkit module |
-| optional toolkit discovery | explicit central registry module |
-| numerical evaluation | `fortsym_numeric` and numerical adapters |
-| parsing and printing | `fortsym_parse`, `fortsym_print`, dialect modules |
-| engine dispatch | `fortsym_engine`, native and external adapters |
-| verification and benchmarks | verify/test/benchmark modules |
-| code generation | codegen modules |
-| finite-element meshes, elements, FE bases, quadrature, DOF maps, assembly, sparse systems, solvers | FortFEM |
+- [x] Pin SymPy 1.14.0 and maintain the generated API inventory,
+      classification, naming audit, and semantic-difference ledger.
+- [x] Provide the independent differential-test and benchmark harnesses.
+- [x] Provide the hash-consed native expression arena, exact compact and
+      promoted numeric representations, symbols, functions, relations,
+      operators, substitution, free-symbol traversal, printing, and parsing.
+- [x] Provide the default Fortran facade and explicit-arena mode with one
+      consistent vocabulary, plus the stable ownership-safe C ABI.
+- [x] Provide the first assumptions/predicate/refinement layer and
+      three-valued native zero decisions.
+- [x] Provide bounded native expansion, simplification, differentiation,
+      factorisation, together/cancel/apart/collect, complex-domain operations,
+      and exact polynomial/rational primitives.
+- [x] Provide verified bounded one-variable integration, finite/infinite
+      limits, and Taylor series/coefficient extraction through the C, Python,
+      and SymPy facades.
+- [x] Keep native coordinate, tensor, form, relativity, and magnetic owners
+      separate from the symbolic core and separate from FortFEM ownership.
 
-Modules may depend down this list only through declared interfaces. A new
-algorithm does not introduce a second implementation of an existing concept,
-and a backend adapter does not leak its representation into the public API.
+## Phase 0 — parity inventory and release contract
 
-### Correctness and performance
+- [x] Freeze the reference profile and regenerate the inventory from the
+      installed SymPy version.
+- [x] Classify every public name as native, delegated, adapter-only, or
+      refused; record one canonical name for each concept.
+- [x] Maintain a differential harness that can run the same case table with
+      `sympy` and `fortsym.sympy` without duplicating the cases.
+- [x] Maintain cold/warm/core benchmark measurements and fail the gate when a
+      supported workload regresses beyond its reviewed budget.
+- [ ] Make the inventory, classification, naming audit, difference ledger,
+      feature matrix, and benchmark report a single checked release gate.
+- [ ] Add a compatibility-profile command that reports the exact supported
+      SymPy names and refuses to mix baselines.
 
-SymPy is the mandatory behavioural and performance reference for every
-overlapping operation. Native code is not complete until it has:
+## Phase 1 — coherent core semantics
 
-- the same mathematical result or the same documented unevaluated/conditional
-  result as the reference;
-- matching branch, domain, assumption, precision, option, and error semantics;
-- an end-to-end benchmark on the same input and a core-operation benchmark that
-  separates conversion overhead;
-- a median and tail latency no worse than SymPy for the supported workload;
-- no unexplained memory or expression-size regression; and
-- a named refusal when parity is not yet implemented.
+### Expression model and domains
 
-SymPy is not the only correctness oracle. Independent algebraic, numerical,
-compiler/run, recurrence, residual, or interval oracles remain mandatory so a
-SymPy defect or shared misunderstanding cannot become a fortsym proof.
+- [ ] Complete the expression hierarchy and canonical ordering needed by the
+      compatibility profile: atoms, applications, relational/Boolean nodes,
+      sets, tuples, matrices, indexed objects, and unevaluated forms.
+- [ ] Complete exact integer, rational, real, complex, algebraic, infinity,
+      NaN, signed-zero, and complex-infinity semantics, including conversion
+      and precision rules.
+- [ ] Make equality, hashing, matching, traversal, replacement, printing, and
+      parsing agree across native Fortran, C, Python, and SymPy spellings.
+- [ ] Define ownership and lifetime rules for every composite return value;
+      no borrowed handle may escape its owner.
+- [ ] Add explicit precision/accuracy APIs and preserve exactness through all
+      constructors, operators, and adapters.
 
-No external CAS is required by the native path. SymPy, SymEngine, Yacas,
-Maxima, and Mathics remain optional differential references or explicitly
-selected backends.
+### Assumptions and simplification
 
-## Differential geometry source synthesis and notation contract
+- [ ] Complete the SymPy predicate vocabulary, inference rules, scoped
+      contexts, conflict diagnostics, and `Q`/`ask`/`refine` semantics.
+- [ ] Complete safe branch-aware simplification for powers, radicals,
+      logarithms, elementary functions, special values, and algebraic signs.
+- [ ] Implement the structural tools required by the profile, including
+      `count_ops`, `cse`, `collect`, `expand`, `powsimp`, `powdenest`, and
+      `powexpand`, with explicit option handling.
+- [ ] Keep `zero_test` as the one public three-valued native query. Test-only
+      assertion helpers must not become competing user-facing names.
 
-The geometry toolkit follows one contract that is readable in both the
-physicist's component notation and the mathematician's coordinate-free
-notation. The source basis is [D'haeseleer, Hitchon, Callen, and
-Shohet, *Flux Coordinates and Magnetic Field Structure*](https://doi.org/10.1007/978-3-642-75595-8),
-especially its chapters on curvilinear vector algebra, tensorial objects,
-flux coordinates, component transformations, and divergence. A
-[KU Leuven-hosted copy](https://www.mech.kuleuven.be/en/tme/research/energy-systems-integration-modeling/pdf-publications/Dhaeseleer_et_al_Flux_Coordinates_and_Magnetic_Field_Structure_DEF/view)
-is available subject to the host's terms. The
-[open Albert--Bíro--Lainer derivation](https://arxiv.org/abs/2008.13681)
-supplies the Fourier/FEM workload, while the review [*Magnetic Coordinate
-Systems*](https://arxiv.org/abs/1611.10321) supplies an independent check on
-non-orthogonal magnetic coordinates and coordinate-conversion pitfalls. The
-Callen plasma-physics material is used for the physical meaning of field-line
-and flux coordinates; the D'haeseleer volume is the common
-curvilinear/tensor reference for the implementation contract.
+## Phase 2 — polynomial and rational algebra
 
-The invariant layer is deliberately expressed without committing the core to
-one notation convention:
-
-```text
-x = x(u)                    coordinate map
-e_i = partial_i x           tangent/covariant basis
-e^i dot e_j = delta^i_j    reciprocal/contravariant basis
-g_ij = e_i dot e_j          metric;  g^ij = (g_ij)^(-1)
-J = det(partial_i x)        signed orientation Jacobian
-Omega = orientation*sqrt(|det(g)|) du^1^...^du^n
-A = A^i e_i = A_i e^i    A_i = g_ij A^j,  A^i = g^ij A_j
-div(A) = |g|^(-1/2) partial_i(|g|^(1/2) A^i)
-```
-
-The plasma and form views are two projections of those same objects:
-
-```text
-B = B^i e_i = B_i e^i
-B_density^i = sqrtg*B^i       contravariant density, weight +1
-beta = i_B(Omega)              magnetic flux two-form in 3D
-d(beta) = 0                    no magnetic monopoles
-beta = d(A)                    local vector-potential representation
-```
-
-The relativity view uses the same index and density metadata with an explicit
-signature and orientation: `nabla_a`, `R^a_bcd`, `R_ab`, `R`, `G_ab`, and
-`G_ab + Lambda*g_ab = 0` are typed operations, not strings or special-case
-formula templates. The de Sitter and weak-field/GPS examples remain the
-small regression pair for curved and Newtonian limits.
-
-The source-backed derivation ledger in
-[`doc/geometry-derivations.md`](doc/geometry-derivations.md) is the canonical
-example index. It fixes the source location, convention, owner, assumptions,
-independent oracle, and refusal for each record. In particular it makes three
-objects that are often collapsed in plasma notation explicit:
-
-```text
-B_ij                 covariant antisymmetric magnetic 2-form
-B^i                  contravariant magnetic vector
-mathcal B^i=sqrtg B^i contravariant vector density, weight +1
-```
-
-For a vector potential `A_i`, the bridge is
-`F_ij = partial_i A_j - partial_j A_i`,
-`mathcal B^i = 1/2 epsilon^ijk F_jk`, and
-`beta = i_B(Omega) = d(A)`. The Albert--Bíro--Lainer record additionally
-keeps `A_k` as a covariant vector, `mathcal J^k` as a contravariant current
-density, and `nu_kl` as a covariant reluctivity density of weight `-1`; the
-`n=0` longitudinal and `n/=0` transverse weak forms are separate branches.
-
-The staged implementation contract is:
-
-- [ ] **G0 — source and convention manifest.** Record the source chapter or
-  paper equation, coordinate assumptions, signature, orientation, index
-  variance, density weight, and expected refusal for every geometry example.
-  Do not copy source-specific notation into the canonical API.
-  - [x] Record the initial D'haeseleer/Callen, Carroll, MacKay, and
-    Albert--Bíro--Lainer source map and worked derivation ledger in
-    `doc/geometry-derivations.md`; executable records still remain open where
-    the checklist below says so.
-- [ ] **G1 — one native geometric IR.** Make chart, metric, tensor, density,
-  connection, form, and magnetic owners exchange typed metadata through one
-  checked representation. Python/SymPy and Wolfram records lower to this IR;
-  neither frontend becomes a second implementation.
-- [ ] **G2 — physicist's component layer.** Support `B_i`, `B^i`,
-  `sqrtg*B^i`, mixed tensors, Einstein contractions, covariant derivatives,
-  curvature, and explicit signature/orientation in concise Fortran and
-  SymPy-named Python adapters.
-- [ ] **G3 — mathematician's form layer.** Support arbitrary supported form
-  degree, wedge, `d`, pullback, interior and Lie derivatives, Hodge star,
-  codifferential, Laplace--de Rham, exact/closed checks, and patch/topology
-  conditions, all backed by the same chart and metric owners.
-- [ ] **G4 — magnetic-coordinate layer.** Add Clebsch, straight-field-line,
-  Boozer, and Hamada descriptors, flux functions, Jacobian/current
-  identities, field-line and surface measures, and explicit non-orthogonal
-  coordinate transforms without embedding an equilibrium solver.
-- [ ] **G5 — derivation corpus and examples.** Translate the paper scripts and
-  the selected Callen/D'haeseleer derivations into one manifest, then produce
-  native Fortran, `fortsym.sympy`, and Wolfram examples with independent
-  component, numerical, residual, and coordinate-composition checks. Numerical
-  finite-element discretisation and assembly are FortFEM deliverables, not
-  additional fortsym checklist items.
-- [ ] **G6 — performance and release gate.** Benchmark the same symbolic
-  derivations in SymPy and native code, separate conversion from core work,
-  preserve density/index metadata in generated kernels, and reject every new
-  array-temporary or expression-growth regression.
-
-### Definition of done
-
-Every checklist item requires all of the following:
-
-- [ ] canonical Fortran API and one owning module;
-- [ ] compatible Python adapter names and signatures where applicable;
-- [ ] documented supported inputs, outputs, conditions, and refusals;
-- [ ] independent behavioural tests;
-- [ ] SymPy differential tests for exact and boundary cases;
-- [ ] SymPy performance comparison on representative and adversarial inputs;
-- [ ] branch, domain, singularity, precision, and resource-limit tests;
-- [ ] C ABI and code-generation coverage when the operation crosses those APIs;
-- [ ] `FO_TEST_TIMEOUT=60 fo`, focused tests, and affected corpus checks;
-- [ ] no new array-temporary warnings or unexplained allocations; and
-- [ ] documentation and benchmark baseline updated in the same change.
-
-## Phase 0 — freeze the reference and inventory the surface
-
-- [x] Freeze the SymPy 1.14.0 compatibility profile in
-  [`doc/upstream-baselines.toml`](doc/upstream-baselines.toml#L36-L44).
-- [x] Generate a deterministic inventory of public SymPy modules, functions,
-  classes, declared public methods, signatures, options, exceptions, return
-  annotations, documentation sections, and import failures with
-  [`scripts/inventory_sympy_api.py`](scripts/inventory_sympy_api.py), recorded
-  for SymPy 1.14.0 in [`doc/sympy-api-inventory.json`](doc/sympy-api-inventory.json).
-  Inherited methods are resolved through the recorded class hierarchy.
-- [x] Classify every inventoried symbol and every Fortran public declaration
-  with the consistent multi-layer ownership policy in
-  [`scripts/classify_sympy_api.py`](scripts/classify_sympy_api.py) and
-  [`doc/sympy-api-classification.json`](doc/sympy-api-classification.json).
-  A supported compatibility name is recorded as `python-adapter`,
-  `delegated`, and `native` together; explicit or out-of-subset names are
-  `refused`, while native facades and external engines retain their own
-  `facade` and `external` layers.
-- [x] Record semantic differences separately from implementation differences
-  in [`doc/sympy-api-differences.toml`](doc/sympy-api-differences.toml), with
-  [`scripts/check_sympy_api_differences.py`](scripts/check_sympy_api_differences.py)
-  requiring every currently supported SymPy root name to appear in the
-  semantic ledger.
-- [x] Add a versioned API-diff report so new or removed SymPy names cannot pass
-  unnoticed, using [`scripts/diff_sympy_api.py`](scripts/diff_sympy_api.py),
-  the frozen [`doc/sympy-api-baseline-1.14.0.json`](doc/sympy-api-baseline-1.14.0.json),
-  and the clean [`doc/sympy-api-diff-1.14.0.json`](doc/sympy-api-diff-1.14.0.json).
-- [x] Add a common differential harness for exact results, symbolic results,
-  conditions, exceptions, and unevaluated objects in
-  [`test/python/test_fortsym_sympy_differential.py`](test/python/test_fortsym_sympy_differential.py),
-  registered as `test_fortsym_sympy_differential` in
-  [`test/CMakeLists.txt`](test/CMakeLists.txt).
-- [x] Add a common benchmark harness with cold-start, warm-cache, end-to-end,
-  and core-operation measurements in
-  [`benchmark/harnesses/bench_sympy.py`](benchmark/harnesses/bench_sympy.py),
-  with the measurement contract documented in
-  [`doc/benchmarks.md`](doc/benchmarks.md).
-- [x] Make the benchmark report fail when a supported native workload is slower
-  than the SymPy baseline without an explicit waiver. Use
-  `--enforce-parity` for the gate and `--waive operation:scope` for a recorded,
-  named exception.
-
-## Phase 1 — make the Fortran facade coherent
-
-- [x] Audit every public export for duplicate concepts and inconsistent names
-  with [`scripts/audit_api_naming.py`](scripts/audit_api_naming.py) and
-  [`doc/sympy-api-naming-audit.json`](doc/sympy-api-naming-audit.json).
-  The audit currently records all 215 `use fortsym` exports, 18 native Python
-  facade exports, and 127 public adapter names/methods. It keeps the concise
-  native vocabulary separate from the SymPy compatibility vocabulary and
-  records the remaining canonical-name decisions for the next checklist item.
-- [x] Select canonical short names for constructors, functions, predicates,
-  results, statuses, and contexts. The decisions are recorded in
-  [`doc/api-naming-policy.toml`](doc/api-naming-policy.toml), validated by
-  [`scripts/check_api_naming_policy.py`](scripts/check_api_naming_policy.py),
-  and cover every concept in the naming audit. Native names remain concise
-  and consistent with their owning Fortran modules; the Python adapter keeps
-  SymPy spellings as its deliberate compatibility boundary.
-- [x] Remove `_expr` suffixes and other facade-only aliases where they do not
-  carry useful disambiguation. The native facade now re-exports the
-  `fortsym_expr` elementary-function vocabulary directly (`sin`, `exp`,
-  `sqrt`, and the rest) and uses `default_arena`/`reset` without a redundant
-  module prefix. Suffixes that distinguish expression constructors or typed
-  constants, including `real_expr`, `real_text_expr`, `pi_expr`, `e_expr`, and
-  `i_expr`, remain intentional. The generated API classification and naming
-  audit were updated with the migration.
-- [x] Make constructors, arithmetic operators, elementary functions,
-  substitution, differentiation, simplification, expansion, equality, and
-  numerical evaluation available through one easy facade. `fortsym` now
-  forwards the core operations to their owning modules or the native engine,
-  using the shared `engine_result_t` status and value contract.
-- [x] Keep `x = "x"` and `symbols(...)` as the default-state entry points.
-  The convenience test covers both the single-symbol assignment and the
-  whitespace/comma-separated `symbols(...)` helper.
-- [x] Make default-state reset, stale-handle behaviour, and global-state
-  lifetime explicit and tested. The contract covers reset before first use,
-  repeated reset, generation-protected handle invalidation after index reuse,
-  and the process-local single-threaded lifetime of the default arena.
-- [x] Add the same procedures to explicit-arena usage without a second syntax.
-  The facade dispatches from each `expr_t` owner, and the convenience test
-  exercises substitution, differentiation, simplification, expansion, and
-  factorisation in an independent explicit arena.
-- [x] Define the one public three-valued query API and move assertion helpers
-  behind a testing-oriented module. `fortsym` exports `zero_test` and the
-  shared verdict vocabulary. `fortsym_check` owns `check_zero`,
-  `check_identity`, and `probe_zero`.
-- [x] Add consistent result/status types instead of operation-specific status
-  vocabularies. The easy facade uses `engine_result_t` for all core expression
-  operations and the zero query. `%ok`, `%value`, `%verdict`, and `%message`
-  provide one native contract.
-- [x] Test single-threaded facade use, explicit concurrent arenas, and
-  cross-arena refusal. The convenience test exercises the default state,
-  interleaves operations in two independent explicit arenas, and checks the
-  diagnostic plus invalid result returned for a cross-arena substitution.
-
-## Phase 2 — expression core and exact domains
-
-- [ ] Complete the expression hierarchy needed by the compatibility profile:
-  atoms, numbers, symbols, applied functions, unevaluated operations,
-  relations, Boolean objects, sets, tuples, rules, and indexed objects.
-- [ ] Complete canonical hashing, ordering, equality, traversal, matching,
-  replacement, and controlled evaluation.
-  - [x] Expose the distinct free-symbol traversal through native
-    `free_symbols`, C ABI `fortsym_expr_free_symbols`, and Python
-    `Expr.free_symbols` without adding a second tree walk.
-  - [x] Expose the existing simultaneous substitution owner through native
-    `subs_many`, C ABI `fortsym_substitute_many`, and
-    `fortsym.sympy.subs(..., simultaneous=True)` without adding a second
-    substitution traversal.
-  - [x] Match SymPy 1.14's deterministic ordering for unordered substitution
-    mappings in the declared fragment: descending node count followed by the
-    supported structural sort key. Explicit replacement sequences retain their
-    caller order, and cascading or unsupported matching remains explicit.
-  - [x] Add the SymPy `Expr.xreplace` exact-node boundary through the existing
-    simultaneous substitution owner. It replaces only matched DAG nodes,
-    performs normal constructor evaluation without a final `expand`, and
-    refuses non-mapping inputs without adding a native alias or second walk.
-  - [x] Add exact non-wildcard `Expr.match` through the existing native
-    equality owner. Equal structural expressions return `{}`, unequal
-    expressions return `None`; wildcard matching is tracked as a separate
-    bounded adapter fragment below.
-  - [x] Add exact non-wildcard `Expr.replace` through the existing exact-node
-    replacement owner. `map=True` reports only changed exact matches,
-    `exact=True`/`False` are accepted at the boundary, and callable or
-    wildcard replacement remains an explicit refusal.
-- [ ] Complete exact integer/rational/real/complex and algebraic domains.
-  - [x] Preserve arbitrary-size integer and rational construction and native
-    arithmetic in the current scalar fragment. `num`, `rat`, and `exact` share
-    canonical arena nodes, with SymPy differential coverage for large values
-    and rational normalization.
-  - [x] Retain bounded finite decimal literals as precision-bearing `NK_BIG_REAL`
-    nodes without conversion through `real64`, and reject malformed or
-    non-finite text at the arena boundary.
-  - [x] Expose requested decimal precision in typed real and complex text
-    results through `numeric_real_text_t` and `numeric_complex_text_t`, while
-    keeping `numeric_precision_text` as the one generic native name.
-  - [x] Add independently verified sample-set accuracy bounds to real
-    operations. `fortsym_accuracy.measure_accuracy` evaluates each declared
-    sample through the MPFR reference path, compares the caller-owned real64
-    kernel in local ULPs, and retains maximum/RMS error, the maximizing input,
-    reference and observed values, condition data when defined, and refusal
-    counts. The independent test kernel adds one `spacing(x)` and therefore
-    provides a known one-ULP oracle. The bound applies to the declared sample
-    set, not to every real input.
-  - [ ] Integrate exact complex and algebraic values into arena expressions and
-    native operations.
-    - [x] Store canonical FLINT `qqbar1` values as `NK_ALGEBRAIC` arena atoms,
-      expose `algebraic_expr` and `%algebraic_text()`, and fold pure exact
-      algebraic `+`, `*`, and integer powers in the native engine. The native
-      zero query uses the FLINT component-sign oracle. Real64 evaluation and
-      higher-degree SymEngine conversion retain explicit refusal semantics.
-    - [x] Integrate algebraic atoms with the existing complex-domain boundary.
-      `fortsym_complexdom` handles exact real, pure-imaginary, and mixed atoms
-      in `re_part` and `im_part` through FLINT's exact qqbar projections, and
-      delegates exact algebraic conjugation to FLINT.
-    - [x] Add lossless parser/printer round trips for canonical `qqbar1`
-      atoms in the native and backend text dialects. The parser keeps the
-      payload opaque, then delegates validation and canonicalization to the
-      FLINT-backed arena constructor.
-    - [x] Convert exact Gaussian-rational algebraic atoms through the SymEngine
-      boundary as exact rational `re + im*I` expressions. Higher-degree or
-      otherwise non-rational atoms retain an explicit refusal.
-    - [x] Project exact real algebraic atoms to finite normal binary64 literals
-      for Fortran printing and kernel IR/code generation through a checked FLINT
-      Arb enclosure. Non-real, subnormal, overflow, and ambiguous-rounding
-      values retain explicit refusal semantics.
-    - [x] Extend native simplification to collect algebraic coefficients in
-      mixed sums and products, combine them with exact rational coefficients,
-      reduce integer powers through the FLINT bridge, and canonicalize proved
-      algebraic zero results.
-    - [x] Use the FLINT component-sign oracle in native zero, one, and
-      definitely-nonzero guards, including algebraic linear solve conditions.
-    - [ ] Extend algebraic values through full native simplification, then
-      complete the remaining complex-domain operations, higher-degree
-      conversion, and complex code generation.
-      - [x] Extend rectangular complex splitting to the entire `sinh` and
-        `cosh` heads. The independent complex evaluator verifies the addition
-        identities and the real-valued parts; branch-sensitive heads remain
-        explicit refusals.
-      - [x] Add rectangular `tanh` splitting with SymPy's equivalent
-        denominator form, an explicit identically-zero-denominator refusal,
-        independent complex evaluation, and matched cold/warm benchmark rows.
-      - [x] Extend structural conjugation to `sinh`, `cosh`, and `tanh`; the
-        independent complex evaluator checks all three against `conjg`.
-      - [x] Add shared rectangular quotient handling for `tan`, including an
-        exact pole refusal, independent complex evaluation, and matched
-        benchmark rows.
-      - [x] Complete structural conjugation for meromorphic tangent heads with
-        per-context memoization; matched warm native workloads are about 12x
-        faster than SymPy for `tan` and 11x faster for `tanh`.
-      - [x] Add principal-branch `log` rectangular splitting as
-        `log(sqrt(Re**2 + Im**2)) + i*Arg`, with a zero-argument refusal,
-        independent complex evaluation, and matched benchmark rows.
-      - [x] Add principal-branch `sqrt` rectangular splitting through the
-        polar half-angle form, including exact negative-real and zero cases,
-        independent complex evaluation, and matched benchmark rows.
-      - [x] Expose the shared complex-domain owner through the main Fortran
-        facade, C ABI v9, and SymPy adapter as `re_part`/`re`, `im_part`/`im`,
-        `abs_of`/`Abs`, `conjugate`, and `arg_of`/`arg`. Unknown reality,
-        unresolved branches, and `Arg` at decidable zero remain explicit
-        refusals; `Abs` retains SymPy's unevaluated fallback for unknown
-        reality, and repeated Python calls reuse immutable results until the
-        assumption epoch changes.
-      - [x] Expose the existing rectangular expansion owner through the main
-        Fortran facade, C ABI v10, and SymPy adapter as
-        `complex_expand`/`expand_complex`. The adapter accepts SymPy's
-        `deep=True`/`False` option for the supported recursive fragment;
-        unknown reality and unsupported branches remain named refusals.
-      - [x] Match `expand_complex`'s defined domain-sentinel boundaries:
-        `oo` and `nan` remain themselves while `zoo` becomes `nan`, with
-        independent Fortran, C ABI, and SymPy differential coverage.
-      - [x] Match the direct complex-domain sentinel boundaries for `re`,
-        `im`, `Abs`, `arg`, and `conjugate`, including signed `-oo`; `zoo`
-        and `nan` follow SymPy's defined projection results while
-        `conjugate(zoo)` remains an applied head.
-- [ ] Add infinities, NaN, signed zero, complex infinity, and domain-aware
-  undefined results.
-  - [x] Add the canonical native `oo_expr` positive-infinity sentinel. Native
-    parsing and printing preserve `oo`, the Python adapter matches SymPy's
-    `oo` spelling, and finite real Fortran kernel emission refuses the domain
-    sentinel instead of emitting an invalid literal.
-  - [x] Add canonical native `zoo_expr` and `nan_expr` sentinels. Native and
-    Wolfram-dialect parsing/printing preserve complex infinity and undefined
-    values, the Python adapter matches SymPy's `zoo`/`nan` spellings, and
-    finite real Fortran kernel emission refuses both values.
-  - [x] Preserve IEEE signed zero through `NK_REAL` construction, interning,
-    native parsing/printing, Fortran emission, and the Python adapter. The
-    independent IEEE checks keep `+0.0` and `-0.0` distinct; SymPy 1.14.0
-    canonicalizes its own `Float(-0.0)` to `0.0`, which is recorded as an
-    adapter semantic extension rather than silently treated as parity.
-  - [x] Add SymPy-matched `nan` propagation for native `Add`, `Mul`, supported
-    numeric unary heads, and `Pow` edge cases: `nan**0` is `1`, while a NaN
-    base or exponent in every other supported power is `nan`. Unknown heads
-    remain opaque instead of receiving guessed domain semantics.
-  - [x] Add the finite-scalar and integer-power directed-domain fragment for
-    `oo` and `zoo`: known signs produce `oo`/`-oo`, zero times either sentinel
-    produces `nan`, opposite directions and mixed `oo`/`zoo` additions produce
-    `nan`, and symbolic products remain structural.
-  - [x] Add direct unary domain rules for `sqrt`, `Abs`, `exp`, and `log`.
-    Known sentinel inputs match SymPy 1.14.0, including `sqrt(-oo) = i*oo`;
-    symbolic factors remain unevaluated rather than receiving guessed rules.
-  - [x] Add the safe compact-rational power fragment: positive and negative
-    rational powers of `oo`/`zoo` follow SymPy, and `(-oo)` powers with an odd
-    half-integer exponent produce the principal `+/-i*oo` phase. Other
-    unsupported branch-sensitive rational powers remain explicit powers.
-  - [x] Extend the `-oo` rational-power boundary to positive non-half
-    exponents with SymPy's normalized principal phase,
-    `(-oo)**(p/q) = oo*(-1)**(p/q)` up to the corresponding real sign;
-    negative rational exponents remain `0`.
-  - [x] Add direct domain rules for `sign`, `floor`, `ceiling`, `sinh`,
-    `cosh`, and `tanh`, and expose those canonical names through the Python
-    facade. Known sentinel results match SymPy 1.14.0; `sign(zoo)` remains
-    unevaluated.
-  - [x] Add representable inverse-head domain rules for `asin`, `acos`,
-    `atan`, `asinh`, `acosh`, and `atanh`. The exact `oo`/`-oo` results match
-    SymPy 1.14.0; the accumulation-bound results for `atan(zoo)` and
-    `atanh(zoo)` remain explicit applied-head refusals.
-  - [x] Add direct reciprocal-hyperbolic domain rules for `csch`, `sech`, and
-    `coth`. Their `oo`/`-oo`/`zoo` results match the representable SymPy
-    1.14.0 scalar fragment (`0`, `+/-1`, and `nan`).
-  - [x] Add direct error-function domain rules for `erf` and `erfc`.
-    `erf(±oo)` and `erfc(±oo)` match the scalar SymPy 1.14.0 limits, while
-    `erf(zoo)` and `erfc(zoo)` remain explicit applied-head refusals.
-  - [x] Add representable gamma-family domain rules for `gamma` and
-    `loggamma`. Positive infinity and the `loggamma` complex-infinity cases
-    match SymPy 1.14.0; pole-sensitive `gamma(-oo)` and `gamma(zoo)` remain
-    explicit applied-head refusals.
-  - [x] Extend the shared positive-infinity gamma-family rule to `factorial`:
-    `factorial(oo)=oo`, while negative and complex-infinity inputs remain
-    explicit applied-head refusals.
-  - [x] Expose the existing `atan2` operation through the SymPy adapter and
-    evaluate its directed `(+/-oo, +/-oo)` quadrants; complex-infinity and
-    other ambiguous pairs remain explicit applied-head refusals.
-  - [x] Add shared Bessel infinity rules and adapter names: `besselj(order,
-    +/-oo)=0` and `besseli(order,oo)=oo`; negative-real `besseli` and
-    complex-infinity cases remain explicit applied-head refusals.
-  - [x] Map SymPy's `legendre(degree, argument)` to the native `legendrep`
-    owner and add integer degree/order-zero infinity rules; symbolic,
-    noninteger, and unsupported degree/order cases remain refusals.
-  - [x] Add representable complex-infinity rules for `sin`, `cos`, and `tan`:
-    each becomes `nan` like SymPy, while their `+/-oo` accumulation-bound
-    results remain explicit applied-head refusals.
-  - [x] Match NaN boundaries for order-bearing Bessel and Legendre heads:
-    unresolved NaN arguments remain applied, while `besseli(nan, -oo)` becomes
-    `nan` through the existing directed-domain rule.
-  - [x] Match SymPy's high-degree Legendre infinity boundary: integer degrees
-    three and higher become `nan` at `+/-oo` and `zoo`; lower representable
-    degrees retain their existing parity/domain rules.
-  - [x] Apply SymPy's negative-integer Legendre identity at infinity:
-    `P(-n-1, x) = P(n, x)` for the supported integer boundary fragment,
-    including the resulting high-degree `nan` cases.
-  - [x] Match the representable negative-real Bessel-I phase: symbolic order
-    returns `oo*(-1)**order`, integer order returns signed infinity, and
-    unsupported exact non-integer orders remain explicit refusals.
-  - [x] Canonicalize finite gamma-family poles: exact non-positive integer
-    `gamma(n)` becomes `zoo`, exact non-positive integer `loggamma(n)` becomes
-    `oo`, and exact negative integer `factorial(n)` becomes `zoo`; broader
-    non-integer and accumulation-bound pole cases remain explicit refusals.
-  - [x] Canonicalize compact exact nonnegative factorial values through the
-    existing checked `factorial_i64` owner: `factorial(0)` through
-    `factorial(20)` become exact integers; arbitrary-size, overflowing, and
-    non-integer inputs remain explicitly unevaluated.
-  - [x] Extend exact integer factorial evaluation through order `1000` using
-    the existing exact-arithmetic multiplication owner: orders `21` through
-    `1000` produce arbitrary-size exact integers, while larger orders remain
-    bounded refusals rather than triggering unbounded work.
-  - [ ] Complete remaining operation-specific `oo`/`zoo` semantics for
-    non-integer powers, functions, limits, assumptions, and numerical evaluation.
-- [ ] Add arbitrary-precision evaluation with explicit precision and accuracy.
-- [ ] Preserve exactness through every constructor, operator, and adapter.
-
-## Phase 3 — assumptions, predicates, and safe simplification
-
-- [ ] Implement the SymPy-compatible predicate vocabulary and three-valued
-  query semantics.
-  - [x] Expose native zero verdicts through the C ABI and map them to the
-    SymPy adapter's `Expr.is_zero` and `Expr.is_nonzero` properties, preserving
-    `True`, `False`, and `None` for proven zero, proven nonzero, and unknown.
-  - [x] Expose the local real, sign, and zero facts through one C-ABI query
-    and matching SymPy predicate properties, including the native implication
-    closure.
-  - [x] Expose the existing native integer fact consistently through the
-    Fortran facade and the SymPy adapter: `integer_valued` and
-    `positive_integer` remain concise native helpers, while Python supports
-    `integer=True`, `Q.integer`, `ask(Q.integer(x))`, and `Expr.is_integer`.
-    Exact integer and rational node kinds match SymPy's `True`/`False` results;
-    unknown symbols and floats remain `None`. Differential tests and matched
-    cold/warm benchmark rows use SymPy 1.14.0 as the oracle.
-  - [x] Expose the existing exact rational domain through the same owner:
-    native `rational_valued` and Python `rational=True`, `Q.rational`,
-    `ask(Q.rational(x))`, and `Expr.is_rational`. Integer facts close over
-    rational and real; exact integer/rational nodes are `True`, while floats
-    and unknown symbols remain `None`. The C ABI, Fortran facade, differential
-    tests, and matched performance rows share this one fact vocabulary.
-  - [x] Add the scalar `Expr.is_number` predicate through one native owner.
-    Numeric atoms, named constants, domain sentinels, exact algebraic atoms,
-    and numeric-only compound expressions return `True`; symbols and Boolean
-    relations return `False`. Fortran, the C ABI, the Python adapter, the
-    independent native tests, and SymPy 1.14.0 differential cases use the
-    same implementation. The immutable Python result is cached; its warm-core
-    benchmark row is enforced, while the one-node cold call is recorded as a
-    conversion-dominated diagnostic rather than a native algorithm claim.
-  - [x] Add the exact-domain `Expr.is_algebraic` predicate through the same
-    native predicate owner. Exact integer, rational, and FLINT algebraic atoms,
-    `I`, exact rational powers such as `sqrt(2)`, and the native algebraic
-    assumption closure return `True`; proven transcendental constants and
-    supported transcendental heads return `False`, while machine reals and
-    unresolved symbols remain `None`. The Fortran facade, C ABI, Python
-    adapter, `algebraic=True`, differential cases, and warm benchmark row all
-    use one implementation.
-  - [x] Add `Q.algebraic` and `ask(Q.algebraic(x))` at the Python boundary
-    without creating a second classifier. Exact values and local Q facts match
-    SymPy 1.14.0; constructor-attached algebraic symbols preserve SymPy's
-    `None` dispatcher result, and unsupported function heads remain undecided
-    rather than being guessed from a native false result.
-- [ ] Support local contexts, global convenience assumptions, scoped context
-  managers in Python, and immutable explicit contexts in Fortran.
-  - [x] Add nested native context push/pop with exception-safe Python
-    `Q`, `ask`, and `assuming` scopes; restore the previous arena facts after
-    every scope and keep foreign-arena facts refused.
-  - [x] Add immutable explicit assumption contexts to the Fortran facade and
-    make native transformations accept them without process-global state.
-- [ ] Implement `refine`, relational facts, compound inference, and conflict
-  diagnostics.
-  - [x] Add native and Python `refine` for the supported Q-fact fragment by
-    routing one or more supported facts through the native guarded simplifier;
-    keep scopes reversible and refuse unsupported assumption forms.
-  - [x] Add SymPy-compatible relational constructors and bounded lower-bound
-    ingestion with explicit domain and arena validation. The supported native
-    fragment accepts exact sign-implying bounds and `Equal`/`Unequal` at zero;
-    bounds that do not imply a supported sign and foreign arenas refuse
-    explicitly.
-  - [x] Add transactional compound inference and conflict diagnostics without
-    guessing from contradictory or unsupported facts. `And` facts close over
-    the native sign/zero implications, and every refused compound leaves its
-    parent context unchanged.
-- [ ] Complete safe elementary simplification: powers, logarithms, radicals,
-  trigonometry, inverse functions, exponentials, absolute values, and special
-  constants.
-  - [x] Use the canonical `negative`, `nonpositive`, and `zero` facts in the
-    existing guarded `sqrt` and `abs` rewrites. Negative and nonpositive real
-    values become `-x`; zero becomes `0`; unknown reality remains unevaluated.
-  - [x] Add domain-guarded `log(exp(x))` for real `x` and `exp(log(x))` for
-    nonzero `x`; unsupported domain cases remain unevaluated.
-  - [x] Match SymPy's exact logarithm singularity boundary: native
-    simplification maps `log(0)` to `zoo`, and the existing sentinel
-    propagation maps `exp(log(0))` to `nan`; real numeric and complex-domain
-    pole evaluators continue to refuse undefined finite values.
-  - [x] Match the principal-square-root power convention by reducing
-    `sqrt(x)**2` to `x` for symbolic `x`.
-  - [x] Canonicalize universal power-constructor identities in the shared
-    arena: exact exponent zero becomes `1`, exact base one becomes `1` except
-    for SymPy's `oo`/`zoo`/`nan` exponent exceptions, which become `nan`, and
-    principal `sqrt(x)**2` becomes `x`; branch-sensitive and undecidable power
-    cases remain unevaluated.
-  - [x] Canonicalize the universal exact exponent-one identity at construction:
-    `x**1` returns `x`, including domain sentinels, without broadening the
-    branch-sensitive power rules.
-- [ ] Match SymPy branch conventions while preserving fortsym's refusal of
-  unsafe identities.
-  - [x] Canonicalize exact negative real logarithms on the principal branch:
-    `log(-2)` and `log(-2/3)` become `log(2) + i*pi` and
-    `log(2/3) + i*pi`; non-exact and unsupported branch cases remain
-    unevaluated.
-  - [x] Canonicalize exact imaginary logarithms on the principal branch:
-    `log(i)` becomes `i*pi/2` and `log(-i)` becomes `-i*pi/2`; unsupported
-    non-exact complex branches remain unevaluated.
-  - [x] Canonicalize the exact real inverse-hyperbolic poles:
-    `atanh(1)` becomes `oo` and `atanh(-1)` becomes `-oo`; unsupported
-    accumulation and complex-infinity cases remain refused or applied.
-  - [x] Canonicalize the exact imaginary inverse-hyperbolic branch points:
-    `atanh(i)` becomes `i*pi/4` and `atanh(-i)` becomes `-i*pi/4`; broader
-    complex inverse branches remain unevaluated.
-  - [x] Canonicalize the exact imaginary inverse-tangent branch points:
-    `atan(i)` becomes `i*oo` and `atan(-i)` becomes `-i*oo`; accumulation-bound
-    results at `zoo` remain unevaluated.
-  - [x] Canonicalize the exact principal inverse-hyperbolic branch points:
-    `acosh(0)` becomes `i*pi/2` and `acosh(-1)` becomes `i*pi`; unsupported
-    negative-real branches remain unevaluated.
-  - [x] Canonicalize the exact imaginary inverse-hyperbolic branch points:
-    `acosh(i)` becomes `log(sqrt(2) + 1) + i*pi/2` and `acosh(-i)` becomes
-    `log(sqrt(2) + 1) - i*pi/2`; broader complex branches remain unevaluated.
-  - [x] Canonicalize the exact imaginary inverse-trigonometric branch points:
-    `asin(i)` becomes `i*log(sqrt(2) + 1)` and `asin(-i)` becomes
-    `-i*log(sqrt(2) + 1)`; broader complex branches remain unevaluated.
-  - [x] Canonicalize the exact imaginary inverse-trigonometric branch points:
-    `acos(i)` becomes `pi/2 - i*log(sqrt(2) + 1)` and `acos(-i)` becomes
-    `pi/2 + i*log(sqrt(2) + 1)`; broader complex branches remain unevaluated.
-  - [x] Canonicalize exact principal real unit-circle inverse branches:
-    `asin(±1/2)`, `asin(±sqrt(2)/2)`, and `asin(±sqrt(3)/2)` map to their
-    signed `pi/6`, `pi/4`, and `pi/3` angles; `acos(±1/2)`,
-    `acos(±sqrt(2)/2)`, and `acos(±sqrt(3)/2)` map to the corresponding
-    principal angles through `5*pi/6`.
-  - [x] Canonicalize exact principal real tangent inverse branches:
-    `atan(±sqrt(3))` maps to signed `pi/3`, and `atan(±1/sqrt(3))` maps to
-    signed `pi/6`; other exact tangent arguments remain unevaluated.
-  - [x] Canonicalize exact real inverse-hyperbolic branch points:
-    `asinh(1)` becomes `log(sqrt(2) + 1)` and `asinh(-1)` becomes
-    `-log(sqrt(2) + 1)`; broader real inverse-hyperbolic branches remain
-    unevaluated.
-  - [x] Canonicalize principal square roots of exact negative perfect-square
-    rationals: `sqrt(-1)` becomes `i` and `sqrt(-4)` becomes `i*2`; irrational
-    negative roots remain unevaluated and Gaussian-rational results stay in
-    the structural expression vocabulary.
-  - [x] Canonicalize the exact imaginary inverse-hyperbolic branch points:
-    `asinh(i)` becomes `i*pi/2` and `asinh(-i)` becomes `-i*pi/2`; broader
-    complex inverse branches remain unevaluated until their domain rules are
-    covered.
-- [ ] Implement the general simplification families: `powsimp`, `powdenest`,
-  `trigsimp`, `radsimp`, `ratsimp`, `sqrtdenest`, `fu`, `combsimp`,
-  `hyperexpand`, `logcombine`, `posify`, and `refine`.
-- [ ] Implement structural tools such as `count_ops`, `cse`, `collect`,
-  `expand`, `rewrite`, `replace`, and `match`.
-    - [x] Implement non-visual `count_ops` through one native operation-count
-      owner, with SymPy tree semantics and an explicit `visual=True` refusal.
-    - [x] Expose the exact non-wildcard `Expr.replace` boundary through
-      `xreplace`, including its changed-match `map` result and exact-option
-      validation without adding a second replacement traversal.
-    - [x] Add the adapter-only `Wild` vocabulary and structural wildcard
-      matching for direct wildcards and fixed-shape expression slots, including
-      SymPy-compatible `exclude` and `properties` filters.
-    - [x] Add bounded single-Wild additive and multiplicative remainder
-      matching at expression roots, including repeated-Wild scalar remainders;
-      broader recursive matcher rules remain open.
-    - [x] Add bounded distinct-Wild additive and multiplicative root
-      partitioning with fixed direct factors and identity bindings; weighted
-      coefficient solving and broader recursive matcher rules remain open. The
-      bounded partitioner accepts at most three distinct direct Wild nodes.
-
-## Phase 4 — polynomial and rational algebra
-
-- [ ] Complete dense and sparse multivariate polynomial representations.
-- [ ] Complete exact domains, coercions, polynomial rings, fraction fields,
-  algebraic extensions, and `DomainMatrix` equivalents.
-- [ ] Complete division, GCD, extended GCD, square-free factorization,
-  resultants, discriminants, subresultants, and reconstruction certificates.
+- [ ] Complete dense/sparse multivariate polynomial representations, domains,
+      coercions, rings, fraction fields, coefficient extraction, degree,
+      division, GCD, extended GCD, and square-free decomposition.
 - [ ] Complete `factor`, `factor_list`, `cancel`, `together`, `apart`,
-  `collect`, coefficient extraction, and polynomial conversion.
-  - [x] Expose the bounded native exact rational owner through the C, Python,
-    and SymPy-compatible facades for `cancel`, `together`, `apart`, and
-    `collect`, with independent SymPy 1.14 oracle tests and explicit refusal of
-    unsupported options or resource limits.
-- [ ] Implement multivariate factorization and Groebner bases with bounded
-  fallback/refusal semantics.
-- [ ] Implement roots, root isolation, `RootOf`, algebraic root selection,
-  and numerical-root comparison.
-- [ ] Remove fixed expression-order limits where SymPy has a defined result;
-  replace them with explicit resource budgets and named failure.
+      `collect`, `terms_gcd`, and the corresponding polynomial constructors
+      with SymPy-compatible options and conditions.
+- [ ] Complete bounded-to-general univariate and multivariate factorisation,
+      algebraic roots, root isolation, `RootOf`, and root selection without
+      returning unverified roots.
+- [ ] Add bounded Groebner bases and polynomial-system elimination, with
+      domain/resource refusals rather than silent coefficient loss.
+- [ ] Remove arbitrary native expression-order limits where SymPy defines a
+      result; retain only measured, documented resource limits.
 
-## Phase 5 — calculus and transforms
+## Phase 3 — calculus, series, and transforms
+
+### Differentiation and series
 
 - [ ] Complete scalar, multivariate, implicit, indexed, matrix, tensor, and
-  special-function differentiation.
-- [ ] Complete Taylor, Laurent, Puiseux, formal, asymptotic, Fourier, and
-  infinity series, including composition and inversion.
-  - [x] Expose the verified bounded Taylor polynomial and coefficient fragment
-    through the C, Python, and SymPy-compatible facades. Map SymPy's term-count
-    convention to the native highest-degree convention, omit `O(...)` explicitly,
-    and refuse singular/non-finite coefficients or unsupported symbolic
-    derivatives with independent SymPy 1.14 oracle tests.
-- [ ] Complete residues, `Order`, coefficient extraction, and sequence limits.
-- [ ] Implement general finite, one-sided, directional, infinite, and complex
-  limits, including Gruntz-style asymptotic ordering.
-  - [x] Expose the verified finite/infinite bounded limit fragment through the
-    C, Python, and SymPy-compatible facades, returning finite values or typed
-    `oo`/`-oo` expressions and refusing unsupported poles/asymptotics with
-    independent SymPy 1.14 oracle tests.
-- [ ] Complete rational integration with Hermite and Lazard--Rioboo--Trager
-  methods.
-  - [x] Expose the verified one-variable indefinite integration fragment
-    through the C, Python, and SymPy-compatible facades, with separate
-    real-domain and SymPy-compatible complex/default logarithm branches and
-    independent SymPy 1.14 oracle tests.
-- [ ] Add elementary Risch and heuristic-Risch integration.
-- [ ] Add Meijer-G and special-function integration where SymPy supports it.
-- [ ] Complete definite, improper, multiple, and parameterized integration with
-  convergence conditions.
-- [ ] Implement Fourier, Laplace, inverse, sine, cosine, and related transforms.
-- [ ] Implement symbolic sums and products, including telescoping,
-  hypergeometric, Gosper, Zeilberger, and convergence cases.
+      unevaluated derivative semantics for `diff`, `Derivative`, and `doit`.
+- [ ] Complete Taylor, Laurent, Puiseux, formal, asymptotic, and composed
+      series, including `Order` and coefficient extraction.
+- [ ] Complete residues, sequence limits, directional limits, one-sided
+      limits, complex limits, and asymptotic ordering.
+
+### Integration and transforms
+
+- [ ] Complete rational integration through Hermite and
+      Lazard--Rioboo--Trager methods.
+- [ ] Add the supported elementary, Risch/heuristic-Risch, Meijer-G, and
+      special-function integration families with domain conditions.
+- [ ] Complete definite, improper, multiple, and parameterised integration,
+      including convergence and condition reporting.
+- [ ] Complete Fourier, Laplace, inverse, sine, cosine, and related transform
+      APIs, plus symbolic sums/products and telescoping.
+
+## Phase 4 — equations and exact linear algebra
+
+- [ ] Expose the already-tested bounded polynomial and scalar-linear solver
+      through the canonical Fortran, C, Python, and SymPy facades. Return the
+      SymPy-compatible root shape and refuse unsupported domains/options.
+- [ ] Complete `solve`, `solveset`, real/complex solves, `linsolve`, and
+      solution conditions for polynomial, rational, radical, inverse-function,
+      and supported transcendental equations.
+- [ ] Add inequality reduction, compound-domain reasoning, Diophantine
+      solving, recurrences, and elimination where present in the profile.
+- [ ] Complete dense/sparse exact matrices: construction, indexing, slicing,
+      determinant, inverse, rank, nullspace, decompositions, eigenvalues,
+      characteristic/minimal polynomials, and `DomainMatrix` equivalents.
+- [ ] Keep matrix algorithms symbolic and reusable. Meshes, FE matrices,
+      sparse assembly, and numerical linear solvers remain FortFEM or another
+      numerical package's responsibility.
+- [ ] Complete ODE classification/solving and include PDE solving only when it
+      is explicitly in the selected compatibility profile.
+
+## Phase 5 — functions and discrete mathematics
+
+- [ ] Complete the elementary and special-function families in the inventory:
+      evaluation, rewriting, expansion, inverse functions, branch cuts,
+      conjugation, real/imaginary parts, and differentiation/integration.
+- [ ] Complete combinatorics, partitions, permutations, number theory,
+      prime/factorisation utilities, modular arithmetic, continued fractions,
+      and discrete recurrences.
+- [ ] Complete sets, intervals, finite/infinite sets, tuples, logic, Boolean
+      simplification, predicates, and set-valued solve results.
+- [ ] Complete statistics/probability objects and distributions only for the
+      names selected into the compatibility profile; do not create a second
+      numerical statistics engine in the symbolic core.
+
+## Phase 6 — arrays, tensors, geometry, and physics compatibility
+
+This phase covers symbolic APIs that SymPy users expect. It does not import
+finite-element responsibilities into FortSym.
+
+- [ ] Complete the selected SymPy matrix-expression, N-dimensional-array,
+      indexed, tensor, and Einstein-contraction APIs on shared expression and
+      exact-domain owners.
+- [ ] Complete the selected `sympy.diffgeom` names—manifolds, patches,
+      coordinate systems, differential forms, pullbacks, Lie derivatives,
+      and metric operations—without duplicating the existing native owners.
+- [ ] Complete the selected symbolic physics modules only where their public
+      expressions, identities, or transformations are part of the profile.
+- [ ] Preserve variance, density, owner, chart, signature, orientation, and
+      domain metadata through every symbolic operation and generated kernel.
+- [ ] Keep magnetic-coordinate, relativity, and form examples as regression
+      cases for these symbolic APIs. They are not a reason to add meshes,
+      quadrature, FE bases, Piola maps, assembly, or numerical solvers here.
+
+## Phase 7 — input/output, numerics, and code generation
+
+- [ ] Complete SymPy-compatible text, LaTeX, pretty, MathML, Wolfram, and
+      Fortran parsing/printing for the supported expression hierarchy.
+- [ ] Complete `evalf`, numerical substitution, lambdify-style dispatch, and
+      explicit precision/rounding/error reporting without weakening exact
+      native results.
+- [ ] Complete common-subexpression elimination and Fortran kernel generation
+      with a cost model measured against SymPy and the generated compiler.
+- [ ] Ensure generated code has no avoidable array temporaries, no hidden
+      domain changes, and explicit handling for singular/conditional branches.
+- [ ] Keep external engines optional and version-checked. They may supply a
+      differential result or a selected backend, but never define native
+      semantics or leak their representation into the public API.
+
+## Phase 8 — parity release gates
+
+- [ ] Every inventoried supported name has one executable case table shared by
+      the SymPy oracle and the native adapter.
+- [ ] Every supported family has independent algebraic/numerical/residual
+      checks and adversarial resource-limit cases.
+- [ ] Every supported family has cold, warm, and core benchmarks with the same
+      inputs, and native performance is at least SymPy's for the declared
+      workload or the exception is documented and approved.
+- [ ] The full native `fo` gate, C ABI tests, Python facade tests, SymPy
+      differential tests, API audits, examples, and benchmark gates pass.
+- [ ] The public API has one canonical name per concept, one owner per
+      implementation, consistent default/global and explicit-state modes, and
+      no untracked aliases.
+- [ ] The release documentation lists supported features, known differences,
+      refusal boundaries, licenses/provenance, performance, and FortFEM handoff
+      contracts.
 
-## Phase 6 — equations and solvers
+## Work selection rule
 
-- [ ] Complete `solve`, `solveset`, real/complex solves, `linsolve`,
-  `nonlinsolve`, and condition-set results.
-- [ ] Complete polynomial, rational, radical, transcendental, inverse-function,
-  piecewise, and relational solving.
-- [ ] Add inequality reduction and compound-domain reasoning.
-- [ ] Add Diophantine solving, recurrences, and elimination.
-- [ ] Complete exact linear algebra and polynomial-system solving.
-- [ ] Add ODE classification and solving, including higher-order, nonlinear,
-  separable, systems, and boundary/initial conditions.
-- [ ] Add PDE solving where included in the compatibility profile.
-- [ ] Add numerical solving with residuals, convergence status, precision, and
-  explicit nonconvergence.
+At the start of each work session, select the smallest unchecked slice that:
 
-## Phase 7 — matrices, arrays, tensors, and geometry
+1. closes a named SymPy compatibility gap;
+2. has a clear native owner and independent oracle;
+3. improves a user-visible supported path or removes a documented refusal;
+4. has a measurable correctness and performance target; and
+5. does not belong to FortFEM.
 
-- [ ] Complete dense, sparse, immutable, block, symbolic, and domain matrices.
-- [ ] Add determinant, inverse, rank, nullspace, decompositions, eigenvalues,
-  Jordan forms, matrix functions, and matrix calculus.
-- [ ] Complete N-dimensional arrays, indexed objects, reshaping, contraction,
-  tensor products, and tensor canonicalization.
-- [ ] Add vector calculus, differential geometry, manifolds, and geometric
-  intersection/measurement operations. The first-class physics and geometry
-  scope is specified in Phase 7A below.
-- [ ] Preserve exact symbolic pivots and return conditions rather than making
-  unconditional simplifications.
-
-## Phase 7A — differential geometry, tensor calculus, forms, and magnetic coordinates
-
-This toolkit is a primary product surface, not an example layered on top of
-the scalar engine. It must serve the notation used by relativity, continuum
-mechanics, electromagnetics, and magnetically confined plasmas while retaining
-the short Fortran spelling and the SymPy-compatible Python boundary.
-
-### Source synthesis and executable corpus
-
-The geometry toolkit combines four views that are often taught separately:
-
-1. D'haeseleer, Hitchon, Callen, and Shohet, *Flux Coordinates and Magnetic
-   Field Structure* (Springer, 1991), supplies the physicist's coordinate-first
-   language: tangent and reciprocal bases, covariant and contravariant
-   components, metric coefficients, Jacobians, tensor transformations, and
-   divergence. Sections 2.2--2.6 (printed pages 8--38) are the notation
-   bridge, Chapters 5--8 develop Clebsch, straight-field-line, Boozer, and
-   Hamada systems, and Chapters 13--14 (printed pages 201--214) make component
-   transformations and divergence explicit. The local reference is the copy
-   in the shared documents; the bibliographic record and KU Leuven host link
-   are kept in [`doc/provenance.md`](doc/provenance.md). Use the hosted copy
-   subject to its terms; no pages, figures, or source text are copied into
-   fortsym.
-2. Carroll's free [Lecture Notes on General Relativity](https://arxiv.org/abs/gr-qc/9712019)
-   supplies the relativity progression: manifold, chart, tangent and dual
-   spaces, tensor densities, volume forms, connections, geodesics, curvature,
-   Bianchi identities, and Lie derivatives. Its [author page](https://preposterousuniverse.com/spacetimeandgeometry/)
-   is the stable reading index.
-3. MacKay's [*Differential forms for plasma physics*](https://arxiv.org/abs/1912.11150)
-   supplies the coordinate-free layer: forms as alternating covariant tensors,
-   contraction, pullback, `d`, Lie derivative, magnetic flux forms, helicity,
-   and Maxwell equations on Riemannian or Lorentzian manifolds.
-4. Albert, Bíró, and Lainer, [*2D Fourier finite element formulation for
-   magnetostatics in curvilinear coordinates with a symmetry direction*](https://arxiv.org/abs/2008.13681),
-   supplies the bridge back to computational plasma physics: weight-`+1`
-   densities, the metric-free divergence and curl, the two-dimensional
-   Levi-Civita density, constitutive reduction, Fourier harmonics, and the
-   distinction between nodal and edge spaces. FortFEM owns the numerical
-   realization of those spaces; fortsym owns the symbolic reduction.
-
-The synthesis rule is: use abstract tensors and forms for definitions and
-invariants, coordinate components for physicists' formulas and generated
-kernels, and explicit densities only at operations whose natural codomain is a
-density. Every conversion between those views is a named owner operation.
-The API must never infer a metric, orientation, density weight, or index space
-from a variable name such as `B`, `sqrtg`, or `nu`.
-
-#### The physicist--mathematician bridge
-
-The same field must be readable in both traditions without silently changing
-what it means:
-
-| Physics notation | Coordinate-free/native object | Required interpretation |
-|---|---|---|
-| `e_i = partial_i r` | Tangent basis of `T M` | Lower coordinate label identifies the basis direction; it is not a covector. |
-| `e^i = grad(u^i)` | Reciprocal basis of `T M` | `e^i dot e_j = delta^i_j`; the upper label records the dual basis. |
-| `B = B^i e_i` | Vector field | `B^i` are contravariant components and determine field-line slopes. |
-| `B = B_i e^i` | Metric-dual covector `B_flat` | `B_i = g_ij B^j`; these are not a second physical field. |
-| `B_i du^i` | One-form / degree-one form | The coefficients are lower components and transform covariantly without a metric. |
-| `sqrtg B^i` | Weight-`+1` vector density | It is the natural divergence numerator, not an unmarked vector. |
-| `Omega` | Oriented top form | `Omega = sign(J) sqrt(abs(det(g))) du^1 wedge ...`; orientation is separate from `sqrtg`. |
-| `beta = i_B(Omega)` | Magnetic flux two-form | This is the metric/orientation-aware bridge from `B^i` to differential forms. |
-
-For a flux-surface label `psi`, a magnetic field tangent to the surfaces has
-`B^psi = 0`. In Boozer coordinates the covariant angular components are
-surface constants, conventionally written `B_theta = I(psi)` and
-`B_phi = G(psi)` (normalization and signs depend on the toroidal/poloidal
-orientation). The contravariant components still carry the field-line
-geometry and the Jacobian. In an axisymmetric interpretation these covariant
-components encode enclosed toroidal and poloidal currents. The implementation
-must therefore keep `B^i`, `B_i`, `sqrtg B^i`, `beta`, `J`, and `Omega` as
-distinct typed views, with explicit transformations and no name-based
-coercion.
-
-The checked analytic fixture makes the useful constants visible: in the
-covariant representation `B_psi=0`, `B_theta=I(psi)`, and
-`B_phi=G(psi)`, so the angular covariant components are constant on each
-flux surface. Its displayed diagonal metric is
-`g_ij=diag(1,h^2,h^2)` with `sqrtg=h^2`; raising the field gives
-`B^theta=I(psi)/h^2` and `B^phi=G(psi)/h^2`, which generally vary with the
-angles. This distinction is part of the example's acceptance criteria.
-
-Forms add the mathematician's invariant layer:
-
-```text
-alpha = (1/k!) alpha_i1...ik du^i1 wedge ... wedge du^ik
-d(alpha)                  # metric-free exterior derivative
-i_X(alpha)                # contraction with a vector field
-L_X(alpha) = i_X(d(alpha)) + d(i_X(alpha))
-star(alpha)               # metric, signature, and orientation required
-```
-
-Consequently `d`, wedge, pullback, contraction, and Lie derivative belong to
-the form/geometry owners, while `flat`, `sharp`, Hodge star, codifferential,
-and metric volume operations belong to metric-aware owners. A component result
-is accepted only when its variance, density weight, signature, orientation, and
-index space survive the round trip to the invariant representation.
-
-The existing Wolfram scripts and their generated Python translations are
-requirements for this work. The native Fortran implementation, the
-`fortsym.sympy` adapter, and the Wolfram input frontend must execute the same
-derivation records. SymPy 1.14.0 remains the behavioral and performance oracle.
-Wolfram or Mathics results are additional differential evidence and a source
-of input coverage. A translated script is not accepted merely because it
-reproduces its own expected strings. The normalized record must retain the
-source location, assumptions, index variance, density weight, orientation,
-metric signature, and native owner for every result.
-
-The Python compatibility boundary follows SymPy's indexed-tensor vocabulary
-where it is useful: `TensorIndexType` maps to a native index space,
-`TensorIndex` to a checked index label, `TensorHead` to a typed tensor field,
-`TensorSymmetry` to a native slot-symmetry declaration, and
-`TensorProduct`/`tensorcontraction`/`tensorpermute` to native tensor IR
-operations. `CoordSystem`, `Differential`, `WedgeProduct`, and
-`LieDerivative` remain the corresponding `fortsym.sympy` spellings for the
-form layer. The Fortran facade keeps the shorter native names `index_type`,
-`index`, `tensor_head`, `symmetry`, `product`, `contract`, `permute`, `d`,
-`wedge`, and `lie`, with one owner and one conversion path for each concept.
-
-The target module graph is deliberately package-like while remaining ordinary
-Fortran:
-
-```text
-fortsym_expr / fortsym_arena
-        |
-fortsym_geom        (manifold, patch, chart, basis, map)
-        |
-fortsym_metric      (metric, signature, orientation, volume, epsilon)
-        +--> fortsym_tensor       (indices, variance, symmetry, density)
-        +--> fortsym_form         (wedge, d, pullback, i, lie, star)
-        +--> fortsym_connection   (nabla, geodesic, curvature)
-        +--> fortsym_magnetic     (flux and Fourier physics)
-        |
-fortsym_registry     (explicit optional toolkit capabilities)
-        |
-fortsym facade / C ABI / Python adapters
-```
-
-The registry contains procedure pointers and capability records only. The
-expression arena does not depend on a physics toolkit, and a toolkit does not
-reach sideways into another toolkit's storage. A central registration call is
-allowed because it is easy to inspect and test in Fortran. Linker discovery,
-hidden initialization, and a universal `physics_t` object are out of scope.
-
-### Convention synthesis and derivation contracts
-
-The geometry API has two linked representations. A chart owns coordinates and
-the map into an embedding or an abstract coordinate manifold. Tensor and form
-objects own components, index variance, symmetry, density weight, and chart.
-The facade provides short names, while the owners provide the same operations
-for explicit-arena and library code. There is one vocabulary for both paths.
-
-The following table is the contract for the first physics profile. The index
-letters `a`, `i`, and `j` are labels only. A concrete object carries its
-dimension and index space, so an index is never matched by its printed name
-alone.
-
-| Object | Definition | Native meaning and invariant |
-|---|---|---|
-| Coordinates | `x^a = x^a(u^i)` | `chart_t`; `u^i` are coordinates and `x^a` are embedding or target coordinates. |
-| Index space | `i, j, ... in V` | A dimensioned `index_type`; printed index names are labels, never identity. |
-| Index label | `i` or `i` lowered | An `index` carries its index space, variance, free/dummy role, and optional name. |
-| Tangent basis | `e_i = partial_i x` | A basis vector with a lower coordinate label. |
-| Reciprocal basis | `e^i = grad(u^i)` | A dual basis with `e^i dot e_j = delta^i_j`. |
-| Metric | `g_ij = e_i dot e_j` | A `(0,2)` tensor owned by `metric_t`; `g^ij` is its inverse. The signature is explicit. |
-| Connection | `nabla_k` | A connection owned by `connection_t`; Levi-Civita is one named constructor, not an implicit global assumption. |
-| Vector | `B = B^i e_i` | Upper components are contravariant. |
-| Covector | `B_flat = B_i du^i` | `B_i = g_ij B^j`; `flat` and `sharp` are metric-owned conversions. |
-| Form | `alpha = (1/k!) alpha_i1...ik du^i1 wedge ...` | An antisymmetric covariant tensor owned by `form_t`; `d`, pullback, contraction, and `lie` do not require a metric. |
-| Volume form | `Omega = sigma sqrt(abs(det(g))) du^1 wedge ...` | An oriented top form. `sigma` is orientation and is not hidden in `sqrtg`. |
-| Flux form | `beta = i_B Omega` | A two-form in three dimensions. It is the pullback-stable magnetic representation. |
-| Vector density | `Bden^i = sqrtg B^i` | A contravariant density of weight `+1` in this profile. It is not an unmarked vector. |
-
-For a passive coordinate change with `K^i_j = partial(u'^i)/partial(u^j)`,
-the density convention is recorded as
-
-```text
-T'^(upper...)_(lower...) = abs(det(K))^(-w)
-                         * K^(upper...) * inverse(K)_(lower...) * T
-
-(nabla_k T)^(a1...ap)_(b1...bq)
-  = partial_k T^(a1...ap)_(b1...bq)
-  + sum_r Gamma^ar_(k,c) T^(a1...c...ap)_(b1...bq)
-  - sum_s Gamma^c_(k,bs) T^(a1...ap)_(b1...c...bq)
-  - w Gamma^c_(c,k) T^(a1...ap)_(b1...bq)
-```
-
-where `w` is the stored density weight and the displayed products stand for
-the corresponding slot transformations. This convention makes
-`sqrtg = sqrt(abs(det(g)))` and `sqrtg B^i` weight `+1`, so
-`nabla_i(sqrtg B^i) = partial_i(sqrtg B^i)`. It matches the density
-definition `U_density = sqrtg**w U` used by the Albert, Bíró, and Lainer
-formulation. Orientation is a separate signed choice. A signed
-`J = det(partial(x)/partial(u))` is retained when orientation matters. For a
-positive-definite Euclidean metric, `sqrtg = sqrt(det(g))`; for a
-pseudo-Riemannian metric the absolute determinant is mandatory. The
-implementation must refuse a singular map, an incompatible index space, a
-degenerate metric, or an operation that would erase sign, signature, or
-density metadata.
-
-The first-class object model is staged around these metadata owners:
-
-- [ ] `manifold_t` stores dimension and optional boundary status. `patch_t`
-  stores an open coordinate domain and its parent manifold. `chart_t` stores
-  coordinate expressions, a chart map, and orientation, while a chart map
-  records its source and target patches and its forward and inverse maps.
-- [x] `index_type_t` stores dimension, name, and whether an index space is
-  tangent, cotangent, spacetime, internal, or a user-declared compatible
-  space. `index_t` stores variance and free/dummy role. The first native
-  fixed-3D contraction slice requires the same index space, opposite variance,
-  and matching nonempty labels.
-- [x] Add the declaration-only `fortsym_domain` owner for `manifold_t` and
-  `patch_t`, including dimension, parent, open-domain, boundary, and
-  simply-connected metadata. The Python diffgeom names carry the same flags;
-  topology is never inferred from coordinate expressions.
-- [x] Attach explicit patch metadata to the fixed-three-dimensional
-  `chart_t` owner with `chart_create_on_patch`, `chart_has_patch`, and
-  `chart_patch`; the Python `Chart(..., patch=...)` and `CoordSystem` paths
-  retain the same declaration without changing chart algebra.
-- [x] Propagate fixed-three-dimensional source and target patch ownership into
-  `chart_map_t` and Python `ChartMap`; expose both declarations and refuse
-  composition across a mismatched intermediate patch. General-dimensional
-  patch maps and overlap/topology proofs remain open.
-- [x] `metric_t` stores a nondegenerate component tensor and shared typed
-  `signature_t`/`orientation_t` declarations, with signature `(n_plus,
-  n_minus, n_zero)`, orientation compatibility, and its inverse.
-  `metric_from_chart` is a convenience constructor, not a second metric
-  representation. Euclidean and Lorentzian metrics use the same tensor and
-  Hodge owners.
-- [x] Add the fixed-three-dimensional metric-owner subset: explicit component
-  storage, signature and orientation metadata, inverse, determinant, and
-  positive `sqrtg`, with independent Euclidean and Lorentzian checks. Full
-  symbolic nondegeneracy proofs remain open; structurally all-zero metrics are
-  refused at construction.
-- [x] Preserve an explicit coordinate tuple in chart-induced metrics and let
-  `christoffel_tensor(metric_t)` derive the same connection as the chart path.
-  A supplied metric without coordinates is refused for derivative-based
-  connection construction rather than inferring variables from free symbols.
-- [x] Apply the same owner rule to `covariant_diff` and
-  `covariant_derivative`; chart and coordinate-aware metric calls share one
-  slot/density component kernel and independent metric-compatibility checks.
-- [x] Add the physicists' first-slot `covariant_divergence` owner and expose it
-  through C ABI 44 and both Python facades. It contracts the appended lower
-  derivative slot against the first contravariant slot, preserves the free-slot
-  variance and density weight, and independently matches `div_density` for a
-  weight-one vector density on a nonorthogonal chart.
-- [x] Extend the owner rule through `riemann_tensor`, `ricci_tensor`,
-  `scalar_curvature`, and `einstein_tensor`, with independent flat-chart
-  contraction and curvature checks. Pseudo-Riemannian sign-convention corpus
-  coverage remains open.
-- [x] Add the torsion-free first-Bianchi residual
-  `R^a_bcd + R^a_cdb + R^a_dbc` as a native rank-four owner, with C ABI 45,
-  Python/SymPy facade access, and an independent non-flat metric check. The
-  second Bianchi identity now has the corresponding rank-five derivative
-  representation and independent flat/non-flat checks; arbitrary dimensions
-  and supplied non-Levi-Civita connections remain open.
-- [x] Add the shared `fortsym_geometry_metadata` owner for typed
-  `orientation_t` and `signature_t` declarations. Metric construction accepts
-  these types through `metric_create_metadata`, while `sqrtg` remains positive
-  and oriented volume forms remain signed. The integer C ABI and Python tuple
-  properties remain compatible views of the same metadata.
-- [x] Wire the same metadata owner into the dimension-aware
-  `spacetime_metric_t` constructor and typed accessors. The four-entry integer
-  ABI remains the compatibility boundary, while relativity shares the native
-  signature and orientation declarations with the fixed-3D metric toolkit.
-- [x] Add positive coordinate-surface measures for chart-induced and explicit
-  metrics. The native kernels compute the induced two-metric minor directly,
-  without array temporaries; C ABI 53 and both Python facades keep this
-  measure separate from signed `J`, positive `sqrtg`, and oriented volume.
-- [x] Add the first typed tensor Lie-derivative owner. `tensor_lie_derivative`
-  transports every upper and lower slot, preserves density metadata, and adds
-  the explicit `+w*T*partial_i(X^i)` term for a weight-`w` tensor density.
-  The Fortran `lie`/`lie_derivative` facade, C ABI 54, Python `Tensor.lie`, and
-  independent scalar/vector/covector/density checks all share this owner.
-- [x] Add the native Killing residual `killing(X) = L_X(g)` for chart-induced
-  and coordinate-aware explicit metrics. It returns a symmetric lower rank-two
-  tensor and reuses the same Lie-derivative kernel. Python `Chart.killing` and
-  `Metric.killing` are convenience views over the existing native tensor-Lie
-  ABI, with independent isometry and non-isometry checks.
-- [x] `connection_t` stores the connection coefficients and its convention.
-  `connection_from_chart` and `connection_from_metric` construct the
-  torsion-free, metric-compatible owner; `connection_create` accepts a
-  supplied affine connection with torsion or nonmetricity. Typed torsion,
-  nonmetricity, covariant differentiation, and divergence share the native
-  slot/density kernel, with supplied-connection Riemann curvature through C ABI
-  56, Python/SymPy access, and independent component oracles.
-- [x] `tensor_t` and `form_t` retain value-semantic owner metadata through all
-  supported views. Chart-created objects retain their coordinate tuple and
-  position map; explicit metric-created objects retain their coordinate tuple
-  without inventing an embedding. Products, contractions, index views,
-  derivatives, form/tensor conversion, connections, and chart-map transport
-  preserve the owner and refuse incompatible chart keys. A form remains an
-  antisymmetric covariant tensor with a degree, and a density remains a tensor
-  with an explicit integer weight; the two owners share checks without
-  sharing storage layouts.
-- [x] Add the fixed-three-dimensional `fortsym_form_tensor` bridge. Exact
-  weight-zero lower antisymmetric tensors convert to and from the compact form
-  owner through one native operation, with C ABI/Python facade transport and
-  independent refusal checks for non-antisymmetric and density-weighted input.
-- [x] Add the runtime-dimension `fortsym_spacetime_form_tensor` bridge.
-  `spacetime_form_from_tensor(metric, tensor)` and
-  `spacetime_tensor_from_form(metric, form)` share the fixed 1--4D owners and
-  retain first-slot-fastest tensor order versus form-mask order. Conversion is
-  strict for exact lower, weight-zero, fully antisymmetric tensors, including
-  repeated-index checks. C ABI 76, Python `.to_form()`/`.to_tensor()`, and
-  independent Fortran, C, Python, and SymPy checks cover the owner boundary.
-
-The core identities are the derivation contracts for every implementation:
-
-```text
-e^i dot e_j = delta^i_j
-g^ik g_kj = delta^i_j
-B_i = g_ij B^j
-grad(f) = (d(f))^sharp
-L_B Omega = div(B) Omega
-div(B) = 1/sqrtg * partial_i(sqrtg B^i)
-beta = i_B Omega
-d(d(alpha)) = 0
-L_X(alpha) = i_X(d(alpha)) + d(i_X(alpha))
-```
-
-### Example derivations that become executable examples
-
-The following derivations are the minimum teaching and regression corpus. Each
-one must exist as a native Fortran example, a `fortsym.sympy` example, and a
-source-normalized differential record. The expected expressions below are
-mathematical contracts. The tests must derive them from the owners and compare
-them with an independent component or numerical oracle.
-
-#### Cylindrical coordinates and the magnetic density
-
-Use the paper ordering `u = (Z, R, phi)` and the Cartesian embedding
-`x = (R*cos(phi), R*sin(phi), Z)`. The tangent basis and metric are:
-
-    e_Z   = (0, 0, 1)
-    e_R   = (cos(phi), sin(phi), 0)
-    e_phi = (-R*sin(phi), R*cos(phi), 0)
-    g_ij  = diag(1, 1, R**2)
-    J     = R
-    sqrtg = abs(R)                 # sqrtg = R under R > 0
-    Omega = R dZ wedge dR wedge dphi
-
-For a covariant potential `A = A_1 dZ + A_2 dR` with Fourier dependence
-`exp(i*n*phi)`, the form, vector, and density representations must agree:
-
-    B^1_n = -i*n*A_2 / R
-    B^2_n =  i*n*A_1 / R
-    B^3_n = (partial_Z A_2 - partial_R A_1) / R
-    B_1   = B^1_n
-    B_2   = B^2_n
-    B_3   = R**2 * B^3_n
-    D^1_n = sqrtg*B^1_n = -i*n*A_2
-    D^2_n = sqrtg*B^2_n =  i*n*A_1
-    D^3_n = sqrtg*B^3_n =  partial_Z A_2 - partial_R A_1
-
-The form check is:
-
-    beta = i_B(Omega)
-         = (partial_Z A_2 - partial_R A_1) dZ wedge dR
-           - i*n*A_1 dZ wedge dphi
-           - i*n*A_2 dR wedge dphi
-         = d(A)
-    d(beta) = 0
-
-This is the smallest example that catches a transposed reciprocal basis, a
-missing `sqrtg`, a signed-density mistake, and a wrong Fourier sign.
-
-#### Boozer flux coordinates and current-linked covariant components
-
-Use `u = (psi, theta, phi)` on nested magnetic surfaces. The minimum
-representation contract is:
-
-```text
-B^psi = 0
-B_theta = I(psi),       B_phi = G(psi)
-sqrtg B^theta = iota(psi),  sqrtg B^phi = 1       # chosen normalization
-beta = i_B(Omega)
-```
-
-The native example must separate the representation identity from the
-equilibrium problem: it may use an analytic metric fixture, but must also
-provide a later chart-based path for a supplied equilibrium map. The current
-analytic fixture and its independent native/Python checks cover the metric
-form, angular derivatives of `B_theta` and `B_phi`, the raised field, zero
-divergence, `B dot grad(psi) = 0`, `beta = i_B(Omega)`, and `d(beta) = 0`.
-The chart-based supplied-equilibrium path and current/flux normalization when
-selected remain the next Boozer-specific extensions.
-Left- and right-handed charts are separate cases; no sign is hidden in
-`sqrtg`. This contract is grounded in the Boozer sections of D'haeseleer et
-al. and the local flux-coordinate notes, not in the name of a variable.
-
-#### Density transformation and divergence
-
-For `K^i_j = partial(u'^i)/partial(u^j)`, a weight-`+1` contravariant density
-obeys:
-
-    D'^i = abs(det(K))**(-1) K^i_j D^j
-    div(B) = partial_i(D^i) / sqrtg
-
-The native example must apply a nonorthogonal map and an orientation-reversing
-map separately. The first checks the slot transformation and the second checks
-that the positive density does not inherit the sign of `J`. The signed
-orientation remains visible in `Omega` and in oriented top-form pullbacks.
-
-- [x] Enforce this law in `fortsym_chart_map.transform_tensor`: a passive map
-  with `K = partial(u')/partial(u)` uses `abs(det(K))**(-w)`. The native and
-  `fortsym.sympy` chart-map tests cover a non-unit shear and an
-  orientation-reversing map, including the weight-`+1` `sqrtg B^i` case.
-
-#### Relativity baseline in spherical Minkowski coordinates
-
-Use the Lorentzian metric with signature `(-,+,+,+)` in
-`u = (t, r, theta, phi)`:
-
-    g = diag(-1, 1, r**2, r**2*sin(theta)**2)
-    sqrtg = r**2*abs(sin(theta))
-    Omega = r**2*sin(theta) dt wedge dr wedge dtheta wedge dphi
-
-On the regular patch `r > 0`, `0 < theta < pi`, derive the Christoffel symbols
-from `g`, then prove:
-
-    nabla_lambda g_mu nu = 0
-    R^rho_sigma mu nu = 0
-    R_mu nu = 0
-    R = 0
-    G_mu nu = 0
-
-The same example must be run with the opposite Riemann sign convention and
-show the documented sign change in `R^rho_sigma mu nu`, while the flatness
-verdict remains unchanged. A curved conformal two-dimensional metric and a
-four-dimensional cosmological metric follow after this baseline so that the
-curvature tests do not rely only on a flat result.
-
-#### Differential-form Maxwell baseline
-
-On an oriented metric manifold, use a potential one-form `A`, field two-form
-`F`, current one-form `J`, and the metric Hodge operator:
-
-    F = d(A)
-    d(F) = 0
-    d(star(F)) = star(J)
-    d(star(J)) = 0
-
-The first equation is a definition and the second is the de Rham identity.
-The third and fourth require a metric, signature, orientation, and constitutive
-convention. The API must preserve that distinction. The three-dimensional
-plasma specialization identifies `F` with the magnetic flux form `beta`; the
-Lorentzian spacetime specialization uses the four-dimensional electromagnetic
-two-form. The Python adapter exposes the SymPy-compatible names, while the
-native form owner performs wedge, `d`, pullback, contraction, and Hodge
-operations.
-
-#### Albert--Bíro--Lainer Fourier curl-curl reduction
-
-For `H = nu B`, `J = curl(H)`, and `A_n exp(i*n*x^3)`, the generic native
-operator is the full three-dimensional reduction:
-
-    B_n = curl_n(A_n)
-    J_n = curl_n(nu B_n)
-
-For the paper's block metric and `A_3 = 0`, the transverse block becomes:
-
-    J^1_n = curl_t(nu_33 curl_t(A_t))_1 + n**2 nubar_t^(1,j) A_j
-    J^2_n = curl_t(nu_33 curl_t(A_t))_2 + n**2 nubar_t^(2,j) A_j
-    nubar_t = -E_t nu_t E_t
-
-Here `E_t` is the two-dimensional antisymmetric density. The native owner must
-retain the distinction between raw components, density components, and the
-constitutive tensor. The current paper slice adds native strong residuals for
-the `n = 0` longitudinal scalar and symbolic/integer-mode transverse edge
-branches, boundary flux coefficients, and physical-to-coordinate constitutive
-conversion. General density transformations remain open only where required by
-the declared SymPy parity surface; typed mode-specific source/load records now
-define the native branch, trace, and component contract. Finite-element
-discretisation and assembly are FortFEM work.
-
-The physical constitutive bridge is:
-
-    nu_ij = e_i^a hat(nu)_ab e_j^b / sqrtg
-
-where `hat(nu)_ab` is a Cartesian physical reluctivity and
-`e_i^a = partial_i x^a`. `reluctivity_density` owns isotropic scalar and full
-Cartesian-matrix overloads; the Python/SymPy facade returns the result as a
-covariant rank-two tensor density of weight `-1`. The native component owner
-feeds `fourier_constitutive` without a duplicated frontend implementation.
-
-The implementation keeps the following distinctions visible in names and
-types. These are the Levi-Civita symbol, Levi-Civita tensor, and
-Levi-Civita density. They also include the signed Jacobian and positive
-`sqrtg`, plus a vector, its flat covector, its flux form, and its vector
-density. Plasma literature can call the flux form or density a contravariant
-representation. The API records which object is present instead of resolving
-that wording by convention.
-
-Every derivation case must specify its chart, metric signature, orientation,
-assumptions, source representation, target representation, invariant checks,
-and independent oracle. The minimum case set is:
-
-- [x] Cartesian, cylindrical, and spherical coordinates, including reciprocal
-  bases, `sqrtg`, Christoffel symbols, gradient, divergence, curl, and scalar
-  Laplacian. The executable cylindrical Fourier example keeps `sqrtg B^i`
-  branch-free, while the spherical and chart tests cover the metric and
-  vector-calculus identities.
-- [x] A nonorthogonal periodic flux chart with off-diagonal metric terms,
-  including signed Jacobian, raise/lower, density transformation, and a
-  round-trip coordinate change.
-  - [x] Add a chart-derived linear shear fixture with off-diagonal metric,
-    signed Jacobian, and positive volume factor. The existing chart-map
-    contract independently checks coordinate composition, tensor slots, and
-    density transformation.
-  - [x] Add the periodic flux fixture
-    `x=(psi, theta+kappa*sin(phi), phi)`, with explicit `g_theta_phi`,
-    `B^i`, `B_i`, `sqrtg B^i`, magnetic-form, and Clebsch round trips in the
-    native Fortran example and independent SymPy test.
-- [x] A magnetic potential `A` with `beta = d(A) = i_B(Omega)`, followed by
-  `d(beta) = 0`, divergence, and the component/form comparison.
-- [ ] The Albert, Bíró, and Lainer Fourier reduction, with separate `n = 0`
-  and `n != 0` branches, density components, constitutive transformation, and
-  weak-form metadata.
-  - [x] Add physical scalar/matrix to covariant weight-`-1` reluctivity
-    density conversion with native, C, Python, and SymPy-oracle coverage.
-  - [x] Add typed mode-specific source/load records with native, C, Python,
-    and SymPy-facade coverage. The records validate branch, mode, trace, and
-    component compatibility without taking ownership of quadrature or meshes.
-  - [ ] Complete only the general density transformations required by an
-    explicit SymPy parity row. Finite-element basis and assembly ownership is
-    in FortFEM.
-- [x] Add a standalone cylindrical-coordinate example with an explicit
-  metric-owner connection path. It derives and checks `sqrtg`, reciprocal
-  bases, `Gamma^rho_theta theta`, `Gamma^theta_rho theta`, gradient,
-  divergence, curl, and the scalar Laplacian; the existing Fourier example
-  remains the paper-specific cylindrical branch.
-- [x] Flat and curved pseudo-Riemannian examples with an explicit signature,
-  connection sign convention, geodesic residual, and curvature invariant.
-
-Each case is implemented in the native owner first, exercised through the
-Fortran facade and `fortsym.sympy`, translated from the Wolfram/Python corpus,
-and checked against SymPy plus an independent determinant, component,
-numerical, or residual oracle. The Python and Wolfram frontends add syntax and
-conversion only. They do not maintain a second geometry implementation.
-
-### Staged delivery order for the geometry toolkit
-
-- [ ] **7A.0 Contract and ownership.** Freeze the notation above, implement
-  `manifold_t`, `patch_t`, `index_type_t`, `index_t`, `orientation_t`, and
-  `signature_t`, and publish one module graph and naming audit. The source
-  synthesis and executable derivation contracts are documented here; the
-  native metadata owners remain open.
-- [x] **7A.0b Chart-key boundary.** Give fixed-three-dimensional tensor and
-  form results an explicit chart owner key `(u, x)` or a metric coordinate key
-  `u`. Merge unbound scalar convenience values into a bound result, propagate
-  keys through every supported view, and refuse cross-chart products,
-  derivatives, metric operations, conversions, and map transport. Python uses
-  the same boundary with its chart-object identity checks.
-- [x] **7A.0a Physicist/mathematician notation gate.** The registered
-  `test_fortsym_notation` acceptance test distinguishes `B^i` from `B_i`,
-  `sqrtg B^i` from `B^i`, and an oriented `Omega` from positive `sqrtg`.
-  It covers a left-handed chart, a Lorentzian metric, metric-free form
-  calculus, and refusal of density-weighted or non-antisymmetric conversion.
-  The magnetic test separately proves `beta = i_B(Omega)`.
-- [ ] **7A.1 Charts and volume.** Split map/basis ownership from metric
-  ownership, generalize `chart_t` to explicit dimensions, and expose
-  Jacobian, reciprocal basis, metric, inverse metric, signed `J`, positive
-  `sqrtg`, epsilon objects, volume forms, surface measures, and
-  coordinate-change composition. The fixed-3D chart-map composition subset is
-  implemented and independently checked.
-- [ ] **7A.2 Components and densities.** Add scalar, vector, covector, tensor,
-  and density transformations, `raise`, `lower`, `flat`, `sharp`, and
-  Jacobian-weighted `div`. Gate this stage with nonorthogonal, left-handed,
-  and Lorentzian charts. The ordinary chart divergence now uses positive
-  `sqrtg`; the remaining stage work is the complete transformation and
-  left-handed/Lorentzian gate.
-  - [x] Add the first runtime-dimension spacetime tensor owner for dimensions
-    1--4. `spacetime_tensor_t` carries rank, upper/lower slot variance, and
-    density weight; metric `raise`/`lower` and density-factor views use the
-    same metric arena and leave inactive fixed-ABI slots zero.
-- [ ] **7A.3 Indexed tensor algebra.** Add arbitrary supported rank, products,
-  contractions, permutation, symmetry, traces, canonical dummy indices, and
-  refusal messages for variance or index-space errors. Match SymPy's
-  `TensorIndexType`, `TensorIndex`, `TensorHead`, and `TensorSymmetry` at the
-  Python boundary.
-  - [x] Native fixed-3D pairwise symmetry metadata: declarations are checked
-    componentwise, invalid declarations are refused, and surviving metadata
-    propagates through products, permutations, contractions, forms, and
-    covariant derivatives.
-  - [x] Expose pair declarations and refusal status for the runtime spacetime
-    owner through the C ABI and both Python facades. Fixed chart declarations
-    map to the SymPy-named `TensorSymmetry` descriptors; arbitrary symmetry
-    groups and raw-array metadata queries remain open.
-  - [x] Expose checked pair declarations through C ABI 60 and the Python
-    `Tensor` facade. Add the SymPy-named `TensorSymmetry` descriptor and carry
-    pair metadata through metric/form construction, products, permutations,
-    contractions, covariant derivatives, Lie derivatives, density views, and
-    variance-changing operations. Full group metadata and raw-array queries
-    remain open.
-  - [x] Transport runtime-dimension spacetime tensor products, opposite-
-    variance contractions, traces, and slot permutations through C ABI 62 and
-    both Python facades. Returned fixed-slot arrays retain inactive zeros,
-    slot variance, and summed density weight; arbitrary rank and canonical
-    dummy-index naming remain open.
-  - [x] Add the native named-index contraction overload to the runtime
-    spacetime tensor owner. It checks index-space identity, runtime dimension,
-    slot variance, and nonempty dummy labels before delegating to the existing
-    slot kernel; independent Fortran checks cover accepted and refused
-    contractions. The Python and SymPy-compatible facades expose the same
-    typed call while reusing the C ABI slot kernel; a typed C ABI remains open.
-  - [x] Raise the runtime spacetime tensor ceiling to rank five so a rank-four
-    curvature-like tensor can be covariantly differentiated into the natural
-    rank-five second-Bianchi representation. Covariant differentiation and Lie
-    transport now write directly into their owned result tensors instead of
-    copying through a second full component buffer; native, Python, and
-    independent flat-component checks cover the new boundary.
-  - [x] Retain runtime spacetime pairwise symmetry metadata. Metric tensors
-    declare symmetry at construction; explicit declarations are componentwise
-    checked and false promises are refused; products, permutations,
-    contractions, covariant derivatives, Lie transport, density views, and
-    variance-preserving views carry surviving declarations.
-  - [x] Add runtime `symmetrize` and `antisymmetrize` projections for
-    same-variance slot pairs through Fortran, the C ABI, and both Python
-    facades. Projections reset unrelated declarations and retain the selected
-    pair's checked symmetry metadata.
-  - [x] Make the runtime form/tensor bridge retain the full antisymmetric
-    pair metadata promised by its component representation; native, Python,
-    and SymPy-compatible form conversions expose the same declaration.
-- [ ] **7A.4 Connections and vector calculus.** Extend covariant derivatives to
-  every slot and every density weight, then derive `grad`, `curl`, `div`, and
-  `laplacian` from the same metric, volume, and connection owners. Add
-  torsion, nonmetricity, Levi-Civita construction, geodesic solving, Riemann/Ricci/
-  Einstein tensors, Bianchi identities, Killing tests, and named sign
-  conventions.
-- [ ] **7A.5 Forms and topology.** Extend degree-`k` forms, pullbacks,
-  interior products, Lie derivatives, Hodge star, codifferential,
-  Laplace-de Rham, Maxwell forms, gauge transformations, and patch/boundary
-  metadata. Add de Rham cohomology/refusal conditions for global exactness.
-- [ ] **7A.6 Physics toolkits.** Add magnetic and flux-coordinate descriptors,
-  field-line and flux-surface operations, Clebsch/Boozer/Hamada identities,
-  and the paper's Fourier symbolic reductions without coupling them into
-  generic chart, tensor, or form code. The current `b_*`, `j_fourier`, and
-  typed weak-form subset is the first checked slice, not completion of the
-  symbolic toolkit. The first executable nested-flux-surface example now
-  checks `B^psi=0`, `div(B)=0`, and `i_B(volume)=dA`; the analytic Boozer
-  fixture now verifies that the covariant angular components are flux
-  functions, shows the metric form, and checks the raised-field divergence.
-  Equilibrium construction plus Clebsch/Hamada descriptors and field-line
-  labels remain open. Numerical Fourier-FEM discretisation is owned by
-  FortFEM and is reached through the symbolic contracts exported here.
-- [x] Add the native `reluctivity_density` constitutive bridge and expose
-    its covariant weight-`-1` result through the C/Python/SymPy facades.
-- [x] Add an executable non-orthogonal periodic flux-coordinate fixture with
-  off-diagonal metric, signed/positive Jacobian separation, typed magnetic
-  representations, and independent Python/SymPy component checks.
-- [ ] **7A.7 Frontends and corpus.** Translate every supported Wolfram and
-  Python corpus record to the native IR, preserve assumptions and refusal
-  conditions, and expose SymPy-compatible names through one conversion path.
-  Include readable Fortran and Python examples for every derivation contract.
-- [ ] **7A.8 Verification and performance.** Run independent mathematical and
-  numerical checks for every case, then enforce matched SymPy correctness and
-  performance rows for cold construction, warm operations, conversion, and
-  generated kernels. No stage is complete while a supported row is slower or
-  less correct without a documented, accepted boundary condition.
-
-### Conventions and object model
-
-- [ ] Freeze one notation table for coordinates, bases, components, metrics,
-  orientations, and densities. Coordinate components use Einstein indices:
-  `A(i)` is contravariant, `A_(i)` is covariant, and a repeated upper/lower
-  index is a contraction. The printed forms remain easy to read in Fortran
-  and Python even when the internal representation stores explicit index
-  metadata.
-- [ ] Represent every tensor field with its dimension, valence `(p, q)`, index
-  types, slot variance, symmetry declarations, and density weight. A density
-  is never represented as an unmarked tensor with a suggestive name.
-- [x] Implement the first chart-bound metadata subset: `tensor_t` records the
-  three-dimensional chart arena, rank through four, every slot's upper/lower
-  variance, and an explicit density weight.
-- [ ] Make coordinate charts, maps, manifolds, patches, tangent/cotangent
-  spaces, and orientation explicit owners. A chart is the map and its
-  coordinate variables. A metric is a separate object that can be induced by
-  a Euclidean embedding or supplied directly, including pseudo-Riemannian
-  signatures for relativity.
-- [ ] Keep the canonical Fortran vocabulary short and shared by internals and
-  the facade: `chart_t`, `metric_t`, `tensor_t`, `form_t`, `basis`, `metric`,
-  `jacobian`, `sqrtg`, `raise`, `lower`, `contract`, `covariant_diff`, `div`,
-  `curl`, `grad`, `wedge`, `d`, `star`, and `pullback`. The Python adapter
-  exposes the selected SymPy names such as `CoordSystem`, `TensorIndexType`,
-  `TensorIndex`, `TensorHead`, `TensorProduct`, `WedgeProduct`, and
-  `Differential`, with one conversion path to the native objects.
-- [x] Add the first concise default-state geometry constructors without a
-  second owner: `coords(x, y, z)`, `make_chart(u, position)`, and
-  `make_metric(c)` reuse the existing chart and metric modules. The `make_`
-  prefix avoids colliding with natural local variables named `chart` or
-  `metric`; explicit-arena overloads remain available.
-- [ ] Define the supported tensor-density convention, including the sign and
-  absolute-value behavior of Jacobians, and test composition of two coordinate
-  changes. `sqrtg` carries orientation separately from the positive metric
-  volume factor. No operation may silently replace a signed Jacobian with
-  `sqrt(det(g))`.
-- [x] Keep geometry as independent modules with declared downward
-  dependencies: `fortsym_geom` owns charts and bases, `fortsym_metric` owns
-  metrics and volume forms, `fortsym_tensor` owns indexed algebra,
-  `fortsym_form` owns exterior algebra, `fortsym_connection` owns covariant
-  derivatives and curvature, and `fortsym_magnetic` owns flux-coordinate
-  constructions. The facade only registers and forwards operations.
-- [x] Add `fortsym_connection` as the independent owner of the first
-  covariant-derivative and curvature subset; keep the facade as a forwarding
-  layer and avoid coupling the connection module to magnetic physics.
-- [x] Add the first independent `fortsym_form` owner for fixed three-dimensional
-  coordinate forms. It stores antisymmetric components once and provides the
-  native exterior-algebra operations without coupling the expression arena to
-  a physics package.
-- [ ] Translate every supported geometry derivation into native `fortsym`
-  construction. The Wolfram and Python scripts are coverage inputs and
-  differential tests. They are never the implementation behind a native
-  result, and the native path never shells out to either frontend.
-- [ ] Add a natural Fortran authoring layer for geometry: character assignment
-  for coordinates and tensor labels, generic constructors for scalar/vector/
-  covector/tensor fields, array constructors that preserve index metadata,
-  overloaded `(*)` for metric contraction where the slots are unambiguous,
-  explicit `contract` for readable Einstein sums, and derived-type methods
-  for `raise`, `lower`, `diff`, `div`, `curl`, and `star`. The simple path must
-  read like the mathematics while `explicit_arena` and explicit index objects
-  remain available for concurrency and library code.
-- [ ] Provide compact named constructors for the recurring objects:
-  `coords`, `chart`, `metric`, `basis`, `vector`, `covector`, `tensor`,
-  `density`, and `form`. Optional keyword arguments select variance, density
-  weight, symmetry, orientation, and assumptions without introducing a
-  second family of near-synonyms.
-- [ ] Make index-safe operations pleasant in both modes. In the default
-  facade, `g = metric(chart)`, `b = vector(chart, "B")`, `b_lower = lower(b,
-  g)`, and `sqrtg = volume(chart, g)` must be sufficient for common work. In
-  explicit mode, every object carries its arena and chart and cross-arena or
-  cross-chart operations fail at the boundary with a useful message (native
-  Fortran returns an invalid owner-safe result; Python raises `ValueError`).
-- [ ] Document and test the intended short form. It should look like this,
-  with the same names available through the lower-level modules:
-
-  ```fortran
-  Z = "Z"
-  R = "R"
-  phi = "phi"
-  u = coords(Z, R, phi)
-  c = chart(u, position)
-  g = metric(c)
-  A = covector(c, "A")
-  B = curl(c, A)
-  Bup = raise(B, g)
-  Bden = density(Bup, sqrtg(c))
-  ```
-
-  The convenience constructors may allocate expression handles, but native
-  tensor contractions and generated kernels must not create compiler array
-  temporaries.
-- [ ] Add a small Einstein-notation frontend for Fortran source, limited to a
-  documented grammar that lowers to the same native tensor IR. It may use
-  short declarations such as `B%up(1)` and `B%down(1)` or named index maps,
-  but it must remain ordinary Fortran preprocessing or library calls, with no
-  custom compiler or hidden global state.
-- [x] Define a small central toolkit registry for optional geometry modules.
-  `fortsym_registry` provides explicit `toolkit_registry_t` initialization,
-  metadata registration, duplicate refusal, and optional procedure-pointer
-  probes without linker discovery or a dependency from the core expression
-  arena to a physics package. `register_builtin_geometry` registers the ten
-  shipped owners with capability and refusal records. The independent
-  `test_fortsym_registry` test covers the metadata contract, duplicate and
-  malformed-input refusal, probe dispatch, and built-in registration.
-
-### Reciprocal bases, metric, and densities
-
-For a coordinate map `x^a = x^a(u^i)`, the toolkit must derive and verify the
-following chain without asking users to manually transpose an array:
-
-```text
-e_i       = partial_i x                  tangent/covariant basis
-e^i       = grad(u^i)                    reciprocal/contravariant basis
-e^i dot e_j = delta^i_j
-g_ij      = e_i dot e_j
-g^ij      = inverse(g_ij)
-J         = det(partial_i x^a)           signed orientation Jacobian
-sqrtg     = sqrt(det(g_ij))              positive metric volume factor
-```
-
-- [ ] Generalize the existing `fortsym_chart` implementation beyond a fixed
-  three-dimensional Euclidean embedding while preserving its simple chart
-  constructor and explicit-arena form.
-- [x] Expose the current fixed-three-dimensional chart owner through the C ABI
-  and Python `Chart` facade for signed `jacobian`, covariant basis, and
-  reciprocal basis. Basis transport preserves component-first ordering and
-  is checked against an independent SymPy matrix oracle.
-- [x] Expose metric-owned `raise` and `lower` for chart-bound tensor slots
-  through the C ABI and Python `Tensor`, preserving density weight and
-  checking the round trip against an independent metric matrix.
-- [x] Expose native density metadata changes and concise `Chart.vector` and
-  `Chart.covector` constructors. A density conversion preserves components,
-  variance, and chart ownership while changing only its explicit weight.
-- [x] Add the generic component-density constructor `density(T, factor)` and
-  `Tensor.density(factor)`. It multiplies one shared tensor representation by
-  an arena-owned scalar factor and increments the density weight, so
-  `sqrtg B^i` no longer depends on a magnetic-only helper.
-- [x] Add an oriented metric `volume_form` and `Chart.volume(orientation)`
-  owner. The sign is explicit and independent from positive `sqrtg`, with
-  native and SymPy-backed checks for both orientations.
-- [x] Expose the chart-owned `grad`, `divergence`, `curl`, and `laplacian`
-  operators through the C ABI and Python `Chart`, keeping curl's covector
-  input and contravariant output convention explicit.
-- [x] Expose the metric-free weight-`+1` density operators `curl_density` and
-  `div_density` through the same native, C, and Python owners. Their tests use
-  independently constructed symbolic alternating and componentwise
-  derivatives; ordinary `curl` and `divergence` retain their vector semantics.
-- [x] Add `volume_form(metric_t, orientation)` alongside the chart overload.
-  The metric owner supplies positive `sqrtg`, while its stored orientation or
-  an explicit override supplies the sign; native checks compare both paths.
-- [x] Add the fixed-three-dimensional metric volume owner: `volume_density`
-  returns positive `sqrt(abs(det(g)))`, while `levi_civita_symbol` and
-  `metric_levi_civita(metric, variance)` keep raw symbol, oriented covariant
-  tensor, and oriented contravariant tensor conventions explicit. Native, C,
-  Python, and SymPy differential checks cover Euclidean and Lorentzian
-  signatures; general-dimensional and separate density-tensor constructors
-  remain open.
-- [x] Package magnetic `B^i`, `B_i`, and `sqrtg B^i` in one typed
-  `magnetic_field_t` view. The established component operators remain the
-  single derivation owner; the wrapper only adds variance and density metadata.
-- [x] Add the independent `fortsym_chart_map` owner for bidirectional
-  coordinate transitions. It transforms scalar, vector, covector, mixed
-  tensor, density, and differential-form components into target coordinates
-  through explicit forward and inverse maps, with native and SymPy oracles.
-- [ ] Add reciprocal bases, inverse coordinate maps when available, signed
-  Jacobians, `sqrtg`, volume forms, surface measures, and metric signature
-  checks. Singular maps and incompatible dimensions become named refusals.
-- [ ] Add exact identities for `g^ik g_kj = delta^i_j`, `det(g) = J**2` in a
-  positive Euclidean chart, `e^i dot e_j = delta^i_j`, and the chain rule for
-  two composed charts. Include nonorthogonal toroidal, cylindrical, and
-  spherical charts so a diagonal metric cannot hide an index error.
-- [x] Add the fixed-three-dimensional `chart_map_t` transition subset for
-  scalar, vector, covector, mixed tensor, and tensor-density components.
-  Forward and inverse coordinate maps are explicit, and results are returned
-  in target coordinates.
-- [ ] Generalize coordinate transformations across supported dimensions and
-      chart-map validation. The fixed-three-dimensional composition subset and
-      identically-singular-Jacobian refusal are complete; generalize dimensions
-      and verify round trips against independently constructed Jacobian matrices.
-- [x] Add native composition of two fixed-three-dimensional chart maps and
-  prove tensor and form transport composition through the Fortran facade and
-  Python/SymPy boundary.
-- [x] Make chart-map transport honor the tensor/form owner key: source
-  compatibility is checked before substitution and every target result is
-  bound to the target chart. Independent Fortran and Python/SymPy refusal tests
-  cover distinct position maps in one expression arena.
-- [x] Add metric-owner overloads of `raise`, `lower`,
-  `metric_covariant_tensor`, and `metric_contravariant_tensor`. They preserve
-  the underlying geometric object, update slot variance, and reject a
-  cross-arena or invalid metric; symbolic determinant proofs remain open.
-- [x] Implement the first nonorthogonal-chart `raise`/`lower` subset. It uses
-  the chart metric and inverse metric, preserves density weight and untouched
-  slots, and refuses cross-arena or wrong-variance inputs.
-
-### Tensor algebra and covariant calculus
-
-- [ ] Implement indexed tensor construction, tensor products, Einstein
-  contraction, permutation, symmetrization, antisymmetrization, trace,
-  component extraction, and canonical dummy-index renaming. All contractions
-  are checked for variance and index-space compatibility before expression
-  construction.
-- [x] Implement the first fixed-rank subset: component construction and
-  extraction, tensor products, opposite-variance contraction, and trace, with
-  independent nonorthogonal-chart checks. Components use a documented
-  first-slot-fastest ordering.
-- [x] Add fixed-rank slot permutation plus two-slot symmetrization and
-  antisymmetrization through the native owner, C ABI, Python facade, and
-  independent Fortran/SymPy checks. Named index spaces, arbitrary-rank
-  symmetry declarations, and dummy-index canonicalization remain open.
-- [x] Add native pairwise symmetry metadata to `tensor_t`, including
-  component-checked `declare_symmetry`, explicit metric/form declarations,
-  propagation through surviving slots, and clearing when `raise`/`lower`
-  changes a slot's variance. C ABI 60 and both Python facades now expose
-  checked pair declarations and SymPy-named descriptors. Canonical symmetry
-  canonicalization remains open.
-- [x] Add the first value-semantic named-index slice: native `index_type_t` /
-  `index_t` spaces, variance and dummy metadata, compatible-label checks, and
-  an overloaded native `contract`. Expose the same checked operation through
-  C ABI 41, `fortsym.IndexType`/`Index`, and the SymPy spelling aliases
-  `TensorIndexType`/`TensorIndex`. Native slots are one-based; Python slots
-  are zero-based. Arbitrary dimensions, index declarations independent of a
-  fixed chart, canonical dummy renaming, and `TensorHead` remain open.
-- [x] Route tensor products through the native owner at C ABI 42 and the
-  Python/SymPy facade. `Tensor.product`/`tensor_product` now preserves slot
-  order and summed density weight, and `diffgeom.TensorProduct` no longer
-  reconstructs components in Python.
-- [x] Add native-backed closedness verdicts at C ABI 43 and both Python
-  facades. Form closedness is defined as a zero `d(form)` coefficient vector,
-  with `None` preserved for undecidable symbolic coefficients.
-- [x] Align tensor facade spellings: native/Python `product`, `tensor_product`,
-  `contract`, and `trace` share one owner, while `fortsym.sympy` adds
-  `tensorproduct` and `tensorcontraction` adapters without duplicating tensor
-  arithmetic.
-- [x] Implement covariant differentiation for every supported fixed-3D input
-  valence (ranks 0--4), including the correct Christoffel term for every
-  upper/lower slot and every density weight. Rank four differentiates to the
-  rank-five ceiling; rank-five input is refused because its result would need
-  an unsupported rank six. The existing `christoffel` operation remains a
-  connection-owner view.
-- [x] Add the runtime-dimension spacetime covariant derivative for input rank
-  at most three. `spacetime_tensor_covariant_diff` appends a lower derivative
-  slot, applies every upper/lower Christoffel term, and includes the explicit
-  density-weight trace term. C ABI 63 and both Python facades expose the same
-  owner; scalar, curved-vector, and weight-one-density checks are independent.
-- [x] Add runtime-dimension coordinate Lie transport for every supported tensor
-  rank. `spacetime_tensor_lie_derivative` preserves variance and density weight,
-  requires an ordinary weight-zero vector, and supplies the metric Killing
-  residual through the same owner. C ABI 64, the Fortran `lie` generic, and
-  both Python facades share the kernel; curved-metric, scalar, and density
-  identities are checked independently.
-- [x] Add the direct runtime-dimension first-slot covariant divergence owner.
-  `spacetime_tensor_covariant_divergence` contracts the first upper slot with
-  the derivative slot without materializing the full derivative tensor,
-  preserves remaining variance and density weight, and exposes C ABI 65 plus
-  Python `.covariant_divergence()`/`.divergence()` views. Vector, density,
-  contravariant-metric, and independent SymPy checks cover the cancellation
-  and metric-compatibility identities.
-- [x] Extend the runtime spacetime tensor ceiling from rank four to rank five.
-  A rank-four curvature-like object can now be covariantly differentiated into
-  the natural rank-five second-Bianchi representation through Fortran, C, and
-  Python. The covariant-difference and Lie-transport owners fill their result
-  tensors directly, removing a redundant full component-buffer copy; flat
-  rank-five component checks and the independent Python/SymPy boundary test
-  cover the new limit.
-- [x] Implement the fixed-three-dimensional typed tensor derivative for every
-  supported input rank (0--4): `covariant_diff`/`covariant_derivative` appends
-  a lower derivative slot, applies every slot's Christoffel term, and honors
-  density weight. Nonlinear nonorthogonal and Cartesian rank-four checks are
-  independent gates; arbitrary dimensions and rank-six output remain open.
-- [x] Add the first Killing-vector test owner: `killing(X)` returns the metric
-  Lie derivative with explicit lower-slot symmetry for both chart and
-  coordinate-aware metric paths. The independent `partial_z` translation and
-  `K_yy[partial_x] = 2*x` checks cover an isometry and a deliberate failure.
-- [x] Implement the first fixed-three-dimensional torsion/nonmetricity owner
-  for supplied affine connections, including independent covariant derivative
-  and divergence checks.
-- [x] Expose `riemann_tensor(connection)` for supplied affine coefficients,
-  with no inferred metric, through the Fortran generic, C ABI 58, and
-  `Connection.riemann()`. The independent component corpus includes a
-  nonzero curvature generated by a torsionful supplied connection.
-- [x] Expose the same geodesic residual for a supplied affine `connection_t`,
-  with no inferred metric, through the Fortran generic, C ABI, and Python
-  facade, with an independent SymPy component check.
-- [x] Add explicit `CONNECTION_STANDARD` and `CONNECTION_OPPOSITE` Riemann
-  sign conventions to supplied connections. The C ABI 58 and Python facade
-  transport the choice, while torsion, covariant differentiation, and
-  geodesic equations continue to use the supplied coefficients unchanged.
-- [ ] Add geodesic solving without coupling connections to magnetic physics.
-- [x] Add a broader pseudo-Riemannian sign corpus without coupling connections
-  to magnetic physics. The native and Python records cover flat 4D Minkowski,
-  the curved Lorentzian 2D patch, signed Riemann/Ricci components, and
-  flat/comoving geodesic residuals.
-- [x] Implement the first fixed-three-dimensional curvature views:
-  Christoffel, Riemann, Ricci, scalar curvature, and Einstein tensors, with a
-  named Riemann convention and independent flat-chart identities. Full
-  pseudo-Riemannian and relativity parity remains open.
-- [x] Implement the fixed-three-dimensional second differential Bianchi
-  residual as a typed rank-five tensor, with C ABI 46 and Python/SymPy access.
-  Flat, nonorthogonal, and genuinely curved metric cases are checked against
-  SymEngine's independent zero oracle; arbitrary dimensions and non-Levi-Civita
-  connections remain open.
-- [x] Add fixed-three-dimensional chart and coordinate-aware metric geodesic
-  residuals through the native owner, C ABI 47, and the Python chart facade.
-  Cylindrical coordinates check the nonzero radial Christoffel term against
-  an independent SymEngine oracle; solving, variational mechanics, and
-  arbitrary-dimensional transport remain open.
-- [x] Add the first coordinate-aware metric vector-calculus owner: contravariant
-  `metric_grad`, metric `metric_divergence`, and metric `metric_laplacian`,
-  transported through the generic Fortran facade, C ABI 48, and Python/SymPy
-  `Metric`. Independent native and SymPy checks cover Euclidean and
-  pseudo-Riemannian signatures; arbitrary dimensions, curl/forms derivation,
-  and full connection reuse remain open.
-- [x] Extend the dimension-aware relativity owner with metric `flat`/`sharp`,
-  contravariant gradient, divergence, and Laplace--Beltrami/wave operator,
-  transported through the Fortran facade, C ABI 51, and Python
-  `SpacetimeMetric`. Minkowski tests cover `sharp(flat(v))`, variance metadata,
-  the signed gradient, divergence, and the linear-scalar wave identity;
-  curved-space and arbitrary-dimensional tensor transport remain open.
-- [ ] Derive vector calculus from tensor/forms primitives. `grad`, `div`,
-  `curl`, and `laplacian` must share the same metric, orientation, and density
-  conventions rather than maintaining separate coordinate formulas.
-- [ ] Add invariant checks for tensor type, density weight, free-index shape,
-  symmetry, and dimensional consistency. Refusal messages must identify the
-  offending index or convention.
-
-### Differential forms and the de Rham layer
-
-- [ ] Implement degree-`k` forms with antisymmetric slots, scalar and function
-  coefficients, `wedge`, exterior derivative `d`, pullback, interior product,
-  Lie derivative, and exact/closed checks.
-- [x] Implement the first fixed-three-dimensional subset: `form_t`, scalar,
-  one-, two-, and three-form constructors, `wedge`, `d`, metric `star`,
-  interior product, Cartan `lie`, and metric `flat`/`sharp`.
-- [x] Add the fixed-three-dimensional metric codifferential
-  `codifferential`/`codiff` and Laplace--de Rham owners for both charts and
-  explicit coordinate-aware metrics. The native C/Python facades keep these
-  formulas in the form owner; independent Cartesian and SymPy checks cover
-  `delta(x_i du^i) = -3` and the mathematician-sign scalar result
-  `Delta_(dR)(x^2+y^2+z^2) = -6`.
-- [x] Add the exact fixed-three-dimensional form/tensor conversion path through
-  one bridge owner. `Tensor.to_form()`/`Form.to_tensor()` and the matching
-  Fortran facade names share the native antisymmetry and density contract.
-- [x] Add the first dimension-aware four-dimensional spacetime form owner:
-  degree-zero through degree-four constructors, antisymmetric `wedge`,
-  coordinate-aware `d`, Lorentzian/Riemannian metric `star`, and the native
-  `codifferential` path. The owner proves `d(d(A)) = 0`, graded antisymmetry,
-  and the signature-dependent Hodge involution on the Minkowski baseline.
-  The same owner now honors runtime metric dimensions 1--4 while retaining
-  the fixed four-coordinate ABI. Pullback, arbitrary dimensions beyond four,
-  and topology remain open.
-- [x] Transport the native spacetime codifferential, contraction, Cartan Lie
-  derivative, and Laplace--de Rham composition through the current ABI and
-  Python facades. Their Minkowski identities are checked against direct signed
-  divergence and wave-operator formulas. A separate 2D native/Fortran/SymPy
-  check covers `d`, `d(d(A))`, Hodge involution, and the scalar
-  Laplace--de Rham operator; arbitrary dimensions beyond four and source
-  equations remain open.
-- [x] Add the runtime-dimension oriented spacetime volume owner
-  `spacetime_volume_form(metric, orientation)` and the Python spelling
-  `SpacetimeMetric.volume(orientation)`. It returns
-  `sigma*sqrt(abs(det(g))) du^1^...^du^n` for dimensions 1--4, keeps the sign
-  separate from positive `sqrtg`, and is checked in native, C, Python, and
-  SymPy form/contraction tests.
-- [ ] Generalize codifferential, Laplace-de Rham, and the conversion between
-  vectors and one-forms using `flat` and `sharp` beyond the implemented
-  fixed-three-dimensional and dimension-aware spacetime owners. Higher-degree
-  arbitrary-dimensional forms remain open.
-- [ ] Prove and test the structural identities `d(d(alpha)) = 0`, the graded
-  Leibniz rule, pullback composition, Cartan's identity, and the appropriate
-  signed `star(star(alpha))` rule in each supported signature.
-- [x] Prove the first coordinate-form identities independently on a
-  nonorthogonal chart: `d(d(alpha)) = 0`, graded Leibniz, Cartan's identity,
-  Euclidean-signature Hodge involution, and `sharp(flat(v)) = v`.
-- [x] Add fixed-three-dimensional chart-map form transport for degrees zero
-  through three, including signed top-form Jacobians and independent native
-  and SymPy coframe checks; preserve the degree-four zero extension returned
-  by `d` of a three-form across the C/Python boundary.
-- [ ] Add a Maxwell and plasma vocabulary built from forms: vector potential
-  one-form `A`, magnetic flux two-form `beta = i_B(volume)`, `d(beta) = 0`,
-  `beta = d(A)` on a declared simply connected patch, electric field form,
-  Faraday law, and gauge transformations. Vector-calculus spellings remain
-  derived convenience views.
-- [x] Add the first four-dimensional Maxwell-form owner: `F = d(A)`, the gauge
-  view `A -> A + d(chi)`, and the source residual `d(star(F)) - J` for a
-  degree-three current form. Native, C, Python, and SymPy differential checks
-  prove gauge invariance and a constructed zero residual; patch topology,
-  boundary conditions, constitutive media, and global exactness remain open.
-- [x] Add the first magnetic-form identity: `beta = i_B(volume) = d(A)` and
-  `d(beta) = 0` for the native chart/magnetic owners. Keep the full Maxwell,
-  gauge, and topology vocabulary open until the form domain carries patch
-  and boundary metadata.
-- [x] Expose that identity directly on `magnetic_chart_t`: the stored
-  potential yields `magnetic_chart_potential_form` and the native
-  `magnetic_chart_flux_form`, while the Python/SymPy facades provide
-  `.potential_form()` and `.flux_form()` without duplicating form algebra.
-- [x] Add the native typed B_ij/2-form-to-beta density bridge with explicit
-  orientation. `b_con_form` applies the chart Hodge map and metric raise;
-  `b_density_form` then adds the weight-`+1` `sqrtg` factor.
-- [x] Carry the magnetic form bridge through the public C ABI and both Python
-  facades with the same `b_con_form`/`b_density_form` names; `Form.b_con()` and
-  `Form.b_density()` are convenience methods over those native operations.
-- [x] Add the forward magnetic form bridge with the matching short name
-  `b_flux_form(c, B, orientation)` and typed `Tensor.b_flux()`. It delegates
-  to the generic `volume_form` and `interior` owners, uses the standard eight
-  form masks, and is checked against an independent contraction in native, C,
-  Python, and SymPy tests.
-- [x] Add native-backed `Form.is_closed` and `SpacetimeForm.is_closed` with
-  the shared three-valued zero-verdict contract. Closedness is computed from
-  the native exterior derivative and remains `None` when any coefficient is
-  undecidable; exactness, patch topology, and global boundary metadata remain
-  open.
-- [ ] Add Python compatibility for the selected `sympy.diffgeom` and
-  `sympy.tensor` operations, while keeping the native form algebra independent
-  of SymPy at runtime. Add Wolfram translations for the corresponding
-  `ExteriorDerivative`, wedge, tensor-product, and contraction records where
-  the corpus uses them.
-- [x] Expose the first fixed-three-dimensional native form subset through the
-  C ABI and both Python facades: form construction, `d`, wedge, `star`,
-  interior, Lie, `flat`, and `sharp`. Python transports native handles and
-  leaves broader `diffgeom`/form parity open.
-- [x] Add the first native-backed SymPy `diffgeom` naming bridge:
-  `Manifold`, `Patch`, `CoordSystem`, coordinate fields, `Differential`,
-  `WedgeProduct`, `TensorProduct`, and `LieDerivative`. Compare contractions
-  and Lie derivatives against SymPy's independent diffgeom oracle; keep
-  coordinate transformations, arbitrary dimensions, and full tensor parity
-  open.
-- [x] Expose the first fixed-three-dimensional tensor/connection subset through
-  the C ABI and both Python facades: chart metrics, Christoffel/Riemann/Ricci/
-  Einstein views, scalar curvature, typed variance/density metadata, and
-  covariant differentiation. Python transports native handles and does not
-  duplicate geometry formulas; broader `diffgeom`/tensor parity remains open.
-- [x] Extend the spacetime tensor facade with metric covariant differentiation
-  through C ABI 63 and `SpacetimeTensor.covariant_diff()`/
-  `covariant_derivative()`. The derivative slot is lower, density weight is
-  preserved, and the runtime boundary is rank three input to rank four output.
-- [x] Add explicit metric-owner Hodge transport for supplied Riemannian or
-  Lorentzian component metrics, including inverse metric and positive
-  `sqrt(abs(det(g)))`. Keep the chart-induced convenience path and the explicit
-  metric path on one native Hodge implementation.
-- [x] Add the first four-dimensional Maxwell-form transport slice: a native
-  `SpacetimeMetric.one_form()` potential can produce `F = d(A)`, and the
-  Python facade checks `d(F) = 0`, `A wedge A = 0`, and the Lorentzian
-  `star(star(F)) = -F` identity against direct component expectations. Full
-  current/source equations, gauge metadata, and patch topology remain open.
-
-### Magnetic and flux-coordinate toolkit
-
-The plasma convention distinguishes the tangent basis `e_i` from the
-reciprocal basis `e^i`. A vector has both component forms:
-
-```text
-B = B^i e_i = B_i e^i
-B_i = g_ij B^j
-B^i = g^ij B_j
-div(B) = (1/sqrtg) partial_i(sqrtg B^i)
-```
-
-`B_i` is a covector component. `B^i` is a contravariant vector component.
-`sqrtg B^i` is a contravariant vector density of weight `+1` in the selected
-convention. These are separate typed objects even when a plasma code stores
-only the density because the density is the quantity that differentiates
-without an explicit volume factor.
-
-- [x] Add `magnetic_chart_t` and flux-surface metadata without coupling the
-  generic chart or tensor modules to a particular equilibrium code. The owner
-  packages the existing `magnetic_field_t` views and delegates averages to the
-  typed `flux_surface_t` owner; the C ABI remains unchanged because its chart
-  operations already consume the same underlying views.
-- [x] Implement the first native magnetic views: `B_cov`, `B_con`,
-  `B_density`, reciprocal bases, `sqrtg`, and the Fourier-mode curl and density
-  used by `paper_magnetic`. The spelling is concise in Fortran and maps to
-  clear SymPy names in Python.
-- [x] Add `H_cov` and `H_con` conversions with the explicit constitutive
-  convention `H_i = nu_ij B^j` and metric raising `H^i = g^ij H_j`.
-- [x] Add the generic field-line derivative `B^i partial_i f` through the
-  chart owner, C ABI 52, Python facade, and flux-surface identity test.
-- [x] Add coordinate-surface measures as the foundation for flux-surface
-  integrals and FEM boundary terms; positive measures remain distinct from
-  magnetic vector densities and oriented volume forms.
-- [x] Add the first typed coordinate-surface owner: `flux_surface_t` records
-  the label and ordered angular coordinates, exposes the positive induced
-  measure, and computes verified periodic averages in the native Fortran
-  owner, C ABI 59, and both Python facades. Unsupported symbolic integrals
-  return an explicit refusal; no numerical fallback is hidden in the API.
-- [ ] Extend that owner to magnetic-equilibrium surfaces, configurable
-  periodic domains, line/surface integral measures, and Jacobian-weighted
-  divergence.
-- [x] Provide metric contraction for `B**2` through the shared `metric_inner`
-  owner.
-- [x] Add the first reusable coordinate descriptor for generic,
-  straight-field-line, and Boozer residual identities. It retains one chart
-  owner, exposes the label and ordered angles, and delegates zero decisions to
-  the native engine. The C ABI and Python/SymPy facades do not duplicate these
-  formulas.
-- [x] Add the Hamada residual descriptor as the contravariant counterpart to
-  Boozer: `B^label` plus the four angular derivatives, exposed by the native
-  owner, C ABI 62, and both Python facades with independent Fortran, C, and
-  SymPy-oracle checks.
-- [x] Add the native Clebsch residual owner
-  `B - grad(alpha) cross grad(beta)` using the signed chart Jacobian, with
-  C ABI 71, Python/SymPy transport, and independent component checks. It
-  checks the local identity only; equilibrium construction remains separate.
-- [ ] Complete the remaining Hamada/equilibrium-surface
-  construction, symbolic consistency/refusal checks, and current/Jacobian
-  identities. Do not encode a particular equilibrium solver in this toolkit.
-- [ ] Add the common plasma identities `B dot grad(psi) = 0`, the reciprocal
-  basis relations, `B = B^i e_i = B_i e^i`, `div(B) = 0`, and the magnetic
-  differential equation in both component and form notation.
-- [ ] Make flux-surface and line integrals carry their measure and orientation
-  explicitly. A result such as `sqrtg B^theta = f(psi)` must retain whether it
-  is a density identity, a scalar identity, or an equality after averaging.
-- [ ] Add transformations between physical vector components, coordinate
-  components, covariant components, contravariant components, and density
-  components to the Python and Wolfram frontends. Round-trip tests must use
-  nonorthogonal, left-handed, and periodic coordinates.
-
-### Albert, Bíró, and Lainer 2D Fourier symbolic reduction
-
-The `paper_magnetic` corpus is the first end-to-end geometry derivation. For
-coordinates `(x^1, x^2, x^3) = (Z, R, phi)` with an axisymmetric block metric,
-
-```text
-g_ij = [[g11, g12, 0],
-        [g12, g22, 0],
-        [0,   0,   g33]]
-sqrtg = sqrt(det(g_ij))
-A_i(x^1, x^2, x^3) = A_i,n(x^1, x^2) exp(i n x^3)
-```
-
-the magnetic field of the covariant vector potential has the component
-derivation
-
-```text
-B^1_n = -i n A_2,n / sqrtg
-B^2_n =  i n A_1,n / sqrtg
-B^3_n = (partial_1 A_2,n - partial_2 A_1,n) / sqrtg
-B_1,n = g11 B^1_n + g12 B^2_n
-B_2,n = g12 B^1_n + g22 B^2_n
-B_3,n = g33 B^3_n
-```
-
-Thus `sqrtg B^i_n` is the natural contravariant density in the reduced
-problem. The corpus also derives the antisymmetric density
-`E = [[0, 1/J], [-1/J, 0]]`, the constitutive transform
-`nubar = -E nut E`, the cylindrical/cartesian tensor transforms, the
-zero-mode and nonzero-mode curl-curl equations, and the de Rham relations
-between the two-dimensional gradient, scalar curl, and divergence.
-
-- [ ] Import every `paper_magnetic*.wl`, `levicivita.wl`, cylindrical,
-  spherical, and determinant derivation into the named geometry corpus and
-  record its translated Python counterpart, source assumptions, outputs, and
-  unsupported statements.
-- [ ] Make the Wolfram reader and Python frontend execute those scripts through
-  one normalized assignment/derivation representation. Compare native
-  Fortran, `fortsym.sympy`, SymPy, and independent residual identities for
-  every supported result.
-- [ ] Add a native translator for the supported Wolfram/Python derivation
-  subset. It must emit ordinary `fortsym` calls and operators, preserve
-  assumptions, index variance, density weight, forms, and refusal conditions,
-  and produce a manifest that points from each source assignment to its
-  owning native module. Translation is complete only when the native result
-  passes semantic comparison and an independent identity check.
-- [x] Implement the reusable first subset of the metric block, `sqrtg`,
-  reciprocal basis, `B_i`, `B^i`, vector-density components, and the Fourier
-  mode derivative as native toolkit operations rather than script-specific
-  code.
-- [x] Add the generic fixed-3D Fourier curl-curl/current owner
-  `j_fourier(chart, reluctivity, potential, mode)` with the paper's
-  `d/du3 = i*n` reduction, C ABI, Python facade, and independent SymPy and
-  native identities. The paper's block reduction is now a specialization of
-  this operator.
-- [x] Add the reusable fixed-three-dimensional Levi-Civita symbol/tensor and
-  positive volume-density owner. The constitutive transformation
-  `nubar_t = -E_t nu_t E_t` and the zero/nonzero mode branch reduction are
-  implemented natively; the reduced two-dimensional Levi-Civita density and
-  its numerical FEM assembly ownership belongs to FortFEM.
-- [x] Generate the paper's scalar longitudinal and transverse weak-form
-  coefficient blocks from the native constitutive owner. The descriptor
-  preserves scalar nodal versus two-dimensional edge spaces, normal versus
-  tangential boundary traces, and the mode-dependent transverse mass block.
-  Typed source/load records now define the branch and trace contract; FortFEM
-  owns source assembly and numerical generated-source evaluation.
-- [x] Add independent native and SymPy checks for the paper's `n = 0`
-  reduction to the full three-dimensional curl-curl form and its `n != 0`
-  transverse reduction, including the block constitutive coefficients and
-  Fourier current compatibility. The de Rham diagram, tensor transformation
-  round trips, and boundary/singularity behavior at the cylindrical axis
-  remain open.
-- [ ] Add standalone Fortran and Python examples that derive the formulas in
-  the same order as the paper, then emit compact Fortran kernels for selected
-  Fourier modes. The existing `paper_magnetic_native` program and Python
-  oracle test cover the first component/reduction slice; generated kernels
-  must preserve density components and avoid array temporaries.
-- [x] Register every existing native geometry and paper example as a CTest
-  execution test. The complete executable set now covers the workflow,
-  cylindrical/spherical and magnetic/Boozer coordinates, Fourier weak forms,
-  Killing vectors, spacetime forms/tensors, relativity, and the native paper
-  reduction; each executable retains its own independent residual checks.
-  The toroidal example uses its compact analytic metric owner for the
-  constitutive raise, avoiding raw Cartesian chain-rule expression swell.
-- [x] Add a native `paper_magnetic` example that is readable without the
-  source scripts: declare `Z`, `R`, `phi`, `n`, `A`, and `g`, construct
-  `sqrtg`, `B%up`, `B%down`, and the Fourier curl, and assert the paper's
-  equations through native `zero_test`.
-- [x] Add the native Python `Chart` facade for the same first subset, with
-  native C-ABI transport and no duplicate geometry implementation.
-- [x] Add the Python/SymPy facade for the weak-form descriptor and compare its
-  branch metadata and constitutive coefficients with SymPy. The corresponding
-  Wolfram frontend records and all-three result-tree comparison remain open.
-
-### Relativity and geometry examples
-
-- [ ] Add a flat Cartesian-to-polar/cylindrical example that derives
-  `sqrtg`, reciprocal bases, Christoffel symbols, and the scalar Laplacian.
-- [x] Add spherical coordinates and verify the volume element, reciprocal
-  basis, Christoffel symbols, gradient, divergence, curl, and
-  Laplace--Beltrami operator against independent component formulas and
-  SymPy. The example keeps the expensive connection/vector-calculus path on
-  the compact explicit metric owner, avoiding raw Cartesian chain-rule growth;
-  the chart path remains independently checked for basis, metric, Jacobian,
-  and curl.
-- [ ] Add a nonorthogonal torus and a flux-coordinate chart with off-diagonal
-  metric terms. Verify that raising, lowering, reciprocal bases, and
-  Jacobian-weighted operators remain correct.
-- [x] Add a pseudo-Riemannian two-dimensional and four-dimensional example
-  with geodesics, curvature, Ricci, scalar curvature, and Einstein tensor.
-  Include a flat-space zero-curvature case and a curved-space case with an
-  independently known invariant. `example_pseudo_riemannian` checks the
-  standard Riemann sign on flat 4D Minkowski space and the curved Lorentzian
-  2D patch `diag(-1, exp(2 H t))`; the Python/SymPy record checks the same
-  components independently.
-  - [x] Register the native de Sitter and GPS weak-field/Newtonian-limit
-    derivations as CMake execution tests, and compare the same Einstein,
-    curvature, wave-operator, Christoffel, and radial-acceleration contracts
-    through `fortsym.sympy` and an independent SymPy formula.
-- [ ] Add electromagnetic forms, a magnetic two-form, and a gauge-equivalent
-  vector-potential example. Compare the form and tensor/vector outputs in both
-  frontends.
-- [x] Add the first dimension-aware four-dimensional pseudo-Riemannian owner:
-  explicit coordinates, signature, positive `sqrt(abs(det(g)))`, inverse
-  metric, Christoffel symbols, Riemann, Ricci, scalar curvature, and Einstein
-  tensors. Verify spherical Minkowski flatness and selected nonzero connection
-  coefficients natively. The standalone sign corpus now covers geodesics, 2D
-  parity, and a curved invariant; full frontend corpus generation remains open.
-- [x] Add the first runtime-dimension parity check with a curved two-dimensional
-  metric `g = diag(1, exp(2x))`, the known scalar curvature `R = -2`, and
-  native-zero unused tensor slots. General 2D pseudo-Riemannian and curved
-  invariant coverage remains open.
-- [x] Extend the compact curved 2D relativity example with coordinate Lie
-  transport: `L_(d/dx)g = 0`, `L_(x d/dx)g_11 = 2`, scalar transport, and
-  weight-one density transport. The same identities are checked natively and
-  against the SymPy oracle.
-- [x] Transport that four-dimensional owner through the ABI and both Python
-  facades, including inverse metric, Christoffel, Riemann, Ricci, scalar, and
-  Einstein views. The Python result trees are differentially checked against
-  independently assembled SymPy Christoffel expressions; full frontend corpus
-  generation and Wolfram translation remain open.
-- [x] Transport the first dimension-aware spacetime-form owner through the
-  current ABI and both Python facades. The native owner remains the single implementation;
-  the Python test independently checks a component of `d(A)`, `d(d(A))`, the
-  Lorentzian Hodge sign, and wedge antisymmetry.
-- [x] Add a parameterized geodesic residual owner and current-ABI/Python transport:
-  `x''^a + Gamma^a_bc x'^b x'^c`, with explicit substitution of the curve
-  into the metric connection. Spherical-coordinate residual checks now cover
-  nonzero Christoffel dependence; geodesic solving and variational mechanics
-  remain open.
-- [x] Extend the four-dimensional form owner with contraction and Cartan Lie
-  derivative. Independent tests compare `L_X(alpha)` with
-  `i_X(d(alpha)) + d(i_X(alpha))`; arbitrary-dimensional pullback and topology
-  remain open.
-- [x] Add the first native Laplace--de Rham owner through the current ABI. The flat
-  Lorentzian scalar case is checked against the signed wave-operator formula;
-  higher-degree curved-space simplification and boundary/topology metadata
-  remain open.
-- [ ] Publish short Fortran, Python, and Wolfram examples for every completed
-  derivation. Each example must show construction, simplification, a named
-  identity check, and code generation where applicable.
-
-### Verification, performance, and release gates
-
-- [ ] Add a geometry differential harness that runs the original Wolfram
-  inputs, generated Python inputs, native Fortran inputs, and SymPy oracle
-  checks from one case manifest. It must compare expressions semantically,
-  preserve unevaluated conditions, and report unsupported branches by name.
-- [ ] Add independent verification from coordinate-change composition,
-  determinant identities, index contractions, exterior-algebra identities,
-  finite differences, numerical point samples, and residuals of generated
-  kernels. SymPy agreement alone is insufficient.
-- [ ] Benchmark cold construction, warm symbolic operations, tensor
-  canonicalization, density transforms, form operations, and code generation
-  against equivalent SymPy workloads. Benchmark the paper's Fourier mode
-  derivation at several mode numbers and expression sizes. Enforce the
-  SymPy performance rule for every supported row.
-- [ ] Add resource limits for tensor rank, form degree, dummy-index search,
-  Fourier mode count, expression growth, and singular chart detection. A
-  limit produces a stable refusal with the offending budget.
-- [ ] Keep the toolkit modules usable without the Python or Wolfram frontends,
-  and keep both frontends usable without importing SymPy at native runtime.
-  Update the module graph, API inventory, naming audit, feature matrix,
-  refusal table, and generated examples together with each completed slice.
-
-### Geometry finish queue
-
-The first native slice is deliberately useful now, but it is not yet a claim
-of full differential-geometry parity. Finish the remaining work in this order;
-each item is a separately reviewable owner, test corpus, and benchmark row:
-
-- [x] **F0 — notation and ownership baseline.** Keep `chart_t`, `metric_t`,
-  `tensor_t`, `form_t`, `connection_t`, and `magnetic_chart_t` as the single
-  native owners. Preserve the short Fortran names and expose SymPy spellings
-  only in the Python adapter.
-- [x] **F1 — fixed-3D physics baseline.** Verify reciprocal bases, signed
-  `J`, positive `sqrtg`, `B^i`, `B_i`, `sqrtg B^i`, `beta=i_B(Omega)`, Boozer
-  representation, relativity curvature, and the first Fourier symbolic
-  branches against independent component identities. Numerical finite-element
-  discretisation is verified in FortFEM.
-- [ ] **F2 — dimension and index generalization.** Replace fixed-size geometry
-  arrays with dimension-owned storage, retain fast 3D/4D kernels, and add named
-  index spaces, arbitrary supported rank, symmetry declarations, canonical
-  dummy-index renaming, and explicit refusal for incompatible contractions.
-- [ ] **F3 — one tensor/form calculus.** Derive vector calculus from shared
-  metric, volume, connection, and form owners; add arbitrary-degree forms,
-  pullback composition, codifferential, Laplace--de Rham, Hodge signatures,
-  Maxwell source/gauge equations, and patch/boundary/topology conditions.
-- [ ] **F4 — coordinate systems used by physicists.** Add reusable Clebsch,
-  straight-field-line, Boozer, and Hamada descriptors with flux-function,
-  field-line, Jacobian, current, and consistency identities. Construction of
-  equilibria stays outside the generic toolkit.
-  - [x] Add the first native `flux_coordinate_t` owner with generic,
-    straight-field-line, and Boozer metadata plus native normal, field-line,
-    and Boozer residuals. Expose the same owner through the C ABI and both
-    Python facades; equilibrium construction and the remaining descriptors
-    stay open.
-  - [x] Add the native Clebsch component residual
-    `B - grad(alpha) cross grad(beta)` through C ABI 71 and both facades;
-    the signed Jacobian is explicit and no equilibrium solver is coupled in.
-- [x] **F5 — Fourier symbolic weak-form contract.** Complete the
-  Albert--Bíro--Lainer source-level variational forms, the supported
-  density/constitutive reductions, traces, current compatibility, typed
-  source/load records, and readable Fortran/Python derivation examples. This
-  stage ends at symbolic coefficients and code-generation-ready expressions;
-  FortFEM owns meshes, element families, finite-element bases, quadrature,
-  DOF maps, numerical source assembly, and solvers.
-  - [x] Add native strong residual owners for the n=0 longitudinal and
-    integer/symbolic-mode transverse equations, and expose the n=0 diffusion
-    block as `nubar_t` in all facades.
-  - [x] Add native boundary-flux owners for both integration-by-parts terms:
-    `fourier_longitudinal_flux` returns a selected component of
-    `nubar_t grad_t(A_3)`, and `fourier_transverse_flux` returns
-    `nu33 curl_t(a)`. The C ABI, Python facade, and independent SymPy checks
-    carry the same coefficients without choosing a boundary normal or surface
-    measure.
-  - [x] Add typed boundary-normal contractions for the scalar and edge traces;
-    the native/C/Python owners return `n_i q_i`, `s_k q`, and the edge-test
-    contraction while leaving surface measure and weak-form sign ownership
-    explicit.
-  - [x] Add typed mode-specific source/load records with branch, trace, and
-    component matching. The native, C, Python, and SymPy facades preserve the
-    same two-component layout and refuse incompatible branches.
-  - [x] Keep the FortSym/FortFEM handoff explicit: FortSym exports typed
-    symbolic forms, traces, and source/load records; FortFEM consumes those
-    records for finite-element discretisation and assembly.
-- [ ] **F6 — frontend and corpus parity.** Translate supported Wolfram and
-  Python records through one native IR, preserve assumptions and refusals,
-  and generate the same cases for `fortsym`, `fortsym.sympy`, and Fortran.
-- [ ] **F7 — independent verification.** Add determinant/component, numerical
-  point-sample, finite-difference, residual, and coordinate-composition checks
-  for fortsym's symbolic owners. SymPy remains the correctness and performance
-  oracle, but never the only test oracle. Finite-element convergence and
-  assembly checks belong to FortFEM; cross-repository handoff tests are added
-  only when a symbolic contract changes.
-- [ ] **F8 — performance and release closure.** Benchmark cold construction,
-  warm operations, conversion, memory, expression growth, and generated
-  kernels against matched SymPy workloads; then gate supported compilers,
-  CUDA, CMake/CTest, Python, Wolfram, and the no-array-temporary policy.
-  - [x] Keep the native simplifier's cold path from scanning denominator powers
-    or invoking polynomial candidates after a root has already collapsed to a
-    scalar. The optimization preserves the existing denominator-condition
-    checks for changed polynomial roots and is covered by the native behavioral
-    suite and `bench_native` correctness rows.
-
-## Phase 8 — functions, discrete mathematics, and domains
-
-- [ ] Complete elementary, combinatorial, distribution, gamma, Bessel, Airy,
-  elliptic, hypergeometric, Meijer-G, orthogonal-polynomial, zeta, polylog,
-  Mathieu, Lambert-W, and related special-function families.
-- [ ] Implement defining identities, recurrences, ODEs, transformations,
-  asymptotics, branch cuts, exact values, and precision-aware evaluation.
-- [ ] Complete sets, Boolean logic, satisfiability, predicates, and condition
-  sets.
-- [ ] Complete combinatorics, permutations, groups, partitions, polyhedra,
-  subsets, and enumeration.
-- [ ] Complete number theory: primes, factorization, modular arithmetic,
-  residues, continued fractions, Diophantine utilities, and number fields.
-- [ ] Complete statistics, random variables, distributions, moments,
-  expectations, and probability transformations.
-- [ ] Add units and dimensional analysis if included in the chosen profile.
-- [ ] Add physics domains: mechanics, quantum, optics, control, continuum
-  mechanics, HEP, and hydrogen modules.
-- [ ] Add Lie algebra, category-theory, holonomic, and other documented SymPy
-  topic modules selected by the profile.
-
-## Phase 9 — parsing, printing, code generation, and plotting
-
-- [ ] Complete Python, Fortran, Mathematica, Maxima, Maple, LaTeX, MathML,
-  JSON/structural, and other selected parser/printer compatibility.
-- [ ] Match exact round trips for assumptions, unevaluated objects, sets,
-  matrices, arrays, functions, and conditions.
-- [ ] Complete C, C++, Fortran, Rust, Julia, Octave, and selected AST/codegen
-  backends.
-- [ ] Complete custom function bindings, declarations, loops, arrays,
-  conditionals, multi-output routines, and runtime mapping.
-- [ ] Complete `lambdify`-style numerical backends and vectorized evaluation.
-- [ ] Complete the selected SymPy plotting API while retaining fortplot as the
-  rendering owner where it is the better implementation.
-- [ ] Keep the full Wolfram corpus and consumer corpus as differential suites,
-  not as the only supported-language definition.
-
-## Phase 10 — Python compatibility layer
-
-- [ ] Make `fortsym.sympy` match the selected SymPy names, signatures, options,
-  return classes, exceptions, assumptions, and unevaluated semantics.
-- [ ] Ensure it never imports SymPy at runtime.
-- [ ] Add compatibility tests generated from the SymPy API inventory.
-- [ ] Keep Fortran-native names available through the main `fortsym` package;
-  do not force Python naming choices into the Fortran facade.
-- [ ] Document every intentional difference and every temporary refusal.
-- [ ] Provide stable conversion between Fortran expressions, C handles, and
-  Python compatibility objects.
-
-## Phase 11 — performance, correctness, and release closure
-
-- [ ] Run the complete SymPy differential corpus for every supported module.
-  - [x] Run a bounded four-script SymPy, Mathics, and native corpus slice:
-    189 bindings produced 136 agreements, 33 declared differences, 10
-    oracle disagreements, and 12 oracle-missing cases, with no timeouts or
-    execution errors. The complete 384-script corpus remains open.
-- [ ] Run independent mathematical and numerical oracle suites for every
-  algorithmic family.
-- [ ] Add branch-cut, singularity, domain, precision, malformed-input, and
-  resource-limit fuzzing.
-- [ ] Compare cold-start, warm-cache, conversion, core-operation, memory, and
-  expression-growth metrics against SymPy.
-  - [x] Record a matched cold-operation diagnostic for native `sinh`/`cosh`
-    splitting: 66.314 ms for 10,000 native calls versus 6.580117 s for 10,000
-    SymPy 1.14.0 calls with its cache cleared before each call. The native
-    cold path is therefore about 99x faster.
-  - [x] Add `bench_complexdom` with explicit cold and warm scopes, cache
-    correctness validation, and a context-local cache regression.
-  - [x] Close the complex-domain warm-cache gap for the supported `sinh`/`cosh`
-    scope: native is 22x faster than the matched warm SymPy 1.14.0
-    `expand_complex` workload. Broader complex-domain workloads remain open.
-  - [x] Retain one native engine and its memoization caches per C-ABI arena
-    and per Fortran default-state arena; synchronize scoped assumptions before
-    each C-ABI call so warm native workloads do not discard their cache state.
-  - [x] Make the linked SymEngine conversion DAG-aware for larger expressions:
-    cache one backend handle per shared arena node during a call, while keeping
-    the lean uncached path for small expressions so conversion bookkeeping does
-    not slow ordinary scalar workloads.
-  - [x] Add the fixed-size `metric_inner` contraction path without lowering a
-    vector into a temporary array; nonorthogonal metric norms now share one
-    native owner across Fortran, C, and Python.
-  - [x] Reuse a Python facade's expanded result while its assumption epoch is
-    unchanged, and invalidate that result when assumptions change.
-  - [x] Reuse a Python facade's simplified result while its assumption epoch is
-    unchanged, and invalidate it when assumptions change. Restrict the native
-    inverse-trigonometric probe to inverse-trigonometric heads, avoiding needless
-    constant construction for ordinary function, domain, and exact-factorial
-    simplification.
-  - [x] Close the repeated `differentiate:warm_core` gap by caching one
-    simplified derivative per immutable `(expression, variable)` pair in the
-    expression owner. The cache preserves the raw low-level `Expr.diff` and
-    C-ABI contract; the SymPy adapter now matches SymPy's repeated-derivative
-    reuse and is faster in both matched cold and warm scopes.
-  - [x] Run the enforced 54-workload cold/warm parity matrix with a fresh
-    native C-ABI arena per workload; every declared workload, including
-    differentiation, rational/integer/algebraic assumptions, and the warm
-    numeric and algebraic predicate queries, is at or below the SymPy 1.14.0
-    median in the recorded run. The cold predicate calls remain documented
-    ABI-crossing diagnostics.
-  - [x] Add the universal power-constructor case to the correctness matrix and
-    record its cold ABI-crossing cost separately: the 55th row is an explicit
-    diagnostic, while the original 54 workload rows remain enforced. The
-    constructor result matches SymPy 1.14.0; the one-node cold boundary was
-    1.53x SymPy in the recorded run and is therefore explicitly waived rather
-    than presented as native-core parity.
-  - [x] Extend that construction diagnostic to the exponent-one constructor;
-    the additional row is correctness-checked against SymPy 1.14.0 and kept
-    explicitly waived for the same Python-ABI cost boundary; it measured 1.51x
-    SymPy in the recorded run.
-  - [x] Add the exact `log(0)` singularity to the correctness and performance
-    matrix. Its cold and warm one-node simplification rows are explicit ABI
-    diagnostics, measured at 5.07x and 3.43x SymPy respectively in the
-    recorded run; the 54 core rows remain enforced with zero unwaived
-    violations.
-  - [x] Make native expansion reuse arena-sized memo workspaces and skip the
-    redundant second expand/simplify pass when the first result is already in
-    expanded form. The independent numerical expansion checks remain green;
-    the matched `expand_power` cold row fell from 1.36 ms to 0.835 ms, then to
-    0.398 ms after the canonical multinomial result began bypassing the general
-    simplifier (about 1.35x SymEngine and 52% less native time in the latest
-    local diagnostic).
-  - [x] Replace per-call full memo-workspace clears with generation stamps and
-    keep unary-function and binary-power child handles on the stack. The
-    independent cancellation, exact-arithmetic, expansion, differentiation,
-    and domain suites remain green; the same local diagnostic reduced cold
-    simplify from 18.63 to 18.19 microseconds and cold expansion from 0.824 to
-    0.808 milliseconds without introducing compiler-generated array-temporary
-    warnings.
-  - [x] Keep the common binary `+`, `*`, and two-argument function simplifier
-    recursion on fixed stack handles instead of allocating a child array at
-    every node. The native correctness suite and full `fo` gate remain green;
-    the matched local diagnostic reduced cold simplify from 19.64 to 19.17
-    microseconds and cold differentiation from 29.64 to 29.28 microseconds.
-    The current expansion diagnostic fell from 1.91 to 0.87 milliseconds, with
-    all rows still independently validated.
-  - [x] Add the explicit `fortsym_registry` owner for modular geometry
-    capabilities. Its ten built-in records and procedure-pointer probe path
-    are covered by `test_fortsym_registry`; registration remains caller-owned
-    and has no hidden initialization or linker discovery.
-  - [x] Add the exact `log(i)`/`log(-i)` branch points to the correctness and
-    performance matrix. Their cold and warm rows are enforced and measured at
-    0.016x and 0.053x SymPy; the 58 substantive rows remain enforced with
-    zero unwaived violations.
-  - [x] Add the exact `atanh(1)`/`atanh(-1)` pole boundaries to the correctness and
-    performance matrix. Their cold and warm one-node simplification rows are
-    explicit ABI diagnostics, measured at 5.34x and 4.15x SymPy respectively;
-    the 58 substantive rows remain enforced with zero unwaived violations.
-  - [x] Add the exact `atanh(i)`/`atanh(-i)` branch points to the correctness
-    and performance matrix. Their cold and warm rows are enforced and measured
-    at 0.014x and 0.044x SymPy; the 60 substantive rows remain enforced with
-    zero unwaived violations.
-  - [x] Add the exact `atan(i)`/`atan(-i)` branch points to the correctness and
-    performance matrix. Their cold and warm rows are enforced and measured at
-    0.018x and 0.052x SymPy; the 62 substantive rows remain enforced with
-    zero unwaived violations.
-  - [x] Add the exact `acosh(0)`/`acosh(-1)` branch points to the correctness
-    and performance matrix. Their cold and warm rows are enforced and measured
-    at 0.017x and 0.058x SymPy; the 64 substantive rows remain enforced with
-    zero unwaived violations.
-  - [x] Add the exact `acosh(i)`/`acosh(-i)` branch points to the correctness
-    and performance matrix. Their cold and warm rows are enforced and measured
-    at 0.002x and 0.013x SymPy; the 66 substantive rows remain enforced with
-    zero unwaived violations before the `asin` rows are added.
-  - [x] Add the exact `asin(i)`/`asin(-i)` branch points to the correctness and
-    performance matrix. Their cold and warm rows are enforced and measured at
-    0.004x and 0.015x SymPy; the 68 substantive rows remain enforced with zero
-    unwaived violations before the `acos` rows are added.
-  - [x] Add the exact `acos(i)`/`acos(-i)` branch points to the correctness and
-    performance matrix. Their cold and warm rows are enforced and measured at
-    0.002x and 0.015x SymPy; the 70 substantive rows remain enforced with zero
-    unwaived violations before the real unit-circle rows are added.
-  - [x] Add exact real unit-circle `asin`/`acos` values to the correctness and
-    performance matrix. The two cold rows are enforced at 0.020x SymPy and the
-    two warm rows at 0.044x; the 74 substantive rows remain enforced
-    with zero unwaived violations before the real tangent rows are added.
-  - [x] Add exact real tangent `atan` values to the correctness and performance
-    matrix. Its cold and warm rows are enforced at 0.029x and 0.043x SymPy;
-    the 76 substantive rows remain enforced with zero unwaived violations.
-  - [x] Add exact real `asinh(±1)` values to the correctness and performance
-    matrix. Its cold and warm rows are enforced at 0.008x and 0.008x SymPy;
-    the 78 substantive rows remain enforced with zero unwaived violations.
-  - [x] Add exact negative perfect-square roots to the correctness and
-    performance matrix. The cold and warm rows are enforced and measured at
-    0.029x and 0.062x SymPy; the 80 substantive rows remain enforced with
-    zero unwaived violations.
-  - [x] Add the exact `asinh(i)`/`asinh(-i)` branch points to the correctness
-    and performance matrix. Their cold and warm rows are enforced and measured
-    at 0.018x and 0.051x SymPy; the 82 substantive rows remain enforced with
-    zero unwaived violations.
-  - [x] Add finite gamma-family pole cases to the correctness and performance
-    matrix. The six cold and warm rows are correctness-checked ABI diagnostics
-    and explicitly waived at 5.1--5.3x cold and 3.4x warm SymPy; the final
-    94-workload matrix retains 82 enforced rows with zero unwaived violations.
-  - [x] Add compact exact factorial values to the correctness and performance
-    matrix. The two cold and warm rows are correctness-checked ABI diagnostics
-    and explicitly waived at 5.25x cold and 3.25x warm SymPy; the final
-    96-workload matrix retains 82 enforced rows with zero unwaived violations.
-  - [x] Add bounded arbitrary-size factorial values to the correctness and
-    performance matrix. The `factorial(100)` cold and warm rows are
-    correctness-checked ABI diagnostics and explicitly waived at 5.57x cold
-    and 3.57x warm SymPy; the final 98-workload matrix retains 82 enforced
-    rows with zero unwaived violations.
-  - [x] Add native `free_symbols` correctness and performance coverage. The
-    C ABI and Python facade reuse one native traversal; the Python facade
-    caches the immutable handle set, measuring 0.236x cold and 0.054x warm
-    SymPy in the 102-row matrix with zero unwaived violations.
-  - [x] Add simultaneous substitution correctness and performance coverage.
-    The 104-row matrix measured native/SymPy ratios of 0.330x cold and 0.370x
-    warm with zero unwaived violations.
-  - [x] Add unordered mapping substitution ordering correctness and performance
-    coverage. The 106-row matrix measured native/SymPy ratios of 0.575x cold
-    and 0.276x warm with zero unwaived violations.
-  - [x] Add exact-node `xreplace` correctness and performance coverage. The
-    108-row matrix measured native/SymPy ratios of 0.227x cold and 0.590x warm
-    with zero unwaived violations.
-  - [x] Add exact non-wildcard `match` correctness and performance coverage.
-    The 110-row matrix measured native/SymPy ratios of 0.699x cold and 0.526x
-    warm, with zero correctness failures and zero unwaived violations.
-  - [x] Add bounded `Wild` matching correctness and performance coverage. The
-    112-row matrix measured native/SymPy ratios of 0.698x cold and 0.503x warm
-    for direct wildcard matching, with zero correctness failures and zero
-    unwaived violations.
-  - [x] Add exact non-wildcard `replace` correctness and performance coverage.
-    The 114-row matrix measured native/SymPy ratios of 0.716x cold and 0.029x
-    warm, with zero correctness failures and zero unwaived violations.
-  - [x] Add bounded single-Wild commutative remainder correctness and
-    performance coverage. The 116-row matrix measured native/SymPy ratios of
-    0.357x cold and 0.0042x warm on a 25-term additive remainder, with 100
-    correctness cases, zero correctness failures, and zero unwaived violations.
-  - [x] Add bounded distinct-Wild commutative partition correctness and
-    performance coverage. The 118-row matrix measured native/SymPy ratios of
-    0.459x cold and 0.0050x warm, with 101 correctness cases, zero correctness
-    failures, and zero unwaived violations.
-  - [x] Remove avoidable cold-path work from the native engine: binary arena
-    construction uses fixed stack pairs, and denominator-free simplification
-    skips polynomial cancellation and denominator scans. The focused native
-    benchmark remained correct and measured 1.10x, 1.35x, and 1.26x native /
-    SymEngine for cold simplify, differentiation, and expansion on its current
-    diagnostic workload. Matched SymPy coverage remains open.
-  - [x] Add allocation-free binary add/multiply fast paths while preserving
-    flattened and domain-sensitive fallbacks, including zero/one identity exits
-    before binary interning. The 2026-08-12 rerun remained correct and measured
-    7.46 microseconds for cold simplify, 7.90 microseconds for cold
-    differentiation, and 0.121/0.101 microseconds for the corresponding warm
-    calls; the broader SymPy corpus gate remains open.
-  - [x] Bypass the general native multinomial coefficient collector when the
-    exponent map is provably injective for pairwise-distinct atomic bases.
-    Dependent and duplicate bases retain the general path. Independent
-    expansion tests remain green; the 2026-08-12 local `expand_power` cold
-    diagnostic is now 0.104 ms versus 0.297 ms for SymEngine (0.35x), with
-    the warm row at 0.117 versus 0.264 microseconds. This is a local
-    diagnostic and not yet the complete SymPy performance gate.
-  - [x] Keep canonical leaf simplification on the native cache/return path,
-    without recursive workspace reset or traversal. This removes avoidable
-    overhead for symbols and literal values; the complete SymPy performance
-    gate remains open.
-  - [x] Cache native factor results by arena generation and expression handle.
-    Repeated `factor` calls now reuse the exact factorized DAG while retaining
-    the conditional nonzero-domain diagnostic on cache hits; arena clearing
-    invalidates the cache with the existing generation contract.
-  - [x] Remove the duplicate symbolic-denominator traversal from native
-    simplification. Conditional cancellation diagnostics still scan the
-    original expression when the result changes, while the unchanged and
-    denominator-free hot paths do no redundant domain walk.
-  - [x] Add an allocation-free fast path for flat n-ary sums containing one
-    repeated symbolic support. The independent high-arity coefficient test
-    remains green; the new `simplify_flat_like_terms` diagnostic measured
-    0.0226 ms native versus 0.0297 ms SymEngine on the current machine. The
-    complete SymPy performance gate remains open.
-  - [x] Let native `zero_test` return immediately after ordinary simplification
-    has produced an exact scalar verdict. This avoids the exponential,
-    rational, and expansion normalization passes for the common exact-zero and
-    exact-nonzero residuals while preserving UNKNOWN for symbolic results.
-  - [x] Add the explicit-metric `h_con(metric, H_cov)` overload and use the
-    cached inverse in the toroidal flux example. The full executable geometry
-    corpus remains correct, and the previously expression-swollen toroidal
-    raise now completes as a fast independent CTest check.
-- [x] Cache immutable explicit metric determinant, inverse, and positive
-  `sqrtg` views in the native `metric_t` owner. Repeated gradient, divergence,
-  Laplace--Beltrami, Hodge, and raise/lower calls reuse the same expression
-  handles instead of rebuilding the metric algebra.
-- [x] Cache chart covariant/reciprocal bases, induced metric/inverse, signed
-  Jacobian, and positive `sqrtg` views at construction, with source-handle
-  validation for low-level chart edits. The native `bench_chart_geometry`
-  diagnostic measured 0.70 microseconds per six-view bundle in the current
-  optimized build; matched SymPy geometry timing remains open.
-- [ ] Require native to meet or beat SymPy on every supported consumer and
-  benchmark workload before marking that workload complete.
-- [ ] Keep the native Fortran build free of compiler-generated array temporaries.
-  - [x] Reuse the existing linear-factor buffer in the rational-root `x`-factor
-    path instead of constructing a temporary divisor array; the full `fo` gate
-    now reports no array-temporary warning for this path.
-- [x] Audit every public symbol for naming consistency and duplicate concepts.
-  - [x] Assign every public Fortran facade export to one owning naming concept;
-    string conversion and code generation remain native-only vocabularies.
-- [x] Audit every module for single responsibility and dependency direction.
-  - [x] Verify one module per source owner, known internal dependencies, no
-    cycles, and no implementation import of the convenience facade.
-  - [x] Record the current module graph and intentional orchestration edges in
-    `doc/module-architecture.json`.
-- [ ] Run `fo`, CMake/CTest, Python tests, corpus tests, code-generation tests,
-  and CUDA/compiler tests on the supported toolchains.
-  - [x] Run the full `fo` gate and the Python adapter suite.
-  - [x] Configure, build, and run the GNU CMake/CTest suite: 50 tests passed;
-    the optional SymPy differential CTest remained skipped in that environment.
-  - [x] Run the code-generation tests, including the CUDA emitter test.
-  - [x] Compile generated Fortran with `nvfortran` 26.5 and generated CUDA with
-    `nvcc` 13.3 on the visible RTX 5060 Ti; broader compiler/corpus coverage
-    remains open.
-  - [x] Add the first runtime-dimension spacetime tensor transport slice:
-    non-diagonal 2D inverse metrics, `V^i`/`V_i` round trips, metric tensor
-    views, density factors, products, opposite-variance contractions, traces,
-    and fixed-slot permutations are checked natively and through the
-    Python/SymPy facade. Arbitrary rank and canonical dummy-index naming
-    remain open.
-- [ ] Publish the compatibility matrix, performance baseline, refusal table,
-  and migration notes.
-- [ ] Replace temporary aliases with the final canonical API.
-- [ ] Declare parity only when every selected SymPy-profile item is implemented,
-  tested, benchmarked, documented, and either matched or explicitly excluded.
-
-## Current status
-
-The native Fortran engine already provides a useful exact kernel-oriented
-fragment: expression DAGs, arbitrary-size integer/rational arithmetic,
-substitution, differentiation, bounded expansion, factor/cancellation
-candidates, series, scalar solving, assumptions, conservative zero decisions,
-code generation, and many exact elementary/special-function identities.
-
-The Python layer is intentionally a small SymPy-compatible adapter rather than
-a claim of parity. The default Fortran facade is intentionally simpler than
-SymPy and will remain so where its concise names and Fortran interfaces are
-clearer.
-
-Issue #11, the old standalone native-engine tracker, is superseded by this
-roadmap. Its remaining work is now distributed across the phases above instead
-of being tracked as one unbounded issue.
-
-## Per-change checklist
-
-- [ ] Audit Slopqueue jobs that are actually running and avoid duplicate work.
-- [ ] Inspect open PRs, reviews, CI, and the worktree.
-- [ ] Choose one smallest complete checklist item.
-- [ ] Confirm its canonical Fortran name, Python SymPy name, owner module, and
-  refusal boundary.
-- [ ] Add independent correctness tests and SymPy differential/performance
-  tests.
-- [ ] Implement with no duplicate public vocabulary and no array temporaries.
-- [ ] Run focused tests, the full `fo` gate, and affected corpus benchmarks.
-- [ ] Update this roadmap and the compatibility matrix.
-- [ ] Commit and push to `main`.
-- [ ] Re-audit CI, Slopqueue, PRs, and the worktree.
+If a proposed change is primarily about FE discretisation, mesh data,
+quadrature, basis evaluation, assembly, sparse numerical systems, or a
+paper-specific FEM workflow, move it to `../fortfem` and add only the symbolic
+interface contract here.
