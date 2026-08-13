@@ -277,6 +277,9 @@ SymPy parity for the entire family.
       without materializing a matrix array.
 - [x] Expose bounded `Matrix.is_symbolic()` through direct nested-`List`
       symbol traversal without materializing a matrix array.
+- [x] Expose bounded `Matrix.is_upper_hessenberg` and
+      `Matrix.is_lower_hessenberg` properties through one direct forbidden-band
+      traversal without materializing a matrix array.
 - [x] Align bounded `Matrix` shape metadata with SymPy through `len()` and
       `is_square`, keeping both operations O(1) and adapter-local.
 - [x] Accept flat one-dimensional `Matrix` inputs as SymPy-compatible column

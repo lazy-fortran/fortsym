@@ -845,6 +845,45 @@ class SympyDifferentialTest(unittest.TestCase):
             oracle_numeric_matrix.is_symbolic(),
         )
         native_symbolic_x.close()
+        hessenberg_cases = (
+            ([[1, 2, 3], [4, 5, 6], [0, 7, 8]], True, False),
+            ([[1, 2, 0], [3, 4, 5], [6, 7, 8]], False, True),
+            ([[1, 2, 3], [4, 5, 6]], True, False),
+        )
+        for rows, expected_upper, expected_lower in hessenberg_cases:
+            oracle_case = oracle.Matrix(rows)
+            native_case = native.Matrix(rows)
+            independent_upper = all(
+                value == 0
+                for row, values in enumerate(rows)
+                for value in values[:max(0, row - 1)]
+            )
+            independent_lower = all(
+                value == 0
+                for row, values in enumerate(rows)
+                for value in values[row + 2:]
+            )
+            self.assertEqual(independent_upper, expected_upper)
+            self.assertEqual(independent_lower, expected_lower)
+            self.assertEqual(
+                native_case.is_upper_hessenberg, oracle_case.is_upper_hessenberg
+            )
+            self.assertEqual(
+                native_case.is_lower_hessenberg, oracle_case.is_lower_hessenberg
+            )
+        native_hessenberg_x = native.Symbol("hessenberg_x")
+        oracle_hessenberg_x = oracle.Symbol("hessenberg_x")
+        native_hessenberg_symbol = native.Matrix(
+            [[1, 2, 3], [4, 5, 6], [native_hessenberg_x, 7, 8]]
+        )
+        oracle_hessenberg_symbol = oracle.Matrix(
+            [[1, 2, 3], [4, 5, 6], [oracle_hessenberg_x, 7, 8]]
+        )
+        self.assertEqual(
+            native_hessenberg_symbol.is_upper_hessenberg,
+            oracle_hessenberg_symbol.is_upper_hessenberg,
+        )
+        native_hessenberg_x.close()
         symmetric_cases = (
             ([[1, 2], [2, 3]], True),
             ([[1, 2], [3, 4]], False),

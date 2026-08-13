@@ -268,6 +268,16 @@ int fortsym_matrix_is_upper(fortsym_arena *arena,
 int fortsym_matrix_is_lower(fortsym_arena *arena,
                             const fortsym_expr *matrix, int *verdict,
                             char *message, size_t capacity);
+/* Boolean upper/lower-Hessenberg predicates. `verdict` uses enum
+ * fortsym_verdict; undecidable forbidden entries are treated as nonzero. */
+int fortsym_matrix_is_upper_hessenberg(fortsym_arena *arena,
+                                       const fortsym_expr *matrix,
+                                       int *verdict, char *message,
+                                       size_t capacity);
+int fortsym_matrix_is_lower_hessenberg(fortsym_arena *arena,
+                                       const fortsym_expr *matrix,
+                                       int *verdict, char *message,
+                                       size_t capacity);
 /* Three-valued antisymmetry predicate. `simplify` is 1 for SymPy's default
  * simplified comparison and 0 for the structural comparison. `verdict` uses
  * enum fortsym_verdict. */
