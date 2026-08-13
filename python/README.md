@@ -218,6 +218,9 @@ native projections and return only the selected pair declaration.
 lower derivative slot, applies the metric Christoffel terms to every slot, and
 preserves density weight for supported input rank at most four. The rank-five
 output is the native ceiling and covers derivatives of curvature-like tensors.
+Rank-one `SpacetimeTensor` views support ordinary zero-based indexing and Python
+slices, returning a tuple of borrowed component views; slicing higher-rank
+tensors is refused explicitly.
 `SpacetimeTensor.covariant_divergence()` (alias `.divergence()`) contracts
 the first contravariant slot with the derivative slot using a direct native
 kernel, preserving the remaining variance and density weight. It supports

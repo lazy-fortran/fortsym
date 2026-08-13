@@ -128,9 +128,11 @@ class SympySubsetTest(unittest.TestCase):
         rank_five = rank_four.covariant_diff()
         self.assertEqual(rank_five.rank, 5)
         expected_rank_five = 1 if oracle is None else oracle.Integer(1)
-        self.assertEqual(
-            rank_five[0, 0, 0, 0, 0].simplify(), expected_rank_five
-        )
+        actual_rank_five = rank_five[0, 0, 0, 0, 0].simplify()
+        try:
+            self.assertEqual(str(actual_rank_five), str(expected_rank_five))
+        finally:
+            actual_rank_five.close()
         density_vector = chart.vector((x, y, z), density_weight=1)
         self.assertEqual(
             density_vector.covariant_divergence().component().simplify(), 3

@@ -52,6 +52,8 @@ class NativePackageTest(unittest.TestCase):
             two_form = metric.two_form((t, 0, 0, 0, 0, 0))
             two_tensor = two_form.to_tensor()
             self.assertEqual(two_tensor.rank, 2)
+            with self.assertRaises(TypeError):
+                two_tensor[:2]
             self.assertEqual(two_tensor.variance, (-1, -1))
             self.assertEqual(two_tensor.symmetry(0, 1), fortsym.ANTISYMMETRIC)
             self.assertEqual((two_tensor[0, 1] - t).simplify(), 0)
@@ -62,6 +64,10 @@ class NativePackageTest(unittest.TestCase):
             with self.assertRaises(fortsym.FortSymError):
                 density_two_tensor.to_form()
             upper = metric.vector((t, x, 0, 0))
+            self.assertEqual(
+                tuple(str(value) for value in upper[:2]),
+                ("tensor_t", "tensor_x"),
+            )
             lower = upper.lower()
             roundtrip = lower.raise_()
             self.assertEqual(lower.variance, (-1,))
