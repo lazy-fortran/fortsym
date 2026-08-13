@@ -265,6 +265,10 @@ SymPy parity for the entire family.
 - [x] Expose bounded exact dense `Matrix.rref()` through the canonical facades,
       returning the reduced matrix and zero-based pivot tuple with explicit
       refusal of unsupported options and over-bounded forms.
+- [x] Align bounded `Matrix.rref(pivots=False)` with SymPy by returning only
+      the reduced Matrix while reusing the same native RREF owner; custom zero
+      functions, conditional pivots, and other unsupported options remain
+      explicit refusals.
 - [x] Expose bounded exact dense `Matrix` products and scalar scaling through
       `*`/`@`, reusing the native matrix-dot owner and refusing mismatched
       dimensions, foreign arenas, and unsupported operands.

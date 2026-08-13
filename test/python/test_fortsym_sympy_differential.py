@@ -682,14 +682,16 @@ class SympyDifferentialTest(unittest.TestCase):
             tuple(str(value) for value in native_pivots),
             tuple(str(value) for value in oracle_pivots),
         )
+        self.assertEqual(
+            str(native_null_matrix.rref(pivots=False)),
+            str(oracle_null_matrix.rref(pivots=False)),
+        )
         with self.assertRaises(native.UnsupportedOperationError):
             native_null_matrix.nullspace(simplify=True)
         with self.assertRaises(native.UnsupportedOperationError):
             native_null_matrix.nullspace(iszerofunc=lambda value: True)
         with self.assertRaises(native.UnsupportedOperationError):
             native_null_matrix.rref(simplify=True)
-        with self.assertRaises(native.UnsupportedOperationError):
-            native_null_matrix.rref(pivots=False)
 
         oracle_singular = oracle.Matrix([[1, 2], [2, 4]])
         native_singular = native.Matrix([[1, 2], [2, 4]])
