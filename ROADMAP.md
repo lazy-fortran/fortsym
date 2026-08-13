@@ -733,6 +733,11 @@ Every checklist item requires all of the following:
   special-function differentiation.
 - [ ] Complete Taylor, Laurent, Puiseux, formal, asymptotic, Fourier, and
   infinity series, including composition and inversion.
+  - [x] Expose the verified bounded Taylor polynomial and coefficient fragment
+    through the C, Python, and SymPy-compatible facades. Map SymPy's term-count
+    convention to the native highest-degree convention, omit `O(...)` explicitly,
+    and refuse singular/non-finite coefficients or unsupported symbolic
+    derivatives with independent SymPy 1.14 oracle tests.
 - [ ] Complete residues, `Order`, coefficient extraction, and sequence limits.
 - [ ] Implement general finite, one-sided, directional, infinite, and complex
   limits, including Gruntz-style asymptotic ordering.
@@ -1086,7 +1091,7 @@ The first-class object model is staged around these metadata owners:
   `spacetime_tensor_from_form(metric, form)` share the fixed 1--4D owners and
   retain first-slot-fastest tensor order versus form-mask order. Conversion is
   strict for exact lower, weight-zero, fully antisymmetric tensors, including
-  repeated-index checks. C ABI 75, Python `.to_form()`/`.to_tensor()`, and
+  repeated-index checks. C ABI 76, Python `.to_form()`/`.to_tensor()`, and
   independent Fortran, C, Python, and SymPy checks cover the owner boundary.
 
 The core identities are the derivation contracts for every implementation:

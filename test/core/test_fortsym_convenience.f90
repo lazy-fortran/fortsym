@@ -18,6 +18,7 @@ program test_fortsym_convenience
     type(expr_t) :: concurrent_mu
     type(expr_t) :: explicit_expression, default_expression, mixed
     type(expr_t) :: sine, substituted, derivative, simplified, expanded, factored
+    type(expr_t) :: series_value, series_expected, series_coefficient
     type(expr_t) :: huge_integer, exact_fraction, relation
     type(expr_t) :: substitution_old(2), substitution_new(2)
     type(expr_t) :: free_expression
@@ -114,6 +115,20 @@ program test_fortsym_convenience
     factored = result%value
     call check("facade exposes native factorisation", &
         result%ok .and. factored == (mu + 1)**2, failures)
+    result = series(exp(mu), mu, num(default_storage, 0_int64), 3)
+    series_value = result%value
+    series_expected = 1 + mu + mu**2/2 + mu**3/6
+    zero_result = zero_test(series_value - series_expected)
+    call check("facade exposes bounded Taylor series", &
+        result%ok .and. zero_result%ok .and. &
+        zero_result%verdict == VERDICT_TRUE, failures)
+    result = series_coeff((mu + 2)**4, mu, num(default_storage, 0_int64), 2)
+    series_coefficient = result%value
+    call check("facade exposes exact Taylor coefficients", &
+        result%ok .and. series_coefficient == num(default_storage, 24_int64), &
+        failures)
+    result = series(1/mu, mu, num(default_storage, 0_int64), 2)
+    call check("facade refuses singular Taylor coefficients", .not. result%ok, failures)
     result = re_part(i_expr(default_storage))
     call check("facade exposes the real-part operation", &
         result%ok .and. result%value == num(default_storage, 0_int64), failures)

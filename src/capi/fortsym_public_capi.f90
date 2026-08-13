@@ -132,6 +132,8 @@ module fortsym_public_capi
     use fortsym_limits, only: limit_point_t, limit_value_t, finite_point, &
         plus_infinity, minus_infinity, LIMIT_FINITE, LIMIT_PLUS_INF, &
         LIMIT_MINUS_INF, FROM_BELOW, TWO_SIDED, FROM_ABOVE
+    use fortsym_series_adapter, only: calculate_series, &
+        calculate_series_coeff
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -183,7 +185,7 @@ module fortsym_public_capi
         fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor, &
         fortsym_together, fortsym_cancel, fortsym_apart, fortsym_collect, &
-        c_integrate, c_limit
+        c_integrate, c_limit, c_series, c_series_coeff
     public :: fortsym_chart_sqrtg, fortsym_chart_surface_measure, &
         fortsym_chart_flux_surface_average, &
         fortsym_chart_jacobian, &
@@ -288,7 +290,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 75_c_int
+        v = 76_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -5601,6 +5603,93 @@ contains
         end select
         call make_handle(a, output_value, out, status, message, capacity)
     end function c_limit
+
+    function c_series(raw, expression_raw, variable_raw, point_raw, order, &
+            out, message, capacity) bind(c, name="fortsym_series") result(status)
+        type(c_ptr), value :: raw, expression_raw, variable_raw, point_raw, out
+        integer(c_int), value :: order
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, vp, pp
+        type(expr_t) :: expression, variable, point, result
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(point_raw, pp, point, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(pp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call calculate_series(a%value, expression, variable, point, int(order), &
+            result, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, result, out, status, message, capacity)
+    end function c_series
+
+    function c_series_coeff(raw, expression_raw, variable_raw, point_raw, &
+            order, out, message, capacity) bind(c, name="fortsym_series_coeff") &
+            result(status)
+        type(c_ptr), value :: raw, expression_raw, variable_raw, point_raw, out
+        integer(c_int), value :: order
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, vp, pp
+        type(expr_t) :: expression, variable, point, result
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(point_raw, pp, point, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(pp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call calculate_series_coeff(a%value, expression, variable, point, &
+            int(order), result, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, result, out, status, message, capacity)
+    end function c_series_coeff
 
     function fortsym_zero_test(raw, expression_raw, verdict, message, capacity) &
             bind(c, name="fortsym_zero_test") result(status)

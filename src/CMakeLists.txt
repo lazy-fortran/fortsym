@@ -54,6 +54,7 @@ target_sources(fortsym PRIVATE
     algebra/fortsym_matrix.f90
     algebra/fortsym_poly.f90
     algebra/fortsym_polysolve.f90
+    algebra/fortsym_series_adapter.f90
     algebra/fortsym_sums.f90
     algebra/fortsym_trigrewrite.f90
 

@@ -182,6 +182,27 @@ class SympyDifferentialTest(unittest.TestCase):
                 else:
                     self.assert_equivalent(label, expected, actual)
 
+    def test_bounded_taylor_series_match_sympy(self):
+        oracle_x = oracle.Symbol("series_x")
+        native_x = native.Symbol("series_x")
+        cases = [
+            ("exponential", oracle.series(oracle.exp(oracle_x), oracle_x, 0, 4).removeO(),
+             native.series(native.exp(native_x), native_x, 0, 4)),
+            ("sine", oracle.series(oracle.sin(oracle_x), oracle_x, 0, 5).removeO(),
+             native.series(native.sin(native_x), native_x, 0, 5)),
+            ("shifted polynomial", oracle.series((oracle_x + 2)**4,
+                                                   oracle_x, 1, 3).removeO(),
+             native.series((native_x + 2)**4, native_x, 1, 3)),
+        ]
+        for label, expected, actual in cases:
+            with self.subTest(label=label):
+                self.assert_equivalent(label, expected, actual)
+        self.assert_equivalent(
+            "exact Taylor coefficient",
+            oracle.series((oracle_x + 2)**4, oracle_x, 0, 3).removeO().coeff(oracle_x, 2),
+            ((native_x + 2)**4).series_coeff(native_x, native.Integer(0), 2),
+        )
+
     def test_power_constructor_identities_match_oracle(self):
         def cases(api):
             x = api.Symbol("power_constructor_x")
@@ -1263,8 +1284,6 @@ class SympyDifferentialTest(unittest.TestCase):
         )
 
         refusals = [
-            ("series", lambda: oracle.series(oracle.exp(oracle_x), oracle_x, 0, 3),
-             lambda: native.series(native.exp(native_x), native_x, 0, 3)),
             ("solve", lambda: oracle.solve(oracle_x**2 - 1, oracle_x),
              lambda: native.solve(native_x**2 - 1, native_x)),
             ("Matrix", lambda: oracle.Matrix([[1]]),

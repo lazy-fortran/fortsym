@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 75). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 76). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -10,8 +10,9 @@ chart-owned vector calculus, and bidirectional chart-map tensor and form transpo
 The scalar algebra surface also includes exact bounded `fortsym_together`,
 `fortsym_cancel`, `fortsym_apart`, and `fortsym_collect`, plus verified
 one-variable indefinite `fortsym_integrate`, and verified bounded finite/infinite
-`fortsym_limit`; unsupported options, unverified antiderivatives, and limits
-outside the theorem fragment return `FORTSYM_UNSUPPORTED` with a diagnostic.
+`fortsym_limit`, and bounded `fortsym_series`/`fortsym_series_coeff`;
+unsupported options, unverified antiderivatives, and limits or series outside
+their theorem fragments return `FORTSYM_UNSUPPORTED` with a diagnostic.
 The chart calculus distinguishes ordinary vectors from weight-one vector densities:
 `fortsym_chart_curl_density` returns the metric-free alternating derivative of a
 covector, while `fortsym_chart_div_density` differentiates a contravariant density

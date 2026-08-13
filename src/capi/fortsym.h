@@ -202,6 +202,19 @@ int fortsym_limit(fortsym_arena *arena, const fortsym_expr *expression,
                   const fortsym_expr *variable, const fortsym_expr *point,
                   int point_kind, int direction, fortsym_expr **out,
                   char *message, size_t capacity);
+/* Taylor polynomial through `order`, expanded around the finite `point`.
+ * The result is the normal polynomial without SymPy's O-term. */
+int fortsym_series(fortsym_arena *arena, const fortsym_expr *expression,
+                   const fortsym_expr *variable, const fortsym_expr *point,
+                   int order, fortsym_expr **out, char *message,
+                   size_t capacity);
+/* Exact coefficient of `(variable - point)**order` in the bounded Taylor
+ * expansion. */
+int fortsym_series_coeff(fortsym_arena *arena,
+                         const fortsym_expr *expression,
+                         const fortsym_expr *variable,
+                         const fortsym_expr *point, int order,
+                         fortsym_expr **out, char *message, size_t capacity);
 /* Coordinate and magnetic operations use three expressions for both the
  * coordinate symbols and their Cartesian position map. The dimension
  * argument is retained in the ABI so callers can validate the fixed native

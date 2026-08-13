@@ -1372,7 +1372,33 @@ def limit(expression, variable, point, dir="-", **options):
     )
 
 
-series = _unsupported("series")
+def series(expression, x=None, x0=0, n=6, dir="+", logx=None, cdir=0):
+    if logx is not None or cdir not in (0, None):
+        raise UnsupportedOperationError("series options")
+    if dir not in ("+", "-", "+-", 1, -1, 0, None):
+        raise UnsupportedOperationError("series direction")
+    if not isinstance(n, int) or isinstance(n, bool):
+        raise UnsupportedOperationError("series order")
+    if n < 0:
+        raise ValueError("Number of terms should be nonnegative")
+    expression = sympify(expression)
+    if x is None:
+        symbols = expression.free_symbols
+        if len(symbols) == 0:
+            return expression
+        if len(symbols) != 1:
+            raise ValueError("x must be given for multivariate functions")
+        x = next(iter(symbols))
+    else:
+        x = sympify(x)
+    x0 = sympify(x0)
+    if n == 0:
+        return Integer(0)
+    return _native_operation(
+        lambda: expression.series(x, x0, n - 1)
+    )
+
+
 solve = _unsupported("solve")
 Matrix = _unsupported("Matrix")
 

@@ -137,6 +137,11 @@ target_include_directories(test_fortsym_metric_capi PRIVATE
     ${PROJECT_SOURCE_DIR}/src/capi)
 target_link_libraries(test_fortsym_metric_capi PRIVATE fortsym)
 add_test(NAME test_fortsym_metric_capi COMMAND test_fortsym_metric_capi)
+add_executable(test_fortsym_series_capi capi/test_fortsym_series_capi.c)
+target_include_directories(test_fortsym_series_capi PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/capi)
+target_link_libraries(test_fortsym_series_capi PRIVATE fortsym)
+add_test(NAME test_fortsym_series_capi COMMAND test_fortsym_series_capi)
 add_executable(test_fortsym_flux_surface_capi capi/test_fortsym_flux_surface_capi.c)
 target_include_directories(test_fortsym_flux_surface_capi PRIVATE
     ${PROJECT_SOURCE_DIR}/src/capi)

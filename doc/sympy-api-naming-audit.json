@@ -684,6 +684,10 @@
   "exports": {
     "fortran_facade": [
       {
+        "concepts": [],
+        "name": "ANTISYMMETRIC"
+      },
+      {
         "concepts": [
           "backend-protocol"
         ],
@@ -709,6 +713,22 @@
       },
       {
         "concepts": [],
+        "name": "BOOZER_RESIDUAL_COUNT"
+      },
+      {
+        "concepts": [],
+        "name": "CLEBSCH_RESIDUAL_COUNT"
+      },
+      {
+        "concepts": [],
+        "name": "CONNECTION_OPPOSITE"
+      },
+      {
+        "concepts": [],
+        "name": "CONNECTION_STANDARD"
+      },
+      {
+        "concepts": [],
         "name": "DIM"
       },
       {
@@ -716,6 +736,62 @@
           "backend-protocol"
         ],
         "name": "EXPRESSION_SCHEMA"
+      },
+      {
+        "concepts": [],
+        "name": "FLUX_BOOZER"
+      },
+      {
+        "concepts": [],
+        "name": "FLUX_CLEBSCH"
+      },
+      {
+        "concepts": [],
+        "name": "FLUX_GENERIC"
+      },
+      {
+        "concepts": [],
+        "name": "FLUX_HAMADA"
+      },
+      {
+        "concepts": [],
+        "name": "FLUX_STRAIGHT_FIELD_LINE"
+      },
+      {
+        "concepts": [],
+        "name": "FOURIER_INVALID"
+      },
+      {
+        "concepts": [],
+        "name": "FOURIER_LONGITUDINAL"
+      },
+      {
+        "concepts": [],
+        "name": "FOURIER_TRANSVERSE"
+      },
+      {
+        "concepts": [],
+        "name": "HAMADA_RESIDUAL_COUNT"
+      },
+      {
+        "concepts": [],
+        "name": "INDEX_COTANGENT"
+      },
+      {
+        "concepts": [],
+        "name": "INDEX_INTERNAL"
+      },
+      {
+        "concepts": [],
+        "name": "INDEX_SPACETIME"
+      },
+      {
+        "concepts": [],
+        "name": "INDEX_TANGENT"
+      },
+      {
+        "concepts": [],
+        "name": "INDEX_USER"
       },
       {
         "concepts": [
@@ -811,6 +887,74 @@
       },
       {
         "concepts": [],
+        "name": "REGISTRY_DESCRIPTION_LENGTH"
+      },
+      {
+        "concepts": [],
+        "name": "REGISTRY_MAX_TOOLKITS"
+      },
+      {
+        "concepts": [],
+        "name": "REGISTRY_MESSAGE_LENGTH"
+      },
+      {
+        "concepts": [],
+        "name": "REGISTRY_NAME_LENGTH"
+      },
+      {
+        "concepts": [],
+        "name": "REGISTRY_OWNER_LENGTH"
+      },
+      {
+        "concepts": [],
+        "name": "REGISTRY_VERSION_LENGTH"
+      },
+      {
+        "concepts": [],
+        "name": "SPACETIME_DIM"
+      },
+      {
+        "concepts": [],
+        "name": "SPACETIME_LOWER"
+      },
+      {
+        "concepts": [],
+        "name": "SPACETIME_UPPER"
+      },
+      {
+        "concepts": [],
+        "name": "SPACE_EDGE"
+      },
+      {
+        "concepts": [],
+        "name": "SPACE_NODAL"
+      },
+      {
+        "concepts": [],
+        "name": "SPACE_NONE"
+      },
+      {
+        "concepts": [],
+        "name": "SYMMETRIC"
+      },
+      {
+        "concepts": [],
+        "name": "SYMMETRY_NONE"
+      },
+      {
+        "concepts": [],
+        "name": "TRACE_NONE"
+      },
+      {
+        "concepts": [],
+        "name": "TRACE_NORMAL"
+      },
+      {
+        "concepts": [],
+        "name": "TRACE_TANGENTIAL"
+      },
+      {
+        "concepts": [],
         "name": "UPPER"
       },
       {
@@ -868,6 +1012,10 @@
       {
         "concepts": [],
         "name": "algebraic_valued"
+      },
+      {
+        "concepts": [],
+        "name": "antisymmetrize"
       },
       {
         "concepts": [
@@ -941,11 +1089,23 @@
       },
       {
         "concepts": [],
+        "name": "b_con_form"
+      },
+      {
+        "concepts": [],
         "name": "b_cov"
       },
       {
         "concepts": [],
         "name": "b_density"
+      },
+      {
+        "concepts": [],
+        "name": "b_density_form"
+      },
+      {
+        "concepts": [],
+        "name": "b_flux_form"
       },
       {
         "concepts": [],
@@ -980,6 +1140,10 @@
         "name": "besselj"
       },
       {
+        "concepts": [],
+        "name": "boozer_residuals"
+      },
+      {
         "concepts": [
           "string-conversion"
         ],
@@ -991,7 +1155,27 @@
       },
       {
         "concepts": [],
+        "name": "chart_create_on_patch"
+      },
+      {
+        "concepts": [],
+        "name": "chart_has_patch"
+      },
+      {
+        "concepts": [],
         "name": "chart_map_create"
+      },
+      {
+        "concepts": [],
+        "name": "chart_map_has_source_patch"
+      },
+      {
+        "concepts": [],
+        "name": "chart_map_has_target_patch"
+      },
+      {
+        "concepts": [],
+        "name": "chart_map_source_patch"
       },
       {
         "concepts": [],
@@ -999,7 +1183,19 @@
       },
       {
         "concepts": [],
+        "name": "chart_map_target_patch"
+      },
+      {
+        "concepts": [],
+        "name": "chart_patch"
+      },
+      {
+        "concepts": [],
         "name": "chart_t"
+      },
+      {
+        "concepts": [],
+        "name": "chart_valid"
       },
       {
         "concepts": [],
@@ -1008,6 +1204,22 @@
       {
         "concepts": [],
         "name": "christoffel_tensor"
+      },
+      {
+        "concepts": [],
+        "name": "clebsch_residuals"
+      },
+      {
+        "concepts": [],
+        "name": "codiff"
+      },
+      {
+        "concepts": [],
+        "name": "codifferential"
+      },
+      {
+        "concepts": [],
+        "name": "compatible_indices"
       },
       {
         "concepts": [
@@ -1026,6 +1238,46 @@
         "name": "conjugate"
       },
       {
+        "concepts": [],
+        "name": "connection_arena"
+      },
+      {
+        "concepts": [],
+        "name": "connection_christoffel"
+      },
+      {
+        "concepts": [],
+        "name": "connection_convention"
+      },
+      {
+        "concepts": [],
+        "name": "connection_coordinates"
+      },
+      {
+        "concepts": [],
+        "name": "connection_create"
+      },
+      {
+        "concepts": [],
+        "name": "connection_from_chart"
+      },
+      {
+        "concepts": [],
+        "name": "connection_from_metric"
+      },
+      {
+        "concepts": [],
+        "name": "connection_same_arena"
+      },
+      {
+        "concepts": [],
+        "name": "connection_t"
+      },
+      {
+        "concepts": [],
+        "name": "connection_valid"
+      },
+      {
         "concepts": [
           "exact-and-constant-construction"
         ],
@@ -1034,6 +1286,10 @@
       {
         "concepts": [],
         "name": "contract"
+      },
+      {
+        "concepts": [],
+        "name": "coords"
       },
       {
         "concepts": [
@@ -1061,6 +1317,10 @@
       },
       {
         "concepts": [],
+        "name": "covariant_divergence"
+      },
+      {
+        "concepts": [],
         "name": "covector"
       },
       {
@@ -1069,7 +1329,19 @@
       },
       {
         "concepts": [],
+        "name": "curl_density"
+      },
+      {
+        "concepts": [],
+        "name": "current_compatibility"
+      },
+      {
+        "concepts": [],
         "name": "d"
+      },
+      {
+        "concepts": [],
+        "name": "declare_symmetry"
       },
       {
         "concepts": [
@@ -1082,6 +1354,10 @@
         "name": "density"
       },
       {
+        "concepts": [],
+        "name": "density_factor"
+      },
+      {
         "concepts": [
           "backend-evidence"
         ],
@@ -1092,6 +1368,10 @@
           "differentiation"
         ],
         "name": "diff"
+      },
+      {
+        "concepts": [],
+        "name": "div_density"
       },
       {
         "concepts": [],
@@ -1185,11 +1465,79 @@
       },
       {
         "concepts": [],
+        "name": "field_line_derivative"
+      },
+      {
+        "concepts": [],
+        "name": "first_bianchi_residual"
+      },
+      {
+        "concepts": [],
         "name": "flat"
       },
       {
         "concepts": [],
+        "name": "flux_coordinate_angles"
+      },
+      {
+        "concepts": [],
+        "name": "flux_coordinate_kind"
+      },
+      {
+        "concepts": [],
+        "name": "flux_coordinate_label"
+      },
+      {
+        "concepts": [],
+        "name": "flux_coordinate_t"
+      },
+      {
+        "concepts": [],
+        "name": "flux_coordinate_valid"
+      },
+      {
+        "concepts": [],
+        "name": "flux_coordinates"
+      },
+      {
+        "concepts": [],
+        "name": "flux_normal_residual"
+      },
+      {
+        "concepts": [],
+        "name": "flux_surface"
+      },
+      {
+        "concepts": [],
+        "name": "flux_surface_average"
+      },
+      {
+        "concepts": [],
+        "name": "flux_surface_label"
+      },
+      {
+        "concepts": [],
+        "name": "flux_surface_measure"
+      },
+      {
+        "concepts": [],
+        "name": "flux_surface_t"
+      },
+      {
+        "concepts": [],
+        "name": "flux_surface_valid"
+      },
+      {
+        "concepts": [],
         "name": "form"
+      },
+      {
+        "concepts": [],
+        "name": "form_chart_bound"
+      },
+      {
+        "concepts": [],
+        "name": "form_chart_compatible"
       },
       {
         "concepts": [],
@@ -1201,7 +1549,19 @@
       },
       {
         "concepts": [],
+        "name": "form_from_tensor"
+      },
+      {
+        "concepts": [],
+        "name": "form_metric_compatible"
+      },
+      {
+        "concepts": [],
         "name": "form_one"
+      },
+      {
+        "concepts": [],
+        "name": "form_same_chart"
       },
       {
         "concepts": [],
@@ -1222,6 +1582,90 @@
       {
         "concepts": [],
         "name": "form_valid"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_constitutive"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_constitutive_t"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_constitutive_valid"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_load"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_load_matches"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_load_t"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_load_valid"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_longitudinal_boundary_flux"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_longitudinal_flux"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_longitudinal_residual"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_source"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_source_matches"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_source_t"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_source_valid"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_transverse_boundary_contraction"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_transverse_boundary_flux"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_transverse_flux"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_transverse_residual"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_weak_form"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_weak_form_t"
+      },
+      {
+        "concepts": [],
+        "name": "fourier_weak_form_valid"
       },
       {
         "concepts": [
@@ -1249,6 +1693,10 @@
       },
       {
         "concepts": [],
+        "name": "geodesic_residual"
+      },
+      {
+        "concepts": [],
         "name": "grad"
       },
       {
@@ -1265,6 +1713,18 @@
       },
       {
         "concepts": [],
+        "name": "h_con"
+      },
+      {
+        "concepts": [],
+        "name": "h_cov"
+      },
+      {
+        "concepts": [],
+        "name": "hamada_residuals"
+      },
+      {
+        "concepts": [],
         "name": "hodge_star"
       },
       {
@@ -1278,6 +1738,54 @@
           "complex-domain-functions"
         ],
         "name": "im_part"
+      },
+      {
+        "concepts": [],
+        "name": "index_category"
+      },
+      {
+        "concepts": [],
+        "name": "index_dimension"
+      },
+      {
+        "concepts": [],
+        "name": "index_is_dummy"
+      },
+      {
+        "concepts": [],
+        "name": "index_label"
+      },
+      {
+        "concepts": [],
+        "name": "index_slot"
+      },
+      {
+        "concepts": [],
+        "name": "index_space_name"
+      },
+      {
+        "concepts": [],
+        "name": "index_space_valid"
+      },
+      {
+        "concepts": [],
+        "name": "index_t"
+      },
+      {
+        "concepts": [],
+        "name": "index_type"
+      },
+      {
+        "concepts": [],
+        "name": "index_type_t"
+      },
+      {
+        "concepts": [],
+        "name": "index_valid"
+      },
+      {
+        "concepts": [],
+        "name": "index_variance"
       },
       {
         "concepts": [
@@ -1331,6 +1839,14 @@
       },
       {
         "concepts": [],
+        "name": "killing"
+      },
+      {
+        "concepts": [],
+        "name": "laplace_de_rham"
+      },
+      {
+        "concepts": [],
         "name": "laplacian"
       },
       {
@@ -1359,6 +1875,10 @@
       },
       {
         "concepts": [],
+        "name": "levi_civita_symbol"
+      },
+      {
+        "concepts": [],
         "name": "lie"
       },
       {
@@ -1376,10 +1896,86 @@
         "name": "lower"
       },
       {
+        "concepts": [],
+        "name": "magnetic_chart"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_chart_average"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_chart_density"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_chart_field"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_chart_flux_form"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_chart_lower"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_chart_potential_form"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_chart_surface"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_chart_t"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_chart_upper"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_chart_valid"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_density"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_field"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_field_t"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_lower"
+      },
+      {
+        "concepts": [],
+        "name": "magnetic_upper"
+      },
+      {
         "concepts": [
           "assumption-queries"
         ],
         "name": "make_assumption_context"
+      },
+      {
+        "concepts": [],
+        "name": "make_chart"
+      },
+      {
+        "concepts": [],
+        "name": "make_index"
+      },
+      {
+        "concepts": [],
+        "name": "make_metric"
       },
       {
         "concepts": [],
@@ -1391,6 +1987,22 @@
       },
       {
         "concepts": [],
+        "name": "maxwell_field_strength"
+      },
+      {
+        "concepts": [],
+        "name": "maxwell_gauge_transform"
+      },
+      {
+        "concepts": [],
+        "name": "maxwell_residual"
+      },
+      {
+        "concepts": [],
+        "name": "metric_arena"
+      },
+      {
+        "concepts": [],
         "name": "metric_contravariant"
       },
       {
@@ -1399,11 +2011,95 @@
       },
       {
         "concepts": [],
+        "name": "metric_coordinate"
+      },
+      {
+        "concepts": [],
+        "name": "metric_coordinates"
+      },
+      {
+        "concepts": [],
         "name": "metric_covariant"
       },
       {
         "concepts": [],
         "name": "metric_covariant_tensor"
+      },
+      {
+        "concepts": [],
+        "name": "metric_create"
+      },
+      {
+        "concepts": [],
+        "name": "metric_create_metadata"
+      },
+      {
+        "concepts": [],
+        "name": "metric_det"
+      },
+      {
+        "concepts": [],
+        "name": "metric_divergence"
+      },
+      {
+        "concepts": [],
+        "name": "metric_from_chart"
+      },
+      {
+        "concepts": [],
+        "name": "metric_grad"
+      },
+      {
+        "concepts": [],
+        "name": "metric_has_coordinates"
+      },
+      {
+        "concepts": [],
+        "name": "metric_inner"
+      },
+      {
+        "concepts": [],
+        "name": "metric_laplacian"
+      },
+      {
+        "concepts": [],
+        "name": "metric_levi_civita"
+      },
+      {
+        "concepts": [],
+        "name": "metric_orientation"
+      },
+      {
+        "concepts": [],
+        "name": "metric_orientation_type"
+      },
+      {
+        "concepts": [],
+        "name": "metric_same_arena"
+      },
+      {
+        "concepts": [],
+        "name": "metric_signature_type"
+      },
+      {
+        "concepts": [],
+        "name": "metric_sqrtg"
+      },
+      {
+        "concepts": [],
+        "name": "metric_surface_measure"
+      },
+      {
+        "concepts": [],
+        "name": "metric_t"
+      },
+      {
+        "concepts": [],
+        "name": "metric_valid"
+      },
+      {
+        "concepts": [],
+        "name": "metric_volume_density"
       },
       {
         "concepts": [
@@ -1428,6 +2124,10 @@
         "name": "node_kind_name"
       },
       {
+        "concepts": [],
+        "name": "nonmetricity"
+      },
+      {
         "concepts": [
           "assumption-queries"
         ],
@@ -1444,6 +2144,10 @@
           "assumption-queries"
         ],
         "name": "nonzero"
+      },
+      {
+        "concepts": [],
+        "name": "nubar"
       },
       {
         "concepts": [
@@ -1548,10 +2252,38 @@
         "name": "operator(==)"
       },
       {
+        "concepts": [],
+        "name": "orientation_create"
+      },
+      {
+        "concepts": [],
+        "name": "orientation_is_negative"
+      },
+      {
+        "concepts": [],
+        "name": "orientation_is_positive"
+      },
+      {
+        "concepts": [],
+        "name": "orientation_t"
+      },
+      {
+        "concepts": [],
+        "name": "orientation_valid"
+      },
+      {
+        "concepts": [],
+        "name": "orientation_value"
+      },
+      {
         "concepts": [
           "differentiation"
         ],
         "name": "partial"
+      },
+      {
+        "concepts": [],
+        "name": "permute"
       },
       {
         "concepts": [
@@ -1626,6 +2358,58 @@
         "name": "refine"
       },
       {
+        "concepts": [],
+        "name": "register_builtin_geometry"
+      },
+      {
+        "concepts": [],
+        "name": "registry_capability"
+      },
+      {
+        "concepts": [],
+        "name": "registry_count"
+      },
+      {
+        "concepts": [],
+        "name": "registry_enabled"
+      },
+      {
+        "concepts": [],
+        "name": "registry_find"
+      },
+      {
+        "concepts": [],
+        "name": "registry_init"
+      },
+      {
+        "concepts": [],
+        "name": "registry_name"
+      },
+      {
+        "concepts": [],
+        "name": "registry_owner"
+      },
+      {
+        "concepts": [],
+        "name": "registry_probe"
+      },
+      {
+        "concepts": [],
+        "name": "registry_refusal"
+      },
+      {
+        "concepts": [],
+        "name": "registry_register"
+      },
+      {
+        "concepts": [],
+        "name": "registry_version"
+      },
+      {
+        "concepts": [],
+        "name": "reluctivity_density"
+      },
+      {
         "concepts": [
           "arena-and-expression"
         ],
@@ -1647,11 +2431,19 @@
       },
       {
         "concepts": [],
+        "name": "same_index_space"
+      },
+      {
+        "concepts": [],
         "name": "scalar_curvature"
       },
       {
         "concepts": [],
         "name": "scale_form"
+      },
+      {
+        "concepts": [],
+        "name": "second_bianchi_residual"
       },
       {
         "concepts": [
@@ -1662,6 +2454,38 @@
       {
         "concepts": [],
         "name": "sharp"
+      },
+      {
+        "concepts": [],
+        "name": "signature_component"
+      },
+      {
+        "concepts": [],
+        "name": "signature_create"
+      },
+      {
+        "concepts": [],
+        "name": "signature_dimension"
+      },
+      {
+        "concepts": [],
+        "name": "signature_is_lorentzian"
+      },
+      {
+        "concepts": [],
+        "name": "signature_negative_count"
+      },
+      {
+        "concepts": [],
+        "name": "signature_positive_count"
+      },
+      {
+        "concepts": [],
+        "name": "signature_t"
+      },
+      {
+        "concepts": [],
+        "name": "signature_valid"
       },
       {
         "concepts": [
@@ -1688,6 +2512,318 @@
         "name": "solve_ode"
       },
       {
+        "concepts": [],
+        "name": "spacetime_christoffel"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_codifferential"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_d"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_einstein"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_exterior_diff"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_component"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_degree"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_dimension"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_four"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_from_tensor"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_one"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_same_arena"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_scalar"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_t"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_three"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_two"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_valid"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_form_zero"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_geodesic_residual"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_hodge"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_interior"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_interior_product"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_killing"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_laplace_de_rham"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_lie"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_lie_derivative"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_arena"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_contravariant"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_contravariant_tensor"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_coordinates"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_covariant"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_covariant_tensor"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_create"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_create_metadata"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_det"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_divergence"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_flat"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_grad"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_has_coordinates"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_laplacian"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_orientation"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_orientation_type"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_sharp"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_signature"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_signature_type"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_sqrtg"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_t"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_metric_valid"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_ricci"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_riemann"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_scalar_curvature"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_star"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_component"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_component_flat"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_contract"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_covariant_diff"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_covariant_divergence"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_covector"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_density"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_density_factor"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_density_weight"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_dimension"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_from_components"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_from_form"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_lie_derivative"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_lower"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_permute"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_product"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_raise"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_rank"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_same_arena"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_scalar"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_t"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_valid"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_variance"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_tensor_vector"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_volume_form"
+      },
+      {
+        "concepts": [],
+        "name": "spacetime_wedge"
+      },
+      {
         "concepts": [
           "elementary-functions"
         ],
@@ -1708,6 +2844,10 @@
         "name": "str"
       },
       {
+        "concepts": [],
+        "name": "straight_field_line_residual"
+      },
+      {
         "concepts": [
           "substitution"
         ],
@@ -1724,6 +2864,10 @@
         "name": "subtract_forms"
       },
       {
+        "concepts": [],
+        "name": "surface_measure"
+      },
+      {
         "concepts": [
           "symbol-construction"
         ],
@@ -1734,6 +2878,10 @@
           "symbol-sequences"
         ],
         "name": "symbols"
+      },
+      {
+        "concepts": [],
+        "name": "symmetrize"
       },
       {
         "concepts": [
@@ -1753,7 +2901,19 @@
       },
       {
         "concepts": [],
+        "name": "tensor_chart_bound"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_chart_compatible"
+      },
+      {
+        "concepts": [],
         "name": "tensor_component"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_coordinates_compatible"
       },
       {
         "concepts": [],
@@ -1769,7 +2929,15 @@
       },
       {
         "concepts": [],
+        "name": "tensor_from_form"
+      },
+      {
+        "concepts": [],
         "name": "tensor_from_matrix"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_metric_compatible"
       },
       {
         "concepts": [],
@@ -1785,7 +2953,15 @@
       },
       {
         "concepts": [],
+        "name": "tensor_same_chart"
+      },
+      {
+        "concepts": [],
         "name": "tensor_scalar"
+      },
+      {
+        "concepts": [],
+        "name": "tensor_symmetry"
       },
       {
         "concepts": [],
@@ -1802,6 +2978,22 @@
       {
         "concepts": [],
         "name": "tensor_vector"
+      },
+      {
+        "concepts": [],
+        "name": "toolkit_probe"
+      },
+      {
+        "concepts": [],
+        "name": "toolkit_record_t"
+      },
+      {
+        "concepts": [],
+        "name": "toolkit_registry_t"
+      },
+      {
+        "concepts": [],
+        "name": "torsion"
       },
       {
         "concepts": [],
@@ -1833,6 +3025,10 @@
       },
       {
         "concepts": [],
+        "name": "volume_form"
+      },
+      {
+        "concepts": [],
         "name": "wedge"
       },
       {
@@ -1861,35 +3057,97 @@
       }
     ],
     "python_facade": [
+      "ANTISYMMETRIC",
       "Arena",
+      "BOOZER_RESIDUAL_COUNT",
+      "CLEBSCH_RESIDUAL_COUNT",
+      "CONNECTION_OPPOSITE",
+      "CONNECTION_STANDARD",
       "Chart",
       "ChartMap",
+      "Connection",
       "Expr",
+      "FLUX_BOOZER",
+      "FLUX_CLEBSCH",
+      "FLUX_GENERIC",
+      "FLUX_HAMADA",
+      "FLUX_STRAIGHT_FIELD_LINE",
+      "FOURIER_INVALID",
+      "FOURIER_LONGITUDINAL",
+      "FOURIER_TRANSVERSE",
       "Float",
+      "FluxCoordinates",
+      "FluxSurface",
       "Form",
       "FortSymError",
+      "FourierLoad",
+      "FourierSource",
+      "FourierWeakForm",
       "Function",
+      "HAMADA_RESIDUAL_COUNT",
+      "INDEX_COTANGENT",
+      "INDEX_INTERNAL",
+      "INDEX_SPACETIME",
+      "INDEX_TANGENT",
+      "INDEX_USER",
+      "Index",
+      "IndexType",
       "Integer",
+      "MagneticChart",
+      "MagneticField",
+      "Metric",
+      "Orientation",
       "Rational",
+      "SPACETIME_DIM",
+      "SPACETIME_TENSOR_MAX_RANK",
+      "SPACE_EDGE",
+      "SPACE_NODAL",
+      "SPACE_NONE",
+      "SYMMETRIC",
+      "SYMMETRY_NONE",
+      "Signature",
+      "SpacetimeForm",
+      "SpacetimeMetric",
+      "SpacetimeTensor",
       "Symbol",
+      "TRACE_NONE",
+      "TRACE_NORMAL",
+      "TRACE_TANGENTIAL",
       "Tensor",
+      "apart",
+      "cancel",
+      "collect",
+      "contract",
       "diff",
       "factor",
       "free_symbols",
+      "integrate",
+      "limit",
       "operation_count",
+      "series",
+      "series_coeff",
       "subs",
       "subs_many",
-      "symbols"
+      "symbols",
+      "tensor_product",
+      "together",
+      "trace"
     ],
     "sympy_adapter": [
+      "ANTISYMMETRIC",
       "Abs",
       "Add",
       "And",
       "Arena",
+      "BOOZER_RESIDUAL_COUNT",
       "BaseScalarField",
       "BaseVectorField",
+      "CLEBSCH_RESIDUAL_COUNT",
+      "CONNECTION_OPPOSITE",
+      "CONNECTION_STANDARD",
       "Chart",
       "ChartMap",
+      "Connection",
       "CoordSystem",
       "CoordinateSymbol",
       "Derivative",
@@ -1897,30 +3155,69 @@
       "E",
       "Eq",
       "Expr",
+      "FLUX_BOOZER",
+      "FLUX_CLEBSCH",
+      "FLUX_GENERIC",
+      "FLUX_HAMADA",
+      "FLUX_STRAIGHT_FIELD_LINE",
+      "FOURIER_INVALID",
+      "FOURIER_LONGITUDINAL",
+      "FOURIER_TRANSVERSE",
       "Float",
+      "FluxCoordinates",
+      "FluxSurface",
       "Form",
       "FortSymError",
+      "FourierLoad",
+      "FourierSource",
+      "FourierWeakForm",
       "Function",
       "Ge",
       "Gt",
+      "HAMADA_RESIDUAL_COUNT",
       "I",
+      "INDEX_COTANGENT",
+      "INDEX_INTERNAL",
+      "INDEX_SPACETIME",
+      "INDEX_TANGENT",
+      "INDEX_USER",
       "InconsistentAssumptions",
       "Integer",
       "Le",
       "LieDerivative",
       "Lt",
+      "MagneticChart",
+      "MagneticField",
       "Manifold",
       "Matrix",
+      "Metric",
       "Mul",
       "Ne",
+      "Orientation",
       "Patch",
       "Pow",
       "Q",
       "Rational",
+      "SPACETIME_DIM",
+      "SPACE_EDGE",
+      "SPACE_NODAL",
+      "SPACE_NONE",
+      "SYMMETRIC",
+      "SYMMETRY_NONE",
+      "Signature",
+      "SpacetimeForm",
+      "SpacetimeMetric",
+      "SpacetimeTensor",
       "Subs",
       "Symbol",
+      "TRACE_NONE",
+      "TRACE_NORMAL",
+      "TRACE_TANGENTIAL",
       "Tensor",
+      "TensorIndex",
+      "TensorIndexType",
       "TensorProduct",
+      "TensorSymmetry",
       "UnsupportedOperationError",
       "WedgeProduct",
       "Wild",
@@ -1963,6 +3260,8 @@
       "factorial",
       "floor",
       "free_symbols",
+      "fully_antisymmetric",
+      "fully_symmetric",
       "gamma",
       "im",
       "integrate",
@@ -1986,9 +3285,12 @@
       "match",
       "name",
       "nan",
+      "no_symmetry",
       "node_count",
       "oo",
       "operation_count",
+      "pair_antisymmetric",
+      "pair_symmetric",
       "pi",
       "properties",
       "re",
@@ -1996,6 +3298,7 @@
       "replace",
       "sech",
       "series",
+      "series_coeff",
       "sign",
       "simplify",
       "sin",
@@ -2007,6 +3310,9 @@
       "sympify",
       "tan",
       "tanh",
+      "tensorcontraction",
+      "tensorpermute",
+      "tensorproduct",
       "together",
       "xreplace",
       "zoo"
@@ -2029,99 +3335,398 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 225,
-    "python_facade_exports": 19,
-    "sympy_adapter_exports": 128,
-    "unmapped_fortran_exports": 87
+    "fortran_facade_exports": 524,
+    "python_facade_exports": 75,
+    "sympy_adapter_exports": 182,
+    "unmapped_fortran_exports": 386
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
+    "ANTISYMMETRIC",
+    "BOOZER_RESIDUAL_COUNT",
+    "CLEBSCH_RESIDUAL_COUNT",
+    "CONNECTION_OPPOSITE",
+    "CONNECTION_STANDARD",
     "DIM",
+    "FLUX_BOOZER",
+    "FLUX_CLEBSCH",
+    "FLUX_GENERIC",
+    "FLUX_HAMADA",
+    "FLUX_STRAIGHT_FIELD_LINE",
+    "FOURIER_INVALID",
+    "FOURIER_LONGITUDINAL",
+    "FOURIER_TRANSVERSE",
+    "HAMADA_RESIDUAL_COUNT",
+    "INDEX_COTANGENT",
+    "INDEX_INTERNAL",
+    "INDEX_SPACETIME",
+    "INDEX_TANGENT",
+    "INDEX_USER",
     "LOWER_VARIANCE",
     "MAX_RANK",
+    "REGISTRY_DESCRIPTION_LENGTH",
+    "REGISTRY_MAX_TOOLKITS",
+    "REGISTRY_MESSAGE_LENGTH",
+    "REGISTRY_NAME_LENGTH",
+    "REGISTRY_OWNER_LENGTH",
+    "REGISTRY_VERSION_LENGTH",
+    "SPACETIME_DIM",
+    "SPACETIME_LOWER",
+    "SPACETIME_UPPER",
+    "SPACE_EDGE",
+    "SPACE_NODAL",
+    "SPACE_NONE",
+    "SYMMETRIC",
+    "SYMMETRY_NONE",
+    "TRACE_NONE",
+    "TRACE_NORMAL",
+    "TRACE_TANGENTIAL",
     "UPPER",
     "add_forms",
     "algebraic_valued",
+    "antisymmetrize",
     "b_con",
+    "b_con_form",
     "b_cov",
     "b_density",
+    "b_density_form",
+    "b_flux_form",
     "b_fourier",
     "b_fourier_density",
+    "boozer_residuals",
     "chart_create",
+    "chart_create_on_patch",
+    "chart_has_patch",
     "chart_map_create",
+    "chart_map_has_source_patch",
+    "chart_map_has_target_patch",
+    "chart_map_source_patch",
     "chart_map_t",
+    "chart_map_target_patch",
+    "chart_patch",
     "chart_t",
+    "chart_valid",
     "christoffel",
     "christoffel_tensor",
+    "clebsch_residuals",
+    "codiff",
+    "codifferential",
+    "compatible_indices",
     "compose_maps",
+    "connection_arena",
+    "connection_christoffel",
+    "connection_convention",
+    "connection_coordinates",
+    "connection_create",
+    "connection_from_chart",
+    "connection_from_metric",
+    "connection_same_arena",
+    "connection_t",
+    "connection_valid",
     "contract",
+    "coords",
     "covariant_basis",
     "covariant_derivative",
     "covariant_diff",
+    "covariant_divergence",
     "covector",
     "curl",
+    "curl_density",
+    "current_compatibility",
     "d",
+    "declare_symmetry",
     "density",
+    "density_factor",
+    "div_density",
     "divergence",
     "einstein_tensor",
     "exterior_diff",
+    "field_line_derivative",
+    "first_bianchi_residual",
     "flat",
+    "flux_coordinate_angles",
+    "flux_coordinate_kind",
+    "flux_coordinate_label",
+    "flux_coordinate_t",
+    "flux_coordinate_valid",
+    "flux_coordinates",
+    "flux_normal_residual",
+    "flux_surface",
+    "flux_surface_average",
+    "flux_surface_label",
+    "flux_surface_measure",
+    "flux_surface_t",
+    "flux_surface_valid",
     "form",
+    "form_chart_bound",
+    "form_chart_compatible",
     "form_component",
     "form_degree",
+    "form_from_tensor",
+    "form_metric_compatible",
     "form_one",
+    "form_same_chart",
     "form_scalar",
     "form_t",
     "form_three",
     "form_two",
     "form_valid",
+    "fourier_constitutive",
+    "fourier_constitutive_t",
+    "fourier_constitutive_valid",
+    "fourier_load",
+    "fourier_load_matches",
+    "fourier_load_t",
+    "fourier_load_valid",
+    "fourier_longitudinal_boundary_flux",
+    "fourier_longitudinal_flux",
+    "fourier_longitudinal_residual",
+    "fourier_source",
+    "fourier_source_matches",
+    "fourier_source_t",
+    "fourier_source_valid",
+    "fourier_transverse_boundary_contraction",
+    "fourier_transverse_boundary_flux",
+    "fourier_transverse_flux",
+    "fourier_transverse_residual",
+    "fourier_weak_form",
+    "fourier_weak_form_t",
+    "fourier_weak_form_valid",
+    "geodesic_residual",
     "grad",
+    "h_con",
+    "h_cov",
+    "hamada_residuals",
     "hodge_star",
+    "index_category",
+    "index_dimension",
+    "index_is_dummy",
+    "index_label",
+    "index_slot",
+    "index_space_name",
+    "index_space_valid",
+    "index_t",
+    "index_type",
+    "index_type_t",
+    "index_valid",
+    "index_variance",
     "interior",
     "interior_product",
     "inverse_jacobian",
     "j_fourier",
     "jacobian",
+    "killing",
+    "laplace_de_rham",
     "laplacian",
+    "levi_civita_symbol",
     "lie",
     "lie_derivative",
     "lower",
+    "magnetic_chart",
+    "magnetic_chart_average",
+    "magnetic_chart_density",
+    "magnetic_chart_field",
+    "magnetic_chart_flux_form",
+    "magnetic_chart_lower",
+    "magnetic_chart_potential_form",
+    "magnetic_chart_surface",
+    "magnetic_chart_t",
+    "magnetic_chart_upper",
+    "magnetic_chart_valid",
+    "magnetic_density",
+    "magnetic_field",
+    "magnetic_field_t",
+    "magnetic_lower",
+    "magnetic_upper",
+    "make_chart",
+    "make_index",
+    "make_metric",
     "map_jacobian",
     "map_valid",
+    "maxwell_field_strength",
+    "maxwell_gauge_transform",
+    "maxwell_residual",
+    "metric_arena",
     "metric_contravariant",
     "metric_contravariant_tensor",
+    "metric_coordinate",
+    "metric_coordinates",
     "metric_covariant",
     "metric_covariant_tensor",
+    "metric_create",
+    "metric_create_metadata",
+    "metric_det",
+    "metric_divergence",
+    "metric_from_chart",
+    "metric_grad",
+    "metric_has_coordinates",
+    "metric_inner",
+    "metric_laplacian",
+    "metric_levi_civita",
+    "metric_orientation",
+    "metric_orientation_type",
+    "metric_same_arena",
+    "metric_signature_type",
+    "metric_sqrtg",
+    "metric_surface_measure",
+    "metric_t",
+    "metric_valid",
+    "metric_volume_density",
     "negate_form",
+    "nonmetricity",
+    "nubar",
+    "orientation_create",
+    "orientation_is_negative",
+    "orientation_is_positive",
+    "orientation_t",
+    "orientation_valid",
+    "orientation_value",
+    "permute",
     "pullback",
     "raise",
     "reciprocal_basis",
+    "register_builtin_geometry",
+    "registry_capability",
+    "registry_count",
+    "registry_enabled",
+    "registry_find",
+    "registry_init",
+    "registry_name",
+    "registry_owner",
+    "registry_probe",
+    "registry_refusal",
+    "registry_register",
+    "registry_version",
+    "reluctivity_density",
     "ricci_tensor",
     "riemann_tensor",
+    "same_index_space",
     "scalar_curvature",
     "scale_form",
+    "second_bianchi_residual",
     "sharp",
+    "signature_component",
+    "signature_create",
+    "signature_dimension",
+    "signature_is_lorentzian",
+    "signature_negative_count",
+    "signature_positive_count",
+    "signature_t",
+    "signature_valid",
+    "spacetime_christoffel",
+    "spacetime_codifferential",
+    "spacetime_d",
+    "spacetime_einstein",
+    "spacetime_exterior_diff",
+    "spacetime_form_component",
+    "spacetime_form_degree",
+    "spacetime_form_dimension",
+    "spacetime_form_four",
+    "spacetime_form_from_tensor",
+    "spacetime_form_one",
+    "spacetime_form_same_arena",
+    "spacetime_form_scalar",
+    "spacetime_form_t",
+    "spacetime_form_three",
+    "spacetime_form_two",
+    "spacetime_form_valid",
+    "spacetime_form_zero",
+    "spacetime_geodesic_residual",
+    "spacetime_hodge",
+    "spacetime_interior",
+    "spacetime_interior_product",
+    "spacetime_killing",
+    "spacetime_laplace_de_rham",
+    "spacetime_lie",
+    "spacetime_lie_derivative",
+    "spacetime_metric_arena",
+    "spacetime_metric_contravariant",
+    "spacetime_metric_contravariant_tensor",
+    "spacetime_metric_coordinates",
+    "spacetime_metric_covariant",
+    "spacetime_metric_covariant_tensor",
+    "spacetime_metric_create",
+    "spacetime_metric_create_metadata",
+    "spacetime_metric_det",
+    "spacetime_metric_divergence",
+    "spacetime_metric_flat",
+    "spacetime_metric_grad",
+    "spacetime_metric_has_coordinates",
+    "spacetime_metric_laplacian",
+    "spacetime_metric_orientation",
+    "spacetime_metric_orientation_type",
+    "spacetime_metric_sharp",
+    "spacetime_metric_signature",
+    "spacetime_metric_signature_type",
+    "spacetime_metric_sqrtg",
+    "spacetime_metric_t",
+    "spacetime_metric_valid",
+    "spacetime_ricci",
+    "spacetime_riemann",
+    "spacetime_scalar_curvature",
+    "spacetime_star",
+    "spacetime_tensor_component",
+    "spacetime_tensor_component_flat",
+    "spacetime_tensor_contract",
+    "spacetime_tensor_covariant_diff",
+    "spacetime_tensor_covariant_divergence",
+    "spacetime_tensor_covector",
+    "spacetime_tensor_density",
+    "spacetime_tensor_density_factor",
+    "spacetime_tensor_density_weight",
+    "spacetime_tensor_dimension",
+    "spacetime_tensor_from_components",
+    "spacetime_tensor_from_form",
+    "spacetime_tensor_lie_derivative",
+    "spacetime_tensor_lower",
+    "spacetime_tensor_permute",
+    "spacetime_tensor_product",
+    "spacetime_tensor_raise",
+    "spacetime_tensor_rank",
+    "spacetime_tensor_same_arena",
+    "spacetime_tensor_scalar",
+    "spacetime_tensor_t",
+    "spacetime_tensor_valid",
+    "spacetime_tensor_variance",
+    "spacetime_tensor_vector",
+    "spacetime_volume_form",
+    "spacetime_wedge",
     "sqrtg",
     "star",
+    "straight_field_line_residual",
     "subtract_forms",
+    "surface_measure",
+    "symmetrize",
     "tensor",
+    "tensor_chart_bound",
+    "tensor_chart_compatible",
     "tensor_component",
+    "tensor_coordinates_compatible",
     "tensor_covector",
     "tensor_density_weight",
     "tensor_from_components",
+    "tensor_from_form",
     "tensor_from_matrix",
+    "tensor_metric_compatible",
     "tensor_product",
     "tensor_rank",
     "tensor_same_arena",
+    "tensor_same_chart",
     "tensor_scalar",
+    "tensor_symmetry",
     "tensor_t",
     "tensor_valid",
     "tensor_variance",
     "tensor_vector",
+    "toolkit_probe",
+    "toolkit_record_t",
+    "toolkit_registry_t",
+    "torsion",
     "trace",
     "transform_form",
     "transform_tensor",
     "vector",
+    "volume_form",
     "wedge"
   ]
 }

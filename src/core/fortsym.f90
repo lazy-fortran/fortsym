@@ -27,6 +27,8 @@ module fortsym
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE, verdict_name
     use fortsym_engine_native, only: native_engine_t, make_native_engine
+    use fortsym_series_adapter, only: calculate_series, &
+        calculate_series_coeff
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -257,7 +259,7 @@ module fortsym
         rational_valued, integer_valued, positive_integer, algebraic_valued
     public :: str, chars
     public :: subs, subs_many, diff, simplify, refine, expand, factor, &
-        operation_count, free_symbols
+        series, series_coeff, operation_count, free_symbols
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -669,6 +671,63 @@ contains
         end if
         result = engine%factor(expression)
     end function factor
+
+    !> Return the bounded Taylor polynomial through the requested highest
+    !> degree. The result has no order term; unsupported singular or opaque
+    !> derivative cases are reported through the common engine result.
+    function series(expression, variable, point, order) result(result)
+        type(expr_t), intent(in) :: expression, variable, point
+        integer, intent(in) :: order
+        type(engine_result_t) :: result
+        logical :: ok
+        character(:), allocatable :: why
+
+        if (.not. is_valid(expression) .or. .not. is_valid(variable) .or. &
+            .not. is_valid(point)) then
+            call report_failure(result, "series: invalid expression")
+            return
+        end if
+        if (.not. same_arena(expression, variable) .or. &
+            .not. same_arena(expression, point)) then
+            call report_failure(result, "series: expressions belong to different arenas")
+            return
+        end if
+        call calculate_series(expression%a, expression, variable, point, order, &
+            result%value, ok, why)
+        if (.not. ok) then
+            call report_failure(result, why)
+            return
+        end if
+        result%ok = .true.
+    end function series
+
+    !> Return the exact Taylor coefficient of (variable-point)**order.
+    function series_coeff(expression, variable, point, order) result(result)
+        type(expr_t), intent(in) :: expression, variable, point
+        integer, intent(in) :: order
+        type(engine_result_t) :: result
+        logical :: ok
+        character(:), allocatable :: why
+
+        if (.not. is_valid(expression) .or. .not. is_valid(variable) .or. &
+            .not. is_valid(point)) then
+            call report_failure(result, "series_coeff: invalid expression")
+            return
+        end if
+        if (.not. same_arena(expression, variable) .or. &
+            .not. same_arena(expression, point)) then
+            call report_failure(result, &
+                "series_coeff: expressions belong to different arenas")
+            return
+        end if
+        call calculate_series_coeff(expression%a, expression, variable, point, &
+            order, result%value, ok, why)
+        if (.not. ok) then
+            call report_failure(result, why)
+            return
+        end if
+        result%ok = .true.
+    end function series_coeff
 
     !> Return the native three-valued zero verdict for an expression.
     !> VERDICT_TRUE means proved zero, VERDICT_FALSE means proved nonzero, and
