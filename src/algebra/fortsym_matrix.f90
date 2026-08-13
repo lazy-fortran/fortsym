@@ -13,7 +13,8 @@ module fortsym_matrix
     ! the result readable and the arithmetic exact. See doc/provenance.md.
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: str_t, str, chars
-    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_FUNC
+    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_FUNC, &
+        NK_ADD, NK_MUL, NK_POW
     use fortsym_expr, only: expr_t, num, rat, func, func_in, same_arena, zoo_expr, operator(+), &
         operator(-), operator(*), operator(/), operator(==)
     use fortsym_assume, only: FACT_NONZERO
@@ -25,7 +26,8 @@ module fortsym_matrix
 
     public :: is_list, is_matrix, matrix_shape
     public :: matrix_transpose, matrix_add, matrix_negate, matrix_divide, matrix_dot
-    public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_symmetric, matrix_inverse
+    public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_zero_matrix, &
+        matrix_is_symmetric, matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
     public :: matrix_rref_values
     public :: to_matrix, from_matrix
@@ -820,9 +822,10 @@ contains
         logical, intent(out) :: ok
         type(str_t), intent(out) :: why
         type(expr_t) :: row, value
-        type(engine_result_t) :: zero
         integer :: rows, cols, i, j
-        logical :: unknown
+        integer :: entry_verdict
+        logical :: entry_ok, unknown
+        type(str_t) :: entry_why
 
         verdict = VERDICT_UNKNOWN
         ok = .false.
@@ -839,38 +842,18 @@ contains
             do j = 1, cols
                 if (i == j) cycle
                 value = row%arg(j)
-                select case (value%kind())
-                case (NK_INT, NK_RAT)
-                    if (value%int_value() == 0_int64) cycle
-                    verdict = VERDICT_FALSE
-                    ok = .true.
-                    return
-                case (NK_REAL)
-                    if (value%real_value() == 0.0) cycle
-                    verdict = VERDICT_FALSE
-                    ok = .true.
-                    return
-                end select
-                zero = engine%zero_test(value)
-                if (.not. zero%ok) then
-                    why = zero%message
+                call matrix_entry_zero( &
+                    engine, value, entry_verdict, entry_ok, entry_why)
+                if (.not. entry_ok) then
+                    why = entry_why
                     return
                 end if
-                if (zero%verdict == VERDICT_FALSE) then
-                    ! The native zero oracle can prove a formal rational
-                    ! residual nonzero. Matrix.is_diagonal follows SymPy's
-                    ! public tri-state predicate, where unresolved symbolic
-                    ! entries remain UNKNOWN rather than becoming FALSE.
-                    if (value%kind() == NK_SYM .and. &
-                        .not. matrix_symbol_is_nonzero(engine, value)) then
-                        unknown = .true.
-                        cycle
-                    end if
+                if (entry_verdict == VERDICT_FALSE) then
                     verdict = VERDICT_FALSE
                     ok = .true.
                     return
                 end if
-                if (zero%verdict == VERDICT_UNKNOWN) unknown = .true.
+                if (entry_verdict == VERDICT_UNKNOWN) unknown = .true.
             end do
         end do
 
@@ -881,6 +864,106 @@ contains
         end if
         ok = .true.
     end subroutine matrix_is_diagonal
+
+    !> Classify one matrix entry as zero, nonzero, or undecidable.
+    !>
+    !> The native zero oracle can prove a formal rational residual nonzero, but
+    !> SymPy's matrix zero predicates keep a bare symbolic entry undecidable
+    !> unless the caller has explicitly recorded it as nonzero.
+    subroutine matrix_entry_zero(engine, value, verdict, ok, why)
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: value
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(engine_result_t) :: zero
+
+        verdict = VERDICT_UNKNOWN
+        ok = .false.
+        why = str("")
+        select case (value%kind())
+        case (NK_INT, NK_RAT)
+            if (value%int_value() == 0_int64) then
+                verdict = VERDICT_TRUE
+            else
+                verdict = VERDICT_FALSE
+            end if
+            ok = .true.
+            return
+        case (NK_REAL)
+            if (value%real_value() == 0.0) then
+                verdict = VERDICT_TRUE
+            else
+                verdict = VERDICT_FALSE
+            end if
+            ok = .true.
+            return
+        end select
+
+        zero = engine%zero_test(value)
+        if (.not. zero%ok) then
+            why = zero%message
+            return
+        end if
+        verdict = zero%verdict
+        if (verdict == VERDICT_FALSE) then
+            if (value%kind() == NK_SYM) then
+                if (.not. matrix_symbol_is_nonzero(engine, value)) then
+                    verdict = VERDICT_UNKNOWN
+                end if
+            else if (matrix_value_has_symbol(value)) then
+                if (.not. matrix_value_is_intrinsically_nonzero(value)) then
+                    verdict = VERDICT_UNKNOWN
+                end if
+            end if
+        end if
+        ok = .true.
+    end subroutine matrix_entry_zero
+
+    recursive logical function matrix_value_has_symbol(value) result(has_symbol)
+        type(expr_t), intent(in) :: value
+        integer :: k
+
+        has_symbol = .false.
+        if (value%kind() == NK_SYM) then
+            has_symbol = .true.
+            return
+        end if
+        select case (value%kind())
+        case (NK_ADD, NK_MUL, NK_POW, NK_FUNC)
+            do k = 1, value%nargs()
+                if (matrix_value_has_symbol(value%arg(k))) then
+                    has_symbol = .true.
+                    return
+                end if
+            end do
+        end select
+    end function matrix_value_has_symbol
+
+    recursive logical function matrix_value_is_intrinsically_nonzero(value) result(known)
+        type(expr_t), intent(in) :: value
+        type(expr_t) :: factor
+        integer :: k
+
+        known = .false.
+        if (value%kind() == NK_FUNC) then
+            if (chars(value%name()) == "exp") then
+                known = .true.
+                return
+            end if
+        end if
+        if (value%kind() == NK_MUL) then
+            if (value%nargs() == 0) return
+            known = .true.
+            do k = 1, value%nargs()
+                factor = value%arg(k)
+                if (.not. matrix_value_is_intrinsically_nonzero(factor)) then
+                    known = .false.
+                    return
+                end if
+            end do
+        end if
+    end function matrix_value_is_intrinsically_nonzero
 
     logical function matrix_symbol_is_nonzero(engine, value) result(known)
         class(engine_t), intent(in) :: engine
@@ -894,6 +977,56 @@ contains
             end if
         end select
     end function matrix_symbol_is_nonzero
+
+    !> Three-valued zero-matrix predicate using the caller's native zero oracle.
+    subroutine matrix_is_zero_matrix(a, engine, e, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(expr_t) :: row, value
+        type(str_t) :: entry_why
+        integer :: rows, cols, i, j, entry_verdict
+        logical :: entry_ok, unknown
+
+        verdict = VERDICT_UNKNOWN
+        ok = .false.
+        why = str("")
+        call matrix_shape(e, rows, cols)
+        if (rows == 0) then
+            why = str("Zero-matrix test on something that is not a matrix")
+            return
+        end if
+
+        unknown = .false.
+        do i = 1, rows
+            row = e%arg(i)
+            do j = 1, cols
+                value = row%arg(j)
+                call matrix_entry_zero( &
+                    engine, value, entry_verdict, entry_ok, entry_why)
+                if (.not. entry_ok) then
+                    why = entry_why
+                    return
+                end if
+                if (entry_verdict == VERDICT_FALSE) then
+                    verdict = VERDICT_FALSE
+                    ok = .true.
+                    return
+                end if
+                if (entry_verdict == VERDICT_UNKNOWN) unknown = .true.
+            end do
+        end do
+
+        if (unknown) then
+            verdict = VERDICT_UNKNOWN
+        else
+            verdict = VERDICT_TRUE
+        end if
+        ok = .true.
+    end subroutine matrix_is_zero_matrix
 
     !> Boolean symmetry predicate with SymPy's optional simplification switch.
     subroutine matrix_is_symmetric(a, engine, e, simplify, verdict, ok, why)

@@ -465,6 +465,15 @@ and 0.0069x warm; both remain enforced. The implementation supports both
 SymPy's default simplifying comparison and structural `simplify=False` while
 traversing only the upper triangle and allocating no matrix array.
 
+The bounded exact `Matrix.is_zero_matrix` workload adds one correctness-checked
+warm-core row over a 2x2 zero matrix, with independent cases for proven true,
+proven false, and undecidable symbolic entries. The higher-repetition
+2026-08-13 run measured a native/SymPy ratio of 0.158x. It shares the native
+zero-entry classifier with `Matrix.is_diagonal`, traverses the nested `List`
+directly, and allocates no matrix array. The latest matrix therefore has 171
+rows, 125 enforced rows, and zero unwaived violations after the 46 documented
+diagnostic waivers are applied.
+
 On the same host, the pre-existing `boolean_implies_constructor:cold_end_to_end`
 diagnostic measured 1.007x and 1.015x in two strict samples. That one-node
 construction difference is within timer noise and unrelated to the RREF
@@ -472,8 +481,8 @@ change, so it is now an explicit reviewed waiver rather than an unreported
 failure. A separate strict sample measured the pre-existing
 `relation:cold_end_to_end` constructor at 1.021x while its warm row remained
 0.779x; that similarly small host-timing difference is also explicitly
-waived. With the flat-column, trace, diagonal-query, and symmetry coverage
-included, the latest matrix therefore has 170 rows, 124 enforced rows, and zero unwaived
+waived. With the flat-column, trace, diagonal-query, symmetry, and zero-matrix
+coverage included, the latest matrix therefore has 171 rows, 125 enforced rows, and zero unwaived
 violations after
 the 46 documented diagnostic waivers are applied.
 

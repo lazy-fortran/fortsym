@@ -14,6 +14,7 @@ int main(void)
     fortsym_expr *zero = NULL, *one = NULL, *two = NULL, *three = NULL, *four = NULL;
     fortsym_expr *foreign_one = NULL;
     fortsym_expr *row_one = NULL, *row_two = NULL, *matrix = NULL;
+    fortsym_expr *zero_row = NULL, *zero_matrix = NULL;
     fortsym_expr *bad_matrix = NULL;
     fortsym_expr *determinant = NULL, *trace = NULL, *rank = NULL, *inverse = NULL;
     fortsym_expr *transposed = NULL;
@@ -24,15 +25,18 @@ int main(void)
     fortsym_expr *reduced = NULL, *pivots = NULL;
     fortsym_expr *inverse_row = NULL, *inverse_entry = NULL;
     int diagonal_verdict = FORTSYM_ZERO_UNKNOWN;
+    int zero_matrix_verdict = FORTSYM_ZERO_UNKNOWN;
     int symmetric_verdict = FORTSYM_ZERO_UNKNOWN;
     const fortsym_expr *row_one_values[2];
     const fortsym_expr *row_two_values[2];
     const fortsym_expr *rows[2];
+    const fortsym_expr *zero_row_values[2];
+    const fortsym_expr *zero_rows[2];
     const fortsym_expr *null_row_one_values[3];
     const fortsym_expr *null_row_two_values[3];
     const fortsym_expr *null_rows[2];
 
-    assert(fortsym_abi_version() == 92);
+    assert(fortsym_abi_version() == 93);
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 0, &zero, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 1, &one, message, sizeof message) == FORTSYM_OK);
@@ -67,9 +71,24 @@ int main(void)
     assert(fortsym_matrix_is_diagonal(arena, matrix, &diagonal_verdict,
                                       message, sizeof message) == FORTSYM_OK);
     assert(diagonal_verdict == FORTSYM_ZERO_FALSE);
+    assert(fortsym_matrix_is_zero_matrix(arena, matrix, &zero_matrix_verdict,
+                                         message, sizeof message) == FORTSYM_OK);
+    assert(zero_matrix_verdict == FORTSYM_ZERO_FALSE);
     assert(fortsym_matrix_is_symmetric(arena, matrix, 1, &symmetric_verdict,
                                        message, sizeof message) == FORTSYM_OK);
     assert(symmetric_verdict == FORTSYM_ZERO_FALSE);
+    zero_row_values[0] = zero;
+    zero_row_values[1] = zero;
+    assert(fortsym_function(arena, "List", zero_row_values, 2, &zero_row,
+                            message, sizeof message) == FORTSYM_OK);
+    zero_rows[0] = zero_row;
+    zero_rows[1] = zero_row;
+    assert(fortsym_function(arena, "List", zero_rows, 2, &zero_matrix,
+                            message, sizeof message) == FORTSYM_OK);
+    assert(fortsym_matrix_is_zero_matrix(arena, zero_matrix,
+                                         &zero_matrix_verdict, message,
+                                         sizeof message) == FORTSYM_OK);
+    assert(zero_matrix_verdict == FORTSYM_ZERO_TRUE);
     assert(fortsym_matrix_transpose(arena, matrix, &transposed, message,
                                     sizeof message) == FORTSYM_OK);
     assert(fortsym_expr_text(transposed, text, sizeof text, &required,
@@ -213,6 +232,8 @@ int main(void)
     fortsym_expr_free(trace);
     fortsym_expr_free(determinant);
     fortsym_expr_free(matrix);
+    fortsym_expr_free(zero_matrix);
+    fortsym_expr_free(zero_row);
     fortsym_expr_free(row_two);
     fortsym_expr_free(row_one);
     fortsym_expr_free(four);
