@@ -1636,6 +1636,11 @@ class Matrix:
             raise UnsupportedOperationError("determinant options")
         return _native_operation(self._expression.det)
 
+    def rank(self, **options):
+        if options:
+            raise UnsupportedOperationError("rank options")
+        return _native_operation(self._expression.rank)
+
     def __str__(self):
         rows = []
         for row_index in range(self.rows):
@@ -1670,6 +1675,14 @@ def det(matrix, **options):
     return matrix.det()
 
 
+def rank(matrix, **options):
+    if options:
+        raise UnsupportedOperationError("rank options")
+    if not isinstance(matrix, Matrix):
+        raise UnsupportedOperationError("rank requires a Matrix")
+    return matrix.rank()
+
+
 pi = _default().constant("pi")
 E = _default().constant("e")
 I = _default().constant("i")
@@ -1696,6 +1709,6 @@ __all__ = [
     "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
     "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
-    "integrate", "limit", "series", "solve", "det", "solveset", "linsolve", "FiniteSet", "EmptySet", "Tuple", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
+    "integrate", "limit", "series", "solve", "det", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Tuple", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
     "oo", "zoo", "nan",
 ]

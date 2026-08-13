@@ -302,6 +302,12 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(str(native_matrix[0, 1]), "2")
         self.assertEqual(str(native_matrix.det()), str(oracle_matrix.det()))
         self.assertEqual(str(native.det(native_matrix)), str(oracle.det(oracle_matrix)))
+        self.assertEqual(str(native_matrix.rank()), str(oracle_matrix.rank()))
+        self.assertEqual(str(native.rank(native_matrix)), str(oracle_matrix.rank()))
+
+        oracle_singular = oracle.Matrix([[1, 2], [2, 4]])
+        native_singular = native.Matrix([[1, 2], [2, 4]])
+        self.assertEqual(str(native_singular.rank()), str(oracle_singular.rank()))
 
     def test_matrix_refuses_ragged_rows(self):
         with self.assertRaises(ValueError):

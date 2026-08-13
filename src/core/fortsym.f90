@@ -31,7 +31,7 @@ module fortsym
         calculate_series_coeff
     use fortsym_solve_adapter, only: calculate_solve
     use fortsym_linsolve_adapter, only: calculate_linsolve
-    use fortsym_matrix_adapter, only: calculate_matrix_det
+    use fortsym_matrix_adapter, only: calculate_matrix_det, calculate_matrix_rank
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -262,7 +262,7 @@ module fortsym
         rational_valued, integer_valued, positive_integer, algebraic_valued
     public :: str, chars
     public :: subs, subs_many, diff, simplify, refine, expand, factor, &
-        series, series_coeff, solve, linsolve, det, operation_count, free_symbols
+        series, series_coeff, solve, linsolve, det, rank, operation_count, free_symbols
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -825,6 +825,35 @@ contains
             result%ok = .true.
         end if
     end function det
+
+    !> Return the exact rank of a dense matrix represented as nested `List`
+    !> expressions. The native RREF owner decides literal exact pivots and
+    !> refuses malformed or over-bounded inputs.
+    function rank(expression) result(result)
+        type(expr_t), intent(in) :: expression
+        type(engine_result_t) :: result
+        logical :: ok
+        character(:), allocatable :: why
+        type(native_engine_t) :: engine
+
+        if (.not. is_valid(expression)) then
+            call report_failure(result, "rank: invalid expression")
+            return
+        end if
+        if (use_default_engine(expression)) then
+            call calculate_matrix_rank( &
+                expression%a, default_engine, expression, result%value, ok, why)
+        else
+            engine = make_native_engine(expression%a)
+            call calculate_matrix_rank( &
+                expression%a, engine, expression, result%value, ok, why)
+        end if
+        if (.not. ok) then
+            call report_failure(result, why)
+        else
+            result%ok = .true.
+        end if
+    end function rank
 
     !> Return the native three-valued zero verdict for an expression.
     !> VERDICT_TRUE means proved zero, VERDICT_FALSE means proved nonzero, and

@@ -146,6 +146,9 @@ program test_fortsym_convenience
     result = det(determinant_matrix)
     call check("facade exposes exact matrix determinant", &
         result%ok .and. result%value == num(default_storage, -2_int64), failures)
+    result = rank(determinant_matrix)
+    call check("facade exposes exact matrix rank", &
+        result%ok .and. result%value == num(default_storage, 2_int64), failures)
     result = series(exp(mu), mu, num(default_storage, 0_int64), 3)
     series_value = result%value
     series_expected = 1 + mu + mu**2/2 + mu**3/6

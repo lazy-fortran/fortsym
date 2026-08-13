@@ -201,6 +201,9 @@ SymPy parity for the entire family.
 - [x] Expose bounded exact dense `Matrix` construction, `(row, column)`
       indexing, and native-backed determinant through the canonical facades;
       ragged rows and broader matrix operations remain explicit refusals.
+- [x] Expose bounded exact dense `Matrix.rank()` through the canonical
+      facades, using the existing native RREF owner and refusing malformed or
+      over-bounded forms.
 - [ ] Complete `solve`, `solveset`, real/complex solves, `linsolve`, and
       solution conditions for polynomial, rational, radical, inverse-function,
       and supported transcendental equations.

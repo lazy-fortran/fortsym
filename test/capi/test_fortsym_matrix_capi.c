@@ -12,12 +12,12 @@ int main(void)
     fortsym_arena *arena = NULL;
     fortsym_expr *one = NULL, *two = NULL, *three = NULL, *four = NULL;
     fortsym_expr *row_one = NULL, *row_two = NULL, *matrix = NULL;
-    fortsym_expr *determinant = NULL;
+    fortsym_expr *determinant = NULL, *rank = NULL;
     const fortsym_expr *row_one_values[2];
     const fortsym_expr *row_two_values[2];
     const fortsym_expr *rows[2];
 
-    assert(fortsym_abi_version() == 79);
+    assert(fortsym_abi_version() == 80);
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 1, &one, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 2, &two, message, sizeof message) == FORTSYM_OK);
@@ -43,7 +43,13 @@ int main(void)
     assert(fortsym_expr_text(determinant, text, sizeof text, &required,
                              message, sizeof message) == FORTSYM_OK);
     assert(strcmp(text, "-2") == 0);
+    assert(fortsym_matrix_rank(arena, matrix, &rank, message,
+                               sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_text(rank, text, sizeof text, &required,
+                             message, sizeof message) == FORTSYM_OK);
+    assert(strcmp(text, "2") == 0);
 
+    fortsym_expr_free(rank);
     fortsym_expr_free(determinant);
     fortsym_expr_free(matrix);
     fortsym_expr_free(row_two);
