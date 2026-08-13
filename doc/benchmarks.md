@@ -315,6 +315,12 @@ remains enforced. The latest matrix therefore has 139 rows, 111 enforced
 rows, and zero unwaived violations after the 28 documented diagnostic waivers
 are applied.
 
+The symbolic relational constructor workload adds cold end-to-end and warm-core
+rows for `Gt(x, 1)`. In the 2026-08-13 standard run the native/SymPy ratios
+were 0.969x and 0.752x, respectively; both rows remain enforced. The matrix
+remains at 145 rows, 117 enforced rows, and zero unwaived violations after the
+28 documented diagnostic waivers are applied.
+
 The bounded Boolean constructor slice adds six cold end-to-end rows. Each
 correctness check compares the named application and all children with SymPy;
 the independent native invariant checks the application head, arity, and
@@ -324,6 +330,14 @@ ratios were 0.404x (`And`), 0.430x (`Or`), 0.914x (`Not`), 0.482x (`Xor`),
 The latest matrix
 therefore has 145 rows, 117 enforced rows, and zero unwaived violations after
 the 28 documented diagnostic waivers are applied.
+
+The same correctness matrix also checks four relational decision boundaries:
+integer equality and inequality, plus exact rational greater-than and
+less-than. Each expected Python boolean is computed independently from the
+SymPy result and the native invariant requires a non-expression boolean, so
+these boundary checks do not rely only on matching printed output. The
+matrix size remains 145 rows because these are correctness cases rather than
+standalone timing rows.
 
 Run it from a built checkout with:
 

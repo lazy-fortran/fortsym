@@ -128,13 +128,18 @@ SymPy parity for the entire family.
       compatibility profile: atoms, applications, relational/Boolean nodes,
       sets, tuples, matrices, indexed objects, and unevaluated forms. The
       native-owned `FiniteSet`, `Tuple`, and `Complement` result fragments and
-      the bounded native Boolean application slice are complete; the remaining
+      the bounded native Boolean application slice and the evaluated
+      relational-constructor slice are complete; the remaining
       families stay explicitly bounded below.
 - [x] Add the bounded relational/Boolean constructor slice: `And`, `Or`,
       `Not`, `Xor`, `Implies`, and `Equivalent`, shared native application
       ownership, `&`/`|`/`^`/`~` expression syntax, Boolean identity edges, and
       complementary relational negation. Full Boolean simplification and
       condition reduction remain later work.
+- [x] Evaluate decidable relational constructors through the native
+      simplifier: exact integer/rational `Eq`/`Ne`/ordering results and
+      identical-expression `Eq`/`Ne` agree with SymPy, while unknown symbolic
+      ordering remains relational and cross-arena operands are refused.
 - [ ] Complete exact integer, rational, real, complex, algebraic, infinity,
       NaN, signed-zero, and complex-infinity semantics, including conversion
       and precision rules.

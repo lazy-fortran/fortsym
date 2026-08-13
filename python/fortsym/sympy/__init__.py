@@ -1281,12 +1281,87 @@ def Equivalent(*arguments):
 
 
 def _relational(name, left, right):
-    relation = sympify(left)._relation(name, right)
-    if name == "Equal":
-        relation._sympy_head = "Eq"
-    elif name == "Unequal":
-        relation._sympy_head = "Ne"
-    return relation
+    left_expression = sympify(left)
+    if (isinstance(left, Expr) and
+            left_expression._kind_cache not in _BOOLEAN_NUMBER_KINDS and
+            not isinstance(right, Expr)):
+        relation = left_expression._relation(name, right)
+        if name == "Equal":
+            relation._sympy_head = "Eq"
+        elif name == "Unequal":
+            relation._sympy_head = "Ne"
+        return relation
+    left_temporary = not isinstance(left, Expr)
+    right_expression = right if isinstance(right, Expr) else None
+    right_temporary = False
+    relation = None
+    simplified = None
+    keep_relation = False
+    try:
+        left_kind = left_expression._kind_cache
+        right_kind = (None if right_expression is None
+                      else right_expression._kind_cache)
+        same_expression = (
+            right_expression is not None and
+            left_expression._arena is right_expression._arena and
+            left_expression is right_expression
+        )
+        if (not same_expression and left_kind == 4 and right_kind == 4):
+            same_expression = (
+                left_expression._arena is right_expression._arena and
+                left_expression.name == right_expression.name
+            )
+        if same_expression:
+            if name == "Equal":
+                return True
+            if name == "Unequal":
+                return False
+            # SymPy keeps x < x and x <= x unevaluated without assumptions.
+            relation = left_expression._relation(name, right_expression)
+            keep_relation = True
+            return relation
+        if left_kind not in _BOOLEAN_NUMBER_KINDS:
+            relation = left_expression._relation(name, right)
+            if name == "Equal":
+                relation._sympy_head = "Eq"
+            elif name == "Unequal":
+                relation._sympy_head = "Ne"
+            keep_relation = True
+            return relation
+        if (right_expression is None and
+                left_kind in _BOOLEAN_NUMBER_KINDS and
+                isinstance(right, (bool, int, float, Fraction))):
+            right_expression = sympify(right)
+            right_temporary = True
+            right_kind = right_expression._kind_cache
+        if (right_expression is not None and
+                left_kind in _BOOLEAN_NUMBER_KINDS and
+                right_kind in _BOOLEAN_NUMBER_KINDS):
+            relation = left_expression._relation(name, right_expression)
+            simplified = relation.simplify()
+            if simplified.name in ("True", "False"):
+                result = simplified.name == "True"
+                simplified.close()
+                relation.close()
+                relation = None
+                return result
+        else:
+            relation = left_expression._relation(name, right)
+        if name == "Equal":
+            relation._sympy_head = "Eq"
+        elif name == "Unequal":
+            relation._sympy_head = "Ne"
+        keep_relation = True
+        return relation
+    finally:
+        if simplified is not None and relation is not None:
+            simplified.close()
+        if relation is not None and not keep_relation:
+            relation.close()
+        if left_temporary:
+            left_expression.close()
+        if right_temporary:
+            right_expression.close()
 
 
 def Eq(left, right):

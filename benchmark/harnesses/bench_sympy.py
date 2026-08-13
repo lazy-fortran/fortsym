@@ -1085,6 +1085,21 @@ def correctness_cases() -> list[dict[str, Any]]:
     oracle_cases = workload_factories("check", "fixed")[0]
     native_cases = workload_factories("check", "fixed")[0]
     results = []
+    relation_boundaries = (
+        ("equal_int", oracle.Eq(1, 1), native.Eq(1, 1), True),
+        ("unequal_int", oracle.Ne(1, 2), native.Ne(1, 2), True),
+        ("greater_rational", oracle.Gt(oracle.Rational(3, 2), 1),
+         native.Gt(native.Rational(3, 2), 1), True),
+        ("less_rational", oracle.Lt(oracle.Rational(1, 3), 1),
+         native.Lt(native.Rational(1, 3), 1), True),
+    )
+    for label, expected, actual, independent in relation_boundaries:
+        results.append({
+            "operation": f"relation_boundary_{label}",
+            "correct": bool(expected) == actual and actual is independent,
+            "expected": str(expected),
+            "actual": str(actual),
+        })
     for name in ("sin", "cos", "tan"):
         expected = getattr(oracle, name)(oracle.zoo)
         actual = getattr(native, name)(native.zoo)
