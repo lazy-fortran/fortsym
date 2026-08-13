@@ -133,6 +133,10 @@ def rref_equivalent(expected: Any, actual: Any) -> bool:
             tuple(str(value) for value in actual[1]))
 
 
+def matrix_multiply_equivalent(expected: Any, actual: Any) -> bool:
+    return expected.shape == actual.shape and str(expected) == str(actual)
+
+
 def match_equivalent(expected: Any, actual: Any) -> bool:
     if expected is None or actual is None:
         return expected is actual
@@ -609,6 +613,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.Matrix([[1, 2, 3], [2, 4, 4]]),
             names,
         ),
+        "matrix_multiply": (
+            oracle.Matrix([[1, 2], [3, 4]]),
+            native.Matrix([[1, 2], [3, 4]]),
+            names,
+        ),
         "assumption_query": (
             oracle.Q.positive(oracle_x),
             native.Q.positive(native_x),
@@ -657,6 +666,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         return engine.Matrix([[1, 2, 3], [2, 4, 4]]), None
     if operation == "matrix_rref":
         return engine.Matrix([[1, 2, 3], [2, 4, 4]]), None
+    if operation == "matrix_multiply":
+        return engine.Matrix([[1, 2], [3, 4]]), None
     if operation == "composition":
         x = engine.Symbol(f"{operation}_x_{suffix}", real=True)
     elif operation == "integer_assumption_query":
@@ -1106,6 +1117,9 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation == "matrix_rref":
             expected = oracle_expression.rref()
             actual = native_expression.rref()
+        elif operation == "matrix_multiply":
+            expected = oracle_expression * oracle.Matrix([[2, 0], [1, 2]])
+            actual = native_expression * native.Matrix([[2, 0], [1, 2]])
         else:
             expected = oracle.factor(oracle_expression)
             actual = native.factor(native_expression)
@@ -1124,6 +1138,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                 if operation == "matrix_nullspace"
                 else rref_equivalent(expected, actual)
                 if operation == "matrix_rref"
+                else matrix_multiply_equivalent(expected, actual)
+                if operation == "matrix_multiply"
                 else str(expected) == str(actual)
                 if operation == "relation"
                 else compound_equivalent(expected, actual)
@@ -1175,6 +1191,11 @@ def benchmark_workload(
         elif operation == "matrix_rref":
             oracle_call = lambda: oracle_expression.rref()
             native_call = lambda: native_expression.rref()
+        elif operation == "matrix_multiply":
+            oracle_right = oracle.Matrix([[2, 0], [1, 2]])
+            native_right = native.Matrix([[2, 0], [1, 2]])
+            oracle_call = lambda: oracle_expression * oracle_right
+            native_call = lambda: native_expression * native_right
         elif operation == "differentiate":
             oracle_x = oracle.Symbol(f"{operation}_x_warm")
             native_x = native.Symbol(f"{operation}_x_warm")
@@ -1349,6 +1370,8 @@ def benchmark_workload(
                     return expression.nullspace()
                 if operation == "matrix_rref":
                     return expression.rref()
+                if operation == "matrix_multiply":
+                    return expression * engine.Matrix([[2, 0], [1, 2]])
                 if operation == "differentiate":
                     return engine.diff(expression, variable)
                 if operation in _ASSUMPTION_OPERATIONS:
@@ -1474,7 +1497,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref",
+        "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref", "matrix_multiply",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):
         if operation in _PREDICATE_OPERATIONS:

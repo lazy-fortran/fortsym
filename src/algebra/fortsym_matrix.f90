@@ -13,7 +13,7 @@ module fortsym_matrix
     ! the result readable and the arithmetic exact. See doc/provenance.md.
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: str_t, str, chars
-    use fortsym_arena, only: arena_t, NK_FUNC
+    use fortsym_arena, only: arena_t, NK_INT, NK_FUNC
     use fortsym_expr, only: expr_t, num, func, func_in, operator(+), &
         operator(-), operator(*), operator(/), operator(==)
     use fortsym_engine, only: engine_result_t
@@ -153,18 +153,20 @@ contains
     !> Dimension mismatch fails rather than truncating to the shorter operand.
     !> A silently truncated product is dimensionally plausible and numerically
     !> wrong, which is the hardest kind of error to notice downstream.
-    function matrix_dot(a, x, y, ok, why) result(r)
+    function matrix_dot(a, x, y, ok, why, canonical) result(r)
         type(arena_t), target, intent(inout) :: a
         type(expr_t),          intent(in)    :: x, y
         logical,               intent(out)   :: ok
         type(str_t),           intent(out)   :: why
+        logical, optional,     intent(out)   :: canonical
         type(expr_t)                         :: r
         type(expr_t), allocatable :: mx(:, :), my(:, :), p(:, :)
-        logical :: xm, ym
+        logical :: xm, ym, fast
         integer :: i, j, k
 
         ok = .false.
         why = str("")
+        if (present(canonical)) canonical = .false.
         r = x
         xm = is_matrix(x)
         ym = is_matrix(y)
@@ -173,6 +175,13 @@ contains
             call to_matrix(x, mx, ok)
             if (.not. ok) return
             allocate (p(size(mx, 1), size(mx, 2)))
+            call try_integer_matrix_scale(mx, y, p, fast)
+            if (fast) then
+                r = from_matrix(a, p)
+                ok = .true.
+                if (present(canonical)) canonical = .true.
+                return
+            end if
             do i = 1, size(mx, 1)
                 do j = 1, size(mx, 2)
                     p(i, j) = mx(i, j)*y
@@ -187,6 +196,13 @@ contains
             call to_matrix(y, my, ok)
             if (.not. ok) return
             allocate (p(size(my, 1), size(my, 2)))
+            call try_integer_matrix_scale(my, x, p, fast)
+            if (fast) then
+                r = from_matrix(a, p)
+                ok = .true.
+                if (present(canonical)) canonical = .true.
+                return
+            end if
             do i = 1, size(my, 1)
                 do j = 1, size(my, 2)
                     p(i, j) = x*my(i, j)
@@ -208,6 +224,13 @@ contains
                 return
             end if
             allocate (p(size(mx, 1), size(my, 2)))
+            call try_integer_matrix_product(mx, my, p, fast)
+            if (fast) then
+                r = from_matrix(a, p)
+                ok = .true.
+                if (present(canonical)) canonical = .true.
+                return
+            end if
             do i = 1, size(mx, 1)
                 do j = 1, size(my, 2)
                     p(i, j) = mx(i, 1)*my(1, j)
@@ -238,6 +261,104 @@ contains
 
         why = str("Dot on operands that are not lists")
     end function matrix_dot
+
+    subroutine try_integer_matrix_scale(matrix, scalar, product, used)
+        type(expr_t), intent(in) :: matrix(:, :), scalar
+        type(expr_t), intent(out) :: product(:, :)
+        logical, intent(out) :: used
+        integer(int64) :: factor
+        integer :: i, j
+
+        used = .false.
+        if (scalar%kind() /= NK_INT) return
+        factor = scalar%int_value()
+        do i = 1, size(matrix, 1)
+            do j = 1, size(matrix, 2)
+                if (matrix(i, j)%kind() /= NK_INT) return
+                if (.not. integer_product_fits( &
+                    matrix(i, j)%int_value(), factor)) return
+            end do
+        end do
+        do i = 1, size(matrix, 1)
+            do j = 1, size(matrix, 2)
+                product(i, j) = num(matrix(i, j)%a, &
+                    matrix(i, j)%int_value()*factor)
+            end do
+        end do
+        used = .true.
+    end subroutine try_integer_matrix_scale
+
+    subroutine try_integer_matrix_product(left, right, product, used)
+        type(expr_t), intent(in) :: left(:, :), right(:, :)
+        type(expr_t), intent(out) :: product(:, :)
+        logical, intent(out) :: used
+        integer(int64) :: total, term
+        integer :: i, j, k
+
+        used = .false.
+        do i = 1, size(left, 1)
+            do k = 1, size(left, 2)
+                if (left(i, k)%kind() /= NK_INT) return
+            end do
+        end do
+        do k = 1, size(right, 1)
+            do j = 1, size(right, 2)
+                if (right(k, j)%kind() /= NK_INT) return
+            end do
+        end do
+        do i = 1, size(left, 1)
+            do j = 1, size(right, 2)
+                total = 0_int64
+                do k = 1, size(left, 2)
+                    if (.not. integer_product_fits( &
+                        left(i, k)%int_value(), right(k, j)%int_value())) then
+                        return
+                    end if
+                    term = left(i, k)%int_value()*right(k, j)%int_value()
+                    if (.not. integer_sum_fits(total, term)) return
+                    total = total + term
+                end do
+                product(i, j) = num(left(1, 1)%a, total)
+            end do
+        end do
+        used = .true.
+    end subroutine try_integer_matrix_product
+
+    logical function integer_product_fits(left, right)
+        integer(int64), intent(in) :: left, right
+        integer(int64), parameter :: largest = huge(0_int64)
+        integer(int64), parameter :: smallest = -largest - 1_int64
+
+        if (left == 0_int64 .or. right == 0_int64) then
+            integer_product_fits = .true.
+        else if (left > 0_int64) then
+            if (right > 0_int64) then
+                integer_product_fits = left <= largest/right
+            else
+                integer_product_fits = right >= smallest/left
+            end if
+        else if (right > 0_int64) then
+            integer_product_fits = left >= smallest/right
+        else if (left == smallest) then
+            integer_product_fits = right == -1_int64
+        else if (right == smallest) then
+            integer_product_fits = left == -1_int64
+        else
+            integer_product_fits = (-left) <= largest/(-right)
+        end if
+    end function integer_product_fits
+
+    logical function integer_sum_fits(left, right)
+        integer(int64), intent(in) :: left, right
+        integer(int64), parameter :: largest = huge(0_int64)
+        integer(int64), parameter :: smallest = -largest - 1_int64
+
+        if (right > 0_int64) then
+            integer_sum_fits = left <= largest - right
+        else
+            integer_sum_fits = left >= smallest - right
+        end if
+    end function integer_sum_fits
 
     function matrix_times_vector(a, x, y, ok, why) result(r)
         type(arena_t), target, intent(inout) :: a

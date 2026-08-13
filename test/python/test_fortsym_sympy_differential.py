@@ -309,6 +309,32 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(str(native_matrix.T), str(oracle_matrix.T))
         self.assertEqual(native_matrix.transpose().shape, (2, 2))
 
+        oracle_right = oracle.Matrix([[2, 0], [1, 2]])
+        native_right = native.Matrix([[2, 0], [1, 2]])
+        self.assertEqual(str(native_matrix * native_right),
+                         str(oracle_matrix * oracle_right))
+        self.assertEqual(str(native_matrix @ native_right),
+                         str(oracle_matrix @ oracle_right))
+        self.assertEqual(str(native_matrix * 2), str(oracle_matrix * 2))
+        self.assertEqual(str(2 * native_matrix), str(2 * oracle_matrix))
+        oracle_symbolic = oracle.Matrix([[self.locals["x"], 2], [3, 4]])
+        native_symbolic = native.Matrix([[native.Symbol("x"), 2], [3, 4]])
+        oracle_product = oracle_symbolic * oracle_right
+        native_product = native_symbolic * native_right
+        for row in range(2):
+            for column in range(2):
+                self.assert_equivalent(
+                    f"symbolic matrix multiplication ({row}, {column})",
+                    oracle_product[row, column],
+                    native_product[row, column],
+                )
+        self.assertEqual(
+            str(native.Matrix([[2**62]]) * native.Matrix([[4]])),
+            str(oracle.Matrix([[2**62]]) * oracle.Matrix([[4]])),
+        )
+        with self.assertRaises(ValueError):
+            native.Matrix([[1, 2]]) * native.Matrix([[1, 2]])
+
         oracle_null_matrix = oracle.Matrix([[1, 2, 3], [2, 4, 4]])
         native_null_matrix = native.Matrix([[1, 2, 3], [2, 4, 4]])
         oracle_basis = oracle_null_matrix.nullspace()

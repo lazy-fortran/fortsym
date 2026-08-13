@@ -1622,6 +1622,52 @@ class Matrix:
         self.shape = (self.rows, self.cols)
         self._column_vector = False
 
+    def __mul__(self, other):
+        if isinstance(other, Matrix):
+            if self._expression._arena is not other._expression._arena:
+                raise ValueError("matrix operands belong to different arenas")
+            if self.cols != other.rows:
+                raise ValueError("Matrix dimensions are not aligned")
+            right_expression, temporary = other._matrix_expression()
+            try:
+                expression = _native_operation(
+                    lambda: self._expression.matrix_multiply(right_expression)
+                )
+            finally:
+                if temporary is not None:
+                    temporary.close()
+            return self._from_expression(expression, self.rows, other.cols)
+        scalar = sympify(other)
+        matrix_expression, temporary = self._matrix_expression()
+        try:
+            expression = _native_operation(
+                lambda: matrix_expression.matrix_multiply(scalar)
+            )
+        finally:
+            if temporary is not None:
+                temporary.close()
+        return self._from_expression(expression, self.rows, self.cols)
+
+    def __rmul__(self, other):
+        if isinstance(other, Matrix):
+            return other.__mul__(self)
+        scalar = sympify(other)
+        matrix_expression, temporary = self._matrix_expression()
+        try:
+            expression = _native_operation(
+                lambda: scalar.matrix_multiply(matrix_expression)
+            )
+        finally:
+            if temporary is not None:
+                temporary.close()
+        return self._from_expression(expression, self.rows, self.cols)
+
+    def __matmul__(self, other):
+        return self.__mul__(other)
+
+    def __rmatmul__(self, other):
+        return self.__rmul__(other)
+
     def __getitem__(self, key):
         if not isinstance(key, tuple) or len(key) != 2:
             raise TypeError("Matrix indexing requires (row, column)")

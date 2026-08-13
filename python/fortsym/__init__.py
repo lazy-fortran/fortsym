@@ -1417,6 +1417,11 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.matrix_multiply = declare(
+        "fortsym_matrix_multiply",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.zero_test = declare(
         "fortsym_zero_test",
         ctypes.c_int,
@@ -7197,6 +7202,13 @@ class Expr:
             self._lib.matrix_rref, self._arena._require(), self._require()
         )
 
+    def matrix_multiply(self, other):
+        other = self._arena._check(other)
+        return self._arena._result(
+            self._lib.matrix_multiply, self._arena._require(),
+            self._require(), other._require()
+        )
+
     def _complex_operation(self, operation):
         cached = self._complex_results.get(operation)
         if (cached is not None and cached[0] == self._arena._assumption_epoch
@@ -7626,6 +7638,8 @@ def inv(expression: Expr): return expression.inv()
 def transpose(expression: Expr): return expression.transpose()
 def nullspace(expression: Expr): return expression.nullspace()
 def rref(expression: Expr): return expression.rref()
+def matrix_multiply(left: Expr, right: Expr):
+    return left.matrix_multiply(right)
 def linsolve(matrix, right_hand_side):
     arena = _default()
     values = []
@@ -7662,6 +7676,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "det", "rank", "inv", "transpose", "nullspace", "rref", "linsolve", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "det", "rank", "inv", "transpose", "nullspace", "rref", "matrix_multiply", "linsolve", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]
