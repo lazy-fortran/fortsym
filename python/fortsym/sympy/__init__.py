@@ -1093,18 +1093,188 @@ def assuming(*facts):
     return _AdapterAssumptionScope(facts)
 
 
-def And(*arguments):
-    if not arguments:
-        raise UnsupportedOperationError("empty And")
-    values = [sympify(argument) for argument in arguments]
-    if len(values) == 1:
-        return values[0]
-    temporary = [
-        value for argument, value in zip(arguments, values)
-        if not isinstance(argument, Expr)
-    ]
+_BOOLEAN_RELATION_NEGATIONS = {
+    "Equal": "Unequal",
+    "Unequal": "Equal",
+    "Greater": "LessEqual",
+    "GreaterEqual": "Less",
+    "Less": "GreaterEqual",
+    "LessEqual": "Greater",
+}
+_BOOLEAN_NUMBER_KINDS = frozenset({1, 2, 3, 10, 11, 12, 13})
+_BOOLEAN_EXPRESSION_HEADS = frozenset({
+    "Equal", "Unequal", "Greater", "GreaterEqual", "Less", "LessEqual",
+    "And", "Or", "Not", "Xor", "Implies", "Equivalent",
+})
+
+
+def _boolean_values(arguments, name):
+    values = []
+    temporary = []
     try:
-        return _default().function("And", values)
+        for argument in arguments:
+            if isinstance(argument, bool):
+                values.append(argument)
+                continue
+            value = sympify(argument)
+            _default()._check(value)
+            if not isinstance(argument, Expr):
+                temporary.append(value)
+            if value.kind in _BOOLEAN_NUMBER_KINDS:
+                if value.exact_text == "0":
+                    values.append(False)
+                    continue
+                if value.exact_text in ("1", "1/1"):
+                    values.append(True)
+                    continue
+                raise TypeError(
+                    f"{name} expects Boolean or symbolic Boolean arguments"
+                )
+            if value.kind != 4 and not (
+                    value.kind == 9 and value.name in _BOOLEAN_EXPRESSION_HEADS):
+                raise TypeError(
+                    f"{name} expects Boolean or symbolic Boolean arguments"
+                )
+            values.append(value)
+    except Exception:
+        for value in temporary:
+            value.close()
+        raise
+    return values, temporary
+
+
+def _keep_boolean_value(value, temporary):
+    if isinstance(value, Expr):
+        temporary[:] = [candidate for candidate in temporary
+                        if candidate is not value]
+    return value
+
+
+def _boolean_function(name, values):
+    return _default().function(name, [value for value in values
+                                      if isinstance(value, Expr)])
+
+
+def And(*arguments):
+    values, temporary = _boolean_values(arguments, "And")
+    try:
+        if any(value is False for value in values):
+            return False
+        values = [value for value in values if value is not True]
+        if not values:
+            return True
+        if len(values) == 1:
+            return _keep_boolean_value(values[0], temporary)
+        return _boolean_function("And", values)
+    finally:
+        for value in temporary:
+            value.close()
+
+
+def Or(*arguments):
+    values, temporary = _boolean_values(arguments, "Or")
+    try:
+        if any(value is True for value in values):
+            return True
+        values = [value for value in values if value is not False]
+        if not values:
+            return False
+        if len(values) == 1:
+            return _keep_boolean_value(values[0], temporary)
+        return _boolean_function("Or", values)
+    finally:
+        for value in temporary:
+            value.close()
+
+
+def Not(argument):
+    values, temporary = _boolean_values((argument,), "Not")
+    try:
+        value = values[0]
+        if isinstance(value, bool):
+            return not value
+        if value.kind == 9 and value.name in _BOOLEAN_RELATION_NEGATIONS:
+            children = value.args
+            try:
+                return _relational(
+                    _BOOLEAN_RELATION_NEGATIONS[value.name],
+                    children[0], children[1],
+                )
+            finally:
+                for child in children:
+                    child.close()
+        return _boolean_function("Not", (value,))
+    finally:
+        for value in temporary:
+            value.close()
+
+
+def Xor(*arguments):
+    values, temporary = _boolean_values(arguments, "Xor")
+    try:
+        parity = sum(value is True for value in values) % 2
+        values = [value for value in values if value is not False and
+                  value is not True]
+        if not values:
+            return bool(parity)
+        if len(values) == 1:
+            if not parity:
+                return _keep_boolean_value(values[0], temporary)
+            return Not(values[0])
+        result = _boolean_function("Xor", values)
+        if not parity:
+            return result
+        try:
+            return Not(result)
+        finally:
+            result.close()
+    finally:
+        for value in temporary:
+            value.close()
+
+
+def Implies(*arguments):
+    if len(arguments) != 2:
+        raise ValueError(
+            f"{len(arguments)} operand(s) used for an Implies (pairs are required): "
+            f"{arguments!r}"
+        )
+    values, temporary = _boolean_values(arguments, "Implies")
+    try:
+        left, right = values
+        if left is False or right is True:
+            return True
+        if left is True:
+            return _keep_boolean_value(right, temporary)
+        if right is False:
+            return Not(left)
+        return _boolean_function("Implies", values)
+    finally:
+        for value in temporary:
+            value.close()
+
+
+def Equivalent(*arguments):
+    values, temporary = _boolean_values(arguments, "Equivalent")
+    try:
+        if len(values) <= 1:
+            return True
+        if all(isinstance(value, bool) for value in values):
+            return all(value is values[0] for value in values[1:])
+        if any(isinstance(value, bool) for value in values):
+            constants = [value for value in values if isinstance(value, bool)]
+            symbolic = [value for value in values if not isinstance(value, bool)]
+            if any(value != constants[0] for value in constants[1:]):
+                return False
+            if constants[0] is True:
+                return And(*symbolic)
+            negated = tuple(Not(value) for value in symbolic)
+            try:
+                return _boolean_function("And", negated)
+            finally:
+                for value in negated:
+                    value.close()
+        return _boolean_function("Equivalent", values)
     finally:
         for value in temporary:
             value.close()
@@ -2120,7 +2290,7 @@ __all__ = [
     "besselj", "besseli", "legendre", "expand_complex",
     "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign",
     "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
-    "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
+    "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And", "Or", "Not", "Xor", "Implies", "Equivalent",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
     "integrate", "limit", "series", "solve", "det", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Complement", "Tuple", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
     "oo", "zoo", "nan",

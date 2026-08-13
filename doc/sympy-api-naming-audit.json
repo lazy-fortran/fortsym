@@ -432,9 +432,9 @@
       ]
     },
     {
-      "action": "Keep one relation recorder in fortsym_assume; expose compatibility spellings only at the Python adapter boundary and refuse unsupported relation inference explicitly.",
-      "description": "Construct symbolic equality and ordering relations.",
-      "finding": "The Fortran facade keeps relation constructors snake_case. The Python adapter preserves SymPy's constructor spellings and maps comparison operators to the same native relation nodes.",
+      "action": "Keep one relation recorder in fortsym_assume and one generic application owner; expose compatibility spellings only at the Python adapter boundary and refuse unsupported relation inference explicitly.",
+      "description": "Construct symbolic equality, ordering, and bounded Boolean relations.",
+      "finding": "The Fortran facade keeps relation constructors snake_case and the shared generic function owner handles bounded Boolean applications. The Python adapter preserves SymPy's constructor spellings and maps comparison and Boolean operators to the same native expression owner.",
       "fortran_facade": [
         "equal",
         "unequal",
@@ -451,7 +451,13 @@
         "Gt",
         "Ge",
         "Lt",
-        "Le"
+        "Le",
+        "And",
+        "Or",
+        "Not",
+        "Xor",
+        "Implies",
+        "Equivalent"
       ],
       "sympy_reference": [
         "Eq",
@@ -459,7 +465,13 @@
         "Gt",
         "Ge",
         "Lt",
-        "Le"
+        "Le",
+        "And",
+        "Or",
+        "Not",
+        "Xor",
+        "Implies",
+        "Equivalent"
       ]
     },
     {
@@ -3220,6 +3232,7 @@
       "CONNECTION_STANDARD",
       "Chart",
       "ChartMap",
+      "Complement",
       "Connection",
       "CoordSystem",
       "CoordinateSymbol",
@@ -3228,6 +3241,7 @@
       "E",
       "EmptySet",
       "Eq",
+      "Equivalent",
       "Expr",
       "FLUX_BOOZER",
       "FLUX_CLEBSCH",
@@ -3256,6 +3270,7 @@
       "INDEX_SPACETIME",
       "INDEX_TANGENT",
       "INDEX_USER",
+      "Implies",
       "InconsistentAssumptions",
       "Integer",
       "Le",
@@ -3268,6 +3283,8 @@
       "Metric",
       "Mul",
       "Ne",
+      "Not",
+      "Or",
       "Orientation",
       "Patch",
       "Pow",
@@ -3298,6 +3315,7 @@
       "UnsupportedOperationError",
       "WedgeProduct",
       "Wild",
+      "Xor",
       "acos",
       "acosh",
       "apart",
@@ -3423,11 +3441,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 181,
+    "assigned_names": 186,
     "concept_groups": 31,
     "fortran_facade_exports": 539,
     "python_facade_exports": 88,
-    "sympy_adapter_exports": 199,
+    "sympy_adapter_exports": 205,
     "unmapped_fortran_exports": 401
   },
   "sympy_version": "1.14.0",

@@ -6894,6 +6894,39 @@ class Expr:
     def __rpow__(self, other): return self._reverse_binary(self._lib.power, other)
     def __neg__(self): return self._reverse_binary(self._lib.subtract, 0)
 
+    def _boolean_binary(self, name, other, reverse=False):
+        other, temporary = self._arena._coerce(other)
+        try:
+            arguments = (other, self) if reverse else (self, other)
+            return self._arena.function(name, arguments)
+        finally:
+            if temporary is not None:
+                temporary.close()
+
+    def __and__(self, other): return self._boolean_binary("And", other)
+    def __rand__(self, other): return self._boolean_binary("And", other, True)
+    def __or__(self, other): return self._boolean_binary("Or", other)
+    def __ror__(self, other): return self._boolean_binary("Or", other, True)
+    def __xor__(self, other): return self._boolean_binary("Xor", other)
+    def __rxor__(self, other): return self._boolean_binary("Xor", other, True)
+    def __invert__(self):
+        negation = {
+            "Equal": "Unequal",
+            "Unequal": "Equal",
+            "Greater": "LessEqual",
+            "GreaterEqual": "Less",
+            "Less": "GreaterEqual",
+            "LessEqual": "Greater",
+        }.get(self.name)
+        if negation is None:
+            return self._arena.function("Not", (self,))
+        children = self.args
+        try:
+            return self._arena.relation(children[0], children[1], negation)
+        finally:
+            for child in children:
+                child.close()
+
     def _relation(self, name, other):
         return self._arena.relation(self, other, name)
 
@@ -7565,6 +7598,52 @@ class Expr:
                 finally:
                     left.close()
                     right.close()
+            boolean_operator = {
+                "And": "&",
+                "Or": "|",
+                "Xor": "^",
+            }.get(self.name)
+            if boolean_operator is not None and self.arity >= 2:
+                arguments = self.args
+                try:
+                    def boolean_text(argument):
+                        text = str(argument)
+                        needs_parentheses = (
+                            argument.kind == 9 and argument.name in {
+                                "Equal", "Unequal", "Greater", "GreaterEqual",
+                                "Less", "LessEqual", "And", "Or", "Xor",
+                                "Implies", "Equivalent",
+                            }
+                        )
+                        return f"({text})" if needs_parentheses else text
+
+                    return (f" {boolean_operator} ").join(
+                        boolean_text(argument) for argument in arguments
+                    )
+                finally:
+                    for argument in arguments:
+                        argument.close()
+            if self.name == "Not" and self.arity == 1:
+                argument = self.argument(0)
+                try:
+                    text = str(argument)
+                    if argument.kind == 9 and argument.name in {
+                            "Equal", "Unequal", "Greater", "GreaterEqual",
+                            "Less", "LessEqual", "And", "Or", "Xor",
+                            "Implies", "Equivalent"}:
+                        text = f"({text})"
+                    return f"~{text}"
+                finally:
+                    argument.close()
+            if self.name in ("Implies", "Equivalent") and self.arity >= 1:
+                arguments = self.args
+                try:
+                    return (f"{self.name}(" +
+                            ", ".join(str(argument) for argument in arguments) +
+                            ")")
+                finally:
+                    for argument in arguments:
+                        argument.close()
             relation = _RELATIONS.get(self.name)
             operator = None if relation is None else relation[0]
             if operator is not None and self.arity == 2:

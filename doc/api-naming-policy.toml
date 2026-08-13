@@ -107,8 +107,8 @@ canonical_native = ["equal", "unequal", "less", "less_equal", "greater", "greate
 current_native = ["equal", "unequal", "less", "less_equal", "greater", "greater_equal"]
 transition_aliases = []
 python_facade = []
-sympy_adapter = ["Eq", "Ne", "Gt", "Ge", "Lt", "Le"]
-decision = "Keep relational constructors snake_case in the Fortran facade. Preserve SymPy's Eq/Ne/Gt/Ge/Lt/Le spellings only in the compatibility adapter; relation heads such as Greater remain private serialized node names."
+sympy_adapter = ["Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And", "Or", "Not", "Xor", "Implies", "Equivalent"]
+decision = "Keep relational constructors snake_case in the Fortran facade and use its shared generic func owner for Boolean applications. Preserve SymPy's Eq/Ne/Gt/Ge/Lt/Le and And/Or/Not/Xor/Implies/Equivalent spellings only in the compatibility adapter; expression operators use the same application owner, and relation heads such as Greater remain private serialized node names."
 
 [[family]]
 id = "predicates"

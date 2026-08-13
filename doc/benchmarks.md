@@ -94,7 +94,8 @@ and compound-assumption construction, factorization, and supported assumption
 queries. It also records cold `power_constructor`,
 `power_one_constructor`, `tuple_constructor`, `finite_set_constructor`, and
 `complement_constructor` rows for construction identities and native-owned
-composite results. Every workload passes through a SymPy
+composite results, plus cold Boolean-constructor rows for
+`And`/`Or`/`Not`/`Xor`/`Implies`/`Equivalent`. Every workload passes through a SymPy
 correctness check before timing; domain expressions use structural equality
 because subtracting equal infinities is itself undefined. The JSON report includes the individual
 samples, median, min/max, native-to-SymPy ratio, Python and platform metadata,
@@ -313,6 +314,16 @@ arity. In the 2026-08-13 standard run its ratio was 0.034x SymPy, so the row
 remains enforced. The latest matrix therefore has 139 rows, 111 enforced
 rows, and zero unwaived violations after the 28 documented diagnostic waivers
 are applied.
+
+The bounded Boolean constructor slice adds six cold end-to-end rows. Each
+correctness check compares the named application and all children with SymPy;
+the independent native invariant checks the application head, arity, and
+relational child spellings. In the 2026-08-13 standard run the native/SymPy
+ratios were 0.404x (`And`), 0.430x (`Or`), 0.914x (`Not`), 0.482x (`Xor`),
+0.763x (`Implies`), and 0.270x (`Equivalent`); all six rows remain enforced.
+The latest matrix
+therefore has 145 rows, 117 enforced rows, and zero unwaived violations after
+the 28 documented diagnostic waivers are applied.
 
 Run it from a built checkout with:
 

@@ -171,11 +171,11 @@ difference = "Only the native sign/zero facts plus bounded sign-implying relatio
 
 [[semantic]]
 id = "relational-constructors"
-affected = ["Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And"]
+affected = ["Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And", "Or", "Not", "Xor", "Implies", "Equivalent"]
 parity = "partial"
-sympy = "SymPy exposes relational constructors, Boolean And compounds, and comparison operators with evaluated Boolean results where possible and symbolic relational objects otherwise."
-fortsym = "The adapter exposes the same constructor spellings plus And and symbolic comparison operators as native relation nodes; scopes pass them to one transactional bounded relation recorder."
-difference = "Exact Boolean evaluation and arbitrary relational assumptions remain narrower. SymPy 1.14 does not infer these relational facts in ask/refine; fortsym adds sound bounded sign/zero implications, conjunction inference, and explicit conflict diagnostics as native extensions."
+sympy = "SymPy exposes relational constructors, Boolean And/Or/Not/Xor/Implies/Equivalent compounds, and comparison operators with evaluated Boolean results where possible and symbolic relational objects otherwise."
+fortsym = "The adapter exposes the same constructor spellings plus symbolic comparison operators as applications in the shared native expression owner. It evaluates empty and Python-constant Boolean identities, maps relational Not to its complementary relation, and provides matching `&`, `|`, `^`, and `~` expression operators."
+difference = "Full Boolean simplification, arbitrary relational assumptions, and condition reduction remain narrower. SymPy 1.14 does not infer these relational facts in ask/refine; fortsym adds sound bounded sign/zero implications, conjunction inference, and explicit conflict diagnostics as native extensions."
 
 [[semantic]]
 id = "factorisation"
@@ -187,7 +187,7 @@ difference = "Domain coverage, factor selection, conditions, and failure/refusal
 
 [[semantic]]
 id = "equation-solving"
-affected = ["solve", "solveset"]
+affected = ["solve", "solveset", "Complement"]
 parity = "partial"
 sympy = "SymPy's solveset returns a mathematical Set and preserves domain exclusions such as rational denominator zeros; solve has a separate list-oriented interface."
 fortsym = "The native one-equation path verifies polynomial roots, transports verified rational numerator and denominator roots through the C ABI, and the Python facade renders symbolic exclusions as bounded Complement results."
