@@ -149,6 +149,10 @@ SymPy parity for the entire family.
       inputs, including canonical reduction and `zoo`/`nan` zero-denominator
       results; non-finite, precision, and broader exact-domain conversion remain
       explicitly deferred.
+- [x] Align bounded real-literal equality and hashing with SymPy: native
+      `Float` values compare symmetrically with Python `float` values and use
+      the corresponding Python-float hash, while exact rationals remain distinct
+      from binary floats.
 - [ ] Complete exact integer, rational, real, complex, algebraic, infinity,
       NaN, signed-zero, and complex-infinity semantics, including conversion
       and precision rules.

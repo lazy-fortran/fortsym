@@ -6828,6 +6828,7 @@ class Expr:
         self._match_results = {}
         self._replace_results = {}
         self._number_value = None
+        self._real_value_cache = None
         self._free_symbols_cache = None
         self._node_count_cache = None
         self._kind_cache = None
@@ -6850,6 +6851,7 @@ class Expr:
         self._match_results.clear()
         self._replace_results.clear()
         self._number_value = None
+        self._real_value_cache = None
         self._node_count_cache = None
         self._kind_cache = None
         self._arity_cache = None
@@ -7696,6 +7698,13 @@ class Expr:
     def exact_text(self): return self._text(self._lib.expr_exact_text)
 
     def __eq__(self, other):
+        if isinstance(other, float):
+            if self.kind not in (3, 12):
+                return False
+            try:
+                return self._real_value() == other
+            except (OverflowError, ValueError):
+                return False
         if not isinstance(other, (Expr, int, Fraction)):
             return False
         if not isinstance(other, Expr):
@@ -7717,6 +7726,11 @@ class Expr:
                 temporary.close()
 
     def __hash__(self):
+        if self.kind in (3, 12):
+            try:
+                return hash(self._real_value())
+            except (OverflowError, ValueError):
+                pass
         text = self.exact_text
         if "/" not in text:
             try:
@@ -7730,6 +7744,11 @@ class Expr:
             except ValueError:
                 pass
         return hash(str(self))
+
+    def _real_value(self):
+        if self._real_value_cache is None:
+            self._real_value_cache = float(self._text(self._lib.expr_text))
+        return self._real_value_cache
 
 
 _default_arena = None

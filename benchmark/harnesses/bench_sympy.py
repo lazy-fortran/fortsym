@@ -838,6 +838,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.sqrt(2),
             names,
         ),
+        "float_equality": (
+            oracle.Float(0.5),
+            native.Float(0.5),
+            names,
+        ),
     }
     if has_composition:
         expressions["composition"] = (
@@ -868,6 +873,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         x = engine.Symbol(f"{operation}_x_{suffix}", rational=True)
     elif operation == "algebraic_assumption_query":
         x = engine.Integer(2)
+    elif operation == "float_equality":
+        x = engine.Float(0.5)
     elif operation == "rational_constructor":
         x = None
     elif (operation in _CONSTRUCTION_OPERATIONS or
@@ -1062,6 +1069,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.sin(x)
     elif operation == "algebraic_predicate":
         expression = engine.sqrt(x)
+    elif operation == "float_equality":
+        expression = x
     elif operation == "refine":
         expression = engine.sqrt(x**2)
     elif operation == "composition":
@@ -1366,6 +1375,9 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation in _PREDICATE_OPERATIONS:
             expected = predicate_value(oracle_expression, operation)
             actual = predicate_value(native_expression, operation)
+        elif operation == "float_equality":
+            expected = oracle_expression == 0.5
+            actual = native_expression == 0.5
         elif operation == "refine":
             expected = oracle.refine(
                 oracle_expression, oracle.Q.negative(names["check_x_fixed"])
@@ -1430,7 +1442,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                 else expected == actual
                 if (operation in ("count_ops", "free_symbols") or
                         operation in _ASSUMPTION_OPERATIONS or
-                        operation in _PREDICATE_OPERATIONS)
+                        operation in _PREDICATE_OPERATIONS or
+                        operation == "float_equality")
                 else nullspace_equivalent(expected, actual)
                 if operation == "matrix_nullspace"
                 else rref_equivalent(expected, actual)
@@ -1645,6 +1658,9 @@ def benchmark_workload(
             elif operation in _PREDICATE_OPERATIONS:
                 oracle_call = lambda: predicate_value(oracle_expression, operation)
                 native_call = lambda: predicate_value(native_expression, operation)
+            elif operation == "float_equality":
+                oracle_call = lambda: oracle_expression == 0.5
+                native_call = lambda: native_expression == 0.5
             elif operation == "refine":
                 oracle_x = oracle.Symbol("refine_x_warm")
                 native_x = native.Symbol("refine_x_warm")
@@ -1761,6 +1777,8 @@ def benchmark_workload(
                     return expression.match(variable)
                 if operation in _PREDICATE_OPERATIONS:
                     return predicate_value(expression, operation)
+                if operation == "float_equality":
+                    return expression == 0.5
                 if (operation in _CONSTRUCTION_OPERATIONS or
                         operation in _BOOLEAN_CONSTRUCTION_OPERATIONS):
                     return expression
@@ -1853,7 +1871,7 @@ def main() -> None:
     for operation in (
         "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "rational_constructor", "tuple_constructor", "finite_set_constructor", "complement_constructor", "boolean_and_constructor", "boolean_or_constructor", "boolean_not_constructor", "boolean_xor_constructor", "boolean_implies_constructor", "boolean_equivalent_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate",
         "matrix_divide", "solve_rational", "solveset_rational_condition",
-        *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
+        *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS, "float_equality"
     ):
         if operation in _PREDICATE_OPERATIONS:
             scopes = ("warm_core",)

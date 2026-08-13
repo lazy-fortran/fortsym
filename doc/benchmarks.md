@@ -335,18 +335,28 @@ The bounded `Rational` constructor-input workload adds one cold end-to-end row
 for the string-to-exact path used by the compatibility facade. Its correctness
 matrix additionally checks `Fraction`, rational/decimal-string, finite-float,
 and zero-denominator inputs against SymPy plus fixed expected spellings. In the
-2026-08-13 strict run its ratio was 7.98x SymPy. This is an explicit reviewed
+2026-08-13 strict run its ratio was 7.67x SymPy. This is an explicit reviewed
 one-node Python/ABI construction diagnostic, not an engine-algorithm claim, and
 is recorded as `rational_constructor:cold_end_to_end`; the latest matrix
 therefore has 146 rows, 117 enforced rows, and zero unwaived violations after
 the 29 documented diagnostic waivers are applied.
+
+The bounded native `Float` equality/hash workload adds cold end-to-end and
+warm-core rows for comparison with a Python `float`. Its independent
+correctness checks cover ordinary values, signed zero, and the exact
+float-vs-integer boundary. In the 2026-08-13 strict run the native/SymPy
+ratios were 1.46x cold and 0.052x warm. The cold row is an explicit reviewed
+one-node Python/ABI construction diagnostic, recorded as
+`float_equality:cold_end_to_end`; the warm semantic query remains enforced.
+The latest matrix therefore has 148 rows, 118 enforced rows, and zero
+unwaived violations after the 30 documented diagnostic waivers are applied.
 
 The same correctness matrix also checks four relational decision boundaries:
 integer equality and inequality, plus exact rational greater-than and
 less-than. Each expected Python boolean is computed independently from the
 SymPy result and the native invariant requires a non-expression boolean, so
 these boundary checks do not rely only on matching printed output. The
-matrix size remains 145 rows because these are correctness cases rather than
+matrix size remains 148 rows because these are correctness cases rather than
 standalone timing rows.
 
 Run it from a built checkout with:
