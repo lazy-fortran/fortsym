@@ -884,6 +884,37 @@ class SympyDifferentialTest(unittest.TestCase):
             oracle_hessenberg_symbol.is_upper_hessenberg,
         )
         native_hessenberg_x.close()
+        identity_cases = (
+            ([[1, 0], [0, 1]], True),
+            ([[1, 2], [0, 1]], False),
+            ([[1, 0, 0], [0, 1, 0]], False),
+            ([[0, 0], [0, 0]], False),
+        )
+        for rows, expected in identity_cases:
+            oracle_case = oracle.Matrix(rows)
+            native_case = native.Matrix(rows)
+            independent = (
+                len(rows) == len(rows[0]) and
+                all(value == (1 if row == column else 0)
+                    for row, values in enumerate(rows)
+                    for column, value in enumerate(values))
+            )
+            self.assertEqual(independent, expected)
+            self.assertEqual(native_case.is_Identity, expected)
+            self.assertEqual(native_case.is_Identity, oracle_case.is_Identity)
+        native_identity_x = native.Symbol("identity_x")
+        oracle_identity_x = oracle.Symbol("identity_x")
+        native_nonidentity = native.Matrix(
+            [[native_identity_x, 0], [0, 1]]
+        )
+        oracle_nonidentity = oracle.Matrix(
+            [[oracle_identity_x, 0], [0, 1]]
+        )
+        self.assertFalse(native_nonidentity.is_Identity)
+        self.assertEqual(
+            native_nonidentity.is_Identity, oracle_nonidentity.is_Identity
+        )
+        native_identity_x.close()
         symmetric_cases = (
             ([[1, 2], [2, 3]], True),
             ([[1, 2], [3, 4]], False),
