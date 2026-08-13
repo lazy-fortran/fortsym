@@ -716,6 +716,10 @@ Every checklist item requires all of the following:
   resultants, discriminants, subresultants, and reconstruction certificates.
 - [ ] Complete `factor`, `factor_list`, `cancel`, `together`, `apart`,
   `collect`, coefficient extraction, and polynomial conversion.
+  - [x] Expose the bounded native exact rational owner through the C, Python,
+    and SymPy-compatible facades for `cancel`, `together`, `apart`, and
+    `collect`, with independent SymPy 1.14 oracle tests and explicit refusal of
+    unsupported options or resource limits.
 - [ ] Implement multivariate factorization and Groebner bases with bounded
   fallback/refusal semantics.
 - [ ] Implement roots, root isolation, `RootOf`, algebraic root selection,
@@ -1074,7 +1078,7 @@ The first-class object model is staged around these metadata owners:
   `spacetime_tensor_from_form(metric, form)` share the fixed 1--4D owners and
   retain first-slot-fastest tensor order versus form-mask order. Conversion is
   strict for exact lower, weight-zero, fully antisymmetric tensors, including
-  repeated-index checks. C ABI 72, Python `.to_form()`/`.to_tensor()`, and
+  repeated-index checks. C ABI 73, Python `.to_form()`/`.to_tensor()`, and
   independent Fortran, C, Python, and SymPy checks cover the owner boundary.
 
 The core identities are the derivation contracts for every implementation:

@@ -119,6 +119,28 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(label=label):
                 self.assert_equivalent(label, expected, native_cases[label])
 
+    def test_polynomial_operations_match_sympy(self):
+        oracle_x, oracle_y = oracle.symbols("poly_x poly_y")
+        native_x, native_y = native.symbols("poly_x poly_y")
+        cases = [
+            ("together", lambda: oracle.together(
+                (oracle_x + 1) / (oracle_x + 2)),
+             lambda: native.together((native_x + 1) / (native_x + 2))),
+            ("cancel", lambda: oracle.cancel(
+                (oracle_x**2 - 1) / (oracle_x - 1)),
+             lambda: native.cancel((native_x**2 - 1) / (native_x - 1))),
+            ("apart", lambda: oracle.apart(
+                1 / (oracle_x * (oracle_x + 1)), oracle_x),
+             lambda: native.apart(
+                 1 / (native_x * (native_x + 1)), native_x)),
+            ("collect", lambda: oracle.collect(
+                oracle_x + oracle_x*oracle_y, oracle_x),
+             lambda: native.collect(native_x + native_x*native_y, native_x)),
+        ]
+        for label, oracle_call, native_call in cases:
+            with self.subTest(label=label):
+                self.assert_equivalent(label, oracle_call(), native_call())
+
     def test_power_constructor_identities_match_oracle(self):
         def cases(api):
             x = api.Symbol("power_constructor_x")
@@ -1200,14 +1222,6 @@ class SympyDifferentialTest(unittest.TestCase):
         )
 
         refusals = [
-            ("together", lambda: oracle.together((oracle_x + 1) / (oracle_x + 2)),
-             lambda: native.together((native_x + 1) / (native_x + 2))),
-            ("cancel", lambda: oracle.cancel((oracle_x**2 - 1) / (oracle_x - 1)),
-             lambda: native.cancel((native_x**2 - 1) / (native_x - 1))),
-            ("apart", lambda: oracle.apart(1 / (oracle_x * (oracle_x + 1)), oracle_x),
-             lambda: native.apart(1 / (native_x * (native_x + 1)), native_x)),
-            ("collect", lambda: oracle.collect(oracle_x + oracle_x*oracle.Symbol("y"), oracle_x),
-             lambda: native.collect(native_x + native_x*native.Symbol("y"), native_x)),
             ("integrate", lambda: oracle.integrate(oracle.sin(oracle_x), oracle_x),
              lambda: native.integrate(native.sin(native_x), native_x)),
             ("limit", lambda: oracle.limit(oracle.sin(oracle_x) / oracle_x, oracle_x, 0),

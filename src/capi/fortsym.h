@@ -168,6 +168,18 @@ int fortsym_simplify(fortsym_arena *arena, const fortsym_expr *expression,
                      fortsym_expr **out, char *message, size_t capacity);
 int fortsym_factor(fortsym_arena *arena, const fortsym_expr *expression,
                    fortsym_expr **out, char *message, size_t capacity);
+int fortsym_together(fortsym_arena *arena, const fortsym_expr *expression,
+                     fortsym_expr **out, char *message, size_t capacity);
+int fortsym_cancel(fortsym_arena *arena, const fortsym_expr *expression,
+                   fortsym_expr **out, char *message, size_t capacity);
+/* `has_variable` is zero to let Apart infer the sole generator, or one to use
+ * `variable`. */
+int fortsym_apart(fortsym_arena *arena, const fortsym_expr *expression,
+                  const fortsym_expr *variable, int has_variable,
+                  fortsym_expr **out, char *message, size_t capacity);
+int fortsym_collect(fortsym_arena *arena, const fortsym_expr *expression,
+                    const fortsym_expr *variable, fortsym_expr **out,
+                    char *message, size_t capacity);
 /* Coordinate and magnetic operations use three expressions for both the
  * coordinate symbols and their Cartesian position map. The dimension
  * argument is retained in the ABI so callers can validate the fixed native

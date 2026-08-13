@@ -1327,6 +1327,27 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    for name in ("together", "cancel"):
+        setattr(
+            lib,
+            name,
+            declare(
+                "fortsym_" + name,
+                ctypes.c_int,
+                [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+            ),
+        )
+    lib.apart = declare(
+        "fortsym_apart",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, ctypes.c_int, ctypes.POINTER(_CVOID),
+         _CHAR_PTR, _SIZE],
+    )
+    lib.collect = declare(
+        "fortsym_collect",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.zero_test = declare(
         "fortsym_zero_test",
         ctypes.c_int,
@@ -6964,6 +6985,32 @@ class Expr:
         return self._arena._result(self._lib.factor, self._arena._require(),
                                    self._require())
 
+    def together(self):
+        return self._arena._result(self._lib.together, self._arena._require(),
+                                   self._require())
+
+    def cancel(self):
+        return self._arena._result(self._lib.cancel, self._arena._require(),
+                                   self._require())
+
+    def apart(self, variable=None):
+        if variable is None:
+            return self._arena._result(
+                self._lib.apart, self._arena._require(), self._require(), None, 0
+            )
+        variable = self._arena._check(variable)
+        return self._arena._result(
+            self._lib.apart, self._arena._require(), self._require(),
+            variable._handle, 1
+        )
+
+    def collect(self, variable):
+        variable = self._arena._check(variable)
+        return self._arena._result(
+            self._lib.collect, self._arena._require(), self._require(),
+            variable._handle
+        )
+
     def _complex_operation(self, operation):
         cached = self._complex_results.get(operation)
         if (cached is not None and cached[0] == self._arena._assumption_epoch
@@ -7365,6 +7412,10 @@ def diff(expression: Expr, variable: Expr): return expression.diff(variable)
 def subs(expression: Expr, old: Expr, new: Expr): return expression.subs(old, new)
 def subs_many(expression: Expr, old, new): return expression._subs_many(old, new)
 def factor(expression: Expr): return expression.factor()
+def together(expression: Expr): return expression.together()
+def cancel(expression: Expr): return expression.cancel()
+def apart(expression: Expr, variable=None): return expression.apart(variable)
+def collect(expression: Expr, variable): return expression.collect(variable)
 def operation_count(expression: Expr): return expression.operation_count()
 def free_symbols(expression: Expr): return expression.free_symbols
 def tensor_product(left: Tensor, right: Tensor): return left.product(right)
@@ -7378,6 +7429,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

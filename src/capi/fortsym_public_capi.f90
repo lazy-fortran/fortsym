@@ -126,6 +126,7 @@ module fortsym_public_capi
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE
+    use fortsym_poly, only: poly_together, poly_cancel, poly_apart, poly_collect
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -175,7 +176,8 @@ module fortsym_public_capi
     public :: fortsym_power, fortsym_add_many, fortsym_function, fortsym_relation
     public :: fortsym_substitute, fortsym_substitute_many, fortsym_differentiate, &
         fortsym_expr_free
-    public :: fortsym_expand, fortsym_simplify, fortsym_factor
+    public :: fortsym_expand, fortsym_simplify, fortsym_factor, &
+        fortsym_together, fortsym_cancel, fortsym_apart, fortsym_collect
     public :: fortsym_chart_sqrtg, fortsym_chart_surface_measure, &
         fortsym_chart_flux_surface_average, &
         fortsym_chart_jacobian, &
@@ -280,7 +282,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 72_c_int
+        v = 73_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -5331,6 +5333,156 @@ contains
         end if
         call make_handle(a, result%value, out, status, message, capacity)
     end function fortsym_factor
+
+    function fortsym_together(raw, expression_raw, out, message, capacity) &
+            bind(c, name="fortsym_together") result(status)
+        type(c_ptr), value :: raw, expression_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep
+        type(expr_t) :: expression
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call finish_poly_operation(a, expression, expression, .false., 1, out, &
+            status, message, capacity)
+    end function fortsym_together
+
+    function fortsym_cancel(raw, expression_raw, out, message, capacity) &
+            bind(c, name="fortsym_cancel") result(status)
+        type(c_ptr), value :: raw, expression_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep
+        type(expr_t) :: expression
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call finish_poly_operation(a, expression, expression, .false., 2, out, &
+            status, message, capacity)
+    end function fortsym_cancel
+
+    function fortsym_apart(raw, expression_raw, variable_raw, has_variable, &
+            out, message, capacity) bind(c, name="fortsym_apart") result(status)
+        type(c_ptr), value :: raw, expression_raw, variable_raw, out
+        integer(c_int), value :: has_variable
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, vp
+        type(expr_t) :: expression, variable
+        logical :: use_variable
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (has_variable == 0_c_int) then
+            use_variable = .false.
+            variable = expression
+        else if (has_variable == 1_c_int) then
+            use_variable = .true.
+            call get_expr(variable_raw, vp, variable, status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(vp%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        else
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call finish_poly_operation(a, expression, variable, use_variable, 3, &
+            out, status, message, capacity)
+    end function fortsym_apart
+
+    function fortsym_collect(raw, expression_raw, variable_raw, out, message, &
+            capacity) bind(c, name="fortsym_collect") result(status)
+        type(c_ptr), value :: raw, expression_raw, variable_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, vp
+        type(expr_t) :: expression, variable
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call finish_poly_operation(a, expression, variable, .true., 4, out, &
+            status, message, capacity)
+    end function fortsym_collect
+
+    subroutine finish_poly_operation(a, expression, variable, has_variable, &
+            operation, out, status, message, capacity)
+        type(arena_owner_t), pointer :: a
+        type(expr_t), intent(in) :: expression, variable
+        logical, intent(in) :: has_variable
+        integer, intent(in) :: operation
+        type(c_ptr), value :: out
+        integer(c_int), intent(out) :: status
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        type(expr_t) :: result
+        logical :: ok
+        character(:), allocatable :: why
+
+        select case (operation)
+        case (1)
+            call poly_together(a%value, expression, result, ok, why)
+        case (2)
+            call poly_cancel(a%value, expression, result, ok, why)
+        case (3)
+            call poly_apart(a%value, expression, variable, has_variable, &
+                result, ok, why)
+        case (4)
+            call poly_collect(a%value, expression, variable, result, ok, why)
+        case default
+            ok = .false.
+            why = "unknown polynomial operation"
+        end select
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, result, out, status, message, capacity)
+    end subroutine finish_poly_operation
 
     function fortsym_zero_test(raw, expression_raw, verdict, message, capacity) &
             bind(c, name="fortsym_zero_test") result(status)
