@@ -259,6 +259,9 @@ SymPy parity for the entire family.
       the canonical facades, using direct diagonal traversal without an array
       temporary; non-square, malformed, and unsupported forms remain explicit
       refusals.
+- [x] Expose bounded `Matrix.is_diagonal()` with SymPy's tri-state result,
+      reusing the native zero oracle over direct nested-`List` traversal without
+      materializing a matrix array; malformed forms remain explicit refusals.
 - [x] Align bounded `Matrix` shape metadata with SymPy through `len()` and
       `is_square`, keeping both operations O(1) and adapter-local.
 - [x] Accept flat one-dimensional `Matrix` inputs as SymPy-compatible column
