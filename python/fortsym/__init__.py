@@ -1418,6 +1418,11 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
     )
+    lib.matrix_is_zero_matrix = declare(
+        "fortsym_matrix_is_zero_matrix",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
+    )
     lib.matrix_is_symmetric = declare(
         "fortsym_matrix_is_symmetric",
         ctypes.c_int,
@@ -7381,6 +7386,13 @@ class Expr:
     def is_diagonal(self):
         return self._arena._verdict(
             self._lib.matrix_is_diagonal, self._arena._require(), self._require()
+        )
+
+    def is_zero_matrix(self):
+        return self._arena._verdict(
+            self._lib.matrix_is_zero_matrix,
+            self._arena._require(),
+            self._require(),
         )
 
     def is_symmetric(self, simplify=True):

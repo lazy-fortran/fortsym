@@ -652,7 +652,63 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(
             native_unknown.is_diagonal(), oracle_unknown.is_diagonal()
         )
+        native_residual = native.Matrix([[1, symbolic + 1], [0, 2]])
+        oracle_residual = oracle.Matrix(
+            [[1, oracle.Symbol("diagonal_x") + 1], [0, 2]]
+        )
+        self.assertIsNone(native_residual.is_diagonal())
+        self.assertEqual(
+            native_residual.is_diagonal(), oracle_residual.is_diagonal()
+        )
         symbolic.close()
+        zero_matrix_cases = (
+            ([[0, 0], [0, 0]], True),
+            ([[0, 1], [0, 0]], False),
+            ([[0, 0], [0, 2]], False),
+        )
+        for rows, expected in zero_matrix_cases:
+            oracle_case = oracle.Matrix(rows)
+            native_case = native.Matrix(rows)
+            independent = all(value == 0 for row in rows for value in row)
+            self.assertEqual(independent, expected)
+            self.assertEqual(native_case.is_zero_matrix, expected)
+            self.assertEqual(
+                native_case.is_zero_matrix, oracle_case.is_zero_matrix
+            )
+        native_zero_symbol = native.Symbol("zero_matrix_x")
+        oracle_zero_symbol = oracle.Symbol("zero_matrix_x")
+        native_zero_unknown = native.Matrix(
+            [[native_zero_symbol, 0], [0, 0]]
+        )
+        oracle_zero_unknown = oracle.Matrix(
+            [[oracle_zero_symbol, 0], [0, 0]]
+        )
+        self.assertIsNone(native_zero_unknown.is_zero_matrix)
+        self.assertEqual(
+            native_zero_unknown.is_zero_matrix,
+            oracle_zero_unknown.is_zero_matrix,
+        )
+        native_zero_residual = native.Matrix(
+            [[native_zero_symbol + 1, 0], [0, 0]]
+        )
+        oracle_zero_residual = oracle.Matrix(
+            [[oracle_zero_symbol + 1, 0], [0, 0]]
+        )
+        self.assertIsNone(native_zero_residual.is_zero_matrix)
+        self.assertEqual(
+            native_zero_residual.is_zero_matrix,
+            oracle_zero_residual.is_zero_matrix,
+        )
+        native_zero_exp = native.Matrix(
+            [[native.exp(native_zero_symbol), 0], [0, 0]]
+        )
+        oracle_zero_exp = oracle.Matrix(
+            [[oracle.exp(oracle_zero_symbol), 0], [0, 0]]
+        )
+        self.assertEqual(
+            native_zero_exp.is_zero_matrix, oracle_zero_exp.is_zero_matrix
+        )
+        native_zero_symbol.close()
         symmetric_cases = (
             ([[1, 2], [2, 3]], True),
             ([[1, 2], [3, 4]], False),

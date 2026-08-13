@@ -2366,6 +2366,21 @@ class Matrix:
         self._is_diagonal_cache = (epoch, result)
         return result
 
+    @property
+    def is_zero_matrix(self):
+        epoch = self._expression._arena._assumption_epoch
+        cached = getattr(self, "_is_zero_matrix_cache", None)
+        if cached is not None and cached[0] == epoch:
+            return cached[1]
+        expression, temporary = self._matrix_expression()
+        try:
+            result = _native_operation(expression.is_zero_matrix)
+        finally:
+            if temporary is not None:
+                temporary.close()
+        self._is_zero_matrix_cache = (epoch, result)
+        return result
+
     def is_symmetric(self, simplify=True):
         if simplify not in (False, True):
             raise UnsupportedOperationError("is_symmetric options")
