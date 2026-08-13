@@ -25,6 +25,7 @@ module fortsym_matrix
     public :: matrix_transpose, matrix_add, matrix_negate, matrix_divide, matrix_dot
     public :: matrix_det, matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
+    public :: matrix_rref_values
     public :: to_matrix, from_matrix
 
     ! Exact row reduction can grow intermediate expressions quickly. Keep the
@@ -879,6 +880,28 @@ contains
         ok = .true.
     end function matrix_rref
 
+    !> Reduce an already materialized dense matrix and return its pivots.
+    !>
+    !> This is the shared elimination owner for matrix-facing operations and
+    !> exact linear-system adapters.  Keeping the array boundary here avoids a
+    !> second Gaussian-elimination implementation in the linsolve facade.
+    subroutine matrix_rref_values( &
+            a, m, rank, pivots, ok, why, pivot_columns)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t), intent(inout) :: m(:, :)
+        integer, intent(out) :: rank
+        integer, allocatable, intent(out) :: pivots(:)
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        integer, optional, intent(in) :: pivot_columns
+
+        if (present(pivot_columns)) then
+            call rref(a, m, rank, pivots, ok, why, pivot_columns)
+        else
+            call rref(a, m, rank, pivots, ok, why)
+        end if
+    end subroutine matrix_rref_values
+
     !> A basis for the right null space of a rectangular matrix.
     !>
     !> The free variable in each basis vector is set to one. This gives the
@@ -1075,26 +1098,33 @@ contains
     end function matrix_minors
 
     !> In-place exact RREF and its pivot columns.
-    subroutine rref(a, m, rank, pivots, ok, why)
+    subroutine rref(a, m, rank, pivots, ok, why, pivot_columns)
         type(arena_t), target,     intent(inout) :: a
         type(expr_t),              intent(inout) :: m(:, :)
         integer,                   intent(out)   :: rank
         integer, allocatable,      intent(out)   :: pivots(:)
         logical,                   intent(out)   :: ok
         type(str_t),               intent(out)   :: why
+        integer, optional,         intent(in)    :: pivot_columns
         type(expr_t) :: pivot_value, factor, swap
         type(native_engine_t) :: engine
         type(engine_result_t) :: simplified
-        integer :: rows, cols, pivot_row, pivot, col, i, j
+        integer :: rows, cols, pivot_row, pivot, col, i, j, coefficient_columns
 
         rows = size(m, 1)
         cols = size(m, 2)
+        coefficient_columns = cols
+        if (present(pivot_columns)) coefficient_columns = pivot_columns
         rank = 0
         allocate (pivots(min(rows, cols)))
         pivots = 0
         ok = .false.
         why = str("")
 
+        if (coefficient_columns < 1 .or. coefficient_columns > cols) then
+            why = str("row reduction pivot columns are outside the matrix")
+            return
+        end if
         if (rows > MAX_RREF_ROWS .or. cols > MAX_RREF_COLS .or. &
             rows*cols > MAX_RREF_ENTRIES) then
             why = str("exact row reduction exceeds the built-in matrix bound")
@@ -1104,7 +1134,7 @@ contains
         engine = make_native_engine(a)
 
         pivot_row = 1
-        do col = 1, cols
+        do col = 1, coefficient_columns
             if (pivot_row > rows) exit
             pivot = 0
             do i = pivot_row, rows

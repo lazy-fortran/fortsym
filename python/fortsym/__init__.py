@@ -1394,6 +1394,15 @@ def _configure(lib):
             _SIZE,
         ],
     )
+    lib.linsolve_parametric = declare(
+        "fortsym_linsolve_parametric",
+        ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _SIZE, _SIZE, ctypes.POINTER(_CVOID),
+            _SIZE, ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.matrix_det = declare(
         "fortsym_matrix_det",
         ctypes.c_int,
@@ -4206,6 +4215,47 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "linsolve")
+        return [Expr(self, output[index]) for index in range(count.value)]
+
+    def linsolve_parametric(self, matrix, right_hand_side, variables):
+        equations = len(matrix)
+        if equations < 1:
+            raise ValueError("linsolve requires a nonempty coefficient matrix")
+        variable_count = len(variables)
+        if variable_count < 1:
+            raise ValueError("linsolve requires at least one symbol")
+        rows = []
+        for row in matrix:
+            if len(row) != variable_count:
+                raise ValueError(
+                    "linsolve requires one coefficient per variable"
+                )
+            rows.append([self._check(value) for value in row])
+        if len(right_hand_side) != equations:
+            raise ValueError("linsolve requires a compatible right-hand side")
+        rhs = [self._check(value) for value in right_hand_side]
+        symbols = [self._check(value) for value in variables]
+        matrix_handles = (_CVOID * (equations * variable_count))(
+            *[
+                rows[row][column]._handle
+                for column in range(variable_count)
+                for row in range(equations)
+            ]
+        )
+        rhs_handles = (_CVOID * equations)(*[value._handle for value in rhs])
+        variable_handles = (_CVOID * variable_count)(
+            *[value._handle for value in symbols]
+        )
+        output = (_CVOID * variable_count)()
+        count = _SIZE()
+        message = _message()
+        status = self._lib.linsolve_parametric(
+            self._require(), matrix_handles, rhs_handles, variable_handles,
+            equations, variable_count, output, variable_count,
+            ctypes.byref(count), message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "linsolve_parametric")
         return [Expr(self, output[index]) for index in range(count.value)]
 
 
@@ -7875,6 +7925,37 @@ def linsolve(matrix, right_hand_side):
     finally:
         for temporary in temporaries:
             temporary.close()
+
+
+def linsolve_parametric(matrix, right_hand_side, variables):
+    arena = _default()
+    values = []
+    rhs = []
+    symbols = []
+    temporaries = []
+    try:
+        for row in matrix:
+            converted = []
+            for value in row:
+                expression, temporary = arena._coerce(value)
+                converted.append(expression)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            values.append(converted)
+        for value in right_hand_side:
+            expression, temporary = arena._coerce(value)
+            rhs.append(expression)
+            if temporary is not None:
+                temporaries.append(temporary)
+        for value in variables:
+            expression, temporary = arena._coerce(value)
+            symbols.append(expression)
+            if temporary is not None:
+                temporaries.append(temporary)
+        return arena.linsolve_parametric(values, rhs, symbols)
+    finally:
+        for temporary in temporaries:
+            temporary.close()
 def operation_count(expression: Expr): return expression.operation_count()
 def free_symbols(expression: Expr): return expression.free_symbols
 def tensor_product(left: Tensor, right: Tensor): return left.product(right)
@@ -7888,6 +7969,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "det", "rank", "inv", "transpose", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "det", "rank", "inv", "transpose", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

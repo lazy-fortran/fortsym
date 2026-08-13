@@ -39,10 +39,13 @@ membership, iteration, and brace printing; `EmptySet` remains the singleton
 empty-result adapter.
 `Tuple(...)` is a native-owned immutable tuple application with SymPy's
 iteration, indexing, and printing shape. `linsolve((matrix, right_hand_side),
-symbols)` exposes the verified native square exact-rational one-right-hand-side
-fragment and returns a `FiniteSet(Tuple(...))` result. Symbolic coefficients,
-singular or non-square systems, matrix objects, free parameters, and alternate
-forms are explicit refusals.
+symbols)` exposes the verified native exact-rational one-right-hand-side
+fragment and returns a `FiniteSet(Tuple(...))` result, retaining supplied free
+symbols for consistent rectangular systems and returning `EmptySet` for
+inconsistent systems. Symbolic coefficients, matrix objects, and alternate
+forms are explicit refusals. The native convenience facade additionally
+exposes `linsolve_parametric(matrix, right_hand_side, variables)` for the
+rectangular exact-rational owner used by the compatibility layer.
 `And`, `Or`, `Not`, `Xor`, `Implies`, and `Equivalent` use the shared native
 application owner and accept the same symbolic operands as the bounded SymPy
 surface. `&`, `|`, `^`, and `~` are the corresponding expression operators;
@@ -491,7 +494,8 @@ does not import SymPy. Unsupported names raise
 | `series` | bounded Taylor polynomial through the requested SymPy term count, with the `O(...)` term omitted; singular/non-finite coefficients, unsupported symbolic derivatives, and unsupported options are explicit refusals |
 | `solve` | distinct verified roots for one equation in one symbol; exact univariate polynomials, bounded rational functions, and verified scalar-linear equations; unsupported domains/options are explicit refusals |
 | `solveset` | bounded native-owned `FiniteSet` plus singleton `EmptySet` result over distinct verified polynomial/rational/scalar-linear roots, with native denominator-pole transport to a native-owned `Complement` for symbolic rational functions; non-default domains and unsupported equations are explicit refusals |
-| `linsolve` | verified square exact-rational systems with one explicit right-hand side, returned as `FiniteSet(Tuple(...))`; symbolic, singular, non-square, free-parameter, matrix-object, and alternate forms are explicit refusals |
+| `linsolve` | verified square exact-rational systems with one explicit right-hand side and no free parameters |
+| `linsolve_parametric` | verified rectangular exact-rational systems with one explicit right-hand side, returning one value per variable or an empty result for inconsistency; consistent free parameters are retained; symbolic coefficients and alternate forms are explicit refusals |
 | `Matrix` | bounded exact dense construction, row-major flat scalar indexing and slicing, `(row, column)` indexing, row/column/block/reverse/stepped/empty 2-D slices, native-backed determinant, exact rank/inverse, transpose/`.T`, bounded `nullspace()`, `rref()`, elementwise `+`/`-`, unary negation, and exact `*`/`@` products or scalar scaling/division; ragged, singular, and broader matrix-expression operations are explicit refusals |
 
 `Wild(name, exclude=(), properties=())` is an adapter-only pattern object. Its

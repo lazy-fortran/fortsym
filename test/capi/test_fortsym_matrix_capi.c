@@ -30,7 +30,7 @@ int main(void)
     const fortsym_expr *null_row_two_values[3];
     const fortsym_expr *null_rows[2];
 
-    assert(fortsym_abi_version() == 88);
+    assert(fortsym_abi_version() == 89);
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 0, &zero, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 1, &one, message, sizeof message) == FORTSYM_OK);

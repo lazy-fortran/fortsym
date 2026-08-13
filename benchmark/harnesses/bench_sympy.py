@@ -173,6 +173,32 @@ def tuple_equivalent(expected: Any, actual: Any) -> bool:
             value.close()
 
 
+def linsolve_equivalent(expected: Any, actual: Any) -> bool:
+    if len(expected) != len(actual):
+        return False
+    if len(expected) == 0:
+        return True
+    expected_tuple = next(iter(expected))
+    actual_tuple = next(iter(actual))
+    actual_values = actual_tuple.args
+    symbols = set()
+    for value in expected_tuple:
+        symbols.update(value.free_symbols)
+    names = {str(symbol): symbol for symbol in symbols}
+    try:
+        if len(expected_tuple) != len(actual_values):
+            return False
+        for expected_value, actual_value in zip(expected_tuple, actual_values):
+            parsed = oracle.sympify(str(actual_value), locals=names)
+            if oracle.simplify(parsed - expected_value) != oracle.Integer(0):
+                return False
+        return True
+    finally:
+        for value in actual_values:
+            value.close()
+        actual_tuple.close()
+
+
 def finite_set_equivalent(expected: Any, actual: Any) -> bool:
     if (actual._expression.name != "FiniteSet" or
             len(expected) != len(actual) or
@@ -429,6 +455,12 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
         "abs": oracle.Abs,
         "i": imaginary_unit(oracle),
     }
+    free_x_name = f"{label}_linsolve_free_x_{suffix}"
+    free_y_name = f"{label}_linsolve_free_y_{suffix}"
+    names[free_x_name] = oracle.Symbol(free_x_name)
+    names[free_y_name] = oracle.Symbol(free_y_name)
+    names[f"native:{free_x_name}"] = native.Symbol(free_x_name)
+    names[f"native:{free_y_name}"] = native.Symbol(free_y_name)
     if has_composition:
         composition_name = f"{label}_composition_{suffix}"
         oracle_composition = oracle.Symbol(composition_name, real=True)
@@ -770,6 +802,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             (native_x - 1) / (native_x + 1),
             names,
         ),
+        "linsolve_free": (
+            (((1, 1),), (1,)),
+            (((1, 1),), (1,)),
+            names,
+        ),
         "solveset_rational_condition": (
             (oracle_x - 1) / (
                 oracle.Symbol(f"{label}_a_{suffix}") * oracle_x
@@ -888,6 +925,10 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         return engine.Matrix([[1, 2, 3], [4, 5, 6]]), -1
     if operation == "matrix_flat_slice":
         return engine.Matrix([[1, 2, 3], [4, 5, 6]]), slice(None, None, 2)
+    if operation == "linsolve_free":
+        x = engine.Symbol(f"{operation}_x_{suffix}")
+        y = engine.Symbol(f"{operation}_y_{suffix}")
+        return (((1, 1),), (1,)), (x, y)
     if operation == "matrix_nullspace":
         return engine.Matrix([[1, 2, 3], [2, 4, 4]]), None
     if operation == "matrix_rref":
@@ -1461,6 +1502,21 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation == "solve_rational":
             expected = oracle.solve(oracle_expression)
             actual = native.solve(native_expression)
+        elif operation == "linsolve_free":
+            oracle_variables = (
+                names["check_linsolve_free_x_fixed"],
+                names["check_linsolve_free_y_fixed"],
+            )
+            native_variables = (
+                names["native:check_linsolve_free_x_fixed"],
+                names["native:check_linsolve_free_y_fixed"],
+            )
+            expected = oracle.linsolve(
+                (oracle.Matrix(oracle_expression[0]),
+                 oracle.Matrix(oracle_expression[1])),
+                oracle_variables,
+            )
+            actual = native.linsolve(native_expression, native_variables)
         elif operation == "solveset_rational_condition":
             expected = oracle.solveset(
                 oracle_expression, names["check_x_fixed"]
@@ -1498,6 +1554,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                 if operation in ("matrix_flat_index", "matrix_flat_slice")
                 else root_list_equivalent(expected, actual, names)
                 if operation == "solve_rational"
+                else linsolve_equivalent(expected, actual)
+                if operation == "linsolve_free"
                 else str(expected) == str(actual)
                 if operation == "solveset_rational_condition"
                 else tuple_equivalent(expected, actual)
@@ -1551,7 +1609,7 @@ def benchmark_workload(
 ) -> dict[str, Any]:
     reset_native_default_arena()
     if scope == "warm_core":
-        expressions, _ = workload_factories(operation, "warm")
+        expressions, names = workload_factories(operation, "warm")
         oracle_expression, native_expression, _ = expressions[operation]
         if operation == "matrix_nullspace":
             oracle_call = lambda: oracle_expression.nullspace()
@@ -1594,6 +1652,23 @@ def benchmark_workload(
         elif operation == "solve_rational":
             oracle_call = lambda: oracle.solve(oracle_expression)
             native_call = lambda: native.solve(native_expression)
+        elif operation == "linsolve_free":
+            oracle_variables = (
+                names["linsolve_free_linsolve_free_x_warm"],
+                names["linsolve_free_linsolve_free_y_warm"],
+            )
+            native_variables = (
+                names["native:linsolve_free_linsolve_free_x_warm"],
+                names["native:linsolve_free_linsolve_free_y_warm"],
+            )
+            oracle_call = lambda: oracle.linsolve(
+                (oracle.Matrix(oracle_expression[0]),
+                 oracle.Matrix(oracle_expression[1])),
+                oracle_variables,
+            )
+            native_call = lambda: native.linsolve(
+                native_expression, native_variables
+            )
         elif operation == "solveset_rational_condition":
             oracle_variable = oracle.Symbol(
                 "solveset_rational_condition_x_warm"
@@ -1796,6 +1871,14 @@ def benchmark_workload(
                     return expression[variable]
                 if operation in ("matrix_flat_index", "matrix_flat_slice"):
                     return expression[variable]
+                if operation == "linsolve_free":
+                    if engine is oracle:
+                        return engine.linsolve(
+                            (engine.Matrix(expression[0]),
+                             engine.Matrix(expression[1])),
+                            variable,
+                        )
+                    return engine.linsolve(expression, variable)
                 if operation == "solve_rational":
                     return engine.solve(expression)
                 if operation == "solveset_rational_condition":
@@ -1930,7 +2013,8 @@ def main() -> None:
     for operation in (
         "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "rational_constructor", "tuple_constructor", "finite_set_constructor", "complement_constructor", "boolean_and_constructor", "boolean_or_constructor", "boolean_not_constructor", "boolean_xor_constructor", "boolean_implies_constructor", "boolean_equivalent_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate",
         "matrix_divide", "matrix_slice", "matrix_flat_index",
-        "matrix_flat_slice", "solve_rational", "solveset_rational_condition",
+        "matrix_flat_slice", "solve_rational", "linsolve_free",
+        "solveset_rational_condition",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS, "float_equality"
     ):
         if operation in _PREDICATE_OPERATIONS:

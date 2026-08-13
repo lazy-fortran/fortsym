@@ -383,6 +383,15 @@ these boundary checks do not rely only on matching printed output. The
 matrix size remains 154 rows because these are correctness cases rather than
 standalone timing rows.
 
+The exact-rational free-parameter `linsolve` workload adds cold end-to-end and
+warm-core rows for a one-equation, two-variable consistent system. Its
+correctness case additionally compares a consistent singular system and an
+inconsistent rectangular system against SymPy. In the 2026-08-13 standard
+strict rerun the native/SymPy ratios were 0.48x cold and 0.70x warm; both remain
+enforced. The latest matrix therefore has 156 rows, 120 enforced rows, and
+zero unwaived violations after the 36 documented diagnostic waivers are
+applied.
+
 Run it from a built checkout with:
 
 ```text

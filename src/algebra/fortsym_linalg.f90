@@ -4,6 +4,7 @@ module fortsym_linalg
     use fortsym_expr, only: &
         expr_t, is_valid, num, operator(+), operator(-), operator(*), &
         operator(/), same_arena
+    use fortsym_matrix, only: matrix_rref_values
     use fortsym_string, only: str, str_t
     implicit none
 
@@ -11,12 +12,21 @@ module fortsym_linalg
 
     public :: exact_linear_system_result_t
     public :: solve_exact_linear_system
+    public :: parametric_linear_system_result_t
+    public :: solve_parametric_linear_system
 
     type :: exact_linear_system_result_t
         logical :: ok = .false.
         type(expr_t), allocatable :: values(:, :)
         type(str_t) :: message
     end type exact_linear_system_result_t
+
+    type :: parametric_linear_system_result_t
+        logical :: ok = .false.
+        logical :: consistent = .false.
+        type(expr_t), allocatable :: values(:)
+        type(str_t) :: message
+    end type parametric_linear_system_result_t
 
 contains
 
@@ -128,6 +138,132 @@ contains
         result%message = str("")
     end function solve_exact_linear_system
 
+    function solve_parametric_linear_system( &
+            engine, matrix, right_hand_side, variables) result(result)
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: matrix(:, :), right_hand_side(:)
+        type(expr_t), intent(in) :: variables(:)
+        type(parametric_linear_system_result_t) :: result
+
+        type(expr_t), allocatable :: exact_matrix(:, :), exact_rhs(:, :)
+        type(expr_t), allocatable :: augmented(:, :)
+        type(expr_t), allocatable :: values(:)
+        type(expr_t) :: expression, coefficient
+        type(engine_result_t) :: simplified
+        type(str_t) :: why
+        integer, allocatable :: pivots(:)
+        integer :: equation_count, variable_count, rank
+        integer :: row, pivot_index, pivot_column, column
+        logical :: exact, valid, zero_row
+
+        allocate (result%values(0))
+        result%message = str("")
+        equation_count = size(matrix, 1)
+        variable_count = size(matrix, 2)
+        if (equation_count < 1 .or. variable_count < 1) then
+            result%message = str( &
+                "linsolve requires a nonempty coefficient matrix")
+            return
+        end if
+        if (size(right_hand_side) /= equation_count) then
+            result%message = str( &
+                "linsolve requires a compatible right-hand side")
+            return
+        end if
+        if (size(variables) /= variable_count) then
+            result%message = str( &
+                "linsolve requires one symbol per matrix column")
+            return
+        end if
+        if (.not. valid_common_arena_vector(matrix, right_hand_side)) then
+            result%message = str( &
+                "linsolve entries must share one arena")
+            return
+        end if
+        do column = 1, variable_count
+            if (.not. is_valid(variables(column))) then
+                result%message = str("linsolve received an invalid symbol")
+                return
+            end if
+            if (.not. same_arena(matrix(1, 1), variables(column))) then
+                result%message = str( &
+                    "linsolve symbols must share the matrix arena")
+                return
+            end if
+        end do
+
+        allocate (exact_matrix(equation_count, variable_count))
+        allocate (exact_rhs(equation_count, 1))
+        call simplify_exact_array(engine, matrix, exact_matrix, exact)
+        if (.not. exact) then
+            result%message = str( &
+                "linsolve coefficient matrix must contain rational values")
+            return
+        end if
+        call simplify_exact_vector(engine, right_hand_side, exact_rhs(:, 1), exact)
+        if (.not. exact) then
+            result%message = str( &
+                "linsolve right-hand side must contain rational values")
+            return
+        end if
+
+        allocate (augmented(equation_count, variable_count + 1))
+        augmented(:, :variable_count) = exact_matrix
+        augmented(:, variable_count + 1) = exact_rhs(:, 1)
+        call matrix_rref_values( &
+            matrix(1, 1)%a, augmented, rank, pivots, valid, why, variable_count)
+        if (.not. valid) then
+            result%message = why
+            return
+        end if
+
+        do row = rank + 1, equation_count
+            zero_row = .true.
+            do column = 1, variable_count
+                if (.not. is_exact_zero(augmented(row, column))) then
+                    zero_row = .false.
+                    exit
+                end if
+            end do
+            if (zero_row) then
+                if (.not. is_exact_zero(augmented(row, variable_count + 1))) then
+                    result%ok = .true.
+                    result%message = str("")
+                    return
+                end if
+            end if
+        end do
+
+        allocate (values(variable_count))
+        do column = 1, variable_count
+            values(column) = variables(column)
+        end do
+        do pivot_index = 1, rank
+            pivot_column = pivots(pivot_index)
+            expression = augmented(pivot_index, variable_count + 1)
+            do column = 1, variable_count
+                if (column == pivot_column) cycle
+                coefficient = augmented(pivot_index, column)
+                if (is_exact_zero(coefficient)) cycle
+                expression = expression - coefficient*values(column)
+                simplified = engine%simplify(expression)
+                if (.not. simplified%ok) then
+                    result%message = str( &
+                        "linsolve could not simplify a free-parameter value")
+                    return
+                end if
+                expression = simplified%value
+            end do
+            values(pivot_column) = expression
+        end do
+
+        deallocate (result%values)
+        call move_alloc(values, result%values)
+        result%ok = .true.
+        result%consistent = .true.
+        result%message = str("")
+    end function solve_parametric_linear_system
+
     subroutine simplify_exact_array(engine, input, output, exact)
         class(engine_t), intent(inout) :: engine
         type(expr_t), intent(in) :: input(:, :)
@@ -146,6 +282,23 @@ contains
         end do
         exact = .true.
     end subroutine simplify_exact_array
+
+    subroutine simplify_exact_vector(engine, input, output, exact)
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: input(:)
+        type(expr_t), intent(out) :: output(:)
+        logical, intent(out) :: exact
+
+        integer :: row
+
+        exact = .false.
+        if (size(output) /= size(input)) return
+        do row = 1, size(input)
+            call simplify_exact(engine, input(row), output(row), exact)
+            if (.not. exact) return
+        end do
+        exact = .true.
+    end subroutine simplify_exact_vector
 
     subroutine simplify_exact(engine, input, output, exact)
         class(engine_t), intent(inout) :: engine
@@ -229,6 +382,28 @@ contains
         end do
         valid = .true.
     end function valid_common_arena
+
+    function valid_common_arena_vector(matrix, values) result(valid)
+        type(expr_t), intent(in) :: matrix(:, :), values(:)
+        logical :: valid
+        integer :: column, row
+
+        valid = .false.
+        if (.not. is_valid(matrix(1, 1))) return
+        do column = 1, size(matrix, 2)
+            do row = 1, size(matrix, 1)
+                if (.not. is_valid(matrix(row, column))) return
+                if (.not. same_arena(matrix(1, 1), matrix(row, column))) then
+                    return
+                end if
+            end do
+        end do
+        do row = 1, size(values)
+            if (.not. is_valid(values(row))) return
+            if (.not. same_arena(matrix(1, 1), values(row))) return
+        end do
+        valid = .true.
+    end function valid_common_arena_vector
 
     function is_exact_zero(expression) result(zero)
         type(expr_t), intent(in) :: expression
