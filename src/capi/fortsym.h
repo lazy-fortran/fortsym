@@ -246,6 +246,10 @@ int fortsym_linsolve_parametric(
  * FORTSYM_UNSUPPORTED. */
 int fortsym_matrix_det(fortsym_arena *arena, const fortsym_expr *matrix,
                        fortsym_expr **out, char *message, size_t capacity);
+/* Trace of a nonempty square dense matrix represented by nested List
+ * expressions. Non-square and unsupported forms return FORTSYM_UNSUPPORTED. */
+int fortsym_matrix_trace(fortsym_arena *arena, const fortsym_expr *matrix,
+                         fortsym_expr **out, char *message, size_t capacity);
 /* Exact rank of a nonempty dense matrix represented by nested List
  * expressions. Ragged, over-bounded, and unsupported forms return
  * FORTSYM_UNSUPPORTED. */

@@ -137,7 +137,7 @@ module fortsym_public_capi
     use fortsym_solve_adapter, only: calculate_solve, calculate_solveset
     use fortsym_linsolve_adapter, only: calculate_linsolve, &
         calculate_parametric_linsolve
-    use fortsym_matrix_adapter, only: calculate_matrix_det, calculate_matrix_rank, &
+    use fortsym_matrix_adapter, only: calculate_matrix_det, calculate_matrix_trace, calculate_matrix_rank, &
         calculate_matrix_inverse, calculate_matrix_transpose, &
         calculate_matrix_add, calculate_matrix_negate, calculate_matrix_divide, &
         calculate_matrix_null_space, calculate_matrix_rref, &
@@ -196,7 +196,7 @@ module fortsym_public_capi
         fortsym_together, fortsym_cancel, fortsym_apart, fortsym_collect, &
         c_integrate, c_limit, c_series, c_series_coeff
     public :: fortsym_solve, fortsym_solveset, fortsym_linsolve, &
-        fortsym_linsolve_parametric, fortsym_matrix_det, &
+        fortsym_linsolve_parametric, fortsym_matrix_det, fortsym_matrix_trace, &
         fortsym_matrix_rank, fortsym_matrix_inverse, fortsym_matrix_transpose, &
         fortsym_matrix_add, fortsym_matrix_subtract, fortsym_matrix_negate, &
         fortsym_matrix_divide, &
@@ -306,7 +306,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 89_c_int
+        v = 90_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -5926,6 +5926,36 @@ contains
         end if
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_matrix_det
+
+    function fortsym_matrix_trace(raw, expression_raw, out, message, capacity) &
+            bind(c, name="fortsym_matrix_trace") result(status)
+        type(c_ptr), value :: raw, expression_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep
+        type(expr_t) :: expression, value
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call calculate_matrix_trace( &
+            a%value, a%engine, expression, value, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_matrix_trace
 
     function fortsym_matrix_rank(raw, expression_raw, out, message, capacity) &
             bind(c, name="fortsym_matrix_rank") result(status)

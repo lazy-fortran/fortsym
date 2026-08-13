@@ -620,6 +620,12 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(str(native_matrix[0, 1]), "2")
         self.assertEqual(str(native_matrix.det()), str(oracle_matrix.det()))
         self.assertEqual(str(native.det(native_matrix)), str(oracle.det(oracle_matrix)))
+        self.assertEqual(str(native_matrix.trace()), str(oracle_matrix.trace()))
+        self.assertEqual(str(native.trace(native_matrix)), str(oracle.trace(oracle_matrix)))
+        self.assertEqual(
+            str(native_matrix.trace()),
+            str(oracle_matrix[0, 0] + oracle_matrix[1, 1]),
+        )
         self.assertEqual(str(native_matrix.rank()), str(oracle_matrix.rank()))
         self.assertEqual(
             native_matrix.rank(simplify=True),
@@ -775,11 +781,15 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(
             native_rectangular.is_square, oracle_rectangular.is_square
         )
+        with self.assertRaises(native.UnsupportedOperationError):
+            native_rectangular.trace()
 
         oracle_column = oracle.Matrix([5, 6])
         native_column = native.Matrix([5, 6])
         self.assertEqual(native_column.shape, oracle_column.shape)
         self.assertEqual(str(native_column), str(oracle_column))
+        with self.assertRaises(native.UnsupportedOperationError):
+            native_column.trace()
         self.assertEqual(
             [str(native_column[index, 0]) for index in range(2)],
             [str(oracle_column[index, 0]) for index in range(2)],

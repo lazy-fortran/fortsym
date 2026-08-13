@@ -60,8 +60,8 @@ different arenas are rejected. Broader Boolean simplification and condition
 solving remain explicit roadmap work.
 `Matrix(rows)` constructs a bounded exact dense matrix; a flat sequence such as
 `Matrix([a, b])` is a column matrix. It supports `(row, column)` indexing,
-`len()`, `is_square`, `det()`/`det(matrix)`, `rank()`/`rank(simplify=True)`,
-`inv()`, `transpose()`,
+`len()`, `is_square`, `det()`/`det(matrix)`, `trace()`/`trace(matrix)`,
+`rank()`/`rank(simplify=True)`, `inv()`, `transpose()`,
 `.T`, `nullspace()`, `rref()`, elementwise `+`/`-` and unary negation, and
 multiplication or scalar division with `*`/`@`/`/`, delegating exact matrix operations to the
 native owner. `nullspace()` returns SymPy-compatible column matrices, while
@@ -500,7 +500,7 @@ does not import SymPy. Unsupported names raise
 | `solveset` | bounded native-owned `FiniteSet` plus singleton `EmptySet` result over distinct verified polynomial/rational/scalar-linear roots, with native denominator-pole transport to a native-owned `Complement` for symbolic rational functions; non-default domains and unsupported equations are explicit refusals |
 | `linsolve` | verified exact-rational square and rectangular systems with one explicit right-hand side, returning a native-owned `FiniteSet(Tuple(...))` or `EmptySet`; supplied free symbols are retained, and native `Matrix` coefficient/right-hand-side operands are accepted |
 | `linsolve_parametric` | verified rectangular exact-rational systems with one explicit right-hand side, returning one value per variable or an empty result for inconsistency; consistent free parameters are retained; symbolic coefficients and alternate forms are explicit refusals |
-| `Matrix` | bounded exact dense construction including flat sequences as column matrices, row-major flat scalar indexing and slicing, `(row, column)` indexing, `len()` and `is_square` shape metadata, row/column/block/reverse/stepped/empty 2-D slices, native-backed determinant, exact rank including `simplify=True`, inverse, transpose/`.T`, bounded `nullspace()` with `simplify=True`, `rref()` with SymPy-shaped `pivots=False` and `simplify=True` options, elementwise `+`/`-`, unary negation, and exact `*`/`@` products or scalar scaling/division; ragged, singular, callback-controlled zero tests, and broader matrix-expression operations are explicit refusals |
+| `Matrix` | bounded exact dense construction including flat sequences as column matrices, row-major flat scalar indexing and slicing, `(row, column)` indexing, `len()` and `is_square` shape metadata, row/column/block/reverse/stepped/empty 2-D slices, native-backed determinant and trace, exact rank including `simplify=True`, inverse, transpose/`.T`, bounded `nullspace()` with `simplify=True`, `rref()` with SymPy-shaped `pivots=False` and `simplify=True` options, elementwise `+`/`-`, unary negation, and exact `*`/`@` products or scalar scaling/division; ragged, non-square trace inputs, singular, callback-controlled zero tests, and broader matrix-expression operations are explicit refusals |
 
 `Wild(name, exclude=(), properties=())` is an adapter-only pattern object. Its
 direct, fixed-shape, single-Wild remainder, and bounded distinct-Wild
