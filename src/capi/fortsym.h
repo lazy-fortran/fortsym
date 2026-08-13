@@ -322,6 +322,13 @@ int fortsym_matrix_inverse(fortsym_arena *arena, const fortsym_expr *matrix,
  * Ragged and unsupported forms return FORTSYM_UNSUPPORTED. */
 int fortsym_matrix_transpose(fortsym_arena *arena, const fortsym_expr *matrix,
                              fortsym_expr **out, char *message, size_t capacity);
+/* Elementwise structural conjugation of a dense matrix. Unknown-reality
+ * entries are refused by the bounded native complex-domain rules. */
+int fortsym_matrix_conjugate(fortsym_arena *arena, const fortsym_expr *matrix,
+                             fortsym_expr **out, char *message, size_t capacity);
+/* Conjugate transpose (Hermitian adjoint) of a dense matrix. */
+int fortsym_matrix_adjoint(fortsym_arena *arena, const fortsym_expr *matrix,
+                           fortsym_expr **out, char *message, size_t capacity);
 /* Add, subtract, or negate bounded exact dense matrices represented by nested
  * Lists. Unequal dimensions, malformed forms, and unsupported operands return
  * FORTSYM_UNSUPPORTED. */

@@ -1014,6 +1014,49 @@ class SympyDifferentialTest(unittest.TestCase):
         )
         native_hermitian_x.close()
         native_real_hermitian_x.close()
+        native_complex_matrix = native.Matrix(
+            [[1, native.I], [2, 3]]
+        )
+        oracle_complex_matrix = oracle.Matrix(
+            [[1, oracle.I], [2, 3]]
+        )
+        self.assertEqual(
+            str(native_complex_matrix.conjugate()).replace("-i", "-I"),
+            str(oracle_complex_matrix.conjugate()),
+        )
+        self.assertEqual(
+            str(native_complex_matrix.adjoint()).replace("-i", "-I"),
+            str(oracle_complex_matrix.adjoint()),
+        )
+        self.assertEqual(
+            str(native_complex_matrix.H).replace("-i", "-I"),
+            str(oracle_complex_matrix.H),
+        )
+        self.assertEqual(
+            str(native.conjugate(native_complex_matrix)).replace("-i", "-I"),
+            str(oracle.conjugate(oracle_complex_matrix)),
+        )
+        self.assertEqual(
+            str(native.adjoint(native_complex_matrix)).replace("-i", "-I"),
+            str(oracle.adjoint(oracle_complex_matrix)),
+        )
+        native_real_matrix_x = native.Symbol("matrix_conjugate_real_x", real=True)
+        oracle_real_matrix_x = oracle.Symbol("matrix_conjugate_real_x", real=True)
+        native_real_matrix = native.Matrix([[native_real_matrix_x, native.I]])
+        oracle_real_matrix = oracle.Matrix([[oracle_real_matrix_x, oracle.I]])
+        self.assertEqual(
+            str(native_real_matrix.conjugate()).replace("-i", "-I"),
+            str(oracle_real_matrix.conjugate()),
+        )
+        self.assertEqual(
+            str(native_real_matrix.adjoint()).replace("-i", "-I"),
+            str(oracle_real_matrix.adjoint()),
+        )
+        native_unknown_matrix_x = native.Symbol("matrix_conjugate_unknown_x")
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.Matrix([[native_unknown_matrix_x]]).conjugate()
+        native_unknown_matrix_x.close()
+        native_real_matrix_x.close()
         symmetric_cases = (
             ([[1, 2], [2, 3]], True),
             ([[1, 2], [3, 4]], False),

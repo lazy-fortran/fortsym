@@ -26,7 +26,8 @@ module fortsym_matrix
     private
 
     public :: is_list, is_matrix, matrix_shape
-    public :: matrix_transpose, matrix_add, matrix_negate, matrix_divide, matrix_dot
+    public :: matrix_transpose, matrix_conjugate, matrix_adjoint, matrix_add, &
+        matrix_negate, matrix_divide, matrix_dot
     public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_zero_matrix, &
         matrix_is_upper, matrix_is_lower, matrix_is_upper_hessenberg, &
         matrix_is_lower_hessenberg, matrix_is_anti_symmetric, matrix_is_symbolic, &
@@ -158,6 +159,99 @@ contains
         end do
         r = from_matrix(a, t)
     end function matrix_transpose
+
+    !> Apply structural conjugation elementwise without materializing a matrix.
+    subroutine matrix_conjugate(a, engine, e, value, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+
+        call matrix_complex_transform(a, engine, e, .false., value, ok, why)
+    end subroutine matrix_conjugate
+
+    !> Apply structural conjugation and transpose without materializing a matrix.
+    subroutine matrix_adjoint(a, engine, e, value, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+
+        call matrix_complex_transform(a, engine, e, .true., value, ok, why)
+    end subroutine matrix_adjoint
+
+    subroutine matrix_complex_transform(a, engine, e, adjoint, value, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        logical, intent(in) :: adjoint
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(expr_t), allocatable :: output_rows(:), output_entries(:)
+        type(expr_t) :: source_row, entry, transformed
+        type(assumption_context_t), target :: local_facts
+        type(assumption_context_t), pointer :: facts
+        character(:), allocatable :: conjugate_why
+        integer :: rows, cols, output_rows_count, output_cols, i, j
+        integer :: source_row_index, source_column_index
+        logical :: conjugate_ok
+
+        value = e
+        ok = .false.
+        why = ""
+        facts => null()
+        select type (native => engine)
+            type is (native_engine_t)
+            if (associated(native%assumptions)) facts => native%assumptions
+        end select
+        if (.not. associated(facts)) then
+            call local_facts%init(e%a)
+            facts => local_facts
+        end if
+
+        call matrix_shape(e, rows, cols)
+        if (rows == 0) then
+            why = "matrix conjugation requires a nonempty rectangular matrix"
+            return
+        end if
+        if (adjoint) then
+            output_rows_count = cols
+            output_cols = rows
+        else
+            output_rows_count = rows
+            output_cols = cols
+        end if
+
+        allocate (output_rows(output_rows_count))
+        do i = 1, output_rows_count
+            allocate (output_entries(output_cols))
+            do j = 1, output_cols
+                source_row_index = i
+                source_column_index = j
+                if (adjoint) then
+                    source_row_index = j
+                    source_column_index = i
+                end if
+                source_row = e%arg(source_row_index)
+                entry = source_row%arg(source_column_index)
+                call conjugate(entry, facts, transformed, conjugate_ok, conjugate_why)
+                if (.not. conjugate_ok) then
+                    why = conjugate_why
+                    return
+                end if
+                output_entries(j) = transformed
+            end do
+            output_rows(i) = func("List", output_entries)
+            deallocate (output_entries)
+        end do
+        value = func("List", output_rows)
+        ok = .true.
+    end subroutine matrix_complex_transform
 
     !> Add or subtract two nonempty rectangular dense matrices.
     !>

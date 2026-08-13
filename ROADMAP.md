@@ -287,6 +287,9 @@ SymPy parity for the entire family.
 - [x] Expose bounded `Matrix.is_hermitian` through the shared complex
       conjugation owner and arena assumptions without materializing a matrix
       array.
+- [x] Expose bounded `Matrix.conjugate()`, `Matrix.adjoint()`, and `.H`
+      through one native complex-domain traversal, preserving rectangular
+      shapes and refusing entries whose conjugates are not decidable.
 - [x] Align bounded `Matrix` shape metadata with SymPy through `len()` and
       `is_square`, keeping both operations O(1) and adapter-local.
 - [x] Accept flat one-dimensional `Matrix` inputs as SymPy-compatible column
