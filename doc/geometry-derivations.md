@@ -147,6 +147,29 @@ form_from_tensor(F), interior(B,Omega), d(A), and the component density must
 agree. A non-antisymmetric or density-weighted tensor must be refused by the
 form bridge.
 
+## Derivation 4a: Clebsch magnetic coordinates
+
+The Clebsch representation used in plasma physics writes a divergence-free
+field locally as
+
+    B = grad(alpha) cross grad(beta)
+
+For coordinate components and the signed chart Jacobian J this is
+
+    B^1 = (partial_2 alpha partial_3 beta
+          - partial_3 alpha partial_2 beta) / J
+    B^2 = (partial_3 alpha partial_1 beta
+          - partial_1 alpha partial_3 beta) / J
+    B^3 = (partial_1 alpha partial_2 beta
+          - partial_2 alpha partial_1 beta) / J
+
+`clebsch_residuals` owns the three component differences between a supplied
+contravariant field and these expressions. It uses the chart Jacobian, not a
+metric, and therefore keeps the coordinate identity separate from `flat`,
+`sharp`, and equilibrium construction. On the identity chart,
+`alpha=psi`, `beta=theta`, and `B=(0, iota, 1)`, the residual is
+`(0, iota, 0)`; setting `B^3=1+theta` exposes the non-Clebsch component.
+
 ## Derivation 5: the Albert--Biro--Lainer Fourier branches
 
 The paper's Section II and equations (5)--(27), (32)--(42), and (45)--(51)

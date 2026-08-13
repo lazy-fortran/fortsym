@@ -255,6 +255,34 @@ class SympySubsetTest(unittest.TestCase):
         )
         self.assertEqual(oracle.sympify(str(straight.simplify())), 0)
 
+        clebsch = chart.flux_coordinates(1, kind=sp.FLUX_CLEBSCH)
+        iota = sp.Symbol("flux_owner_iota")
+        oiota = oracle.Symbol("flux_owner_iota")
+        otheta = oracle.Symbol("flux_owner_theta")
+        clebsch_vector = chart.vector((0, iota, 1))
+        clebsch_residuals = clebsch.clebsch_residuals(
+            clebsch_vector, psi, theta
+        )
+        expected_clebsch = (0, oiota, 0)
+        for actual, expected in zip(clebsch_residuals, expected_clebsch):
+            self.assertEqual(
+                oracle.simplify(oracle.sympify(str(actual.simplify())) - expected),
+                0,
+            )
+        self.assertIsNone(clebsch.clebsch_valid(clebsch_vector, psi, theta))
+        bad_clebsch = chart.vector((0, iota, 1 + theta))
+        self.assertEqual(
+            oracle.sympify(
+                str(clebsch.clebsch_residuals(
+                    bad_clebsch, psi, theta
+                )[2].simplify())
+            ),
+            otheta,
+        )
+        self.assertFalse(
+            clebsch.clebsch_valid(chart.vector((0, 0, 2)), psi, theta)
+        )
+
         hamada = chart.flux_coordinates(1, kind=sp.FLUX_HAMADA)
         contravariant = chart.vector((0, i_flux, g_flux))
         self.assertEqual(

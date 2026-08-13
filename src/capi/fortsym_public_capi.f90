@@ -30,8 +30,10 @@ module fortsym_public_capi
         j_fourier
     use fortsym_flux, only: flux_coordinate_t, flux_coordinates, &
         flux_coordinate_valid, flux_normal_residual, &
-        straight_field_line_residual, boozer_residuals, hamada_residuals, &
-        FLUX_BOOZER, FLUX_HAMADA, BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT
+        straight_field_line_residual, clebsch_residuals, boozer_residuals, &
+        hamada_residuals, &
+        FLUX_CLEBSCH, FLUX_BOOZER, FLUX_HAMADA, CLEBSCH_RESIDUAL_COUNT, &
+        BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT
     use fortsym_magnetic_weak, only: fourier_constitutive, fourier_weak_form, &
         reluctivity_density, &
         current_compatibility, &
@@ -177,6 +179,7 @@ module fortsym_public_capi
         fortsym_chart_b_con_form, fortsym_chart_b_density_form, &
         fortsym_chart_flux_normal_residual, &
         fortsym_chart_straight_field_line_residual, &
+        fortsym_chart_clebsch_residuals, &
         fortsym_chart_boozer_residuals, &
         fortsym_chart_hamada_residuals, &
         fortsym_chart_h_cov, fortsym_chart_h_con, &
@@ -262,7 +265,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 68_c_int
+        v = 69_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -2673,6 +2676,39 @@ contains
         value = straight_field_line_residual(owner, input, iota)
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_chart_straight_field_line_residual
+
+    function fortsym_chart_clebsch_residuals(raw, coordinates, position, &
+            vector, alpha, beta, label_index, out, message, capacity) bind(c, &
+            name="fortsym_chart_clebsch_residuals") result(status)
+        type(c_ptr), value :: raw, coordinates, position, vector, alpha, beta, out
+        integer(c_int), value :: label_index
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: input(DIM), alpha_value, beta_value
+        type(expr_t) :: value(CLEBSCH_RESIDUAL_COUNT)
+        type(flux_coordinate_t) :: owner
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_vector_input(a, vector, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_scalar_input(a, alpha, alpha_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_scalar_input(a, beta, beta_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        owner = flux_coordinates(chart, int(label_index), FLUX_CLEBSCH)
+        if (.not. flux_coordinate_valid(owner)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = clebsch_residuals(owner, input, alpha_value, beta_value)
+        call make_expr_array(a, value, out, CLEBSCH_RESIDUAL_COUNT, status, &
+            message, capacity)
+    end function fortsym_chart_clebsch_residuals
 
     function fortsym_chart_boozer_residuals(raw, coordinates, position, vector, &
             label_index, out, message, capacity) bind(c, &

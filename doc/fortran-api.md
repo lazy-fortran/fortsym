@@ -106,6 +106,8 @@ with `flux_coordinates(chart, label_index, kind)` using `FLUX_GENERIC`,
 `FLUX_CLEBSCH`, `FLUX_STRAIGHT_FIELD_LINE`, `FLUX_BOOZER`, or `FLUX_HAMADA`.
 `flux_normal_residual` checks `B^label`,
 `straight_field_line_residual` checks `B^angle_one - iota*B^angle_two`, and
+`clebsch_residuals` checks the three components of
+`B - grad(alpha) cross grad(beta)` using the signed chart Jacobian, while
 `boozer_residuals` returns
 `(B_label, d1 B1, d2 B1, d1 B2, d2 B2)` for the descriptor's ordered angles.
 These are identity owners, not equilibrium solvers; callers use the native

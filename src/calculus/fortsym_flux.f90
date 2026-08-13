@@ -6,10 +6,10 @@ module fortsym_flux
     ! supplied residual vanishes belongs to a caller or a higher-level
     ! physics package. Keeping those concerns separate makes the identities
     ! cheap to reuse from both Fortran and the Python facade.
-    use fortsym_chart, only: chart_t, DIM, chart_valid
+    use fortsym_chart, only: chart_t, DIM, chart_valid, jacobian
     use fortsym_diff, only: diff
     use fortsym_expr, only: expr_t, is_valid, operator(+), operator(-), &
-        operator(*)
+        operator(*), operator(/)
     implicit none
     private
 
@@ -18,6 +18,7 @@ module fortsym_flux
     integer, parameter, public :: FLUX_STRAIGHT_FIELD_LINE = 2
     integer, parameter, public :: FLUX_BOOZER = 3
     integer, parameter, public :: FLUX_HAMADA = 4
+    integer, parameter, public :: CLEBSCH_RESIDUAL_COUNT = 3
     integer, parameter, public :: BOOZER_RESIDUAL_COUNT = 5
     integer, parameter, public :: HAMADA_RESIDUAL_COUNT = 5
 
@@ -39,6 +40,7 @@ module fortsym_flux
     public :: flux_coordinate_label, flux_coordinate_kind
     public :: flux_coordinate_angles
     public :: flux_normal_residual, straight_field_line_residual
+    public :: clebsch_residuals
     public :: boozer_residuals
     public :: hamada_residuals
 
@@ -157,6 +159,45 @@ contains
         residual = vector(owner%angle_one) - rotational_transform* &
             vector(owner%angle_two)
     end function straight_field_line_residual
+
+    !> Clebsch residuals for B = grad(alpha) cross grad(beta).
+    !>
+    !> The gradients are covectors and the result is contravariant.  The
+    !> signed chart Jacobian supplies the orientation and density conversion;
+    !> no metric is inferred or needed for this coordinate identity.
+    function clebsch_residuals(owner, vector, alpha, beta) result(residual)
+        type(flux_coordinate_t), intent(in) :: owner
+        type(expr_t), intent(in) :: vector(DIM), alpha, beta
+        type(expr_t) :: residual(CLEBSCH_RESIDUAL_COUNT)
+        type(expr_t) :: alpha_one, alpha_two, alpha_three
+        type(expr_t) :: beta_one, beta_two, beta_three, jac
+        integer :: i
+
+        if (.not. flux_coordinate_valid(owner)) return
+        if (owner%kind /= FLUX_CLEBSCH) return
+        do i = 1, DIM
+            if (.not. is_valid(vector(i))) return
+            if (.not. associated(vector(i)%a, owner%chart%a)) return
+        end do
+        if (.not. is_valid(alpha)) return
+        if (.not. associated(alpha%a, owner%chart%a)) return
+        if (.not. is_valid(beta)) return
+        if (.not. associated(beta%a, owner%chart%a)) return
+
+        alpha_one = diff(alpha, owner%chart%u(1))
+        alpha_two = diff(alpha, owner%chart%u(2))
+        alpha_three = diff(alpha, owner%chart%u(3))
+        beta_one = diff(beta, owner%chart%u(1))
+        beta_two = diff(beta, owner%chart%u(2))
+        beta_three = diff(beta, owner%chart%u(3))
+        jac = jacobian(owner%chart)
+        residual(1) = vector(1) - (alpha_two*beta_three - &
+            alpha_three*beta_two)/jac
+        residual(2) = vector(2) - (alpha_three*beta_one - &
+            alpha_one*beta_three)/jac
+        residual(3) = vector(3) - (alpha_one*beta_two - &
+            alpha_two*beta_one)/jac
+    end function clebsch_residuals
 
     !> Boozer residuals for (B_psi, d_theta B_theta, d_phi B_theta,
     !> d_theta B_phi, d_phi B_phi) in the descriptor's ordered angles.

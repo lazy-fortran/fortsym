@@ -10,9 +10,12 @@ program example_magnetic_flux_coordinates
     type(arena_t), pointer :: arena
     type(chart_t) :: flux_chart
     type(magnetic_chart_t) :: magnetic_owner
+    type(flux_coordinate_t) :: clebsch
     type(expr_t) :: coordinates(DIM), position(DIM), potential(DIM)
     type(expr_t) :: psi, theta, phi, major_radius, minor_radius
-    type(expr_t) :: radial, b(DIM), b_lower(DIM), volume_density, expected
+    type(expr_t) :: radial, b(DIM), b_lower(DIM), flux_density(DIM)
+    type(expr_t) :: volume_density, expected
+    type(expr_t) :: clebsch_values(CLEBSCH_RESIDUAL_COUNT)
     type(expr_t) :: reluctivity(DIM, DIM), h_lower(DIM), h_upper(DIM)
     type(form_t) :: potential_form, flux_form, closed_form
     type(engine_result_t) :: checked
@@ -41,6 +44,9 @@ program example_magnetic_flux_coordinates
         error stop "magnetic chart owner invalid"
     end if
     b = b_con(flux_chart, potential)
+    flux_density = curl_density(flux_chart, potential)
+    clebsch = flux_coordinates(flux_chart, 1, FLUX_CLEBSCH)
+    clebsch_values = clebsch_residuals(clebsch, b, psi, phi)
     b_lower = b_cov(flux_chart, b)
     reluctivity = metric_covariant(flux_chart)
     h_lower = h_cov(flux_chart, reluctivity, b)
@@ -51,9 +57,13 @@ program example_magnetic_flux_coordinates
     call assert_zero(b(1), "B^psi = 0: field stays on flux surfaces")
     call assert_zero(b(2)*volume_density + 1, &
         "A=psi dphi gives B^theta=-1/J")
-    call assert_zero(divergence(flux_chart, b), "div B = 0")
+    call assert_zero(div_density(flux_chart, flux_density), &
+        "d(i_B volume) = 0")
     call assert_zero(field_line_derivative(flux_chart, b, psi), &
         "B dot grad(psi) = 0")
+    call assert_zero(clebsch_values(1), "Clebsch residual component 1")
+    call assert_zero(clebsch_values(2), "Clebsch residual component 2")
+    call assert_zero(clebsch_values(3), "Clebsch residual component 3")
     call assert_zero(h_lower(1) - b_lower(1), "H_i = g_ij B^j, component 1")
     call assert_zero(h_lower(2) - b_lower(2), "H_i = g_ij B^j, component 2")
     call assert_zero(h_lower(3) - b_lower(3), "H_i = g_ij B^j, component 3")

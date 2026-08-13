@@ -1844,7 +1844,11 @@ without an explicit volume factor.
   Boozer: `B^label` plus the four angular derivatives, exposed by the native
   owner, C ABI 62, and both Python facades with independent Fortran, C, and
   SymPy-oracle checks.
-- [ ] Complete Clebsch and the remaining Hamada/equilibrium-surface
+- [x] Add the native Clebsch residual owner
+  `B - grad(alpha) cross grad(beta)` using the signed chart Jacobian, with
+  C ABI 69, Python/SymPy transport, and independent component checks. It
+  checks the local identity only; equilibrium construction remains separate.
+- [ ] Complete the remaining Hamada/equilibrium-surface
   construction, symbolic consistency/refusal checks, and current/Jacobian
   identities. Do not encode a particular equilibrium solver in this toolkit.
 - [ ] Add the common plasma identities `B dot grad(psi) = 0`, the reciprocal
@@ -2063,6 +2067,9 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     and Boozer residuals. Expose the same owner through the C ABI and both
     Python facades; equilibrium construction and the remaining descriptors
     stay open.
+  - [x] Add the native Clebsch component residual
+    `B - grad(alpha) cross grad(beta)` through C ABI 69 and both facades;
+    the signed Jacobian is explicit and no equilibrium solver is coupled in.
 - [ ] **F5 — Fourier FEM completion.** Complete the Albert--Bíro--Lainer
   variational forms, density/constitutive transformations, traces, current
   compatibility, and a readable Fortran/Python derivation example.
