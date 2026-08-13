@@ -1641,6 +1641,21 @@ class Matrix:
             raise UnsupportedOperationError("rank options")
         return _native_operation(self._expression.rank)
 
+    @classmethod
+    def _from_expression(cls, expression, rows, cols):
+        matrix = cls.__new__(cls)
+        matrix._expression = expression
+        matrix.rows = rows
+        matrix.cols = cols
+        matrix.shape = (rows, cols)
+        return matrix
+
+    def inv(self, **options):
+        if options:
+            raise UnsupportedOperationError("inverse options")
+        expression = _native_operation(self._expression.inv)
+        return self._from_expression(expression, self.rows, self.cols)
+
     def __str__(self):
         rows = []
         for row_index in range(self.rows):

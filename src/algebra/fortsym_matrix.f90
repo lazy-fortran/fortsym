@@ -410,6 +410,8 @@ contains
         type(expr_t)                         :: r
         type(expr_t), allocatable :: m(:, :), inv(:, :)
         type(expr_t) :: determinant, minor_det
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: simplified
         integer :: n, i, j
 
         r = e
@@ -428,6 +430,14 @@ contains
 
         determinant = matrix_det(a, e, ok, why)
         if (.not. ok) return
+        engine = make_native_engine(a)
+        simplified = engine%simplify(determinant)
+        if (.not. simplified%ok) then
+            ok = .false.
+            why = str("Could not simplify the matrix determinant")
+            return
+        end if
+        determinant = simplified%value
         if (is_literal_zero(determinant)) then
             ok = .false.
             why = str("Inverse of a matrix with zero determinant")
@@ -618,7 +628,7 @@ contains
             return
         end if
         if (int(row_count, int64)*int(column_count, int64) > &
-                int(MAX_MINOR_OUTPUT, int64)) then
+            int(MAX_MINOR_OUTPUT, int64)) then
             why = str("Minors exceeds the built-in result bound")
             return
         end if
@@ -629,10 +639,10 @@ contains
         engine = make_native_engine(a)
         next = 0
         call fill_combinations(rows, k, 1, 1, choice, &
-                               row_choices, next)
+            row_choices, next)
         next = 0
         call fill_combinations(cols, k, 1, 1, choice, &
-                               column_choices, next)
+            column_choices, next)
         deallocate (choice)
 
         do i = 1, row_count
@@ -695,7 +705,7 @@ contains
         why = str("")
 
         if (rows > MAX_RREF_ROWS .or. cols > MAX_RREF_COLS .or. &
-                rows*cols > MAX_RREF_ENTRIES) then
+            rows*cols > MAX_RREF_ENTRIES) then
             why = str("exact row reduction exceeds the built-in matrix bound")
             return
         end if
@@ -842,7 +852,7 @@ contains
         do candidate = start, n - (k - depth)
             choice(depth) = candidate
             call fill_combinations(n, k, candidate + 1, depth + 1, &
-                                   choice, choices, next)
+                choice, choices, next)
         end do
     end subroutine fill_combinations
 

@@ -1807,6 +1807,10 @@
       },
       {
         "concepts": [],
+        "name": "inv"
+      },
+      {
+        "concepts": [],
         "name": "inverse_jacobian"
       },
       {
@@ -3147,6 +3151,7 @@
       "factor",
       "free_symbols",
       "integrate",
+      "inv",
       "limit",
       "linsolve",
       "operation_count",
@@ -3297,6 +3302,7 @@
       "gamma",
       "im",
       "integrate",
+      "inv",
       "is_algebraic",
       "is_integer",
       "is_negative",
@@ -3370,10 +3376,10 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 530,
-    "python_facade_exports": 79,
-    "sympy_adapter_exports": 189,
-    "unmapped_fortran_exports": 392
+    "fortran_facade_exports": 531,
+    "python_facade_exports": 80,
+    "sympy_adapter_exports": 190,
+    "unmapped_fortran_exports": 393
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -3548,6 +3554,7 @@
     "index_variance",
     "interior",
     "interior_product",
+    "inv",
     "inverse_jacobian",
     "j_fourier",
     "jacobian",

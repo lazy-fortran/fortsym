@@ -12,12 +12,13 @@ int main(void)
     fortsym_arena *arena = NULL;
     fortsym_expr *one = NULL, *two = NULL, *three = NULL, *four = NULL;
     fortsym_expr *row_one = NULL, *row_two = NULL, *matrix = NULL;
-    fortsym_expr *determinant = NULL, *rank = NULL;
+    fortsym_expr *determinant = NULL, *rank = NULL, *inverse = NULL;
+    fortsym_expr *inverse_row = NULL, *inverse_entry = NULL;
     const fortsym_expr *row_one_values[2];
     const fortsym_expr *row_two_values[2];
     const fortsym_expr *rows[2];
 
-    assert(fortsym_abi_version() == 80);
+    assert(fortsym_abi_version() == 81);
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 1, &one, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 2, &two, message, sizeof message) == FORTSYM_OK);
@@ -48,7 +49,21 @@ int main(void)
     assert(fortsym_expr_text(rank, text, sizeof text, &required,
                              message, sizeof message) == FORTSYM_OK);
     assert(strcmp(text, "2") == 0);
+    assert(fortsym_matrix_inverse(arena, matrix, &inverse, message,
+                                  sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_argument(inverse, 0, &inverse_row, message,
+                                 sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_argument(inverse_row, 0, &inverse_entry, message,
+                                 sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_text(inverse_entry, text, sizeof text, &required,
+                             message, sizeof message) == FORTSYM_OK);
+    assert(strcmp(text, "-2") == 0);
+    fortsym_expr_free(inverse_entry);
+    inverse_entry = NULL;
+    fortsym_expr_free(inverse_row);
+    inverse_row = NULL;
 
+    fortsym_expr_free(inverse);
     fortsym_expr_free(rank);
     fortsym_expr_free(determinant);
     fortsym_expr_free(matrix);

@@ -5,13 +5,14 @@ module fortsym_matrix_adapter
     use fortsym_arena, only: arena_t
     use fortsym_engine, only: engine_t, engine_result_t
     use fortsym_expr, only: expr_t
-    use fortsym_matrix, only: matrix_det, matrix_rank
+    use fortsym_matrix, only: matrix_det, matrix_rank, matrix_inverse
     use fortsym_string, only: str_t, chars
     implicit none
     private
 
     public :: calculate_matrix_det
     public :: calculate_matrix_rank
+    public :: calculate_matrix_inverse
 
 contains
 
@@ -45,6 +46,21 @@ contains
         if (.not. ok) return
         call simplify_matrix_value(engine, value, ok, why)
     end subroutine calculate_matrix_rank
+
+    subroutine calculate_matrix_inverse(a, engine, expression, value, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: expression
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(str_t) :: message
+
+        value = matrix_inverse(a, expression, ok, message)
+        why = chars(message)
+        if (.not. ok) return
+        call simplify_matrix_value(engine, value, ok, why)
+    end subroutine calculate_matrix_inverse
 
     subroutine simplify_matrix_value(engine, value, ok, why)
         class(engine_t), intent(inout) :: engine
