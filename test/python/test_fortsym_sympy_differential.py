@@ -619,7 +619,15 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(str(native_matrix.det()), str(oracle_matrix.det()))
         self.assertEqual(str(native.det(native_matrix)), str(oracle.det(oracle_matrix)))
         self.assertEqual(str(native_matrix.rank()), str(oracle_matrix.rank()))
+        self.assertEqual(
+            native_matrix.rank(simplify=True),
+            oracle_matrix.rank(simplify=True),
+        )
         self.assertEqual(str(native.rank(native_matrix)), str(oracle_matrix.rank()))
+        self.assertEqual(
+            native.rank(native_matrix, simplify=True),
+            oracle_matrix.rank(simplify=True),
+        )
         self.assertEqual(str(native_matrix.inv()), str(oracle_matrix.inv()))
         self.assertEqual(str(native_matrix.transpose()), str(oracle_matrix.transpose()))
         self.assertEqual(str(native_matrix.T), str(oracle_matrix.T))
@@ -750,6 +758,12 @@ class SympyDifferentialTest(unittest.TestCase):
         oracle_singular = oracle.Matrix([[1, 2], [2, 4]])
         native_singular = native.Matrix([[1, 2], [2, 4]])
         self.assertEqual(str(native_singular.rank()), str(oracle_singular.rank()))
+        self.assertEqual(
+            native_singular.rank(simplify=True),
+            oracle_singular.rank(simplify=True),
+        )
+        with self.assertRaises(native.UnsupportedOperationError):
+            native_singular.rank(iszerofunc=lambda value: True)
         with self.assertRaises(native.UnsupportedOperationError):
             native_singular.inv()
 

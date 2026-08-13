@@ -838,6 +838,11 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.Matrix([[1, 2, 3], [2, 4, 4]]),
             names,
         ),
+        "matrix_rank_simplify": (
+            oracle.Matrix([[1, 2, 3], [2, 4, 4]]),
+            native.Matrix([[1, 2, 3], [2, 4, 4]]),
+            names,
+        ),
         "matrix_multiply": (
             oracle.Matrix([[1, 2], [3, 4]]),
             native.Matrix([[1, 2], [3, 4]]),
@@ -946,6 +951,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
     if operation == "matrix_rref_no_pivots":
         return engine.Matrix([[1, 2, 3], [2, 4, 4]]), None
     if operation == "matrix_rref_simplify":
+        return engine.Matrix([[1, 2, 3], [2, 4, 4]]), None
+    if operation == "matrix_rank_simplify":
         return engine.Matrix([[1, 2, 3], [2, 4, 4]]), None
     if operation == "matrix_multiply":
         return engine.Matrix([[1, 2], [3, 4]]), None
@@ -1495,6 +1502,9 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation == "matrix_rref_simplify":
             expected = oracle_expression.rref(simplify=True)
             actual = native_expression.rref(simplify=True)
+        elif operation == "matrix_rank_simplify":
+            expected = oracle_expression.rank(simplify=True)
+            actual = native_expression.rank(simplify=True)
         elif operation == "matrix_multiply":
             expected = oracle_expression * oracle.Matrix([[2, 0], [1, 2]])
             actual = native_expression * native.Matrix([[2, 0], [1, 2]])
@@ -1556,7 +1566,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                 if operation in ("match", "match_wild", "match_wild_remainder",
                                  "match_wild_partition")
                 else expected == actual
-                if (operation in ("count_ops", "free_symbols") or
+                if (operation in ("count_ops", "free_symbols",
+                                  "matrix_rank_simplify") or
                         operation in _ASSUMPTION_OPERATIONS or
                         operation in _PREDICATE_OPERATIONS or
                         operation == "float_equality")
@@ -1647,6 +1658,9 @@ def benchmark_workload(
         elif operation == "matrix_rref_simplify":
             oracle_call = lambda: oracle_expression.rref(simplify=True)
             native_call = lambda: native_expression.rref(simplify=True)
+        elif operation == "matrix_rank_simplify":
+            oracle_call = lambda: oracle_expression.rank(simplify=True)
+            native_call = lambda: native_expression.rank(simplify=True)
         elif operation == "matrix_multiply":
             oracle_right = oracle.Matrix([[2, 0], [1, 2]])
             native_right = native.Matrix([[2, 0], [1, 2]])
@@ -1891,6 +1905,8 @@ def benchmark_workload(
                     return expression.rref(pivots=False)
                 if operation == "matrix_rref_simplify":
                     return expression.rref(simplify=True)
+                if operation == "matrix_rank_simplify":
+                    return expression.rank(simplify=True)
                 if operation == "matrix_multiply":
                     return expression * engine.Matrix([[2, 0], [1, 2]])
                 if operation == "matrix_add":
@@ -2046,7 +2062,7 @@ def main() -> None:
     workloads = []
     for operation in (
         "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "rational_constructor", "tuple_constructor", "finite_set_constructor", "complement_constructor", "boolean_and_constructor", "boolean_or_constructor", "boolean_not_constructor", "boolean_xor_constructor", "boolean_implies_constructor", "boolean_equivalent_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate",
-        "matrix_rref_no_pivots", "matrix_rref_simplify", "matrix_divide", "matrix_slice", "matrix_flat_index",
+        "matrix_rref_no_pivots", "matrix_rref_simplify", "matrix_rank_simplify", "matrix_divide", "matrix_slice", "matrix_flat_index",
         "matrix_flat_slice", "solve_rational", "linsolve_free",
         "solveset_rational_condition",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS, "float_equality"

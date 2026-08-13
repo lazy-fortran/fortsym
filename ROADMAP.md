@@ -279,6 +279,9 @@ SymPy parity for the entire family.
 - [x] Accept bounded `Matrix.nullspace(simplify=True)` because the native
       nullspace owner already simplifies every exact basis entry; callback-
       controlled zero tests and conditional pivots remain refused.
+- [x] Accept bounded `Matrix.rank(simplify=True)` because the native rank
+      owner already evaluates exact pivots; callback-controlled zero tests
+      and other rank options remain refused.
 - [x] Expose bounded exact dense `Matrix` products and scalar scaling through
       `*`/`@`, reusing the native matrix-dot owner and refusing mismatched
       dimensions, foreign arenas, and unsupported operands.
