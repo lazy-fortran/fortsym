@@ -44,6 +44,11 @@ class NativePackageTest(unittest.TestCase):
                 dimension=2,
                 signature=(1, 1, 1, 1),
             )
+            volume = metric.volume()
+            reversed_volume = metric.volume(-1)
+            self.assertEqual(volume.degree, 2)
+            self.assertEqual(volume[3].simplify(), 1)
+            self.assertEqual(reversed_volume[3].simplify(), -1)
             upper = metric.vector((t, x, 0, 0))
             lower = upper.lower()
             roundtrip = lower.raise_()

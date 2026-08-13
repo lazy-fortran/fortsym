@@ -1721,6 +1721,12 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   check covers `d`, `d(d(A))`, Hodge involution, and the scalar
   Laplace--de Rham operator; arbitrary dimensions beyond four and source
   equations remain open.
+- [x] Add the runtime-dimension oriented spacetime volume owner
+  `spacetime_volume_form(metric, orientation)` and the Python spelling
+  `SpacetimeMetric.volume(orientation)`. It returns
+  `sigma*sqrt(abs(det(g))) du^1^...^du^n` for dimensions 1--4, keeps the sign
+  separate from positive `sqrtg`, and is checked in native, C, Python, and
+  SymPy form/contraction tests.
 - [ ] Generalize codifferential, Laplace-de Rham, and the conversion between
   vectors and one-forms using `flat` and `sharp` beyond the implemented
   fixed-three-dimensional and dimension-aware spacetime owners. Higher-degree
@@ -1858,7 +1864,7 @@ without an explicit volume factor.
   SymPy-oracle checks.
 - [x] Add the native Clebsch residual owner
   `B - grad(alpha) cross grad(beta)` using the signed chart Jacobian, with
-  C ABI 70, Python/SymPy transport, and independent component checks. It
+  C ABI 71, Python/SymPy transport, and independent component checks. It
   checks the local identity only; equilibrium construction remains separate.
 - [ ] Complete the remaining Hamada/equilibrium-surface
   construction, symbolic consistency/refusal checks, and current/Jacobian
@@ -2080,7 +2086,7 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     Python facades; equilibrium construction and the remaining descriptors
     stay open.
   - [x] Add the native Clebsch component residual
-    `B - grad(alpha) cross grad(beta)` through C ABI 70 and both facades;
+    `B - grad(alpha) cross grad(beta)` through C ABI 71 and both facades;
     the signed Jacobian is explicit and no equilibrium solver is coupled in.
 - [ ] **F5 — Fourier FEM completion.** Complete the Albert--Bíro--Lainer
   variational forms, density/constitutive transformations, traces, current

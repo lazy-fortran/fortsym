@@ -438,6 +438,13 @@ signature, retain zero slots for ABI transport, and define
 `sqrt(abs(det(g)))`; for a Lorentzian metric the scalar Laplace--Beltrami
 operator is the coordinate wave operator.
 
+`spacetime_volume_form(metric, orientation)` returns the signed top-degree
+form `Omega = sigma*sqrt(abs(det(g))) du^1^...^du^n` for runtime dimensions
+one through four. The default sign is the metric's stored orientation; an
+explicit `+1` or `-1` selects a view without changing the metric owner. This
+is the canonical form for contractions such as
+`spacetime_interior(vector, spacetime_volume_form(metric))`.
+
 `spacetime_tensor_covariant_diff(metric, tensor)` appends a lower derivative
 slot to a runtime spacetime tensor of rank at most four, producing the
 rank-five representation needed for covariant derivatives of curvature

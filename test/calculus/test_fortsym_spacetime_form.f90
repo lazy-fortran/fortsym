@@ -11,7 +11,7 @@ program test_fortsym_spacetime_form
         spacetime_form_two, spacetime_form_component, spacetime_d, &
         spacetime_wedge, spacetime_hodge, spacetime_form_four, &
         spacetime_form_scalar, spacetime_codifferential, spacetime_interior, &
-        spacetime_lie, spacetime_laplace_de_rham
+        spacetime_lie, spacetime_laplace_de_rham, spacetime_volume_form
     use fortsym_maxwell, only: maxwell_field_strength, maxwell_gauge_transform, &
         maxwell_residual
     implicit none
@@ -25,6 +25,7 @@ program test_fortsym_spacetime_form
     type(expr_t) :: two_components(6), residual
     type(spacetime_form_t) :: potential, field, closed, hodge, hodge_hodge, codiff
     type(spacetime_form_t) :: contraction, lie_field, cartan
+    type(spacetime_form_t) :: volume, negative_volume, volume_2d, negative_volume_2d
     type(spacetime_form_t) :: scalar_form, laplace, gauge, gauge_field, current
     type(spacetime_form_t) :: maxwell_error
     type(spacetime_form_t) :: alpha_2d, beta_2d, alpha_star_2d
@@ -48,6 +49,13 @@ program test_fortsym_spacetime_form
     signature = [-1, 1, 1, 1]
     metric = spacetime_metric_create(components, 4, u, signature, 1)
     call suite_begin(suite, "spacetime differential forms")
+
+    volume = spacetime_volume_form(metric)
+    negative_volume = spacetime_volume_form(metric, -1)
+    call check_identity(suite, engine, "oriented spacetime volume", &
+        spacetime_form_component(volume, 15) - 1)
+    call check_identity(suite, engine, "reversed spacetime volume", &
+        spacetime_form_component(negative_volume, 15) + 1)
 
     potential_components(1) = u(2)*u(3)
     potential_components(2) = u(1)*u(3)
@@ -135,6 +143,11 @@ program test_fortsym_spacetime_form
     hodge = spacetime_hodge(metric, field)
     call check_identity(suite, engine, "star volume is signed scalar", &
         spacetime_form_component(hodge, 0) + 1)
+    vector = num(arena, 0)
+    vector(1) = num(arena, 1)
+    contraction = spacetime_interior(vector, volume)
+    call check_identity(suite, engine, "interior of spacetime volume", &
+        spacetime_form_component(contraction, 14) - 1)
 
     ! The same owner must honor a lower runtime dimension.  This is a flat
     ! two-dimensional Riemannian metric, so the Hodge degree and
@@ -146,6 +159,13 @@ program test_fortsym_spacetime_form
     metric_2d = spacetime_metric_create(components_2d, 2, u, signature, 1)
     if (.not. spacetime_metric_valid(metric_2d)) error stop &
         "invalid two-dimensional form metric"
+
+    volume_2d = spacetime_volume_form(metric_2d)
+    negative_volume_2d = spacetime_volume_form(metric_2d, -1)
+    call check_identity(suite, engine, "2D spacetime volume", &
+        spacetime_form_component(volume_2d, 3) - 1)
+    call check_identity(suite, engine, "reversed 2D spacetime volume", &
+        spacetime_form_component(negative_volume_2d, 3) + 1)
 
     values_2d = num(arena, 0)
     values_2d(1) = u(2)

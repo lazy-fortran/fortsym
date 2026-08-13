@@ -1184,6 +1184,7 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual((residual[1] + 1).simplify(), 0)
         self.assertEqual(residual[0].simplify(), 0)
 
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_native_spacetime_forms(self):
         t, x, y, z = sp.symbols("form_t form_x form_y form_z")
         metric = sp.SpacetimeMetric(
@@ -1192,6 +1193,20 @@ class SympySubsetTest(unittest.TestCase):
              (0, 0, 1, 0), (0, 0, 0, 1)),
             signature=(-1, 1, 1, 1),
         )
+        volume = metric.volume()
+        reversed_volume = metric.volume(-1)
+        self.assertEqual(volume.degree, 4)
+        self.assertEqual(volume[15].simplify(), 1)
+        self.assertEqual(reversed_volume[15].simplify(), -1)
+        scaled_metric = sp.SpacetimeMetric(
+            (t, x, y, z),
+            ((2, 0, 0, 0), (0, 3, 0, 0),
+             (0, 0, 5, 0), (0, 0, 0, 7)),
+            signature=(1, 1, 1, 1),
+        )
+        actual_volume = oracle.sympify(str(scaled_metric.volume()[15].simplify()))
+        expected_volume = oracle.sqrt(oracle.Abs(oracle.Matrix.diag(2, 3, 5, 7).det()))
+        self.assertEqual(oracle.simplify(actual_volume - expected_volume), 0)
         potential = metric.one_form((x*y, t*z, t*x, t + y))
         field = potential.d()
         self.assertTrue(field.is_closed)
@@ -1251,6 +1266,10 @@ class SympySubsetTest(unittest.TestCase):
             dimension=2,
             signature=(1, 1, 1, 1),
         )
+        volume = metric.volume()
+        reversed_volume = metric.volume(-1)
+        self.assertEqual(volume[3].simplify(), 1)
+        self.assertEqual(reversed_volume[3].simplify(), -1)
         alpha = metric.one_form((x, t**2, 0, 0))
         field = alpha.d()
         self.assertEqual(field.degree, 2)

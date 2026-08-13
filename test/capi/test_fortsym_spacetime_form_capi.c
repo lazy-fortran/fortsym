@@ -81,6 +81,38 @@ int main(void)
     vector[2] = zero;
     vector[3] = zero;
 
+    status = fortsym_spacetime_form_volume(
+        arena, metric, 4, coordinates, signature, 1, output,
+        message, sizeof message);
+    assert(status == FORTSYM_OK);
+    assert(fortsym_subtract(arena, output[15], one, &check, message,
+                            sizeof message) == FORTSYM_OK);
+    assert(fortsym_zero_test(arena, check, &verdict, message,
+                             sizeof message) == FORTSYM_OK);
+    assert(verdict == FORTSYM_ZERO_TRUE);
+    fortsym_expr_free(check);
+    check = NULL;
+    for (mask = 0; mask < 16; ++mask) {
+        fortsym_expr_free(output[mask]);
+        output[mask] = NULL;
+    }
+
+    status = fortsym_spacetime_form_volume(
+        arena, metric, 4, coordinates, signature, -1, output,
+        message, sizeof message);
+    assert(status == FORTSYM_OK);
+    assert(fortsym_add(arena, output[15], one, &check, message,
+                       sizeof message) == FORTSYM_OK);
+    assert(fortsym_zero_test(arena, check, &verdict, message,
+                             sizeof message) == FORTSYM_OK);
+    assert(verdict == FORTSYM_ZERO_TRUE);
+    fortsym_expr_free(check);
+    check = NULL;
+    for (mask = 0; mask < 16; ++mask) {
+        fortsym_expr_free(output[mask]);
+        output[mask] = NULL;
+    }
+
     status = fortsym_spacetime_form_codifferential(
         arena, metric, 4, coordinates, signature, 1, input, 1, output,
         message, sizeof message);
