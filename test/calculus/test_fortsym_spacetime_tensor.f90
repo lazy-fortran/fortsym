@@ -24,6 +24,8 @@ program test_fortsym_spacetime_tensor
         spacetime_tensor_lie_derivative, &
         spacetime_killing, &
         SPACETIME_UPPER, SPACETIME_LOWER
+    use fortsym_index, only: index_type_t, index_t, index_type, make_index, &
+        compatible_indices, INDEX_SPACETIME, INDEX_INTERNAL
     implicit none
 
     type(arena_t), target :: arena
@@ -37,6 +39,7 @@ program test_fortsym_spacetime_tensor
     type(spacetime_tensor_t) :: lie_result, density_scalar, dilation_vector
     type(spacetime_tensor_t) :: divergence_result
     type(spacetime_tensor_t) :: curved_density, density_derivative, scalar_tensor
+    type(spacetime_tensor_t) :: typed_scalar, wrong_space_scalar
     type(spacetime_tensor_t) :: rank_four, rank_five
     type(expr_t) :: coordinates(SPACETIME_DIM)
     type(expr_t) :: components(SPACETIME_DIM, SPACETIME_DIM)
@@ -47,6 +50,8 @@ program test_fortsym_spacetime_tensor
     integer :: signature(SPACETIME_DIM), indices(2), scalar_indices(1), &
         derivative_indices(3), permutation(2), empty(0), rank_four_variance(4), &
         rank_five_indices(5)
+    type(index_type_t) :: spacetime_space, internal_space
+    type(index_t) :: upper_i, lower_i, lower_j, internal_i
 
     call arena%init()
     engine = make_symengine_engine(arena)
@@ -111,6 +116,28 @@ program test_fortsym_spacetime_tensor
         spacetime_tensor_component(scalar, empty) - &
         (2*coordinates(1)**2 + 2*coordinates(1)*coordinates(2) + &
         coordinates(2)**2))
+
+    spacetime_space = index_type("spacetime", 2, INDEX_SPACETIME)
+    internal_space = index_type("internal", 2, INDEX_INTERNAL)
+    upper_i = make_index(spacetime_space, 1, SPACETIME_UPPER, "i", .true.)
+    lower_i = make_index(spacetime_space, 2, SPACETIME_LOWER, "i", .true.)
+    lower_j = make_index(spacetime_space, 2, SPACETIME_LOWER, "j", .true.)
+    internal_i = make_index(internal_space, 2, SPACETIME_LOWER, "i", .true.)
+    call check(suite, compatible_indices(upper_i, lower_i), &
+        "spacetime index labels are compatible")
+    typed_scalar = spacetime_tensor_contract(product, upper_i, lower_i)
+    call check_identity(suite, engine, "typed spacetime contraction", &
+        spacetime_tensor_component(typed_scalar, empty) - &
+        spacetime_tensor_component(scalar, empty))
+    typed_scalar = spacetime_tensor_contract(product, upper_i, lower_j)
+    call check(suite, .not. spacetime_tensor_valid(typed_scalar), &
+        "typed spacetime contraction rejects label mismatch")
+    typed_scalar = spacetime_tensor_contract(product, upper_i, internal_i)
+    call check(suite, .not. spacetime_tensor_valid(typed_scalar), &
+        "typed spacetime contraction rejects index-space mismatch")
+    wrong_space_scalar = spacetime_tensor_contract(product, upper_i, lower_i)
+    call check(suite, spacetime_tensor_valid(wrong_space_scalar), &
+        "typed spacetime contraction keeps valid result")
 
     ! A rank-four tensor must differentiate into the rank-five object used by
     ! the second-Bianchi representation.  The constant nonorthogonal metric

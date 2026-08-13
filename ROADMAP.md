@@ -1335,6 +1335,11 @@ conversion only. They do not maintain a second geometry implementation.
     both Python facades. Returned fixed-slot arrays retain inactive zeros,
     slot variance, and summed density weight; arbitrary rank and canonical
     dummy-index naming remain open.
+  - [x] Add the native named-index contraction overload to the runtime
+    spacetime tensor owner. It checks index-space identity, runtime dimension,
+    slot variance, and nonempty dummy labels before delegating to the existing
+    slot kernel; independent Fortran checks cover accepted and refused
+    contractions. C/Python exposure of runtime named indices remains open.
   - [x] Raise the runtime spacetime tensor ceiling to rank five so a rank-four
     curvature-like tensor can be covariantly differentiated into the natural
     rank-five second-Bianchi representation. Covariant differentiation and Lie

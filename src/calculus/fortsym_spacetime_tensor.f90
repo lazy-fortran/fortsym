@@ -9,6 +9,8 @@ module fortsym_spacetime_tensor
     use fortsym_expr, only: expr_t, num, is_valid, same_arena, &
         operator(+), operator(-), operator(*)
     use fortsym_diff, only: diff
+    use fortsym_index, only: index_t, index_valid, compatible_indices, &
+        index_dimension, index_slot, index_variance
     use fortsym_relativity, only: SPACETIME_DIM, spacetime_metric_t, &
         spacetime_metric_valid, spacetime_metric_arena, &
         spacetime_metric_dimension, spacetime_metric_covariant, &
@@ -53,6 +55,11 @@ module fortsym_spacetime_tensor
     public :: spacetime_tensor_covariant_divergence
     public :: spacetime_tensor_lie_derivative
     public :: spacetime_killing
+
+    interface spacetime_tensor_contract
+        module procedure spacetime_tensor_contract_slots
+        module procedure spacetime_tensor_contract_indices
+    end interface spacetime_tensor_contract
 
 contains
 
@@ -450,7 +457,7 @@ contains
         end do
     end function spacetime_tensor_product
 
-    function spacetime_tensor_contract(tensor_value, first, second) result(result)
+    function spacetime_tensor_contract_slots(tensor_value, first, second) result(result)
         type(spacetime_tensor_t), intent(in) :: tensor_value
         integer, intent(in) :: first, second
         type(spacetime_tensor_t) :: result
@@ -493,7 +500,35 @@ contains
                     tensor_value%component(old_index)
             end do
         end do
-    end function spacetime_tensor_contract
+    end function spacetime_tensor_contract_slots
+
+    !> Contract two slots selected by checked named indices.
+    !>
+    !> The labels must refer to one index space with opposite variance.  The
+    !> space dimension and slot variance must also agree with the owner; this
+    !> keeps a runtime spacetime tensor from accepting a merely shape-compatible
+    !> contraction from another index space.
+    function spacetime_tensor_contract_indices(tensor_value, first, second) &
+            result(result)
+        type(spacetime_tensor_t), intent(in) :: tensor_value
+        type(index_t), intent(in) :: first, second
+        type(spacetime_tensor_t) :: result
+        integer :: first_slot, second_slot
+
+        if (.not. spacetime_tensor_valid(tensor_value)) return
+        if (.not. index_valid(first)) return
+        if (.not. index_valid(second)) return
+        if (.not. compatible_indices(first, second)) return
+        if (index_dimension(first) /= tensor_value%dimension) return
+        if (index_dimension(second) /= tensor_value%dimension) return
+        first_slot = index_slot(first)
+        second_slot = index_slot(second)
+        if (first_slot < 1 .or. first_slot > tensor_value%rank) return
+        if (second_slot < 1 .or. second_slot > tensor_value%rank) return
+        if (tensor_value%variance(first_slot) /= index_variance(first)) return
+        if (tensor_value%variance(second_slot) /= index_variance(second)) return
+        result = spacetime_tensor_contract_slots(tensor_value, first_slot, second_slot)
+    end function spacetime_tensor_contract_indices
 
     function spacetime_tensor_permute(tensor_value, order) result(result)
         type(spacetime_tensor_t), intent(in) :: tensor_value
