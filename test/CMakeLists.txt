@@ -97,13 +97,25 @@ fortsym_add_test(test_fortsym_spacetime_tensor calculus/test_fortsym_spacetime_t
 fortsym_add_test(test_fortsym_toroidal calculus/test_fortsym_toroidal.f90)
 fortsym_add_test(test_fortsym_easy_geometry calculus/test_fortsym_easy_geometry.f90)
 
-# --- executable geometry derivations ---
+# --- executable examples and geometry derivations ---
+add_test(NAME example_workflow COMMAND example_workflow)
 add_test(NAME example_de_sitter COMMAND example_de_sitter)
 add_test(NAME example_gps_newtonian_limit COMMAND example_gps_newtonian_limit)
+add_test(NAME example_magnetic_flux_coordinates
+    COMMAND example_magnetic_flux_coordinates)
 add_test(NAME example_nonorthogonal_flux_coordinates
     COMMAND example_nonorthogonal_flux_coordinates)
+add_test(NAME example_boozer_coordinates COMMAND example_boozer_coordinates)
+add_test(NAME example_spherical_coordinates COMMAND example_spherical_coordinates)
+add_test(NAME example_cylindrical_fourier COMMAND example_cylindrical_fourier)
+add_test(NAME example_fourier_weak_form COMMAND example_fourier_weak_form)
 add_test(NAME example_fourier_constitutive_density
     COMMAND example_fourier_constitutive_density)
+add_test(NAME example_killing_vectors COMMAND example_killing_vectors)
+add_test(NAME example_2d_spacetime_forms COMMAND example_2d_spacetime_forms)
+add_test(NAME example_spacetime_tensor_calculus
+    COMMAND example_spacetime_tensor_calculus)
+add_test(NAME paper_magnetic_native COMMAND paper_magnetic_native)
 
 # --- reading Fortran back ---
 fortsym_add_test(test_fortsym_fparse parse_fortran/test_fortsym_fparse.f90)

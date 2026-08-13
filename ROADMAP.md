@@ -1963,6 +1963,13 @@ between the two-dimensional gradient, scalar curl, and divergence.
   Fourier modes. The existing `paper_magnetic_native` program and Python
   oracle test cover the first component/reduction slice; generated kernels
   must preserve density components and avoid array temporaries.
+- [x] Register every existing native geometry and paper example as a CTest
+  execution test. The complete executable set now covers the workflow,
+  cylindrical/spherical and magnetic/Boozer coordinates, Fourier weak forms,
+  Killing vectors, spacetime forms/tensors, relativity, and the native paper
+  reduction; each executable retains its own independent residual checks.
+  The toroidal example uses its compact analytic metric owner for the
+  constitutive raise, avoiding raw Cartesian chain-rule expression swell.
 - [x] Add a native `paper_magnetic` example that is readable without the
   source scripts: declare `Z`, `R`, `phi`, `n`, `A`, and `g`, construct
   `sqrtg`, `B%up`, `B%down`, and the Fourier curl, and assert the paper's
@@ -2400,6 +2407,14 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     remains green; the new `simplify_flat_like_terms` diagnostic measured
     0.0226 ms native versus 0.0297 ms SymEngine on the current machine. The
     complete SymPy performance gate remains open.
+  - [x] Let native `zero_test` return immediately after ordinary simplification
+    has produced an exact scalar verdict. This avoids the exponential,
+    rational, and expansion normalization passes for the common exact-zero and
+    exact-nonzero residuals while preserving UNKNOWN for symbolic results.
+  - [x] Add the explicit-metric `h_con(metric, H_cov)` overload and use the
+    cached inverse in the toroidal flux example. The full executable geometry
+    corpus remains correct, and the previously expression-swollen toroidal
+    raise now completes as a fast independent CTest check.
 - [x] Cache immutable explicit metric determinant, inverse, and positive
   `sqrtg` views in the native `metric_t` owner. Repeated gradient, divergence,
   Laplace--Beltrami, Hodge, and raise/lower calls reuse the same expression

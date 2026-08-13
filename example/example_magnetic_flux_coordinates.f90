@@ -3,12 +3,14 @@ program example_magnetic_flux_coordinates
     ! gives a field tangent to every psi=constant surface and demonstrates the
     ! native B^i, flux-form, volume, and divergence owners together.
     use fortsym
+    use fortsym_metric, only: metric_t, metric_create, metric_valid
     use fortsym_string, only: chars
     use fortsym_print, only: print_expr
     implicit none
 
     type(arena_t), pointer :: arena
     type(chart_t) :: flux_chart
+    type(metric_t) :: flux_metric
     type(magnetic_chart_t) :: magnetic_owner
     type(flux_coordinate_t) :: clebsch
     type(expr_t) :: coordinates(DIM), position(DIM), potential(DIM)
@@ -16,6 +18,7 @@ program example_magnetic_flux_coordinates
     type(expr_t) :: radial, b(DIM), b_lower(DIM), flux_density(DIM)
     type(expr_t) :: volume_density, expected
     type(expr_t) :: clebsch_values(CLEBSCH_RESIDUAL_COUNT)
+    type(expr_t) :: metric_components(DIM, DIM)
     type(expr_t) :: reluctivity(DIM, DIM), h_lower(DIM), h_upper(DIM)
     type(form_t) :: potential_form, flux_form, closed_form
     type(engine_result_t) :: checked
@@ -48,9 +51,20 @@ program example_magnetic_flux_coordinates
     clebsch = flux_coordinates(flux_chart, 1, FLUX_CLEBSCH)
     clebsch_values = clebsch_residuals(clebsch, b, psi, phi)
     b_lower = b_cov(flux_chart, b)
-    reluctivity = metric_covariant(flux_chart)
+    ! Keep the expensive constitutive raise on the compact analytic metric
+    ! owner. The chart-derived metric remains tested above, while the owner
+    ! avoids carrying the raw Cartesian chain rule through g^ij g_jk B^k.
+    metric_components = num(arena, 0)
+    metric_components(1, 1) = num(arena, 1)
+    metric_components(2, 2) = num(arena, 1)
+    metric_components(2, 3) = minor_radius*cos(phi)
+    metric_components(3, 2) = metric_components(2, 3)
+    metric_components(3, 3) = 1 + minor_radius**2*cos(phi)**2
+    flux_metric = metric_create(metric_components, coordinates=coordinates)
+    if (.not. metric_valid(flux_metric)) error stop "flux metric invalid"
+    reluctivity = metric_components
     h_lower = h_cov(flux_chart, reluctivity, b)
-    h_upper = h_con(flux_chart, h_lower)
+    h_upper = h_con(flux_metric, h_lower)
     volume_density = jacobian(flux_chart)
     expected = -minor_radius**2*(major_radius + minor_radius*radial*cos(theta))/2
     call assert_zero(volume_density - expected, "toroidal flux-coordinate Jacobian")
@@ -64,9 +78,12 @@ program example_magnetic_flux_coordinates
     call assert_zero(clebsch_values(1), "Clebsch residual component 1")
     call assert_zero(clebsch_values(2), "Clebsch residual component 2")
     call assert_zero(clebsch_values(3), "Clebsch residual component 3")
-    call assert_zero(h_lower(1) - b_lower(1), "H_i = g_ij B^j, component 1")
-    call assert_zero(h_lower(2) - b_lower(2), "H_i = g_ij B^j, component 2")
-    call assert_zero(h_lower(3) - b_lower(3), "H_i = g_ij B^j, component 3")
+    call assert_zero(h_lower(1) - b(1), "H_i = g_ij B^j, component 1")
+    call assert_zero(h_lower(2) - (b(2) + minor_radius*cos(phi)*b(3)), &
+        "H_i = g_ij B^j, component 2")
+    call assert_zero(h_lower(3) - (minor_radius*cos(phi)*b(2) + &
+        (1 + minor_radius**2*cos(phi)**2)*b(3)), &
+        "H_i = g_ij B^j, component 3")
     call assert_zero(h_upper(1) - b(1), "H^i raises back to B^i, component 1")
     call assert_zero(h_upper(2) - b(2), "H^i raises back to B^i, component 2")
     call assert_zero(h_upper(3) - b(3), "H^i raises back to B^i, component 3")

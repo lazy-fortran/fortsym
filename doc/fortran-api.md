@@ -121,6 +121,11 @@ returns `vector(i) * d(scalar)/du(i)` and is also the magnetic `B dot grad`
 operation.
 `h_cov(chart, reluctivity, B_con)` applies the explicit constitutive convention
 `H_i = nu_ij B^j`; `h_con(chart, H_cov)` raises that covector with `g^ij`.
+The overload `h_con(metric, H_cov)` accepts an explicit `metric_t` owner and
+reuses its cached inverse. Use it when the chart embedding is intentionally
+kept separate from a compact analytic metric, as in the toroidal flux example;
+this avoids pushing raw Cartesian chain-rule expressions through the index
+raise.
 The two operations are intentionally separate, so anisotropic material data
 and metric index conversion remain independently reusable.
 The chart also owns `grad`, `divergence`, `curl`, and `laplacian`; `curl` takes
