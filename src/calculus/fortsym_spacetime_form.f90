@@ -25,6 +25,7 @@ module fortsym_spacetime_form
 
     public :: spacetime_form_zero, spacetime_form_scalar, spacetime_form_one
     public :: spacetime_form_two, spacetime_form_three, spacetime_form_four
+    public :: spacetime_volume_form
     public :: spacetime_form_component, spacetime_form_degree, &
         spacetime_form_dimension
     public :: spacetime_form_valid, spacetime_form_same_arena, spacetime_wedge, spacetime_d
@@ -40,6 +41,25 @@ module fortsym_spacetime_form
     end interface spacetime_form_scalar
 
 contains
+
+    !> Oriented metric volume form sigma*sqrt(abs(det(g))) du^1^...^du^n.
+    function spacetime_volume_form(g, orientation) result(value)
+        type(spacetime_metric_t), intent(in) :: g
+        integer, optional, intent(in) :: orientation
+        type(spacetime_form_t) :: value
+        type(expr_t) :: coefficient
+        integer :: sign, dimension
+
+        if (.not. spacetime_metric_valid(g)) return
+        sign = spacetime_metric_orientation(g)
+        if (present(orientation)) sign = orientation
+        if (sign /= 1 .and. sign /= -1) return
+        dimension = spacetime_metric_dimension(g)
+        value = spacetime_form_zero(g, dimension)
+        coefficient = spacetime_metric_sqrtg(g)
+        if (sign < 0) coefficient = -coefficient
+        value%component(2**dimension - 1) = coefficient
+    end function spacetime_volume_form
 
     function spacetime_form_zero(g, degree) result(value)
         type(spacetime_metric_t), intent(in) :: g

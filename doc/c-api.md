@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 70). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 71). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -122,7 +122,7 @@ The dimension-aware relativity owner is transported by the
 `fortsym_spacetime_*` calls for inverse metric, `flat`, `sharp`, metric
 gradient, divergence, Laplace--Beltrami/wave operator, Christoffel, Riemann,
 Ricci, scalar curvature, and Einstein tensors. The spacetime form calls add native
-degree-aware exterior derivative, wedge, metric Hodge-star, and
+degree-aware exterior derivative, oriented top-degree volume forms, wedge, metric Hodge-star, and
 codifferential transport over the same four-coordinate owner. The geodesic
 residual call substitutes an explicit parameterized curve into the native
 Christoffel owner before assembling `x''^a + Gamma^a_bc x'^b x'^c`. The
@@ -131,6 +131,10 @@ and the Laplace--de Rham composition.
 The Maxwell form calls add native `F=d(A)`, gauge transformation
 `A -> A + d(chi)`, and the source residual `d(*F)-J`, with potentials and
 currents represented as degree-one and degree-three spacetime forms.
+`fortsym_spacetime_form_volume` returns the oriented top-degree form
+`Omega = sigma*sqrt(abs(det(g))) du^0^...^du^(n-1)` for runtime dimensions
+one through four; the sign is explicit and remains separate from the positive
+metric `sqrtg` scalar.
 Runtime spacetime tensors also expose metric covariant differentiation through
 `fortsym_spacetime_tensor_covariant_diff`. It appends a lower derivative slot,
 transports every declared upper or lower tensor slot, and preserves the

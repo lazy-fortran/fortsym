@@ -957,6 +957,14 @@ def _configure(lib):
             _CHAR_PTR, _SIZE,
         ],
     )
+    lib.spacetime_form_volume = declare(
+        "fortsym_spacetime_form_volume", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.spacetime_form_star = declare(
         "fortsym_spacetime_form_star", ctypes.c_int,
         [
@@ -2956,6 +2964,18 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message), operation.__name__)
         return tuple(Expr(self, output[index]) for index in range(16)), output_degree
+
+    def _spacetime_form_volume(self, metric, orientation):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        output = (_CVOID * 16)()
+        message = _message()
+        status = self._lib.spacetime_form_volume(
+            self._require(), components, metric.dimension, coordinates, signature,
+            int(orientation), output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "form_volume")
+        return tuple(Expr(self, output[index]) for index in range(16))
 
     def _spacetime_form_closed(self, metric, form):
         components, coordinates, signature = self._spacetime_inputs(metric)
@@ -5107,6 +5127,15 @@ class SpacetimeMetric:
 
     def scalar_form(self, value):
         return SpacetimeForm(self, value, 0)
+
+    def volume(self, orientation=None):
+        """Return the oriented top-degree metric volume form."""
+        if orientation is None:
+            orientation = self.orientation
+        if int(orientation) not in (-1, 1):
+            raise ValueError("volume orientation must be 1 or -1")
+        components = self._arena._spacetime_form_volume(self, orientation)
+        return SpacetimeForm(self, components, self.dimension, _owned=True)
 
     def close(self):
         for value in self._temporaries:

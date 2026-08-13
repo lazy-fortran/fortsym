@@ -129,6 +129,11 @@ and `codifferential()`/`codiff()` with degree-aware components and the explicit
 metric signature and orientation. `SpacetimeForm.field_strength()` returns
 `F=d(A)`, `gauge_transform(chi)` returns `A+d(chi)`, and
 `maxwell_residual(current)` returns the native source residual `d(star(F))-J`.
+`SpacetimeMetric.volume(orientation)` returns the oriented top-degree form
+`Omega = sigma*sqrt(abs(det(g))) du^0^...^du^(n-1)`, using the runtime metric
+dimension (1--4) and explicit orientation. It keeps the signed form separate
+from the positive `sqrtg()` scalar and is the canonical owner for contractions
+such as `X.interior(metric.volume())`.
 The same `SpacetimeForm` owner supports metric dimensions 1--4; unused
 coordinates remain zero ABI slots, while `star()` and all de Rham operators
 use the metric's runtime dimension. See
