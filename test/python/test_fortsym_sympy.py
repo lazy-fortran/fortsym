@@ -857,6 +857,10 @@ class SympySubsetTest(unittest.TestCase):
         )
         expected_inverse = oracle_metric.inv()
         actual_inverse = metric.contravariant()
+        self.assertEqual(metric.covariant().symmetry(0, 1), sp.SYMMETRIC)
+        self.assertEqual(actual_inverse.symmetry(0, 1), sp.SYMMETRIC)
+        declared = metric.covariant().declare_symmetry(0, 1, sp.SYMMETRIC)
+        self.assertEqual(declared.symmetries, ((0, 1, sp.SYMMETRIC),))
         self.assertEqual(
             oracle.Matrix(tuple(
                 oracle.sympify(str(actual_inverse[i, j].simplify()))
@@ -910,6 +914,7 @@ class SympySubsetTest(unittest.TestCase):
             oracle.sympify(str(derivative[1, 1].simplify())), 0
         )
         metric_derivative = curved_metric.covariant().covariant_diff()
+        self.assertEqual(metric_derivative.symmetry(0, 1), sp.SYMMETRIC)
         self.assertEqual(
             oracle.sympify(str(metric_derivative[1, 1, 0].simplify())), 0
         )

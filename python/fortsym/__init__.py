@@ -901,6 +901,12 @@ def _configure(lib):
             _SIZE, _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    lib.spacetime_tensor_declare_symmetry = declare(
+        "fortsym_spacetime_tensor_declare_symmetry", ctypes.c_int,
+        spacetime_tensor_arguments[:-4] + [
+            _SIZE, _SIZE, ctypes.c_int,
+        ] + spacetime_tensor_arguments[-3:],
+    )
     lib.spacetime_tensor_product = declare(
         "fortsym_spacetime_tensor_product", ctypes.c_int,
         [
@@ -2731,6 +2737,38 @@ class Arena:
         )
         if status:
             raise FortSymError(status, _decode(message), "spacetime_tensor_contract")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
+    def _spacetime_tensor_declare_symmetry(self, metric, tensor, first, second,
+                                           kind):
+        if not isinstance(tensor, SpacetimeTensor) or tensor.metric is not metric:
+            raise ValueError("spacetime tensor must belong to this metric")
+        if tensor.variance is None:
+            raise ValueError("spacetime tensor symmetry needs slot variance")
+        first, second = int(first), int(second)
+        if first < 0 or first >= tensor.rank or second < 0 or second >= tensor.rank:
+            raise IndexError("spacetime tensor symmetry slot is outside the tensor rank")
+        if first == second:
+            raise ValueError("spacetime tensor symmetry needs two distinct slots")
+        kind = _symmetry_kind(kind)
+        if kind == SYMMETRY_NONE:
+            raise ValueError("spacetime tensor symmetry needs symmetric or antisymmetric")
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * (SPACETIME_DIM ** tensor.rank))(
+            *[value._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output = (_CVOID * (SPACETIME_DIM ** tensor.rank))()
+        message = _message()
+        status = self._lib.spacetime_tensor_declare_symmetry(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, tensor.rank, variance,
+            tensor.density_weight, first + 1, second + 1, kind, output, message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message),
+                               "spacetime_tensor_declare_symmetry")
         return tuple(Expr(self, output[index]) for index in range(len(output)))
 
     def _spacetime_tensor_product(self, metric, left, right):
@@ -4702,7 +4740,7 @@ class SpacetimeTensor:
     """A small native-backed tensor view for the dimension-aware owner."""
 
     def __init__(self, metric, components, shape, variance=None,
-                 density_weight=0, _owned=True):
+                 density_weight=0, _owned=True, _symmetries=()):
         if not isinstance(metric, SpacetimeMetric):
             raise TypeError("SpacetimeTensor requires a SpacetimeMetric")
         self.metric = metric
@@ -4719,6 +4757,7 @@ class SpacetimeTensor:
                 raise ValueError("spacetime tensor variance does not match rank")
         self.variance = variance
         self.density_weight = int(density_weight)
+        self._symmetries = _normalize_symmetries(self.rank, _symmetries)
         self._owned = bool(_owned)
         self._temporaries = ()
 
@@ -4754,6 +4793,45 @@ class SpacetimeTensor:
             value._spacetime_owner = self
             yield value
 
+    def symmetry(self, first, second):
+        """Return the declared pair symmetry for two zero-based slots."""
+        first, second = int(first), int(second)
+        if first < 0 or first >= self.rank or second < 0 or second >= self.rank:
+            raise IndexError("spacetime tensor symmetry slot is outside the tensor rank")
+        if first == second:
+            return SYMMETRY_NONE
+        return self._symmetries.get(tuple(sorted((first, second))),
+                                    SYMMETRY_NONE)
+
+    @property
+    def symmetries(self):
+        """Return declared pairs as ``(first, second, kind)`` tuples."""
+        return tuple((first, second, kind)
+                     for (first, second), kind in sorted(self._symmetries.items()))
+
+    def _copy_symmetries(self):
+        return dict(self._symmetries)
+
+    def declare_symmetry(self, first, second, kind):
+        """Check and declare one same-variance slot pair natively."""
+        first, second = int(first), int(second)
+        kind = _symmetry_kind(kind)
+        if kind == SYMMETRY_NONE:
+            raise ValueError("declare_symmetry needs symmetric or antisymmetric")
+        if first < 0 or first >= self.rank or second < 0 or second >= self.rank:
+            raise IndexError("spacetime tensor symmetry slot is outside the tensor rank")
+        if first == second:
+            raise ValueError("spacetime tensor symmetry needs two distinct slots")
+        components = self._arena._spacetime_tensor_declare_symmetry(
+            self.metric, self, first, second, kind
+        )
+        symmetries = self._copy_symmetries()
+        symmetries[tuple(sorted((first, second)))] = kind
+        return SpacetimeTensor(
+            self.metric, components, self.shape, self.variance,
+            self.density_weight, _owned=True, _symmetries=symmetries,
+        )
+
     def raise_(self, slot=0):
         """Raise one covariant slot with this tensor's metric."""
         if self.variance is None or self.variance[int(slot)] != -1:
@@ -4763,9 +4841,12 @@ class SpacetimeTensor:
         )
         variance = list(self.variance)
         variance[int(slot)] = 1
+        symmetries = tuple((first, second, kind)
+                           for (first, second), kind in self._symmetries.items()
+                           if int(slot) not in (first, second))
         return SpacetimeTensor(
             self.metric, components, self.shape, variance,
-            self.density_weight, _owned=True,
+            self.density_weight, _owned=True, _symmetries=symmetries,
         )
 
     def lower(self, slot=0):
@@ -4777,9 +4858,12 @@ class SpacetimeTensor:
         )
         variance = list(self.variance)
         variance[int(slot)] = -1
+        symmetries = tuple((first, second, kind)
+                           for (first, second), kind in self._symmetries.items()
+                           if int(slot) not in (first, second))
         return SpacetimeTensor(
             self.metric, components, self.shape, variance,
-            self.density_weight, _owned=True,
+            self.density_weight, _owned=True, _symmetries=symmetries,
         )
 
     def density(self, factor_or_weight):
@@ -4792,10 +4876,11 @@ class SpacetimeTensor:
             return SpacetimeTensor(
                 self.metric, components, self.shape, self.variance,
                 self.density_weight + 1, _owned=True,
+                _symmetries=self._symmetries,
             )
         return SpacetimeTensor(
             self.metric, self.components, self.shape, self.variance,
-            int(factor_or_weight), _owned=False,
+            int(factor_or_weight), _owned=False, _symmetries=self._symmetries,
         )
 
     with_density = density
@@ -4813,9 +4898,12 @@ class SpacetimeTensor:
             self.metric, self, order
         )
         variance = tuple(self.variance[index] for index in order)
+        positions = {source: target for target, source in enumerate(order)}
+        symmetries = tuple((positions[first], positions[second], kind)
+                           for (first, second), kind in self._symmetries.items())
         return SpacetimeTensor(
             self.metric, components, self.shape, variance,
-            self.density_weight, _owned=True,
+            self.density_weight, _owned=True, _symmetries=symmetries,
         )
 
     def contract(self, first, second):
@@ -4856,9 +4944,15 @@ class SpacetimeTensor:
             value for index, value in enumerate(self.variance)
             if index not in (first, second)
         )
+        survivors = [index for index in range(self.rank)
+                     if index not in (first, second)]
+        positions = {source: target for target, source in enumerate(survivors)}
+        symmetries = tuple((positions[first], positions[second], kind)
+                           for (first, second), kind in self._symmetries.items()
+                           if first in positions and second in positions)
         return SpacetimeTensor(
             self.metric, components, (4,) * (self.rank - 2), variance,
-            self.density_weight, _owned=True,
+            self.density_weight, _owned=True, _symmetries=symmetries,
         )
 
     trace = contract
@@ -4875,10 +4969,16 @@ class SpacetimeTensor:
         components = self._arena._spacetime_tensor_product(
             self.metric, self, other
         )
+        symmetries = list(self.symmetries)
+        symmetries.extend(
+            (first + self.rank, second + self.rank, kind)
+            for first, second, kind in other.symmetries
+        )
         return SpacetimeTensor(
             self.metric, components, (4,) * output_rank,
             self.variance + other.variance,
             self.density_weight + other.density_weight, _owned=True,
+            _symmetries=symmetries,
         )
 
     tensor_product = product
@@ -4891,6 +4991,7 @@ class SpacetimeTensor:
         return SpacetimeTensor(
             self.metric, components, (4,) * (self.rank + 1),
             self.variance + (-1,), self.density_weight, _owned=True,
+            _symmetries=self._symmetries,
         )
 
     covariant_derivative = covariant_diff
@@ -4904,6 +5005,11 @@ class SpacetimeTensor:
         return SpacetimeTensor(
             self.metric, components, (4,) * (self.rank - 1), variance,
             self.density_weight, _owned=True,
+            _symmetries=tuple(
+                (first - 1, second - 1, kind)
+                for (first, second), kind in self._symmetries.items()
+                if first > 0 and second > 0
+            ),
         )
 
     divergence = covariant_divergence
@@ -4915,7 +5021,7 @@ class SpacetimeTensor:
         )
         return SpacetimeTensor(
             self.metric, components, self.shape, self.variance,
-            self.density_weight, _owned=True,
+            self.density_weight, _owned=True, _symmetries=self._symmetries,
         )
 
     lie_derivative = lie
@@ -5000,12 +5106,13 @@ class SpacetimeMetric:
             ),
             (4, 4),
             variance=(1, 1),
-            _owned=True,
+            _owned=True, _symmetries=((0, 1, SYMMETRIC),),
         )
 
     def covariant(self):
         return SpacetimeTensor(
-            self, self.components, (4, 4), variance=(-1, -1), _owned=False
+            self, self.components, (4, 4), variance=(-1, -1), _owned=False,
+            _symmetries=((0, 1, SYMMETRIC),),
         )
 
     def vector(self, values, density_weight=0):
@@ -5167,7 +5274,7 @@ class SpacetimeMetric:
             ),
             (4, 4),
             variance=(-1, -1),
-            _owned=True,
+            _owned=True, _symmetries=((0, 1, SYMMETRIC),),
         )
 
     def scalar_curvature(self):
@@ -5183,7 +5290,7 @@ class SpacetimeMetric:
             ),
             (4, 4),
             variance=(-1, -1),
-            _owned=True,
+            _owned=True, _symmetries=((0, 1, SYMMETRIC),),
         )
 
     def one_form(self, values):

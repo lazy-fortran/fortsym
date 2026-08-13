@@ -513,6 +513,15 @@ int fortsym_spacetime_tensor_contract(
     const fortsym_expr *input[], size_t rank, const int variance[],
     int density_weight, size_t first_slot, size_t second_slot,
     fortsym_expr *out[], char *message, size_t capacity);
+/* Validate and declare one same-variance slot pair. The output components are
+ * unchanged. Slots are one-based and symmetry is FORTSYM_SYMMETRIC or
+ * FORTSYM_ANTISYMMETRIC. A false declaration is refused. */
+int fortsym_spacetime_tensor_declare_symmetry(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *input[], size_t rank, const int variance[],
+    int density_weight, size_t first_slot, size_t second_slot, int symmetry,
+    fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_spacetime_tensor_product(
     fortsym_arena *arena, const fortsym_expr *components[], int dimension,
     const fortsym_expr *coordinates[], const int signature[], int orientation,

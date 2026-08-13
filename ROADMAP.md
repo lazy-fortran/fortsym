@@ -1327,8 +1327,10 @@ conversion only. They do not maintain a second geometry implementation.
     componentwise, invalid declarations are refused, and surviving metadata
     propagates through products, permutations, contractions, forms, and
     covariant derivatives.
-  - [ ] Expose the same declarations and refusal status through C/Python and
-    map them to SymPy tensor-symmetry objects.
+  - [x] Expose pair declarations and refusal status for the runtime spacetime
+    owner through the C ABI and both Python facades. Fixed chart declarations
+    map to the SymPy-named `TensorSymmetry` descriptors; arbitrary symmetry
+    groups and raw-array metadata queries remain open.
   - [x] Expose checked pair declarations through C ABI 60 and the Python
     `Tensor` facade. Add the SymPy-named `TensorSymmetry` descriptor and carry
     pair metadata through metric/form construction, products, permutations,
@@ -1352,6 +1354,11 @@ conversion only. They do not maintain a second geometry implementation.
     transport now write directly into their owned result tensors instead of
     copying through a second full component buffer; native, Python, and
     independent flat-component checks cover the new boundary.
+  - [x] Retain runtime spacetime pairwise symmetry metadata. Metric tensors
+    declare symmetry at construction; explicit declarations are componentwise
+    checked and false promises are refused; products, permutations,
+    contractions, covariant derivatives, Lie transport, density views, and
+    variance-preserving views carry surviving declarations.
 - [ ] **7A.4 Connections and vector calculus.** Extend covariant derivatives to
   every slot and every density weight, then derive `grad`, `curl`, `div`, and
   `laplacian` from the same metric, volume, and connection owners. Add
