@@ -98,6 +98,11 @@ returns `A` and `.flux_form()` returns the closed magnetic two-form
 `B^i` and weight-one `sqrt(g) B^i` from a degree-two magnetic form through the
 same native C ABI operation; `Chart.b_con_form()` and `Chart.b_density_form()`
 are the corresponding chart-owner methods.
+`Chart.b_flux_form(vector, orientation=1)` and
+`Tensor.b_flux(orientation=1)` construct the forward magnetic two-form
+`beta = i_B(orientation*Omega)` from a weight-zero contravariant vector. The
+forward and reverse methods share the native form owner and preserve the
+explicit orientation convention.
 `Chart.h_cov(reluctivity, vector)` applies `H_i = nu_ij B^j`, and
 `Chart.h_con(covariant)` raises `H_i` with the chart metric.
 `MagneticField.h_cov()` and `.h_con()` provide typed covariant and

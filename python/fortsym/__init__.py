@@ -557,6 +557,14 @@ def _configure(lib):
                 ],
             ),
         )
+    lib.chart_b_flux_form = declare(
+        "fortsym_chart_b_flux_form", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.chart_flux_normal_residual = declare(
         "fortsym_chart_flux_normal_residual", ctypes.c_int,
         [
@@ -3592,6 +3600,21 @@ class Arena:
             raise FortSymError(status, _decode(message), "b_form")
         return tuple(Expr(self, output[index]) for index in range(3))
 
+    def _chart_b_flux_form(self, chart, vector, orientation):
+        vector = tuple(self._check(value) for value in vector)
+        if len(vector) != 3:
+            raise ValueError("b_flux_form expects three contravariant components")
+        vector_handles = (_CVOID * 3)(*[value._handle for value in vector])
+        output = (_CVOID * 8)()
+        message = _message()
+        status = self._lib.chart_b_flux_form(
+            self._require(), *self._chart_inputs(chart.coordinates, chart.position),
+            vector_handles, int(orientation), output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "b_flux_form")
+        return tuple(Expr(self, output[index]) for index in range(8))
+
     def _chart_inputs(self, coordinates, position):
         coordinates = tuple(self._check(value) for value in coordinates)
         position = tuple(self._check(value) for value in position)
@@ -4091,6 +4114,17 @@ class Chart:
             raise ValueError("b_con_form expects a degree-two form")
         components = self._arena._chart_b_form(self, beta, orientation, False)
         return self.vector(components)
+
+    def b_flux_form(self, vector, orientation=1):
+        """Return ``beta = i_B(orientation*Omega)`` as a degree-two form."""
+        if isinstance(vector, Tensor):
+            if vector.chart is not self or vector.rank != 1:
+                raise ValueError("b_flux_form expects a vector from this chart")
+            if vector.variance != (1,) or vector.density_weight != 0:
+                raise ValueError("b_flux_form expects a weight-zero contravariant vector")
+            vector = vector.components
+        components = self._arena._chart_b_flux_form(self, vector, orientation)
+        return Form(self, components, 2, _owned=True)
 
     def b_density_form(self, beta, orientation=1):
         """Return typed ``sqrt(g) B^i`` recovered from a magnetic two-form."""
@@ -5642,6 +5676,12 @@ class Tensor:
     def to_form(self):
         """Convert this exact weight-zero lower antisymmetric tensor to a form."""
         return self.chart.form_from_tensor(self)
+
+    def b_flux(self, orientation=1):
+        """Return ``beta = i_B(orientation*Omega)`` for a contravariant vector."""
+        if self.rank != 1 or self.variance != (1,) or self.density_weight != 0:
+            raise ValueError("b_flux requires a weight-zero contravariant vector")
+        return self.chart.b_flux_form(self, orientation)
 
     def trace(self, first, second):
         """Contract two opposite-variance slots using the short native name."""

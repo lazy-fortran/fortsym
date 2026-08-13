@@ -146,6 +146,12 @@ The code must check both representations, not merely print matching strings:
 form_from_tensor(F), interior(B,Omega), d(A), and the component density must
 agree. A non-antisymmetric or density-weighted tensor must be refused by the
 form bridge.
+The native magnetic owner now exposes the forward operation as
+`b_flux_form(chart, B, orientation)`, with the typed Python spelling
+`Chart.b_flux_form(B, orientation)` or `B.b_flux(orientation)`. The reverse
+`b_con_form` and `b_density_form` operations use the same orientation and form
+component masks, so the vector, covariant 2-form, and weight-one density remain
+separate views rather than duplicated stores.
 
 ## Derivation 4a: Clebsch magnetic coordinates
 
@@ -308,6 +314,11 @@ warnings.
   magnetic test checks both orientations against the independently assembled
   `interior(B, volume_form)` form. The public C ABI and both Python facades
   carry the same bridge without duplicating its geometry algebra.
+- [x] Add the forward typed magnetic bridge `b_flux_form(c, B, orientation)`
+  and `Tensor.b_flux()`. It delegates to the generic `volume_form` and
+  `interior` owners, returns the standard eight-slot degree-two form, and is
+  checked against an independently assembled interior product in native,
+  C, Python, and SymPy tests.
 - [x] Complete the first n=0/n/=0 Fourier strong-residual owner and its
   Python facade. The descriptor now exposes `nubar_t` for the n=0 scalar
   diffusion block, and native/C/Python residuals cover the paper's

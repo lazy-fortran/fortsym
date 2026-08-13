@@ -19,7 +19,7 @@ program example_nonorthogonal_flux_coordinates
     type(expr_t) :: metric(DIM, DIM), b(DIM), b_lower(DIM), b_density_values(DIM)
     type(expr_t) :: recovered(DIM), clebsch_values(CLEBSCH_RESIDUAL_COUNT)
     type(tensor_t) :: b_upper, b_covariant, b_roundtrip, b_density_tensor
-    type(form_t) :: volume_value, flux_form, closed_form
+    type(form_t) :: volume_value, flux_form, flux_from_b, closed_form
     type(engine_result_t) :: checked
 
     call reset()
@@ -79,11 +79,14 @@ program example_nonorthogonal_flux_coordinates
     magnetic_owner = magnetic_chart(chart, potential, 1)
     flux_form = magnetic_chart_flux_form(magnetic_owner)
     volume_value = volume_form(chart)
+    flux_from_b = b_flux_form(chart, b)
     closed_form = d(chart, flux_form)
     call assert_zero(form_component(volume_value, 7) - 1, &
         "oriented volume form")
     call assert_zero(form_component(flux_form, 5) - 1, &
         "beta = d(psi dphi)")
+    call assert_zero(form_component(flux_from_b, 5) - &
+        form_component(flux_form, 5), "beta = i_B(Omega)")
     call assert_zero(form_component(closed_form, 7), "d(beta) = 0")
     recovered = b_con_form(chart, flux_form)
     call assert_zero(recovered(1) - b(1), "form/vector round trip 1")

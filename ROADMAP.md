@@ -1759,6 +1759,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
 - [x] Carry the magnetic form bridge through the public C ABI and both Python
   facades with the same `b_con_form`/`b_density_form` names; `Form.b_con()` and
   `Form.b_density()` are convenience methods over those native operations.
+- [x] Add the forward magnetic form bridge with the matching short name
+  `b_flux_form(c, B, orientation)` and typed `Tensor.b_flux()`. It delegates
+  to the generic `volume_form` and `interior` owners, uses the standard eight
+  form masks, and is checked against an independent contraction in native, C,
+  Python, and SymPy tests.
 - [x] Add native-backed `Form.is_closed` and `SpacetimeForm.is_closed` with
   the shared three-valued zero-verdict contract. Closedness is computed from
   the native exterior derivative and remains `None` when any coefficient is
@@ -1853,7 +1858,7 @@ without an explicit volume factor.
   SymPy-oracle checks.
 - [x] Add the native Clebsch residual owner
   `B - grad(alpha) cross grad(beta)` using the signed chart Jacobian, with
-  C ABI 69, Python/SymPy transport, and independent component checks. It
+  C ABI 70, Python/SymPy transport, and independent component checks. It
   checks the local identity only; equilibrium construction remains separate.
 - [ ] Complete the remaining Hamada/equilibrium-surface
   construction, symbolic consistency/refusal checks, and current/Jacobian
@@ -2075,7 +2080,7 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     Python facades; equilibrium construction and the remaining descriptors
     stay open.
   - [x] Add the native Clebsch component residual
-    `B - grad(alpha) cross grad(beta)` through C ABI 69 and both facades;
+    `B - grad(alpha) cross grad(beta)` through C ABI 70 and both facades;
     the signed Jacobian is explicit and no equilibrium solver is coupled in.
 - [ ] **F5 — Fourier FEM completion.** Complete the Albert--Bíro--Lainer
   variational forms, density/constitutive transformations, traces, current
