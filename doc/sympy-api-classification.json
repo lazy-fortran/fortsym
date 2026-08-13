@@ -1,6 +1,6 @@
 {
   "adapter_profile": {
-    "declared_count": 154,
+    "declared_count": 155,
     "explicit_refusals": [],
     "supported": [
       "ANTISYMMETRIC",
@@ -136,6 +136,7 @@
       "nan",
       "oo",
       "pi",
+      "rank",
       "re",
       "refine",
       "sech",
@@ -588,6 +589,16 @@
         "id": "fortsym_matrix_adapter.calculate_matrix_det",
         "module": "fortsym_matrix_adapter",
         "name": "calculate_matrix_det",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_rank",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_rank",
         "owner": "src/algebra/fortsym_matrix_adapter.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -5586,6 +5597,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym_public_capi.fortsym_matrix_rank",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_rank",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym_public_capi.fortsym_chart_sqrtg",
         "module": "fortsym_public_capi",
         "name": "fortsym_chart_sqrtg",
@@ -9016,6 +9038,17 @@
         "id": "fortsym.det",
         "module": "fortsym",
         "name": "det",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.rank",
+        "module": "fortsym",
+        "name": "rank",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -17529,12 +17562,12 @@
     "classification_counts": {
       "delegated": 2843,
       "external": 10,
-      "facade": 726,
-      "native": 4416,
+      "facade": 728,
+      "native": 4419,
       "python-adapter": 2799,
       "refused": 24995
     },
-    "fortran_public_exports": 1661,
+    "fortran_public_exports": 1664,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

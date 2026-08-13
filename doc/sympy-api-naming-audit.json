@@ -2320,6 +2320,10 @@
         "name": "raise"
       },
       {
+        "concepts": [],
+        "name": "rank"
+      },
+      {
         "concepts": [
           "rational-construction"
         ],
@@ -3146,6 +3150,7 @@
       "limit",
       "linsolve",
       "operation_count",
+      "rank",
       "series",
       "series_coeff",
       "solve",
@@ -3321,6 +3326,7 @@
       "pair_symmetric",
       "pi",
       "properties",
+      "rank",
       "re",
       "refine",
       "replace",
@@ -3364,10 +3370,10 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 529,
-    "python_facade_exports": 78,
-    "sympy_adapter_exports": 188,
-    "unmapped_fortran_exports": 391
+    "fortran_facade_exports": 530,
+    "python_facade_exports": 79,
+    "sympy_adapter_exports": 189,
+    "unmapped_fortran_exports": 392
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -3615,6 +3621,7 @@
     "permute",
     "pullback",
     "raise",
+    "rank",
     "reciprocal_basis",
     "register_builtin_geometry",
     "registry_capability",
