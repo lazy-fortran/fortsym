@@ -242,6 +242,35 @@ class SympyDifferentialTest(unittest.TestCase):
                 unmatched.pop(match)
             self.assertEqual(unmatched, [])
 
+    def test_bounded_rational_solve_matches_sympy(self):
+        oracle_x = oracle.Symbol("rational_solve_x")
+        native_x = native.Symbol("rational_solve_x")
+        cases = [
+            ((oracle_x - 1) / (oracle_x + 1),
+             (native_x - 1) / (native_x + 1)),
+            ((oracle_x**2 - 1) / (oracle_x - 2),
+             (native_x**2 - 1) / (native_x - 2)),
+            (1 / (oracle_x - 1) - 1,
+             1 / (native_x - 1) - 1),
+            ((oracle_x**2 - 1) / (oracle_x - 1) - 2,
+             (native_x**2 - 1) / (native_x - 1) - 2),
+        ]
+        for oracle_expression, native_expression in cases:
+            expected = oracle.solve(oracle_expression, oracle_x)
+            actual = native.solve(native_expression, native_x)
+            self.assertEqual(len(actual), len(expected))
+            unmatched = list(expected)
+            for value in actual:
+                parsed = oracle.sympify(str(value), locals=self.locals)
+                match = next(
+                    (index for index, candidate in enumerate(unmatched)
+                     if oracle.simplify(parsed - candidate) == 0),
+                    None,
+                )
+                self.assertIsNotNone(match, (expected, actual))
+                unmatched.pop(match)
+            self.assertEqual(unmatched, [])
+
     def test_solve_refuses_unsupported_options(self):
         native_x = native.Symbol("solve_refusal_x")
         with self.assertRaises(native.UnsupportedOperationError):
@@ -260,6 +289,10 @@ class SympyDifferentialTest(unittest.TestCase):
         cases = [
             (oracle.solveset(oracle_x**2 - 1, oracle_x),
              native.solveset(native_x**2 - 1, native_x)),
+            (oracle.solveset((oracle_x - 1) / (oracle_x + 1), oracle_x),
+             native.solveset((native_x - 1) / (native_x + 1), native_x)),
+            (oracle.solveset(1 / (oracle_x - 1) - 1, oracle_x),
+             native.solveset(1 / (native_x - 1) - 1, native_x)),
             (oracle.solveset((oracle_x - 1)**2),
              native.solveset((native_x - 1)**2)),
             (oracle.solveset(oracle.Eq(oracle_x, 2), oracle_x),

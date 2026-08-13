@@ -32,6 +32,7 @@ module fortsym_wl_solve
     use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
         VERDICT_TRUE, wall_seconds
     use fortsym_polysolve, only: solve_polynomial
+    use fortsym_solve_rational, only: solve_rational_polynomial
     use fortsym_linalg, only: solve_exact_linear_system, &
         exact_linear_system_result_t
     use fortsym_subs, only: subs
@@ -129,8 +130,9 @@ contains
         type(expr_t)          :: resid
         type(engine_result_t) :: res
         character(:), allocatable :: poly_why
+        character(:), allocatable :: rational_why
         logical :: good
-        integer :: k
+        integer :: k, rational_count
 
         r = eqn
         call residual(eqn, resid, good)
@@ -154,13 +156,26 @@ contains
             return
         end if
 
+        call solve_rational_polynomial( &
+            a, engine, resid, var, roots, rational_count, ok, rational_why)
+        if (ok) then
+            allocate (rules(rational_count))
+            do k = 1, rational_count
+                rules(k) = single_rule(var, roots(k))
+            end do
+            r = rule_set(a, rules)
+            why = ""
+            return
+        end if
+
         ! Not a polynomial in the unknown, or of a degree with no exact root
         ! formula here. The engine's scalar solver still covers the linear case
         ! with symbolic coefficients, and refuses rather than guesses otherwise.
         res = engine%solve(resid, var, limit)
         if (.not. res%ok) then
             ok = .false.
-            why = poly_why//"; scalar solver: "//chars(res%message)
+            why = poly_why//"; rational solver: "//rational_why// &
+                "; scalar solver: "//chars(res%message)
             return
         end if
         allocate (rules(1))

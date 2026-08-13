@@ -9,6 +9,7 @@ module fortsym_solve_adapter
     use fortsym_engine, only: engine_t, engine_result_t
     use fortsym_expr, only: expr_t, operator(-)
     use fortsym_polysolve, only: solve_polynomial
+    use fortsym_solve_rational, only: solve_rational_polynomial
     use fortsym_string, only: chars
     implicit none
     private
@@ -29,6 +30,7 @@ contains
         type(expr_t) :: residual
         type(engine_result_t) :: scalar
         character(:), allocatable :: polynomial_why
+        character(:), allocatable :: rational_why
         logical :: good
         integer :: k, count
 
@@ -69,12 +71,17 @@ contains
             return
         end if
 
+        call solve_rational_polynomial( &
+            a, engine, residual, variable, roots, root_count, ok, rational_why)
+        if (ok) return
+
         ! Polynomial extraction deliberately rejects symbolic coefficients and
         ! non-polynomial forms. The native scalar engine still covers the
         ! verified linear case, including expressions such as x + a.
         scalar = engine%solve(residual, variable)
         if (.not. scalar%ok) then
-            why = polynomial_why//"; scalar solver: "//chars(scalar%message)
+            why = polynomial_why//"; rational solver: "//rational_why// &
+                "; scalar solver: "//chars(scalar%message)
             return
         end if
         deallocate (roots)

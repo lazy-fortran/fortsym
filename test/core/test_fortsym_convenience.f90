@@ -133,6 +133,10 @@ program test_fortsym_convenience
     call check("facade exposes distinct verified roots", &
         good .and. root_count == 1 .and. roots(1) == num(default_storage, 1_int64), &
         failures)
+    call solve((mu - 1)/(mu + 1), mu, roots, root_count, good, why)
+    call check("facade exposes verified rational roots", &
+        good .and. root_count == 1 .and. roots(1) == num(default_storage, 1_int64), &
+        failures)
     linear_matrix(1, 1) = num(default_storage, 1_int64)
     linear_matrix(1, 2) = num(default_storage, 2_int64)
     linear_matrix(2, 1) = num(default_storage, 3_int64)

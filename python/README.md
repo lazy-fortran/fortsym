@@ -24,9 +24,11 @@ and refuses singular points, non-finite coefficients, and unsupported symbolic
 derivatives.
 `Expr.solve(variable)`, `solve(expression, variable)`, and the matching
 `fortsym.sympy.solve(...)` expose distinct verified roots for one equation in
-one symbol. Exact univariate polynomials use the native root verifier; the
-fallback is limited to verified scalar-linear equations. Unsupported domains,
-options, and equations return an explicit refusal.
+one symbol. Exact univariate polynomials and bounded rational functions use the
+native root verifier; the fallback is limited to verified scalar-linear
+equations. Rational candidates are checked against the original residual so
+denominator poles are excluded. Unsupported domains, options, and equations
+return an explicit refusal.
 `solveset(...)` wraps the same verified roots in the SymPy-compatible bounded
 `FiniteSet`/`EmptySet` result shape; domains beyond the default complex-domain
 fragment are explicit refusals.
@@ -467,8 +469,8 @@ does not import SymPy. Unsupported names raise
 | `integrate` | verified one-variable indefinite integration in the SymPy-compatible default complex domain; unsupported antiderivatives, multiple variables, and options are explicit refusals |
 | `limit` | verified finite and infinite limits for the native bounded theorem fragment; finite poles and unsupported asymptotics are explicit refusals |
 | `series` | bounded Taylor polynomial through the requested SymPy term count, with the `O(...)` term omitted; singular/non-finite coefficients, unsupported symbolic derivatives, and unsupported options are explicit refusals |
-| `solve` | distinct verified roots for one equation in one symbol; exact univariate polynomials and verified scalar-linear equations; unsupported domains/options are explicit refusals |
-| `solveset` | bounded `FiniteSet`/`EmptySet` wrapper over the same distinct verified roots; non-default domains and unsupported equations are explicit refusals |
+| `solve` | distinct verified roots for one equation in one symbol; exact univariate polynomials, bounded rational functions, and verified scalar-linear equations; unsupported domains/options are explicit refusals |
+| `solveset` | bounded `FiniteSet`/`EmptySet` wrapper over the same distinct verified polynomial/rational/scalar-linear roots; non-default domains and unsupported equations are explicit refusals |
 | `linsolve` | verified square exact-rational systems with one explicit right-hand side, returned as `FiniteSet(Tuple(...))`; symbolic, singular, non-square, free-parameter, matrix-object, and alternate forms are explicit refusals |
 | `Matrix` | bounded exact dense construction, `(row, column)` indexing, native-backed determinant, exact rank/inverse, transpose/`.T`, bounded `nullspace()`, `rref()`, elementwise `+`/`-`, unary negation, and exact `*`/`@` products or scalar scaling/division; ragged, singular, and broader matrix operations are explicit refusals |
 

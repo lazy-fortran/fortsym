@@ -1296,6 +1296,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_solve_rational.solve_rational_polynomial",
+        "module": "fortsym_solve_rational",
+        "name": "solve_rational_polynomial",
+        "owner": "src/algebra/fortsym_solve_rational.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_sums.sum_closed_form",
         "module": "fortsym_sums",
         "name": "sum_closed_form",
@@ -17881,11 +17891,11 @@
       "delegated": 2843,
       "external": 10,
       "facade": 746,
-      "native": 4449,
+      "native": 4450,
       "python-adapter": 2799,
       "refused": 24995
     },
-    "fortran_public_exports": 1694,
+    "fortran_public_exports": 1695,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

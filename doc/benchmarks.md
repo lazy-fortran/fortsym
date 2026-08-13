@@ -272,6 +272,12 @@ small-workload exception for C/Python transport and handle construction. The
 latest matrix therefore has 132 rows, 106 enforced rows, and zero unwaived
 violations when `matrix_divide:cold_end_to_end` is waived alongside the
 previously documented diagnostics.
+The bounded one-variable rational `solve` workload adds two correctness-checked
+rows for a numerator root verified against its original denominator. In the
+2026-08-13 standard run its cold and warm ratios were 0.160x and 0.143x SymPy;
+both rows were within the performance baseline. The latest matrix therefore
+has 134 rows, 108 enforced rows, and zero unwaived violations after the
+previously documented diagnostics are waived.
 
 Run it from a built checkout with:
 
