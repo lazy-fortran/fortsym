@@ -1615,10 +1615,12 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   `contract`, and `trace` share one owner, while `fortsym.sympy` adds
   `tensorproduct` and `tensorcontraction` adapters without duplicating tensor
   arithmetic.
-- [ ] Implement covariant differentiation of arbitrary tensor valence,
-  including the correct Christoffel term for every upper and lower slot. The
-  existing `christoffel` operation becomes a special case of the connection
-  owner and remains available through the facade.
+- [x] Implement covariant differentiation for every supported fixed-3D input
+  valence (ranks 0--4), including the correct Christoffel term for every
+  upper/lower slot and every density weight. Rank four differentiates to the
+  rank-five ceiling; rank-five input is refused because its result would need
+  an unsupported rank six. The existing `christoffel` operation remains a
+  connection-owner view.
 - [x] Add the runtime-dimension spacetime covariant derivative for input rank
   at most three. `spacetime_tensor_covariant_diff` appends a lower derivative
   slot, applies every upper/lower Christoffel term, and includes the explicit
@@ -1644,11 +1646,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   tensors directly, removing a redundant full component-buffer copy; flat
   rank-five component checks and the independent Python/SymPy boundary test
   cover the new limit.
-- [x] Implement the first fixed-three-dimensional subset for typed tensors of
-  rank at most three: `covariant_diff`/`covariant_derivative` appends a lower
-  derivative slot, applies every slot's Christoffel term, and honors density
-  weight. Metric compatibility and an independent nonlinear nonorthogonal
-  chart check are required gates.
+- [x] Implement the fixed-three-dimensional typed tensor derivative for every
+  supported input rank (0--4): `covariant_diff`/`covariant_derivative` appends
+  a lower derivative slot, applies every slot's Christoffel term, and honors
+  density weight. Nonlinear nonorthogonal and Cartesian rank-four checks are
+  independent gates; arbitrary dimensions and rank-six output remain open.
 - [x] Add the first Killing-vector test owner: `killing(X)` returns the metric
   Lie derivative with explicit lower-slot symmetry for both chart and
   coordinate-aware metric paths. The independent `partial_z` translation and

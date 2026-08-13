@@ -164,6 +164,22 @@ class NativePackageTest(unittest.TestCase):
             self.assertEqual(rank_five.rank, 5)
             self.assertEqual((rank_five[0, 0, 0, 0, 0] - 1).simplify(), 0)
 
+            # The fixed chart owner supports every input valence below its
+            # rank-five ceiling.  Cartesian coordinates isolate the partial
+            # derivative from connection terms.
+            cartesian_zero = arena.integer(0)
+            cartesian = fortsym.Chart((x, y, z), (x, y, z))
+            rank_four_components = [cartesian_zero] * (3 ** 4)
+            rank_four_components[0] = x
+            rank_four = fortsym.Tensor(
+                cartesian, rank_four_components, (1, -1, 1, -1)
+            )
+            rank_five = rank_four.covariant_diff()
+            self.assertEqual(rank_five.rank, 5)
+            self.assertEqual(
+                (rank_five[0, 0, 0, 0, 0] - 1).simplify(), 0
+            )
+
     def test_native_construction_and_transformations(self):
         with fortsym.Arena() as arena:
             x = arena.symbol("x")
