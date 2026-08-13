@@ -169,6 +169,30 @@ class SympyDifferentialTest(unittest.TestCase):
                 with self.assertRaises(exception):
                     native.Rational(value)
 
+    def test_float_scalar_equality_and_hash_match_sympy(self):
+        for value in (0.0, -0.0, 0.1, 0.5, 1.0):
+            with self.subTest(value=value):
+                expected = oracle.Float(value)
+                actual = native.Float(value)
+                peer = native.Float(value)
+                try:
+                    self.assertEqual(actual == value, expected == value)
+                    self.assertEqual(value == actual, value == expected)
+                    self.assertEqual(actual == peer, expected == oracle.Float(value))
+                    self.assertEqual(hash(actual), hash(value))
+                finally:
+                    actual.close()
+                    peer.close()
+
+        for value in (0, 1):
+            with self.subTest(integer=value):
+                expected = oracle.Float(0.5)
+                actual = native.Float(0.5)
+                try:
+                    self.assertEqual(actual == value, expected == value)
+                finally:
+                    actual.close()
+
     def test_polynomial_operations_match_sympy(self):
         oracle_x, oracle_y = oracle.symbols("poly_x poly_y")
         native_x, native_y = native.symbols("poly_x poly_y")
