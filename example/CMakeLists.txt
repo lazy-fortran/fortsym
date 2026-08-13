@@ -9,6 +9,9 @@ target_link_libraries(example_de_sitter PRIVATE fortsym)
 add_executable(example_gps_newtonian_limit example_gps_newtonian_limit.f90)
 target_link_libraries(example_gps_newtonian_limit PRIVATE fortsym)
 
+add_executable(example_pseudo_riemannian example_pseudo_riemannian.f90)
+target_link_libraries(example_pseudo_riemannian PRIVATE fortsym)
+
 add_executable(example_magnetic_flux_coordinates
     example_magnetic_flux_coordinates.f90)
 target_link_libraries(example_magnetic_flux_coordinates PRIVATE fortsym)

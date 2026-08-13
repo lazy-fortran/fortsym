@@ -391,6 +391,12 @@ curvature = riemann_tensor(chart)
 scalar = scalar_curvature(chart)
 ```
 
+The executable `example_pseudo_riemannian` is the compact sign corpus: it
+checks the standard Riemann convention on flat four-dimensional Minkowski
+space and on the curved two-dimensional Lorentzian metric
+`diag(-1, exp(2 H t))`, including geodesic residuals, Ricci, scalar, and
+Einstein identities. Geodesic solving remains a separate bounded-solver task.
+
 `covariant_divergence(tensor)` is the physicists' first-slot divergence: it
 forms the covariant derivative and contracts the first contravariant slot with
 the appended lower derivative slot. It preserves density weight and refuses a
@@ -401,8 +407,8 @@ vector density it reduces to `div_density`, namely
 The current fixed-three-dimensional subset also provides typed Christoffel,
 geodesic residuals, Ricci, and Einstein tensors. Its convention is
 `R^a_bcd = d_c Gamma^a_db - d_d Gamma^a_cb + Gamma^a_cm Gamma^m_db -`
-`Gamma^a_dm Gamma^m_cb`; pseudo-Riemannian sign-corpus coverage and geodesic
-solving remain roadmap work.
+`Gamma^a_dm Gamma^m_cb`; the runtime pseudo-Riemannian sign corpus is covered
+by `example_pseudo_riemannian`. Geodesic solving remains roadmap work.
 `first_bianchi_residual` returns the rank-four residual
 `R^a_bcd + R^a_cdb + R^a_dbc`; it is zero for the torsion-free metric
 connection and is exposed as a residual rather than a hidden Boolean.
@@ -502,6 +508,7 @@ The built examples keep physical assumptions at the application boundary:
 ```text
 fo exec example_de_sitter
 fo exec example_gps_newtonian_limit
+fo exec example_pseudo_riemannian
 fo exec example_magnetic_flux_coordinates
 fo exec example_boozer_coordinates
 fo exec example_spherical_coordinates

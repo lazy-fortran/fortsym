@@ -1274,7 +1274,7 @@ and independent oracle. The minimum case set is:
   bases, `Gamma^rho_theta theta`, `Gamma^theta_rho theta`, gradient,
   divergence, curl, and the scalar Laplacian; the existing Fourier example
   remains the paper-specific cylindrical branch.
-- [ ] Flat and curved pseudo-Riemannian examples with an explicit signature,
+- [x] Flat and curved pseudo-Riemannian examples with an explicit signature,
   connection sign convention, geodesic residual, and curvature invariant.
 
 Each case is implemented in the native owner first, exercised through the
@@ -1688,8 +1688,11 @@ sqrtg     = sqrt(det(g_ij))              positive metric volume factor
   sign conventions to supplied connections. The C ABI 58 and Python facade
   transport the choice, while torsion, covariant differentiation, and
   geodesic equations continue to use the supplied coefficients unchanged.
-- [ ] Add geodesic solving and a broader pseudo-Riemannian sign corpus without
-  coupling connections to magnetic physics.
+- [ ] Add geodesic solving without coupling connections to magnetic physics.
+- [x] Add a broader pseudo-Riemannian sign corpus without coupling connections
+  to magnetic physics. The native and Python records cover flat 4D Minkowski,
+  the curved Lorentzian 2D patch, signed Riemann/Ricci components, and
+  flat/comoving geodesic residuals.
 - [x] Implement the first fixed-three-dimensional curvature views:
   Christoffel, Riemann, Ricci, scalar curvature, and Einstein tensors, with a
   named Riemann convention and independent flat-chart identities. Full
@@ -2021,10 +2024,13 @@ between the two-dimensional gradient, scalar curl, and divergence.
 - [ ] Add a nonorthogonal torus and a flux-coordinate chart with off-diagonal
   metric terms. Verify that raising, lowering, reciprocal bases, and
   Jacobian-weighted operators remain correct.
-- [ ] Add a pseudo-Riemannian two-dimensional and four-dimensional example
+- [x] Add a pseudo-Riemannian two-dimensional and four-dimensional example
   with geodesics, curvature, Ricci, scalar curvature, and Einstein tensor.
   Include a flat-space zero-curvature case and a curved-space case with an
-  independently known invariant.
+  independently known invariant. `example_pseudo_riemannian` checks the
+  standard Riemann sign on flat 4D Minkowski space and the curved Lorentzian
+  2D patch `diag(-1, exp(2 H t))`; the Python/SymPy record checks the same
+  components independently.
   - [x] Register the native de Sitter and GPS weak-field/Newtonian-limit
     derivations as CMake execution tests, and compare the same Einstein,
     curvature, wave-operator, Christoffel, and radial-acceleration contracts
@@ -2036,8 +2042,8 @@ between the two-dimensional gradient, scalar curl, and divergence.
   explicit coordinates, signature, positive `sqrt(abs(det(g)))`, inverse
   metric, Christoffel symbols, Riemann, Ricci, scalar curvature, and Einstein
   tensors. Verify spherical Minkowski flatness and selected nonzero connection
-  coefficients natively. Geodesics, 2D parity, curved invariants, and frontend
-  transport remain open.
+  coefficients natively. The standalone sign corpus now covers geodesics, 2D
+  parity, and a curved invariant; full frontend corpus generation remains open.
 - [x] Add the first runtime-dimension parity check with a curved two-dimensional
   metric `g = diag(1, exp(2x))`, the known scalar curvature `R = -2`, and
   native-zero unused tensor slots. General 2D pseudo-Riemannian and curved

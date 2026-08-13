@@ -805,6 +805,38 @@ class SympySubsetTest(unittest.TestCase):
             -3*oracle_hubble,
         )
 
+        curved_2d = sp.SpacetimeMetric(
+            (t, x, y, z),
+            ((-1, 0, 0, 0), (0, scale**2, 0, 0),
+             (0, 0, 0, 0), (0, 0, 0, 0)),
+            dimension=2,
+            signature=(-1, 1, 1, 1),
+        )
+        oracle_scale = oracle.exp(oracle_hubble*oracle_coordinates[0])
+        self.assertEqual(
+            oracle.sympify(str(curved_2d.scalar_curvature().simplify())),
+            2*oracle_hubble**2,
+        )
+        curved_2d_ricci = curved_2d.ricci()
+        self.assertEqual(
+            oracle.sympify(str(curved_2d_ricci[0, 0].simplify())),
+            -oracle_hubble**2,
+        )
+        self.assertEqual(
+            oracle.sympify(str(curved_2d_ricci[1, 1].simplify())),
+            oracle_scale**2*oracle_hubble**2,
+        )
+        curved_2d_riemann = curved_2d.riemann()
+        self.assertEqual(
+            oracle.sympify(str(curved_2d_riemann[0, 1, 0, 1].simplify())),
+            oracle_scale**2*oracle_hubble**2,
+        )
+        parameter = sp.Symbol("record_lambda")
+        geodesic = curved_2d.geodesic_residual(
+            (parameter, 0, 0, 0), parameter
+        )
+        self.assertEqual(tuple(value.simplify() for value in geodesic[:2]), (0, 0))
+
         radius, theta, phi = sp.symbols(
             "record_radius record_theta record_phi"
         )

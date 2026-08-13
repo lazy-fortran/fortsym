@@ -101,6 +101,7 @@ fortsym_add_test(test_fortsym_easy_geometry calculus/test_fortsym_easy_geometry.
 add_test(NAME example_workflow COMMAND example_workflow)
 add_test(NAME example_de_sitter COMMAND example_de_sitter)
 add_test(NAME example_gps_newtonian_limit COMMAND example_gps_newtonian_limit)
+add_test(NAME example_pseudo_riemannian COMMAND example_pseudo_riemannian)
 add_test(NAME example_magnetic_flux_coordinates
     COMMAND example_magnetic_flux_coordinates)
 add_test(NAME example_nonorthogonal_flux_coordinates
