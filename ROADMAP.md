@@ -209,6 +209,9 @@ SymPy parity for the entire family.
       forms.
 - [x] Expose bounded exact dense `Matrix.transpose()` and `.T` through the
       canonical facades, preserving shape and refusing malformed forms.
+- [x] Expose bounded exact dense `Matrix.nullspace()` through the canonical
+      facades, returning column matrices with exact RREF basis vectors and
+      refusing malformed or over-bounded forms.
 - [ ] Complete `solve`, `solveset`, real/complex solves, `linsolve`, and
       solution conditions for polynomial, rational, radical, inverse-function,
       and supported transcendental equations.

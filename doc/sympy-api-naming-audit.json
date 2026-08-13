@@ -2166,6 +2166,10 @@
         "name": "nubar"
       },
       {
+        "concepts": [],
+        "name": "nullspace"
+      },
+      {
         "concepts": [
           "integer-construction"
         ],
@@ -3158,6 +3162,7 @@
       "inv",
       "limit",
       "linsolve",
+      "nullspace",
       "operation_count",
       "rank",
       "series",
@@ -3332,6 +3337,7 @@
       "nan",
       "no_symmetry",
       "node_count",
+      "nullspace",
       "oo",
       "operation_count",
       "pair_antisymmetric",
@@ -3383,10 +3389,10 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 532,
-    "python_facade_exports": 81,
-    "sympy_adapter_exports": 192,
-    "unmapped_fortran_exports": 394
+    "fortran_facade_exports": 533,
+    "python_facade_exports": 82,
+    "sympy_adapter_exports": 193,
+    "unmapped_fortran_exports": 395
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -3627,6 +3633,7 @@
     "negate_form",
     "nonmetricity",
     "nubar",
+    "nullspace",
     "orientation_create",
     "orientation_is_negative",
     "orientation_is_positive",

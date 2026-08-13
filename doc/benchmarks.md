@@ -230,6 +230,12 @@ The bounded distinct-Wild commutative-partition workload adds two more
 correctness-checked rows; its cold and warm ratios were 0.459x and 0.0050x
 SymPy, so both rows remain enforced. The latest matrix therefore has 118 rows,
 102 enforced rows, and zero unwaived violations.
+The bounded exact `Matrix.nullspace()` workload adds two correctness-checked
+rows over a 2x3 rational matrix. In the 2026-08-13 standard run its cold and
+warm ratios were 0.875x and 0.490x SymPy; both remain within the performance
+baseline. The latest matrix therefore has 120 rows, 104 enforced rows, and
+zero unwaived violations after the existing nine construction diagnostics are
+waived as documented above.
 
 Run it from a built checkout with:
 

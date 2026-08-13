@@ -29,6 +29,9 @@ program test_fortsym_convenience
     type(expr_t) :: determinant_rows(2), determinant_matrix
     type(expr_t) :: inverse_row, inverse_entry
     type(expr_t) :: transpose_row, transpose_entry
+    type(expr_t) :: nullspace_row_one(3), nullspace_row_two(3)
+    type(expr_t) :: nullspace_rows(2), nullspace_matrix
+    type(expr_t) :: nullspace_vector, nullspace_entry
     type(str_t), allocatable :: free_names(:)
     type(expr_t) :: stale
     type(engine_result_t) :: result, zero_result
@@ -161,6 +164,21 @@ program test_fortsym_convenience
     transpose_entry = transpose_row%arg(2)
     call check("facade exposes exact matrix transpose", &
         result%ok .and. transpose_entry == num(default_storage, 3_int64), failures)
+    nullspace_row_one(1) = num(default_storage, 1_int64)
+    nullspace_row_one(2) = num(default_storage, 2_int64)
+    nullspace_row_one(3) = num(default_storage, 3_int64)
+    nullspace_row_two(1) = num(default_storage, 2_int64)
+    nullspace_row_two(2) = num(default_storage, 4_int64)
+    nullspace_row_two(3) = num(default_storage, 4_int64)
+    nullspace_rows(1) = func("List", nullspace_row_one)
+    nullspace_rows(2) = func("List", nullspace_row_two)
+    nullspace_matrix = func("List", nullspace_rows)
+    result = nullspace(nullspace_matrix)
+    nullspace_vector = result%value%arg(1)
+    nullspace_entry = nullspace_vector%arg(1)
+    call check("facade exposes exact matrix nullspace", &
+        result%ok .and. result%value%nargs() == 1 .and. &
+        nullspace_entry == num(default_storage, -2_int64), failures)
     result = series(exp(mu), mu, num(default_storage, 0_int64), 3)
     series_value = result%value
     series_expected = 1 + mu + mu**2/2 + mu**3/6

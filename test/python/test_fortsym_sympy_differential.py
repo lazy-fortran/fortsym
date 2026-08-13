@@ -309,6 +309,19 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(str(native_matrix.T), str(oracle_matrix.T))
         self.assertEqual(native_matrix.transpose().shape, (2, 2))
 
+        oracle_null_matrix = oracle.Matrix([[1, 2, 3], [2, 4, 4]])
+        native_null_matrix = native.Matrix([[1, 2, 3], [2, 4, 4]])
+        oracle_basis = oracle_null_matrix.nullspace()
+        native_basis = native_null_matrix.nullspace()
+        self.assertEqual(len(native_basis), len(oracle_basis))
+        for actual, expected in zip(native_basis, oracle_basis):
+            self.assertEqual(actual.shape, (3, 1))
+            self.assertEqual(str(actual), str(expected))
+        with self.assertRaises(native.UnsupportedOperationError):
+            native_null_matrix.nullspace(simplify=True)
+        with self.assertRaises(native.UnsupportedOperationError):
+            native_null_matrix.nullspace(iszerofunc=lambda value: True)
+
         oracle_singular = oracle.Matrix([[1, 2], [2, 4]])
         native_singular = native.Matrix([[1, 2], [2, 4]])
         self.assertEqual(str(native_singular.rank()), str(oracle_singular.rank()))
