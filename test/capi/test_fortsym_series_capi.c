@@ -17,7 +17,7 @@ int main(void)
     int64_t coefficient_value = 0;
     int status;
 
-    assert(fortsym_abi_version() == 78);
+    assert(fortsym_abi_version() == 79);
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK);
     assert(fortsym_symbol(arena, "x", &x, message, sizeof message) ==

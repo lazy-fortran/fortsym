@@ -136,6 +136,7 @@ module fortsym_public_capi
         calculate_series_coeff
     use fortsym_solve_adapter, only: calculate_solve
     use fortsym_linsolve_adapter, only: calculate_linsolve
+    use fortsym_matrix_adapter, only: calculate_matrix_det
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -189,7 +190,7 @@ module fortsym_public_capi
     public :: fortsym_expand, fortsym_simplify, fortsym_factor, &
         fortsym_together, fortsym_cancel, fortsym_apart, fortsym_collect, &
         c_integrate, c_limit, c_series, c_series_coeff
-    public :: fortsym_solve, fortsym_linsolve
+    public :: fortsym_solve, fortsym_linsolve, fortsym_matrix_det
     public :: fortsym_chart_sqrtg, fortsym_chart_surface_measure, &
         fortsym_chart_flux_surface_average, &
         fortsym_chart_jacobian, &
@@ -294,7 +295,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 78_c_int
+        v = 79_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -5776,6 +5777,36 @@ contains
         count = dimension
         call make_expr_array(a, values, out, n, status, message, capacity)
     end function fortsym_linsolve
+
+    function fortsym_matrix_det(raw, expression_raw, out, message, capacity) &
+            bind(c, name="fortsym_matrix_det") result(status)
+        type(c_ptr), value :: raw, expression_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep
+        type(expr_t) :: expression, value
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call calculate_matrix_det( &
+            a%value, a%engine, expression, value, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_matrix_det
 
     function fortsym_solve(raw, expression_raw, variable_raw, out, &
             output_capacity, count, message, capacity) bind(c, &

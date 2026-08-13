@@ -294,6 +294,19 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(tuple(str(value) for value in actual.args[0]),
                          tuple(str(value) for value in next(iter(expected))))
 
+    def test_bounded_matrix_and_det_match_sympy(self):
+        oracle_matrix = oracle.Matrix([[1, 2], [3, 4]])
+        native_matrix = native.Matrix([[1, 2], [3, 4]])
+        self.assertEqual(native_matrix.shape, (2, 2))
+        self.assertEqual(str(native_matrix), "Matrix([[1, 2], [3, 4]])")
+        self.assertEqual(str(native_matrix[0, 1]), "2")
+        self.assertEqual(str(native_matrix.det()), str(oracle_matrix.det()))
+        self.assertEqual(str(native.det(native_matrix)), str(oracle.det(oracle_matrix)))
+
+    def test_matrix_refuses_ragged_rows(self):
+        with self.assertRaises(ValueError):
+            native.Matrix([[1, 2], [3]])
+
     def test_linsolve_refuses_unverified_forms(self):
         native_x, native_y = native.symbols("linsolve_refusal_x linsolve_refusal_y")
         system = (((1, 2), (3, 4)), (5, 6))
@@ -1392,10 +1405,7 @@ class SympyDifferentialTest(unittest.TestCase):
             native_derivative.doit(),
         )
 
-        refusals = [
-            ("Matrix", lambda: oracle.Matrix([[1]]),
-             lambda: native.Matrix([[1]])),
-        ]
+        refusals = []
         for label, oracle_call, native_call in refusals:
             with self.subTest(label=label):
                 self.assertIsNotNone(oracle_call())

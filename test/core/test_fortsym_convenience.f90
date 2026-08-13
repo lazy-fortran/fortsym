@@ -25,6 +25,8 @@ program test_fortsym_convenience
     type(expr_t), allocatable :: roots(:)
     type(expr_t) :: linear_matrix(2, 2), linear_right_hand_side(2)
     type(expr_t), allocatable :: linear_values(:)
+    type(expr_t) :: determinant_row_one(2), determinant_row_two(2)
+    type(expr_t) :: determinant_rows(2), determinant_matrix
     type(str_t), allocatable :: free_names(:)
     type(expr_t) :: stale
     type(engine_result_t) :: result, zero_result
@@ -134,6 +136,16 @@ program test_fortsym_convenience
         good .and. size(linear_values) == 2 .and. &
         linear_values(1) == num(default_storage, -4_int64) .and. &
         linear_values(2) == rat(default_storage, 9_int64, 2_int64), failures)
+    determinant_row_one(1) = num(default_storage, 1_int64)
+    determinant_row_one(2) = num(default_storage, 2_int64)
+    determinant_row_two(1) = num(default_storage, 3_int64)
+    determinant_row_two(2) = num(default_storage, 4_int64)
+    determinant_rows(1) = func("List", determinant_row_one)
+    determinant_rows(2) = func("List", determinant_row_two)
+    determinant_matrix = func("List", determinant_rows)
+    result = det(determinant_matrix)
+    call check("facade exposes exact matrix determinant", &
+        result%ok .and. result%value == num(default_storage, -2_int64), failures)
     result = series(exp(mu), mu, num(default_storage, 0_int64), 3)
     series_value = result%value
     series_expected = 1 + mu + mu**2/2 + mu**3/6
