@@ -73,7 +73,7 @@ program test_fortsym_registry
     call check(registry_find(builtins, "relativity") /= 0, &
         "relativity owner is registered")
     call check(registry_find(builtins, "fourier_fem") /= 0, &
-        "Fourier FEM owner is registered")
+        "Fourier weak-form owner is registered")
 
     if (failures /= 0) error stop 1
     print *, "test_fortsym_registry: all checks passed"

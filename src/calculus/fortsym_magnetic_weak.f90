@@ -1,5 +1,5 @@
 module fortsym_magnetic_weak
-    ! Fourier finite-element contracts for the block constitutive reduction.
+    ! Fourier symbolic weak-form contracts for the block constitutive reduction.
     !
     ! This module owns the paper-specific weak-form metadata.  The generic
     ! chart, tensor, and magnetic modules continue to own coordinates and

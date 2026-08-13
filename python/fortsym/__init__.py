@@ -5742,7 +5742,7 @@ class SpacetimeForm:
 
 
 class FourierWeakForm:
-    """Native metadata and coefficient blocks for one Fourier FEM branch."""
+    """Native metadata and coefficient blocks for one Fourier weak-form branch."""
 
     def __init__(self, chart, mode, branch, trial_space, test_space,
                  trial_components, test_components, boundary_trace,
