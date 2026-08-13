@@ -187,9 +187,10 @@ SymPy parity for the entire family.
 
 ## Phase 4 — equations and exact linear algebra
 
-- [ ] Expose the already-tested bounded polynomial and scalar-linear solver
-      through the canonical Fortran, C, Python, and SymPy facades. Return the
-      SymPy-compatible root shape and refuse unsupported domains/options.
+- [x] Expose the already-tested bounded polynomial and scalar-linear solver
+      through the canonical Fortran, C, Python, and SymPy facades. Return
+      distinct verified roots in the SymPy-compatible list shape and refuse
+      unsupported domains/options.
 - [ ] Complete `solve`, `solveset`, real/complex solves, `linsolve`, and
       solution conditions for polynomial, rational, radical, inverse-function,
       and supported transcendental equations.

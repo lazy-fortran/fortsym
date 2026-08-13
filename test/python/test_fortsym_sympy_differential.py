@@ -203,6 +203,57 @@ class SympyDifferentialTest(unittest.TestCase):
             ((native_x + 2)**4).series_coeff(native_x, native.Integer(0), 2),
         )
 
+    def test_bounded_solve_matches_sympy(self):
+        oracle_x = oracle.Symbol("solve_x")
+        oracle_a = oracle.Symbol("solve_a")
+        native_x = native.Symbol("solve_x")
+        native_a = native.Symbol("solve_a")
+        cases = [
+            (oracle.solve(oracle_x**2 - 1, oracle_x),
+             native.solve(native_x**2 - 1, native_x)),
+            (oracle.solve((oracle_x - 1)**2, oracle_x),
+             native.solve((native_x - 1)**2, native_x)),
+            (oracle.solve(oracle.Eq(oracle_x, 2), oracle_x),
+             native.solve(native.Eq(native_x, 2), native_x)),
+            (oracle.solve(oracle_x + oracle_a, oracle_x),
+             native.solve(native_x + native_a, native_x)),
+            (oracle.solve(3, oracle_x),
+             native.solve(3, native_x)),
+        ]
+        locals_map = {"solve_x": oracle_x, "solve_a": oracle_a}
+        for expected, actual in cases:
+            expected_values = [
+                oracle.sympify(str(value), locals=locals_map)
+                for value in expected
+            ]
+            actual_values = [
+                oracle.sympify(str(value), locals=locals_map)
+                for value in actual
+            ]
+            self.assertEqual(len(actual_values), len(expected_values))
+            unmatched = list(expected_values)
+            for value in actual_values:
+                match = next(
+                    (index for index, candidate in enumerate(unmatched)
+                     if oracle.simplify(value - candidate) == 0),
+                    None,
+                )
+                self.assertIsNotNone(match, (expected_values, actual_values))
+                unmatched.pop(match)
+            self.assertEqual(unmatched, [])
+
+    def test_solve_refuses_unsupported_options(self):
+        native_x = native.Symbol("solve_refusal_x")
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.solve(native.sin(native_x), native_x)
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.solve(native_x**2 - 1, native_x + 1)
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.solve(native_x**2 - 1, native_x, dict=True)
+        with self.assertRaises(ValueError):
+            native.solve(native.Symbol("solve_refusal_x") +
+                         native.Symbol("solve_refusal_y") + 1)
+
     def test_power_constructor_identities_match_oracle(self):
         def cases(api):
             x = api.Symbol("power_constructor_x")
@@ -1284,8 +1335,6 @@ class SympyDifferentialTest(unittest.TestCase):
         )
 
         refusals = [
-            ("solve", lambda: oracle.solve(oracle_x**2 - 1, oracle_x),
-             lambda: native.solve(native_x**2 - 1, native_x)),
             ("Matrix", lambda: oracle.Matrix([[1]]),
              lambda: native.Matrix([[1]])),
         ]

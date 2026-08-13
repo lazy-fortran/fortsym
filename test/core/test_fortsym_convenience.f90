@@ -22,11 +22,13 @@ program test_fortsym_convenience
     type(expr_t) :: huge_integer, exact_fraction, relation
     type(expr_t) :: substitution_old(2), substitution_new(2)
     type(expr_t) :: free_expression
+    type(expr_t), allocatable :: roots(:)
     type(str_t), allocatable :: free_names(:)
     type(expr_t) :: stale
     type(engine_result_t) :: result, zero_result
     logical :: good, exact_good, context_ok
-    integer :: failures
+    character(:), allocatable :: why
+    integer :: failures, root_count
 
     failures = 0
     call explicit_arena%init()
@@ -115,6 +117,10 @@ program test_fortsym_convenience
     factored = result%value
     call check("facade exposes native factorisation", &
         result%ok .and. factored == (mu + 1)**2, failures)
+    call solve((mu - 1)**2, mu, roots, root_count, good, why)
+    call check("facade exposes distinct verified roots", &
+        good .and. root_count == 1 .and. roots(1) == num(default_storage, 1_int64), &
+        failures)
     result = series(exp(mu), mu, num(default_storage, 0_int64), 3)
     series_value = result%value
     series_expected = 1 + mu + mu**2/2 + mu**3/6

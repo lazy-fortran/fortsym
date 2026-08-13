@@ -13,17 +13,17 @@
     {
       "from": "algebra",
       "to": "core",
-      "uses": 30
+      "uses": 38
     },
     {
       "from": "algebra",
       "to": "engine",
-      "uses": 11
+      "uses": 14
     },
     {
       "from": "algebra",
       "to": "util",
-      "uses": 10
+      "uses": 12
     },
     {
       "from": "algebra",
@@ -33,17 +33,17 @@
     {
       "from": "calculus",
       "to": "algebra",
-      "uses": 1
+      "uses": 2
     },
     {
       "from": "calculus",
       "to": "core",
-      "uses": 17
+      "uses": 39
     },
     {
       "from": "calculus",
       "to": "engine",
-      "uses": 2
+      "uses": 6
     },
     {
       "from": "calculus",
@@ -58,12 +58,12 @@
     {
       "from": "capi",
       "to": "algebra",
-      "uses": 1
+      "uses": 7
     },
     {
       "from": "capi",
       "to": "calculus",
-      "uses": 6
+      "uses": 17
     },
     {
       "from": "capi",
@@ -118,12 +118,12 @@
     {
       "from": "core",
       "to": "algebra",
-      "uses": 1
+      "uses": 3
     },
     {
       "from": "core",
       "to": "calculus",
-      "uses": 6
+      "uses": 21
     },
     {
       "from": "core",
@@ -288,23 +288,39 @@
         "fortsym_assume",
         "fortsym_backend",
         "fortsym_chart",
+        "fortsym_chart_map",
         "fortsym_complexdom",
         "fortsym_connection",
+        "fortsym_domain",
         "fortsym_engine",
         "fortsym_engine_native",
         "fortsym_eval",
         "fortsym_expr",
+        "fortsym_flux",
         "fortsym_form",
+        "fortsym_form_tensor",
+        "fortsym_geometry_metadata",
+        "fortsym_index",
         "fortsym_kernel",
         "fortsym_magnetic",
+        "fortsym_magnetic_weak",
+        "fortsym_maxwell",
+        "fortsym_metric",
         "fortsym_numeric",
         "fortsym_ode",
         "fortsym_predicates",
+        "fortsym_registry",
         "fortsym_relation",
+        "fortsym_relativity",
         "fortsym_series_adapter",
+        "fortsym_solve_adapter",
+        "fortsym_spacetime_form",
+        "fortsym_spacetime_form_tensor",
+        "fortsym_spacetime_tensor",
         "fortsym_string",
         "fortsym_subs",
-        "fortsym_tensor"
+        "fortsym_tensor",
+        "fortsym_volume"
       ],
       "name": "fortsym",
       "owner": "core",
@@ -396,11 +412,26 @@
       "dependencies": [
         "fortsym_arena",
         "fortsym_diff",
+        "fortsym_domain",
         "fortsym_expr"
       ],
       "name": "fortsym_chart",
       "owner": "calculus",
       "path": "src/calculus/fortsym_chart.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_chart",
+        "fortsym_diff",
+        "fortsym_domain",
+        "fortsym_expr",
+        "fortsym_form",
+        "fortsym_subs",
+        "fortsym_tensor"
+      ],
+      "name": "fortsym_chart_map",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_chart_map.f90"
     },
     {
       "dependencies": [
@@ -431,9 +462,12 @@
     },
     {
       "dependencies": [
+        "fortsym_arena",
         "fortsym_chart",
         "fortsym_diff",
         "fortsym_expr",
+        "fortsym_metric",
+        "fortsym_subs",
         "fortsym_tensor"
       ],
       "name": "fortsym_connection",
@@ -484,6 +518,12 @@
       "name": "fortsym_diff",
       "owner": "calculus",
       "path": "src/calculus/fortsym_diff.f90"
+    },
+    {
+      "dependencies": [],
+      "name": "fortsym_domain",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_domain.f90"
     },
     {
       "dependencies": [
@@ -594,14 +634,36 @@
     },
     {
       "dependencies": [
-        "fortsym_arena",
         "fortsym_chart",
         "fortsym_diff",
         "fortsym_expr"
       ],
+      "name": "fortsym_flux",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_flux.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_chart",
+        "fortsym_diff",
+        "fortsym_expr",
+        "fortsym_metric"
+      ],
       "name": "fortsym_form",
       "owner": "calculus",
       "path": "src/calculus/fortsym_form.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_chart",
+        "fortsym_expr",
+        "fortsym_form",
+        "fortsym_tensor"
+      ],
+      "name": "fortsym_form_tensor",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_form_tensor.f90"
     },
     {
       "dependencies": [
@@ -614,6 +676,18 @@
       "name": "fortsym_fparse",
       "owner": "parse_fortran",
       "path": "src/parse_fortran/fortsym_fparse.f90"
+    },
+    {
+      "dependencies": [],
+      "name": "fortsym_geometry_metadata",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_geometry_metadata.f90"
+    },
+    {
+      "dependencies": [],
+      "name": "fortsym_index",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_index.f90"
     },
     {
       "dependencies": [
@@ -639,28 +713,6 @@
       "name": "fortsym_integrate_adapter",
       "owner": "algebra",
       "path": "src/algebra/fortsym_integrate_adapter.f90"
-    },
-    {
-      "dependencies": [
-        "fortsym_arena",
-        "fortsym_expr",
-        "fortsym_limits"
-      ],
-      "name": "fortsym_limit_adapter",
-      "owner": "algebra",
-      "path": "src/algebra/fortsym_limit_adapter.f90"
-    },
-    {
-      "dependencies": [
-        "fortsym_arena",
-        "fortsym_engine",
-        "fortsym_engine_native",
-        "fortsym_expr",
-        "fortsym_string"
-      ],
-      "name": "fortsym_series_adapter",
-      "owner": "algebra",
-      "path": "src/algebra/fortsym_series_adapter.f90"
     },
     {
       "dependencies": [
@@ -724,6 +776,16 @@
     {
       "dependencies": [
         "fortsym_arena",
+        "fortsym_expr",
+        "fortsym_limits"
+      ],
+      "name": "fortsym_limit_adapter",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_limit_adapter.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
         "fortsym_diff",
         "fortsym_engine",
         "fortsym_engine_native",
@@ -750,13 +812,30 @@
     },
     {
       "dependencies": [
+        "fortsym_arena",
         "fortsym_chart",
+        "fortsym_defint",
         "fortsym_diff",
-        "fortsym_expr"
+        "fortsym_expr",
+        "fortsym_form",
+        "fortsym_metric",
+        "fortsym_tensor"
       ],
       "name": "fortsym_magnetic",
       "owner": "calculus",
       "path": "src/calculus/fortsym_magnetic.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_chart",
+        "fortsym_diff",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_expr"
+      ],
+      "name": "fortsym_magnetic_weak",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_magnetic_weak.f90"
     },
     {
       "dependencies": [
@@ -769,6 +848,28 @@
       "name": "fortsym_matrix",
       "owner": "algebra",
       "path": "src/algebra/fortsym_matrix.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_expr",
+        "fortsym_relativity",
+        "fortsym_spacetime_form"
+      ],
+      "name": "fortsym_maxwell",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_maxwell.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_chart",
+        "fortsym_diff",
+        "fortsym_expr",
+        "fortsym_geometry_metadata"
+      ],
+      "name": "fortsym_metric",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_metric.f90"
     },
     {
       "dependencies": [
@@ -908,6 +1009,7 @@
         "fortsym_arena",
         "fortsym_assume_api",
         "fortsym_chart",
+        "fortsym_chart_map",
         "fortsym_complexdom",
         "fortsym_connection",
         "fortsym_diff",
@@ -915,13 +1017,29 @@
         "fortsym_engine_native",
         "fortsym_eval",
         "fortsym_expr",
+        "fortsym_flux",
         "fortsym_form",
+        "fortsym_form_tensor",
+        "fortsym_integrate_adapter",
+        "fortsym_limit_adapter",
+        "fortsym_limits",
         "fortsym_magnetic",
+        "fortsym_magnetic_weak",
+        "fortsym_maxwell",
+        "fortsym_metric",
+        "fortsym_poly",
         "fortsym_predicates",
         "fortsym_print",
+        "fortsym_relativity",
+        "fortsym_series_adapter",
+        "fortsym_solve_adapter",
+        "fortsym_spacetime_form",
+        "fortsym_spacetime_form_tensor",
+        "fortsym_spacetime_tensor",
         "fortsym_string",
         "fortsym_subs",
-        "fortsym_tensor"
+        "fortsym_tensor",
+        "fortsym_volume"
       ],
       "name": "fortsym_public_capi",
       "owner": "capi",
@@ -962,12 +1080,30 @@
       "path": "src/algebra/fortsym_quadratic_poly.f90"
     },
     {
+      "dependencies": [],
+      "name": "fortsym_registry",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_registry.f90"
+    },
+    {
       "dependencies": [
         "fortsym_expr"
       ],
       "name": "fortsym_relation",
       "owner": "core",
       "path": "src/core/fortsym_relation.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_diff",
+        "fortsym_expr",
+        "fortsym_geometry_metadata",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_relativity",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_relativity.f90"
     },
     {
       "dependencies": [
@@ -984,6 +1120,67 @@
       "name": "fortsym_rk_trees",
       "owner": "verify",
       "path": "src/verify/fortsym_rk_trees.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_series_adapter",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_series_adapter.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_engine",
+        "fortsym_expr",
+        "fortsym_polysolve",
+        "fortsym_string"
+      ],
+      "name": "fortsym_solve_adapter",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_solve_adapter.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_diff",
+        "fortsym_expr",
+        "fortsym_relativity"
+      ],
+      "name": "fortsym_spacetime_form",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_spacetime_form.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_expr",
+        "fortsym_relativity",
+        "fortsym_spacetime_form",
+        "fortsym_spacetime_tensor"
+      ],
+      "name": "fortsym_spacetime_form_tensor",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_spacetime_form_tensor.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_diff",
+        "fortsym_expr",
+        "fortsym_index",
+        "fortsym_relativity"
+      ],
+      "name": "fortsym_spacetime_tensor",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_spacetime_tensor.f90"
     },
     {
       "dependencies": [
@@ -1024,7 +1221,10 @@
       "dependencies": [
         "fortsym_arena",
         "fortsym_chart",
-        "fortsym_expr"
+        "fortsym_diff",
+        "fortsym_expr",
+        "fortsym_index",
+        "fortsym_metric"
       ],
       "name": "fortsym_tensor",
       "owner": "calculus",
@@ -1050,6 +1250,17 @@
       "name": "fortsym_trigrewrite",
       "owner": "algebra",
       "path": "src/algebra/fortsym_trigrewrite.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_chart",
+        "fortsym_expr",
+        "fortsym_metric"
+      ],
+      "name": "fortsym_volume",
+      "owner": "calculus",
+      "path": "src/calculus/fortsym_volume.f90"
     },
     {
       "dependencies": [
@@ -1140,11 +1351,11 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 338,
+    "internal_edges": 453,
     "module_file_mismatches": 0,
-    "module_units": 69,
-    "modules": 69,
-    "source_units": 70,
+    "module_units": 88,
+    "modules": 88,
+    "source_units": 89,
     "unknown_internal_dependencies": 0
   },
   "violations": {

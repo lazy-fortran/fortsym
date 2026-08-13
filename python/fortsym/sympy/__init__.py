@@ -1399,7 +1399,13 @@ def series(expression, x=None, x0=0, n=6, dir="+", logx=None, cdir=0):
     )
 
 
-solve = _unsupported("solve")
+def solve(expression, *symbols, **options):
+    """Return distinct verified roots for the bounded one-equation subset."""
+    if len(symbols) > 1 or options:
+        raise UnsupportedOperationError("solve options or multiple variables")
+    expression = sympify(expression)
+    variable = None if not symbols else sympify(symbols[0])
+    return _native_operation(lambda: expression.solve(variable))
 Matrix = _unsupported("Matrix")
 
 

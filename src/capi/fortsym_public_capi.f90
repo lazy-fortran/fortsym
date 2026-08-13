@@ -134,6 +134,7 @@ module fortsym_public_capi
         LIMIT_MINUS_INF, FROM_BELOW, TWO_SIDED, FROM_ABOVE
     use fortsym_series_adapter, only: calculate_series, &
         calculate_series_coeff
+    use fortsym_solve_adapter, only: calculate_solve
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -186,6 +187,7 @@ module fortsym_public_capi
     public :: fortsym_expand, fortsym_simplify, fortsym_factor, &
         fortsym_together, fortsym_cancel, fortsym_apart, fortsym_collect, &
         c_integrate, c_limit, c_series, c_series_coeff
+    public :: fortsym_solve
     public :: fortsym_chart_sqrtg, fortsym_chart_surface_measure, &
         fortsym_chart_flux_surface_average, &
         fortsym_chart_jacobian, &
@@ -290,7 +292,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 76_c_int
+        v = 77_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -5690,6 +5692,71 @@ contains
         end if
         call make_handle(a, result, out, status, message, capacity)
     end function c_series_coeff
+
+    function fortsym_solve(raw, expression_raw, variable_raw, out, &
+            output_capacity, count, message, capacity) bind(c, &
+            name="fortsym_solve") result(status)
+        type(c_ptr), value :: raw, expression_raw, variable_raw, out
+        integer(c_size_t), value :: output_capacity
+        integer(c_size_t), intent(out) :: count
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, vp
+        type(expr_t) :: expression, variable
+        type(expr_t), allocatable :: roots(:)
+        type(c_ptr), pointer :: output(:)
+        logical :: ok
+        character(:), allocatable :: why
+        integer :: shape(1), root_count
+
+        count = 0_c_size_t
+        call put_error(message, capacity, FORTSYM_OK)
+        if (.not. c_associated(out) .or. output_capacity < 1_c_size_t) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        if (output_capacity > int(huge(0), c_size_t)) then
+            call fail(status, message, capacity, FORTSYM_RESOURCE_LIMIT)
+            return
+        end if
+        shape(1) = int(output_capacity)
+        call c_f_pointer(out, output, shape)
+        call clear_handles(output, shape(1))
+
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a) .or. &
+            .not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+
+        call calculate_solve(a%value, a%engine, expression, variable, roots, &
+            root_count, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        count = int(root_count, c_size_t)
+        if (output_capacity < count) then
+            call fail_reason(status, message, capacity, FORTSYM_RESOURCE_LIMIT, &
+                "solve output array is too small")
+            return
+        end if
+        if (root_count > 0) then
+            call make_expr_array(a, roots, out, root_count, status, message, &
+                capacity)
+        else
+            call put_error(message, capacity, FORTSYM_OK)
+            status = FORTSYM_OK
+        end if
+    end function fortsym_solve
 
     function fortsym_zero_test(raw, expression_raw, verdict, message, capacity) &
             bind(c, name="fortsym_zero_test") result(status)

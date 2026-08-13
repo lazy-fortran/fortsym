@@ -202,6 +202,16 @@ int fortsym_limit(fortsym_arena *arena, const fortsym_expr *expression,
                   const fortsym_expr *variable, const fortsym_expr *point,
                   int point_kind, int direction, fortsym_expr **out,
                   char *message, size_t capacity);
+/* Solve one equation in one symbol. A bare expression is treated as a
+ * residual; Equal(lhs, rhs) is converted to lhs-rhs. `out` has caller-owned
+ * capacity `output_capacity`; `count` receives the distinct verified roots.
+ * A too-small output array returns FORTSYM_RESOURCE_LIMIT and leaves no
+ * output handles owned by the caller. Unsupported domains and options are
+ * explicit FORTSYM_UNSUPPORTED refusals. */
+int fortsym_solve(fortsym_arena *arena, const fortsym_expr *expression,
+                  const fortsym_expr *variable, fortsym_expr *out[],
+                  size_t output_capacity, size_t *count, char *message,
+                  size_t capacity);
 /* Taylor polynomial through `order`, expanded around the finite `point`.
  * The result is the normal polynomial without SymPy's O-term. */
 int fortsym_series(fortsym_arena *arena, const fortsym_expr *expression,
