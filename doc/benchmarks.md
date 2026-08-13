@@ -392,6 +392,10 @@ enforced. The latest matrix therefore has 156 rows, 120 enforced rows, and
 zero unwaived violations after the 36 documented diagnostic waivers are
 applied.
 
+The Matrix-operand `linsolve` cases are correctness coverage for the adapter
+transport and reuse the same native parametric owner as the existing workload;
+they therefore do not add duplicate timing rows.
+
 The bounded `Matrix.rref(pivots=False)` option adds cold end-to-end and
 warm-core rows for the SymPy-shaped reduced-Matrix-only return form. Its
 correctness case compares the exact reduced matrix against SymPy while the

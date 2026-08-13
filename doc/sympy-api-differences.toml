@@ -103,7 +103,7 @@ affected = ["cancel", "together", "apart", "collect", "integrate", "limit", "ser
 parity = "partial"
 sympy = "SymPy provides broad rational transformations, integration, limits, series, and linear-system APIs with domain, condition, and option handling."
 fortsym = "The adapter exposes the bounded native owners for exact rational normalization, partial fractions, collection, verified one-variable integration and limits, Taylor series, and exact-rational one-right-hand-side linear solving with retained free parameters and explicit inconsistency results."
-difference = "Only the documented bounded fragments are supported; broader domains, symbolic coefficient conditions, alternate matrix inputs, Laurent/asymptotic series, and unsupported options are explicit refusals."
+difference = "Only the documented bounded fragments are supported; broader domains, symbolic coefficient conditions, equation-list and other alternate forms, Laurent/asymptotic series, and unsupported options are explicit refusals."
 
 [[semantic]]
 id = "differentiation"

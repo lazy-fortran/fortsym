@@ -455,6 +455,44 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(tuple(str(value) for value in actual.args[0]),
                          tuple(str(value) for value in next(iter(expected))))
 
+    def test_bounded_linsolve_matrix_operands_match_sympy(self):
+        oracle_x, oracle_y = oracle.symbols("linsolve_matrix_x linsolve_matrix_y")
+        native_x, native_y = native.symbols(
+            "linsolve_matrix_x linsolve_matrix_y"
+        )
+        native_matrix = native.Matrix([[1, 2], [3, 4]])
+        native_rhs = (
+            native.Matrix([[5], [6]]),
+            native.Matrix([[5, 6]]),
+        )
+        oracle_matrix = oracle.Matrix([[1, 2], [3, 4]])
+        oracle_rhs = (
+            oracle.Matrix([[5], [6]]),
+            oracle.Matrix([[5, 6]]),
+        )
+        try:
+            for label, expected_rhs, actual_rhs in zip(
+                    ("column", "row"), oracle_rhs, native_rhs):
+                with self.subTest(label=label):
+                    expected = oracle.linsolve(
+                        (oracle_matrix, expected_rhs),
+                        (oracle_x, oracle_y),
+                    )
+                    actual = native.linsolve(
+                        (native_matrix, actual_rhs),
+                        (native_x, native_y),
+                    )
+                    try:
+                        self.assertEqual(str(actual), str(expected))
+                    finally:
+                        actual.close()
+        finally:
+            native_matrix._expression.close()
+            for matrix in native_rhs:
+                matrix._expression.close()
+            native_x.close()
+            native_y.close()
+
     def test_bounded_linsolve_free_parameters_match_sympy(self):
         oracle_x, oracle_y = oracle.symbols("linsolve_free_x linsolve_free_y")
         native_x, native_y = native.symbols(
