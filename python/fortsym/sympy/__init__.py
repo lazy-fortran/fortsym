@@ -50,6 +50,12 @@ class InconsistentAssumptions(ValueError):
 class Tuple:
     """Native-owned tuple-valued result for the bounded compatibility subset."""
 
+    @classmethod
+    def _from_expression(cls, expression):
+        instance = cls.__new__(cls)
+        instance._expression = expression
+        return instance
+
     def __init__(self, *elements):
         values = tuple(sympify(element) for element in elements)
         self._expression = _default().function("Tuple", values)
@@ -104,61 +110,101 @@ class Tuple:
 
 def _set_sort_key(value):
     if isinstance(value, Tuple):
-        elements = value.args
-        try:
-            return (3, tuple(_sympy_sort_key(element) for element in elements))
-        finally:
-            for element in elements:
-                element.close()
-    return _sympy_sort_key(value)
+        expression = value._expression
+    elif isinstance(value, Expr) and value.name == "Tuple":
+        expression = value
+    else:
+        return _sympy_sort_key(value)
+    elements = expression.args
+    try:
+        return (3, tuple(_sympy_sort_key(element) for element in elements))
+    finally:
+        for element in elements:
+            element.close()
+
+
+def _set_element_expression(value):
+    if isinstance(value, Tuple):
+        return value._expression, False
+    if isinstance(value, Expr):
+        return _default()._check(value), False
+    return sympify(value), True
+
+
+def _set_element_wrapper(expression):
+    if expression.name == "Tuple":
+        return Tuple._from_expression(expression)
+    return expression
 
 
 class FiniteSet:
-    """Small set-valued result owner for the verified solveset fragment."""
+    """Native-owned finite set result for the bounded compatibility subset."""
+
+    def __new__(cls, *elements):
+        if not elements:
+            return EmptySet
+        return super().__new__(cls)
 
     def __init__(self, *elements):
         values = []
-        for element in elements:
-            value = element if isinstance(element, Tuple) else sympify(element)
-            if any(value == previous for previous in values):
-                continue
-            values.append(value)
-        values.sort(key=_set_sort_key)
-        self._elements = tuple(values)
+        temporaries = []
+        try:
+            for element in elements:
+                value, temporary = _set_element_expression(element)
+                if any(value == previous for previous in values):
+                    if temporary:
+                        value.close()
+                    continue
+                values.append(value)
+                if temporary:
+                    temporaries.append(value)
+            values.sort(key=_set_sort_key)
+            self._expression = _default().function("FiniteSet", values)
+        finally:
+            for value in temporaries:
+                value.close()
 
     @property
     def args(self):
-        return self._elements
+        return tuple(_set_element_wrapper(value)
+                     for value in self._expression.args)
 
     def __iter__(self):
-        return iter(self._elements)
+        return iter(self.args)
 
     def __len__(self):
-        return len(self._elements)
+        return self._expression.arity
 
     def __contains__(self, value):
         try:
-            value = value if isinstance(value, Tuple) else sympify(value)
+            value, temporary = _set_element_expression(value)
         except (TypeError, UnsupportedOperationError):
             return False
-        return any(value == element for element in self._elements)
+        elements = self._expression.args
+        try:
+            return any(value == element for element in elements)
+        finally:
+            for element in elements:
+                element.close()
+            if temporary:
+                value.close()
 
     def __eq__(self, other):
         return (isinstance(other, FiniteSet) and
-                len(self._elements) == len(other._elements) and
-                all(any(value == candidate for candidate in other._elements)
-                    for value in self._elements))
+                self._expression == other._expression)
 
     def __str__(self):
-        return "{" + ", ".join(str(element) for element in self._elements) + "}"
+        elements = self.args
+        try:
+            return "{" + ", ".join(str(element) for element in elements) + "}"
+        finally:
+            for element in elements:
+                element.close()
 
     __repr__ = __str__
 
     def close(self):
-        elements = self._elements
-        self._elements = ()
-        for element in elements:
-            element.close()
+        self._expression.close()
 
     def __del__(self):
         try:
@@ -1610,15 +1656,21 @@ def solveset(expression, symbol=None, domain=None):
     else:
         symbol = sympify(symbol)
     roots, excluded = _native_operation(lambda: expression._solveset(symbol))
-    surviving = [root for root in roots
-                 if not any(root == pole for pole in excluded)]
-    base = EmptySet if not surviving else FiniteSet(*surviving)
-    if not surviving or not excluded:
-        return base
-    if all(root.is_number and pole.is_number and root != pole
-           for root in surviving for pole in excluded):
-        return base
-    return Complement(base, FiniteSet(*excluded))
+    try:
+        surviving = [root for root in roots
+                     if not any(root == pole for pole in excluded)]
+        base = EmptySet if not surviving else FiniteSet(*surviving)
+        if not surviving or not excluded:
+            return base
+        if all(root.is_number and pole.is_number and root != pole
+               for root in surviving for pole in excluded):
+            return base
+        return Complement(base, FiniteSet(*excluded))
+    finally:
+        for root in roots:
+            root.close()
+        for pole in excluded:
+            pole.close()
 
 
 def linsolve(system, *symbols, **options):
@@ -1662,7 +1714,15 @@ def linsolve(system, *symbols, **options):
     values = _native_operation(
         lambda: _default().linsolve(matrix, right_hand_side)
     )
-    return FiniteSet(Tuple(*values))
+    try:
+        result_tuple = Tuple(*values)
+        try:
+            return FiniteSet(result_tuple)
+        finally:
+            result_tuple.close()
+    finally:
+        for value in values:
+            value.close()
 class Matrix:
     """Bounded exact dense matrix facade backed by one native List owner."""
 

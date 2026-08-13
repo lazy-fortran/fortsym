@@ -94,7 +94,7 @@ id = "set-matrix-and-tensor-results"
 affected = ["FiniteSet", "EmptySet", "Tuple", "Matrix", "det", "tensorproduct", "tensorcontraction"]
 parity = "partial"
 sympy = "SymPy uses immutable set, tuple, matrix, and tensor result objects with broad construction, indexing, algebra, and option semantics."
-fortsym = "The adapter exposes native-owned FiniteSet/EmptySet/Tuple solve results, bounded exact dense Matrix construction and operations, determinant transport, and the declared tensor product/contraction fragment."
+fortsym = "The adapter exposes native-owned FiniteSet/Tuple solve results and a singleton EmptySet result, bounded exact dense Matrix construction and operations, determinant transport, and the declared tensor product/contraction fragment."
 difference = "The result classes and operations are bounded, exact, and refusal-driven; general matrix expressions, slicing, sparse forms, arbitrary tensor dimensions, and the remaining SymPy options are not yet covered."
 
 [[semantic]]
