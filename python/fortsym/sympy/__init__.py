@@ -2042,18 +2042,29 @@ def linsolve(system, *symbols, **options):
     """Solve one explicit exact-rational linear system.
 
     The bounded native fragment accepts ``(matrix, right_hand_side)`` as
-    nested Python sequences or native ``Matrix`` operands and requires the
-    symbols explicitly. A Matrix right-hand side may be a row or column
-    vector. Symbolic coefficients remain an explicit refusal. Consistent
-    underdetermined systems retain the supplied free symbols in the result.
+    nested Python sequences or native ``Matrix`` operands, and accepts a
+    native augmented ``Matrix`` directly. Symbols may be supplied as one
+    tuple/list or as separate positional arguments. A Matrix right-hand side
+    may be a row or column vector. Symbolic coefficients remain an explicit
+    refusal. Consistent underdetermined systems retain the supplied free
+    symbols in the result.
     """
     if options:
         raise UnsupportedOperationError("linsolve options")
-    if len(symbols) != 1:
+    if not symbols:
         raise UnsupportedOperationError("linsolve requires explicit symbols")
-    if not isinstance(system, (tuple, list)) or len(system) != 2:
+    if len(symbols) == 1 and isinstance(symbols[0], (tuple, list)):
+        variables = symbols[0]
+    else:
+        variables = symbols
+    if isinstance(system, Matrix):
+        augmented = True
+        matrix, right_hand_side = system, None
+    elif isinstance(system, (tuple, list)) and len(system) == 2:
+        augmented = False
+        matrix, right_hand_side = system
+    else:
         raise UnsupportedOperationError("linsolve system form")
-    matrix, right_hand_side = system
     owned = []
     try:
         matrix = _matrix_linsolve_rows(matrix, owned)
@@ -2067,15 +2078,23 @@ def linsolve(system, *symbols, **options):
                 raise UnsupportedOperationError("linsolve matrix rows")
             matrix_values.append([sympify(value) for value in row])
         matrix = matrix_values
-        variable_count = len(matrix[0])
+        if augmented:
+            if len(matrix[0]) < 2 or any(
+                    len(row) != len(matrix[0]) for row in matrix):
+                raise UnsupportedOperationError("linsolve matrix dimensions")
+            variable_count = len(matrix[0]) - 1
+            right_hand_side = [row[-1] for row in matrix]
+            matrix = [row[:-1] for row in matrix]
+        else:
+            variable_count = len(matrix[0])
         if variable_count < 1 or any(
                 len(row) != variable_count for row in matrix):
             raise UnsupportedOperationError("linsolve matrix dimensions")
-        right_hand_side = _matrix_linsolve_rhs(right_hand_side, owned)
+        if not augmented:
+            right_hand_side = _matrix_linsolve_rhs(right_hand_side, owned)
         if not isinstance(right_hand_side, (tuple, list)):
             raise UnsupportedOperationError("linsolve right-hand-side form")
         right_hand_side = [sympify(value) for value in right_hand_side]
-        variables = symbols[0]
         if not isinstance(variables, (tuple, list)):
             raise UnsupportedOperationError("linsolve symbols form")
         variables = tuple(sympify(variable) for variable in variables)

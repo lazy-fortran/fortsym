@@ -44,7 +44,9 @@ fragment and returns a `FiniteSet(Tuple(...))` result, retaining supplied free
 symbols for consistent rectangular systems and returning `EmptySet` for
 inconsistent systems. The coefficient and right-hand-side operands may be
 native `Matrix` objects; a Matrix right-hand side may be a row or column
-vector. Symbolic coefficients and alternate forms remain explicit refusals.
+vector. A native augmented `Matrix` may also be passed directly, and symbols
+may be given as one tuple/list or as separate positional arguments. Symbolic
+coefficients and other alternate forms remain explicit refusals.
 The native convenience facade additionally
 exposes `linsolve_parametric(matrix, right_hand_side, variables)` for the
 rectangular exact-rational owner used by the compatibility layer.
@@ -506,7 +508,7 @@ does not import SymPy. Unsupported names raise
 | `series` | bounded Taylor polynomial through the requested SymPy term count, with the `O(...)` term omitted; singular/non-finite coefficients, unsupported symbolic derivatives, and unsupported options are explicit refusals |
 | `solve` | distinct verified roots for one equation in one symbol; exact univariate polynomials, bounded rational functions, and verified scalar-linear equations; unsupported domains/options are explicit refusals |
 | `solveset` | bounded native-owned `FiniteSet` plus singleton `EmptySet` result over distinct verified polynomial/rational/scalar-linear roots, with native denominator-pole transport to a native-owned `Complement` for symbolic rational functions; non-default domains and unsupported equations are explicit refusals |
-| `linsolve` | verified exact-rational square and rectangular systems with one explicit right-hand side, returning a native-owned `FiniteSet(Tuple(...))` or `EmptySet`; supplied free symbols are retained, and native `Matrix` coefficient/right-hand-side operands are accepted |
+| `linsolve` | verified exact-rational square and rectangular systems with one explicit right-hand side, returning a native-owned `FiniteSet(Tuple(...))` or `EmptySet`; supplied free symbols are retained, native `Matrix` coefficient/right-hand-side operands and augmented `Matrix` systems are accepted, and symbols may be passed as one sequence or separate positional arguments |
 | `linsolve_parametric` | verified rectangular exact-rational systems with one explicit right-hand side, returning one value per variable or an empty result for inconsistency; consistent free parameters are retained; symbolic coefficients and alternate forms are explicit refusals |
 | `Matrix` | bounded exact dense construction including flat sequences as column matrices, row-major flat scalar indexing and slicing, `(row, column)` indexing, `len()` and `is_square` shape metadata, row/column/block/reverse/stepped/empty 2-D slices, native-backed determinant and trace, tri-state `is_diagonal()` and `is_zero_matrix`, boolean `is_upper`, `is_lower`, `is_anti_symmetric(simplify=True/False)`, `is_symbolic()`, `is_upper_hessenberg`, `is_lower_hessenberg`, `is_Identity`, `is_echelon`, `is_hermitian`, and `is_symmetric(simplify=True/False)`, elementwise `conjugate()`, `adjoint()`, `.H`, and `multiply_elementwise()`, exact rank including `simplify=True`, inverse, transpose/`.T`, bounded `nullspace()` with `simplify=True`, `rref()` with SymPy-shaped `pivots=False` and `simplify=True` options, elementwise `+`/`-`, unary negation, and exact `*`/`@` products or scalar scaling/division; ragged, non-square trace inputs, entries with unknown complex conjugates, unequal-shaped elementwise products, undecidable predicates outside the native zero fragment, singular, callback-controlled zero tests, and broader matrix-expression operations are explicit refusals |
 

@@ -493,6 +493,78 @@ class SympyDifferentialTest(unittest.TestCase):
             native_x.close()
             native_y.close()
 
+    def test_bounded_linsolve_augmented_matrix_and_positional_symbols_match_sympy(self):
+        oracle_x, oracle_y = oracle.symbols(
+            "linsolve_augmented_x linsolve_augmented_y"
+        )
+        native_x, native_y = native.symbols(
+            "linsolve_augmented_x linsolve_augmented_y"
+        )
+        cases = (
+            ("unique", ((1, 2, 5), (3, 4, 6))),
+            ("underdetermined", ((1, 1, 1),)),
+            ("inconsistent", ((1, 2, 3), (2, 4, 7))),
+            ("all zero", ((0, 0, 0),)),
+        )
+
+        def assert_solution(actual, expected):
+            if expected == oracle.EmptySet:
+                self.assertEqual(actual, native.EmptySet)
+                return
+            self.assertEqual(len(actual), len(expected))
+            expected_values = tuple(next(iter(expected)))
+            actual_tuple = next(iter(actual))
+            actual_values = actual_tuple.args
+            try:
+                for expected_value, actual_value in zip(
+                        expected_values, actual_values):
+                    parsed = oracle.sympify(
+                        str(actual_value),
+                        locals={
+                            "linsolve_augmented_x": oracle_x,
+                            "linsolve_augmented_y": oracle_y,
+                        },
+                    )
+                    self.assertEqual(
+                        oracle.simplify(parsed - expected_value),
+                        oracle.Integer(0),
+                    )
+            finally:
+                for value in actual_values:
+                    value.close()
+                actual_tuple.close()
+
+        try:
+            for label, rows in cases:
+                with self.subTest(label=label):
+                    expected = oracle.linsolve(
+                        oracle.Matrix(rows), (oracle_x, oracle_y)
+                    )
+                    native_matrix = native.Matrix(rows)
+                    try:
+                        actual = native.linsolve(
+                            native_matrix, (native_x, native_y)
+                        )
+                        try:
+                            assert_solution(actual, expected)
+                        finally:
+                            if actual is not native.EmptySet:
+                                actual.close()
+
+                        actual = native.linsolve(
+                            native_matrix, native_x, native_y
+                        )
+                        try:
+                            assert_solution(actual, expected)
+                        finally:
+                            if actual is not native.EmptySet:
+                                actual.close()
+                    finally:
+                        native_matrix._expression.close()
+        finally:
+            native_x.close()
+            native_y.close()
+
     def test_bounded_linsolve_free_parameters_match_sympy(self):
         oracle_x, oracle_y = oracle.symbols("linsolve_free_x linsolve_free_y")
         native_x, native_y = native.symbols(
@@ -1393,6 +1465,18 @@ class SympyDifferentialTest(unittest.TestCase):
                 (((native_x, 2), (3, 4)), (5, 6)),
                 (native_x, native_y),
             )
+        malformed = native.Matrix([[1, 2, 3]])
+        try:
+            with self.assertRaises(ValueError):
+                native.linsolve(malformed, (native_x,))
+        finally:
+            malformed._expression.close()
+        symbolic = native.Matrix([[native_x, 1, 2]])
+        try:
+            with self.assertRaises(native.UnsupportedOperationError):
+                native.linsolve(symbolic, (native_x, native_y))
+        finally:
+            symbolic._expression.close()
 
     def test_power_constructor_identities_match_oracle(self):
         def cases(api):

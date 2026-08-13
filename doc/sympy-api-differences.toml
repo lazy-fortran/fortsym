@@ -187,10 +187,10 @@ difference = "Domain coverage, factor selection, conditions, and failure/refusal
 
 [[semantic]]
 id = "equation-solving"
-affected = ["solve", "solveset", "Complement"]
+affected = ["solve", "solveset", "linsolve", "Complement"]
 parity = "partial"
-sympy = "SymPy's solveset returns a mathematical Set and preserves domain exclusions such as rational denominator zeros; solve has a separate list-oriented interface."
-fortsym = "The native one-equation path verifies polynomial roots, transports verified rational numerator and denominator roots through the C ABI, and the Python facade renders symbolic exclusions as bounded Complement results."
+sympy = "SymPy's solveset returns a mathematical Set and preserves domain exclusions such as rational denominator zeros; solve has a separate list-oriented interface, and linsolve accepts augmented Matrix systems plus one-sequence or positional symbol forms."
+fortsym = "The native one-equation path verifies polynomial roots, transports verified rational numerator and denominator roots through the C ABI, and the Python facade renders symbolic exclusions as bounded Complement results. The bounded linsolve facade also accepts exact-rational augmented Matrix systems and SymPy's one-sequence or positional symbol forms over the existing native parametric owner."
 difference = "Only the default complex finite polynomial/rational/scalar-linear fragment is implemented; real domains, ConditionSet, infinite solution sets, inequalities, and broader transcendental and radical families remain explicit refusals."
 
 [[implementation]]
