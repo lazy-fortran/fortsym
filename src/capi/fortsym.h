@@ -185,6 +185,14 @@ int fortsym_collect(fortsym_arena *arena, const fortsym_expr *expression,
 int fortsym_integrate(fortsym_arena *arena, const fortsym_expr *expression,
                       const fortsym_expr *variable, fortsym_expr **out,
                       char *message, size_t capacity);
+/* Verified finite one-variable definite integration over a proved-continuous
+ * interval. Infinite, opaque, and unsupported conditional intervals return
+ * FORTSYM_UNSUPPORTED. */
+int fortsym_definite_integral(
+    fortsym_arena *arena, const fortsym_expr *expression,
+    const fortsym_expr *variable, const fortsym_expr *lower,
+    const fortsym_expr *upper, fortsym_expr **out,
+    char *message, size_t capacity);
 enum fortsym_limit_point_kind {
     FORTSYM_LIMIT_AT_FINITE = 0,
     FORTSYM_LIMIT_AT_PLUS_INFINITY = 1,

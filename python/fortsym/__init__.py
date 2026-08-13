@@ -1354,6 +1354,12 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.definite_integral = declare(
+        "fortsym_definite_integral",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, _CVOID, _CVOID,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.limit = declare(
         "fortsym_limit",
         ctypes.c_int,
@@ -7374,6 +7380,15 @@ class Expr:
             variable._handle
         )
 
+    def definite_integral(self, variable, lower, upper):
+        variable = self._arena._check(variable)
+        lower = self._arena._check(lower)
+        upper = self._arena._check(upper)
+        return self._arena._result(
+            self._lib.definite_integral, self._arena._require(),
+            self._require(), variable._handle, lower._handle, upper._handle
+        )
+
     def limit(self, variable, point=None, point_kind=0, direction=0):
         variable = self._arena._check(variable)
         if int(point_kind) == 0:
@@ -8100,6 +8115,8 @@ def cancel(expression: Expr): return expression.cancel()
 def apart(expression: Expr, variable=None): return expression.apart(variable)
 def collect(expression: Expr, variable): return expression.collect(variable)
 def integrate(expression: Expr, variable: Expr): return expression.integrate(variable)
+def definite_integral(expression: Expr, variable: Expr, lower: Expr, upper: Expr):
+    return expression.definite_integral(variable, lower, upper)
 def limit(expression: Expr, variable: Expr, point, direction=0):
     return expression.limit(variable, point, direction=direction)
 def series(expression: Expr, variable: Expr, point=0, order=5):

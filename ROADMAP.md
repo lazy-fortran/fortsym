@@ -220,6 +220,10 @@ SymPy parity for the entire family.
       special-function integration families with domain conditions.
 - [ ] Complete definite, improper, multiple, and parameterised integration,
       including convergence and condition reporting.
+- [x] Expose bounded finite definite integration through the canonical
+      Fortran, C, Python, and SymPy facades when native continuity and
+      fundamental-theorem checks prove the result; improper, multiple, and
+      unsupported conditional intervals remain explicit refusals.
 - [ ] Complete Fourier, Laplace, inverse, sine, cosine, and related transform
       APIs, plus symbolic sums/products and telescoping.
 
@@ -331,6 +335,10 @@ SymPy parity for the entire family.
 - [x] Expose bounded exact dense `Matrix.rref()` through the canonical facades,
       returning the reduced matrix and zero-based pivot tuple with explicit
       refusal of unsupported options and over-bounded forms.
+- [x] Expose bounded exact dense `Matrix.charpoly()` and verified-fragment
+      `Matrix.eigenvals()` with SymPy method names, repeated-root handling,
+      cached immutable results, and explicit refusal of unsupported
+      characteristic-root degrees and options.
 - [x] Align bounded `Matrix.rref(pivots=False)` with SymPy by returning only
       the reduced Matrix while reusing the same native RREF owner; custom zero
       functions, conditional pivots, and other unsupported options remain

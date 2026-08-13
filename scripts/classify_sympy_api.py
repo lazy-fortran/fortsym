@@ -293,6 +293,11 @@ def build_report(inventory: dict[str, Any], root: Path) -> dict[str, Any]:
 
     classes = []
     methods = []
+    matrix_method_owners = {
+        "sympy.matrices.matrixbase.MatrixBase",
+        "sympy.matrices.matrices.MatrixDeterminant",
+        "sympy.matrices.matrices.MatrixEigen",
+    }
     for record in inventory["classes"]:
         class_item = {
             "id": record["id"],
@@ -303,7 +308,9 @@ def build_report(inventory: dict[str, Any], root: Path) -> dict[str, Any]:
         classes.append(class_item)
         for method in record["methods"]:
             method_supported = (
-                record["id"] in supported_class_ids
+                (record["id"] in supported_class_ids or
+                 (record["id"] in matrix_method_owners and
+                  "Matrix" in profile["supported"]))
                 and method["name"] in profile["methods"]
             )
             method_layers = supported_layers(method["name"], profile) if method_supported else layers(

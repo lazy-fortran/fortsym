@@ -232,6 +232,25 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(label=label):
                 self.assert_equivalent(label, expected, actual)
 
+    def test_verified_definite_integrals_match_sympy(self):
+        oracle_x = oracle.Symbol("definite_integral_x")
+        native_x = native.Symbol("definite_integral_x")
+        cases = [
+            (
+                "polynomial",
+                oracle.integrate(oracle_x**2, (oracle_x, 0, 2)),
+                native.integrate(native_x**2, (native_x, 0, 2)),
+            ),
+            (
+                "sine",
+                oracle.integrate(oracle.sin(oracle_x), (oracle_x, 0, 1)),
+                native.integrate(native.sin(native_x), (native_x, 0, 1)),
+            ),
+        ]
+        for label, expected, actual in cases:
+            with self.subTest(label=label):
+                self.assert_equivalent(label, expected, actual)
+
     def test_verified_limits_match_sympy(self):
         oracle_x = oracle.Symbol("limit_x")
         native_x = native.Symbol("limit_x")
@@ -1427,6 +1446,48 @@ class SympyDifferentialTest(unittest.TestCase):
         finally:
             native_x.close()
             native_y.close()
+
+    def test_bounded_matrix_characteristic_data_matches_sympy(self):
+        oracle_x = oracle.Symbol("matrix_charpoly_x")
+        native_x = native.Symbol("matrix_charpoly_x")
+        oracle_matrix = oracle.Matrix([[1, 2], [3, 4]])
+        native_matrix = native.Matrix([[1, 2], [3, 4]])
+        actual_polynomial = native_matrix.charpoly(native_x)
+        try:
+            expected_polynomial = oracle_matrix.charpoly(oracle_x).as_expr()
+            self.assert_equivalent(
+                "characteristic polynomial",
+                expected_polynomial,
+                actual_polynomial,
+            )
+            expected_roots = oracle.solve(expected_polynomial, oracle_x)
+            actual_roots = native_matrix.eigenvals(multiple=True)
+            self.assertEqual(len(actual_roots), len(expected_roots))
+            unmatched = list(expected_roots)
+            for value in actual_roots:
+                parsed = oracle.sympify(
+                    str(value), locals={"matrix_charpoly_x": oracle_x}
+                )
+                match = next(
+                    (index for index, candidate in enumerate(unmatched)
+                     if oracle.simplify(parsed - candidate) == 0),
+                    None,
+                )
+                self.assertIsNotNone(match, (expected_roots, actual_roots))
+                unmatched.pop(match)
+            self.assertEqual(unmatched, [])
+            self.assertEqual(
+                sorted(native_matrix.eigenvals().values()), [1, 1]
+            )
+        finally:
+            actual_polynomial.close()
+            native_x.close()
+        with self.assertRaises(native.UnsupportedOperationError):
+            native_matrix.charpoly(native_x, simplify=None)
+        with self.assertRaises(native.UnsupportedOperationError):
+            native_matrix.eigenvals(error_when_incomplete=False)
+        with self.assertRaises(ValueError):
+            native.Matrix([[1, 2, 3]]).eigenvals()
 
     def test_bounded_matrix_slices_match_sympy(self):
         oracle_matrix = oracle.Matrix([[1, 2, 3], [4, 5, 6]])
