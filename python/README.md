@@ -492,7 +492,7 @@ does not import SymPy. Unsupported names raise
 | `solve` | distinct verified roots for one equation in one symbol; exact univariate polynomials, bounded rational functions, and verified scalar-linear equations; unsupported domains/options are explicit refusals |
 | `solveset` | bounded native-owned `FiniteSet` plus singleton `EmptySet` result over distinct verified polynomial/rational/scalar-linear roots, with native denominator-pole transport to a native-owned `Complement` for symbolic rational functions; non-default domains and unsupported equations are explicit refusals |
 | `linsolve` | verified square exact-rational systems with one explicit right-hand side, returned as `FiniteSet(Tuple(...))`; symbolic, singular, non-square, free-parameter, matrix-object, and alternate forms are explicit refusals |
-| `Matrix` | bounded exact dense construction, `(row, column)` indexing, native-backed determinant, exact rank/inverse, transpose/`.T`, bounded `nullspace()`, `rref()`, elementwise `+`/`-`, unary negation, and exact `*`/`@` products or scalar scaling/division; ragged, singular, and broader matrix operations are explicit refusals |
+| `Matrix` | bounded exact dense construction, `(row, column)` indexing, row/column/block/reverse/stepped/empty 2-D slices, native-backed determinant, exact rank/inverse, transpose/`.T`, bounded `nullspace()`, `rref()`, elementwise `+`/`-`, unary negation, and exact `*`/`@` products or scalar scaling/division; flat indexing, ragged, singular, and broader matrix-expression operations are explicit refusals |
 
 `Wild(name, exclude=(), properties=())` is an adapter-only pattern object. Its
 direct, fixed-shape, single-Wild remainder, and bounded distinct-Wild

@@ -10,6 +10,7 @@ from __future__ import annotations
 from decimal import Decimal
 from fractions import Fraction
 from itertools import count
+from operator import index as _index
 
 from .. import (
     Arena, Chart, ChartMap, FluxSurface, FluxCoordinates, MagneticChart, MagneticField, FourierWeakForm, FourierSource, FourierLoad, Metric, Connection,
@@ -2168,6 +2169,53 @@ class Matrix:
         if not isinstance(key, tuple) or len(key) != 2:
             raise TypeError("Matrix indexing requires (row, column)")
         row, column = key
+        if isinstance(row, slice) or isinstance(column, slice):
+            row_indices = self._matrix_indices(row, self.rows)
+            column_indices = self._matrix_indices(column, self.cols)
+            return self._matrix_slice(row_indices, column_indices)
+        if self._column_vector:
+            if column != 0:
+                raise IndexError("column matrix has one column")
+            return self._expression.argument(row)
+        row_expression = self._expression.argument(row)
+        try:
+            return row_expression.argument(column)
+        finally:
+            row_expression.close()
+
+    @staticmethod
+    def _matrix_indices(index, size):
+        if isinstance(index, slice):
+            return range(*index.indices(size))
+        value = _index(index)
+        if value < 0:
+            value += size
+        if value < 0 or value >= size:
+            raise IndexError("Matrix index out of range")
+        return (value,)
+
+    def _matrix_slice(self, row_indices, column_indices):
+        arena = self._expression._arena
+        rows = []
+        try:
+            for row_index in row_indices:
+                entries = []
+                try:
+                    for column_index in column_indices:
+                        entries.append(self._entry(row_index, column_index))
+                    rows.append(arena.function("List", entries))
+                finally:
+                    for entry in entries:
+                        entry.close()
+            expression = arena.function("List", rows)
+        finally:
+            for row in rows:
+                row.close()
+        return self._from_expression(
+            expression, len(row_indices), len(column_indices)
+        )
+
+    def _entry(self, row, column):
         if self._column_vector:
             if column != 0:
                 raise IndexError("column matrix has one column")
@@ -2313,6 +2361,8 @@ class Matrix:
             result.close()
 
     def __str__(self):
+        if self.rows == 0 or self.cols == 0:
+            return f"Matrix({self.rows}, {self.cols}, [])"
         if self._column_vector:
             entries = []
             for row_index in range(self.rows):

@@ -153,6 +153,10 @@ SymPy parity for the entire family.
       `Float` values compare symmetrically with Python `float` values and use
       the corresponding Python-float hash, while exact rationals remain distinct
       from binary floats.
+- [x] Expose bounded dense `Matrix` row, column, block, reverse, stepped, and
+      empty 2-D slices through the native `List` owner, including existing
+      column-vector results; flat indexing and broader matrix-expression
+      slicing remain explicitly outside this slice.
 - [ ] Complete exact integer, rational, real, complex, algebraic, infinity,
       NaN, signed-zero, and complex-infinity semantics, including conversion
       and precision rules.
