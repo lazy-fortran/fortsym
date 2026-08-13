@@ -301,7 +301,9 @@ SymPy parity for the entire family.
       a separate performance follow-up rather than being hidden in this item.
 - [ ] Bring the warm-core `Matrix.multiply_elementwise()` benchmark row to
       native/SymPy `<= 1.0` in a stable higher-repetition sample without
-      duplicating the native scalar or matrix owners.
+      duplicating the native scalar or matrix owners; the shared Matrix binary
+      helper now routes directly to the configured C function and measures
+      1.164x in the latest sample.
 - [x] Align bounded `Matrix` shape metadata with SymPy through `len()` and
       `is_square`, keeping both operations O(1) and adapter-local.
 - [x] Accept flat one-dimensional `Matrix` inputs as SymPy-compatible column

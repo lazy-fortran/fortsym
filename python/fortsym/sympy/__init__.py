@@ -2170,9 +2170,14 @@ class Matrix:
             raise ValueError("Matrix dimensions are not aligned")
         right_expression, temporary = other._matrix_expression()
         try:
-            expression = _native_operation(
-                lambda: getattr(self._expression, operation)(right_expression)
-            )
+            try:
+                expression = self._expression._arena._result(
+                    getattr(self._expression._arena._lib, operation),
+                    self._expression._arena._require(),
+                    self._expression._require(), right_expression._require(),
+                )
+            except FortSymError as error:
+                raise UnsupportedOperationError(str(error)) from error
         finally:
             if temporary is not None:
                 temporary.close()
