@@ -2327,7 +2327,8 @@ class Matrix:
                 temporary.close()
 
     def rank(self, **options):
-        if options:
+        simplify = options.pop("simplify", False)
+        if simplify not in (False, True) or options:
             raise UnsupportedOperationError("rank options")
         expression, temporary = self._matrix_expression()
         try:
@@ -2498,11 +2499,9 @@ def det(matrix, **options):
 
 
 def rank(matrix, **options):
-    if options:
-        raise UnsupportedOperationError("rank options")
     if not isinstance(matrix, Matrix):
         raise UnsupportedOperationError("rank requires a Matrix")
-    return matrix.rank()
+    return matrix.rank(**options)
 
 
 pi = _default().constant("pi")
