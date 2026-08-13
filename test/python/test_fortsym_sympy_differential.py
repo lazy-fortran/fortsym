@@ -322,6 +322,12 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(str(-native_matrix), str(-oracle_matrix))
         self.assertEqual(str(native_matrix * 2), str(oracle_matrix * 2))
         self.assertEqual(str(2 * native_matrix), str(2 * oracle_matrix))
+        self.assertEqual(str(native_matrix / 2), str(oracle_matrix / 2))
+        self.assertEqual(
+            str(native_matrix / native.Rational(2, 3)),
+            str(oracle_matrix / oracle.Rational(2, 3)),
+        )
+        self.assertEqual(str(native_matrix / 0), str(oracle_matrix / 0))
         oracle_symbolic = oracle.Matrix([[self.locals["x"], 2], [3, 4]])
         native_symbolic = native.Matrix([[native.Symbol("x"), 2], [3, 4]])
         oracle_product = oracle_symbolic * oracle_right
@@ -357,6 +363,15 @@ class SympyDifferentialTest(unittest.TestCase):
                     oracle_negative[row, column],
                     native_negative[row, column],
                 )
+        oracle_division = oracle_symbolic / self.locals["y"]
+        native_division = native_symbolic / native.Symbol("y")
+        for row in range(2):
+            for column in range(2):
+                self.assert_equivalent(
+                    f"symbolic matrix division ({row}, {column})",
+                    oracle_division[row, column],
+                    native_division[row, column],
+                )
         self.assertEqual(
             str(native.Matrix([[2**62]]) * native.Matrix([[4]])),
             str(oracle.Matrix([[2**62]]) * oracle.Matrix([[4]])),
@@ -369,6 +384,10 @@ class SympyDifferentialTest(unittest.TestCase):
             native_matrix + 2
         with self.assertRaises(TypeError):
             2 - native_matrix
+        with self.assertRaises(TypeError):
+            2 / native_matrix
+        with self.assertRaises(TypeError):
+            native_matrix / native_right
 
         oracle_null_matrix = oracle.Matrix([[1, 2, 3], [2, 4, 4]])
         native_null_matrix = native.Matrix([[1, 2, 3], [2, 4, 4]])

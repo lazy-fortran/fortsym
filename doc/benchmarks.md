@@ -264,6 +264,14 @@ are explicit reviewed small-workload exceptions for C/Python transport and
 handle construction. The latest matrix therefore has 130 rows, 105 enforced
 rows, and zero unwaived violations when those five rows are waived alongside
 the previously documented diagnostics.
+The bounded exact `Matrix / scalar` workload adds two correctness-checked rows
+over the same 2x2 integer matrix and scalar divisor. In the 2026-08-13 standard
+run its cold and warm ratios were 1.034x and 0.846x SymPy. The warm native
+integer-rational path is within baseline; the cold row is an explicit reviewed
+small-workload exception for C/Python transport and handle construction. The
+latest matrix therefore has 132 rows, 106 enforced rows, and zero unwaived
+violations when `matrix_divide:cold_end_to_end` is waived alongside the
+previously documented diagnostics.
 
 Run it from a built checkout with:
 

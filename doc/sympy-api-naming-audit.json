@@ -2003,6 +2003,10 @@
       },
       {
         "concepts": [],
+        "name": "matrix_divide"
+      },
+      {
+        "concepts": [],
         "name": "matrix_multiply"
       },
       {
@@ -3183,6 +3187,7 @@
       "limit",
       "linsolve",
       "matrix_add",
+      "matrix_divide",
       "matrix_multiply",
       "matrix_negate",
       "matrix_subtract",
@@ -3359,6 +3364,7 @@
       "loggamma",
       "match",
       "matrix_add",
+      "matrix_divide",
       "matrix_multiply",
       "matrix_negate",
       "matrix_subtract",
@@ -3419,10 +3425,10 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 538,
-    "python_facade_exports": 87,
-    "sympy_adapter_exports": 198,
-    "unmapped_fortran_exports": 400
+    "fortran_facade_exports": 539,
+    "python_facade_exports": 88,
+    "sympy_adapter_exports": 199,
+    "unmapped_fortran_exports": 401
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -3631,6 +3637,7 @@
     "map_jacobian",
     "map_valid",
     "matrix_add",
+    "matrix_divide",
     "matrix_multiply",
     "matrix_negate",
     "matrix_subtract",

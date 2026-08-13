@@ -516,6 +516,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_matrix.matrix_divide",
+        "module": "fortsym_matrix",
+        "name": "matrix_divide",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_matrix.matrix_dot",
         "module": "fortsym_matrix",
         "name": "matrix_dot",
@@ -669,6 +679,16 @@
         "id": "fortsym_matrix_adapter.calculate_matrix_negate",
         "module": "fortsym_matrix_adapter",
         "name": "calculate_matrix_negate",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_divide",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_divide",
         "owner": "src/algebra/fortsym_matrix_adapter.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -5763,6 +5783,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym_public_capi.fortsym_matrix_divide",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_divide",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym_public_capi.fortsym_matrix_nullspace",
         "module": "fortsym_public_capi",
         "name": "fortsym_matrix_nullspace",
@@ -9325,6 +9356,17 @@
         "id": "fortsym.matrix_negate",
         "module": "fortsym",
         "name": "matrix_negate",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.matrix_divide",
+        "module": "fortsym",
+        "name": "matrix_divide",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -17838,12 +17880,12 @@
     "classification_counts": {
       "delegated": 2843,
       "external": 10,
-      "facade": 744,
-      "native": 4445,
+      "facade": 746,
+      "native": 4449,
       "python-adapter": 2799,
       "refused": 24995
     },
-    "fortran_public_exports": 1690,
+    "fortran_public_exports": 1694,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

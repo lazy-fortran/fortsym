@@ -1422,6 +1422,11 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.matrix_divide = declare(
+        "fortsym_matrix_divide",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.matrix_nullspace = declare(
         "fortsym_matrix_nullspace",
         ctypes.c_int,
@@ -7243,6 +7248,13 @@ class Expr:
             self._lib.matrix_negate, self._arena._require(), self._require()
         )
 
+    def matrix_divide(self, scalar):
+        scalar = self._arena._check(scalar)
+        return self._arena._result(
+            self._lib.matrix_divide, self._arena._require(),
+            self._require(), scalar._require()
+        )
+
     def _complex_operation(self, operation):
         cached = self._complex_results.get(operation)
         if (cached is not None and cached[0] == self._arena._assumption_epoch
@@ -7677,6 +7689,8 @@ def matrix_multiply(left: Expr, right: Expr):
 def matrix_add(left: Expr, right: Expr): return left.matrix_add(right)
 def matrix_subtract(left: Expr, right: Expr): return left.matrix_subtract(right)
 def matrix_negate(expression: Expr): return expression.matrix_negate()
+def matrix_divide(expression: Expr, scalar: Expr):
+    return expression.matrix_divide(scalar)
 def linsolve(matrix, right_hand_side):
     arena = _default()
     values = []
@@ -7713,6 +7727,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "det", "rank", "inv", "transpose", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "linsolve", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "det", "rank", "inv", "transpose", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

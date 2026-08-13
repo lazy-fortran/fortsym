@@ -1704,6 +1704,23 @@ class Matrix:
                 temporary.close()
         return self._from_expression(expression, self.rows, self.cols)
 
+    def __truediv__(self, other):
+        if isinstance(other, Matrix):
+            return NotImplemented
+        scalar = sympify(other)
+        matrix_expression, temporary = self._matrix_expression()
+        try:
+            expression = _native_operation(
+                lambda: matrix_expression.matrix_divide(scalar)
+            )
+        finally:
+            if temporary is not None:
+                temporary.close()
+        return self._from_expression(expression, self.rows, self.cols)
+
+    def __rtruediv__(self, other):
+        return NotImplemented
+
     def __matmul__(self, other):
         return self.__mul__(other)
 

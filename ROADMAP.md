@@ -221,6 +221,9 @@ SymPy parity for the entire family.
 - [x] Expose bounded exact dense `Matrix` elementwise addition, subtraction,
       and unary negation through the canonical facades, reusing one native
       nested-`List` owner and refusing mismatched dimensions and non-matrices.
+- [x] Expose bounded exact dense `Matrix / scalar` through the canonical
+      facades, including symbolic and zero divisors, while refusing matrix
+      right-division and foreign arenas.
 - [ ] Complete `solve`, `solveset`, real/complex solves, `linsolve`, and
       solution conditions for polynomial, rational, radical, inverse-function,
       and supported transcendental equations.

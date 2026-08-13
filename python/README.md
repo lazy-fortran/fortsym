@@ -38,7 +38,7 @@ explicit refusals.
 `Matrix(rows)` constructs a bounded exact dense matrix, supports `(row,
 column)` indexing, `det()`/`det(matrix)`, `rank()`, `inv()`, `transpose()`,
 `.T`, `nullspace()`, `rref()`, elementwise `+`/`-` and unary negation, and
-multiplication with `*`/`@`, delegating exact matrix operations to the
+multiplication or scalar division with `*`/`@`/`/`, delegating exact matrix operations to the
 native owner. `nullspace()` returns SymPy-compatible column matrices, while
 `rref()` returns `(reduced_matrix, pivot_tuple)`. Ragged, singular matrices and
 broader options remain explicit
@@ -470,7 +470,7 @@ does not import SymPy. Unsupported names raise
 | `solve` | distinct verified roots for one equation in one symbol; exact univariate polynomials and verified scalar-linear equations; unsupported domains/options are explicit refusals |
 | `solveset` | bounded `FiniteSet`/`EmptySet` wrapper over the same distinct verified roots; non-default domains and unsupported equations are explicit refusals |
 | `linsolve` | verified square exact-rational systems with one explicit right-hand side, returned as `FiniteSet(Tuple(...))`; symbolic, singular, non-square, free-parameter, matrix-object, and alternate forms are explicit refusals |
-| `Matrix` | bounded exact dense construction, `(row, column)` indexing, native-backed determinant, exact rank/inverse, transpose/`.T`, bounded `nullspace()`, `rref()`, elementwise `+`/`-`, unary negation, and exact `*`/`@` products or scalar scaling; ragged, singular, and broader matrix operations are explicit refusals |
+| `Matrix` | bounded exact dense construction, `(row, column)` indexing, native-backed determinant, exact rank/inverse, transpose/`.T`, bounded `nullspace()`, `rref()`, elementwise `+`/`-`, unary negation, and exact `*`/`@` products or scalar scaling/division; ragged, singular, and broader matrix operations are explicit refusals |
 
 `Wild(name, exclude=(), properties=())` is an adapter-only pattern object. Its
 direct, fixed-shape, single-Wild remainder, and bounded distinct-Wild
