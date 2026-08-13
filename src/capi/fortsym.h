@@ -215,6 +215,19 @@ int fortsym_definite_integral(
     const fortsym_expr *variable, const fortsym_expr *lower,
     const fortsym_expr *upper, fortsym_expr **out,
     char *message, size_t capacity);
+/* Verified bounded finite sums and products. Concrete integer ranges may be
+ * expanded up to the native resource cap; supported symbolic bodies use the
+ * native closed-form/telescoping owner. */
+int fortsym_sum_closed_form(
+    fortsym_arena *arena, const fortsym_expr *body,
+    const fortsym_expr *variable, const fortsym_expr *lower,
+    const fortsym_expr *upper, fortsym_expr **out,
+    char *message, size_t capacity);
+int fortsym_product_closed_form(
+    fortsym_arena *arena, const fortsym_expr *body,
+    const fortsym_expr *variable, const fortsym_expr *lower,
+    const fortsym_expr *upper, fortsym_expr **out,
+    char *message, size_t capacity);
 enum fortsym_limit_point_kind {
     FORTSYM_LIMIT_AT_FINITE = 0,
     FORTSYM_LIMIT_AT_PLUS_INFINITY = 1,

@@ -2029,6 +2029,39 @@ def integrate(expression, *variables, **options):
     )
 
 
+def _finite_range(symbols, operation):
+    if len(symbols) != 1 or not isinstance(symbols[0], (tuple, list)):
+        raise UnsupportedOperationError(
+            f"{operation} requires one (symbol, lower, upper) range"
+        )
+    limit = symbols[0]
+    if len(limit) != 3:
+        raise UnsupportedOperationError(
+            f"{operation} requires one (symbol, lower, upper) range"
+        )
+    return tuple(sympify(value) for value in limit)
+
+
+def summation(expression, *symbols, **options):
+    """Evaluate the bounded native finite-sum fragment."""
+    if options:
+        raise UnsupportedOperationError("summation options")
+    variable, lower, upper = _finite_range(symbols, "summation")
+    return _native_operation(
+        lambda: sympify(expression).sum_closed_form(variable, lower, upper)
+    )
+
+
+def product(expression, *symbols, **options):
+    """Evaluate the bounded native finite-product fragment."""
+    if options:
+        raise UnsupportedOperationError("product options")
+    variable, lower, upper = _finite_range(symbols, "product")
+    return _native_operation(
+        lambda: sympify(expression).product_closed_form(variable, lower, upper)
+    )
+
+
 def dsolve(eq, func=None, hint="default", simplify=True, ics=None,
             xi=None, eta=None, x0=0, n=6, **kwargs):
     if kwargs or hint != "default" or simplify is not True:
@@ -3617,6 +3650,6 @@ __all__ = [
     "floor", "ceiling", "re", "im", "conjugate", "adjoint", "arg", "diff", "subs", "expand",
     "simplify", "count_ops", "factor", "factor_list", "gcd", "quo", "rem", "terms_gcd", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And", "Or", "Not", "Xor", "Implies", "Equivalent",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
-    "integrate", "dsolve", "limit", "series", "solve", "solve_univariate_inequality", "reduce_inequalities", "det", "trace", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Complement", "Tuple", "Matrix", "Poly", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
+    "integrate", "summation", "product", "dsolve", "limit", "series", "solve", "solve_univariate_inequality", "reduce_inequalities", "det", "trace", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Complement", "Tuple", "Matrix", "Poly", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
     "oo", "zoo", "nan",
 ]

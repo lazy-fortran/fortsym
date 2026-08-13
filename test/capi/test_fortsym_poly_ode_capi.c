@@ -37,6 +37,8 @@ int main(void)
     fortsym_expr *problem = NULL, *solution = NULL;
     fortsym_expr *slope_term = NULL, *affine = NULL, *inequality = NULL;
     fortsym_expr *quadratic_inequality = NULL, *inequality_result = NULL;
+    fortsym_expr *sum_result = NULL, *product_body = NULL;
+    fortsym_expr *product_result = NULL;
     const fortsym_expr *function_arguments[1];
 
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
@@ -131,8 +133,20 @@ int main(void)
                arena, quadratic_inequality, x, &inequality_result, message,
                sizeof message) == FORTSYM_UNSUPPORTED);
     assert(inequality_result == NULL);
+    assert(fortsym_sum_closed_form(arena, x2, x, one, three, &sum_result,
+                                   message, sizeof message) == FORTSYM_OK);
+    assert_text(sum_result, "14");
+    assert(fortsym_add(arena, x, one, &product_body, message,
+                       sizeof message) == FORTSYM_OK);
+    assert(fortsym_product_closed_form(
+               arena, product_body, x, one, three, &product_result, message,
+               sizeof message) == FORTSYM_OK);
+    assert_text(product_result, "24");
 
     fortsym_expr_free(solution);
+    fortsym_expr_free(product_result);
+    fortsym_expr_free(product_body);
+    fortsym_expr_free(sum_result);
     fortsym_expr_free(quadratic_inequality);
     fortsym_expr_free(inequality);
     fortsym_expr_free(affine);

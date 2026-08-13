@@ -130,6 +130,14 @@ fortsym = "The adapter exposes the bounded native owners for exact rational norm
 difference = "Only the documented bounded fragments are supported; broader domains, symbolic coefficient conditions, equation-list and other alternate forms, Laurent/asymptotic series, and unsupported options are explicit refusals."
 
 [[semantic]]
+id = "sums-and-products"
+affected = ["summation", "product"]
+parity = "partial"
+sympy = "SymPy supports finite and infinite sums/products, convergence conditions, symbolic bounds, hypergeometric terms, telescoping, and broad option semantics."
+fortsym = "The adapter routes finite integer ranges through one native direct-expansion, closed-form, and telescoping owner, with independent residual and finite-expansion checks."
+difference = "Infinite ranges, unresolved convergence, unsupported hypergeometric bodies, and advanced options remain explicit refusals."
+
+[[semantic]]
 id = "differentiation"
 affected = ["diff", "Derivative"]
 parity = "partial"

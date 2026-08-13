@@ -10,8 +10,8 @@ module fortsym_inequality
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_arena, only: arena_t, NK_FUNC, NK_SYM, NK_INT, NK_RAT
     use fortsym_expr, only: expr_t, is_valid, operator(-), operator(/)
-    use fortsym, only: simplify
     use fortsym_engine, only: engine_result_t
+    use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_poly, only: poly_exponent, poly_coefficient
     use fortsym_relation, only: less, less_equal
     use fortsym_string, only: chars
@@ -30,6 +30,7 @@ contains
         character(:), allocatable, intent(out) :: why
         type(expr_t) :: residual, degree, constant, slope, root
         type(engine_result_t) :: simplified
+        type(native_engine_t) :: engine
         character(:), allocatable :: relation_name, coefficient_why
         integer :: degree_value, slope_sign, constant_sign
         logical :: coefficient_ok
@@ -107,7 +108,8 @@ contains
             return
         end if
         root = (-constant)/slope
-        simplified = simplify(root)
+        engine = make_native_engine(a)
+        simplified = engine%simplify(root)
         if (simplified%ok) root = simplified%value
         call affine_result(a, relation_name, slope_sign, root, variable, result)
         ok = .true.

@@ -1386,6 +1386,17 @@ def _configure(lib):
         [_CVOID, _CVOID, _CVOID, _CVOID, _CVOID,
          ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    for name in ("sum_closed_form", "product_closed_form"):
+        setattr(
+            lib,
+            name,
+            declare(
+                "fortsym_" + name,
+                ctypes.c_int,
+                [_CVOID, _CVOID, _CVOID, _CVOID, _CVOID,
+                 ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+            ),
+        )
     lib.limit = declare(
         "fortsym_limit",
         ctypes.c_int,
@@ -7465,6 +7476,24 @@ class Expr:
             self._require(), variable._handle, lower._handle, upper._handle
         )
 
+    def sum_closed_form(self, variable, lower, upper):
+        variable = self._arena._check(variable)
+        lower = self._arena._check(lower)
+        upper = self._arena._check(upper)
+        return self._arena._result(
+            self._lib.sum_closed_form, self._arena._require(), self._require(),
+            variable._handle, lower._handle, upper._handle
+        )
+
+    def product_closed_form(self, variable, lower, upper):
+        variable = self._arena._check(variable)
+        lower = self._arena._check(lower)
+        upper = self._arena._check(upper)
+        return self._arena._result(
+            self._lib.product_closed_form, self._arena._require(), self._require(),
+            variable._handle, lower._handle, upper._handle
+        )
+
     def limit(self, variable, point=None, point_kind=0, direction=0):
         variable = self._arena._check(variable)
         if int(point_kind) == 0:
@@ -8217,6 +8246,10 @@ def polynomial_remainder(dividend: Expr, divisor: Expr, variable: Expr):
 def integrate(expression: Expr, variable: Expr): return expression.integrate(variable)
 def definite_integral(expression: Expr, variable: Expr, lower: Expr, upper: Expr):
     return expression.definite_integral(variable, lower, upper)
+def sum_closed_form(expression: Expr, variable: Expr, lower: Expr, upper: Expr):
+    return expression.sum_closed_form(variable, lower, upper)
+def product_closed_form(expression: Expr, variable: Expr, lower: Expr, upper: Expr):
+    return expression.product_closed_form(variable, lower, upper)
 def limit(expression: Expr, variable: Expr, point, direction=0):
     return expression.limit(variable, point, direction=direction)
 def series(expression: Expr, variable: Expr, point=0, order=5):
@@ -8329,6 +8362,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "coefficient", "exponent", "polynomial_gcd", "polynomial_quotient", "polynomial_remainder", "integrate", "definite_integral", "limit", "series", "series_coeff", "solve", "solve_ode", "solve_univariate_inequality", "det", "rank", "inv", "transpose", "matrix_conjugate", "matrix_adjoint", "matrix_multiply_elementwise", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "coefficient", "exponent", "polynomial_gcd", "polynomial_quotient", "polynomial_remainder", "integrate", "definite_integral", "sum_closed_form", "product_closed_form", "limit", "series", "series_coeff", "solve", "solve_ode", "solve_univariate_inequality", "det", "rank", "inv", "transpose", "matrix_conjugate", "matrix_adjoint", "matrix_multiply_elementwise", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

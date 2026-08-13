@@ -376,6 +376,33 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(label=label):
                 self.assert_equivalent(label, expected, actual)
 
+    def test_bounded_summation_and_product_match_sympy(self):
+        oracle_x = oracle.Symbol("sum_x")
+        native_x = native.Symbol("sum_x")
+        expected_sum = oracle.summation(oracle_x**2, (oracle_x, 1, 3))
+        expected_product = oracle.product(oracle_x + 1, (oracle_x, 1, 3))
+        actual_sum = native.summation(native_x**2, (native_x, 1, 3))
+        actual_product = native.product(native_x + 1, (native_x, 1, 3))
+        try:
+            self.assert_equivalent("finite polynomial sum", expected_sum,
+                                   actual_sum)
+            self.assert_equivalent("finite affine product", expected_product,
+                                   actual_product)
+            self.assertEqual(
+                int(str(actual_sum)), sum(k * k for k in range(1, 4))
+            )
+            self.assertEqual(
+                int(str(actual_product)),
+                1 * 2 * 3 * 4,
+            )
+        finally:
+            actual_sum.close()
+            actual_product.close()
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.summation(native_x**2, (native_x, 1, 3), evaluate=False)
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.product(native_x**2, native_x)
+
     def test_bounded_dsolve_matches_sympy(self):
         oracle_x = oracle.Symbol("dsolve_x")
         oracle_y = oracle.Function("dsolve_y")
