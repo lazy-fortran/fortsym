@@ -185,6 +185,23 @@ int fortsym_collect(fortsym_arena *arena, const fortsym_expr *expression,
 int fortsym_integrate(fortsym_arena *arena, const fortsym_expr *expression,
                       const fortsym_expr *variable, fortsym_expr **out,
                       char *message, size_t capacity);
+enum fortsym_limit_point_kind {
+    FORTSYM_LIMIT_AT_FINITE = 0,
+    FORTSYM_LIMIT_AT_PLUS_INFINITY = 1,
+    FORTSYM_LIMIT_AT_MINUS_INFINITY = 2
+};
+enum fortsym_limit_direction {
+    FORTSYM_LIMIT_FROM_BELOW = -1,
+    FORTSYM_LIMIT_TWO_SIDED = 0,
+    FORTSYM_LIMIT_FROM_ABOVE = 1
+};
+/* `point` is required for a finite point and ignored for either infinity.
+ * The result is a normal expression handle: finite values are returned as-is,
+ * while infinite limits are returned as `oo` or `-oo`. */
+int fortsym_limit(fortsym_arena *arena, const fortsym_expr *expression,
+                  const fortsym_expr *variable, const fortsym_expr *point,
+                  int point_kind, int direction, fortsym_expr **out,
+                  char *message, size_t capacity);
 /* Coordinate and magnetic operations use three expressions for both the
  * coordinate symbols and their Cartesian position map. The dimension
  * argument is retained in the ABI so callers can validate the fixed native

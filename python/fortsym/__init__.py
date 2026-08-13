@@ -1353,6 +1353,12 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.limit = declare(
+        "fortsym_limit",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, _CVOID, ctypes.c_int, ctypes.c_int,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.zero_test = declare(
         "fortsym_zero_test",
         ctypes.c_int,
@@ -7023,6 +7029,18 @@ class Expr:
             variable._handle
         )
 
+    def limit(self, variable, point=None, point_kind=0, direction=0):
+        variable = self._arena._check(variable)
+        if int(point_kind) == 0:
+            point = self._arena._check(point)
+            point_handle = point._handle
+        else:
+            point_handle = None
+        return self._arena._result(
+            self._lib.limit, self._arena._require(), self._require(),
+            variable._handle, point_handle, int(point_kind), int(direction)
+        )
+
     def _complex_operation(self, operation):
         cached = self._complex_results.get(operation)
         if (cached is not None and cached[0] == self._arena._assumption_epoch
@@ -7429,6 +7447,8 @@ def cancel(expression: Expr): return expression.cancel()
 def apart(expression: Expr, variable=None): return expression.apart(variable)
 def collect(expression: Expr, variable): return expression.collect(variable)
 def integrate(expression: Expr, variable: Expr): return expression.integrate(variable)
+def limit(expression: Expr, variable: Expr, point, direction=0):
+    return expression.limit(variable, point, direction=direction)
 def operation_count(expression: Expr): return expression.operation_count()
 def free_symbols(expression: Expr): return expression.free_symbols
 def tensor_product(left: Tensor, right: Tensor): return left.product(right)
@@ -7442,6 +7462,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

@@ -1340,7 +1340,38 @@ def integrate(expression, *variables, **options):
     )
 
 
-limit = _unsupported("limit")
+def _limit_direction(direction):
+    if direction in ("-", -1):
+        return -1
+    if direction in ("+", 1):
+        return 1
+    if direction in ("+-", 0, None):
+        return 0
+    raise UnsupportedOperationError("limit direction")
+
+
+def limit(expression, variable, point, dir="-", **options):
+    if options:
+        raise UnsupportedOperationError("limit options")
+    variable = sympify(variable)
+    point = sympify(point)
+    if point == oo:
+        point_kind = 1
+        finite_point = None
+    elif point == -oo:
+        point_kind = 2
+        finite_point = None
+    else:
+        point_kind = 0
+        finite_point = point
+    direction = _limit_direction(dir)
+    return _native_operation(
+        lambda: sympify(expression).limit(
+            variable, finite_point, point_kind=point_kind, direction=direction
+        )
+    )
+
+
 series = _unsupported("series")
 solve = _unsupported("solve")
 Matrix = _unsupported("Matrix")

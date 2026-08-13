@@ -736,6 +736,10 @@ Every checklist item requires all of the following:
 - [ ] Complete residues, `Order`, coefficient extraction, and sequence limits.
 - [ ] Implement general finite, one-sided, directional, infinite, and complex
   limits, including Gruntz-style asymptotic ordering.
+  - [x] Expose the verified finite/infinite bounded limit fragment through the
+    C, Python, and SymPy-compatible facades, returning finite values or typed
+    `oo`/`-oo` expressions and refusing unsupported poles/asymptotics with
+    independent SymPy 1.14 oracle tests.
 - [ ] Complete rational integration with Hermite and Lazard--Rioboo--Trager
   methods.
   - [x] Expose the verified one-variable indefinite integration fragment
@@ -1082,7 +1086,7 @@ The first-class object model is staged around these metadata owners:
   `spacetime_tensor_from_form(metric, form)` share the fixed 1--4D owners and
   retain first-slot-fastest tensor order versus form-mask order. Conversion is
   strict for exact lower, weight-zero, fully antisymmetric tensors, including
-  repeated-index checks. C ABI 74, Python `.to_form()`/`.to_tensor()`, and
+  repeated-index checks. C ABI 75, Python `.to_form()`/`.to_tensor()`, and
   independent Fortran, C, Python, and SymPy checks cover the owner boundary.
 
 The core identities are the derivation contracts for every implementation:
