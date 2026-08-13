@@ -94,8 +94,11 @@ operator `J = curl(nu curl(A))`; its 3x3 reluctivity is passed in
 first-slot-fastest (column-major) order and the symmetry derivative is `i*n`.
 `fortsym_chart_fourier_weak_form` adds the paper's native mode descriptor and
 coefficient blocks. It accepts an integer mode, returns the longitudinal
-nodal or transverse edge branch, and returns the scalar coefficient, curl
-coefficient, and 2x2 transverse mass block as native expression handles.
+nodal or transverse edge branch, and returns the longitudinal diffusion,
+transverse curl coefficient, and 2x2 transverse mass block as native
+expression handles. `fortsym_chart_fourier_longitudinal_residual` and
+`fortsym_chart_fourier_transverse_residual` transport the corresponding
+strong residuals; the transverse mode is an expression handle.
 The metric owner is also available through `fortsym_metric_sqrtg`,
 `fortsym_metric_volume_density`, `fortsym_metric_levi_civita`,
 `fortsym_metric_contravariant`, `fortsym_metric_grad`,

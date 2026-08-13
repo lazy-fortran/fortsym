@@ -177,12 +177,14 @@ For n/=0, gauge A_3=0 and solve the transverse branch:
     i*n div_t(nu_bar_t a) = J^3
     div_t(j) + i*n*J^3 = 0
 
-The weak-form owner must retain the branch, harmonic, test-space, boundary
-trace, constitutive density, and current-compatibility metadata. The native
-corpus already covers the cylindrical density and branch sign; the remaining
-work is a typed 2D weak-form owner with independent integration-by-parts and
-finite-element-space checks. These formulas are summarized from the paper,
-not copied from its source code.
+The weak-form owner retains the branch, harmonic, test-space, boundary trace,
+constitutive density, and current-compatibility metadata. Its `n=0` diffusion
+block is `nubar_t`; its nonzero-mode block is the `nu33` transverse curl
+coefficient plus `n**2*nubar_t`. The native residual owners implement the
+strong forms directly, while the C/Python facades transport their expression
+handles without recalculating the reduction. The paper's variational
+boundary terms and finite-element assembly remain separate work. These
+formulas are summarized from the paper, not copied from its source code.
 
 ## Derivation 6: relativity bridge
 
@@ -217,7 +219,12 @@ warnings.
   magnetic test checks both orientations against the independently assembled
   `interior(B, volume_form)` form. The public C ABI and both Python facades
   carry the same bridge without duplicating its geometry algebra.
-- [ ] Complete the n=0/n/=0 Fourier weak-form owner and its Python facade.
+- [x] Complete the first n=0/n/=0 Fourier strong-residual owner and its
+  Python facade. The descriptor now exposes `nubar_t` for the n=0 scalar
+  diffusion block, and native/C/Python residuals cover the paper's
+  longitudinal and transverse equations. Variational boundary assembly,
+  finite-element basis generation, and density transformation records remain
+  open.
 - [ ] Add executable de Sitter and GPS/Newtonian-limit derivation records.
 - [ ] Run every record through native Fortran, fortsym.sympy, and the
   Wolfram input frontend without duplicating the geometry implementation.

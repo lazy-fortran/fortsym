@@ -1593,7 +1593,11 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(longitudinal.branch_name, "longitudinal")
         self.assertEqual(longitudinal.trial_space, sp.SPACE_NODAL)
         self.assertEqual(longitudinal.boundary_trace, sp.TRACE_NORMAL)
-        self.assertEqual(longitudinal.scalar_coefficient.simplify(), nu33)
+        expected_diffusion = oracle.Matrix(((7, -5), (-3, 2)))
+        actual_diffusion = oracle.Matrix(2, 2, lambda row, column: oracle.sympify(
+            str(longitudinal.longitudinal_diffusion[row][column].simplify())
+        ))
+        self.assertEqual(actual_diffusion, expected_diffusion)
         self.assertTrue(longitudinal.has_gradient_term)
         self.assertFalse(longitudinal.has_mass_term)
 
@@ -1613,6 +1617,53 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(
             current.simplify(), 2*u1 + 2*u2 + 3*sp.I*u3
         )
+
+        ox1, ox2, onu33 = oracle.symbols(
+            "weak_u1 weak_u2 weak_nu33"
+        )
+        native_a3 = u1**2*u2 + u1
+        native_source_3 = u1 - u2
+        a3 = ox1**2*ox2 + ox1
+        source_3 = ox1 - ox2
+        actual_longitudinal = chart.fourier_longitudinal_residual(
+            reluctivity, native_a3, native_source_3
+        )
+        expected_longitudinal = (
+            -oracle.diff(7*oracle.diff(a3, ox1) - 5*oracle.diff(a3, ox2), ox1)
+            - oracle.diff(-3*oracle.diff(a3, ox1) +
+                          2*oracle.diff(a3, ox2), ox2)
+            - source_3
+        )
+        self.assertEqual(
+            oracle.simplify(
+                oracle.sympify(str(actual_longitudinal.simplify())) -
+                expected_longitudinal
+            ),
+            0,
+        )
+
+        a1 = ox1**2 + ox2
+        a2 = ox1*ox2
+        source_t = (ox1 - ox2, ox1 + 2*ox2)
+        native_a = (u1**2 + u2, u1*u2)
+        native_source_t = (u1 - u2, u1 + 2*u2)
+        actual_transverse = chart.fourier_transverse_residual(
+            reluctivity, native_a, native_source_t, 2
+        )
+        curl_t = oracle.diff(a2, ox1) - oracle.diff(a1, ox2)
+        expected_transverse = (
+            oracle.diff(onu33*curl_t, ox2) + 4*(7*a1 - 5*a2) - source_t[0],
+            -oracle.diff(onu33*curl_t, ox1) + 4*(-3*a1 + 2*a2) - source_t[1],
+        )
+        for actual_value, expected_value in zip(
+                actual_transverse, expected_transverse):
+            self.assertEqual(
+                oracle.simplify(
+                    oracle.sympify(str(actual_value.simplify())) -
+                    expected_value
+                ),
+                0,
+            )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_paper_fourier_zero_and_transverse_reductions_match_sympy(self):

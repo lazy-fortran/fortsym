@@ -116,7 +116,8 @@ module fortsym
     use fortsym_magnetic_weak, only: fourier_constitutive, &
         fourier_constitutive_t, fourier_weak_form, fourier_weak_form_t, &
         current_compatibility, nubar, fourier_constitutive_valid, &
-        fourier_weak_form_valid, FOURIER_INVALID, FOURIER_LONGITUDINAL, &
+        fourier_weak_form_valid, fourier_longitudinal_residual, &
+        fourier_transverse_residual, FOURIER_INVALID, FOURIER_LONGITUDINAL, &
         FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, SPACE_EDGE, TRACE_NONE, &
         TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
@@ -286,7 +287,9 @@ module fortsym
         FLUX_HAMADA, BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT, &
         fourier_constitutive, fourier_constitutive_t, fourier_weak_form, &
         fourier_weak_form_t, current_compatibility, nubar, &
-        fourier_constitutive_valid, fourier_weak_form_valid, FOURIER_INVALID, &
+        fourier_constitutive_valid, fourier_weak_form_valid, &
+        fourier_longitudinal_residual, fourier_transverse_residual, &
+        FOURIER_INVALID, &
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, &
         SPACE_EDGE, TRACE_NONE, TRACE_NORMAL, TRACE_TANGENTIAL, &
         metric_t, make_metric, metric_create, metric_from_chart, metric_det, metric_sqrtg, &

@@ -118,7 +118,6 @@ contains
         logical :: cancel_ok
         logical :: algebraic_ok
         logical :: possible_denominator
-        logical :: original_denominator
         character(:), allocatable :: reason
         character(:), allocatable :: cancel_reason
         type(expr_t) :: simplified_expr, cancelled
@@ -150,7 +149,6 @@ contains
         active_limit%visited_nodes = 0_int64
         active_limit%exceeded_kind = 0
         possible_denominator = .false.
-        original_denominator = .false.
         if (.not. associated(e%a, self%home)) then
             r%message = str("native: expression belongs to a different arena")
             r%seconds = wall_seconds() - started
@@ -228,7 +226,6 @@ contains
             end if
         end if
         possible_denominator = contains_negative_power(e%a, simplified_id)
-        original_denominator = contains_negative_power(e%a, e%id)
         ! Polynomial cancellation is a native candidate, not a replacement
         ! for the bounded recursive simplifier.  Keep it out of limited calls
         ! until it accepts the caller's resource budget, and only retain a
@@ -278,7 +275,10 @@ contains
         end if
         r%value%id = simplified_id
         r%ok = .true.
-        if (original_denominator) call set_simplify_condition(e, simplified_id, r)
+        ! set_simplify_condition returns immediately when the canonical root
+        ! is unchanged. Calling it here avoids a second full-tree scan of the
+        ! original expression; only a changed result needs the domain check.
+        call set_simplify_condition(e, simplified_id, r)
         if (.not. associated(self%assumptions)) then
             if (r%conditional) then
                 self%simplify_cache(e%id) = -simplified_id
