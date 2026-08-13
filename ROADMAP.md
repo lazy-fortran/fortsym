@@ -255,6 +255,8 @@ SymPy parity for the entire family.
 - [x] Expose bounded exact dense `Matrix` construction, `(row, column)`
       indexing, and native-backed determinant through the canonical facades;
       ragged rows and broader matrix operations remain explicit refusals.
+- [x] Align bounded `Matrix` shape metadata with SymPy through `len()` and
+      `is_square`, keeping both operations O(1) and adapter-local.
 - [x] Expose bounded exact dense `Matrix.rank()` through the canonical
       facades, using the existing native RREF owner and refusing malformed or
       over-bounded forms.
