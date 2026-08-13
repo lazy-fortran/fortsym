@@ -2135,6 +2135,7 @@ class Matrix:
         if not nested and any(isinstance(row, (tuple, list)) for row in rows):
             raise UnsupportedOperationError("Matrix rows must be sequences")
         arena = _default()
+        self._equality_key = None
 
         def make_list(values):
             native_values = []
@@ -2292,6 +2293,48 @@ class Matrix:
 
     def __rmatmul__(self, other):
         return self.__rmul__(other)
+
+    def _entry_equality_key(self):
+        if self._equality_key is None:
+            simplified = self._expression.simplify()
+            values = []
+            try:
+                if self._column_vector:
+                    for row in range(self.rows):
+                        entry = simplified.argument(row)
+                        try:
+                            values.append(entry.exact_text)
+                        finally:
+                            entry.close()
+                else:
+                    for row in range(self.rows):
+                        row_expression = simplified.argument(row)
+                        try:
+                            for column in range(self.cols):
+                                entry = row_expression.argument(column)
+                                try:
+                                    values.append(entry.exact_text)
+                                finally:
+                                    entry.close()
+                        finally:
+                            row_expression.close()
+            finally:
+                simplified.close()
+            self._equality_key = tuple(values)
+        return self._equality_key
+
+    def __eq__(self, other):
+        if not isinstance(other, Matrix):
+            return False
+        if self is other:
+            return True
+        if (self.shape != other.shape or
+                self._expression._arena is not other._expression._arena):
+            return False
+        return self._entry_equality_key() == other._entry_equality_key()
+
+    def __ne__(self, other):
+        return not self == other
 
     def __len__(self):
         return self.rows * self.cols

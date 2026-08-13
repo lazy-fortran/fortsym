@@ -399,6 +399,16 @@ handles bring both rows below the SymPy 1.14.0 oracle. The planned release
 matrix therefore has 184 rows and 138 enforced rows, with zero unwaived
 violations after the documented diagnostic waivers are applied.
 
+The bounded dense `Matrix` equality workload adds one correctness-checked
+warm-core row over equal 2x2 integer matrices. Equality uses the cached exact
+entry key of the native immutable owner; the first key construction applies
+the existing native simplifier to match SymPy's constructor identities (for
+example `x - x` and `x + 0`) while retaining unresolved identities such as
+`sin(x)**2 + cos(x)**2 != 1`. The latest 2026-08-13 stable sample measured a
+native/SymPy warm-core ratio of 0.445x. The planned release matrix therefore
+has 185 rows and 139 enforced rows, with zero unwaived violations after the
+documented diagnostic waivers are applied.
+
 The native-owned `Complement` constructor adds one cold end-to-end row. Its
 correctness check compares both finite-set operands with SymPy while the
 independent native invariant checks the `Complement` application head and

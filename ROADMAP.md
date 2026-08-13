@@ -314,6 +314,9 @@ SymPy parity for the entire family.
 - [x] Accept flat one-dimensional `Matrix` inputs as SymPy-compatible column
       matrices, reusing the native `List` owner and existing column-vector
       transport without adding a second matrix representation.
+- [x] Align bounded dense `Matrix` equality and inequality with SymPy through
+      direct shape and entry traversal, including flat column matrices and
+      symbolic entries without materializing an array or changing ownership.
 - [x] Expose bounded exact dense `Matrix.rank()` through the canonical
       facades, using the existing native RREF owner and refusing malformed or
       over-bounded forms.
