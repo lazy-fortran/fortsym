@@ -102,6 +102,23 @@ class SympySubsetTest(unittest.TestCase):
         product = sp.tensorproduct(chart.vector((1, 2, 3)), chart.covector((4, 5, 6)))
         self.assertEqual(product.variance, (1, -1))
         self.assertEqual(product[0, 0].simplify(), 4)
+        spacetime_space = sp.TensorIndexType("spacetime", 3, sp.INDEX_SPACETIME)
+        upper_i = spacetime_space(0, "upper", "i", dummy=True)
+        lower_i = spacetime_space(1, "lower", "i", dummy=True)
+        lower_j = spacetime_space(1, "lower", "j", dummy=True)
+        spacetime_metric = sp.SpacetimeMetric(
+            (x, y, z, sp.Symbol("typed_spacetime_t")),
+            ((1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 0)),
+            dimension=3,
+        )
+        spacetime_product = spacetime_metric.vector((1, 2, 0, 0)).product(
+            spacetime_metric.covector((4, 5, 0, 0))
+        )
+        self.assertEqual(
+            spacetime_product.contract(upper_i, lower_i)[()].simplify(), 14
+        )
+        with self.assertRaises(ValueError):
+            spacetime_product.contract(upper_i, lower_j)
         density_vector = chart.vector((x, y, z), density_weight=1)
         self.assertEqual(
             density_vector.covariant_divergence().component().simplify(), 3

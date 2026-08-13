@@ -1339,7 +1339,8 @@ conversion only. They do not maintain a second geometry implementation.
     spacetime tensor owner. It checks index-space identity, runtime dimension,
     slot variance, and nonempty dummy labels before delegating to the existing
     slot kernel; independent Fortran checks cover accepted and refused
-    contractions. C/Python exposure of runtime named indices remains open.
+    contractions. The Python and SymPy-compatible facades expose the same
+    typed call while reusing the C ABI slot kernel; a typed C ABI remains open.
   - [x] Raise the runtime spacetime tensor ceiling to rank five so a rank-four
     curvature-like tensor can be covariantly differentiated into the natural
     rank-five second-Bianchi representation. Covariant differentiation and Lie
