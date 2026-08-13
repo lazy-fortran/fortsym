@@ -194,6 +194,9 @@ SymPy parity for the entire family.
 - [x] Add bounded `solveset` return semantics on that same verified path,
       including `FiniteSet`/`EmptySet` and explicit non-default-domain
       refusals, without duplicating the native root algorithm.
+- [x] Extend one-variable `solve`/`solveset` to bounded exact rational
+      functions by solving the combined numerator and verifying every candidate
+      against the original residual, so denominator poles are never returned.
 - [x] Expose verified square exact-rational one-right-hand-side `linsolve`
       through the canonical Fortran, C, Python, and SymPy facades as
       `FiniteSet(Tuple(...))`; singular, symbolic, free-parameter, matrix

@@ -13,12 +13,12 @@
     {
       "from": "algebra",
       "to": "core",
-      "uses": 41
+      "uses": 44
     },
     {
       "from": "algebra",
       "to": "engine",
-      "uses": 16
+      "uses": 17
     },
     {
       "from": "algebra",
@@ -198,7 +198,7 @@
     {
       "from": "io",
       "to": "algebra",
-      "uses": 12
+      "uses": 13
     },
     {
       "from": "io",
@@ -1166,11 +1166,25 @@
         "fortsym_engine",
         "fortsym_expr",
         "fortsym_polysolve",
+        "fortsym_solve_rational",
         "fortsym_string"
       ],
       "name": "fortsym_solve_adapter",
       "owner": "algebra",
       "path": "src/algebra/fortsym_solve_adapter.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_engine",
+        "fortsym_expr",
+        "fortsym_poly",
+        "fortsym_polysolve",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_solve_rational",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_solve_rational.f90"
     },
     {
       "dependencies": [
@@ -1361,6 +1375,7 @@
         "fortsym_expr",
         "fortsym_linalg",
         "fortsym_polysolve",
+        "fortsym_solve_rational",
         "fortsym_string",
         "fortsym_subs"
       ],
@@ -1378,11 +1393,11 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 466,
+    "internal_edges": 474,
     "module_file_mismatches": 0,
-    "module_units": 90,
-    "modules": 90,
-    "source_units": 91,
+    "module_units": 91,
+    "modules": 91,
+    "source_units": 92,
     "unknown_internal_dependencies": 0
   },
   "violations": {
