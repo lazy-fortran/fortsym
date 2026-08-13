@@ -275,6 +275,10 @@ int fortsym_matrix_is_anti_symmetric(fortsym_arena *arena,
                                      const fortsym_expr *matrix, int simplify,
                                      int *verdict, char *message,
                                      size_t capacity);
+/* Boolean symbolic-entry predicate. `verdict` uses enum fortsym_verdict. */
+int fortsym_matrix_is_symbolic(fortsym_arena *arena,
+                               const fortsym_expr *matrix, int *verdict,
+                               char *message, size_t capacity);
 /* Symmetry predicate for a dense matrix. `simplify` is 1 for SymPy's default
  * simplified comparison and 0 for structural comparison. `verdict` uses
  * FORTSYM_ZERO_TRUE or FORTSYM_ZERO_FALSE. */

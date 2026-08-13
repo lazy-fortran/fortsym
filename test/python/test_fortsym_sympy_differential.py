@@ -824,6 +824,27 @@ class SympyDifferentialTest(unittest.TestCase):
         )
         native_anti_symbol.close()
         native_anti_y.close()
+        native_symbolic_x = native.Symbol("matrix_symbolic_x")
+        oracle_symbolic_x = oracle.Symbol("matrix_symbolic_x")
+        native_symbolic_matrix = native.Matrix(
+            [[native_symbolic_x + 1, 2], [3, 4]]
+        )
+        oracle_symbolic_matrix = oracle.Matrix(
+            [[oracle_symbolic_x + 1, 2], [3, 4]]
+        )
+        native_numeric_matrix = native.Matrix([[1, 2], [3, 4]])
+        oracle_numeric_matrix = oracle.Matrix([[1, 2], [3, 4]])
+        self.assertTrue(native_symbolic_matrix.is_symbolic())
+        self.assertFalse(native_numeric_matrix.is_symbolic())
+        self.assertEqual(
+            native_symbolic_matrix.is_symbolic(),
+            oracle_symbolic_matrix.is_symbolic(),
+        )
+        self.assertEqual(
+            native_numeric_matrix.is_symbolic(),
+            oracle_numeric_matrix.is_symbolic(),
+        )
+        native_symbolic_x.close()
         symmetric_cases = (
             ([[1, 2], [2, 3]], True),
             ([[1, 2], [3, 4]], False),

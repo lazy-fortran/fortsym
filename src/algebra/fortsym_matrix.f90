@@ -27,7 +27,8 @@ module fortsym_matrix
     public :: is_list, is_matrix, matrix_shape
     public :: matrix_transpose, matrix_add, matrix_negate, matrix_divide, matrix_dot
     public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_zero_matrix, &
-        matrix_is_upper, matrix_is_lower, matrix_is_anti_symmetric, matrix_is_symmetric, &
+        matrix_is_upper, matrix_is_lower, matrix_is_anti_symmetric, matrix_is_symbolic, &
+        matrix_is_symmetric, &
         matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
     public :: matrix_rref_values
@@ -1215,6 +1216,39 @@ contains
             end do
         end do
     end function matrix_opposite_structural
+
+    !> Boolean symbolic-entry predicate using direct nested-List traversal.
+    subroutine matrix_is_symbolic(a, engine, e, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(expr_t) :: row, value
+        integer :: rows, cols, i, j
+
+        verdict = VERDICT_FALSE
+        ok = .false.
+        why = str("")
+        call matrix_shape(e, rows, cols)
+        if (rows == 0) then
+            why = str("Symbolic test on something that is not a matrix")
+            return
+        end if
+        do i = 1, rows
+            row = e%arg(i)
+            do j = 1, cols
+                value = row%arg(j)
+                if (matrix_value_has_symbol(value)) then
+                    verdict = VERDICT_TRUE
+                    ok = .true.
+                    return
+                end if
+            end do
+        end do
+        ok = .true.
+    end subroutine matrix_is_symbolic
 
     !> Boolean symmetry predicate with SymPy's optional simplification switch.
     subroutine matrix_is_symmetric(a, engine, e, simplify, verdict, ok, why)
