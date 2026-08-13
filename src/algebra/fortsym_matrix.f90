@@ -29,7 +29,7 @@ module fortsym_matrix
     public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_zero_matrix, &
         matrix_is_upper, matrix_is_lower, matrix_is_upper_hessenberg, &
         matrix_is_lower_hessenberg, matrix_is_anti_symmetric, matrix_is_symbolic, &
-        matrix_is_identity, matrix_is_symmetric, &
+        matrix_is_identity, matrix_is_echelon, matrix_is_symmetric, &
         matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
     public :: matrix_rref_values
@@ -1233,6 +1233,78 @@ contains
         verdict = VERDICT_TRUE
         ok = .true.
     end subroutine matrix_is_identity
+
+    !> Boolean row-echelon predicate using the native zero oracle.
+    subroutine matrix_is_echelon(a, engine, e, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(expr_t) :: row, value
+        type(str_t) :: entry_why
+        integer :: rows, cols, i, j, pivot, previous_pivot, entry_verdict
+        logical :: entry_ok, zero_row_seen, found_pivot
+
+        verdict = VERDICT_FALSE
+        ok = .false.
+        why = str("")
+        call matrix_shape(e, rows, cols)
+        if (rows == 0) then
+            why = str("Echelon test on something that is not a matrix")
+            return
+        end if
+
+        previous_pivot = 0
+        zero_row_seen = .false.
+        do i = 1, rows
+            row = e%arg(i)
+            found_pivot = .false.
+            pivot = 0
+            do j = 1, cols
+                value = row%arg(j)
+                call matrix_entry_zero( &
+                    engine, value, entry_verdict, entry_ok, entry_why)
+                if (.not. entry_ok) then
+                    why = entry_why
+                    return
+                end if
+                if (entry_verdict /= VERDICT_TRUE) then
+                    found_pivot = .true.
+                    pivot = j
+                    exit
+                end if
+            end do
+            if (.not. found_pivot) then
+                zero_row_seen = .true.
+                cycle
+            end if
+            if (zero_row_seen .or. pivot <= previous_pivot) then
+                verdict = VERDICT_FALSE
+                ok = .true.
+                return
+            end if
+            do j = 1, previous_pivot
+                value = row%arg(j)
+                call matrix_entry_zero( &
+                    engine, value, entry_verdict, entry_ok, entry_why)
+                if (.not. entry_ok) then
+                    why = entry_why
+                    return
+                end if
+                if (entry_verdict /= VERDICT_TRUE) then
+                    verdict = VERDICT_FALSE
+                    ok = .true.
+                    return
+                end if
+            end do
+            previous_pivot = pivot
+        end do
+
+        verdict = VERDICT_TRUE
+        ok = .true.
+    end subroutine matrix_is_echelon
 
     !> Boolean antisymmetry predicate with SymPy's optional simplification switch.
     subroutine matrix_is_anti_symmetric(a, engine, e, simplify, verdict, ok, why)

@@ -915,6 +915,49 @@ class SympyDifferentialTest(unittest.TestCase):
             native_nonidentity.is_Identity, oracle_nonidentity.is_Identity
         )
         native_identity_x.close()
+        echelon_cases = (
+            ([[1, 2, 0], [0, 1, 3], [0, 0, 1]], True),
+            ([[0, 1, 2], [0, 0, 1], [0, 0, 0]], True),
+            ([[0, 1], [1, 0]], False),
+            ([[1, 2], [0, 0], [0, 1]], False),
+        )
+        for rows, expected in echelon_cases:
+            oracle_case = oracle.Matrix(rows)
+            native_case = native.Matrix(rows)
+            previous_pivot = -1
+            zero_row_seen = False
+            independent = True
+            for values in rows:
+                pivot = next(
+                    (column for column, value in enumerate(values) if value != 0),
+                    None,
+                )
+                if pivot is None:
+                    zero_row_seen = True
+                    continue
+                if zero_row_seen or pivot <= previous_pivot:
+                    independent = False
+                    break
+                if any(value != 0 for value in values[:previous_pivot + 1]):
+                    independent = False
+                    break
+                previous_pivot = pivot
+            self.assertEqual(independent, expected)
+            self.assertEqual(native_case.is_echelon, expected)
+            self.assertEqual(native_case.is_echelon, oracle_case.is_echelon)
+        native_echelon_x = native.Symbol("echelon_x")
+        oracle_echelon_x = oracle.Symbol("echelon_x")
+        native_symbolic_echelon = native.Matrix(
+            [[native_echelon_x, 1], [0, 1]]
+        )
+        oracle_symbolic_echelon = oracle.Matrix(
+            [[oracle_echelon_x, 1], [0, 1]]
+        )
+        self.assertEqual(
+            native_symbolic_echelon.is_echelon,
+            oracle_symbolic_echelon.is_echelon,
+        )
+        native_echelon_x.close()
         symmetric_cases = (
             ([[1, 2], [2, 3]], True),
             ([[1, 2], [3, 4]], False),
