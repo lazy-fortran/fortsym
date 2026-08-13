@@ -1413,6 +1413,11 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.matrix_is_diagonal = declare(
+        "fortsym_matrix_is_diagonal",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
+    )
     lib.matrix_rank = declare(
         "fortsym_matrix_rank",
         ctypes.c_int,
@@ -1652,6 +1657,15 @@ class Arena:
             operation = function.__name__.removeprefix("fortsym_")
             raise FortSymError(status, _decode(message), operation)
         return Expr(self, output)
+
+    def _verdict(self, function, *arguments):
+        verdict = ctypes.c_int()
+        message = self._result_message
+        status = function(*arguments, ctypes.byref(verdict), message, len(message))
+        if status:
+            operation = function.__name__.removeprefix("fortsym_")
+            raise FortSymError(status, _decode(message), operation)
+        return {0: None, 1: True, 2: False}[verdict.value]
 
     def _typed_result(self, function, kind, *arguments):
         result = self._result(function, *arguments)
@@ -7354,6 +7368,11 @@ class Expr:
     def trace(self):
         return self._arena._result(
             self._lib.matrix_trace, self._arena._require(), self._require()
+        )
+
+    def is_diagonal(self):
+        return self._arena._verdict(
+            self._lib.matrix_is_diagonal, self._arena._require(), self._require()
         )
 
     def rank(self):

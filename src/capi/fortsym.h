@@ -250,6 +250,10 @@ int fortsym_matrix_det(fortsym_arena *arena, const fortsym_expr *matrix,
  * expressions. Non-square and unsupported forms return FORTSYM_UNSUPPORTED. */
 int fortsym_matrix_trace(fortsym_arena *arena, const fortsym_expr *matrix,
                          fortsym_expr **out, char *message, size_t capacity);
+/* Three-valued diagonal predicate. `verdict` uses enum fortsym_verdict. */
+int fortsym_matrix_is_diagonal(fortsym_arena *arena,
+                               const fortsym_expr *matrix, int *verdict,
+                               char *message, size_t capacity);
 /* Exact rank of a nonempty dense matrix represented by nested List
  * expressions. Ragged, over-bounded, and unsupported forms return
  * FORTSYM_UNSUPPORTED. */

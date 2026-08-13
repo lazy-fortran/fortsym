@@ -23,6 +23,7 @@ int main(void)
     fortsym_expr *sum = NULL, *difference = NULL, *negative = NULL, *divided = NULL;
     fortsym_expr *reduced = NULL, *pivots = NULL;
     fortsym_expr *inverse_row = NULL, *inverse_entry = NULL;
+    int diagonal_verdict = FORTSYM_ZERO_UNKNOWN;
     const fortsym_expr *row_one_values[2];
     const fortsym_expr *row_two_values[2];
     const fortsym_expr *rows[2];
@@ -30,7 +31,7 @@ int main(void)
     const fortsym_expr *null_row_two_values[3];
     const fortsym_expr *null_rows[2];
 
-    assert(fortsym_abi_version() == 90);
+    assert(fortsym_abi_version() == 91);
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 0, &zero, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 1, &one, message, sizeof message) == FORTSYM_OK);
@@ -62,6 +63,9 @@ int main(void)
     assert(fortsym_expr_text(trace, text, sizeof text, &required,
                              message, sizeof message) == FORTSYM_OK);
     assert(strcmp(text, "5") == 0);
+    assert(fortsym_matrix_is_diagonal(arena, matrix, &diagonal_verdict,
+                                      message, sizeof message) == FORTSYM_OK);
+    assert(diagonal_verdict == FORTSYM_ZERO_FALSE);
     assert(fortsym_matrix_transpose(arena, matrix, &transposed, message,
                                     sizeof message) == FORTSYM_OK);
     assert(fortsym_expr_text(transposed, text, sizeof text, &required,

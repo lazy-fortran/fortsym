@@ -13,17 +13,19 @@ module fortsym_matrix
     ! the result readable and the arithmetic exact. See doc/provenance.md.
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: str_t, str, chars
-    use fortsym_arena, only: arena_t, NK_INT, NK_FUNC
+    use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_FUNC
     use fortsym_expr, only: expr_t, num, rat, func, func_in, same_arena, zoo_expr, operator(+), &
         operator(-), operator(*), operator(/), operator(==)
-    use fortsym_engine, only: engine_result_t
+    use fortsym_assume, only: FACT_NONZERO
+    use fortsym_engine, only: engine_t, engine_result_t, VERDICT_UNKNOWN, &
+        VERDICT_TRUE, VERDICT_FALSE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     implicit none
     private
 
     public :: is_list, is_matrix, matrix_shape
     public :: matrix_transpose, matrix_add, matrix_negate, matrix_divide, matrix_dot
-    public :: matrix_det, matrix_trace, matrix_inverse
+    public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
     public :: matrix_rref_values
     public :: to_matrix, from_matrix
@@ -808,6 +810,90 @@ contains
         value = num(e%a, total)
         used = .true.
     end subroutine try_integer_trace
+
+    !> Three-valued diagonal predicate using the caller's native zero oracle.
+    subroutine matrix_is_diagonal(a, engine, e, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(expr_t) :: row, value
+        type(engine_result_t) :: zero
+        integer :: rows, cols, i, j
+        logical :: unknown
+
+        verdict = VERDICT_UNKNOWN
+        ok = .false.
+        why = str("")
+        call matrix_shape(e, rows, cols)
+        if (rows == 0) then
+            why = str("Diagonal test on something that is not a matrix")
+            return
+        end if
+
+        unknown = .false.
+        do i = 1, rows
+            row = e%arg(i)
+            do j = 1, cols
+                if (i == j) cycle
+                value = row%arg(j)
+                select case (value%kind())
+                case (NK_INT, NK_RAT)
+                    if (value%int_value() == 0_int64) cycle
+                    verdict = VERDICT_FALSE
+                    ok = .true.
+                    return
+                case (NK_REAL)
+                    if (value%real_value() == 0.0) cycle
+                    verdict = VERDICT_FALSE
+                    ok = .true.
+                    return
+                end select
+                zero = engine%zero_test(value)
+                if (.not. zero%ok) then
+                    why = zero%message
+                    return
+                end if
+                if (zero%verdict == VERDICT_FALSE) then
+                    ! The native zero oracle can prove a formal rational
+                    ! residual nonzero. Matrix.is_diagonal follows SymPy's
+                    ! public tri-state predicate, where unresolved symbolic
+                    ! entries remain UNKNOWN rather than becoming FALSE.
+                    if (value%kind() == NK_SYM .and. &
+                        .not. matrix_symbol_is_nonzero(engine, value)) then
+                        unknown = .true.
+                        cycle
+                    end if
+                    verdict = VERDICT_FALSE
+                    ok = .true.
+                    return
+                end if
+                if (zero%verdict == VERDICT_UNKNOWN) unknown = .true.
+            end do
+        end do
+
+        if (unknown) then
+            verdict = VERDICT_UNKNOWN
+        else
+            verdict = VERDICT_TRUE
+        end if
+        ok = .true.
+    end subroutine matrix_is_diagonal
+
+    logical function matrix_symbol_is_nonzero(engine, value) result(known)
+        class(engine_t), intent(in) :: engine
+        type(expr_t), intent(in) :: value
+
+        known = .false.
+        select type (native => engine)
+            type is (native_engine_t)
+            if (associated(native%assumptions)) then
+                known = native%assumptions%has(value, FACT_NONZERO)
+            end if
+        end select
+    end function matrix_symbol_is_nonzero
 
     !> Inverse as adjugate over determinant.
     !>

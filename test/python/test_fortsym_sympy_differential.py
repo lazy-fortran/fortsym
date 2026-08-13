@@ -626,6 +626,33 @@ class SympyDifferentialTest(unittest.TestCase):
             str(native_matrix.trace()),
             str(oracle_matrix[0, 0] + oracle_matrix[1, 1]),
         )
+        diagonal_cases = (
+            ([[1, 0], [0, 2]], True),
+            ([[1, 2], [0, 2]], False),
+            ([[1, 0, 0], [0, 2, 0]], True),
+        )
+        for rows, expected in diagonal_cases:
+            oracle_case = oracle.Matrix(rows)
+            native_case = native.Matrix(rows)
+            independent = all(
+                value == 0
+                for row, values in enumerate(rows)
+                for column, value in enumerate(values)
+                if row != column
+            )
+            self.assertEqual(independent, expected)
+            self.assertEqual(native_case.is_diagonal(), expected)
+            self.assertEqual(
+                native_case.is_diagonal(), oracle_case.is_diagonal()
+            )
+        symbolic = native.Symbol("diagonal_x")
+        native_unknown = native.Matrix([[1, symbolic], [0, 2]])
+        oracle_unknown = oracle.Matrix([[1, oracle.Symbol("diagonal_x")], [0, 2]])
+        self.assertIsNone(native_unknown.is_diagonal())
+        self.assertEqual(
+            native_unknown.is_diagonal(), oracle_unknown.is_diagonal()
+        )
+        symbolic.close()
         self.assertEqual(str(native_matrix.rank()), str(oracle_matrix.rank()))
         self.assertEqual(
             native_matrix.rank(simplify=True),

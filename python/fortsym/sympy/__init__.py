@@ -2096,6 +2096,8 @@ def linsolve(system, *symbols, **options):
     finally:
         for entry in owned:
             entry.close()
+
+
 class Matrix:
     """Bounded exact dense matrix facade backed by one native List owner."""
 
@@ -2349,6 +2351,20 @@ class Matrix:
         finally:
             if temporary is not None:
                 temporary.close()
+
+    def is_diagonal(self):
+        epoch = self._expression._arena._assumption_epoch
+        cached = getattr(self, "_is_diagonal_cache", None)
+        if cached is not None and cached[0] == epoch:
+            return cached[1]
+        expression, temporary = self._matrix_expression()
+        try:
+            result = _native_operation(expression.is_diagonal)
+        finally:
+            if temporary is not None:
+                temporary.close()
+        self._is_diagonal_cache = (epoch, result)
+        return result
 
     def rank(self, **options):
         simplify = options.pop("simplify", False)
