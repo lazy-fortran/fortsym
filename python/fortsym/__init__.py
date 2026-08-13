@@ -622,6 +622,24 @@ def _configure(lib):
             ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    lib.chart_fourier_longitudinal_flux = declare(
+        "fortsym_chart_fourier_longitudinal_flux", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CVOID, ctypes.c_int,
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_fourier_transverse_flux = declare(
+        "fortsym_chart_fourier_transverse_flux", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.chart_fourier_longitudinal_residual = declare(
         "fortsym_chart_fourier_longitudinal_residual", ctypes.c_int,
         [
@@ -1850,6 +1868,90 @@ class Arena:
             diffusion_components,
             Expr(self, transverse_curl), components,
         )
+
+    def _chart_fourier_longitudinal_flux(
+            self, chart, reluctivity, potential, component):
+        if not isinstance(component, int) or isinstance(component, bool):
+            raise TypeError("longitudinal flux component must be an integer")
+        if component not in (1, 2):
+            raise ValueError("longitudinal flux component must be 1 or 2")
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporary_values = []
+        try:
+            reluctivity_values = []
+            for value in _matrix3_values(reluctivity):
+                value, temporary = self._coerce(value)
+                reluctivity_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            potential, temporary = self._coerce(potential)
+            if temporary is not None:
+                temporary_values.append(temporary)
+            reluctivity_handles = (_CVOID * 9)(
+                *[value._handle for value in reluctivity_values]
+            )
+            output = _CVOID()
+            message = _message()
+            status = self._lib.chart_fourier_longitudinal_flux(
+                self._require(), coordinate_handles, position_handles,
+                reluctivity_handles, potential._handle, component,
+                ctypes.byref(output), message, len(message),
+            )
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
+        if status:
+            raise FortSymError(
+                status, _decode(message), "fourier_longitudinal_flux"
+            )
+        return Expr(self, output)
+
+    def _chart_fourier_transverse_flux(
+            self, chart, reluctivity, potential):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporary_values = []
+        try:
+            reluctivity_values = []
+            for value in _matrix3_values(reluctivity):
+                value, temporary = self._coerce(value)
+                reluctivity_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            potential_values = []
+            for value in potential:
+                value, temporary = self._coerce(value)
+                potential_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            if len(potential_values) != 2:
+                raise ValueError(
+                    "fourier_transverse_flux potential requires two components"
+                )
+            reluctivity_handles = (_CVOID * 9)(
+                *[value._handle for value in reluctivity_values]
+            )
+            potential_handles = (_CVOID * 2)(
+                *[value._handle for value in potential_values]
+            )
+            output = _CVOID()
+            message = _message()
+            status = self._lib.chart_fourier_transverse_flux(
+                self._require(), coordinate_handles, position_handles,
+                reluctivity_handles, potential_handles,
+                ctypes.byref(output), message, len(message),
+            )
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
+        if status:
+            raise FortSymError(
+                status, _decode(message), "fourier_transverse_flux"
+            )
+        return Expr(self, output)
 
     def _chart_fourier_longitudinal_residual(
             self, chart, reluctivity, potential, current):
@@ -3729,6 +3831,18 @@ class Chart:
         """Return native n=0 or n!=0 Fourier variational metadata."""
         return self._arena._chart_fourier_weak_form(
             self, reluctivity, mode,
+        )
+
+    def fourier_longitudinal_flux(self, reluctivity, potential, component):
+        """Return component ``q_i = nubar[i,j] * d_j(A_3)``."""
+        return self._arena._chart_fourier_longitudinal_flux(
+            self, reluctivity, potential, component,
+        )
+
+    def fourier_transverse_flux(self, reluctivity, potential):
+        """Return ``q = nu33 * curl_t(A_1, A_2)`` for the edge branch."""
+        return self._arena._chart_fourier_transverse_flux(
+            self, reluctivity, potential,
         )
 
     def fourier_longitudinal_residual(self, reluctivity, potential, current):

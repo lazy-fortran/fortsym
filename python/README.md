@@ -36,6 +36,11 @@ expression handles and integer metadata; the Python layer does not
 recalculate the constitutive reduction. `Chart.fourier_longitudinal_residual`
 and `Chart.fourier_transverse_residual` expose the corresponding strong
 residuals, with the latter accepting an integer or symbolic mode.
+`Chart.fourier_longitudinal_flux(nu, A3, component)` returns the selected
+component of `nubar_t grad_t(A3)`. `Chart.fourier_transverse_flux(nu, a)`
+returns `nu33 curl_t(a)`. These are the coefficients in the paper's boundary
+terms after integration by parts. The caller supplies the boundary normal,
+tangent convention, surface measure, and finite-element quadrature.
 Pass a `fortsym.sympy.Patch` as `Chart(..., patch=patch)` when the chart is
 declared on a coordinate patch; `Chart.has_patch` and `Chart.patch` retain that
 metadata without inferring topology from expressions. `CoordSystem(name,

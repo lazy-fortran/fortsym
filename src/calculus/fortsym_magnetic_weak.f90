@@ -77,10 +77,19 @@ module fortsym_magnetic_weak
         module procedure fourier_transverse_residual_expression
     end interface fourier_transverse_residual
 
+    interface fourier_longitudinal_flux
+        module procedure fourier_longitudinal_flux_component
+    end interface fourier_longitudinal_flux
+
+    interface fourier_transverse_flux
+        module procedure fourier_transverse_flux_scalar
+    end interface fourier_transverse_flux
+
     public :: fourier_constitutive
     public :: fourier_weak_form
     public :: current_compatibility
     public :: fourier_longitudinal_residual, fourier_transverse_residual
+    public :: fourier_longitudinal_flux, fourier_transverse_flux
     public :: nubar, fourier_constitutive_valid, fourier_weak_form_valid
 
 contains
@@ -222,6 +231,64 @@ contains
         end if
         value%valid = .true.
     end function fourier_weak_form_integer
+
+    !> Return one component of the scalar branch's constitutive flux.
+    !>
+    !> The variational boundary term is -w n_i q_i with
+    !> q_i = nubar_t(i,j) partial_j A_3.  The caller supplies the outward
+    !> normal and performs the boundary contraction, so this owner does not
+    !> introduce a normal orientation or a surface measure.
+    function fourier_longitudinal_flux_component(c, material, potential, &
+            component) result(value)
+        type(chart_t), intent(in) :: c
+        type(fourier_constitutive_t), intent(in) :: material
+        type(expr_t), intent(in) :: potential
+        integer, intent(in) :: component
+        type(expr_t) :: value
+        type(expr_t) :: gradient_one, gradient_two
+
+        if (.not. associated(c%a)) return
+        if (.not. material%valid) return
+        if (.not. is_valid(potential)) return
+        if (.not. same_arena(potential, c%u(1))) return
+        if (component < 1 .or. component > 2) return
+
+        gradient_one = diff(potential, c%u(1))
+        gradient_two = diff(potential, c%u(2))
+        select case (component)
+        case (1)
+            value = material%nubar_t(1, 1)*gradient_one + &
+                material%nubar_t(1, 2)*gradient_two
+        case (2)
+            value = material%nubar_t(2, 1)*gradient_one + &
+                material%nubar_t(2, 2)*gradient_two
+        end select
+    end function fourier_longitudinal_flux_component
+
+    !> Return the scalar branch of the transverse edge boundary flux.
+    !>
+    !> The variational boundary term is -w_k s_k q with
+    !> q = nu33 curl_t(a), where s_k = -E_t(k,j) n_j.  The caller supplies
+    !> the boundary tangent/normal convention and surface measure.
+    function fourier_transverse_flux_scalar(c, material, potential) result(value)
+        type(chart_t), intent(in) :: c
+        type(fourier_constitutive_t), intent(in) :: material
+        type(expr_t), intent(in) :: potential(2)
+        type(expr_t) :: value
+        type(expr_t) :: curl_scalar
+        integer :: i
+
+        if (.not. associated(c%a)) return
+        if (.not. material%valid) return
+        do i = 1, 2
+            if (.not. is_valid(potential(i))) return
+            if (.not. same_arena(potential(i), c%u(1))) return
+        end do
+
+        curl_scalar = diff(potential(2), c%u(1)) - &
+            diff(potential(1), c%u(2))
+        value = material%nu33*curl_scalar
+    end function fourier_transverse_flux_scalar
 
     !> Residual of the n=0 longitudinal scalar equation.
     !>

@@ -12,6 +12,7 @@ program test_fortsym_magnetic_weak
         fourier_constitutive_t, fourier_constitutive_valid, fourier_weak_form, &
         fourier_weak_form_t, fourier_weak_form_valid, current_compatibility, &
         fourier_longitudinal_residual, fourier_transverse_residual, &
+        fourier_longitudinal_flux, fourier_transverse_flux, &
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NODAL, &
         SPACE_EDGE, TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_magnetic, only: j_fourier
@@ -29,6 +30,8 @@ program test_fortsym_magnetic_weak
     type(expr_t) :: scalar_potential, transverse_potential(2)
     type(expr_t) :: transverse_current(2), transverse_residual(2)
     type(expr_t) :: curl_scalar, expected_one, expected_two
+    type(expr_t) :: longitudinal_flux_one, longitudinal_flux_two
+    type(expr_t) :: transverse_flux
     type(expr_t) :: mode_expression
     type(engine_result_t) :: reduced
     call arena%init()
@@ -106,6 +109,16 @@ program test_fortsym_magnetic_weak
         transverse%transverse_mass(2, 2) - 8)
 
     scalar_potential = u(1)**2 + u(1)*u(2)
+    longitudinal_flux_one = fourier_longitudinal_flux(chart, material, &
+        scalar_potential, 1)
+    longitudinal_flux_two = fourier_longitudinal_flux(chart, material, &
+        scalar_potential, 2)
+    call check_identity(suite, engine, "longitudinal boundary flux 1", &
+        longitudinal_flux_one - (7*diff(scalar_potential, u(1)) - &
+        5*diff(scalar_potential, u(2))))
+    call check_identity(suite, engine, "longitudinal boundary flux 2", &
+        longitudinal_flux_two - (-3*diff(scalar_potential, u(1)) + &
+        2*diff(scalar_potential, u(2))))
     full_potential = num(arena, 0)
     full_potential(3) = scalar_potential
     full_current = num(arena, 0)
@@ -120,6 +133,12 @@ program test_fortsym_magnetic_weak
     transverse_potential(2) = u(1)*u(2)
     transverse_current(1) = u(1) - u(2)
     transverse_current(2) = u(1) + 2*u(2)
+    transverse_flux = fourier_transverse_flux(chart, material, &
+        transverse_potential)
+    curl_scalar = diff(transverse_potential(2), u(1)) - &
+        diff(transverse_potential(1), u(2))
+    call check_identity(suite, engine, "transverse boundary flux", &
+        transverse_flux - nu(3, 3)*curl_scalar)
     transverse_residual = fourier_transverse_residual(chart, material, &
         transverse_potential, transverse_current, 2)
     mode_expression = num(arena, 2)
