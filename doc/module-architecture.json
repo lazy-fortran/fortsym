@@ -301,6 +301,7 @@
         "fortsym_ode",
         "fortsym_predicates",
         "fortsym_relation",
+        "fortsym_series_adapter",
         "fortsym_string",
         "fortsym_subs",
         "fortsym_tensor"
@@ -648,6 +649,18 @@
       "name": "fortsym_limit_adapter",
       "owner": "algebra",
       "path": "src/algebra/fortsym_limit_adapter.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_expr",
+        "fortsym_string"
+      ],
+      "name": "fortsym_series_adapter",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_series_adapter.f90"
     },
     {
       "dependencies": [

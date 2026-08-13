@@ -17,6 +17,11 @@ kept alive by that cache and remain valid while the expression is alive.
 The native `Expr.factor()` method and top-level `factor()` function expose
 bounded polynomial factorisation; factorizations that would discard a domain
 condition are refused by the C ABI.
+`Expr.series(variable, point, order)` and `series(...)` expose bounded native
+Taylor polynomials through the requested highest degree; `series_coeff(...)`
+returns one exact coefficient. The native result omits SymPy's `O(...)` term
+and refuses singular points, non-finite coefficients, and unsupported symbolic
+derivatives.
 
 ## Native geometry facade
 
@@ -440,7 +445,8 @@ does not import SymPy. Unsupported names raise
 | `together`, `cancel`, `apart`, `collect` | exact bounded multivariate rational/polynomial operations with named resource-limit refusals; the basic SymPy spellings and variable selection are supported, while advanced options remain explicit refusals |
 | `integrate` | verified one-variable indefinite integration in the SymPy-compatible default complex domain; unsupported antiderivatives, multiple variables, and options are explicit refusals |
 | `limit` | verified finite and infinite limits for the native bounded theorem fragment; finite poles and unsupported asymptotics are explicit refusals |
-| `series`, `solve`, `Matrix` | explicit refusal until their semantics are covered |
+| `series` | bounded Taylor polynomial through the requested SymPy term count, with the `O(...)` term omitted; singular/non-finite coefficients, unsupported symbolic derivatives, and unsupported options are explicit refusals |
+| `solve`, `Matrix` | explicit refusal until their semantics are covered |
 
 `Wild(name, exclude=(), properties=())` is an adapter-only pattern object. Its
 direct, fixed-shape, single-Wild remainder, and bounded distinct-Wild
