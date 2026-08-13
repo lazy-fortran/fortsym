@@ -127,6 +127,7 @@ module fortsym_public_capi
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE
     use fortsym_poly, only: poly_together, poly_cancel, poly_apart, poly_collect
+    use fortsym_integrate_adapter, only: verified_antiderivative
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -177,7 +178,8 @@ module fortsym_public_capi
     public :: fortsym_substitute, fortsym_substitute_many, fortsym_differentiate, &
         fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor, &
-        fortsym_together, fortsym_cancel, fortsym_apart, fortsym_collect
+        fortsym_together, fortsym_cancel, fortsym_apart, fortsym_collect, &
+        c_integrate
     public :: fortsym_chart_sqrtg, fortsym_chart_surface_measure, &
         fortsym_chart_flux_surface_average, &
         fortsym_chart_jacobian, &
@@ -282,7 +284,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 73_c_int
+        v = 74_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -5483,6 +5485,41 @@ contains
         end if
         call make_handle(a, result, out, status, message, capacity)
     end subroutine finish_poly_operation
+
+    function c_integrate(raw, expression_raw, variable_raw, out, &
+            message, capacity) bind(c, name="fortsym_integrate") result(status)
+        type(c_ptr), value :: raw, expression_raw, variable_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, vp
+        type(expr_t) :: expression, variable, result
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call verified_antiderivative(a%value, expression, variable, result, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, result, out, status, message, capacity)
+    end function c_integrate
 
     function fortsym_zero_test(raw, expression_raw, verdict, message, capacity) &
             bind(c, name="fortsym_zero_test") result(status)

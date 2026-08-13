@@ -100,21 +100,24 @@ contains
     !> The indefinite integral of `e` with respect to the symbol `var`, or a
     !> refusal naming what stopped it. The constant of integration is omitted,
     !> as usual; the caller adds it if the context needs one.
-    function integrate(a, e, var, ok, why) result(f)
+    function integrate(a, e, var, ok, why, real_domain) result(f)
         type(arena_t), target,     intent(inout) :: a
         type(expr_t),              intent(in)    :: e, var
         logical,                   intent(out)   :: ok
         character(:), allocatable, intent(out)   :: why
+        logical, optional,         intent(in)    :: real_domain
         type(expr_t)                             :: f
         type(native_engine_t) :: eng
         type(expr_t) :: integrand, candidate, apart_form
         type(engine_result_t) :: expanded
         character(:), allocatable :: reason, apart_reason
-        logical :: found, good, apart_ok
+        logical :: found, good, apart_ok, use_real_domain
 
         ok = .false.
         why = ""
         f = num(a, 0)
+        use_real_domain = .true.
+        if (present(real_domain)) use_real_domain = real_domain
 
         if (.not. is_valid(e)) then
             why = "integrand is not a valid expression"
@@ -153,7 +156,8 @@ contains
         if (expanded%ok) integrand = expanded%value
         integrand = combine_exponential_product(eng, integrand, var)
 
-        candidate = antiderivative(eng, integrand, var, found, reason)
+        candidate = antiderivative(eng, integrand, var, found, reason, &
+            use_real_domain)
         if (.not. found) then
             why = reason
             return
@@ -175,11 +179,12 @@ contains
     ! ------------------------------------------------------------- rules --
 
     !> Propose an antiderivative. Nothing here is trusted; `verify` decides.
-    recursive function antiderivative(eng, e, v, found, why) result(f)
+    recursive function antiderivative(eng, e, v, found, why, real_domain) result(f)
         type(native_engine_t),     intent(inout) :: eng
         type(expr_t),              intent(in)    :: e, v
         logical,                   intent(out)   :: found
         character(:), allocatable, intent(out)   :: why
+        logical,                   intent(in)    :: real_domain
         type(expr_t)                             :: f
 
         found = .false.
@@ -202,11 +207,11 @@ contains
 
         select case (e%kind())
         case (NK_ADD)
-            f = integrate_sum(eng, e, v, found, why)
+            f = integrate_sum(eng, e, v, found, why, real_domain)
         case (NK_MUL)
-            f = integrate_product(eng, e, v, found, why)
+            f = integrate_product(eng, e, v, found, why, real_domain)
         case (NK_POW)
-            f = integrate_power(eng, e, v, found, why)
+            f = integrate_power(eng, e, v, found, why, real_domain)
         case (NK_FUNC)
             f = integrate_function(eng, e, v, found, why)
         case default
@@ -217,11 +222,12 @@ contains
     !> Linearity over a sum: every term must integrate, or the sum does not.
     !> Returning the terms that worked and dropping the rest would produce an
     !> expression that is wrong by exactly the terms that are missing.
-    recursive function integrate_sum(eng, e, v, found, why) result(f)
+    recursive function integrate_sum(eng, e, v, found, why, real_domain) result(f)
         type(native_engine_t),     intent(inout) :: eng
         type(expr_t),              intent(in)    :: e, v
         logical,                   intent(out)   :: found
         character(:), allocatable, intent(out)   :: why
+        logical,                   intent(in)    :: real_domain
         type(expr_t)                             :: f
         type(expr_t) :: piece
         character(:), allocatable :: reason
@@ -233,7 +239,8 @@ contains
         f = num(e%a, 0)
 
         do k = 1, e%nargs()
-            piece = antiderivative(eng, e%arg(k), v, term_ok, reason)
+            piece = antiderivative(eng, e%arg(k), v, term_ok, reason, &
+                real_domain)
             if (.not. term_ok) then
                 why = "term "//itoa(k)//" of the sum: "//reason
                 return
@@ -252,11 +259,12 @@ contains
     !> are combined into one exponential before applying the ordinary rule;
     !> other products of variable-dependent factors still need parts or a
     !> substitution and are refused rather than approximated.
-    recursive function integrate_product(eng, e, v, found, why) result(f)
+    recursive function integrate_product(eng, e, v, found, why, real_domain) result(f)
         type(native_engine_t),     intent(inout) :: eng
         type(expr_t),              intent(in)    :: e, v
         logical,                   intent(out)   :: found
         character(:), allocatable, intent(out)   :: why
+        logical,                   intent(in)    :: real_domain
         type(expr_t)                             :: f
         type(expr_t) :: coefficient, active, inner, exponent
         character(:), allocatable :: reason
@@ -288,7 +296,7 @@ contains
             active = exp(simplified(eng, exponent))
         end if
 
-        inner = antiderivative(eng, active, v, inner_ok, reason)
+        inner = antiderivative(eng, active, v, inner_ok, reason, real_domain)
         if (.not. inner_ok) then
             why = reason
             return
@@ -367,11 +375,12 @@ contains
     end function combine_exponential_product
 
     !> Powers. Four separate rules meet here, and the exponent decides which.
-    recursive function integrate_power(eng, e, v, found, why) result(f)
+    recursive function integrate_power(eng, e, v, found, why, real_domain) result(f)
         type(native_engine_t),     intent(inout) :: eng
         type(expr_t),              intent(in)    :: e, v
         logical,                   intent(out)   :: found
         character(:), allocatable, intent(out)   :: why
+        logical,                   intent(in)    :: real_domain
         type(expr_t)                             :: f
         type(expr_t) :: base, expo, slope, offset, angle
         real(dp) :: expo_value, base_value
@@ -392,7 +401,8 @@ contains
         ! real, which is the only domain the integral has anyway.
         if (is_numeric_power_of_sqrt(base, expo)) then
             f = antiderivative(eng, simplified(eng, &
-                base%arg(1)**(expo*rat(e%a, 1_int64, 2_int64))), v, found, why)
+                base%arg(1)**(expo*rat(e%a, 1_int64, 2_int64))), v, found, why, &
+                real_domain)
             return
         end if
 
@@ -484,12 +494,18 @@ contains
         end if
 
         if (minus_one) then
-            ! log|base| is numerically stable across the whole dynamic range:
-            ! squaring first underflows for tiny bases and overflows for large
-            ! ones even though log|base| itself is finite. The differentiator
-            ! carries d abs(u) = u/abs(u) * du, so the verifier still checks the
-            ! candidate on either side of the zero of a real linear base.
-            f = log(abs(base))/slope
+            if (real_domain) then
+                ! log|base| is numerically stable across the whole dynamic
+                ! range: squaring first underflows for tiny bases and
+                ! overflows for large ones even though log|base| itself is
+                ! finite. The real-domain verifier checks either side of the
+                ! zero of a linear base.
+                f = log(abs(base))/slope
+            else
+                ! The SymPy-compatible complex/default domain uses the
+                ! principal logarithm, not the real antiderivative log|u|.
+                f = log(base)/slope
+            end if
         else
             f = base**(expo + 1)/(slope*(expo + 1))
         end if

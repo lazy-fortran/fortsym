@@ -738,6 +738,10 @@ Every checklist item requires all of the following:
   limits, including Gruntz-style asymptotic ordering.
 - [ ] Complete rational integration with Hermite and Lazard--Rioboo--Trager
   methods.
+  - [x] Expose the verified one-variable indefinite integration fragment
+    through the C, Python, and SymPy-compatible facades, with separate
+    real-domain and SymPy-compatible complex/default logarithm branches and
+    independent SymPy 1.14 oracle tests.
 - [ ] Add elementary Risch and heuristic-Risch integration.
 - [ ] Add Meijer-G and special-function integration where SymPy supports it.
 - [ ] Complete definite, improper, multiple, and parameterized integration with
@@ -1078,7 +1082,7 @@ The first-class object model is staged around these metadata owners:
   `spacetime_tensor_from_form(metric, form)` share the fixed 1--4D owners and
   retain first-slot-fastest tensor order versus form-mask order. Conversion is
   strict for exact lower, weight-zero, fully antisymmetric tensors, including
-  repeated-index checks. C ABI 73, Python `.to_form()`/`.to_tensor()`, and
+  repeated-index checks. C ABI 74, Python `.to_form()`/`.to_tensor()`, and
   independent Fortran, C, Python, and SymPy checks cover the owner boundary.
 
 The core identities are the derivation contracts for every implementation:
