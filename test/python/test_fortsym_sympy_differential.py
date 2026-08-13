@@ -919,6 +919,27 @@ class SympyDifferentialTest(unittest.TestCase):
             str(native_matrix.trace()),
             str(oracle_matrix[0, 0] + oracle_matrix[1, 1]),
         )
+        oracle_three = oracle.Matrix([[1, 2, 3], [4, 5, 6], [7, 8, 10]])
+        native_three = native.Matrix([[1, 2, 3], [4, 5, 6], [7, 8, 10]])
+        # Independent 2x2 determinants keep this test from passing solely
+        # because both adapters call a determinant with the same bug.
+        self.assertEqual(5 * 10 - 6 * 8, 2)
+        self.assertEqual(str(native_three.minor(0, 0)),
+                         str(oracle_three.minor(0, 0)))
+        self.assertEqual(str(native_three.minor(1, 2)),
+                         str(oracle_three.minor(1, 2)))
+        self.assertEqual(str(native_three.minor(0, 0)), "2")
+        self.assertEqual(
+            str(native_three.minor_submatrix(1, 1)),
+            str(oracle_three.minor_submatrix(1, 1)),
+        )
+        self.assertEqual(str(native_matrix.minor(-1, -1)),
+                         str(oracle_matrix.minor(-1, -1)))
+        self.assertEqual(str(native.Matrix([[9]]).minor(0, 0)), "1")
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.Matrix([[1, 2, 3]]).minor(0, 0)
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.Matrix([[9]]).minor_submatrix(0, 0)
         diagonal_cases = (
             ([[1, 0], [0, 2]], True),
             ([[1, 2], [0, 2]], False),

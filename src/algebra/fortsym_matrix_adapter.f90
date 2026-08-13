@@ -13,7 +13,7 @@ module fortsym_matrix_adapter
         matrix_transpose, matrix_conjugate, matrix_adjoint, matrix_add, &
         matrix_multiply_elementwise, matrix_negate, matrix_divide, &
         matrix_null_space, &
-        matrix_rref, matrix_dot
+        matrix_rref, matrix_dot, matrix_minor
     use fortsym_string, only: str_t, chars
     implicit none
     private
@@ -34,6 +34,7 @@ module fortsym_matrix_adapter
     public :: calculate_matrix_is_symmetric
     public :: calculate_matrix_rank
     public :: calculate_matrix_inverse
+    public :: calculate_matrix_minor
     public :: calculate_matrix_transpose
     public :: calculate_matrix_conjugate
     public :: calculate_matrix_adjoint
@@ -269,6 +270,22 @@ contains
         if (.not. ok) return
         call simplify_matrix_value(engine, value, ok, why)
     end subroutine calculate_matrix_inverse
+
+    subroutine calculate_matrix_minor(a, engine, expression, row, column, value, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: expression
+        integer, intent(in) :: row, column
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(str_t) :: message
+
+        value = matrix_minor(a, expression, row, column, ok, message)
+        why = chars(message)
+        if (.not. ok) return
+        call simplify_matrix_value(engine, value, ok, why)
+    end subroutine calculate_matrix_minor
 
     subroutine calculate_matrix_transpose(a, expression, value, ok, why)
         type(arena_t), target, intent(inout) :: a

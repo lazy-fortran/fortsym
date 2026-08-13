@@ -158,7 +158,7 @@ module fortsym_public_capi
         calculate_matrix_multiply_elementwise, calculate_matrix_add, &
         calculate_matrix_negate, calculate_matrix_divide, &
         calculate_matrix_null_space, calculate_matrix_rref, &
-        calculate_matrix_multiply
+        calculate_matrix_multiply, calculate_matrix_minor
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -218,7 +218,8 @@ module fortsym_public_capi
     public :: fortsym_solve, fortsym_solveset, fortsym_solve_ode, &
         fortsym_solve_univariate_inequality, &
         fortsym_linsolve, &
-        fortsym_linsolve_parametric, fortsym_matrix_det, fortsym_matrix_trace, &
+        fortsym_linsolve_parametric, fortsym_matrix_det, fortsym_matrix_minor, &
+        fortsym_matrix_trace, &
         fortsym_matrix_is_diagonal, fortsym_matrix_is_zero_matrix, &
         fortsym_matrix_is_upper, fortsym_matrix_is_lower, &
         fortsym_matrix_is_upper_hessenberg, fortsym_matrix_is_lower_hessenberg, &
@@ -6283,6 +6284,42 @@ contains
         end if
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_matrix_det
+
+    function fortsym_matrix_minor(raw, expression_raw, row, column, out, &
+            message, capacity) bind(c, name="fortsym_matrix_minor") result(status)
+        type(c_ptr), value :: raw, expression_raw, out
+        integer(c_int), value :: row, column
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep
+        type(expr_t) :: expression, value
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (row < 0_c_int .or. column < 0_c_int) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call calculate_matrix_minor( &
+            a%value, a%engine, expression, int(row) + 1, int(column) + 1, &
+            value, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_matrix_minor
 
     function fortsym_matrix_trace(raw, expression_raw, out, message, capacity) &
             bind(c, name="fortsym_matrix_trace") result(status)

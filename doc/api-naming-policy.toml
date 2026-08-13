@@ -211,6 +211,16 @@ sympy_adapter = ["solve_univariate_inequality", "reduce_inequalities"]
 decision = "Keep solve_univariate_inequality as the single native inequality owner. Expose the same spelling in the convenience facade and adapt SymPy's reduce_inequalities input convention without duplicating the algorithm."
 
 [[family]]
+id = "matrix-minors"
+audit_concepts = ["matrix-minors"]
+canonical_native = ["minor"]
+current_native = ["minor"]
+transition_aliases = []
+python_facade = ["minor"]
+sympy_adapter = ["minor", "minor_submatrix"]
+decision = "Keep minor as the concise native and low-level Python operation. The SymPy adapter keeps Matrix.minor and Matrix.minor_submatrix names, translating only indices and result shape at the boundary."
+
+[[family]]
 id = "sums-and-products"
 audit_concepts = ["sums-and-products"]
 canonical_native = ["sum_closed_form", "product_closed_form"]

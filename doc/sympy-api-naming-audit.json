@@ -681,66 +681,70 @@
       "sympy_reference": []
     },
     {
-      "action": "Keep solve_ode as the native owner and adapt SymPy's dsolve spelling at the Python boundary.",
+      "action": "Keep it in the calculus owner until its SymPy parity contract is defined.",
       "description": "Solve the native ODE fragment.",
-      "finding": "solve_ode is the native owner; the bounded convenience and SymPy-compatible spellings are solve_ode and dsolve.",
+      "finding": "solve_ode is a native specialized operation with no current Python or SymPy adapter entry.",
       "fortran_facade": [
         "solve_ode"
       ],
       "id": "ode-solving",
-      "python_facade": [
-        "solve_ode"
-      ],
-      "sympy_adapter": [
-        "dsolve"
-      ],
-      "sympy_reference": [
-        "dsolve"
-      ]
+      "python_facade": [],
+      "sympy_adapter": [],
+      "sympy_reference": []
     },
     {
-      "action": "Keep solve_univariate_inequality as the single native owner and adapt reduce_inequalities input handling at the Python boundary.",
-      "description": "Reduce one exact affine one-variable inequality.",
-      "finding": "The native and convenience facades use solve_univariate_inequality; the SymPy adapter exposes both solve_univariate_inequality and reduce_inequalities without duplicating the solver.",
-      "fortran_facade": [
-        "solve_univariate_inequality"
-      ],
+      "action": "Keep solve_univariate_inequality as the single native inequality owner. Expose the same spelling in the convenience facade and adapt reduce_inequalities input convention without duplicating the algorithm.",
+      "description": "Reduce a supported univariate inequality.",
+      "finding": "The native inequality owner is exposed through the Python transport under its explicit name; the adapter also accepts SymPy's list-oriented reduce_inequalities spelling.",
+      "fortran_facade": [],
       "id": "inequality-solving",
       "python_facade": [
         "solve_univariate_inequality"
       ],
       "sympy_adapter": [
-        "reduce_inequalities",
-        "solve_univariate_inequality"
+        "solve_univariate_inequality",
+        "reduce_inequalities"
       ],
       "sympy_reference": [
-        "reduce_inequalities",
-        "solve_univariate_inequality"
+        "solve_univariate_inequality",
+        "reduce_inequalities"
       ]
     },
     {
-      "action": "Keep the explicit closed-form names in native layers and adapt SymPy's summation/product spellings at the Python boundary.",
-      "description": "Evaluate bounded finite sums and products.",
-      "finding": "The native and convenience facades expose sum_closed_form and product_closed_form; the SymPy adapter exposes summation and product over the same owner.",
-      "fortran_facade": [
-        "sum_closed_form",
-        "product_closed_form"
-      ],
+      "action": "Keep one native sums/products owner and adapt SymPy's names only at the compatibility boundary.",
+      "description": "Evaluate supported finite symbolic sums and products.",
+      "finding": "The native closed-form owner keeps explicit sum_closed_form and product_closed_form names; the adapter preserves SymPy's summation and product spellings and bounds.",
+      "fortran_facade": [],
       "id": "sums-and-products",
       "python_facade": [
         "sum_closed_form",
         "product_closed_form"
       ],
       "sympy_adapter": [
-        "product",
-        "summation"
+        "summation",
+        "product"
       ],
       "sympy_reference": [
-        "Product",
-        "Sum",
-        "product",
-        "summation"
+        "summation",
+        "product"
       ]
+    },
+    {
+      "action": "Keep minor as the one native operation and compose minor_submatrix from the existing dense-matrix slice owner; do not add a second determinant or matrix representation.",
+      "description": "Delete one row and one column from a bounded exact dense matrix and take its determinant.",
+      "finding": "The native facade keeps the concise minor name and uses one determinant owner. The compatibility adapter preserves SymPy's Matrix.minor and Matrix.minor_submatrix method spellings, with index translation at the C boundary.",
+      "fortran_facade": [
+        "minor"
+      ],
+      "id": "matrix-minors",
+      "python_facade": [
+        "minor"
+      ],
+      "sympy_adapter": [
+        "minor",
+        "minor_submatrix"
+      ],
+      "sympy_reference": []
     }
   ],
   "exports": {
@@ -2201,6 +2205,12 @@
       },
       {
         "concepts": [
+          "matrix-minors"
+        ],
+        "name": "minor"
+      },
+      {
+        "concepts": [
           "constants"
         ],
         "name": "nan_expr"
@@ -2632,24 +2642,6 @@
           "ode-solving"
         ],
         "name": "solve_ode"
-      },
-      {
-        "concepts": [
-          "inequality-solving"
-        ],
-        "name": "solve_univariate_inequality"
-      },
-      {
-        "concepts": [
-          "sums-and-products"
-        ],
-        "name": "sum_closed_form"
-      },
-      {
-        "concepts": [
-          "sums-and-products"
-        ],
-        "name": "product_closed_form"
       },
       {
         "concepts": [],
@@ -3256,33 +3248,45 @@
       "Tensor",
       "apart",
       "cancel",
+      "coefficient",
       "collect",
       "contract",
+      "definite_integral",
       "det",
       "diff",
+      "exponent",
       "factor",
       "free_symbols",
       "integrate",
       "inv",
       "limit",
       "linsolve",
+      "linsolve_parametric",
       "matrix_add",
+      "matrix_adjoint",
+      "matrix_conjugate",
       "matrix_divide",
       "matrix_multiply",
+      "matrix_multiply_elementwise",
       "matrix_negate",
       "matrix_subtract",
+      "minor",
       "nullspace",
       "operation_count",
+      "polynomial_gcd",
+      "polynomial_quotient",
+      "polynomial_remainder",
+      "product_closed_form",
       "rank",
       "rref",
       "series",
       "series_coeff",
-      "product_closed_form",
-      "sum_closed_form",
       "solve",
       "solve_ode",
+      "solve_univariate_inequality",
       "subs",
       "subs_many",
+      "sum_closed_form",
       "symbols",
       "tensor_product",
       "together",
@@ -3334,6 +3338,7 @@
       "Function",
       "Ge",
       "Gt",
+      "H",
       "HAMADA_RESIDUAL_COUNT",
       "I",
       "INDEX_COTANGENT",
@@ -3344,6 +3349,7 @@
       "Implies",
       "InconsistentAssumptions",
       "Integer",
+      "LC",
       "Le",
       "LieDerivative",
       "Lt",
@@ -3358,6 +3364,7 @@
       "Or",
       "Orientation",
       "Patch",
+      "Poly",
       "Pow",
       "Q",
       "Rational",
@@ -3374,6 +3381,7 @@
       "Subs",
       "Symbol",
       "T",
+      "TC",
       "TRACE_NONE",
       "TRACE_NORMAL",
       "TRACE_TANGENTIAL",
@@ -3389,11 +3397,15 @@
       "Xor",
       "acos",
       "acosh",
+      "adjoint",
+      "all_coeffs",
       "apart",
       "arg",
       "args",
       "argument",
       "arity",
+      "as_dict",
+      "as_expr",
       "asin",
       "asinh",
       "ask",
@@ -3405,7 +3417,11 @@
       "besselj",
       "cancel",
       "ceiling",
+      "charpoly",
       "close",
+      "coeff_monomial",
+      "coefficient",
+      "coeffs",
       "collect",
       "conjugate",
       "cos",
@@ -3413,10 +3429,15 @@
       "coth",
       "count_ops",
       "csch",
+      "definite_integral",
+      "degree",
       "det",
       "diff",
-      "dsolve",
+      "div",
       "doit",
+      "domain",
+      "dsolve",
+      "eigenvals",
       "erf",
       "erfc",
       "exact_text",
@@ -3424,18 +3445,32 @@
       "exp",
       "expand",
       "expand_complex",
+      "exponent",
       "factor",
+      "factor_list",
       "factorial",
       "floor",
       "free_symbols",
       "fully_antisymmetric",
       "fully_symmetric",
       "gamma",
+      "gcd",
+      "gen",
+      "gens",
       "im",
       "integrate",
       "inv",
+      "is_Identity",
       "is_algebraic",
+      "is_anti_symmetric",
+      "is_diagonal",
+      "is_echelon",
+      "is_ground",
+      "is_hermitian",
+      "is_identity",
       "is_integer",
+      "is_lower",
+      "is_lower_hessenberg",
       "is_negative",
       "is_nonnegative",
       "is_nonpositive",
@@ -3444,8 +3479,14 @@
       "is_positive",
       "is_rational",
       "is_real",
+      "is_square",
       "is_symbol",
+      "is_symbolic",
+      "is_symmetric",
+      "is_upper",
+      "is_upper_hessenberg",
       "is_zero",
+      "is_zero_matrix",
       "kind",
       "legendre",
       "limit",
@@ -3454,25 +3495,38 @@
       "loggamma",
       "match",
       "matrix_add",
+      "matrix_adjoint",
+      "matrix_conjugate",
       "matrix_divide",
       "matrix_multiply",
+      "matrix_multiply_elementwise",
       "matrix_negate",
       "matrix_subtract",
+      "minor",
+      "minor_submatrix",
+      "multiply_elementwise",
       "name",
       "nan",
       "no_symmetry",
       "node_count",
+      "nth",
       "nullspace",
       "oo",
       "operation_count",
       "pair_antisymmetric",
       "pair_symmetric",
       "pi",
+      "product",
+      "product_closed_form",
       "properties",
+      "quo",
+      "quotient",
       "rank",
       "re",
-      "refine",
       "reduce_inequalities",
+      "refine",
+      "rem",
+      "remainder",
       "replace",
       "rref",
       "sech",
@@ -3483,12 +3537,13 @@
       "sin",
       "sinh",
       "solve",
+      "solve_ode",
       "solve_univariate_inequality",
       "solveset",
-      "product",
-      "summation",
       "sqrt",
       "subs",
+      "sum_closed_form",
+      "summation",
       "symbols",
       "sympify",
       "tan",
@@ -3496,7 +3551,11 @@
       "tensorcontraction",
       "tensorpermute",
       "tensorproduct",
+      "terms",
+      "terms_gcd",
       "together",
+      "total_degree",
+      "trace",
       "transpose",
       "xreplace",
       "zoo"
@@ -3517,11 +3576,11 @@
     "sympy_adapter": "python/fortsym/sympy/__init__.py"
   },
   "summary": {
-    "assigned_names": 186,
-    "concept_groups": 31,
-    "fortran_facade_exports": 539,
-    "python_facade_exports": 88,
-    "sympy_adapter_exports": 205,
+    "assigned_names": 194,
+    "concept_groups": 34,
+    "fortran_facade_exports": 540,
+    "python_facade_exports": 103,
+    "sympy_adapter_exports": 265,
     "unmapped_fortran_exports": 401
   },
   "sympy_version": "1.14.0",

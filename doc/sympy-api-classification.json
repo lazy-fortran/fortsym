@@ -825,6 +825,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_matrix.matrix_minor",
+        "module": "fortsym_matrix",
+        "name": "matrix_minor",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_matrix.matrix_rref_values",
         "module": "fortsym_matrix",
         "name": "matrix_rref_values",
@@ -1008,6 +1018,16 @@
         "id": "fortsym_matrix_adapter.calculate_matrix_inverse",
         "module": "fortsym_matrix_adapter",
         "name": "calculate_matrix_inverse",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_minor",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_minor",
         "owner": "src/algebra/fortsym_matrix_adapter.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -6258,6 +6278,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym_public_capi.fortsym_matrix_minor",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_minor",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym_public_capi.fortsym_matrix_trace",
         "module": "fortsym_public_capi",
         "name": "fortsym_matrix_trace",
@@ -9974,6 +10005,17 @@
         "id": "fortsym.det",
         "module": "fortsym",
         "name": "det",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.minor",
+        "module": "fortsym",
+        "name": "minor",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -18597,12 +18639,12 @@
     "classification_counts": {
       "delegated": 3089,
       "external": 10,
-      "facade": 774,
-      "native": 4762,
+      "facade": 776,
+      "native": 4766,
       "python-adapter": 3045,
       "refused": 24749
     },
-    "fortran_public_exports": 1761,
+    "fortran_public_exports": 1765,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
@@ -58389,7 +58431,7 @@
         "id": "sympy.matrices.matrices.MatrixDeterminant.minor",
         "name": "minor",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrices.MatrixDeterminant",
@@ -58399,7 +58441,7 @@
         "id": "sympy.matrices.matrices.MatrixDeterminant.minor_submatrix",
         "name": "minor_submatrix",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrices.MatrixDeterminant",
@@ -59613,7 +59655,7 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.minor",
         "name": "minor",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -59643,7 +59685,7 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.minor_submatrix",
         "name": "minor_submatrix",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
