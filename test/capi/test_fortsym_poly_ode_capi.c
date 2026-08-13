@@ -35,6 +35,8 @@ int main(void)
     fortsym_expr *quotient = NULL, *remainder = NULL, *foreign_x = NULL;
     fortsym_expr *y = NULL, *derivative = NULL, *a = NULL, *rhs = NULL;
     fortsym_expr *problem = NULL, *solution = NULL;
+    fortsym_expr *slope_term = NULL, *affine = NULL, *inequality = NULL;
+    fortsym_expr *quadratic_inequality = NULL, *inequality_result = NULL;
     const fortsym_expr *function_arguments[1];
 
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
@@ -104,7 +106,37 @@ int main(void)
         assert(strstr(text, "Rule(y(x)") != NULL);
     }
 
+    assert(fortsym_multiply(arena, two, x, &slope_term, message,
+                            sizeof message) == FORTSYM_OK);
+    assert(fortsym_add(arena, slope_term, three, &affine, message,
+                       sizeof message) == FORTSYM_OK);
+    assert(fortsym_relation(arena, affine, one, FORTSYM_RELATION_GREATER,
+                            &inequality, message, sizeof message) ==
+           FORTSYM_OK);
+    assert(fortsym_solve_univariate_inequality(
+               arena, inequality, x, &inequality_result, message,
+               sizeof message) == FORTSYM_OK);
+    assert_contains(inequality_result, "And");
+    assert_contains(inequality_result, "x");
+    fortsym_expr_free(inequality_result);
+    inequality_result = NULL;
+    assert(fortsym_solve_univariate_inequality(
+               arena, inequality, foreign_x, &inequality_result, message,
+               sizeof message) == FORTSYM_FOREIGN_ARENA);
+    assert(inequality_result == NULL);
+    assert(fortsym_relation(arena, x2, one, FORTSYM_RELATION_GREATER,
+                            &quadratic_inequality, message,
+                            sizeof message) == FORTSYM_OK);
+    assert(fortsym_solve_univariate_inequality(
+               arena, quadratic_inequality, x, &inequality_result, message,
+               sizeof message) == FORTSYM_UNSUPPORTED);
+    assert(inequality_result == NULL);
+
     fortsym_expr_free(solution);
+    fortsym_expr_free(quadratic_inequality);
+    fortsym_expr_free(inequality);
+    fortsym_expr_free(affine);
+    fortsym_expr_free(slope_term);
     fortsym_expr_free(problem);
     fortsym_expr_free(rhs);
     fortsym_expr_free(a);

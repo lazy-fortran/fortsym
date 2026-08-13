@@ -114,6 +114,14 @@ fortsym = "dsolve adapts the SymPy spelling to the native solve_ode owner for th
 difference = "Nonlinear, higher-order, classified, condition-rich, and non-default-hint families remain explicitly unsupported."
 
 [[semantic]]
+id = "inequality-solving"
+affected = ["solve_univariate_inequality", "reduce_inequalities"]
+parity = "partial"
+sympy = "SymPy reduces polynomial, rational, compound, domain-aware, and condition-bearing inequalities with broad one-variable and multivariate sign analysis."
+fortsym = "The adapter routes both spellings through one native exact affine one-variable owner, which returns an And of exact open or closed bounds and reverses the interval for a negative slope."
+difference = "Higher-degree sign charts, multiple inequalities, compound domains, symbolic coefficients, and relational=False set results remain explicit refusals."
+
+[[semantic]]
 id = "calculus-and-rational-transformations"
 affected = ["cancel", "together", "apart", "collect", "integrate", "limit", "series", "linsolve"]
 parity = "partial"

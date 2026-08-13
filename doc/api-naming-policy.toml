@@ -199,3 +199,13 @@ transition_aliases = []
 python_facade = ["solve_ode"]
 sympy_adapter = ["dsolve"]
 decision = "Keep solve_ode as the one native calculus owner; expose solve_ode in the convenience facade and adapt SymPy's dsolve spelling at the Python boundary."
+
+[[family]]
+id = "inequality-solving"
+audit_concepts = ["inequality-solving"]
+canonical_native = ["solve_univariate_inequality"]
+current_native = ["solve_univariate_inequality"]
+transition_aliases = []
+python_facade = ["solve_univariate_inequality"]
+sympy_adapter = ["solve_univariate_inequality", "reduce_inequalities"]
+decision = "Keep solve_univariate_inequality as the single native inequality owner. Expose the same spelling in the convenience facade and adapt SymPy's reduce_inequalities input convention without duplicating the algorithm."
