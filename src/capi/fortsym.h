@@ -223,12 +223,24 @@ int fortsym_solveset(fortsym_arena *arena, const fortsym_expr *expression,
 /* Solve one square exact-rational system with one right-hand side. `matrix`
  * is a flattened column-major n-by-n handle array and `right_hand_side` has
  * n entries. The result contains n verified values in variable order. This
- * bounded ABI fragment rejects symbolic coefficients, singular systems,
+ * low-level ABI fragment rejects symbolic coefficients, singular systems,
  * non-square systems, and free-parameter systems explicitly. */
 int fortsym_linsolve(fortsym_arena *arena, const fortsym_expr *matrix[],
                      const fortsym_expr *right_hand_side[], size_t dimension,
                      fortsym_expr *out[], size_t output_capacity,
                      size_t *count, char *message, size_t capacity);
+/* Solve a bounded exact-rational system with explicit variables.  The
+ * flattened coefficient matrix is column-major with equation_count rows and
+ * variable_count columns.  `out` receives one expression per variable for a
+ * consistent system; a consistent system with free parameters retains the
+ * supplied variable expressions in the result.  An inconsistent system is a
+ * successful call with count zero.  Exact rational coefficients are required;
+ * symbolic coefficients and unsupported domains return FORTSYM_UNSUPPORTED. */
+int fortsym_linsolve_parametric(
+    fortsym_arena *arena, const fortsym_expr *matrix[],
+    const fortsym_expr *right_hand_side[], const fortsym_expr *variables[],
+    size_t equation_count, size_t variable_count, fortsym_expr *out[],
+    size_t output_capacity, size_t *count, char *message, size_t capacity);
 /* Determinant of a nonempty square dense matrix represented by nested List
  * expressions. Ragged, non-square, and unsupported matrix forms return
  * FORTSYM_UNSUPPORTED. */

@@ -243,6 +243,11 @@ SymPy parity for the entire family.
       through the canonical Fortran, C, Python, and SymPy facades as
       `FiniteSet(Tuple(...))`; singular, symbolic, free-parameter, matrix
       object, and alternate input forms remain explicit refusals.
+- [x] Extend the exact-rational `linsolve` owner to rectangular consistent
+      systems with free parameters and to explicit inconsistent-system
+      `EmptySet` results, reusing native RREF through one versioned C-ABI path;
+      symbolic coefficient domains and broader condition handling remain
+      explicit refusals.
 - [x] Expose bounded exact dense `Matrix` construction, `(row, column)`
       indexing, and native-backed determinant through the canonical facades;
       ragged rows and broader matrix operations remain explicit refusals.

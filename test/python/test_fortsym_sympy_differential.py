@@ -455,6 +455,66 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(tuple(str(value) for value in actual.args[0]),
                          tuple(str(value) for value in next(iter(expected))))
 
+    def test_bounded_linsolve_free_parameters_match_sympy(self):
+        oracle_x, oracle_y = oracle.symbols("linsolve_free_x linsolve_free_y")
+        native_x, native_y = native.symbols(
+            "linsolve_free_x linsolve_free_y"
+        )
+        cases = (
+            (
+                "underdetermined",
+                (((1, 1),), (1,)),
+                (oracle_x, oracle_y),
+                (native_x, native_y),
+            ),
+            (
+                "consistent singular",
+                (((1, 2), (2, 4)), (3, 6)),
+                (oracle_x, oracle_y),
+                (native_x, native_y),
+            ),
+        )
+        try:
+            for label, system, oracle_variables, native_variables in cases:
+                with self.subTest(label=label):
+                    expected = oracle.linsolve(
+                        (oracle.Matrix(system[0]), oracle.Matrix(system[1])),
+                        oracle_variables,
+                    )
+                    actual = native.linsolve(system, native_variables)
+                    try:
+                        self.assertEqual(len(actual), len(expected))
+                        expected_tuple = next(iter(expected))
+                        actual_tuple = next(iter(actual))
+                        actual_values = actual_tuple.args
+                        try:
+                            for expected_value, actual_value in zip(
+                                    expected_tuple, actual_values):
+                                parsed = oracle.sympify(
+                                    str(actual_value),
+                                    locals={
+                                        "linsolve_free_x": oracle_x,
+                                        "linsolve_free_y": oracle_y,
+                                    },
+                                )
+                                self.assertEqual(
+                                    oracle.simplify(parsed - expected_value),
+                                    oracle.Integer(0),
+                                )
+                        finally:
+                            for value in actual_values:
+                                value.close()
+                            actual_tuple.close()
+                    finally:
+                        actual.close()
+            inconsistent = native.linsolve(
+                (((1,), (1,)), (1, 2)), (native_x,)
+            )
+            self.assertEqual(inconsistent, native.EmptySet)
+        finally:
+            native_x.close()
+            native_y.close()
+
     def test_tuple_result_is_native_owned_and_matches_sympy(self):
         expected = oracle.Tuple(self.locals["x"], 2)
         actual = native.Tuple(native.Symbol("x"), 2)
@@ -735,11 +795,6 @@ class SympyDifferentialTest(unittest.TestCase):
         with self.assertRaises(native.UnsupportedOperationError):
             native.linsolve(
                 (((native_x, 2), (3, 4)), (5, 6)),
-                (native_x, native_y),
-            )
-        with self.assertRaises(native.UnsupportedOperationError):
-            native.linsolve(
-                (((1, 2), (2, 4)), (5, 10)),
                 (native_x, native_y),
             )
 

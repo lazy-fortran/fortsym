@@ -4,12 +4,14 @@ module fortsym_linsolve_adapter
     use fortsym_engine, only: engine_t
     use fortsym_expr, only: expr_t
     use fortsym_linalg, only: exact_linear_system_result_t, &
-        solve_exact_linear_system
+        solve_exact_linear_system, parametric_linear_system_result_t, &
+        solve_parametric_linear_system
     use fortsym_string, only: chars
     implicit none
     private
 
     public :: calculate_linsolve
+    public :: calculate_parametric_linsolve
 
 contains
 
@@ -52,5 +54,24 @@ contains
         end do
         ok = .true.
     end subroutine calculate_linsolve
+
+    subroutine calculate_parametric_linsolve( &
+            engine, matrix, right_hand_side, variables, values, consistent, &
+            ok, why)
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: matrix(:, :), right_hand_side(:)
+        type(expr_t), intent(in) :: variables(:)
+        type(expr_t), allocatable, intent(out) :: values(:)
+        logical, intent(out) :: consistent, ok
+        character(:), allocatable, intent(out) :: why
+        type(parametric_linear_system_result_t) :: result
+
+        result = solve_parametric_linear_system( &
+            engine, matrix, right_hand_side, variables)
+        values = result%values
+        consistent = result%consistent
+        ok = result%ok
+        why = chars(result%message)
+    end subroutine calculate_parametric_linsolve
 
 end module fortsym_linsolve_adapter

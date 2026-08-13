@@ -1982,12 +1982,12 @@ def solveset(expression, symbol=None, domain=None):
 
 
 def linsolve(system, *symbols, **options):
-    """Solve one explicit square exact-rational matrix system.
+    """Solve one explicit exact-rational linear system.
 
     The bounded native fragment accepts ``(matrix, right_hand_side)`` as
     nested Python sequences and requires the symbols explicitly. Matrix
-    objects, symbolic coefficients, singular systems, and free parameters
-    remain explicit refusals until their native semantics are implemented.
+    objects and symbolic coefficients remain explicit refusals. Consistent
+    underdetermined systems retain the supplied free symbols in the result.
     """
     if options:
         raise UnsupportedOperationError("linsolve options")
@@ -2006,12 +2006,15 @@ def linsolve(system, *symbols, **options):
             raise UnsupportedOperationError("linsolve matrix rows")
         matrix_values.append([sympify(value) for value in row])
     matrix = matrix_values
+    variable_count = len(matrix[0])
+    if variable_count < 1 or any(len(row) != variable_count for row in matrix):
+        raise UnsupportedOperationError("linsolve matrix dimensions")
     right_hand_side = [sympify(value) for value in right_hand_side]
     variables = symbols[0]
     if not isinstance(variables, (tuple, list)):
         raise UnsupportedOperationError("linsolve symbols form")
     variables = tuple(sympify(variable) for variable in variables)
-    if len(variables) != len(matrix):
+    if len(variables) != variable_count:
         raise ValueError("linsolve symbols and matrix dimensions differ")
     if any(variable.kind != 4 for variable in variables):
         raise UnsupportedOperationError("linsolve symbols must be symbols")
@@ -2019,10 +2022,12 @@ def linsolve(system, *symbols, **options):
            for index, left in enumerate(variables)
            for right in variables[index + 1:]):
         raise ValueError("linsolve symbols must be distinct")
-    values = _native_operation(
-        lambda: _default().linsolve(matrix, right_hand_side)
-    )
+    values = _native_operation(lambda: _default().linsolve_parametric(
+        matrix, right_hand_side, variables
+    ))
     try:
+        if not values:
+            return EmptySet
         result_tuple = Tuple(*values)
         try:
             return FiniteSet(result_tuple)

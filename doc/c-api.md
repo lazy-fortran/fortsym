@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 88). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 89). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -11,7 +11,8 @@ The scalar algebra surface also includes exact bounded `fortsym_together`,
 `fortsym_cancel`, `fortsym_apart`, and `fortsym_collect`, plus verified
 one-variable indefinite `fortsym_integrate`, and verified bounded finite/infinite
 `fortsym_limit`, and bounded `fortsym_series`/`fortsym_series_coeff`;
-verified square exact-rational one-right-hand-side `fortsym_linsolve`, and bounded dense
+verified exact-rational one-right-hand-side `fortsym_linsolve` and
+`fortsym_linsolve_parametric`, and bounded dense
 matrix determinant `fortsym_matrix_det`, and exact matrix rank
 `fortsym_matrix_rank`, exact matrix inverse `fortsym_matrix_inverse`, matrix
 transpose `fortsym_matrix_transpose`, and bounded exact nullspace
@@ -33,6 +34,11 @@ arrays: distinct verified roots and verified denominator poles for the bounded
 rational fragment. The Python facade represents a nontrivial pair as
 `Complement`; `fortsym_solve` retains its list-oriented contract. Both output
 capacities are checked before any handle is returned.
+`fortsym_linsolve_parametric` accepts a column-major rectangular exact-rational
+coefficient matrix, one right-hand side, and explicit variable handles. It
+returns one value per variable for a consistent system, retaining supplied
+free variables, or a successful zero-count result for an inconsistent system.
+The lower-level square `fortsym_linsolve` contract remains unchanged.
 The chart calculus distinguishes ordinary vectors from weight-one vector densities:
 `fortsym_chart_curl_density` returns the metric-free alternating derivative of a
 covector, while `fortsym_chart_div_density` differentiates a contravariant density
