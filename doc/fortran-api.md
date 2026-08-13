@@ -453,7 +453,8 @@ is the canonical form for contractions such as
 `spacetime_tensor_from_form(metric, alpha)` and
 `spacetime_form_from_tensor(metric, tensor)` are the runtime-dimension bridge
 between the compact form owner and the first-slot-fastest tensor owner. The
-tensor view is fully antisymmetric, lower in every slot, and weight zero;
+tensor view is fully antisymmetric, lower in every slot, and weight zero; its
+pairwise `SPACETIME_ANTISYMMETRIC` metadata is retained for every slot pair;
 conversion refuses upper slots, density weights, repeated-index nonzeros, and
 non-antisymmetric components. The Python facade uses the matching
 `SpacetimeForm.to_tensor()` and `SpacetimeTensor.to_form()` spellings.

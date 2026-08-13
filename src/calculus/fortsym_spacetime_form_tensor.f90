@@ -19,10 +19,11 @@ module fortsym_spacetime_form_tensor
     use fortsym_spacetime_tensor, only: spacetime_tensor_t, &
         SPACETIME_TENSOR_MAX_RANK, &
         spacetime_tensor_from_storage, spacetime_tensor_valid, &
+        spacetime_tensor_declare_symmetry, &
         spacetime_tensor_rank, spacetime_tensor_dimension, &
         spacetime_tensor_variance, spacetime_tensor_density_weight, &
         spacetime_tensor_component_flat, spacetime_tensor_same_arena, &
-        SPACETIME_LOWER
+        SPACETIME_LOWER, SPACETIME_ANTISYMMETRIC
     implicit none
     private
 
@@ -158,6 +159,12 @@ contains
             if (sign < 0) values(flat) = -values(flat)
         end do
         tensor_value = spacetime_tensor_from_storage(g, degree, values, metadata, 0)
+        do slot = 1, degree
+            do mask = slot + 1, degree
+                tensor_value = spacetime_tensor_declare_symmetry(tensor_value, &
+                    slot, mask, SPACETIME_ANTISYMMETRIC)
+            end do
+        end do
     end function spacetime_tensor_from_form
 
     pure function component_count(rank, dimension) result(count)

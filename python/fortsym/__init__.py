@@ -5424,9 +5424,12 @@ class SpacetimeForm:
         """Convert this form to its fully antisymmetric lower tensor view."""
         components = self._arena._spacetime_tensor_from_form(self.metric, self)
         variance = (-1,) * self.degree
+        symmetries = tuple((first, second, ANTISYMMETRIC)
+                           for first in range(self.degree)
+                           for second in range(first + 1, self.degree))
         return SpacetimeTensor(
             self.metric, components, (SPACETIME_DIM,) * self.degree,
-            variance=variance, _owned=True,
+            variance=variance, _owned=True, _symmetries=symmetries,
         )
 
     @property

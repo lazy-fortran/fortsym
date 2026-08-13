@@ -53,6 +53,7 @@ class NativePackageTest(unittest.TestCase):
             two_tensor = two_form.to_tensor()
             self.assertEqual(two_tensor.rank, 2)
             self.assertEqual(two_tensor.variance, (-1, -1))
+            self.assertEqual(two_tensor.symmetry(0, 1), fortsym.ANTISYMMETRIC)
             self.assertEqual((two_tensor[0, 1] - t).simplify(), 0)
             self.assertEqual((two_tensor[1, 0] + t).simplify(), 0)
             round_form = two_tensor.to_form()
