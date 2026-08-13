@@ -11,6 +11,9 @@ program test_fortsym_magnetic_weak
     use fortsym_magnetic_weak, only: fourier_constitutive, &
         fourier_constitutive_t, fourier_constitutive_valid, fourier_weak_form, &
         fourier_weak_form_t, fourier_weak_form_valid, current_compatibility, &
+        fourier_source, fourier_source_t, fourier_source_valid, &
+        fourier_source_matches, fourier_load, fourier_load_t, &
+        fourier_load_valid, fourier_load_matches, &
         fourier_longitudinal_residual, fourier_transverse_residual, &
         fourier_longitudinal_flux, fourier_transverse_flux, reluctivity_density, &
         fourier_longitudinal_boundary_flux, fourier_transverse_boundary_flux, &
@@ -26,6 +29,9 @@ program test_fortsym_magnetic_weak
     type(chart_t) :: chart, cylindrical
     type(fourier_constitutive_t) :: material
     type(fourier_weak_form_t) :: longitudinal, transverse
+    type(fourier_source_t) :: longitudinal_source, transverse_source, &
+        invalid_source
+    type(fourier_load_t) :: normal_load, tangential_load, invalid_load
     type(expr_t) :: u(DIM), position(DIM), cylindrical_position(DIM)
     type(expr_t) :: nu(DIM, DIM)
     type(expr_t) :: current(DIM), residual, expected
@@ -171,6 +177,28 @@ program test_fortsym_magnetic_weak
     transverse_potential(2) = u(1)*u(2)
     transverse_current(1) = u(1) - u(2)
     transverse_current(2) = u(1) + 2*u(2)
+    longitudinal_source = fourier_source(chart, full_current(3), 0)
+    if (.not. fourier_source_valid(longitudinal_source)) error stop &
+        "longitudinal source is invalid"
+    if (longitudinal_source%branch /= FOURIER_LONGITUDINAL .or. &
+        longitudinal_source%components /= 1) error stop &
+        "longitudinal source metadata failed"
+    if (.not. fourier_source_matches(longitudinal, longitudinal_source)) &
+        error stop "longitudinal source does not match its weak form"
+    call check_identity(suite, engine, "longitudinal source", &
+        longitudinal_source%value(1) - full_current(3))
+    transverse_source = fourier_source(chart, transverse_current, 2)
+    if (.not. fourier_source_valid(transverse_source)) error stop &
+        "transverse source is invalid"
+    if (transverse_source%branch /= FOURIER_TRANSVERSE .or. &
+        transverse_source%components /= 2) error stop &
+        "transverse source metadata failed"
+    if (.not. fourier_source_matches(transverse, transverse_source)) &
+        error stop "transverse source does not match its weak form"
+    call check_identity(suite, engine, "transverse source 1", &
+        transverse_source%value(1) - transverse_current(1))
+    call check_identity(suite, engine, "transverse source 2", &
+        transverse_source%value(2) - transverse_current(2))
     transverse_flux = fourier_transverse_flux(chart, material, &
         transverse_potential)
     curl_scalar = diff(transverse_potential(2), u(1)) - &
@@ -184,8 +212,26 @@ program test_fortsym_magnetic_weak
     call check_identity(suite, engine, "longitudinal normal contraction", &
         longitudinal_boundary_flux - (normal(1)*longitudinal_flux_one + &
         normal(2)*longitudinal_flux_two))
+    normal_load = fourier_load(chart, longitudinal_boundary_flux, &
+        TRACE_NORMAL, 0)
+    if (.not. fourier_load_valid(normal_load)) error stop &
+        "normal load is invalid"
+    if (.not. fourier_load_matches(longitudinal, normal_load)) error stop &
+        "normal load does not match its weak form"
+    call check_identity(suite, engine, "normal load", &
+        normal_load%value(1) - longitudinal_boundary_flux)
     call fourier_transverse_boundary_flux(chart, material, &
         transverse_potential, normal, transverse_boundary_value)
+    tangential_load = fourier_load(chart, transverse_boundary_value, &
+        TRACE_TANGENTIAL, 2)
+    if (.not. fourier_load_valid(tangential_load)) error stop &
+        "tangential load is invalid"
+    if (.not. fourier_load_matches(transverse, tangential_load)) error stop &
+        "tangential load does not match its weak form"
+    call check_identity(suite, engine, "tangential load 1", &
+        tangential_load%value(1) - transverse_boundary_value(1))
+    call check_identity(suite, engine, "tangential load 2", &
+        tangential_load%value(2) - transverse_boundary_value(2))
     call check_identity(suite, engine, "transverse boundary coefficient 1", &
         transverse_boundary_value(1) + normal(2)*transverse_flux)
     call check_identity(suite, engine, "transverse boundary coefficient 2", &
@@ -226,6 +272,14 @@ program test_fortsym_magnetic_weak
         transverse_residual(1) - (full_j(1) - full_current(1)))
     call check_identity(suite, engine, "transverse residual/full curl-curl 2", &
         transverse_residual(2) - (full_j(2) - full_current(2)))
+
+    invalid_source = fourier_source(chart, transverse_current, 0)
+    if (fourier_source_valid(invalid_source)) error stop &
+        "zero mode accepted a transverse source"
+    invalid_load = fourier_load(chart, transverse_boundary_value, &
+        TRACE_NORMAL, 0)
+    if (fourier_load_valid(invalid_load)) error stop &
+        "zero mode accepted a tangential load"
 
     current(1) = u(1)**2
     current(2) = u(2)**2

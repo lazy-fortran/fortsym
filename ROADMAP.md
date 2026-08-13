@@ -1219,8 +1219,9 @@ retain the distinction between raw components, density components, and the
 constitutive tensor. The current paper slice adds native strong residuals for
 the `n = 0` longitudinal scalar and symbolic/integer-mode transverse edge
 branches, boundary flux coefficients, and physical-to-coordinate constitutive
-conversion. General density transformations, source/load records, and
-finite-element assembly are still open.
+conversion. General density transformations and finite-element assembly are
+still open; typed mode-specific source/load records now define the native
+branch, trace, and component contract.
 
 The physical constitutive bridge is:
 
@@ -1267,8 +1268,11 @@ and independent oracle. The minimum case set is:
   weak-form metadata.
   - [x] Add physical scalar/matrix to covariant weight-`-1` reluctivity
     density conversion with native, C, Python, and SymPy-oracle coverage.
-  - [ ] Complete general density transformations, source/load records, and
-    finite-element basis/assembly owners.
+  - [x] Add typed mode-specific source/load records with native, C, Python,
+    and SymPy-facade coverage. The records validate branch, mode, trace, and
+    component compatibility without taking ownership of quadrature or meshes.
+  - [ ] Complete general density transformations and finite-element
+    basis/assembly owners.
 - [x] Add a standalone cylindrical-coordinate example with an explicit
   metric-owner connection path. It derives and checks `sqrtg`, reciprocal
   bases, `Gamma^rho_theta theta`, `Gamma^theta_rho theta`, gradient,
@@ -1981,7 +1985,8 @@ between the two-dimensional gradient, scalar curl, and divergence.
   coefficient blocks from the native constitutive owner. The descriptor
   preserves scalar nodal versus two-dimensional edge spaces, normal versus
   tangential boundary traces, and the mode-dependent transverse mass block.
-  Source assembly and generated source terms remain open.
+  Typed source/load records now define the branch and trace contract; source
+  assembly and generated source terms remain open.
 - [x] Add independent native and SymPy checks for the paper's `n = 0`
   reduction to the full three-dimensional curl-curl form and its `n != 0`
   transverse reduction, including the block constitutive coefficients and
@@ -2151,9 +2156,12 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     the native/C/Python owners return `n_i q_i`, `s_k q`, and the edge-test
     contraction while leaving surface measure and weak-form sign ownership
     explicit.
-  - [ ] Add remaining typed density/constitutive transformations, source/load
-    records, and finite-element basis assembly. The current owners deliberately
-    stop before quadrature or mesh ownership.
+  - [x] Add typed mode-specific source/load records with branch, trace, and
+    component matching. The native, C, Python, and SymPy facades preserve the
+    same two-component layout and refuse incompatible branches.
+  - [ ] Add remaining typed density/constitutive transformations and
+    finite-element basis assembly. The current owners deliberately stop before
+    quadrature or mesh ownership.
 - [ ] **F6 — frontend and corpus parity.** Translate supported Wolfram and
   Python records through one native IR, preserve assumptions and refusals,
   and generate the same cases for `fortsym`, `fortsym.sympy`, and Fortran.

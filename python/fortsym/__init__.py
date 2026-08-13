@@ -655,6 +655,26 @@ def _configure(lib):
             ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    lib.chart_fourier_source = declare(
+        "fortsym_chart_fourier_source", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_fourier_load = declare(
+        "fortsym_chart_fourier_load", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.c_int, ctypes.c_int,
+            ctypes.POINTER(ctypes.c_int), ctypes.POINTER(ctypes.c_int),
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.chart_fourier_longitudinal_flux = declare(
         "fortsym_chart_fourier_longitudinal_flux", ctypes.c_int,
         [
@@ -2044,6 +2064,102 @@ class Arena:
             trial_components.value, test_components.value, boundary_trace.value,
             diffusion_components,
             Expr(self, transverse_curl), components,
+        )
+
+    def _fourier_component_values(self, values, mode, operation):
+        if mode == 0:
+            values = (values,)
+        else:
+            try:
+                values = tuple(values)
+            except TypeError as error:
+                raise TypeError(
+                    f"{operation} requires two components for a nonzero mode"
+                ) from error
+            if len(values) != 2:
+                raise ValueError(
+                    f"{operation} requires two components for a nonzero mode"
+                )
+        coerced = []
+        temporary_values = []
+        try:
+            for value in values:
+                value, temporary = self._coerce(value)
+                coerced.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+        except Exception:
+            for temporary in temporary_values:
+                temporary.close()
+            raise
+        return coerced, temporary_values
+
+    def _chart_fourier_source(self, chart, current, mode):
+        if not isinstance(mode, int) or isinstance(mode, bool):
+            raise TypeError("fourier_source mode must be an integer")
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        values, temporary_values = self._fourier_component_values(
+            current, mode, "fourier_source"
+        )
+        try:
+            current_handles = (_CVOID * 2)(
+                values[0]._handle,
+                values[0]._handle if mode == 0 else values[1]._handle,
+            )
+            branch = ctypes.c_int()
+            components = ctypes.c_int()
+            output = (_CVOID * 2)()
+            message = _message()
+            status = self._lib.chart_fourier_source(
+                self._require(), coordinate_handles, position_handles,
+                current_handles, mode, ctypes.byref(branch),
+                ctypes.byref(components), output, message, len(message),
+            )
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
+        if status:
+            raise FortSymError(status, _decode(message), "fourier_source")
+        expressions = tuple(Expr(self, output[index]) for index in range(2))
+        return FourierSource(
+            chart, mode, branch.value, components.value, expressions,
+        )
+
+    def _chart_fourier_load(self, chart, load, trace, mode):
+        if not isinstance(trace, int) or isinstance(trace, bool):
+            raise TypeError("fourier_load trace must be an integer")
+        if not isinstance(mode, int) or isinstance(mode, bool):
+            raise TypeError("fourier_load mode must be an integer")
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        values, temporary_values = self._fourier_component_values(
+            load, mode, "fourier_load"
+        )
+        try:
+            input_handles = (_CVOID * 2)(
+                values[0]._handle,
+                values[0]._handle if mode == 0 else values[1]._handle,
+            )
+            branch = ctypes.c_int()
+            components = ctypes.c_int()
+            output = (_CVOID * 2)()
+            message = _message()
+            status = self._lib.chart_fourier_load(
+                self._require(), coordinate_handles, position_handles,
+                input_handles, trace, mode, ctypes.byref(branch),
+                ctypes.byref(components), output, message, len(message),
+            )
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
+        if status:
+            raise FortSymError(status, _decode(message), "fourier_load")
+        expressions = tuple(Expr(self, output[index]) for index in range(2))
+        return FourierLoad(
+            chart, mode, branch.value, trace, components.value, expressions,
         )
 
     def _chart_fourier_longitudinal_flux(
@@ -4337,6 +4453,14 @@ class Chart:
             self, reluctivity, mode,
         )
 
+    def fourier_source(self, current, mode):
+        """Return the typed volumetric source for one Fourier branch."""
+        return self._arena._chart_fourier_source(self, current, mode)
+
+    def fourier_load(self, load, trace, mode):
+        """Return the typed boundary load for one Fourier branch."""
+        return self._arena._chart_fourier_load(self, load, trace, mode)
+
     def fourier_longitudinal_flux(self, reluctivity, potential, component):
         """Return component ``q_i = nubar[i,j] * d_j(A_3)``."""
         return self._arena._chart_fourier_longitudinal_flux(
@@ -5660,6 +5784,91 @@ class FourierWeakForm:
     @property
     def has_mass_term(self):
         return self.branch == FOURIER_TRANSVERSE
+
+
+class FourierSource:
+    """Typed volumetric source data for one native Fourier branch."""
+
+    def __init__(self, chart, mode, branch, components, values):
+        self.chart = chart
+        self.mode = mode
+        self.branch = branch
+        self.components = components
+        self.values = tuple(values[:components])
+        for value in values[components:]:
+            value.close()
+        self.value = self.values[0] if components == 1 else self.values
+        self.valid = (
+            branch == FOURIER_LONGITUDINAL and mode == 0 and components == 1
+        ) or (
+            branch == FOURIER_TRANSVERSE and mode != 0 and components == 2
+        )
+
+    @property
+    def branch_name(self):
+        return {
+            FOURIER_LONGITUDINAL: "longitudinal",
+            FOURIER_TRANSVERSE: "transverse",
+        }.get(self.branch, "invalid")
+
+    def matches(self, form):
+        """Return whether this source has the form's branch and arity."""
+        return (
+            isinstance(form, FourierWeakForm)
+            and self.valid
+            and self.chart is form.chart
+            and self.mode == form.mode
+            and self.branch == form.branch
+            and self.components == form.test_components
+        )
+
+
+class FourierLoad:
+    """Typed boundary load data for one native Fourier branch."""
+
+    def __init__(self, chart, mode, branch, trace, components, values):
+        self.chart = chart
+        self.mode = mode
+        self.branch = branch
+        self.trace = trace
+        self.components = components
+        self.values = tuple(values[:components])
+        for value in values[components:]:
+            value.close()
+        self.value = self.values[0] if components == 1 else self.values
+        self.valid = (
+            branch == FOURIER_LONGITUDINAL and mode == 0
+            and trace == TRACE_NORMAL and components == 1
+        ) or (
+            branch == FOURIER_TRANSVERSE and mode != 0
+            and trace == TRACE_TANGENTIAL and components == 2
+        )
+
+    @property
+    def branch_name(self):
+        return {
+            FOURIER_LONGITUDINAL: "longitudinal",
+            FOURIER_TRANSVERSE: "transverse",
+        }.get(self.branch, "invalid")
+
+    @property
+    def trace_name(self):
+        return {
+            TRACE_NORMAL: "normal",
+            TRACE_TANGENTIAL: "tangential",
+        }.get(self.trace, "none")
+
+    def matches(self, form):
+        """Return whether this load has the form's branch, trace, and arity."""
+        return (
+            isinstance(form, FourierWeakForm)
+            and self.valid
+            and self.chart is form.chart
+            and self.mode == form.mode
+            and self.branch == form.branch
+            and self.trace == form.boundary_trace
+            and self.components == form.test_components
+        )
 
 
 class ChartMap:
@@ -7164,7 +7373,7 @@ def trace(tensor: Tensor, first, second): return tensor.trace(first, second)
 
 
 __all__ = [
-    "Arena", "Chart", "ChartMap", "FluxSurface", "FluxCoordinates", "MagneticChart", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
+    "Arena", "Chart", "ChartMap", "FluxSurface", "FluxCoordinates", "MagneticChart", "MagneticField", "FourierWeakForm", "FourierSource", "FourierLoad", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL", "FLUX_GENERIC", "FLUX_CLEBSCH", "FLUX_STRAIGHT_FIELD_LINE", "FLUX_BOOZER", "FLUX_HAMADA", "CLEBSCH_RESIDUAL_COUNT", "BOOZER_RESIDUAL_COUNT", "HAMADA_RESIDUAL_COUNT",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",

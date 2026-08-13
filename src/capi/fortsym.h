@@ -347,6 +347,16 @@ int fortsym_chart_fourier_weak_form(
     int *test_components, int *boundary_trace, fortsym_expr *longitudinal_diffusion[],
     fortsym_expr **transverse_curl_coefficient,
     fortsym_expr *transverse_mass[], char *message, size_t capacity);
+int fortsym_chart_fourier_source(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *current[], int mode,
+    int *branch, int *components, fortsym_expr *out[], char *message,
+    size_t capacity);
+int fortsym_chart_fourier_load(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *input[], int trace,
+    int mode, int *branch, int *components, fortsym_expr *out[],
+    char *message, size_t capacity);
 int fortsym_chart_fourier_longitudinal_flux(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *reluctivity[],

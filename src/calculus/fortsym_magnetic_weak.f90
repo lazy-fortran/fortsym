@@ -56,6 +56,28 @@ module fortsym_magnetic_weak
         type(expr_t) :: transverse_mass(2, 2)
     end type fourier_weak_form_t
 
+    ! A mode-specific volumetric source.  The n=0 longitudinal branch owns
+    ! one J^3 component; every nonzero transverse branch owns (J^1,J^2).
+    type, public :: fourier_source_t
+        integer :: mode = 0
+        integer :: branch = FOURIER_INVALID
+        integer :: components = 0
+        type(expr_t) :: value(2)
+        logical :: valid = .false.
+    end type fourier_source_t
+
+    ! A mode-specific boundary load.  Normal traces are scalar nodal loads;
+    ! tangential traces are two-component edge loads.  The load owner keeps
+    ! the weak-form sign and surface measure with the caller.
+    type, public :: fourier_load_t
+        integer :: mode = 0
+        integer :: branch = FOURIER_INVALID
+        integer :: trace = TRACE_NONE
+        integer :: components = 0
+        type(expr_t) :: value(2)
+        logical :: valid = .false.
+    end type fourier_load_t
+
     interface fourier_constitutive
         module procedure fourier_constitutive_matrix
         module procedure fourier_constitutive_blocks
@@ -69,6 +91,16 @@ module fortsym_magnetic_weak
     interface fourier_weak_form
         module procedure fourier_weak_form_integer
     end interface fourier_weak_form
+
+    interface fourier_source
+        module procedure fourier_source_scalar
+        module procedure fourier_source_pair
+    end interface fourier_source
+
+    interface fourier_load
+        module procedure fourier_load_scalar
+        module procedure fourier_load_pair
+    end interface fourier_load
 
     interface current_compatibility
         module procedure current_compatibility_integer
@@ -100,6 +132,8 @@ module fortsym_magnetic_weak
     public :: fourier_longitudinal_flux, fourier_transverse_flux, &
         fourier_longitudinal_boundary_flux, fourier_transverse_boundary_flux, &
         fourier_transverse_boundary_contraction
+    public :: fourier_source, fourier_load, fourier_source_valid, &
+        fourier_load_valid, fourier_source_matches, fourier_load_matches
     public :: nubar, fourier_constitutive_valid, fourier_weak_form_valid
 
 contains
@@ -356,6 +390,161 @@ contains
         end if
         value%valid = .true.
     end function fourier_weak_form_integer
+
+    !> Create the n=0 scalar current-density source J^3.
+    function fourier_source_scalar(c, current, mode) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: current
+        integer, intent(in) :: mode
+        type(fourier_source_t) :: value
+
+        if (.not. associated(c%a)) return
+        if (mode /= 0) return
+        if (.not. is_valid(current)) return
+        if (.not. same_arena(current, c%u(1))) return
+        value%mode = mode
+        value%branch = FOURIER_LONGITUDINAL
+        value%components = 1
+        value%value(1) = current
+        value%value(2) = num(c%a, 0_int64)
+        value%valid = .true.
+    end function fourier_source_scalar
+
+    !> Create an n/=0 transverse current-density source (J^1,J^2).
+    function fourier_source_pair(c, current, mode) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: current(2)
+        integer, intent(in) :: mode
+        type(fourier_source_t) :: value
+        integer :: i
+
+        if (.not. associated(c%a)) return
+        if (mode == 0) return
+        do i = 1, 2
+            if (.not. is_valid(current(i))) return
+            if (.not. same_arena(current(i), c%u(1))) return
+            value%value(i) = current(i)
+        end do
+        value%mode = mode
+        value%branch = FOURIER_TRANSVERSE
+        value%components = 2
+        value%valid = .true.
+    end function fourier_source_pair
+
+    !> Create a scalar normal-trace load for the n=0 branch.
+    function fourier_load_scalar(c, load_value, trace, mode) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: load_value
+        integer, intent(in) :: trace, mode
+        type(fourier_load_t) :: value
+
+        if (.not. associated(c%a)) return
+        if (trace /= TRACE_NORMAL .or. mode /= 0) return
+        if (.not. is_valid(load_value)) return
+        if (.not. same_arena(load_value, c%u(1))) return
+        value%mode = mode
+        value%branch = FOURIER_LONGITUDINAL
+        value%trace = trace
+        value%components = 1
+        value%value(1) = load_value
+        value%value(2) = num(c%a, 0_int64)
+        value%valid = .true.
+    end function fourier_load_scalar
+
+    !> Create a two-component tangential edge load for the n/=0 branch.
+    function fourier_load_pair(c, load_value, trace, mode) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: load_value(2)
+        integer, intent(in) :: trace, mode
+        type(fourier_load_t) :: value
+        integer :: i
+
+        if (.not. associated(c%a)) return
+        if (trace /= TRACE_TANGENTIAL .or. mode == 0) return
+        do i = 1, 2
+            if (.not. is_valid(load_value(i))) return
+            if (.not. same_arena(load_value(i), c%u(1))) return
+            value%value(i) = load_value(i)
+        end do
+        value%mode = mode
+        value%branch = FOURIER_TRANSVERSE
+        value%trace = trace
+        value%components = 2
+        value%valid = .true.
+    end function fourier_load_pair
+
+    function fourier_source_valid(source) result(value)
+        type(fourier_source_t), intent(in) :: source
+        logical :: value
+        integer :: i
+
+        value = source%valid .and. source%components >= 1 .and. &
+            source%components <= 2
+        if (.not. value) return
+        if (source%branch == FOURIER_LONGITUDINAL) then
+            value = source%mode == 0 .and. source%components == 1
+        else if (source%branch == FOURIER_TRANSVERSE) then
+            value = source%mode /= 0 .and. source%components == 2
+        else
+            value = .false.
+        end if
+        if (.not. value) return
+        do i = 1, source%components
+            if (.not. is_valid(source%value(i))) then
+                value = .false.
+                return
+            end if
+        end do
+    end function fourier_source_valid
+
+    function fourier_load_valid(load) result(value)
+        type(fourier_load_t), intent(in) :: load
+        logical :: value
+        integer :: i
+
+        value = load%valid .and. load%components >= 1 .and. &
+            load%components <= 2
+        if (.not. value) return
+        if (load%branch == FOURIER_LONGITUDINAL) then
+            value = load%mode == 0 .and. load%trace == TRACE_NORMAL .and. &
+                load%components == 1
+        else if (load%branch == FOURIER_TRANSVERSE) then
+            value = load%mode /= 0 .and. load%trace == TRACE_TANGENTIAL .and. &
+                load%components == 2
+        else
+            value = .false.
+        end if
+        if (.not. value) return
+        do i = 1, load%components
+            if (.not. is_valid(load%value(i))) then
+                value = .false.
+                return
+            end if
+        end do
+    end function fourier_load_valid
+
+    function fourier_source_matches(form, source) result(value)
+        type(fourier_weak_form_t), intent(in) :: form
+        type(fourier_source_t), intent(in) :: source
+        logical :: value
+
+        value = fourier_weak_form_valid(form) .and. fourier_source_valid(source)
+        if (.not. value) return
+        value = form%mode == source%mode .and. form%branch == source%branch .and. &
+            form%test_components == source%components
+    end function fourier_source_matches
+
+    function fourier_load_matches(form, load) result(value)
+        type(fourier_weak_form_t), intent(in) :: form
+        type(fourier_load_t), intent(in) :: load
+        logical :: value
+
+        value = fourier_weak_form_valid(form) .and. fourier_load_valid(load)
+        if (.not. value) return
+        value = form%mode == load%mode .and. form%branch == load%branch .and. &
+            form%boundary_trace == load%trace .and. &
+            form%test_components == load%components
+    end function fourier_load_matches
 
     !> Return one component of the scalar branch's constitutive flux.
     !>

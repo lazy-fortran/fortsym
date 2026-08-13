@@ -35,6 +35,7 @@ module fortsym_public_capi
         FLUX_CLEBSCH, FLUX_BOOZER, FLUX_HAMADA, CLEBSCH_RESIDUAL_COUNT, &
         BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT
     use fortsym_magnetic_weak, only: fourier_constitutive, fourier_weak_form, &
+        fourier_source, fourier_load, &
         reluctivity_density, &
         current_compatibility, &
         fourier_longitudinal_residual, fourier_transverse_residual, &
@@ -42,6 +43,7 @@ module fortsym_public_capi
         fourier_longitudinal_boundary_flux, fourier_transverse_boundary_flux, &
         fourier_transverse_boundary_contraction, &
         fourier_constitutive_t, fourier_weak_form_t, &
+        fourier_source_t, fourier_load_t, &
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NODAL, SPACE_EDGE, &
         TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_metric, only: metric_t, metric_create, metric_valid, &
@@ -197,6 +199,7 @@ module fortsym_public_capi
         fortsym_chart_reluctivity_density_scalar, &
         fortsym_chart_reluctivity_density_matrix, &
         fortsym_chart_fourier_weak_form, &
+        fortsym_chart_fourier_source, fortsym_chart_fourier_load, &
         fortsym_chart_fourier_longitudinal_flux, &
         fortsym_chart_fourier_transverse_flux, &
         fortsym_chart_fourier_longitudinal_boundary_flux, &
@@ -3184,6 +3187,116 @@ contains
         call make_expr_array(a, value_mass, transverse_mass, 4, status, &
             message, capacity)
     end function fortsym_chart_fourier_weak_form
+
+    function fortsym_chart_fourier_source(raw, coordinates, position, current, &
+            mode, branch, components, out, message, capacity) bind(c, &
+            name="fortsym_chart_fourier_source") result(status)
+        type(c_ptr), value :: raw, coordinates, position, current, out
+        integer(c_int), value :: mode
+        integer(c_int), intent(out) :: branch, components
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(expr_t) :: source_value, source_pair(2)
+        type(fourier_source_t) :: source
+        type(c_ptr), pointer :: current_values(:)
+        integer :: shape(1)
+
+        branch = 0_c_int
+        components = 0_c_int
+        call prepare_expr_array(out, 2, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        shape(1) = 2
+        call c_f_pointer(current, current_values, shape)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(current_values(1), owner, source_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (mode == 0) then
+            source = fourier_source(chart, source_value, int(mode))
+        else
+            call get_expr(current_values(2), owner, source_pair(2), status, &
+                message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+            source_pair(1) = source_value
+            source = fourier_source(chart, source_pair, int(mode))
+        end if
+        if (.not. source%valid) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        branch = int(source%branch, c_int)
+        components = int(source%components, c_int)
+        call make_expr_array(a, source%value, out, 2, status, message, capacity)
+    end function fortsym_chart_fourier_source
+
+    function fortsym_chart_fourier_load(raw, coordinates, position, input, &
+            trace, mode, branch, components, out, message, capacity) bind(c, &
+            name="fortsym_chart_fourier_load") result(status)
+        type(c_ptr), value :: raw, coordinates, position, input, out
+        integer(c_int), value :: trace, mode
+        integer(c_int), intent(out) :: branch, components
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(expr_t) :: load_value, load_pair(2)
+        type(fourier_load_t) :: load
+        type(c_ptr), pointer :: input_values(:)
+        integer :: shape(1)
+
+        branch = 0_c_int
+        components = 0_c_int
+        call prepare_expr_array(out, 2, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        shape(1) = 2
+        call c_f_pointer(input, input_values, shape)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(input_values(1), owner, load_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (mode == 0) then
+            load = fourier_load(chart, load_value, int(trace), int(mode))
+        else
+            call get_expr(input_values(2), owner, load_pair(2), status, &
+                message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+            load_pair(1) = load_value
+            load = fourier_load(chart, load_pair, int(trace), int(mode))
+        end if
+        if (.not. load%valid) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        branch = int(load%branch, c_int)
+        components = int(load%components, c_int)
+        call make_expr_array(a, load%value, out, 2, status, message, capacity)
+    end function fortsym_chart_fourier_load
 
     function fortsym_chart_fourier_longitudinal_flux(raw, coordinates, position, &
             reluctivity, potential, component, out, message, capacity) &
