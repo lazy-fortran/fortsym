@@ -617,6 +617,10 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(len(native_matrix), len(oracle_matrix))
         self.assertEqual(native_matrix.is_square, oracle_matrix.is_square)
         self.assertEqual(str(native_matrix), "Matrix([[1, 2], [3, 4]])")
+        self.assertEqual(
+            str(native.Matrix([["matrix_string_x", 2]])),
+            str(oracle.Matrix([[oracle.Symbol("matrix_string_x"), 2]])),
+        )
         self.assertEqual(str(native_matrix[0, 1]), "2")
         self.assertEqual(str(native_matrix.det()), str(oracle_matrix.det()))
         self.assertEqual(str(native.det(native_matrix)), str(oracle.det(oracle_matrix)))

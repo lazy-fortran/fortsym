@@ -2116,9 +2116,27 @@ class Matrix:
         if not nested and any(isinstance(row, (tuple, list)) for row in rows):
             raise UnsupportedOperationError("Matrix rows must be sequences")
         arena = _default()
+
+        def make_list(values):
+            native_values = []
+            temporary_values = []
+            try:
+                for value in values:
+                    if isinstance(value, str):
+                        native_value = sympify(value)
+                        temporary = None
+                    else:
+                        native_value, temporary = arena._coerce(value)
+                    native_values.append(native_value)
+                    if temporary is not None:
+                        temporary_values.append(temporary)
+                return arena.function("List", native_values)
+            finally:
+                for temporary in temporary_values:
+                    temporary.close()
+
         if not nested:
-            values = [sympify(value) for value in rows]
-            self._expression = arena.function("List", values)
+            self._expression = make_list(rows)
             self.rows = len(rows)
             self.cols = 1
             self.shape = (self.rows, self.cols)
@@ -2131,8 +2149,7 @@ class Matrix:
         row_handles = []
         try:
             for row in rows:
-                values = [sympify(value) for value in row]
-                native_row = arena.function("List", values)
+                native_row = make_list(row)
                 native_rows.append(native_row)
                 row_handles.append(native_row)
             self._expression = arena.function("List", native_rows)
