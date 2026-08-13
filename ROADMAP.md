@@ -2065,6 +2065,11 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
   warm operations, conversion, memory, expression growth, and generated
   kernels against matched SymPy workloads; then gate supported compilers,
   CUDA, CMake/CTest, Python, Wolfram, and the no-array-temporary policy.
+  - [x] Keep the native simplifier's cold path from scanning denominator powers
+    or invoking polynomial candidates after a root has already collapsed to a
+    scalar. The optimization preserves the existing denominator-condition
+    checks for changed polynomial roots and is covered by the native behavioral
+    suite and `bench_native` correctness rows.
 
 ## Phase 8 — functions, discrete mathematics, and domains
 
