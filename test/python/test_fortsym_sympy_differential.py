@@ -1365,6 +1365,69 @@ class SympyDifferentialTest(unittest.TestCase):
             [str(oracle_column[index, 0]) for index in range(2)],
         )
 
+    def test_bounded_matrix_equality_matches_sympy(self):
+        cases = (
+            ("equal", [[1, 2], [3, 4]], [[1, 2], [3, 4]]),
+            ("different value", [[1, 2], [3, 4]], [[1, 2], [3, 5]]),
+            ("different shape", [[1, 2]], [[1], [2]]),
+            ("flat column", [1, 2], [[1], [2]]),
+            ("symbolic", [["matrix_equal_x"]], [["matrix_equal_x"]]),
+        )
+        for label, left_rows, right_rows in cases:
+            with self.subTest(label=label):
+                expected_left = oracle.Matrix(left_rows)
+                expected_right = oracle.Matrix(right_rows)
+                actual_left = native.Matrix(left_rows)
+                actual_right = native.Matrix(right_rows)
+                try:
+                    expected = expected_left == expected_right
+                    self.assertEqual(actual_left == actual_right, expected)
+                    self.assertEqual(actual_left != actual_right, not expected)
+                    self.assertEqual(actual_left == actual_left, True)
+                finally:
+                    actual_left._expression.close()
+                    actual_right._expression.close()
+        non_matrix = native.Matrix([[1, 2]])
+        try:
+            self.assertEqual(non_matrix == [[1, 2]], False)
+            self.assertEqual(non_matrix != [[1, 2]], True)
+        finally:
+            non_matrix._expression.close()
+        oracle_x, oracle_y = oracle.symbols(
+            "matrix_equal_expr_x matrix_equal_expr_y"
+        )
+        native_x, native_y = native.symbols(
+            "matrix_equal_expr_x matrix_equal_expr_y"
+        )
+        expression_cases = (
+            ("commutative", oracle_x + oracle_y, oracle_y + oracle_x,
+             native_x + native_y, native_y + native_x),
+            ("cancel", oracle_x - oracle_x, 0,
+             native_x - native_x, 0),
+            ("zero add", oracle_x + 0, oracle_x,
+             native_x + 0, native_x),
+            ("like terms", oracle_x + oracle_x, 2*oracle_x,
+             native_x + native_x, 2*native_x),
+            ("trigonometric non-identity",
+             oracle.sin(oracle_x)**2 + oracle.cos(oracle_x)**2, 1,
+             native.sin(native_x)**2 + native.cos(native_x)**2, 1),
+        )
+        try:
+            for label, oracle_left, oracle_right, native_left, native_right in expression_cases:
+                with self.subTest(label=label):
+                    expected = oracle.Matrix([[oracle_left]]) == oracle.Matrix([[oracle_right]])
+                    actual_left = native.Matrix([[native_left]])
+                    actual_right = native.Matrix([[native_right]])
+                    try:
+                        self.assertEqual(actual_left == actual_right, expected)
+                        self.assertEqual(actual_left != actual_right, not expected)
+                    finally:
+                        actual_left._expression.close()
+                        actual_right._expression.close()
+        finally:
+            native_x.close()
+            native_y.close()
+
     def test_bounded_matrix_slices_match_sympy(self):
         oracle_matrix = oracle.Matrix([[1, 2, 3], [4, 5, 6]])
         native_matrix = native.Matrix([[1, 2, 3], [4, 5, 6]])
