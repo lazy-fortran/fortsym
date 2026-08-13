@@ -75,6 +75,10 @@ weight-one `sqrtg B^i` metadata; `.divergence()`, `.field_line_derivative()`,
 and `.average()` delegate to the same chart and field owners. `.potential_form()`
 returns `A` and `.flux_form()` returns the closed magnetic two-form
 `beta = d(A)`.
+`Form.b_con(orientation=1)` and `Form.b_density(orientation=1)` recover typed
+`B^i` and weight-one `sqrt(g) B^i` from a degree-two magnetic form through the
+same native C ABI operation; `Chart.b_con_form()` and `Chart.b_density_form()`
+are the corresponding chart-owner methods.
 `Chart.h_cov(reluctivity, vector)` applies `H_i = nu_ij B^j`, and
 `Chart.h_con(covariant)` raises `H_i` with the chart metric.
 `MagneticField.h_cov()` and `.h_con()` provide typed covariant and

@@ -81,6 +81,10 @@ accept either an integer mode or an expression mode, so a paper derivation can
 use a literal mode while a symbolic check keeps `n` in the expression tree.
 `magnetic_field_t` packages `B^i`, `B_i`, and `sqrtg B^i` as typed tensor
 views with variance and density weight retained across the three representations.
+`b_con_form(c, beta, orientation)` is the inverse oriented Hodge/metric bridge
+from a magnetic degree-two form to `B^i`; `b_density_form` adds the explicit
+weight-one `sqrtg` factor. The default orientation is `+1`, and invalid or
+foreign forms are refused by returning an invalid owner.
 `magnetic_chart(c, potential, label_index)` packages those views with a
 `flux_surface_t` in a `magnetic_chart_t` owner. `magnetic_chart_upper`,
 `magnetic_chart_lower`, and `magnetic_chart_density` return the existing typed

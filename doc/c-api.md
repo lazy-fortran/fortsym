@@ -75,6 +75,11 @@ chart connection before returning the residual.
 three-valued zero verdict for every coefficient of `d(form)`.
 `fortsym_chart_b_density` exposes the native `sqrtg B^i` magnetic view alongside
 `fortsym_chart_b_cov`; both consume the same native magnetic owner.
+`fortsym_chart_b_con_form` and `fortsym_chart_b_density_form` recover the
+contravariant field and weight-one density from an eight-slot degree-two form
+array. Both accept an explicit orientation (`+1` or `-1`) and return three
+expression handles; the C ABI keeps tensor metadata in the higher-level
+Fortran/Python owners.
 `fortsym_chart_h_cov` applies `H_i = nu_ij B^j` to a 3x3 reluctivity and a
 contravariant magnetic vector, while `fortsym_chart_h_con` raises the resulting
 covector with the chart metric.
