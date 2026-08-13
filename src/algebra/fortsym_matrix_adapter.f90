@@ -6,7 +6,8 @@ module fortsym_matrix_adapter
     use fortsym_engine, only: engine_t, engine_result_t
     use fortsym_expr, only: expr_t
     use fortsym_matrix, only: matrix_det, matrix_rank, matrix_inverse, &
-        matrix_transpose, matrix_null_space, matrix_rref, matrix_dot
+        matrix_transpose, matrix_add, matrix_negate, matrix_null_space, &
+        matrix_rref, matrix_dot
     use fortsym_string, only: str_t, chars
     implicit none
     private
@@ -15,6 +16,8 @@ module fortsym_matrix_adapter
     public :: calculate_matrix_rank
     public :: calculate_matrix_inverse
     public :: calculate_matrix_transpose
+    public :: calculate_matrix_add
+    public :: calculate_matrix_negate
     public :: calculate_matrix_null_space
     public :: calculate_matrix_rref
     public :: calculate_matrix_multiply
@@ -80,6 +83,39 @@ contains
             why = "matrix transpose requires a nonempty rectangular matrix"
         end if
     end subroutine calculate_matrix_transpose
+
+    subroutine calculate_matrix_add(a, engine, left, right, value, ok, why, subtract)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: left, right
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        logical, optional, intent(in) :: subtract
+        type(str_t) :: message
+        logical :: canonical
+
+        value = matrix_add(a, left, right, ok, message, subtract, canonical)
+        why = chars(message)
+        if (.not. ok .or. canonical) return
+        call simplify_matrix_value(engine, value, ok, why)
+    end subroutine calculate_matrix_add
+
+    subroutine calculate_matrix_negate(a, engine, expression, value, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: expression
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(str_t) :: message
+        logical :: canonical
+
+        value = matrix_negate(a, expression, ok, message, canonical)
+        why = chars(message)
+        if (.not. ok .or. canonical) return
+        call simplify_matrix_value(engine, value, ok, why)
+    end subroutine calculate_matrix_negate
 
     subroutine calculate_matrix_null_space(a, expression, value, ok, why)
         type(arena_t), target, intent(inout) :: a

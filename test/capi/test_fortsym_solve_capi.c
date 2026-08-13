@@ -28,7 +28,7 @@ int main(void)
     fortsym_expr *roots[4] = {0};
     size_t count = 0;
 
-    assert(fortsym_abi_version() == 85);
+    assert(fortsym_abi_version() == 86);
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_symbol(arena, "x", &x, message, sizeof message) ==
            FORTSYM_OK);

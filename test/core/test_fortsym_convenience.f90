@@ -34,6 +34,7 @@ program test_fortsym_convenience
     type(expr_t) :: nullspace_vector, nullspace_entry
     type(expr_t) :: reduced_matrix, reduced_row, pivot_columns
     type(expr_t) :: product_row, product_entry
+    type(expr_t) :: sum_row, sum_entry
     type(str_t), allocatable :: free_names(:)
     type(expr_t) :: stale
     type(engine_result_t) :: result, zero_result
@@ -205,6 +206,33 @@ program test_fortsym_convenience
         product_entry = product_row%arg(1)
         call check("facade exposes exact matrix multiplication", &
             product_entry == num(default_storage, 7_int64), failures)
+    end if
+    result = matrix_add(determinant_matrix, determinant_matrix)
+    if (.not. result%ok) then
+        call check("facade exposes exact matrix addition", .false., failures)
+    else
+        sum_row = result%value%arg(1)
+        sum_entry = sum_row%arg(1)
+        call check("facade exposes exact matrix addition", &
+            sum_entry == num(default_storage, 2_int64), failures)
+    end if
+    result = matrix_subtract(determinant_matrix, determinant_matrix)
+    if (.not. result%ok) then
+        call check("facade exposes exact matrix subtraction", .false., failures)
+    else
+        sum_row = result%value%arg(1)
+        sum_entry = sum_row%arg(1)
+        call check("facade exposes exact matrix subtraction", &
+            sum_entry == num(default_storage, 0_int64), failures)
+    end if
+    result = matrix_negate(determinant_matrix)
+    if (.not. result%ok) then
+        call check("facade exposes exact matrix negation", .false., failures)
+    else
+        sum_row = result%value%arg(1)
+        sum_entry = sum_row%arg(1)
+        call check("facade exposes exact matrix negation", &
+            sum_entry == num(default_storage, -1_int64), failures)
     end if
     result = series(exp(mu), mu, num(default_storage, 0_int64), 3)
     series_value = result%value

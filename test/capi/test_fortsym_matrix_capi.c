@@ -20,6 +20,7 @@ int main(void)
     fortsym_expr *null_row_one = NULL, *null_row_two = NULL;
     fortsym_expr *null_matrix = NULL, *nullspace = NULL, *rref = NULL;
     fortsym_expr *product = NULL, *scaled = NULL;
+    fortsym_expr *sum = NULL, *difference = NULL, *negative = NULL;
     fortsym_expr *reduced = NULL, *pivots = NULL;
     fortsym_expr *inverse_row = NULL, *inverse_entry = NULL;
     const fortsym_expr *row_one_values[2];
@@ -29,7 +30,7 @@ int main(void)
     const fortsym_expr *null_row_two_values[3];
     const fortsym_expr *null_rows[2];
 
-    assert(fortsym_abi_version() == 85);
+    assert(fortsym_abi_version() == 86);
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 1, &one, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 2, &two, message, sizeof message) == FORTSYM_OK);
@@ -101,8 +102,26 @@ int main(void)
     assert(fortsym_expr_text(scaled, text, sizeof text, &required,
                              message, sizeof message) == FORTSYM_OK);
     assert(strcmp(text, "List(List(2, 4), List(6, 8))") == 0);
+    assert(fortsym_matrix_add(arena, matrix, matrix, &sum, message,
+                              sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_text(sum, text, sizeof text, &required,
+                             message, sizeof message) == FORTSYM_OK);
+    assert(strcmp(text, "List(List(2, 4), List(6, 8))") == 0);
+    assert(fortsym_matrix_subtract(arena, matrix, matrix, &difference,
+                                   message, sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_text(difference, text, sizeof text, &required,
+                             message, sizeof message) == FORTSYM_OK);
+    assert(strcmp(text, "List(List(0, 0), List(0, 0))") == 0);
+    assert(fortsym_matrix_negate(arena, matrix, &negative, message,
+                                 sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_text(negative, text, sizeof text, &required,
+                             message, sizeof message) == FORTSYM_OK);
+    assert(strcmp(text, "List(List(-1, -2), List(-3, -4))") == 0);
     fortsym_expr_free(scaled);
     fortsym_expr_free(product);
+    fortsym_expr_free(negative);
+    fortsym_expr_free(difference);
+    fortsym_expr_free(sum);
     scaled = NULL;
     product = NULL;
     {
@@ -114,6 +133,9 @@ int main(void)
                                    message, sizeof message) ==
            FORTSYM_UNSUPPORTED);
     assert(product == NULL);
+    assert(fortsym_matrix_add(arena, bad_matrix, matrix, &sum, message,
+                              sizeof message) == FORTSYM_UNSUPPORTED);
+    assert(sum == NULL);
     assert(fortsym_arena_new(&foreign_arena, message, sizeof message) ==
            FORTSYM_OK);
     assert(fortsym_int(foreign_arena, 1, &foreign_one, message,
@@ -122,6 +144,9 @@ int main(void)
                                    message, sizeof message) ==
            FORTSYM_FOREIGN_ARENA);
     assert(product == NULL);
+    assert(fortsym_matrix_add(arena, matrix, foreign_one, &sum, message,
+                              sizeof message) == FORTSYM_FOREIGN_ARENA);
+    assert(sum == NULL);
     fortsym_expr_free(bad_matrix);
     fortsym_expr_free(foreign_one);
     fortsym_arena_free(foreign_arena);

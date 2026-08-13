@@ -1622,6 +1622,48 @@ class Matrix:
         self.shape = (self.rows, self.cols)
         self._column_vector = False
 
+    def _matrix_binary(self, other, operation):
+        if not isinstance(other, Matrix):
+            return NotImplemented
+        if self._expression._arena is not other._expression._arena:
+            raise ValueError("matrix operands belong to different arenas")
+        if self.shape != other.shape:
+            raise ValueError("Matrix dimensions are not aligned")
+        right_expression, temporary = other._matrix_expression()
+        try:
+            expression = _native_operation(
+                lambda: getattr(self._expression, operation)(right_expression)
+            )
+        finally:
+            if temporary is not None:
+                temporary.close()
+        return self._from_expression(expression, self.rows, self.cols)
+
+    def __add__(self, other):
+        return self._matrix_binary(other, "matrix_add")
+
+    def __radd__(self, other):
+        if isinstance(other, Matrix):
+            return other.__add__(self)
+        return NotImplemented
+
+    def __sub__(self, other):
+        return self._matrix_binary(other, "matrix_subtract")
+
+    def __rsub__(self, other):
+        if isinstance(other, Matrix):
+            return other.__sub__(self)
+        return NotImplemented
+
+    def __neg__(self):
+        expression, temporary = self._matrix_expression()
+        try:
+            result = _native_operation(expression.matrix_negate)
+        finally:
+            if temporary is not None:
+                temporary.close()
+        return self._from_expression(result, self.rows, self.cols)
+
     def __mul__(self, other):
         if isinstance(other, Matrix):
             if self._expression._arena is not other._expression._arena:

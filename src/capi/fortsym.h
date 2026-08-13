@@ -240,6 +240,17 @@ int fortsym_matrix_inverse(fortsym_arena *arena, const fortsym_expr *matrix,
  * Ragged and unsupported forms return FORTSYM_UNSUPPORTED. */
 int fortsym_matrix_transpose(fortsym_arena *arena, const fortsym_expr *matrix,
                              fortsym_expr **out, char *message, size_t capacity);
+/* Add, subtract, or negate bounded exact dense matrices represented by nested
+ * Lists. Unequal dimensions, malformed forms, and unsupported operands return
+ * FORTSYM_UNSUPPORTED. */
+int fortsym_matrix_add(fortsym_arena *arena, const fortsym_expr *left,
+                       const fortsym_expr *right, fortsym_expr **out,
+                       char *message, size_t capacity);
+int fortsym_matrix_subtract(fortsym_arena *arena, const fortsym_expr *left,
+                            const fortsym_expr *right, fortsym_expr **out,
+                            char *message, size_t capacity);
+int fortsym_matrix_negate(fortsym_arena *arena, const fortsym_expr *matrix,
+                          fortsym_expr **out, char *message, size_t capacity);
 /* Return the bounded exact right-nullspace basis as a List of flat List
  * vectors. Ragged, over-bounded, and unsupported forms return
  * FORTSYM_UNSUPPORTED. */

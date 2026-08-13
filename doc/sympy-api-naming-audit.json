@@ -1999,7 +1999,19 @@
       },
       {
         "concepts": [],
+        "name": "matrix_add"
+      },
+      {
+        "concepts": [],
         "name": "matrix_multiply"
+      },
+      {
+        "concepts": [],
+        "name": "matrix_negate"
+      },
+      {
+        "concepts": [],
+        "name": "matrix_subtract"
       },
       {
         "concepts": [],
@@ -3170,7 +3182,10 @@
       "inv",
       "limit",
       "linsolve",
+      "matrix_add",
       "matrix_multiply",
+      "matrix_negate",
+      "matrix_subtract",
       "nullspace",
       "operation_count",
       "rank",
@@ -3343,7 +3358,10 @@
       "log",
       "loggamma",
       "match",
+      "matrix_add",
       "matrix_multiply",
+      "matrix_negate",
+      "matrix_subtract",
       "name",
       "nan",
       "no_symmetry",
@@ -3401,10 +3419,10 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 535,
-    "python_facade_exports": 84,
-    "sympy_adapter_exports": 195,
-    "unmapped_fortran_exports": 397
+    "fortran_facade_exports": 538,
+    "python_facade_exports": 87,
+    "sympy_adapter_exports": 198,
+    "unmapped_fortran_exports": 400
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -3612,7 +3630,10 @@
     "make_metric",
     "map_jacobian",
     "map_valid",
+    "matrix_add",
     "matrix_multiply",
+    "matrix_negate",
+    "matrix_subtract",
     "matrix_transpose",
     "maxwell_field_strength",
     "maxwell_gauge_transform",

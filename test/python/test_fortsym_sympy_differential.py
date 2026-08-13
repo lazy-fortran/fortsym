@@ -315,6 +315,11 @@ class SympyDifferentialTest(unittest.TestCase):
                          str(oracle_matrix * oracle_right))
         self.assertEqual(str(native_matrix @ native_right),
                          str(oracle_matrix @ oracle_right))
+        self.assertEqual(str(native_matrix + native_right),
+                         str(oracle_matrix + oracle_right))
+        self.assertEqual(str(native_matrix - native_right),
+                         str(oracle_matrix - oracle_right))
+        self.assertEqual(str(-native_matrix), str(-oracle_matrix))
         self.assertEqual(str(native_matrix * 2), str(oracle_matrix * 2))
         self.assertEqual(str(2 * native_matrix), str(2 * oracle_matrix))
         oracle_symbolic = oracle.Matrix([[self.locals["x"], 2], [3, 4]])
@@ -328,12 +333,42 @@ class SympyDifferentialTest(unittest.TestCase):
                     oracle_product[row, column],
                     native_product[row, column],
                 )
+        oracle_sum = oracle_symbolic + oracle_right
+        native_sum = native_symbolic + native_right
+        oracle_difference = oracle_symbolic - oracle_right
+        native_difference = native_symbolic - native_right
+        for label, expected_matrix, actual_matrix in (
+                ("symbolic matrix addition", oracle_sum, native_sum),
+                ("symbolic matrix subtraction", oracle_difference,
+                 native_difference)):
+            for row in range(2):
+                for column in range(2):
+                    self.assert_equivalent(
+                        f"{label} ({row}, {column})",
+                        expected_matrix[row, column],
+                        actual_matrix[row, column],
+                    )
+        oracle_negative = -oracle_symbolic
+        native_negative = -native_symbolic
+        for row in range(2):
+            for column in range(2):
+                self.assert_equivalent(
+                    f"symbolic matrix negation ({row}, {column})",
+                    oracle_negative[row, column],
+                    native_negative[row, column],
+                )
         self.assertEqual(
             str(native.Matrix([[2**62]]) * native.Matrix([[4]])),
             str(oracle.Matrix([[2**62]]) * oracle.Matrix([[4]])),
         )
         with self.assertRaises(ValueError):
             native.Matrix([[1, 2]]) * native.Matrix([[1, 2]])
+        with self.assertRaises(ValueError):
+            native.Matrix([[1, 2]]) + native.Matrix([[1, 2], [3, 4]])
+        with self.assertRaises(TypeError):
+            native_matrix + 2
+        with self.assertRaises(TypeError):
+            2 - native_matrix
 
         oracle_null_matrix = oracle.Matrix([[1, 2, 3], [2, 4, 4]])
         native_null_matrix = native.Matrix([[1, 2, 3], [2, 4, 4]])

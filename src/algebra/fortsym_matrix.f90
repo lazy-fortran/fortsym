@@ -22,7 +22,8 @@ module fortsym_matrix
     private
 
     public :: is_list, is_matrix, matrix_shape
-    public :: matrix_transpose, matrix_dot, matrix_det, matrix_inverse
+    public :: matrix_transpose, matrix_add, matrix_negate, matrix_dot
+    public :: matrix_det, matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
     public :: to_matrix, from_matrix
 
@@ -147,6 +148,149 @@ contains
         end do
         r = from_matrix(a, t)
     end function matrix_transpose
+
+    !> Add or subtract two nonempty rectangular dense matrices.
+    !>
+    !> The optional flag keeps one elementwise owner for both operations;
+    !> callers still expose distinct add/subtract names at their public
+    !> language boundaries.
+    function matrix_add(a, x, y, ok, why, subtract, canonical) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t), intent(in) :: x, y
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        logical, optional, intent(in) :: subtract
+        logical, optional, intent(out) :: canonical
+        type(expr_t) :: r
+        type(expr_t), allocatable :: mx(:, :), my(:, :), p(:, :)
+        logical :: do_subtract, fast
+        integer :: i, j
+
+        r = x
+        ok = .false.
+        why = str("")
+        if (present(canonical)) canonical = .false.
+        do_subtract = .false.
+        if (present(subtract)) do_subtract = subtract
+        call to_matrix(x, mx, ok)
+        if (.not. ok) then
+            why = str("matrix addition requires a nonempty rectangular matrix")
+            return
+        end if
+        call to_matrix(y, my, ok)
+        if (.not. ok) then
+            why = str("matrix addition requires a nonempty rectangular matrix")
+            return
+        end if
+        if (size(mx, 1) /= size(my, 1) .or. size(mx, 2) /= size(my, 2)) then
+            ok = .false.
+            why = str("Matrix addition requires equal dimensions")
+            return
+        end if
+        allocate (p(size(mx, 1), size(mx, 2)))
+        call try_integer_matrix_add(mx, my, p, do_subtract, fast)
+        if (fast) then
+            r = from_matrix(a, p)
+            ok = .true.
+            if (present(canonical)) canonical = .true.
+            return
+        end if
+        do i = 1, size(mx, 1)
+            do j = 1, size(mx, 2)
+                if (do_subtract) then
+                    p(i, j) = mx(i, j) - my(i, j)
+                else
+                    p(i, j) = mx(i, j) + my(i, j)
+                end if
+            end do
+        end do
+        r = from_matrix(a, p)
+        ok = .true.
+    end function matrix_add
+
+    !> Negate a nonempty rectangular dense matrix.
+    function matrix_negate(a, x, ok, why, canonical) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t), intent(in) :: x
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        logical, optional, intent(out) :: canonical
+        type(expr_t) :: r
+        type(expr_t), allocatable :: mx(:, :), p(:, :)
+        logical :: fast
+        integer :: i, j
+
+        r = x
+        why = str("")
+        if (present(canonical)) canonical = .false.
+        call to_matrix(x, mx, ok)
+        if (.not. ok) then
+            why = str("matrix negation requires a nonempty rectangular matrix")
+            return
+        end if
+        allocate (p(size(mx, 1), size(mx, 2)))
+        call try_integer_matrix_negate(mx, p, fast)
+        if (fast) then
+            r = from_matrix(a, p)
+            ok = .true.
+            if (present(canonical)) canonical = .true.
+            return
+        end if
+        do i = 1, size(mx, 1)
+            do j = 1, size(mx, 2)
+                p(i, j) = -mx(i, j)
+            end do
+        end do
+        r = from_matrix(a, p)
+        ok = .true.
+    end function matrix_negate
+
+    subroutine try_integer_matrix_add(left, right, product, subtract, used)
+        type(expr_t), intent(in) :: left(:, :), right(:, :)
+        type(expr_t), intent(out) :: product(:, :)
+        logical, intent(in) :: subtract
+        logical, intent(out) :: used
+        integer(int64) :: left_value, right_value
+        integer :: i, j
+
+        used = .false.
+        do i = 1, size(left, 1)
+            do j = 1, size(left, 2)
+                if (left(i, j)%kind() /= NK_INT .or. &
+                    right(i, j)%kind() /= NK_INT) return
+                left_value = left(i, j)%int_value()
+                right_value = right(i, j)%int_value()
+                if (subtract) then
+                    if (.not. integer_subtract_fits(left_value, right_value)) &
+                        return
+                    product(i, j) = num(left(i, j)%a, left_value - right_value)
+                else
+                    if (.not. integer_sum_fits(left_value, right_value)) return
+                    product(i, j) = num(left(i, j)%a, left_value + right_value)
+                end if
+            end do
+        end do
+        used = .true.
+    end subroutine try_integer_matrix_add
+
+    subroutine try_integer_matrix_negate(matrix, product, used)
+        type(expr_t), intent(in) :: matrix(:, :)
+        type(expr_t), intent(out) :: product(:, :)
+        logical, intent(out) :: used
+        integer(int64) :: value
+        integer :: i, j
+
+        used = .false.
+        do i = 1, size(matrix, 1)
+            do j = 1, size(matrix, 2)
+                if (matrix(i, j)%kind() /= NK_INT) return
+                value = matrix(i, j)%int_value()
+                if (value == -huge(0_int64) - 1_int64) return
+                product(i, j) = num(matrix(i, j)%a, -value)
+            end do
+        end do
+        used = .true.
+    end subroutine try_integer_matrix_negate
 
     !> Matrix, matrix-vector and vector products.
     !>
@@ -340,9 +484,9 @@ contains
         else if (right > 0_int64) then
             integer_product_fits = left >= smallest/right
         else if (left == smallest) then
-            integer_product_fits = right == -1_int64
+            integer_product_fits = .false.
         else if (right == smallest) then
-            integer_product_fits = left == -1_int64
+            integer_product_fits = .false.
         else
             integer_product_fits = (-left) <= largest/(-right)
         end if
@@ -359,6 +503,18 @@ contains
             integer_sum_fits = left >= smallest - right
         end if
     end function integer_sum_fits
+
+    logical function integer_subtract_fits(left, right)
+        integer(int64), intent(in) :: left, right
+        integer(int64), parameter :: largest = huge(0_int64)
+        integer(int64), parameter :: smallest = -largest - 1_int64
+
+        if (right > 0_int64) then
+            integer_subtract_fits = left >= smallest + right
+        else
+            integer_subtract_fits = left <= largest + right
+        end if
+    end function integer_subtract_fits
 
     function matrix_times_vector(a, x, y, ok, why) result(r)
         type(arena_t), target, intent(inout) :: a
