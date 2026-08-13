@@ -151,6 +151,13 @@ variance and density weight visible instead of inferring them from names.
 `SpacetimeTensor.product()`, `.contract()`, `.trace()`, and `.permute()` use
 the same native runtime-dimension tensor owner; slot variance and summed
 density weight remain explicit in the returned view.
+`SpacetimeTensor.symmetry(i, j)` and `.symmetries` expose the same pairwise
+metadata vocabulary as `Tensor`; `.declare_symmetry(i, j, kind)` validates the
+active components through the native C ABI and raises `FortSymError` for a
+false declaration. Metric tensors carry their checked symmetric pair, and
+surviving declarations propagate through products, permutations, contractions,
+covariant derivatives, Lie transport, density views, and unchanged slots of
+variance-changing views.
 `SpacetimeTensor.covariant_diff()` (alias `.covariant_derivative()`) appends a
 lower derivative slot, applies the metric Christoffel terms to every slot, and
 preserves density weight for supported input rank at most four. The rank-five

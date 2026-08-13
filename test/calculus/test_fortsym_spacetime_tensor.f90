@@ -15,6 +15,7 @@ program test_fortsym_spacetime_tensor
         spacetime_tensor_component, &
         spacetime_tensor_rank, spacetime_tensor_dimension, &
         spacetime_tensor_variance, spacetime_tensor_density_weight, &
+        spacetime_tensor_symmetry, spacetime_tensor_declare_symmetry, &
         spacetime_tensor_valid, spacetime_tensor_density_factor, &
         spacetime_tensor_raise, spacetime_tensor_lower, &
         spacetime_tensor_product, spacetime_tensor_contract, &
@@ -23,7 +24,8 @@ program test_fortsym_spacetime_tensor
         spacetime_tensor_covariant_divergence, &
         spacetime_tensor_lie_derivative, &
         spacetime_killing, &
-        SPACETIME_UPPER, SPACETIME_LOWER
+        SPACETIME_UPPER, SPACETIME_LOWER, SPACETIME_SYMMETRIC, &
+        SPACETIME_ANTISYMMETRIC
     use fortsym_index, only: index_type_t, index_t, index_type, make_index, &
         compatible_indices, INDEX_SPACETIME, INDEX_INTERNAL
     implicit none
@@ -41,15 +43,17 @@ program test_fortsym_spacetime_tensor
     type(spacetime_tensor_t) :: curved_density, density_derivative, scalar_tensor
     type(spacetime_tensor_t) :: typed_scalar, wrong_space_scalar
     type(spacetime_tensor_t) :: rank_four, rank_five
+    type(spacetime_tensor_t) :: symmetry_value, antisymmetry_value, refused_symmetry
     type(expr_t) :: coordinates(SPACETIME_DIM)
     type(expr_t) :: components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: values(SPACETIME_DIM), factor
     type(expr_t) :: curved_components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: density_values(SPACETIME_DIM)
+    type(expr_t) :: symmetry_values(4)
     type(expr_t) :: rank_four_values(16)
     integer :: signature(SPACETIME_DIM), indices(2), scalar_indices(1), &
         derivative_indices(3), permutation(2), empty(0), rank_four_variance(4), &
-        rank_five_indices(5)
+        rank_five_indices(5), lower_variance(2)
     type(index_type_t) :: spacetime_space, internal_space
     type(index_t) :: upper_i, lower_i, lower_j, internal_i
 
@@ -98,6 +102,40 @@ program test_fortsym_spacetime_tensor
         spacetime_tensor_component(covariant, indices) - 1)
     call check_identity(suite, engine, "contravariant metric component", &
         spacetime_tensor_component(contravariant, indices) + 1)
+    call check(suite, spacetime_tensor_symmetry(covariant, 1, 2) == &
+        SPACETIME_SYMMETRIC, "covariant metric declares symmetry")
+    call check(suite, spacetime_tensor_symmetry(contravariant, 1, 2) == &
+        SPACETIME_SYMMETRIC, "contravariant metric declares symmetry")
+    symmetry_values(1) = num(arena, 1)
+    symmetry_values(2) = num(arena, 2)
+    symmetry_values(3) = num(arena, 2)
+    symmetry_values(4) = num(arena, 3)
+    lower_variance = [SPACETIME_LOWER, SPACETIME_LOWER]
+    symmetry_value = spacetime_tensor_from_components(metric, 2, symmetry_values, &
+        lower_variance)
+    symmetry_value = spacetime_tensor_declare_symmetry(symmetry_value, 1, 2, &
+        SPACETIME_SYMMETRIC)
+    call check(suite, spacetime_tensor_valid(symmetry_value), &
+        "valid symmetry declaration is retained")
+    call check(suite, spacetime_tensor_symmetry(symmetry_value, 1, 2) == &
+        SPACETIME_SYMMETRIC, "declared runtime symmetry is queryable")
+    symmetry_values(2) = num(arena, 4)
+    refused_symmetry = spacetime_tensor_from_components(metric, 2, symmetry_values, &
+        lower_variance)
+    refused_symmetry = spacetime_tensor_declare_symmetry(refused_symmetry, 1, 2, &
+        SPACETIME_SYMMETRIC)
+    call check(suite, .not. spacetime_tensor_valid(refused_symmetry), &
+        "false runtime symmetry declaration is refused")
+    symmetry_values(1) = num(arena, 0)
+    symmetry_values(2) = num(arena, 2)
+    symmetry_values(3) = -symmetry_values(2)
+    symmetry_values(4) = num(arena, 0)
+    antisymmetry_value = spacetime_tensor_from_components(metric, 2, &
+        symmetry_values, lower_variance)
+    antisymmetry_value = spacetime_tensor_declare_symmetry(antisymmetry_value, &
+        1, 2, SPACETIME_ANTISYMMETRIC)
+    call check(suite, spacetime_tensor_symmetry(antisymmetry_value, 1, 2) == &
+        SPACETIME_ANTISYMMETRIC, "antisymmetric runtime declaration")
 
     factor = sqrt(num(arena, 1))
     density_value = spacetime_tensor_density_factor(upper, factor)
@@ -164,6 +202,8 @@ program test_fortsym_spacetime_tensor
     call check_identity(suite, engine, "permutation preserves tensor meaning", &
         spacetime_tensor_component(permuted, indices) - &
         spacetime_tensor_component(covariant, permutation))
+    call check(suite, spacetime_tensor_symmetry(permuted, 1, 2) == &
+        SPACETIME_SYMMETRIC, "permutation preserves runtime symmetry")
 
     curved_components = num(arena, 0)
     curved_components(1, 1) = num(arena, 1)
@@ -188,6 +228,8 @@ program test_fortsym_spacetime_tensor
         spacetime_tensor_component(derivative, indices))
     covariant = spacetime_metric_covariant_tensor(curved_metric)
     metric_derivative = spacetime_tensor_covariant_diff(curved_metric, covariant)
+    call check(suite, spacetime_tensor_symmetry(metric_derivative, 1, 2) == &
+        SPACETIME_SYMMETRIC, "covariant derivative preserves runtime symmetry")
     derivative_indices(1) = 2
     derivative_indices(2) = 2
     derivative_indices(3) = 1

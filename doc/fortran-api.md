@@ -473,6 +473,16 @@ kernel preserves density weight and is equivalent to forming
 `covariant_diff(metric, tensor)` followed by a first-slot/last-slot
 contraction, without materializing that intermediate tensor.
 
+Runtime spacetime tensors use the same pairwise symmetry vocabulary as the
+fixed chart owner. `spacetime_tensor_symmetry(tensor, first, second)` returns
+`SPACETIME_SYMMETRY_NONE`, `SPACETIME_SYMMETRIC`, or
+`SPACETIME_ANTISYMMETRIC`; `spacetime_tensor_declare_symmetry` checks every
+active component and returns an invalid tensor for a false declaration.
+Metric tensors carry their checked symmetric pair automatically. Products,
+permutations, contractions, covariant derivatives, Lie transport, and density
+views preserve declarations on surviving slots; raising or lowering clears
+declarations involving the changed slot.
+
 `lie(metric, vector, tensor)` and `lie_derivative(metric, vector, tensor)`
 use the runtime tensor owner for coordinate Lie transport without a metric
 connection. The vector must be an ordinary weight-zero contravariant field;

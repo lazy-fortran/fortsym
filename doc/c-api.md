@@ -154,6 +154,10 @@ avoiding an intermediate full derivative tensor.
 an ordinary weight-zero contravariant spacetime vector, preserving its slot
 variance and density weight. The related metric Killing residual is the Lie
 derivative of the covariant metric tensor.
+`fortsym_spacetime_tensor_declare_symmetry` validates one same-variance slot
+pair componentwise and returns unchanged output components; a false declaration
+returns `FORTSYM_INVALID_ARGUMENT`. Slots are one-based and the kind is
+`FORTSYM_SYMMETRIC` or `FORTSYM_ANTISYMMETRIC`.
 The native library retains an
 arena while any expression handle refers to it; callers may therefore release
 the arena before releasing its expressions.

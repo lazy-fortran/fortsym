@@ -7,7 +7,7 @@ module fortsym_spacetime_tensor
     ! silently pass through a three-dimensional representation.
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, num, is_valid, same_arena, &
-        operator(+), operator(-), operator(*)
+        operator(+), operator(-), operator(*), operator(==)
     use fortsym_diff, only: diff
     use fortsym_index, only: index_t, index_valid, compatible_indices, &
         index_dimension, index_slot, index_variance
@@ -26,6 +26,9 @@ module fortsym_spacetime_tensor
     integer, parameter :: MAX_COMPONENTS = SPACETIME_DIM**SPACETIME_TENSOR_MAX_RANK
     integer, parameter, public :: SPACETIME_UPPER = 1
     integer, parameter, public :: SPACETIME_LOWER = -1
+    integer, parameter, public :: SPACETIME_SYMMETRY_NONE = 0
+    integer, parameter, public :: SPACETIME_SYMMETRIC = 1
+    integer, parameter, public :: SPACETIME_ANTISYMMETRIC = -1
 
     type, public :: spacetime_tensor_t
         private
@@ -33,6 +36,8 @@ module fortsym_spacetime_tensor
         integer :: rank = -1
         integer :: dimension = 0
         integer :: variance(SPACETIME_TENSOR_MAX_RANK) = 0
+        integer :: symmetry(SPACETIME_TENSOR_MAX_RANK, &
+            SPACETIME_TENSOR_MAX_RANK) = 0
         integer :: density_weight = 0
         type(expr_t) :: component(0:MAX_COMPONENTS - 1)
         logical :: valid = .false.
@@ -46,6 +51,7 @@ module fortsym_spacetime_tensor
     public :: spacetime_tensor_component, spacetime_tensor_component_flat
     public :: spacetime_tensor_rank, spacetime_tensor_dimension
     public :: spacetime_tensor_variance, spacetime_tensor_density_weight
+    public :: spacetime_tensor_symmetry, spacetime_tensor_declare_symmetry
     public :: spacetime_tensor_valid, spacetime_tensor_same_arena
     public :: spacetime_tensor_density, spacetime_tensor_density_factor
     public :: spacetime_tensor_raise, spacetime_tensor_lower
@@ -200,6 +206,8 @@ contains
                 result%component(encode_pair(i, j, dimension)) = metric(i, j)
             end do
         end do
+        result = spacetime_tensor_declare_symmetry(result, 1, 2, &
+            SPACETIME_SYMMETRIC)
     end function spacetime_metric_covariant_tensor
 
     function spacetime_metric_contravariant_tensor(g) result(result)
@@ -219,6 +227,8 @@ contains
                 result%component(encode_pair(i, j, dimension)) = metric(i, j)
             end do
         end do
+        result = spacetime_tensor_declare_symmetry(result, 1, 2, &
+            SPACETIME_SYMMETRIC)
     end function spacetime_metric_contravariant_tensor
 
     function spacetime_tensor_component(tensor_value, indices) result(value)
@@ -284,10 +294,68 @@ contains
         value = tensor_value%density_weight
     end function spacetime_tensor_density_weight
 
+    !> Return the declared pair symmetry of two tensor slots.
+    function spacetime_tensor_symmetry(tensor_value, first, second) result(kind)
+        type(spacetime_tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: first, second
+        integer :: kind
+
+        kind = SPACETIME_SYMMETRY_NONE
+        if (.not. spacetime_tensor_valid(tensor_value)) return
+        if (first < 1 .or. first > tensor_value%rank) return
+        if (second < 1 .or. second > tensor_value%rank) return
+        if (first == second) return
+        kind = tensor_value%symmetry(first, second)
+    end function spacetime_tensor_symmetry
+
+    !> Validate and declare one same-variance slot pair.
+    function spacetime_tensor_declare_symmetry(tensor_value, first, second, &
+            kind) result(result)
+        type(spacetime_tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: first, second, kind
+        type(spacetime_tensor_t) :: result
+        integer :: indices(SPACETIME_TENSOR_MAX_RANK)
+        integer :: swapped(SPACETIME_TENSOR_MAX_RANK)
+        integer :: flat, count
+        type(expr_t) :: left, right, zero
+
+        if (.not. spacetime_tensor_valid(tensor_value)) return
+        if (first < 1 .or. first > tensor_value%rank) return
+        if (second < 1 .or. second > tensor_value%rank) return
+        if (first == second) return
+        if (kind /= SPACETIME_SYMMETRIC .and. &
+            kind /= SPACETIME_ANTISYMMETRIC) return
+        if (tensor_value%variance(first) /= tensor_value%variance(second)) return
+
+        count = component_count(tensor_value%rank, tensor_value%dimension)
+        zero = num(tensor_value%a, 0)
+        do flat = 0, count - 1
+            call decode_index(flat, tensor_value%rank, indices, &
+                tensor_value%dimension)
+            swapped = indices
+            swapped(first) = indices(second)
+            swapped(second) = indices(first)
+            left = tensor_value%component(flat)
+            right = tensor_value%component(encode_index(swapped, &
+                tensor_value%rank, tensor_value%dimension))
+            if (kind == SPACETIME_SYMMETRIC) then
+                if (.not. (left == right)) return
+            else if (indices(first) == indices(second)) then
+                if (.not. (left == zero)) return
+            else if (.not. (left == -right .or. right == -left)) then
+                return
+            end if
+        end do
+
+        result = tensor_value
+        result%symmetry(first, second) = kind
+        result%symmetry(second, first) = kind
+    end function spacetime_tensor_declare_symmetry
+
     function spacetime_tensor_valid(tensor_value) result(value)
         type(spacetime_tensor_t), intent(in) :: tensor_value
         logical :: value
-        integer :: k, count
+        integer :: k, j, count
 
         value = tensor_value%valid .and. associated(tensor_value%a)
         if (.not. value) return
@@ -306,6 +374,29 @@ contains
                 value = .false.
                 return
             end if
+        end do
+        do k = 1, tensor_value%rank
+            if (tensor_value%symmetry(k, k) /= SPACETIME_SYMMETRY_NONE) then
+                value = .false.
+                return
+            end if
+            do j = 1, tensor_value%rank
+                if (.not. valid_symmetry_value(tensor_value%symmetry(k, j))) then
+                    value = .false.
+                    return
+                end if
+                if (tensor_value%symmetry(k, j) /= &
+                    tensor_value%symmetry(j, k)) then
+                    value = .false.
+                    return
+                end if
+                if (tensor_value%symmetry(k, j) /= &
+                    SPACETIME_SYMMETRY_NONE .and. &
+                    tensor_value%variance(k) /= tensor_value%variance(j)) then
+                    value = .false.
+                    return
+                end if
+            end do
         end do
         count = component_count(tensor_value%rank, tensor_value%dimension)
         do k = 0, count - 1
@@ -369,7 +460,7 @@ contains
         type(expr_t) :: metric(SPACETIME_DIM, SPACETIME_DIM), term
         integer :: metadata(SPACETIME_TENSOR_MAX_RANK), indices(SPACETIME_TENSOR_MAX_RANK)
         integer :: old_indices(SPACETIME_TENSOR_MAX_RANK)
-        integer :: count, output_index, j, dimension
+        integer :: count, output_index, j, dimension, i
 
         if (.not. spacetime_tensor_same_arena(tensor_value, g)) return
         if (slot < 1 .or. slot > tensor_value%rank) return
@@ -380,6 +471,11 @@ contains
         metadata(slot) = SPACETIME_UPPER
         result = zero_tensor(tensor_value%a, dimension, tensor_value%rank, metadata, &
             tensor_value%density_weight)
+        result%symmetry = tensor_value%symmetry
+        do i = 1, tensor_value%rank
+            result%symmetry(slot, i) = SPACETIME_SYMMETRY_NONE
+            result%symmetry(i, slot) = SPACETIME_SYMMETRY_NONE
+        end do
         count = component_count(tensor_value%rank, dimension)
         do output_index = 0, count - 1
             call decode_index(output_index, tensor_value%rank, indices, dimension)
@@ -402,7 +498,7 @@ contains
         type(expr_t) :: metric(SPACETIME_DIM, SPACETIME_DIM), term
         integer :: metadata(SPACETIME_TENSOR_MAX_RANK), indices(SPACETIME_TENSOR_MAX_RANK)
         integer :: old_indices(SPACETIME_TENSOR_MAX_RANK)
-        integer :: count, output_index, j, dimension
+        integer :: count, output_index, j, dimension, i
 
         if (.not. spacetime_tensor_same_arena(tensor_value, g)) return
         if (slot < 1 .or. slot > tensor_value%rank) return
@@ -413,6 +509,11 @@ contains
         metadata(slot) = SPACETIME_LOWER
         result = zero_tensor(tensor_value%a, dimension, tensor_value%rank, metadata, &
             tensor_value%density_weight)
+        result%symmetry = tensor_value%symmetry
+        do i = 1, tensor_value%rank
+            result%symmetry(slot, i) = SPACETIME_SYMMETRY_NONE
+            result%symmetry(i, slot) = SPACETIME_SYMMETRY_NONE
+        end do
         count = component_count(tensor_value%rank, dimension)
         do output_index = 0, count - 1
             call decode_index(output_index, tensor_value%rank, indices, dimension)
@@ -447,6 +548,17 @@ contains
         end do
         result = zero_tensor(left%a, left%dimension, left%rank + right%rank, &
             metadata, left%density_weight + right%density_weight)
+        do i = 1, left%rank
+            do j = 1, left%rank
+                result%symmetry(i, j) = left%symmetry(i, j)
+            end do
+        end do
+        do i = 1, right%rank
+            do j = 1, right%rank
+                result%symmetry(left%rank + i, left%rank + j) = &
+                    right%symmetry(i, j)
+            end do
+        end do
         left_count = component_count(left%rank, left%dimension)
         right_count = component_count(right%rank, right%dimension)
         do j = 0, right_count - 1
@@ -465,6 +577,7 @@ contains
         integer :: free_indices(SPACETIME_TENSOR_MAX_RANK)
         integer :: old_indices(SPACETIME_TENSOR_MAX_RANK)
         integer :: free_slot, old_slot, output_index, old_index, i, dimension
+        integer :: free_first, free_second
 
         if (.not. spacetime_tensor_valid(tensor_value)) return
         if (tensor_value%rank < 2) return
@@ -482,6 +595,32 @@ contains
         dimension = tensor_value%dimension
         result = zero_tensor(tensor_value%a, dimension, tensor_value%rank - 2, &
             metadata, tensor_value%density_weight)
+        do old_slot = 1, tensor_value%rank
+            if (old_slot == first .or. old_slot == second) cycle
+            free_first = 0
+            do i = 1, tensor_value%rank
+                if (i == first .or. i == second) cycle
+                free_first = free_first + 1
+                if (i == old_slot) exit
+            end do
+            if (free_first == 0) cycle
+            do i = 1, tensor_value%rank
+                if (i == first .or. i == second) cycle
+                if (tensor_value%symmetry(old_slot, i) == &
+                    SPACETIME_SYMMETRY_NONE) cycle
+                free_second = 0
+                do old_index = 1, tensor_value%rank
+                    if (old_index == first .or. old_index == second) cycle
+                    free_second = free_second + 1
+                    if (old_index == i) exit
+                end do
+                if (free_second == 0) cycle
+                result%symmetry(free_first, free_second) = &
+                    tensor_value%symmetry(old_slot, i)
+                result%symmetry(free_second, free_first) = &
+                    tensor_value%symmetry(old_slot, i)
+            end do
+        end do
         do output_index = 0, component_count(tensor_value%rank - 2, dimension) - 1
             call decode_index(output_index, tensor_value%rank - 2, free_indices, dimension)
             result%component(output_index) = num(tensor_value%a, 0)
@@ -537,7 +676,7 @@ contains
         integer :: metadata(SPACETIME_TENSOR_MAX_RANK)
         integer :: output_indices(SPACETIME_TENSOR_MAX_RANK)
         integer :: source_indices(SPACETIME_TENSOR_MAX_RANK)
-        integer :: slot, output_index, source_index, dimension
+        integer :: slot, i, output_index, source_index, dimension
 
         if (.not. spacetime_tensor_valid(tensor_value)) return
         if (.not. valid_permutation(order, tensor_value%rank)) return
@@ -548,6 +687,12 @@ contains
         end do
         result = zero_tensor(tensor_value%a, dimension, tensor_value%rank, metadata, &
             tensor_value%density_weight)
+        do slot = 1, tensor_value%rank
+            do i = 1, tensor_value%rank
+                result%symmetry(slot, i) = &
+                    tensor_value%symmetry(order(slot), order(i))
+            end do
+        end do
         do output_index = 0, component_count(tensor_value%rank, dimension) - 1
             call decode_index(output_index, tensor_value%rank, output_indices, dimension)
             source_indices = 1
@@ -575,7 +720,7 @@ contains
         integer :: indices(SPACETIME_TENSOR_MAX_RANK)
         integer :: old_indices(SPACETIME_TENSOR_MAX_RANK)
         integer :: metadata(SPACETIME_TENSOR_MAX_RANK)
-        integer :: k, i, m, slot, weight
+        integer :: k, i, j, m, slot, weight
 
         if (.not. spacetime_metric_valid(g)) return
         if (.not. spacetime_metric_has_coordinates(g)) return
@@ -603,6 +748,11 @@ contains
         end if
 
         result = zero_tensor(tensor_value%a, dimension, output_rank, metadata, weight)
+        do i = 1, rank
+            do j = 1, rank
+                result%symmetry(i, j) = tensor_value%symmetry(i, j)
+            end do
+        end do
         do output_index = 0, count - 1
             call decode_index(output_index, output_rank, indices, dimension)
             k = indices(output_rank)
@@ -646,7 +796,7 @@ contains
         integer :: indices(SPACETIME_TENSOR_MAX_RANK)
         integer :: old_indices(SPACETIME_TENSOR_MAX_RANK)
         integer :: metadata(SPACETIME_TENSOR_MAX_RANK)
-        integer :: i, k, m, slot, weight
+        integer :: i, j, k, m, slot, weight
 
         if (.not. spacetime_metric_valid(g)) return
         if (.not. spacetime_metric_has_coordinates(g)) return
@@ -673,6 +823,12 @@ contains
             end do
         end if
         result = zero_tensor(tensor_value%a, dimension, output_rank, metadata, weight)
+        do i = 2, rank
+            do j = 2, rank
+                result%symmetry(i - 1, j - 1) = &
+                    tensor_value%symmetry(i, j)
+            end do
+        end do
 
         do output_index = 0, count - 1
             call decode_index(output_index, output_rank, output_indices, dimension)
@@ -728,7 +884,7 @@ contains
         integer :: indices(SPACETIME_TENSOR_MAX_RANK)
         integer :: old_indices(SPACETIME_TENSOR_MAX_RANK)
         integer :: metadata(SPACETIME_TENSOR_MAX_RANK)
-        integer :: i, k, slot, weight
+        integer :: i, j, k, slot, weight
 
         if (.not. spacetime_metric_valid(g)) return
         if (.not. spacetime_metric_has_coordinates(g)) return
@@ -744,6 +900,11 @@ contains
         metadata = tensor_value%variance
         weight = tensor_value%density_weight
         result = zero_tensor(tensor_value%a, dimension, rank, metadata, weight)
+        do i = 1, rank
+            do j = 1, rank
+                result%symmetry(i, j) = tensor_value%symmetry(i, j)
+            end do
+        end do
         divergence = num(tensor_value%a, 0)
         do k = 1, dimension
             divergence = divergence + diff(vector_value%component(k - 1), &
@@ -868,6 +1029,14 @@ contains
 
         valid_variance = value == SPACETIME_UPPER .or. value == SPACETIME_LOWER
     end function valid_variance
+
+    pure logical function valid_symmetry_value(value)
+        integer, intent(in) :: value
+
+        valid_symmetry_value = value == SPACETIME_SYMMETRY_NONE .or. &
+            value == SPACETIME_SYMMETRIC .or. &
+            value == SPACETIME_ANTISYMMETRIC
+    end function valid_symmetry_value
 
     pure integer function optional_weight(value)
         integer, optional, intent(in) :: value

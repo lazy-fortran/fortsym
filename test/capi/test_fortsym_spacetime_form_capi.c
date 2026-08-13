@@ -133,6 +133,34 @@ int main(void)
         tensor_output[mask] = NULL;
     }
 
+    status = fortsym_spacetime_tensor_declare_symmetry(
+        arena, metric, 4, coordinates, signature, 1, tensor_input, 2,
+        tensor_variance, 0, 1, 2, FORTSYM_SYMMETRIC, tensor_output, message,
+        sizeof message);
+    assert(status == FORTSYM_INVALID_ARGUMENT);
+    for (mask = 0; mask < 16; ++mask)
+        tensor_input[mask] = zero;
+    tensor_input[0] = one;
+    tensor_input[1] = two;
+    tensor_input[4] = two;
+    tensor_input[5] = one;
+    status = fortsym_spacetime_tensor_declare_symmetry(
+        arena, metric, 4, coordinates, signature, 1, tensor_input, 2,
+        tensor_variance, 0, 1, 2, FORTSYM_SYMMETRIC, tensor_output, message,
+        sizeof message);
+    assert(status == FORTSYM_OK);
+    assert(fortsym_subtract(arena, tensor_output[1], tensor_output[4], &check,
+                            message, sizeof message) == FORTSYM_OK);
+    assert(fortsym_zero_test(arena, check, &verdict, message, sizeof message) ==
+           FORTSYM_OK);
+    assert(verdict == FORTSYM_ZERO_TRUE);
+    fortsym_expr_free(check);
+    check = NULL;
+    for (mask = 0; mask < 16; ++mask) {
+        fortsym_expr_free(tensor_output[mask]);
+        tensor_output[mask] = NULL;
+    }
+
     status = fortsym_spacetime_form_volume(
         arena, metric, 4, coordinates, signature, 1, output,
         message, sizeof message);
