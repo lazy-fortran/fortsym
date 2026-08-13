@@ -1593,7 +1593,81 @@ def linsolve(system, *symbols, **options):
         lambda: _default().linsolve(matrix, right_hand_side)
     )
     return FiniteSet(Tuple(*values))
-Matrix = _unsupported("Matrix")
+class Matrix:
+    """Bounded exact dense matrix facade backed by one native List owner."""
+
+    def __init__(self, rows):
+        if not isinstance(rows, (tuple, list)) or not rows:
+            raise UnsupportedOperationError("Matrix requires nonempty rows")
+        if not all(isinstance(row, (tuple, list)) for row in rows):
+            raise UnsupportedOperationError("Matrix rows must be sequences")
+        width = len(rows[0])
+        if width == 0 or any(len(row) != width for row in rows):
+            raise ValueError("Matrix rows must have equal nonzero length")
+        arena = _default()
+        native_rows = []
+        row_handles = []
+        try:
+            for row in rows:
+                values = [sympify(value) for value in row]
+                native_row = arena.function("List", values)
+                native_rows.append(native_row)
+                row_handles.append(native_row)
+            self._expression = arena.function("List", native_rows)
+        finally:
+            for row_handle in row_handles:
+                row_handle.close()
+        self.rows = len(rows)
+        self.cols = width
+        self.shape = (self.rows, self.cols)
+
+    def __getitem__(self, key):
+        if not isinstance(key, tuple) or len(key) != 2:
+            raise TypeError("Matrix indexing requires (row, column)")
+        row, column = key
+        row_expression = self._expression.argument(row)
+        try:
+            return row_expression.argument(column)
+        finally:
+            row_expression.close()
+
+    def det(self, **options):
+        if options:
+            raise UnsupportedOperationError("determinant options")
+        return _native_operation(self._expression.det)
+
+    def __str__(self):
+        rows = []
+        for row_index in range(self.rows):
+            row = self._expression.argument(row_index)
+            try:
+                entries = []
+                for column_index in range(self.cols):
+                    entry = row.argument(column_index)
+                    try:
+                        entries.append(str(entry))
+                    finally:
+                        entry.close()
+                rows.append("[" + ", ".join(entries) + "]")
+            finally:
+                row.close()
+        return "Matrix([" + ", ".join(rows) + "])"
+
+    __repr__ = __str__
+
+    def __del__(self):
+        try:
+            self._expression.close()
+        except Exception:
+            pass
+
+
+def det(matrix, **options):
+    if options:
+        raise UnsupportedOperationError("determinant options")
+    if not isinstance(matrix, Matrix):
+        raise UnsupportedOperationError("det requires a Matrix")
+    return matrix.det()
 
 
 pi = _default().constant("pi")
@@ -1622,6 +1696,6 @@ __all__ = [
     "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
     "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
-    "integrate", "limit", "series", "solve", "solveset", "linsolve", "FiniteSet", "EmptySet", "Tuple", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
+    "integrate", "limit", "series", "solve", "det", "solveset", "linsolve", "FiniteSet", "EmptySet", "Tuple", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
     "oo", "zoo", "nan",
 ]

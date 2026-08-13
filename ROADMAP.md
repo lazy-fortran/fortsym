@@ -198,6 +198,9 @@ SymPy parity for the entire family.
       through the canonical Fortran, C, Python, and SymPy facades as
       `FiniteSet(Tuple(...))`; singular, symbolic, free-parameter, matrix
       object, and alternate input forms remain explicit refusals.
+- [x] Expose bounded exact dense `Matrix` construction, `(row, column)`
+      indexing, and native-backed determinant through the canonical facades;
+      ragged rows and broader matrix operations remain explicit refusals.
 - [ ] Complete `solve`, `solveset`, real/complex solves, `linsolve`, and
       solution conditions for polynomial, rational, radical, inverse-function,
       and supported transcendental equations.

@@ -1387,6 +1387,11 @@ def _configure(lib):
             _SIZE,
         ],
     )
+    lib.matrix_det = declare(
+        "fortsym_matrix_det",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.zero_test = declare(
         "fortsym_zero_test",
         ctypes.c_int,
@@ -7137,6 +7142,11 @@ class Expr:
             raise FortSymError(status, _decode(message), "solve")
         return [Expr(self._arena, output[index]) for index in range(count.value)]
 
+    def det(self):
+        return self._arena._result(
+            self._lib.matrix_det, self._arena._require(), self._require()
+        )
+
     def _complex_operation(self, operation):
         cached = self._complex_results.get(operation)
         if (cached is not None and cached[0] == self._arena._assumption_epoch
@@ -7560,6 +7570,7 @@ def series_coeff(expression: Expr, variable: Expr, point=0, order=0):
         if temporary is not None:
             temporary.close()
 def solve(expression: Expr, variable=None): return expression.solve(variable)
+def det(expression: Expr): return expression.det()
 def linsolve(matrix, right_hand_side):
     arena = _default()
     values = []
@@ -7596,6 +7607,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "linsolve", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "det", "linsolve", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

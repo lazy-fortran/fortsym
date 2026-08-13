@@ -13,17 +13,17 @@
     {
       "from": "algebra",
       "to": "core",
-      "uses": 39
+      "uses": 41
     },
     {
       "from": "algebra",
       "to": "engine",
-      "uses": 15
+      "uses": 16
     },
     {
       "from": "algebra",
       "to": "util",
-      "uses": 13
+      "uses": 14
     },
     {
       "from": "algebra",
@@ -58,7 +58,7 @@
     {
       "from": "capi",
       "to": "algebra",
-      "uses": 8
+      "uses": 9
     },
     {
       "from": "capi",
@@ -118,7 +118,7 @@
     {
       "from": "core",
       "to": "algebra",
-      "uses": 4
+      "uses": 5
     },
     {
       "from": "core",
@@ -305,6 +305,7 @@
         "fortsym_linsolve_adapter",
         "fortsym_magnetic",
         "fortsym_magnetic_weak",
+        "fortsym_matrix_adapter",
         "fortsym_maxwell",
         "fortsym_metric",
         "fortsym_numeric",
@@ -863,6 +864,18 @@
     },
     {
       "dependencies": [
+        "fortsym_arena",
+        "fortsym_engine",
+        "fortsym_expr",
+        "fortsym_matrix",
+        "fortsym_string"
+      ],
+      "name": "fortsym_matrix_adapter",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_matrix_adapter.f90"
+    },
+    {
+      "dependencies": [
         "fortsym_expr",
         "fortsym_relativity",
         "fortsym_spacetime_form"
@@ -1038,6 +1051,7 @@
         "fortsym_linsolve_adapter",
         "fortsym_magnetic",
         "fortsym_magnetic_weak",
+        "fortsym_matrix_adapter",
         "fortsym_maxwell",
         "fortsym_metric",
         "fortsym_poly",
@@ -1364,11 +1378,11 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 459,
+    "internal_edges": 466,
     "module_file_mismatches": 0,
-    "module_units": 89,
-    "modules": 89,
-    "source_units": 90,
+    "module_units": 90,
+    "modules": 90,
+    "source_units": 91,
     "unknown_internal_dependencies": 0
   },
   "violations": {

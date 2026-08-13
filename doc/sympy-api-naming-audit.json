@@ -1364,6 +1364,10 @@
         "name": "deserialize_expression"
       },
       {
+        "concepts": [],
+        "name": "det"
+      },
+      {
         "concepts": [
           "differentiation"
         ],
@@ -3134,6 +3138,7 @@
       "cancel",
       "collect",
       "contract",
+      "det",
       "diff",
       "factor",
       "free_symbols",
@@ -3268,6 +3273,7 @@
       "coth",
       "count_ops",
       "csch",
+      "det",
       "diff",
       "doit",
       "erf",
@@ -3358,10 +3364,10 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 528,
-    "python_facade_exports": 77,
-    "sympy_adapter_exports": 187,
-    "unmapped_fortran_exports": 390
+    "fortran_facade_exports": 529,
+    "python_facade_exports": 78,
+    "sympy_adapter_exports": 188,
+    "unmapped_fortran_exports": 391
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -3460,6 +3466,7 @@
     "declare_symmetry",
     "density",
     "density_factor",
+    "det",
     "div_density",
     "divergence",
     "einstein_tensor",

@@ -35,6 +35,10 @@ square exact-rational one-right-hand-side fragment and returns a
 `FiniteSet(Tuple(...))` result. Symbolic coefficients, singular or
 non-square systems, matrix objects, free parameters, and alternate forms are
 explicit refusals.
+`Matrix(rows)` constructs a bounded exact dense matrix, supports `(row,
+column)` indexing and `det()`/`det(matrix)`, and delegates the determinant to the native
+Bareiss owner. Ragged matrices and broader matrix options remain explicit
+refusals.
 
 ## Native geometry facade
 
@@ -462,7 +466,7 @@ does not import SymPy. Unsupported names raise
 | `solve` | distinct verified roots for one equation in one symbol; exact univariate polynomials and verified scalar-linear equations; unsupported domains/options are explicit refusals |
 | `solveset` | bounded `FiniteSet`/`EmptySet` wrapper over the same distinct verified roots; non-default domains and unsupported equations are explicit refusals |
 | `linsolve` | verified square exact-rational systems with one explicit right-hand side, returned as `FiniteSet(Tuple(...))`; symbolic, singular, non-square, free-parameter, matrix-object, and alternate forms are explicit refusals |
-| `Matrix` | explicit refusal until symbolic matrix semantics are covered |
+| `Matrix` | bounded exact dense construction, `(row, column)` indexing, and native-backed determinant; ragged rows and broader matrix operations are explicit refusals |
 
 `Wild(name, exclude=(), properties=())` is an adapter-only pattern object. Its
 direct, fixed-shape, single-Wild remainder, and bounded distinct-Wild
