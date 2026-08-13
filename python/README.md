@@ -439,7 +439,8 @@ does not import SymPy. Unsupported names raise
 | `Eq`, `Ne`, `Gt`, `Ge`, `Lt`, `Le` and `Expr` comparisons | SymPy-compatible relational constructor spellings at the adapter boundary; exact sign/zero bounds and transactional `And` facts are ingested by native scopes |
 | `together`, `cancel`, `apart`, `collect` | exact bounded multivariate rational/polynomial operations with named resource-limit refusals; the basic SymPy spellings and variable selection are supported, while advanced options remain explicit refusals |
 | `integrate` | verified one-variable indefinite integration in the SymPy-compatible default complex domain; unsupported antiderivatives, multiple variables, and options are explicit refusals |
-| `limit`, `series`, `solve`, `Matrix` | explicit refusal until their semantics are covered |
+| `limit` | verified finite and infinite limits for the native bounded theorem fragment; finite poles and unsupported asymptotics are explicit refusals |
+| `series`, `solve`, `Matrix` | explicit refusal until their semantics are covered |
 
 `Wild(name, exclude=(), properties=())` is an adapter-only pattern object. Its
 direct, fixed-shape, single-Wild remainder, and bounded distinct-Wild

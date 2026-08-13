@@ -158,6 +158,30 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(label=label):
                 self.assert_equivalent(label, expected, actual)
 
+    def test_verified_limits_match_sympy(self):
+        oracle_x = oracle.Symbol("limit_x")
+        native_x = native.Symbol("limit_x")
+        cases = [
+            ("continuous", oracle.limit(oracle.sin(oracle_x) / oracle_x,
+                                         oracle_x, 0),
+             native.limit(native.sin(native_x) / native_x, native_x, 0)),
+            ("cancelled quotient", oracle.limit(
+                (oracle_x**2 - 1) / (oracle_x - 1), oracle_x, 1),
+             native.limit((native_x**2 - 1) / (native_x - 1), native_x, 1)),
+            ("polynomial infinity", oracle.limit(oracle_x**2, oracle_x,
+                                                  oracle.oo),
+             native.limit(native_x**2, native_x, native.oo)),
+            ("decaying infinity", oracle.limit(1 / oracle_x, oracle_x,
+                                                oracle.oo),
+             native.limit(1 / native_x, native_x, native.oo)),
+        ]
+        for label, expected, actual in cases:
+            with self.subTest(label=label):
+                if expected in (oracle.oo, -oracle.oo):
+                    self.assertEqual(str(actual), str(expected), label)
+                else:
+                    self.assert_equivalent(label, expected, actual)
+
     def test_power_constructor_identities_match_oracle(self):
         def cases(api):
             x = api.Symbol("power_constructor_x")
@@ -1239,8 +1263,6 @@ class SympyDifferentialTest(unittest.TestCase):
         )
 
         refusals = [
-            ("limit", lambda: oracle.limit(oracle.sin(oracle_x) / oracle_x, oracle_x, 0),
-             lambda: native.limit(native.sin(native_x) / native_x, native_x, 0)),
             ("series", lambda: oracle.series(oracle.exp(oracle_x), oracle_x, 0, 3),
              lambda: native.series(native.exp(native_x), native_x, 0, 3)),
             ("solve", lambda: oracle.solve(oracle_x**2 - 1, oracle_x),

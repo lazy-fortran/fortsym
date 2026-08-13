@@ -128,6 +128,10 @@ module fortsym_public_capi
         VERDICT_FALSE
     use fortsym_poly, only: poly_together, poly_cancel, poly_apart, poly_collect
     use fortsym_integrate_adapter, only: verified_antiderivative
+    use fortsym_limit_adapter, only: calculate_limit
+    use fortsym_limits, only: limit_point_t, limit_value_t, finite_point, &
+        plus_infinity, minus_infinity, LIMIT_FINITE, LIMIT_PLUS_INF, &
+        LIMIT_MINUS_INF, FROM_BELOW, TWO_SIDED, FROM_ABOVE
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -179,7 +183,7 @@ module fortsym_public_capi
         fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor, &
         fortsym_together, fortsym_cancel, fortsym_apart, fortsym_collect, &
-        c_integrate
+        c_integrate, c_limit
     public :: fortsym_chart_sqrtg, fortsym_chart_surface_measure, &
         fortsym_chart_flux_surface_average, &
         fortsym_chart_jacobian, &
@@ -284,7 +288,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 74_c_int
+        v = 75_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -5520,6 +5524,83 @@ contains
         end if
         call make_handle(a, result, out, status, message, capacity)
     end function c_integrate
+
+    function c_limit(raw, expression_raw, variable_raw, point_raw, &
+            point_kind, direction, out, message, capacity) bind(c, &
+            name="fortsym_limit") result(status)
+        type(c_ptr), value :: raw, expression_raw, variable_raw, point_raw, out
+        integer(c_int), value :: point_kind, direction
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, vp, pp
+        type(expr_t) :: expression, variable, point_value, output_value
+        type(limit_point_t) :: point
+        type(limit_value_t) :: result
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+
+        select case (point_kind)
+        case (0_c_int)
+            call get_expr(point_raw, pp, point_value, status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(pp%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+            point = finite_point(point_value)
+        case (1_c_int)
+            point = plus_infinity()
+        case (2_c_int)
+            point = minus_infinity()
+        case default
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end select
+
+        if (direction /= int(FROM_BELOW, c_int) .and. &
+            direction /= int(TWO_SIDED, c_int) .and. &
+            direction /= int(FROM_ABOVE, c_int)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call calculate_limit(a%value, expression, variable, point, &
+            int(direction), result, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+
+        select case (result%kind)
+        case (LIMIT_FINITE)
+            output_value = result%value
+        case (LIMIT_PLUS_INF)
+            output_value = const(a%value, "oo")
+        case (LIMIT_MINUS_INF)
+            output_value = -const(a%value, "oo")
+        case default
+            call fail(status, message, capacity, FORTSYM_UNSUPPORTED)
+            return
+        end select
+        call make_handle(a, output_value, out, status, message, capacity)
+    end function c_limit
 
     function fortsym_zero_test(raw, expression_raw, verdict, message, capacity) &
             bind(c, name="fortsym_zero_test") result(status)

@@ -49,6 +49,7 @@ target_sources(fortsym PRIVATE
     algebra/fortsym_defint.f90
     algebra/fortsym_integrate.f90
     algebra/fortsym_integrate_adapter.f90
+    algebra/fortsym_limit_adapter.f90
     algebra/fortsym_limits.f90
     algebra/fortsym_matrix.f90
     algebra/fortsym_poly.f90
