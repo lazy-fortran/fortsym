@@ -2429,6 +2429,14 @@ class Matrix:
         self._is_anti_symmetric_cache = (epoch, simplify, result)
         return result
 
+    def is_symbolic(self):
+        expression, temporary = self._matrix_expression()
+        try:
+            return _native_operation(expression.is_symbolic)
+        finally:
+            if temporary is not None:
+                temporary.close()
+
     def is_symmetric(self, simplify=True):
         if simplify not in (False, True):
             raise UnsupportedOperationError("is_symmetric options")
