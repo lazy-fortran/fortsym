@@ -17,7 +17,7 @@ program test_fortsym_connection
     use fortsym_tensor, only: tensor_t, tensor_scalar, tensor_component, &
         tensor_rank, tensor_variance, tensor_valid, metric_covariant_tensor, &
         tensor_symmetry, SYMMETRIC, UPPER, LOWER_VARIANCE, MAX_RANK, &
-        tensor_vector, density
+        tensor_vector, tensor_from_components, density
     use fortsym_connection, only: connection_t, connection_create, &
         connection_from_chart, connection_from_metric, connection_valid, &
         connection_convention, CONNECTION_STANDARD, CONNECTION_OPPOSITE, &
@@ -33,6 +33,7 @@ program test_fortsym_connection
     type(native_engine_t) :: native
     type(suite_t) :: suite
     type(chart_t) :: polynomial, foreign_chart
+    type(chart_t) :: cartesian_chart
     type(chart_t) :: cylindrical
     type(metric_t) :: metric_owner
     type(metric_t) :: cylindrical_metric
@@ -57,10 +58,12 @@ program test_fortsym_connection
     type(tensor_t) :: chart_nonmetricity, metric_nonmetricity
     type(tensor_t) :: supplied_nonmetricity, supplied_derivative, supplied_divergence
     type(tensor_t) :: supplied_riemann, foreign_vector, rejected_derivative
+    type(tensor_t) :: rank_four, rank_five
     type(expr_t) :: metric_scalar
     type(expr_t) :: curved_components(DIM, DIM)
     type(expr_t) :: cartesian_components(DIM, DIM)
     type(expr_t) :: supplied_gamma(DIM, DIM, DIM), supplied_vector(DIM)
+    type(expr_t) :: rank_four_values(DIM**4)
     type(expr_t) :: cylindrical_u(DIM), cylindrical_position(DIM)
     type(expr_t) :: geodesic_curve(DIM), geodesic_parameter
     type(expr_t) :: geodesic_value(DIM), metric_geodesic_value(DIM)
@@ -73,6 +76,7 @@ program test_fortsym_connection
     native = make_native_engine(arena)
     polynomial = make_polynomial_chart()
     metric_owner = metric_from_chart(polynomial)
+    cartesian_chart = chart_create(arena, u, u)
     call suite_begin(suite, "metric connection and curvature")
 
     gamma = christoffel(polynomial)
@@ -120,6 +124,21 @@ program test_fortsym_connection
     indices(1) = 2
     call check_identity(suite, engine, "metric-owner nabla_R R = 1", &
         tensor_component(metric_gradient, indices(1:1)) - 1)
+
+    ! The fixed-rank owner supports every input valence below MAX_RANK.  On
+    ! Cartesian coordinates the rank-four derivative is a direct partial
+    ! derivative, so this checks the upper/lower slot loop independently of
+    ! any nonzero connection coefficients.
+    rank_four_values = num(arena, 0)
+    rank_four_values(1) = u(1)
+    rank_four = tensor_from_components(cartesian_chart, 4, rank_four_values, &
+        [UPPER, LOWER_VARIANCE, UPPER, LOWER_VARIANCE])
+    rank_five = covariant_diff(cartesian_chart, rank_four)
+    if (.not. tensor_valid(rank_five)) error stop "rank-five derivative invalid"
+    if (tensor_rank(rank_five) /= 5) error stop "rank-five derivative rank failed"
+    indices = 1
+    call check_identity(suite, engine, "rank-four covariant derivative", &
+        tensor_component(rank_five, indices) - 1)
 
     metric = metric_covariant_tensor(polynomial)
     metric_derivative = covariant_diff(polynomial, metric)

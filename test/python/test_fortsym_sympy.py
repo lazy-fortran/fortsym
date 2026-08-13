@@ -119,6 +119,18 @@ class SympySubsetTest(unittest.TestCase):
         )
         with self.assertRaises(ValueError):
             spacetime_product.contract(upper_i, lower_j)
+        zero = sp.Integer(0)
+        rank_four_components = [zero] * (3 ** 4)
+        rank_four_components[0] = x
+        rank_four = sp.Tensor(
+            chart, rank_four_components, variance=(1, -1, 1, -1)
+        )
+        rank_five = rank_four.covariant_diff()
+        self.assertEqual(rank_five.rank, 5)
+        expected_rank_five = 1 if oracle is None else oracle.Integer(1)
+        self.assertEqual(
+            rank_five[0, 0, 0, 0, 0].simplify(), expected_rank_five
+        )
         density_vector = chart.vector((x, y, z), density_weight=1)
         self.assertEqual(
             density_vector.covariant_divergence().component().simplify(), 3
