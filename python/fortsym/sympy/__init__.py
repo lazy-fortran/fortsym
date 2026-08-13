@@ -1715,7 +1715,15 @@ def im(expression):
 
 
 def conjugate(expression):
+    if isinstance(expression, Matrix):
+        return expression.conjugate()
     return _complex_operation("conjugate", expression)
+
+
+def adjoint(expression):
+    if not isinstance(expression, Matrix):
+        raise UnsupportedOperationError("adjoint requires a Matrix")
+    return expression.adjoint()
 
 
 def arg(expression):
@@ -2600,9 +2608,31 @@ class Matrix:
                 temporary.close()
         return self._from_expression(expression, self.cols, self.rows)
 
+    def conjugate(self):
+        matrix_expression, temporary = self._matrix_expression()
+        try:
+            expression = _native_operation(matrix_expression.matrix_conjugate)
+        finally:
+            if temporary is not None:
+                temporary.close()
+        return self._from_expression(expression, self.rows, self.cols)
+
+    def adjoint(self):
+        matrix_expression, temporary = self._matrix_expression()
+        try:
+            expression = _native_operation(matrix_expression.matrix_adjoint)
+        finally:
+            if temporary is not None:
+                temporary.close()
+        return self._from_expression(expression, self.cols, self.rows)
+
     @property
     def T(self):
         return self.transpose()
+
+    @property
+    def H(self):
+        return self.adjoint()
 
     def nullspace(self, simplify=False, iszerofunc=None):
         if simplify not in (False, True) or iszerofunc is not None:
@@ -2737,7 +2767,7 @@ __all__ = [
     "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial",
     "besselj", "besseli", "legendre", "expand_complex",
     "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign",
-    "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
+    "floor", "ceiling", "re", "im", "conjugate", "adjoint", "arg", "diff", "subs", "expand",
     "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And", "Or", "Not", "Xor", "Implies", "Equivalent",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
     "integrate", "limit", "series", "solve", "det", "trace", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Complement", "Tuple", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",

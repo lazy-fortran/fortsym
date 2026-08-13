@@ -374,6 +374,18 @@ temporary. The planned release matrix therefore has 180 rows, 134 enforced
 rows, and zero unwaived violations after the 46 documented diagnostic waivers
 are applied.
 
+The bounded exact `Matrix.conjugate()` and `Matrix.adjoint()` workloads add two
+correctness-checked warm-core rows over a 2x2 matrix containing `I`. Their
+differential cases cover real, imaginary, rectangular, real-assumed-symbol,
+and unknown-reality refusal behaviour. The native transforms traverse the
+nested `List` directly and share the structural complex-conjugation owner;
+adjoint swaps source indices while conjugating, without materializing a matrix
+array. The latest 2026-08-13 smoke sample measured native/SymPy ratios of
+0.804x for conjugation and 0.315x for adjoint. The planned release matrix
+therefore has 182 rows, 136 enforced rows,
+and zero unwaived violations after the 46 documented diagnostic waivers are
+applied.
+
 The native-owned `Complement` constructor adds one cold end-to-end row. Its
 correctness check compares both finite-set operands with SymPy while the
 independent native invariant checks the `Complement` application head and
@@ -549,9 +561,9 @@ failure. A separate strict sample measured the pre-existing
 `relation:cold_end_to_end` constructor at 1.021x while its warm row remained
 0.779x; that similarly small host-timing difference is also explicitly
 waived. With the flat-column, trace, diagonal-query, symmetry, zero-matrix,
-and triangular, antisymmetry, symbolic, Hessenberg, identity, echelon, and
-Hermitian coverage included, the planned release matrix therefore has 180
-rows, 134 enforced rows, and zero
+and triangular, antisymmetry, symbolic, Hessenberg, identity, echelon,
+Hermitian, conjugation, and adjoint coverage included, the planned release
+matrix therefore has 182 rows, 136 enforced rows, and zero
 unwaived violations after the 46
 documented diagnostic waivers are applied.
 
