@@ -351,12 +351,24 @@ one-node Python/ABI construction diagnostic, recorded as
 The latest matrix therefore has 148 rows, 118 enforced rows, and zero
 unwaived violations after the 30 documented diagnostic waivers are applied.
 
+The bounded dense `Matrix` slicing workload adds cold end-to-end and warm-core
+rows for a row slice. Its correctness matrix additionally checks column,
+block, reverse, stepped, and empty row/column slices against SymPy with fixed
+shape/text expectations. In the 2026-08-13 standard run the native/SymPy
+ratios were 2.03x cold and 4.88x warm. These are explicit reviewed
+matrix-construction exceptions: the native `List` owner is correct, while
+entry-view transport and result-handle construction dominate this small
+workload. They are recorded as `matrix_slice:cold_end_to_end` and
+`matrix_slice:warm_core`; the latest matrix therefore has 150 rows, 118
+enforced rows, and zero unwaived violations after the 32 documented diagnostic
+waivers are applied.
+
 The same correctness matrix also checks four relational decision boundaries:
 integer equality and inequality, plus exact rational greater-than and
 less-than. Each expected Python boolean is computed independently from the
 SymPy result and the native invariant requires a non-expression boolean, so
 these boundary checks do not rely only on matching printed output. The
-matrix size remains 148 rows because these are correctness cases rather than
+matrix size remains 150 rows because these are correctness cases rather than
 standalone timing rows.
 
 Run it from a built checkout with:

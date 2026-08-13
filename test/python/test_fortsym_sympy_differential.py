@@ -637,6 +637,46 @@ class SympyDifferentialTest(unittest.TestCase):
         with self.assertRaises(native.UnsupportedOperationError):
             native_singular.inv()
 
+    def test_bounded_matrix_slices_match_sympy(self):
+        oracle_matrix = oracle.Matrix([[1, 2, 3], [4, 5, 6]])
+        native_matrix = native.Matrix([[1, 2, 3], [4, 5, 6]])
+        cases = (
+            ("row", (slice(0, 1), slice(None)), "Matrix([[1, 2, 3]])"),
+            (
+                "column", (slice(None), slice(1, 3)),
+                "Matrix([[2, 3], [5, 6]])",
+            ),
+            (
+                "block", (slice(0, 2), slice(1, 3)),
+                "Matrix([[2, 3], [5, 6]])",
+            ),
+            (
+                "reverse", (slice(None, None, -1), slice(None)),
+                "Matrix([[4, 5, 6], [1, 2, 3]])",
+            ),
+            (
+                "step", (slice(None, None, 2), slice(None, None, 2)),
+                "Matrix([[1, 3]])",
+            ),
+            ("empty rows", (slice(1, 1), slice(None)), "Matrix(0, 3, [])"),
+            ("empty columns", (slice(None), slice(1, 1)), "Matrix(2, 0, [])"),
+        )
+        try:
+            for label, indices, expected_text in cases:
+                with self.subTest(label=label):
+                    expected = oracle_matrix[indices]
+                    actual = native_matrix[indices]
+                    try:
+                        self.assertEqual(str(expected), expected_text)
+                        self.assertEqual(str(actual), expected_text)
+                        self.assertEqual(actual.shape, expected.shape)
+                    finally:
+                        actual._expression.close()
+            with self.assertRaises(ValueError):
+                native_matrix[:, slice(None, None, 0)]
+        finally:
+            native_matrix._expression.close()
+
     def test_matrix_refuses_ragged_rows(self):
         with self.assertRaises(ValueError):
             native.Matrix([[1, 2], [3]])
