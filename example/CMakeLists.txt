@@ -12,6 +12,10 @@ add_executable(example_magnetic_flux_coordinates
     example_magnetic_flux_coordinates.f90)
 target_link_libraries(example_magnetic_flux_coordinates PRIVATE fortsym)
 
+add_executable(example_nonorthogonal_flux_coordinates
+    example_nonorthogonal_flux_coordinates.f90)
+target_link_libraries(example_nonorthogonal_flux_coordinates PRIVATE fortsym)
+
 add_executable(example_boozer_coordinates example_boozer_coordinates.f90)
 target_link_libraries(example_boozer_coordinates PRIVATE fortsym)
 

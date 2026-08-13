@@ -1004,6 +1004,79 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(oracle.expand(actual_norm - expected_norm), 0)
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_nonorthogonal_flux_chart_matches_independent_sympy_geometry(self):
+        psi, theta, phi, kappa = sp.symbols(
+            "flux_shear_psi flux_shear_theta flux_shear_phi flux_shear_kappa"
+        )
+        chart = sp.Chart(
+            (psi, theta, phi),
+            (psi, theta + kappa*sp.sin(phi), phi),
+        )
+        oracle_psi, oracle_theta, oracle_phi, oracle_kappa = oracle.symbols(
+            "flux_shear_psi flux_shear_theta flux_shear_phi flux_shear_kappa"
+        )
+        oracle_coordinates = oracle.Matrix((oracle_psi, oracle_theta, oracle_phi))
+        oracle_position = oracle.Matrix((
+            oracle_psi,
+            oracle_theta + oracle_kappa*oracle.sin(oracle_phi),
+            oracle_phi,
+        ))
+        oracle_basis = oracle_position.jacobian(oracle_coordinates)
+        oracle_metric = oracle_basis.T * oracle_basis
+
+        actual_metric = oracle.Matrix(tuple(
+            oracle.sympify(str(chart.metric_covariant()[row, column].simplify()))
+            for row in range(3)
+            for column in range(3)
+        )).reshape(3, 3)
+        self.assertEqual(actual_metric, oracle_metric)
+        self.assertEqual(
+            oracle.sympify(str(chart.jacobian().simplify())),
+            oracle.Integer(1),
+        )
+        self.assertEqual(
+            oracle.sympify(str(chart.sqrtg().simplify())), oracle.Integer(1)
+        )
+
+        magnetic = chart.magnetic_chart(
+            (sp.Integer(0), sp.Integer(0), psi), label_index=1
+        )
+        expected_upper = oracle.Matrix((0, -1, 0))
+        actual_upper = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify())) for value in magnetic.upper
+        ))
+        self.assertEqual(actual_upper, expected_upper)
+        expected_lower = oracle_metric * expected_upper
+        actual_lower = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify())) for value in magnetic.lower
+        ))
+        self.assertEqual(actual_lower, expected_lower)
+        actual_density = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify())) for value in magnetic.density
+        ))
+        self.assertEqual(actual_density, expected_upper)
+
+        flux_form = magnetic.flux_form()
+        self.assertEqual(
+            oracle.sympify(str(flux_form[5].simplify())), oracle.Integer(1)
+        )
+        self.assertTrue(flux_form.is_closed)
+        recovered = flux_form.b_con()
+        self.assertEqual(
+            oracle.Matrix(tuple(
+                oracle.sympify(str(value.simplify())) for value in recovered
+            )),
+            expected_upper,
+        )
+
+        clebsch = chart.flux_coordinates(1, kind=sp.FLUX_CLEBSCH)
+        residuals = clebsch.clebsch_residuals(chart.vector((0, -1, 0)), psi, phi)
+        self.assertEqual(
+            tuple(oracle.sympify(str(value.simplify())) for value in residuals),
+            (0, 0, 0),
+        )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_magnetic_constitutive_views_match_sympy(self):
         u, v, w = sp.symbols("h_u h_v h_w")
         chart = sp.Chart((u, v, w), (u + v, v, w))

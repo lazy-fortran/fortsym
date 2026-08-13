@@ -1242,13 +1242,17 @@ and independent oracle. The minimum case set is:
   Laplacian. The executable cylindrical Fourier example keeps `sqrtg B^i`
   branch-free, while the spherical and chart tests cover the metric and
   vector-calculus identities.
-- [ ] A nonorthogonal torus or flux chart with off-diagonal metric terms,
+- [x] A nonorthogonal periodic flux chart with off-diagonal metric terms,
   including signed Jacobian, raise/lower, density transformation, and a
   round-trip coordinate change.
   - [x] Add a chart-derived linear shear fixture with off-diagonal metric,
     signed Jacobian, and positive volume factor. The existing chart-map
     contract independently checks coordinate composition, tensor slots, and
-    density transformation; a toroidal/flux-specific fixture remains open.
+    density transformation.
+  - [x] Add the periodic flux fixture
+    `x=(psi, theta+kappa*sin(phi), phi)`, with explicit `g_theta_phi`,
+    `B^i`, `B_i`, `sqrtg B^i`, magnetic-form, and Clebsch round trips in the
+    native Fortran example and independent SymPy test.
 - [x] A magnetic potential `A` with `beta = d(A) = i_B(Omega)`, followed by
   `d(beta) = 0`, divergence, and the component/form comparison.
 - [ ] The Albert, Bíró, and Lainer Fourier reduction, with separate `n = 0`
@@ -1352,6 +1356,9 @@ conversion only. They do not maintain a second geometry implementation.
   Clebsch/Hamada descriptors and field-line labels remain open.
   - [x] Add the native `reluctivity_density` constitutive bridge and expose
     its covariant weight-`-1` result through the C/Python/SymPy facades.
+- [x] Add an executable non-orthogonal periodic flux-coordinate fixture with
+  off-diagonal metric, signed/positive Jacobian separation, typed magnetic
+  representations, and independent Python/SymPy component checks.
 - [ ] **7A.7 Frontends and corpus.** Translate every supported Wolfram and
   Python corpus record to the native IR, preserve assumptions and refusal
   conditions, and expose SymPy-compatible names through one conversion path.
