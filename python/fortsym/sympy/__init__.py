@@ -1981,12 +1981,62 @@ def solveset(expression, symbol=None, domain=None):
             pole.close()
 
 
+def _matrix_linsolve_rows(matrix, owned):
+    if not isinstance(matrix, Matrix):
+        return matrix
+    if matrix.rows < 1 or matrix.cols < 1:
+        raise UnsupportedOperationError("linsolve matrix dimensions")
+    rows = []
+    created = []
+    try:
+        for row in range(matrix.rows):
+            entries = []
+            for column in range(matrix.cols):
+                entry = matrix._entry(row, column)
+                entries.append(entry)
+                created.append(entry)
+            rows.append(entries)
+        owned.extend(created)
+        return rows
+    except Exception:
+        for entry in created:
+            entry.close()
+        raise
+
+
+def _matrix_linsolve_rhs(right_hand_side, owned):
+    if not isinstance(right_hand_side, Matrix):
+        return right_hand_side
+    if right_hand_side.rows < 1 or right_hand_side.cols < 1:
+        raise UnsupportedOperationError("linsolve right-hand-side dimensions")
+    if right_hand_side.rows == 1:
+        indices = ((0, column) for column in range(right_hand_side.cols))
+    elif right_hand_side.cols == 1:
+        indices = ((row, 0) for row in range(right_hand_side.rows))
+    else:
+        raise UnsupportedOperationError("linsolve right-hand-side shape")
+    values = []
+    created = []
+    try:
+        for row, column in indices:
+            value = right_hand_side._entry(row, column)
+            values.append(value)
+            created.append(value)
+        owned.extend(created)
+        return values
+    except Exception:
+        for entry in created:
+            entry.close()
+        raise
+
+
 def linsolve(system, *symbols, **options):
     """Solve one explicit exact-rational linear system.
 
     The bounded native fragment accepts ``(matrix, right_hand_side)`` as
-    nested Python sequences and requires the symbols explicitly. Matrix
-    objects and symbolic coefficients remain explicit refusals. Consistent
+    nested Python sequences or native ``Matrix`` operands and requires the
+    symbols explicitly. A Matrix right-hand side may be a row or column
+    vector. Symbolic coefficients remain an explicit refusal. Consistent
     underdetermined systems retain the supplied free symbols in the result.
     """
     if options:
@@ -1996,46 +2046,56 @@ def linsolve(system, *symbols, **options):
     if not isinstance(system, (tuple, list)) or len(system) != 2:
         raise UnsupportedOperationError("linsolve system form")
     matrix, right_hand_side = system
-    if not isinstance(matrix, (tuple, list)) or not matrix:
-        raise UnsupportedOperationError("linsolve matrix form")
-    if not isinstance(right_hand_side, (tuple, list)):
-        raise UnsupportedOperationError("linsolve right-hand-side form")
-    matrix_values = []
-    for row in matrix:
-        if not isinstance(row, (tuple, list)):
-            raise UnsupportedOperationError("linsolve matrix rows")
-        matrix_values.append([sympify(value) for value in row])
-    matrix = matrix_values
-    variable_count = len(matrix[0])
-    if variable_count < 1 or any(len(row) != variable_count for row in matrix):
-        raise UnsupportedOperationError("linsolve matrix dimensions")
-    right_hand_side = [sympify(value) for value in right_hand_side]
-    variables = symbols[0]
-    if not isinstance(variables, (tuple, list)):
-        raise UnsupportedOperationError("linsolve symbols form")
-    variables = tuple(sympify(variable) for variable in variables)
-    if len(variables) != variable_count:
-        raise ValueError("linsolve symbols and matrix dimensions differ")
-    if any(variable.kind != 4 for variable in variables):
-        raise UnsupportedOperationError("linsolve symbols must be symbols")
-    if any(left == right
-           for index, left in enumerate(variables)
-           for right in variables[index + 1:]):
-        raise ValueError("linsolve symbols must be distinct")
-    values = _native_operation(lambda: _default().linsolve_parametric(
-        matrix, right_hand_side, variables
-    ))
+    owned = []
     try:
-        if not values:
-            return EmptySet
-        result_tuple = Tuple(*values)
+        matrix = _matrix_linsolve_rows(matrix, owned)
+        if not isinstance(matrix, (tuple, list)) or not matrix:
+            raise UnsupportedOperationError("linsolve matrix form")
+        if not isinstance(matrix[0], (tuple, list)):
+            raise UnsupportedOperationError("linsolve matrix rows")
+        matrix_values = []
+        for row in matrix:
+            if not isinstance(row, (tuple, list)):
+                raise UnsupportedOperationError("linsolve matrix rows")
+            matrix_values.append([sympify(value) for value in row])
+        matrix = matrix_values
+        variable_count = len(matrix[0])
+        if variable_count < 1 or any(
+                len(row) != variable_count for row in matrix):
+            raise UnsupportedOperationError("linsolve matrix dimensions")
+        right_hand_side = _matrix_linsolve_rhs(right_hand_side, owned)
+        if not isinstance(right_hand_side, (tuple, list)):
+            raise UnsupportedOperationError("linsolve right-hand-side form")
+        right_hand_side = [sympify(value) for value in right_hand_side]
+        variables = symbols[0]
+        if not isinstance(variables, (tuple, list)):
+            raise UnsupportedOperationError("linsolve symbols form")
+        variables = tuple(sympify(variable) for variable in variables)
+        if len(variables) != variable_count:
+            raise ValueError("linsolve symbols and matrix dimensions differ")
+        if any(variable.kind != 4 for variable in variables):
+            raise UnsupportedOperationError("linsolve symbols must be symbols")
+        if any(left == right
+               for index, left in enumerate(variables)
+               for right in variables[index + 1:]):
+            raise ValueError("linsolve symbols must be distinct")
+        values = _native_operation(lambda: _default().linsolve_parametric(
+            matrix, right_hand_side, variables
+        ))
         try:
-            return FiniteSet(result_tuple)
+            if not values:
+                return EmptySet
+            result_tuple = Tuple(*values)
+            try:
+                return FiniteSet(result_tuple)
+            finally:
+                result_tuple.close()
         finally:
-            result_tuple.close()
+            for value in values:
+                value.close()
     finally:
-        for value in values:
-            value.close()
+        for entry in owned:
+            entry.close()
 class Matrix:
     """Bounded exact dense matrix facade backed by one native List owner."""
 
