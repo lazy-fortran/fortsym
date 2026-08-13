@@ -42,7 +42,7 @@ module fortsym
         chart_valid, chart_has_patch, chart_patch, covariant_basis, &
         reciprocal_basis, chart_metric_covariant => metric_covariant, &
         chart_metric_contravariant => metric_contravariant, sqrtg, &
-        surface_measure, field_line_derivative, &
+        surface_measure, field_line_derivative, div_density, curl_density, &
         jacobian, christoffel, chart_grad => grad, &
         chart_divergence => divergence, curl, chart_laplacian => laplacian
     use fortsym_domain, only: manifold_t, patch_t, manifold_create, patch_create, &
@@ -179,9 +179,10 @@ module fortsym
     use fortsym_flux, only: flux_coordinate_t, flux_coordinates, &
         flux_coordinate_valid, flux_coordinate_label, flux_coordinate_kind, &
         flux_coordinate_angles, flux_normal_residual, &
-        straight_field_line_residual, boozer_residuals, hamada_residuals, FLUX_GENERIC, &
+        straight_field_line_residual, clebsch_residuals, boozer_residuals, &
+        hamada_residuals, FLUX_GENERIC, &
         FLUX_CLEBSCH, FLUX_STRAIGHT_FIELD_LINE, FLUX_BOOZER, FLUX_HAMADA, &
-        BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT
+        CLEBSCH_RESIDUAL_COUNT, BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT
     use fortsym_maxwell, only: maxwell_field_strength, maxwell_gauge_transform, &
         maxwell_residual
     implicit none
@@ -268,7 +269,8 @@ module fortsym
     public :: DIM, chart_t, coords, make_chart, chart_create, chart_create_on_patch, chart_valid, &
         chart_has_patch, chart_patch, covariant_basis, reciprocal_basis, &
         metric_covariant, metric_contravariant, sqrtg, surface_measure, jacobian, &
-        christoffel, grad, divergence, field_line_derivative, curl, laplacian, &
+        christoffel, grad, divergence, div_density, field_line_derivative, curl, &
+        curl_density, laplacian, &
         chart_map_t, &
         chart_map_create, compose_maps, &
         chart_map_has_source_patch, chart_map_has_target_patch, &
@@ -285,10 +287,12 @@ module fortsym
         flux_surface_measure, flux_surface_average, &
         flux_coordinate_t, flux_coordinates, flux_coordinate_valid, &
         flux_coordinate_label, flux_coordinate_kind, flux_coordinate_angles, &
-        flux_normal_residual, straight_field_line_residual, boozer_residuals, &
+        flux_normal_residual, straight_field_line_residual, clebsch_residuals, &
+        boozer_residuals, &
         hamada_residuals, &
         FLUX_GENERIC, FLUX_CLEBSCH, FLUX_STRAIGHT_FIELD_LINE, FLUX_BOOZER, &
-        FLUX_HAMADA, BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT, &
+        FLUX_HAMADA, CLEBSCH_RESIDUAL_COUNT, BOOZER_RESIDUAL_COUNT, &
+        HAMADA_RESIDUAL_COUNT, &
         fourier_constitutive, fourier_constitutive_t, fourier_weak_form, &
         fourier_weak_form_t, current_compatibility, nubar, &
         reluctivity_density, &

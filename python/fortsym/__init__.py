@@ -57,6 +57,7 @@ FLUX_CLEBSCH = 1
 FLUX_STRAIGHT_FIELD_LINE = 2
 FLUX_BOOZER = 3
 FLUX_HAMADA = 4
+CLEBSCH_RESIDUAL_COUNT = 3
 BOOZER_RESIDUAL_COUNT = 5
 HAMADA_RESIDUAL_COUNT = 5
 SPACETIME_DIM = 4
@@ -569,6 +570,14 @@ def _configure(lib):
         [
             _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
             ctypes.POINTER(_CVOID), ctypes.c_int, _CVOID,
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_clebsch_residuals = declare(
+        "fortsym_chart_clebsch_residuals", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CVOID, _CVOID, ctypes.c_int,
             ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
@@ -1771,6 +1780,47 @@ class Arena:
                 raise FortSymError(status, _decode(message), operation.__name__)
             return tuple(
                 Expr(self, output[index]) for index in range(count)
+            )
+        finally:
+            for temporary in temporaries:
+                temporary.close()
+
+    def _chart_clebsch_residuals(
+            self, chart, vector, alpha, beta, label_index):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporaries = []
+        try:
+            values = []
+            for value in tuple(vector):
+                expression, temporary = self._coerce(value)
+                values.append(expression)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            if len(values) != 3:
+                raise ValueError("Clebsch residuals require three vector components")
+            alpha, temporary = self._coerce(alpha)
+            if temporary is not None:
+                temporaries.append(temporary)
+            beta, temporary = self._coerce(beta)
+            if temporary is not None:
+                temporaries.append(temporary)
+            vector_handles = (_CVOID * 3)(*[value._handle for value in values])
+            output = (_CVOID * CLEBSCH_RESIDUAL_COUNT)()
+            message = _message()
+            status = self._lib.chart_clebsch_residuals(
+                self._require(), coordinate_handles, position_handles,
+                vector_handles, alpha._handle, beta._handle, int(label_index),
+                output, message, len(message),
+            )
+            if status:
+                raise FortSymError(
+                    status, _decode(message), "clebsch_residuals"
+                )
+            return tuple(
+                Expr(self, output[index])
+                for index in range(CLEBSCH_RESIDUAL_COUNT)
             )
         finally:
             for temporary in temporaries:
@@ -4258,6 +4308,32 @@ class FluxCoordinates:
             self.chart._arena._lib.chart_straight_field_line_residual,
             self.chart, vector, self.label_index, rotational_transform,
         )
+
+    def clebsch_residuals(self, vector, alpha, beta):
+        """Return ``B - grad(alpha) cross grad(beta)`` components."""
+        if self.kind != FLUX_CLEBSCH:
+            raise ValueError("Clebsch residuals require kind=FLUX_CLEBSCH")
+        if isinstance(vector, Tensor):
+            if vector.chart is not self.chart or vector.rank != 1:
+                raise ValueError("Clebsch residuals expect a vector on this chart")
+            if vector.variance != (1,):
+                raise ValueError("Clebsch residuals expect contravariant components")
+        return self.chart._arena._chart_clebsch_residuals(
+            self.chart, vector, alpha, beta, self.label_index,
+        )
+
+    def clebsch_valid(self, vector, alpha, beta):
+        """Return True/False/None using the native zero oracle."""
+        verdicts = [
+            value.is_zero for value in self.clebsch_residuals(
+                vector, alpha, beta
+            )
+        ]
+        if any(value is False for value in verdicts):
+            return False
+        if any(value is None for value in verdicts):
+            return None
+        return True
 
     def boozer_residuals(self, covariant):
         """Return ``(B_label, d1 B1, d2 B1, d1 B2, d2 B2)``."""
@@ -6762,7 +6838,7 @@ def trace(tensor: Tensor, first, second): return tensor.trace(first, second)
 
 __all__ = [
     "Arena", "Chart", "ChartMap", "FluxSurface", "FluxCoordinates", "MagneticChart", "MagneticField", "FourierWeakForm", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
-    "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL", "FLUX_GENERIC", "FLUX_CLEBSCH", "FLUX_STRAIGHT_FIELD_LINE", "FLUX_BOOZER", "FLUX_HAMADA", "BOOZER_RESIDUAL_COUNT", "HAMADA_RESIDUAL_COUNT",
+    "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL", "FLUX_GENERIC", "FLUX_CLEBSCH", "FLUX_STRAIGHT_FIELD_LINE", "FLUX_BOOZER", "FLUX_HAMADA", "CLEBSCH_RESIDUAL_COUNT", "BOOZER_RESIDUAL_COUNT", "HAMADA_RESIDUAL_COUNT",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",

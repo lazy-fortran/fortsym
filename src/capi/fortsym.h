@@ -291,6 +291,11 @@ int fortsym_chart_straight_field_line_residual(
     const fortsym_expr *position[], const fortsym_expr *vector[],
     int label_index, const fortsym_expr *rotational_transform,
     fortsym_expr **out, char *message, size_t capacity);
+int fortsym_chart_clebsch_residuals(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *vector[],
+    const fortsym_expr *alpha, const fortsym_expr *beta, int label_index,
+    fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_chart_boozer_residuals(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *covariant[],

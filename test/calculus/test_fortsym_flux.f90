@@ -12,19 +12,22 @@ program test_fortsym_flux
     use fortsym_flux, only: flux_coordinate_t, flux_coordinates, &
         flux_coordinate_valid, flux_coordinate_label, flux_coordinate_kind, &
         flux_coordinate_angles, flux_normal_residual, &
-        straight_field_line_residual, boozer_residuals, FLUX_GENERIC, &
-        hamada_residuals, FLUX_BOOZER, FLUX_HAMADA, HAMADA_RESIDUAL_COUNT
+        straight_field_line_residual, clebsch_residuals, boozer_residuals, &
+        FLUX_GENERIC, hamada_residuals, FLUX_CLEBSCH, FLUX_BOOZER, &
+        FLUX_HAMADA, CLEBSCH_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT
     implicit none
 
     type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
     type(chart_t) :: chart
-    type(flux_coordinate_t) :: boozer, hamada, generic, relabelled
+    type(flux_coordinate_t) :: boozer, clebsch, hamada, generic, relabelled
     type(expr_t) :: coordinates(DIM), b_up(DIM), b_cov(DIM)
     type(expr_t) :: psi, theta, phi, iota, i_flux, g_flux
     type(expr_t) :: i_relabel, g_relabel
     type(expr_t) :: residuals(5), residual, expected
+    type(expr_t) :: clebsch_values(CLEBSCH_RESIDUAL_COUNT)
+    type(expr_t) :: alpha, beta
     integer :: angles(2)
 
     call arena%init()
@@ -41,6 +44,7 @@ program test_fortsym_flux
     coordinates(2) = theta
     coordinates(3) = phi
     chart = chart_create(arena, coordinates, coordinates)
+    clebsch = flux_coordinates(chart, 1, FLUX_CLEBSCH)
     boozer = flux_coordinates(chart, 1, FLUX_BOOZER)
     hamada = flux_coordinates(chart, 1, FLUX_HAMADA)
     generic = flux_coordinates(chart, 1, FLUX_GENERIC)
@@ -99,6 +103,23 @@ program test_fortsym_flux
     if (is_valid(residuals(1))) error stop "Boozer descriptor accepted Hamada residuals"
 
     b_up(2) = iota
+    b_up(3) = num(arena, 1)
+    alpha = psi
+    beta = theta
+    clebsch_values = clebsch_residuals(clebsch, b_up, alpha, beta)
+    if (size(clebsch_values) /= CLEBSCH_RESIDUAL_COUNT) then
+        error stop "Clebsch residual count changed unexpectedly"
+    end if
+    call check_identity(suite, engine, "Clebsch residual 1", &
+        clebsch_values(1))
+    call check_identity(suite, engine, "Clebsch residual 2", &
+        clebsch_values(2) - iota)
+    call check_identity(suite, engine, "Clebsch residual 3", &
+        clebsch_values(3))
+    b_up(3) = num(arena, 1) + theta
+    clebsch_values = clebsch_residuals(clebsch, b_up, alpha, beta)
+    call check_identity(suite, engine, "non-Clebsch field is detected", &
+        clebsch_values(3) - theta)
     b_up(3) = num(arena, 1)
     residual = flux_normal_residual(boozer, b_up)
     call check_identity(suite, engine, "normal field residual", residual)
