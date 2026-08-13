@@ -16,7 +16,7 @@ module fortsym_magnetic
     use fortsym_expr, only: expr_t, i_expr, num, pi_expr, is_valid, &
         operator(+), operator(-), operator(*), operator(/)
     use fortsym_form, only: form_t, form_one, exterior_diff, form_valid, &
-        form_degree, form_chart_compatible, star, sharp
+        form_degree, form_chart_compatible, star, sharp, interior, volume_form
     use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, density, &
         tensor_valid
     implicit none
@@ -30,7 +30,7 @@ module fortsym_magnetic
     public :: magnetic_chart_potential_form, magnetic_chart_flux_form
     public :: flux_surface_t, flux_surface, flux_surface_valid, &
         flux_surface_label, flux_surface_measure, flux_surface_average
-    public :: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
+    public :: b_con, b_cov, b_density, b_flux_form, h_cov, h_con, b_fourier, &
         b_fourier_density, j_fourier, b_con_form, b_density_form
 
     type :: magnetic_field_t
@@ -455,6 +455,25 @@ contains
         value(2) = volume*contravariant(2)
         value(3) = volume*contravariant(3)
     end function b_density
+
+    !> Return the magnetic flux two-form beta = i_B(orientation*Omega).
+    !>
+    !> This is the forward companion of b_con_form and b_density_form. It
+    !> deliberately uses the generic form owners so the magnetic module does
+    !> not carry a second component-ordering or volume-form implementation.
+    function b_flux_form(c, contravariant, orientation) result(value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: contravariant(DIM)
+        integer, optional, intent(in) :: orientation
+        type(form_t) :: value, volume
+        integer :: sign
+
+        sign = 1
+        if (present(orientation)) sign = orientation
+        if (sign /= 1 .and. sign /= -1) return
+        volume = volume_form(c, sign)
+        value = interior(c, contravariant, volume)
+    end function b_flux_form
 
     !> Recover B^i from the magnetic two-form beta = i_B(orientation*vol).
     !>

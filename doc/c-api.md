@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 69). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 70). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -80,6 +80,11 @@ contravariant field and weight-one density from an eight-slot degree-two form
 array. Both accept an explicit orientation (`+1` or `-1`) and return three
 expression handles; the C ABI keeps tensor metadata in the higher-level
 Fortran/Python owners.
+`fortsym_chart_b_flux_form` is the forward companion: it accepts a three-slot
+contravariant `B^i`, an orientation, and returns the eight-slot degree-two form
+`beta = i_B(orientation*Omega)`. Its nonzero slots use the same mask order as
+the generic form API, so the C call and the reverse bridges are exact views of
+one native form owner.
 `fortsym_chart_h_cov` applies `H_i = nu_ij B^j` to a 3x3 reluctivity and a
 contravariant magnetic vector, while `fortsym_chart_h_con` raises the resulting
 covector with the chart metric.

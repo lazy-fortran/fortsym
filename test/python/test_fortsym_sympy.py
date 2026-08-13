@@ -1056,6 +1056,17 @@ class SympySubsetTest(unittest.TestCase):
         ))
         self.assertEqual(actual_density, expected_upper)
 
+        flux_from_upper = chart.b_flux_form(magnetic.upper)
+        expected_flux = oracle.Matrix((
+            0, 0, 0, expected_upper[2], 0, -expected_upper[1],
+            expected_upper[0], 0,
+        ))
+        actual_flux = oracle.Matrix(tuple(
+            oracle.sympify(str(value.simplify()))
+            for value in flux_from_upper.components
+        ))
+        self.assertEqual(actual_flux, expected_flux)
+
         flux_form = magnetic.flux_form()
         self.assertEqual(
             oracle.sympify(str(flux_form[5].simplify())), oracle.Integer(1)

@@ -85,6 +85,10 @@ views with variance and density weight retained across the three representations
 from a magnetic degree-two form to `B^i`; `b_density_form` adds the explicit
 weight-one `sqrtg` factor. The default orientation is `+1`, and invalid or
 foreign forms are refused by returning an invalid owner.
+`b_flux_form(c, B, orientation)` is the forward bridge
+`beta = i_B(orientation*Omega)`. It composes the generic `volume_form` and
+`interior` owners, so its degree-two components use the same form masks as
+`b_con_form`; `Tensor.b_flux()` is the corresponding Python convenience.
 `magnetic_chart(c, potential, label_index)` packages those views with a
 `flux_surface_t` in a `magnetic_chart_t` owner. `magnetic_chart_upper`,
 `magnetic_chart_lower`, and `magnetic_chart_density` return the existing typed

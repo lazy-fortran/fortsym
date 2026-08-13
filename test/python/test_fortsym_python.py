@@ -262,6 +262,16 @@ class NativePackageTest(unittest.TestCase):
             potential = (v*w, u**2, v + w**2)
             upper = chart.curl(potential)
             beta = chart.one_form(potential).d()
+            forward = chart.b_flux_form(upper)
+            upper_tensor = chart.vector(upper)
+            upper_flux = upper_tensor.b_flux()
+            self.assertEqual(forward.degree, 2)
+            for mask in (3, 5, 6):
+                self.assertEqual((forward[mask] - beta[mask]).simplify(), 0)
+            self.assertEqual(
+                tuple(value.simplify() for value in upper_flux.components),
+                tuple(value.simplify() for value in forward.components),
+            )
             recovered = beta.b_con()
             density = beta.b_density()
             self.assertEqual(recovered.variance, (1,))

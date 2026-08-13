@@ -14,7 +14,7 @@ program test_fortsym_magnetic
         field_line_derivative
     use fortsym_magnetic, only: b_con, b_cov, b_density, h_cov, h_con, b_fourier, &
         b_fourier_density, j_fourier, magnetic_field_t, magnetic_field, &
-        b_con_form, b_density_form, &
+        b_flux_form, b_con_form, b_density_form, &
         magnetic_upper, magnetic_lower, magnetic_density, flux_surface_t, &
         flux_surface, flux_surface_valid, flux_surface_label, &
         flux_surface_measure, flux_surface_average, magnetic_chart_t, &
@@ -47,7 +47,8 @@ program test_fortsym_magnetic
     type(flux_surface_t) :: magnetic_surface_owner
     type(magnetic_field_t) :: magnetic_field_owner
     type(tensor_t) :: magnetic_up_owner, magnetic_down_owner, magnetic_density_owner
-    type(form_t) :: potential_form_owner, flux_form_owner, field_flux_form, closed_form
+    type(form_t) :: potential_form_owner, flux_form_owner, field_flux_form, flux_from_b, &
+        closed_form
     type(form_t) :: volume_form_owner
     type(form_t) :: negative_volume, negative_flux_form
     type(tensor_t) :: typed_up, typed_down, typed_density
@@ -173,6 +174,7 @@ program test_fortsym_magnetic
     flux_form_owner = magnetic_chart_flux_form(magnetic_chart_owner)
     volume_form_owner = volume_form(shear)
     field_flux_form = interior(shear, b_up, volume_form_owner)
+    flux_from_b = b_flux_form(shear, b_up)
     closed_form = d(shear, flux_form_owner)
     if (.not. form_valid(potential_form_owner)) then
         error stop "magnetic potential form is invalid"
@@ -192,6 +194,12 @@ program test_fortsym_magnetic
         form_component(flux_form_owner, 5) - form_component(field_flux_form, 5))
     call check_identity(suite, engine, "magnetic beta theta-phi", &
         form_component(flux_form_owner, 6) - form_component(field_flux_form, 6))
+    call check_identity(suite, engine, "forward magnetic beta psi-theta", &
+        form_component(flux_from_b, 3) - form_component(field_flux_form, 3))
+    call check_identity(suite, engine, "forward magnetic beta psi-phi", &
+        form_component(flux_from_b, 5) - form_component(field_flux_form, 5))
+    call check_identity(suite, engine, "forward magnetic beta theta-phi", &
+        form_component(flux_from_b, 6) - form_component(field_flux_form, 6))
     form_up = b_con_form(shear, flux_form_owner)
     form_density_owner = b_density_form(shear, flux_form_owner)
     if (.not. tensor_valid(form_density_owner)) then

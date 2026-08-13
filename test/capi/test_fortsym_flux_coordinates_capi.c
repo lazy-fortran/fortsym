@@ -17,6 +17,19 @@ static void expect_text(const fortsym_expr *expression, const char *expected)
     assert(strcmp(buffer, expected) == 0);
 }
 
+static void expect_simplified(fortsym_arena *arena,
+                              const fortsym_expr *expression,
+                              const char *expected)
+{
+    char message[128];
+    fortsym_expr *simplified = NULL;
+    int status = fortsym_simplify(arena, expression, &simplified,
+                                  message, sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_text(simplified, expected);
+    fortsym_expr_free(simplified);
+}
+
 int main(void)
 {
     char message[128];
@@ -29,7 +42,7 @@ int main(void)
     const fortsym_expr *coordinates[3];
     const fortsym_expr *position[3];
     const fortsym_expr *vector[3];
-    fortsym_expr *output[5] = {0};
+    fortsym_expr *output[8] = {0};
     int status;
 
     status = fortsym_arena_new(&arena, message, sizeof message);
@@ -74,6 +87,24 @@ int main(void)
         fortsym_expr_free(output[index]);
 
     status = fortsym_chart_hamada_residuals(
+        arena, coordinates, position, vector, 0, output, message,
+        sizeof message);
+    assert(status == FORTSYM_INVALID_ARGUMENT);
+
+    vector[0] = zero;
+    vector[1] = psi;
+    vector[2] = one;
+    status = fortsym_chart_b_flux_form(
+        arena, coordinates, position, vector, 1, output, message,
+        sizeof message);
+    assert(status == FORTSYM_OK);
+    expect_simplified(arena, output[3], "1");
+    expect_simplified(arena, output[5], "-psi");
+    expect_simplified(arena, output[6], "0");
+    for (size_t index = 0; index < 8; ++index)
+        fortsym_expr_free(output[index]);
+
+    status = fortsym_chart_b_flux_form(
         arena, coordinates, position, vector, 0, output, message,
         sizeof message);
     assert(status == FORTSYM_INVALID_ARGUMENT);

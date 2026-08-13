@@ -23,7 +23,7 @@ module fortsym_public_capi
         curl, curl_density, laplacian
     use fortsym_chart_map, only: chart_map_t, chart_map_create, compose_maps, &
         map_valid, map_jacobian, inverse_jacobian, transform_tensor, transform_form
-    use fortsym_magnetic, only: b_cov, b_density, b_con_form, b_density_form, &
+    use fortsym_magnetic, only: b_cov, b_density, b_flux_form, b_con_form, b_density_form, &
         h_cov, h_con, b_fourier, &
         b_fourier_density, flux_surface_t, flux_surface, flux_surface_valid, &
         flux_surface_average, &
@@ -175,7 +175,7 @@ module fortsym_public_capi
         fortsym_chart_laplacian, &
         fortsym_chart_map_jacobian, fortsym_chart_map_inverse_jacobian, &
         fortsym_chart_map_tensor, fortsym_chart_map_form, fortsym_chart_map_compose, &
-        fortsym_chart_b_cov, fortsym_chart_b_density, &
+        fortsym_chart_b_cov, fortsym_chart_b_density, fortsym_chart_b_flux_form, &
         fortsym_chart_b_con_form, fortsym_chart_b_density_form, &
         fortsym_chart_flux_normal_residual, &
         fortsym_chart_straight_field_line_residual, &
@@ -265,7 +265,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 69_c_int
+        v = 70_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -2540,6 +2540,37 @@ contains
         value = b_density(chart, input)
         call make_array_handles(a, value, output, status, message, capacity)
     end function fortsym_chart_b_density
+
+    function fortsym_chart_b_flux_form(raw, coordinates, position, vector, orientation, &
+            out, message, capacity) bind(c, name="fortsym_chart_b_flux_form") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, vector, out
+        integer(c_int), value :: orientation
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(chart_t) :: chart
+        type(expr_t) :: input(DIM)
+        type(form_t) :: value
+        type(c_ptr), pointer :: output(:)
+        integer :: shape(1)
+
+        shape(1) = 8
+        call c_f_pointer(out, output, shape)
+        call clear_array_outputs(output)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (orientation /= 1_c_int .and. orientation /= -1_c_int) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call get_vector_input(a, vector, input, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = b_flux_form(chart, input, int(orientation))
+        call make_form_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_b_flux_form
 
     function fortsym_chart_b_con_form(raw, coordinates, position, input, degree, &
             orientation, out, message, capacity) bind(c, &
