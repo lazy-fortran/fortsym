@@ -101,6 +101,7 @@ target_sources(fortsym PRIVATE
     calculus/fortsym_registry.f90
     calculus/fortsym_relativity.f90
     calculus/fortsym_spacetime_form.f90
+    calculus/fortsym_spacetime_form_tensor.f90
     calculus/fortsym_spacetime_tensor.f90
     calculus/fortsym_maxwell.f90
     calculus/fortsym_tensor.f90

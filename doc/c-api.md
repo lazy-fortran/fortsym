@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 71). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 72). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -135,6 +135,12 @@ currents represented as degree-one and degree-three spacetime forms.
 `Omega = sigma*sqrt(abs(det(g))) du^0^...^du^(n-1)` for runtime dimensions
 one through four; the sign is explicit and remains separate from the positive
 metric `sqrtg` scalar.
+`fortsym_spacetime_form_from_tensor` and
+`fortsym_spacetime_tensor_from_form` bridge the same runtime owners. The tensor
+side must be an exact lower, weight-zero, fully antisymmetric tensor; refusal
+is explicit for upper slots, density weights, repeated-index nonzeros, and
+non-antisymmetric components. Tensor arrays use first-slot-fastest order, while
+form arrays use the existing 16 mask slots.
 Runtime spacetime tensors also expose metric covariant differentiation through
 `fortsym_spacetime_tensor_covariant_diff`. It appends a lower derivative slot,
 transports every declared upper or lower tensor slot, and preserves the

@@ -139,6 +139,11 @@ coordinates remain zero ABI slots, while `star()` and all de Rham operators
 use the metric's runtime dimension. See
 `example/example_2d_spacetime_forms.f90` and its matching SymPy-oracle test
 for a compact 2D example.
+`SpacetimeForm.to_tensor()` and `SpacetimeTensor.to_form()` are the shared
+runtime bridge between compact form coefficients and first-slot-fastest tensor
+components. The tensor view is exact lower, weight zero, and fully
+antisymmetric; upper slots, density weights, repeated-index nonzeros, and
+non-antisymmetric components raise a native error.
 `SpacetimeMetric.covariant()` and `.contravariant()` return typed metric
 tensors. `SpacetimeMetric.vector()`/`.covector()` create explicit component
 views, and `SpacetimeTensor.raise_()`/`.lower()` plus `.density(factor)` keep

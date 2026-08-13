@@ -573,6 +573,16 @@ int fortsym_spacetime_form_volume(
     fortsym_arena *arena, const fortsym_expr *components[], int dimension,
     const fortsym_expr *coordinates[], const int signature[], int orientation,
     fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_spacetime_form_from_tensor(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *input[], size_t rank, const int variance[],
+    int density_weight, fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_spacetime_tensor_from_form(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *input[], size_t degree, fortsym_expr *out[],
+    char *message, size_t capacity);
 int fortsym_spacetime_form_closed(
     fortsym_arena *arena, const fortsym_expr *components[], int dimension,
     const fortsym_expr *coordinates[], const int signature[], int orientation,

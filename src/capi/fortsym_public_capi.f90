@@ -68,6 +68,8 @@ module fortsym_public_capi
         spacetime_volume_form
     use fortsym_spacetime_form, only: spacetime_interior, spacetime_lie, &
         spacetime_laplace_de_rham
+    use fortsym_spacetime_form_tensor, only: spacetime_form_from_tensor, &
+        spacetime_tensor_from_form
     use fortsym_spacetime_tensor, only: spacetime_tensor_t, &
         SPACETIME_TENSOR_MAX_RANK, &
         spacetime_tensor_vector, &
@@ -248,6 +250,7 @@ module fortsym_public_capi
         fortsym_spacetime_geodesic_residual, &
         fortsym_spacetime_form_d, fortsym_spacetime_form_closed, &
         fortsym_spacetime_form_wedge, fortsym_spacetime_form_volume, &
+        fortsym_spacetime_form_from_tensor, fortsym_spacetime_tensor_from_form, &
         fortsym_spacetime_form_star, fortsym_spacetime_form_codifferential, &
         fortsym_spacetime_form_interior, fortsym_spacetime_form_lie, &
         fortsym_spacetime_form_laplace_de_rham, fortsym_spacetime_field_strength, &
@@ -266,7 +269,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 71_c_int
+        v = 72_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -4702,6 +4705,56 @@ contains
         value = spacetime_volume_form(metric, int(orientation))
         call make_spacetime_form_array(a, value, out, status, message, capacity)
     end function fortsym_spacetime_form_volume
+
+    function fortsym_spacetime_form_from_tensor(raw, components, dimension, &
+            coordinates, signature, orientation, input, rank, variance, &
+            density_weight, out, message, capacity) bind(c, &
+            name="fortsym_spacetime_form_from_tensor") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, input, variance, out
+        integer(c_int), value :: dimension, orientation, density_weight
+        integer(c_size_t), value :: rank
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_tensor_t) :: input_value
+        type(spacetime_form_t) :: value
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_tensor_input(metric, a, input, rank, variance, &
+            density_weight, input_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_form_from_tensor(metric, input_value)
+        call make_spacetime_form_array(a, value, out, status, message, capacity)
+    end function fortsym_spacetime_form_from_tensor
+
+    function fortsym_spacetime_tensor_from_form(raw, components, dimension, &
+            coordinates, signature, orientation, input, degree, out, message, &
+            capacity) bind(c, name="fortsym_spacetime_tensor_from_form") result(status)
+        type(c_ptr), value :: raw, components, coordinates, signature, input, out
+        integer(c_int), value :: dimension, orientation
+        integer(c_size_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(spacetime_metric_t) :: metric
+        type(spacetime_form_t) :: input_value
+        type(spacetime_tensor_t) :: value
+
+        call get_spacetime_metric_input(raw, components, dimension, coordinates, &
+            signature, orientation, a, metric, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_spacetime_form_input(metric, a, input, degree, input_value, &
+            status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        value = spacetime_tensor_from_form(metric, input_value)
+        call make_spacetime_tensor_array(a, value, int(degree), out, status, &
+            message, capacity)
+    end function fortsym_spacetime_tensor_from_form
 
     function fortsym_spacetime_form_closed(raw, components, dimension, coordinates, &
             signature, orientation, input, degree, verdict, message, capacity) &

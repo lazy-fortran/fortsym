@@ -160,6 +160,8 @@ module fortsym
         spacetime_codifferential, spacetime_interior, &
         spacetime_interior_product, spacetime_lie, spacetime_lie_derivative, &
         spacetime_laplace_de_rham
+    use fortsym_spacetime_form_tensor, only: spacetime_form_from_tensor, &
+        spacetime_tensor_from_form
     use fortsym_spacetime_tensor, only: spacetime_tensor_t, &
         spacetime_tensor_scalar, spacetime_tensor_vector, &
         spacetime_tensor_covector, spacetime_tensor_from_components, &
@@ -338,7 +340,8 @@ module fortsym
         spacetime_exterior_diff, spacetime_hodge, spacetime_star, &
         spacetime_codifferential, spacetime_interior, &
         spacetime_interior_product, spacetime_lie, spacetime_lie_derivative, &
-        spacetime_laplace_de_rham, &
+        spacetime_laplace_de_rham, spacetime_form_from_tensor, &
+        spacetime_tensor_from_form, &
         spacetime_tensor_t, spacetime_tensor_scalar, spacetime_tensor_vector, &
         spacetime_tensor_covector, spacetime_tensor_from_components, &
         spacetime_tensor_component, spacetime_tensor_component_flat, &

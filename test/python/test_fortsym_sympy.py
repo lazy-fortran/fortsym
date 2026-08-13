@@ -1240,6 +1240,27 @@ class SympySubsetTest(unittest.TestCase):
 
         two_form = metric.two_form((y, 2, 3, 4, 5, 6))
         self.assertFalse(two_form.is_closed)
+        two_tensor = two_form.to_tensor()
+        self.assertEqual(two_tensor.variance, (-1, -1))
+        oy = oracle.Symbol("form_y")
+        expected_coefficients = {3: oy, 5: 2, 6: 3, 9: 4, 10: 5, 12: 6}
+        expected_two = oracle.Matrix(4, 4, lambda row, column: (
+            0 if row == column else (
+                expected_coefficients[(1 << row) | (1 << column)]
+                if row < column else -expected_coefficients[
+                    (1 << row) | (1 << column)
+                ]
+            )
+        ))
+        actual_two = oracle.Matrix(4, 4, lambda row, column: oracle.sympify(
+            str(two_tensor[row, column].simplify())
+        ))
+        self.assertEqual(actual_two, expected_two)
+        round_two_form = two_tensor.to_form()
+        for mask in (3, 5, 6, 9, 10, 12):
+            self.assertEqual(
+                (round_two_form[mask] - two_form[mask]).simplify(), 0
+            )
         double_star = two_form.star().star()
         for mask in (3, 5, 6, 9, 10, 12):
             self.assertEqual((double_star[mask] + two_form[mask]).simplify(), 0)
