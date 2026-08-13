@@ -47,17 +47,65 @@ class InconsistentAssumptions(ValueError):
     """The supplied assumptions cannot hold simultaneously."""
 
 
+class Tuple:
+    """Small tuple-valued result owner for the bounded linsolve fragment."""
+
+    def __init__(self, *elements):
+        self._args = tuple(sympify(element) for element in elements)
+
+    @property
+    def args(self):
+        return self._args
+
+    def __iter__(self):
+        return iter(self._args)
+
+    def __len__(self):
+        return len(self._args)
+
+    def __getitem__(self, index):
+        return self._args[index]
+
+    def __eq__(self, other):
+        return isinstance(other, Tuple) and self._args == other._args
+
+    def __str__(self):
+        if len(self._args) == 1:
+            return "(" + str(self._args[0]) + ",)"
+        return "(" + ", ".join(str(element) for element in self._args) + ")"
+
+    __repr__ = __str__
+
+    def close(self):
+        elements = self._args
+        self._args = ()
+        for element in elements:
+            element.close()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+def _set_sort_key(value):
+    if isinstance(value, Tuple):
+        return (3, tuple(_sympy_sort_key(element) for element in value.args))
+    return _sympy_sort_key(value)
+
+
 class FiniteSet:
     """Small set-valued result owner for the verified solveset fragment."""
 
     def __init__(self, *elements):
         values = []
         for element in elements:
-            value = sympify(element)
+            value = element if isinstance(element, Tuple) else sympify(element)
             if any(value == previous for previous in values):
                 continue
             values.append(value)
-        values.sort(key=_sympy_sort_key)
+        values.sort(key=_set_sort_key)
         self._elements = tuple(values)
 
     @property
@@ -72,13 +120,16 @@ class FiniteSet:
 
     def __contains__(self, value):
         try:
-            value = sympify(value)
+            value = value if isinstance(value, Tuple) else sympify(value)
         except (TypeError, UnsupportedOperationError):
             return False
         return any(value == element for element in self._elements)
 
     def __eq__(self, other):
-        return isinstance(other, FiniteSet) and set(self._elements) == set(other._elements)
+        return (isinstance(other, FiniteSet) and
+                len(self._elements) == len(other._elements) and
+                all(any(value == candidate for candidate in other._elements)
+                    for value in self._elements))
 
     def __str__(self):
         return "{" + ", ".join(str(element) for element in self._elements) + "}"
@@ -1500,6 +1551,48 @@ def solveset(expression, symbol=None, domain=None):
     return EmptySet if not roots else FiniteSet(*roots)
 
 
+def linsolve(system, *symbols, **options):
+    """Solve one explicit square exact-rational matrix system.
+
+    The bounded native fragment accepts ``(matrix, right_hand_side)`` as
+    nested Python sequences and requires the symbols explicitly. Matrix
+    objects, symbolic coefficients, singular systems, and free parameters
+    remain explicit refusals until their native semantics are implemented.
+    """
+    if options:
+        raise UnsupportedOperationError("linsolve options")
+    if len(symbols) != 1:
+        raise UnsupportedOperationError("linsolve requires explicit symbols")
+    if not isinstance(system, (tuple, list)) or len(system) != 2:
+        raise UnsupportedOperationError("linsolve system form")
+    matrix, right_hand_side = system
+    if not isinstance(matrix, (tuple, list)) or not matrix:
+        raise UnsupportedOperationError("linsolve matrix form")
+    if not isinstance(right_hand_side, (tuple, list)):
+        raise UnsupportedOperationError("linsolve right-hand-side form")
+    matrix_values = []
+    for row in matrix:
+        if not isinstance(row, (tuple, list)):
+            raise UnsupportedOperationError("linsolve matrix rows")
+        matrix_values.append([sympify(value) for value in row])
+    matrix = matrix_values
+    right_hand_side = [sympify(value) for value in right_hand_side]
+    variables = symbols[0]
+    if not isinstance(variables, (tuple, list)):
+        raise UnsupportedOperationError("linsolve symbols form")
+    variables = tuple(sympify(variable) for variable in variables)
+    if len(variables) != len(matrix):
+        raise ValueError("linsolve symbols and matrix dimensions differ")
+    if any(variable.kind != 4 for variable in variables):
+        raise UnsupportedOperationError("linsolve symbols must be symbols")
+    if any(left == right
+           for index, left in enumerate(variables)
+           for right in variables[index + 1:]):
+        raise ValueError("linsolve symbols must be distinct")
+    values = _native_operation(
+        lambda: _default().linsolve(matrix, right_hand_side)
+    )
+    return FiniteSet(Tuple(*values))
 Matrix = _unsupported("Matrix")
 
 
@@ -1519,7 +1612,7 @@ __all__ = [
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
     "Manifold", "Patch", "CoordSystem", "CoordinateSymbol", "BaseScalarField",
     "BaseVectorField", "Differential", "WedgeProduct", "TensorProduct", "LieDerivative",
-    "InconsistentAssumptions",
+    "InconsistentAssumptions", "Tuple",
     "Symbol", "symbols", "sympify", "Integer", "Rational", "Float",
     "Add", "Mul", "Pow", "Function", "Wild", "Derivative", "Subs", "sin", "cos",
     "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "csch",
@@ -1529,6 +1622,6 @@ __all__ = [
     "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
     "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
-    "integrate", "limit", "series", "solve", "solveset", "FiniteSet", "EmptySet", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
+    "integrate", "limit", "series", "solve", "solveset", "linsolve", "FiniteSet", "EmptySet", "Tuple", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
     "oo", "zoo", "nan",
 ]

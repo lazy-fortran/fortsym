@@ -30,6 +30,11 @@ options, and equations return an explicit refusal.
 `solveset(...)` wraps the same verified roots in the SymPy-compatible bounded
 `FiniteSet`/`EmptySet` result shape; domains beyond the default complex-domain
 fragment are explicit refusals.
+`linsolve((matrix, right_hand_side), symbols)` exposes the verified native
+square exact-rational one-right-hand-side fragment and returns a
+`FiniteSet(Tuple(...))` result. Symbolic coefficients, singular or
+non-square systems, matrix objects, free parameters, and alternate forms are
+explicit refusals.
 
 ## Native geometry facade
 
@@ -456,6 +461,7 @@ does not import SymPy. Unsupported names raise
 | `series` | bounded Taylor polynomial through the requested SymPy term count, with the `O(...)` term omitted; singular/non-finite coefficients, unsupported symbolic derivatives, and unsupported options are explicit refusals |
 | `solve` | distinct verified roots for one equation in one symbol; exact univariate polynomials and verified scalar-linear equations; unsupported domains/options are explicit refusals |
 | `solveset` | bounded `FiniteSet`/`EmptySet` wrapper over the same distinct verified roots; non-default domains and unsupported equations are explicit refusals |
+| `linsolve` | verified square exact-rational systems with one explicit right-hand side, returned as `FiniteSet(Tuple(...))`; symbolic, singular, non-square, free-parameter, matrix-object, and alternate forms are explicit refusals |
 | `Matrix` | explicit refusal until symbolic matrix semantics are covered |
 
 `Wild(name, exclude=(), properties=())` is an adapter-only pattern object. Its

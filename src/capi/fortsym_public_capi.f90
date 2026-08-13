@@ -135,6 +135,7 @@ module fortsym_public_capi
     use fortsym_series_adapter, only: calculate_series, &
         calculate_series_coeff
     use fortsym_solve_adapter, only: calculate_solve
+    use fortsym_linsolve_adapter, only: calculate_linsolve
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -155,6 +156,7 @@ module fortsym_public_capi
         SPACETIME_DIM**SPACETIME_TENSOR_MAX_RANK
     integer, parameter :: FORM_COMPONENTS = 2**DIM
     integer, parameter :: FORM_MAX_DEGREE = DIM + 1
+    integer, parameter :: MAX_LINSOLVE_DIM = 64
 
     type :: assumption_frame_t
         type(assumption_context_t), pointer :: context => null()
@@ -187,7 +189,7 @@ module fortsym_public_capi
     public :: fortsym_expand, fortsym_simplify, fortsym_factor, &
         fortsym_together, fortsym_cancel, fortsym_apart, fortsym_collect, &
         c_integrate, c_limit, c_series, c_series_coeff
-    public :: fortsym_solve
+    public :: fortsym_solve, fortsym_linsolve
     public :: fortsym_chart_sqrtg, fortsym_chart_surface_measure, &
         fortsym_chart_flux_surface_average, &
         fortsym_chart_jacobian, &
@@ -292,7 +294,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 77_c_int
+        v = 78_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -5692,6 +5694,88 @@ contains
         end if
         call make_handle(a, result, out, status, message, capacity)
     end function c_series_coeff
+
+    function fortsym_linsolve(raw, matrix_raw, right_hand_side_raw, dimension, &
+            out, output_capacity, count, message, capacity) bind(c, &
+            name="fortsym_linsolve") result(status)
+        type(c_ptr), value :: raw, matrix_raw, right_hand_side_raw, out
+        integer(c_size_t), value :: dimension, output_capacity
+        integer(c_size_t), intent(out) :: count
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(c_ptr), pointer :: raw_matrix(:), raw_right_hand_side(:)
+        type(c_ptr), pointer :: output(:)
+        type(expr_t), allocatable :: matrix(:, :), right_hand_side(:), values(:)
+        integer :: column, index, n, row, shape(1)
+        logical :: ok
+        character(:), allocatable :: why
+
+        count = 0_c_size_t
+        call put_error(message, capacity, FORTSYM_OK)
+        if (.not. c_associated(matrix_raw) .or. &
+            .not. c_associated(right_hand_side_raw) .or. &
+            .not. c_associated(out) .or. dimension < 1_c_size_t .or. &
+            dimension > int(MAX_LINSOLVE_DIM, c_size_t) .or. &
+            output_capacity < 1_c_size_t) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        if (output_capacity > int(huge(0), c_size_t)) then
+            call fail(status, message, capacity, FORTSYM_RESOURCE_LIMIT)
+            return
+        end if
+        n = int(dimension)
+        shape(1) = int(output_capacity)
+        call c_f_pointer(out, output, shape)
+        call clear_handles(output, shape(1))
+        if (output_capacity < dimension) then
+            count = dimension
+            call fail_reason(status, message, capacity, FORTSYM_RESOURCE_LIMIT, &
+                "linsolve output array is too small")
+            return
+        end if
+
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        shape(1) = n*n
+        call c_f_pointer(matrix_raw, raw_matrix, shape)
+        shape(1) = n
+        call c_f_pointer(right_hand_side_raw, raw_right_hand_side, shape)
+        allocate(matrix(n, n), right_hand_side(n))
+        do column = 1, n
+            do row = 1, n
+                index = (column - 1)*n + row
+                call get_expr(raw_matrix(index), owner, matrix(row, column), &
+                    status, message, capacity)
+                if (status /= FORTSYM_OK) return
+                if (.not. associated(owner%arena, a)) then
+                    call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                    return
+                end if
+            end do
+        end do
+        do row = 1, n
+            call get_expr(raw_right_hand_side(row), owner, right_hand_side(row), &
+                status, message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+
+        call calculate_linsolve( &
+            a%engine, matrix, right_hand_side, values, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        count = dimension
+        call make_expr_array(a, values, out, n, status, message, capacity)
+    end function fortsym_linsolve
 
     function fortsym_solve(raw, expression_raw, variable_raw, out, &
             output_capacity, count, message, capacity) bind(c, &

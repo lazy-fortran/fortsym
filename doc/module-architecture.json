@@ -13,17 +13,17 @@
     {
       "from": "algebra",
       "to": "core",
-      "uses": 38
+      "uses": 39
     },
     {
       "from": "algebra",
       "to": "engine",
-      "uses": 14
+      "uses": 15
     },
     {
       "from": "algebra",
       "to": "util",
-      "uses": 12
+      "uses": 13
     },
     {
       "from": "algebra",
@@ -58,7 +58,7 @@
     {
       "from": "capi",
       "to": "algebra",
-      "uses": 7
+      "uses": 8
     },
     {
       "from": "capi",
@@ -118,7 +118,7 @@
     {
       "from": "core",
       "to": "algebra",
-      "uses": 3
+      "uses": 4
     },
     {
       "from": "core",
@@ -302,6 +302,7 @@
         "fortsym_geometry_metadata",
         "fortsym_index",
         "fortsym_kernel",
+        "fortsym_linsolve_adapter",
         "fortsym_magnetic",
         "fortsym_magnetic_weak",
         "fortsym_maxwell",
@@ -812,6 +813,17 @@
     },
     {
       "dependencies": [
+        "fortsym_engine",
+        "fortsym_expr",
+        "fortsym_linalg",
+        "fortsym_string"
+      ],
+      "name": "fortsym_linsolve_adapter",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_linsolve_adapter.f90"
+    },
+    {
+      "dependencies": [
         "fortsym_arena",
         "fortsym_chart",
         "fortsym_defint",
@@ -1023,6 +1035,7 @@
         "fortsym_integrate_adapter",
         "fortsym_limit_adapter",
         "fortsym_limits",
+        "fortsym_linsolve_adapter",
         "fortsym_magnetic",
         "fortsym_magnetic_weak",
         "fortsym_maxwell",
@@ -1351,11 +1364,11 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 453,
+    "internal_edges": 459,
     "module_file_mismatches": 0,
-    "module_units": 88,
-    "modules": 88,
-    "source_units": 89,
+    "module_units": 89,
+    "modules": 89,
+    "source_units": 90,
     "unknown_internal_dependencies": 0
   },
   "violations": {

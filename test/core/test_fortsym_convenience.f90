@@ -23,6 +23,8 @@ program test_fortsym_convenience
     type(expr_t) :: substitution_old(2), substitution_new(2)
     type(expr_t) :: free_expression
     type(expr_t), allocatable :: roots(:)
+    type(expr_t) :: linear_matrix(2, 2), linear_right_hand_side(2)
+    type(expr_t), allocatable :: linear_values(:)
     type(str_t), allocatable :: free_names(:)
     type(expr_t) :: stale
     type(engine_result_t) :: result, zero_result
@@ -121,6 +123,17 @@ program test_fortsym_convenience
     call check("facade exposes distinct verified roots", &
         good .and. root_count == 1 .and. roots(1) == num(default_storage, 1_int64), &
         failures)
+    linear_matrix(1, 1) = num(default_storage, 1_int64)
+    linear_matrix(1, 2) = num(default_storage, 2_int64)
+    linear_matrix(2, 1) = num(default_storage, 3_int64)
+    linear_matrix(2, 2) = num(default_storage, 4_int64)
+    linear_right_hand_side(1) = num(default_storage, 5_int64)
+    linear_right_hand_side(2) = num(default_storage, 6_int64)
+    call linsolve(linear_matrix, linear_right_hand_side, linear_values, good, why)
+    call check("facade exposes verified exact linsolve", &
+        good .and. size(linear_values) == 2 .and. &
+        linear_values(1) == num(default_storage, -4_int64) .and. &
+        linear_values(2) == rat(default_storage, 9_int64, 2_int64), failures)
     result = series(exp(mu), mu, num(default_storage, 0_int64), 3)
     series_value = result%value
     series_expected = 1 + mu + mu**2/2 + mu**3/6
