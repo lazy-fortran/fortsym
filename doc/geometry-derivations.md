@@ -170,6 +170,39 @@ metric, and therefore keeps the coordinate identity separate from `flat`,
 `alpha=psi`, `beta=theta`, and `B=(0, iota, 1)`, the residual is
 `(0, iota, 0)`; setting `B^3=1+theta` exposes the non-Clebsch component.
 
+## Derivation 4b: a non-orthogonal periodic flux chart
+
+To exercise the component rules without hiding them in a diagonal metric, use
+the periodic chart
+
+    x = psi
+    y = theta + kappa sin(phi)
+    z = phi
+
+Its tangent basis gives
+
+    g_ij = [[1, 0, 0],
+            [0, 1, kappa cos(phi)],
+            [0, kappa cos(phi), 1 + kappa**2 cos(phi)**2]]
+    J = 1
+    sqrtg = 1
+
+The surface label is `psi`; the angular coordinates are `theta` and `phi`.
+For `A = psi dphi`, the native curl and independent component calculation
+give `B^i = (0,-1,0)`, while lowering the index gives
+`B_i = (0,-1,-kappa cos(phi))`. Thus the off-diagonal metric changes the
+covariant representation without changing the field-line tangent property or
+the weight-one density, which here equals `B^i` because `sqrtg=1`.
+
+The executable
+`example/example_nonorthogonal_flux_coordinates.f90` checks the metric,
+signed Jacobian, positive volume factor, raise/lower round trip, density
+metadata, `beta = i_B(Omega) = d(A)`, closedness, Clebsch residual, and
+`B dot grad(psi)=0`. The Python differential test derives the Jacobian and
+metric independently with SymPy before comparing the native component and
+form views. The fixture intentionally has no equilibrium solver: it is a
+chart/key/variance acceptance case.
+
 ## Derivation 5: the Albert--Biro--Lainer Fourier branches
 
 The paper's Section II and equations (5)--(27), (32)--(42), and (45)--(51)

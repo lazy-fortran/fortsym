@@ -99,6 +99,8 @@ fortsym_add_test(test_fortsym_easy_geometry calculus/test_fortsym_easy_geometry.
 # --- executable geometry derivations ---
 add_test(NAME example_de_sitter COMMAND example_de_sitter)
 add_test(NAME example_gps_newtonian_limit COMMAND example_gps_newtonian_limit)
+add_test(NAME example_nonorthogonal_flux_coordinates
+    COMMAND example_nonorthogonal_flux_coordinates)
 add_test(NAME example_fourier_constitutive_density
     COMMAND example_fourier_constitutive_density)
 
