@@ -613,6 +613,41 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(label=label):
                 self.assertEqual(str(native_cases[label]), str(expected))
 
+    def test_decidable_relations_match_sympy(self):
+        oracle_x = oracle.Symbol("decidable_relation_x")
+        native_x = native.Symbol("decidable_relation_x")
+        cases = [
+            ("equal numbers", oracle.Eq(1, 1), native.Eq(1, 1)),
+            ("unequal numbers", oracle.Ne(1, 2), native.Ne(1, 2)),
+            ("greater rationals", oracle.Gt(oracle.Rational(3, 2), 1),
+             native.Gt(native.Rational(3, 2), 1)),
+            ("less rationals", oracle.Lt(oracle.Rational(1, 3), 1),
+             native.Lt(native.Rational(1, 3), 1)),
+            ("equal symbol", oracle.Eq(oracle_x, oracle_x),
+             native.Eq(native_x, native_x)),
+            ("unequal symbol", oracle.Ne(oracle_x, oracle_x),
+             native.Ne(native_x, native_x)),
+            ("greater symbol", oracle.Gt(oracle_x, oracle_x),
+             native.Gt(native_x, native_x)),
+            ("greater-equal symbol", oracle.Ge(oracle_x, oracle_x),
+             native.Ge(native_x, native_x)),
+            ("less symbol", oracle.Lt(oracle_x, oracle_x),
+             native.Lt(native_x, native_x)),
+            ("less-equal symbol", oracle.Le(oracle_x, oracle_x),
+             native.Le(native_x, native_x)),
+        ]
+        for label, expected, actual in cases:
+            with self.subTest(label=label):
+                if isinstance(actual, bool):
+                    self.assertEqual(str(actual), str(expected))
+                else:
+                    self.assertEqual(str(actual), str(expected))
+                    actual.close()
+        with native.Arena() as foreign_arena:
+            foreign_x = foreign_arena.symbol("decidable_relation_x")
+            with self.assertRaises(ValueError):
+                native.Eq(native_x, foreign_x)
+
     def test_compound_constructor_matches_oracle_shape(self):
         oracle_x = oracle.Symbol("compound_relation_x")
         native_x = native.Symbol("compound_relation_x")

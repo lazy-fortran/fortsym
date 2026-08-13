@@ -48,8 +48,11 @@ application owner and accept the same symbolic operands as the bounded SymPy
 surface. `&`, `|`, `^`, and `~` are the corresponding expression operators;
 `Not`/`~` negates a relational node to its complementary relation. Boolean
 identities for empty calls and Python `True`/`False` are handled at the adapter
-boundary; broader Boolean simplification and condition solving remain explicit
-roadmap work.
+boundary. `Eq` and `Ne` return Python booleans for exact numeric and identical
+symbol expressions; exact numeric ordering relations do the same, while
+undecidable symbolic ordering remains a native relation. Expressions from
+different arenas are rejected. Broader Boolean simplification and condition
+solving remain explicit roadmap work.
 `Matrix(rows)` constructs a bounded exact dense matrix, supports `(row,
 column)` indexing, `det()`/`det(matrix)`, `rank()`, `inv()`, `transpose()`,
 `.T`, `nullspace()`, `rref()`, elementwise `+`/`-` and unary negation, and
@@ -477,7 +480,7 @@ does not import SymPy. Unsupported names raise
 | `count_ops` | `count_ops(expression)` returns the SymPy-compatible non-visual operation count, including canonical divisions; `visual=True` is an explicit refusal until visual operation-expression construction is implemented |
 | `Subs` | typed wrapper with `.doit()` for explicit `(old, new)` pairs |
 | `simplify`, `refine`, `factor` | native bounded simplification, principal-square-root powers, universal power-constructor identities, exact real unit-circle `asin`/`acos` values, exact real tangent `atan` values, exact real `asinh(±1)` values, exact negative perfect-square roots, exact `asin(±i)`, `acos(±i)`, and `asinh(±i)` branch points, exact `log(0) = zoo` and its `exp(log(0)) = nan` propagation, principal-branch exact negative real and imaginary logarithms, exact `atan(±i)`, exact `atanh(1)`/`atanh(-1)` poles and `atanh(±i)` branch points, exact `acosh(0)`/`acosh(-1)` and `acosh(±i)` branch points, finite gamma-family poles, exact factorial values through `factorial(1000)`, compact-rational `oo`/`zoo` powers and normalized positive rational `-oo` phases, signed/zero-guarded `sqrt`/`Abs` refinement, direct known-domain rules for the supported elementary heads, real/nonzero-guarded `log`/`exp` composition, and polynomial factorisation; unsupported domain rewrites and refinement assumptions are refused |
-| `Eq`, `Ne`, `Gt`, `Ge`, `Lt`, `Le` and `Expr` comparisons | SymPy-compatible relational constructor spellings at the adapter boundary; exact sign/zero bounds and transactional `And` facts are ingested by native scopes |
+| `Eq`, `Ne`, `Gt`, `Ge`, `Lt`, `Le` and `Expr` comparisons | SymPy-compatible relational constructor spellings at the adapter boundary; exact numeric decisions and identical-expression `Eq`/`Ne` return booleans, symbolic ordering remains relational, and exact sign/zero bounds plus transactional `And` facts are ingested by native scopes |
 | `And`, `Or`, `Not`, `Xor`, `Implies`, `Equivalent`; `&`, `|`, `^`, `~` | bounded native Boolean applications with SymPy constructor names, Boolean identity evaluation including mixed constant `Equivalent`, relational negation, native structural printing, and shared expression-operator syntax; broader Boolean simplification is an explicit roadmap item |
 | `together`, `cancel`, `apart`, `collect` | exact bounded multivariate rational/polynomial operations with named resource-limit refusals; the basic SymPy spellings and variable selection are supported, while advanced options remain explicit refusals |
 | `integrate` | verified one-variable indefinite integration in the SymPy-compatible default complex domain; unsupported antiderivatives, multiple variables, and options are explicit refusals |

@@ -174,7 +174,7 @@ id = "relational-constructors"
 affected = ["Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And", "Or", "Not", "Xor", "Implies", "Equivalent"]
 parity = "partial"
 sympy = "SymPy exposes relational constructors, Boolean And/Or/Not/Xor/Implies/Equivalent compounds, and comparison operators with evaluated Boolean results where possible and symbolic relational objects otherwise."
-fortsym = "The adapter exposes the same constructor spellings plus symbolic comparison operators as applications in the shared native expression owner. It evaluates empty and Python-constant Boolean identities, maps relational Not to its complementary relation, and provides matching `&`, `|`, `^`, and `~` expression operators."
+fortsym = "The adapter exposes the same constructor spellings plus symbolic comparison operators as applications in the shared native expression owner. Exact numeric Eq/Ne/order relations and identical-expression Eq/Ne return Python booleans, while unknown symbolic ordering remains native-relational. It evaluates empty and Python-constant Boolean identities, maps relational Not to its complementary relation, and provides matching `&`, `|`, `^`, and `~` expression operators. Cross-arena operands are rejected."
 difference = "Full Boolean simplification, arbitrary relational assumptions, and condition reduction remain narrower. SymPy 1.14 does not infer these relational facts in ask/refine; fortsym adds sound bounded sign/zero implications, conjunction inference, and explicit conflict diagnostics as native extensions."
 
 [[semantic]]

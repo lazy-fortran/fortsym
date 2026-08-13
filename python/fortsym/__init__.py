@@ -1638,31 +1638,52 @@ class Arena:
             raise FortSymError(status, _decode(message), operation)
         return Expr(self, output)
 
+    def _typed_result(self, function, kind, *arguments):
+        result = self._result(function, *arguments)
+        result._kind_cache = kind
+        return result
+
     def integer(self, value: int):
         value = int(value)
         if -(1 << 63) <= value <= (1 << 63) - 1:
-            return self._result(self._lib.int, self._require(), value)
+            return self._typed_result(
+                self._lib.int, 1, self._require(), value
+            )
         return self.exact(str(value))
 
     def rational(self, numerator: int, denominator: int):
         numerator, denominator = int(numerator), int(denominator)
         if (-(1 << 63) <= numerator <= (1 << 63) - 1 and
                 -(1 << 63) <= denominator <= (1 << 63) - 1):
-            return self._result(self._lib.rational, self._require(), numerator,
-                                denominator)
+            if denominator == 0:
+                return self._result(
+                    self._lib.rational, self._require(), numerator, denominator
+                )
+            normalized = Fraction(numerator, denominator)
+            kind = 1 if normalized.denominator == 1 else 2
+            return self._typed_result(
+                self._lib.rational, kind, self._require(), numerator,
+                denominator
+            )
         return self.exact(f"{numerator}/{denominator}")
 
     def real(self, value: float):
-        return self._result(self._lib.real, self._require(), float(value))
+        return self._typed_result(
+            self._lib.real, 3, self._require(), float(value)
+        )
 
     def exact(self, value: str):
         return self._result(self._lib.exact, self._require(), value.encode())
 
     def symbol(self, name: str):
-        return self._result(self._lib.symbol, self._require(), name.encode())
+        return self._typed_result(
+            self._lib.symbol, 4, self._require(), name.encode()
+        )
 
     def constant(self, name: str):
-        return self._result(self._lib.constant, self._require(), name.encode())
+        return self._typed_result(
+            self._lib.constant, 5, self._require(), name.encode()
+        )
 
     def assume(self, expression: "Expr", fact: int):
         expression = self._check(expression)
