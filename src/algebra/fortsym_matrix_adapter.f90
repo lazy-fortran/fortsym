@@ -8,7 +8,7 @@ module fortsym_matrix_adapter
     use fortsym_matrix, only: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_zero_matrix, &
         matrix_is_upper, matrix_is_lower, matrix_is_upper_hessenberg, &
         matrix_is_lower_hessenberg, matrix_is_anti_symmetric, matrix_is_symbolic, &
-        matrix_is_identity, matrix_is_symmetric, &
+        matrix_is_identity, matrix_is_echelon, matrix_is_symmetric, &
         matrix_rank, matrix_inverse, &
         matrix_transpose, matrix_add, matrix_negate, matrix_divide, &
         matrix_null_space, &
@@ -26,6 +26,7 @@ module fortsym_matrix_adapter
     public :: calculate_matrix_is_upper_hessenberg
     public :: calculate_matrix_is_lower_hessenberg
     public :: calculate_matrix_is_identity
+    public :: calculate_matrix_is_echelon
     public :: calculate_matrix_is_anti_symmetric
     public :: calculate_matrix_is_symbolic
     public :: calculate_matrix_is_symmetric
@@ -165,6 +166,19 @@ contains
         call matrix_is_identity(a, engine, expression, verdict, ok, message)
         why = chars(message)
     end subroutine calculate_matrix_is_identity
+
+    subroutine calculate_matrix_is_echelon(a, engine, expression, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: expression
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(str_t) :: message
+
+        call matrix_is_echelon(a, engine, expression, verdict, ok, message)
+        why = chars(message)
+    end subroutine calculate_matrix_is_echelon
 
     subroutine calculate_matrix_is_anti_symmetric(a, engine, expression, simplify, verdict, ok, why)
         type(arena_t), target, intent(inout) :: a

@@ -1448,6 +1448,11 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
     )
+    lib.matrix_is_echelon = declare(
+        "fortsym_matrix_is_echelon",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
+    )
     lib.matrix_is_anti_symmetric = declare(
         "fortsym_matrix_is_anti_symmetric",
         ctypes.c_int,
@@ -7464,6 +7469,13 @@ class Expr:
     def is_identity(self):
         return self._arena._verdict(
             self._lib.matrix_is_identity,
+            self._arena._require(),
+            self._require(),
+        )
+
+    def is_echelon(self):
+        return self._arena._verdict(
+            self._lib.matrix_is_echelon,
             self._arena._require(),
             self._require(),
         )

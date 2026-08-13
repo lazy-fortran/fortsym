@@ -2456,6 +2456,21 @@ class Matrix:
         self._is_Identity_cache = (epoch, result)
         return result
 
+    @property
+    def is_echelon(self):
+        epoch = self._expression._arena._assumption_epoch
+        cached = getattr(self, "_is_echelon_cache", None)
+        if cached is not None and cached[0] == epoch:
+            return cached[1]
+        expression, temporary = self._matrix_expression()
+        try:
+            result = _native_operation(expression.is_echelon)
+        finally:
+            if temporary is not None:
+                temporary.close()
+        self._is_echelon_cache = (epoch, result)
+        return result
+
     def is_anti_symmetric(self, simplify=True):
         if simplify not in (False, True):
             raise UnsupportedOperationError("is_anti_symmetric options")
