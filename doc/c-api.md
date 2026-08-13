@@ -104,6 +104,12 @@ transverse curl coefficient, and 2x2 transverse mass block as native
 expression handles. `fortsym_chart_fourier_longitudinal_residual` and
 `fortsym_chart_fourier_transverse_residual` transport the corresponding
 strong residuals; the transverse mode is an expression handle.
+`fortsym_chart_fourier_source` and `fortsym_chart_fourier_load` transport
+two-slot source/load arrays with branch and component metadata. The zero mode
+uses the first slot as a scalar longitudinal source or normal load; nonzero
+modes use both slots for the transverse source or tangential load. The native
+boundary contract does not absorb a surface measure or weak-form sign, and
+invalid branch/trace combinations return `FORTSYM_INVALID_ARGUMENT`.
 The metric owner is also available through `fortsym_metric_sqrtg`,
 `fortsym_metric_volume_density`, `fortsym_metric_levi_civita`,
 `fortsym_metric_contravariant`, `fortsym_metric_grad`,

@@ -1986,6 +1986,58 @@ class SympySubsetTest(unittest.TestCase):
         ox1, ox2, onu33 = oracle.symbols(
             "weak_u1 weak_u2 weak_nu33"
         )
+        source0 = chart.fourier_source(u1 - u2, 0)
+        self.assertIsInstance(source0, sp.FourierSource)
+        self.assertTrue(source0.valid)
+        self.assertEqual(source0.branch_name, "longitudinal")
+        self.assertEqual(source0.components, 1)
+        self.assertTrue(source0.matches(longitudinal))
+        self.assertFalse(source0.matches(transverse))
+        self.assertEqual(
+            oracle.sympify(str(source0.value.simplify())), ox1 - ox2
+        )
+
+        source2 = chart.fourier_source((u1 - u2, u1 + 2*u2), 2)
+        self.assertIsInstance(source2, sp.FourierSource)
+        self.assertTrue(source2.valid)
+        self.assertEqual(source2.branch_name, "transverse")
+        self.assertEqual(source2.components, 2)
+        self.assertTrue(source2.matches(transverse))
+        self.assertFalse(source2.matches(longitudinal))
+        for actual, expected in zip(
+                source2.values, (ox1 - ox2, ox1 + 2*ox2)):
+            self.assertEqual(
+                oracle.sympify(str(actual.simplify())), expected
+            )
+
+        normal_load = chart.fourier_load(
+            u1 + 2*u2, sp.TRACE_NORMAL, 0
+        )
+        self.assertIsInstance(normal_load, sp.FourierLoad)
+        self.assertTrue(normal_load.valid)
+        self.assertEqual(normal_load.trace_name, "normal")
+        self.assertTrue(normal_load.matches(longitudinal))
+        self.assertFalse(normal_load.matches(transverse))
+        self.assertEqual(
+            oracle.sympify(str(normal_load.value.simplify())), ox1 + 2*ox2
+        )
+
+        tangential_load = chart.fourier_load(
+            (u1 - u2, u1 + 2*u2), sp.TRACE_TANGENTIAL, 2
+        )
+        self.assertIsInstance(tangential_load, sp.FourierLoad)
+        self.assertTrue(tangential_load.valid)
+        self.assertEqual(tangential_load.trace_name, "tangential")
+        self.assertTrue(tangential_load.matches(transverse))
+        self.assertFalse(tangential_load.matches(longitudinal))
+        for actual, expected in zip(
+                tangential_load.values, (ox1 - ox2, ox1 + 2*ox2)):
+            self.assertEqual(
+                oracle.sympify(str(actual.simplify())), expected
+            )
+        with self.assertRaises(fortsym.FortSymError):
+            chart.fourier_load((u1, u2), sp.TRACE_NORMAL, 2)
+
         native_a3 = u1**2*u2 + u1
         native_source_3 = u1 - u2
         a3 = ox1**2*ox2 + ox1

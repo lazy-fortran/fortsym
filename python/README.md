@@ -52,6 +52,14 @@ coefficients `s_k q`; `fourier_transverse_boundary_contraction` contracts those
 coefficients with an edge test pair. These helpers keep the normal components
 in the coordinate convention and leave surface measure, quadrature, and the
 weak-form minus sign to the caller.
+`Chart.fourier_source(current, n)` and `Chart.fourier_load(load, trace, n)`
+create typed source/load records that match the corresponding weak-form
+branch: the zero mode takes one scalar component and a normal trace, while a
+nonzero mode takes two transverse components and a tangential trace. Their
+`.value` is scalar for the longitudinal branch and a two-tuple for the
+transverse branch; `.matches(weak)` rejects branch, trace, mode, or component
+count mismatches. These records stop at the source/load contract; quadrature,
+mesh, and finite-element basis assembly remain caller-owned.
 Pass a `fortsym.sympy.Patch` as `Chart(..., patch=patch)` when the chart is
 declared on a coordinate patch; `Chart.has_patch` and `Chart.patch` retain that
 metadata without inferring topology from expressions. `CoordSystem(name,
@@ -261,6 +269,10 @@ weak = chart.fourier_weak_form(
     ((2, 3, 0), (5, 7, 0), (0, 0, sp.Symbol("nu33"))), 2,
 )
 assert weak.branch_name == "transverse"
+source = chart.fourier_source((A1, A2), 2)
+load = chart.fourier_load((A1, A2), sp.TRACE_TANGENTIAL, 2)
+assert source.matches(weak)
+assert load.matches(weak)
 g = chart.metric_covariant()
 dg = g.covariant_diff()
 v_density = chart.vector((Z, R, phi), density_weight=1)

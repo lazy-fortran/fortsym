@@ -203,6 +203,27 @@ B = b_fourier(chart, A, n)
 ! J = j_fourier(chart, nu, A, n)
 ```
 
+The Fourier weak-form owner keeps source and boundary-load data typed by mode:
+
+```fortran
+type(fourier_weak_form_t) :: weak
+type(fourier_source_t) :: source
+type(fourier_load_t) :: load
+type(expr_t) :: current_t(2), boundary_t(2)
+
+weak = fourier_weak_form(chart, material, 2)
+source = fourier_source(chart, current_t, 2)
+load = fourier_load(chart, boundary_t, TRACE_TANGENTIAL, 2)
+if (.not. fourier_source_matches(weak, source)) error stop "source mismatch"
+if (.not. fourier_load_matches(weak, load)) error stop "load mismatch"
+```
+
+For mode zero, use the scalar overload with `TRACE_NORMAL`; for nonzero modes,
+use the two-component overload with `TRACE_TANGENTIAL`. Invalid branch/trace
+combinations are represented by invalid records and are rejected by the
+matching predicates. Surface measure, quadrature, mesh, and finite-element
+basis ownership remain outside this contract.
+
 The convenience facade and the lower-level modules call the same owners; they
 do not maintain separate metric, variance, or density representations.
 

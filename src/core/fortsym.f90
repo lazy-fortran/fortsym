@@ -116,8 +116,11 @@ module fortsym
     use fortsym_magnetic_weak, only: fourier_constitutive, &
         reluctivity_density, &
         fourier_constitutive_t, fourier_weak_form, fourier_weak_form_t, &
+        fourier_source_t, fourier_load_t, fourier_source, fourier_load, &
         current_compatibility, nubar, fourier_constitutive_valid, &
-        fourier_weak_form_valid, fourier_longitudinal_residual, &
+        fourier_weak_form_valid, fourier_source_valid, fourier_load_valid, &
+        fourier_source_matches, fourier_load_matches, &
+        fourier_longitudinal_residual, &
         fourier_transverse_residual, fourier_longitudinal_flux, &
         fourier_transverse_flux, fourier_longitudinal_boundary_flux, &
         fourier_transverse_boundary_flux, fourier_transverse_boundary_contraction, &
@@ -296,9 +299,12 @@ module fortsym
         FLUX_HAMADA, CLEBSCH_RESIDUAL_COUNT, BOOZER_RESIDUAL_COUNT, &
         HAMADA_RESIDUAL_COUNT, &
         fourier_constitutive, fourier_constitutive_t, fourier_weak_form, &
-        fourier_weak_form_t, current_compatibility, nubar, &
+        fourier_weak_form_t, fourier_source_t, fourier_load_t, &
+        fourier_source, fourier_load, current_compatibility, nubar, &
         reluctivity_density, &
         fourier_constitutive_valid, fourier_weak_form_valid, &
+        fourier_source_valid, fourier_load_valid, fourier_source_matches, &
+        fourier_load_matches, &
         fourier_longitudinal_residual, fourier_transverse_residual, &
         fourier_longitudinal_flux, fourier_transverse_flux, &
         fourier_longitudinal_boundary_flux, fourier_transverse_boundary_flux, &
