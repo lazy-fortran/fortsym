@@ -221,8 +221,10 @@ warnings.
   owner/refusal contract in ROADMAP.md and this ledger.
 - [x] Keep the cylindrical sqrtg B^i and magnetic form derivations in native
   examples with independent zero checks.
-- [ ] Add a nonorthogonal off-diagonal metric fixture and a direct
-  coordinate-composition check.
+- [x] Add a chart-derived nonorthogonal off-diagonal metric fixture with
+  signed Jacobian and positive volume factor. The chart-map test independently
+  checks forward/inverse and composed coordinate maps, tensor slots, and
+  density transport; a toroidal/flux-specific fixture remains open.
 - [x] Add the native typed B_ij/2-form-to-beta density bridge with explicit
   orientation. `b_con_form` applies the chart Hodge map and metric raise;
   `b_density_form` then adds the weight-`+1` `sqrtg` factor. The nonorthogonal
