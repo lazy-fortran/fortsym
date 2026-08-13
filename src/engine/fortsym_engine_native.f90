@@ -225,7 +225,6 @@ contains
                 return
             end if
         end if
-        possible_denominator = contains_negative_power(e%a, simplified_id)
         ! Polynomial cancellation is a native candidate, not a replacement
         ! for the bounded recursive simplifier.  Keep it out of limited calls
         ! until it accepts the caller's resource budget, and only retain a
@@ -235,39 +234,48 @@ contains
                 e%kind() == NK_POW) then
                 simplified_expr = e
                 simplified_expr%id = simplified_id
-                if (possible_denominator) then
-                    call poly_cancel(e%a, simplified_expr, cancelled, cancel_ok, &
-                        cancel_reason)
-                    if (cancel_ok) then
-                        call reset_workspace(self%simplify_memo, &
-                            self%simplify_stamp, self%simplify_epoch, e%a%size())
-                        cancelled%id = simplify_id(e%a, cancelled%id, &
-                            self%simplify_memo, self%simplify_stamp, &
-                            self%simplify_epoch, active_limit)
-                        if (cancelled%node_count() < &
-                            simplified_expr%node_count()) then
-                            simplified_id = cancelled%id
+                if (simplified_expr%kind() == NK_ADD .or. &
+                    simplified_expr%kind() == NK_MUL .or. &
+                    simplified_expr%kind() == NK_POW) then
+                    possible_denominator = contains_negative_power(e%a, &
+                        simplified_id)
+                    if (possible_denominator) then
+                        call poly_cancel(e%a, simplified_expr, cancelled, &
+                            cancel_ok, cancel_reason)
+                        if (cancel_ok) then
+                            call reset_workspace(self%simplify_memo, &
+                                self%simplify_stamp, self%simplify_epoch, &
+                                e%a%size())
+                            cancelled%id = simplify_id(e%a, cancelled%id, &
+                                self%simplify_memo, self%simplify_stamp, &
+                                self%simplify_epoch, active_limit)
+                            if (cancelled%node_count() < &
+                                simplified_expr%node_count()) then
+                                simplified_id = cancelled%id
+                            end if
                         end if
                     end if
-                end if
-                ! Factoring is currently a polynomial candidate only.  Do not
-                ! fold rational functions back into products: callers such as
-                ! integration deliberately expose those products to Apart.
-                if (.not. possible_denominator .or. &
-                    .not. has_symbolic_denominator(e%a, simplified_id)) then
-                    simplified_expr = e
-                    simplified_expr%id = simplified_id
-                    call poly_factor(e%a, simplified_expr, cancelled, &
-                        cancel_ok, cancel_reason)
-                    if (cancel_ok) then
-                        call reset_workspace(self%simplify_memo, &
-                            self%simplify_stamp, self%simplify_epoch, e%a%size())
-                        cancelled%id = simplify_id(e%a, cancelled%id, &
-                            self%simplify_memo, self%simplify_stamp, &
-                            self%simplify_epoch, active_limit)
-                        if (cancelled%node_count() < &
-                            simplified_expr%node_count()) then
-                            simplified_id = cancelled%id
+                    ! Factoring is currently a polynomial candidate only. Do
+                    ! not fold rational functions back into products: callers
+                    ! such as integration deliberately expose those products
+                    ! to Apart.
+                    if (.not. possible_denominator .or. &
+                        .not. has_symbolic_denominator(e%a, simplified_id)) then
+                        simplified_expr = e
+                        simplified_expr%id = simplified_id
+                        call poly_factor(e%a, simplified_expr, cancelled, &
+                            cancel_ok, cancel_reason)
+                        if (cancel_ok) then
+                            call reset_workspace(self%simplify_memo, &
+                                self%simplify_stamp, self%simplify_epoch, &
+                                e%a%size())
+                            cancelled%id = simplify_id(e%a, cancelled%id, &
+                                self%simplify_memo, self%simplify_stamp, &
+                                self%simplify_epoch, active_limit)
+                            if (cancelled%node_count() < &
+                                simplified_expr%node_count()) then
+                                simplified_id = cancelled%id
+                            end if
                         end if
                     end if
                 end if
