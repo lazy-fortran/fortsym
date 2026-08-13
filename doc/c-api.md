@@ -66,6 +66,12 @@ expression in one symbol when its residual is an exact affine polynomial. It
 returns a normal native `And` expression containing the exact open or closed
 boundary and refuses higher-degree, non-exact, foreign-arena, and unsupported
 relation inputs with `FORTSYM_UNSUPPORTED`.
+`fortsym_sum_closed_form` and `fortsym_product_closed_form` expose the native
+finite sum/product owner. They accept one body, integer-valued summation
+symbol, and lower/upper bounds, using direct expansion within the resource
+cap and verified polynomial, geometric, and telescoping forms otherwise;
+infinite bounds, unsupported bodies, and unresolved convergence branches are
+reported as `FORTSYM_UNSUPPORTED`.
 The chart calculus distinguishes ordinary vectors from weight-one vector densities:
 `fortsym_chart_curl_density` returns the metric-free alternating derivative of a
 covector, while `fortsym_chart_div_density` differentiates a contravariant density

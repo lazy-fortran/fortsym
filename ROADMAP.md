@@ -230,6 +230,10 @@ SymPy parity for the entire family.
       unsupported conditional intervals remain explicit refusals.
 - [ ] Complete Fourier, Laplace, inverse, sine, cosine, and related transform
       APIs, plus symbolic sums/products and telescoping.
+- [x] Expose bounded finite `summation` and `product` through the existing
+      native closed-form/telescoping owner and the C, Python, and SymPy
+      facades; broader convergence, hypergeometric, and transform families
+      remain open.
 
 ## Phase 4 — equations and exact linear algebra
 

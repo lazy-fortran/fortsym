@@ -717,6 +717,30 @@
         "reduce_inequalities",
         "solve_univariate_inequality"
       ]
+    },
+    {
+      "action": "Keep the explicit closed-form names in native layers and adapt SymPy's summation/product spellings at the Python boundary.",
+      "description": "Evaluate bounded finite sums and products.",
+      "finding": "The native and convenience facades expose sum_closed_form and product_closed_form; the SymPy adapter exposes summation and product over the same owner.",
+      "fortran_facade": [
+        "sum_closed_form",
+        "product_closed_form"
+      ],
+      "id": "sums-and-products",
+      "python_facade": [
+        "sum_closed_form",
+        "product_closed_form"
+      ],
+      "sympy_adapter": [
+        "product",
+        "summation"
+      ],
+      "sympy_reference": [
+        "Product",
+        "Sum",
+        "product",
+        "summation"
+      ]
     }
   ],
   "exports": {
@@ -2616,6 +2640,18 @@
         "name": "solve_univariate_inequality"
       },
       {
+        "concepts": [
+          "sums-and-products"
+        ],
+        "name": "sum_closed_form"
+      },
+      {
+        "concepts": [
+          "sums-and-products"
+        ],
+        "name": "product_closed_form"
+      },
+      {
         "concepts": [],
         "name": "spacetime_christoffel"
       },
@@ -3241,6 +3277,8 @@
       "rref",
       "series",
       "series_coeff",
+      "product_closed_form",
+      "sum_closed_form",
       "solve",
       "solve_ode",
       "subs",
@@ -3447,6 +3485,8 @@
       "solve",
       "solve_univariate_inequality",
       "solveset",
+      "product",
+      "summation",
       "sqrt",
       "subs",
       "symbols",

@@ -140,6 +140,7 @@ module fortsym_public_capi
     use fortsym_solve_adapter, only: calculate_solve, calculate_solveset
     use fortsym_ode, only: solve_ode
     use fortsym_inequality, only: solve_univariate_inequality
+    use fortsym_sums, only: sum_closed_form, product_closed_form
     use fortsym_linsolve_adapter, only: calculate_linsolve, &
         calculate_parametric_linsolve
     use fortsym_matrix_adapter, only: calculate_matrix_det, calculate_matrix_trace, &
@@ -213,6 +214,7 @@ module fortsym_public_capi
         fortsym_poly_coefficient, fortsym_poly_exponent, fortsym_poly_gcd, &
         fortsym_poly_quotient, fortsym_poly_remainder, &
         c_integrate, c_definite_integral, c_limit, c_series, c_series_coeff
+    public :: fortsym_sum_closed_form, fortsym_product_closed_form
     public :: fortsym_solve, fortsym_solveset, fortsym_solve_ode, &
         fortsym_solve_univariate_inequality, &
         fortsym_linsolve, &
@@ -5813,6 +5815,90 @@ contains
         end if
         call make_handle(a, result, out, status, message, capacity)
     end function c_definite_integral
+
+    function fortsym_sum_closed_form(raw, body_raw, variable_raw, lower_raw, &
+            upper_raw, out, message, capacity) bind(c, &
+            name="fortsym_sum_closed_form") result(status)
+        type(c_ptr), value :: raw, body_raw, variable_raw, lower_raw, upper_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: bp, vp, lop, hip
+        type(expr_t) :: body, variable, lower, upper, result
+        type(engine_result_t) :: simplified
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(body_raw, bp, body, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(lower_raw, lop, lower, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(upper_raw, hip, upper, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(bp%arena, a) .or. &
+                .not. associated(vp%arena, a) .or. &
+                .not. associated(lop%arena, a) .or. &
+                .not. associated(hip%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        result = sum_closed_form(a%value, body, variable, lower, upper, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        simplified = a%engine%simplify(result)
+        if (simplified%ok) result = simplified%value
+        call make_handle(a, result, out, status, message, capacity)
+    end function fortsym_sum_closed_form
+
+    function fortsym_product_closed_form(raw, body_raw, variable_raw, lower_raw, &
+            upper_raw, out, message, capacity) bind(c, &
+            name="fortsym_product_closed_form") result(status)
+        type(c_ptr), value :: raw, body_raw, variable_raw, lower_raw, upper_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: bp, vp, lop, hip
+        type(expr_t) :: body, variable, lower, upper, result
+        type(engine_result_t) :: simplified
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(body_raw, bp, body, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(lower_raw, lop, lower, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(upper_raw, hip, upper, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(bp%arena, a) .or. &
+                .not. associated(vp%arena, a) .or. &
+                .not. associated(lop%arena, a) .or. &
+                .not. associated(hip%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        result = product_closed_form(a%value, body, variable, lower, upper, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        simplified = a%engine%simplify(result)
+        if (simplified%ok) result = simplified%value
+        call make_handle(a, result, out, status, message, capacity)
+    end function fortsym_product_closed_form
 
     function c_limit(raw, expression_raw, variable_raw, point_raw, &
             point_kind, direction, out, message, capacity) bind(c, &

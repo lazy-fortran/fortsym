@@ -1,6 +1,6 @@
 {
   "adapter_profile": {
-    "declared_count": 172,
+    "declared_count": 174,
     "explicit_refusals": [],
     "supported": [
       "ANTISYMMETRIC",
@@ -147,6 +147,7 @@
       "nan",
       "oo",
       "pi",
+      "product",
       "quo",
       "rank",
       "re",
@@ -164,6 +165,7 @@
       "solveset",
       "sqrt",
       "subs",
+      "summation",
       "symbols",
       "sympify",
       "tan",
@@ -6149,6 +6151,28 @@
         "id": "fortsym_public_capi.c_series_coeff",
         "module": "fortsym_public_capi",
         "name": "c_series_coeff",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_sum_closed_form",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_sum_closed_form",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_product_closed_form",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_product_closed_form",
         "owner": "src/capi/fortsym_public_capi.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -18571,14 +18595,14 @@
   "source_inventory": "doc/sympy-api-inventory.json",
   "summary": {
     "classification_counts": {
-      "delegated": 3073,
+      "delegated": 3089,
       "external": 10,
-      "facade": 772,
-      "native": 4744,
-      "python-adapter": 3029,
-      "refused": 24765
+      "facade": 774,
+      "native": 4762,
+      "python-adapter": 3045,
+      "refused": 24749
     },
-    "fortran_public_exports": 1759,
+    "fortran_public_exports": 1761,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
@@ -102358,14 +102382,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.product",
         "kind": "function",
         "module": "sympy",
         "name": "product",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -103587,14 +103613,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.summation",
         "kind": "function",
         "module": "sympy",
         "name": "summation",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -121944,25 +121972,29 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.concrete.product",
         "kind": "function",
         "module": "sympy.concrete",
         "name": "product",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.concrete.summation",
         "kind": "function",
         "module": "sympy.concrete",
         "name": "summation",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -122126,14 +122158,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.concrete.delta.product",
         "kind": "function",
         "module": "sympy.concrete.delta",
         "name": "product",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -122150,14 +122184,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.concrete.delta.summation",
         "kind": "function",
         "module": "sympy.concrete.delta",
         "name": "summation",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -122875,14 +122911,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.concrete.products.product",
         "kind": "function",
         "module": "sympy.concrete.products",
         "name": "product",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -122910,14 +122948,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.concrete.products.summation",
         "kind": "function",
         "module": "sympy.concrete.products",
         "name": "summation",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -123544,14 +123584,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.concrete.summations.summation",
         "kind": "function",
         "module": "sympy.concrete.summations",
         "name": "summation",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -189572,14 +189614,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.parsing.maxima.product",
         "kind": "function",
         "module": "sympy.parsing.maxima",
         "name": "product",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -244613,14 +244657,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.subresultants_qq_zz.summation",
         "kind": "function",
         "module": "sympy.polys.subresultants_qq_zz",
         "name": "summation",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -274465,14 +274511,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.recurr.product",
         "kind": "function",
         "module": "sympy.solvers.recurr",
         "name": "product",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -281453,14 +281501,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.stats.drv.summation",
         "kind": "function",
         "module": "sympy.stats.drv",
         "name": "summation",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -282782,14 +282832,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.stats.joint_rv.summation",
         "kind": "function",
         "module": "sympy.stats.joint_rv",
         "name": "summation",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -318595,13 +318647,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.product",
         "kind": "function",
         "name": "product",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -319715,13 +319769,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.summation",
         "kind": "function",
         "name": "summation",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [

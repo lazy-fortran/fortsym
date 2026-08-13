@@ -209,3 +209,13 @@ transition_aliases = []
 python_facade = ["solve_univariate_inequality"]
 sympy_adapter = ["solve_univariate_inequality", "reduce_inequalities"]
 decision = "Keep solve_univariate_inequality as the single native inequality owner. Expose the same spelling in the convenience facade and adapt SymPy's reduce_inequalities input convention without duplicating the algorithm."
+
+[[family]]
+id = "sums-and-products"
+audit_concepts = ["sums-and-products"]
+canonical_native = ["sum_closed_form", "product_closed_form"]
+current_native = ["sum_closed_form", "product_closed_form"]
+transition_aliases = []
+python_facade = ["sum_closed_form", "product_closed_form"]
+sympy_adapter = ["summation", "product"]
+decision = "Keep the explicit closed-form names in the native facade because the owner may expand, telescope, or issue a closed form; adapt SymPy's summation/product spellings only at the compatibility boundary."
