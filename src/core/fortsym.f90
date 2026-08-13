@@ -33,6 +33,7 @@ module fortsym
     use fortsym_linsolve_adapter, only: calculate_linsolve
     use fortsym_matrix_adapter, only: calculate_matrix_det, calculate_matrix_rank, &
         calculate_matrix_inverse, calculate_matrix_transpose, &
+        calculate_matrix_add, calculate_matrix_negate, &
         calculate_matrix_null_space, calculate_matrix_rref, &
         calculate_matrix_multiply
     use fortsym_complexdom, only: complex_re_part => re_part, &
@@ -266,7 +267,8 @@ module fortsym
     public :: str, chars
     public :: subs, subs_many, diff, simplify, refine, expand, factor, &
         series, series_coeff, solve, linsolve, det, rank, inv, matrix_transpose, &
-        nullspace, rref, matrix_multiply, operation_count, free_symbols
+        nullspace, rref, matrix_multiply, matrix_add, matrix_subtract, &
+        matrix_negate, operation_count, free_symbols
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -906,6 +908,97 @@ contains
             result%ok = .true.
         end if
     end function matrix_transpose
+
+    !> Add two dense matrices with equal shape.
+    function matrix_add(left, right) result(result)
+        type(expr_t), intent(in) :: left, right
+        type(engine_result_t) :: result
+        logical :: ok
+        character(:), allocatable :: why
+        type(native_engine_t) :: engine
+
+        if (.not. is_valid(left) .or. .not. is_valid(right)) then
+            call report_failure(result, "matrix_add: invalid expression")
+            return
+        end if
+        if (.not. same_arena(left, right)) then
+            call report_failure(result, &
+                "matrix_add: expressions belong to different arenas")
+            return
+        end if
+        if (use_default_engine(left)) then
+            call calculate_matrix_add( &
+                left%a, default_engine, left, right, result%value, ok, why)
+        else
+            engine = make_native_engine(left%a)
+            call calculate_matrix_add( &
+                left%a, engine, left, right, result%value, ok, why)
+        end if
+        if (.not. ok) then
+            call report_failure(result, why)
+        else
+            result%ok = .true.
+        end if
+    end function matrix_add
+
+    !> Subtract two dense matrices with equal shape.
+    function matrix_subtract(left, right) result(result)
+        type(expr_t), intent(in) :: left, right
+        type(engine_result_t) :: result
+        logical :: ok
+        character(:), allocatable :: why
+        type(native_engine_t) :: engine
+
+        if (.not. is_valid(left) .or. .not. is_valid(right)) then
+            call report_failure(result, "matrix_subtract: invalid expression")
+            return
+        end if
+        if (.not. same_arena(left, right)) then
+            call report_failure(result, &
+                "matrix_subtract: expressions belong to different arenas")
+            return
+        end if
+        if (use_default_engine(left)) then
+            call calculate_matrix_add( &
+                left%a, default_engine, left, right, result%value, ok, why, .true.)
+        else
+            engine = make_native_engine(left%a)
+            call calculate_matrix_add( &
+                left%a, engine, left, right, result%value, ok, why, .true.)
+        end if
+        if (.not. ok) then
+            call report_failure(result, why)
+        else
+            result%ok = .true.
+        end if
+    end function matrix_subtract
+
+    !> Negate a dense matrix.
+    function matrix_negate(expression) result(result)
+        type(expr_t), intent(in) :: expression
+        type(engine_result_t) :: result
+        logical :: ok
+        character(:), allocatable :: why
+        type(native_engine_t) :: engine
+
+        if (.not. is_valid(expression)) then
+            call report_failure(result, "matrix_negate: invalid expression")
+            return
+        end if
+        if (use_default_engine(expression)) then
+            call calculate_matrix_negate( &
+                expression%a, default_engine, expression, result%value, ok, why)
+        else
+            engine = make_native_engine(expression%a)
+            call calculate_matrix_negate( &
+                expression%a, engine, expression, result%value, ok, why)
+        end if
+        if (.not. ok) then
+            call report_failure(result, why)
+        else
+            result%ok = .true.
+        end if
+    end function matrix_negate
 
     !> Return a bounded exact basis for the right null space of a dense matrix.
     function nullspace(expression) result(result)
