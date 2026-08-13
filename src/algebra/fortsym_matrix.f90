@@ -29,7 +29,7 @@ module fortsym_matrix
     public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_zero_matrix, &
         matrix_is_upper, matrix_is_lower, matrix_is_upper_hessenberg, &
         matrix_is_lower_hessenberg, matrix_is_anti_symmetric, matrix_is_symbolic, &
-        matrix_is_symmetric, &
+        matrix_is_identity, matrix_is_symmetric, &
         matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
     public :: matrix_rref_values
@@ -1187,6 +1187,52 @@ contains
         verdict = VERDICT_TRUE
         ok = .true.
     end subroutine matrix_is_hessenberg
+
+    !> Structural identity predicate matching SymPy's Matrix.is_Identity.
+    subroutine matrix_is_identity(a, engine, e, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(expr_t) :: row, value, expected
+        integer :: rows, cols, i, j
+
+        verdict = VERDICT_FALSE
+        ok = .false.
+        why = str("")
+        call matrix_shape(e, rows, cols)
+        if (rows == 0) then
+            why = str("Identity test on something that is not a matrix")
+            return
+        end if
+        if (rows /= cols) then
+            verdict = VERDICT_FALSE
+            ok = .true.
+            return
+        end if
+
+        do i = 1, rows
+            row = e%arg(i)
+            do j = 1, cols
+                value = row%arg(j)
+                if (i == j) then
+                    expected = num(e%a, 1_int64)
+                else
+                    expected = num(e%a, 0_int64)
+                end if
+                if (.not. (value == expected)) then
+                    verdict = VERDICT_FALSE
+                    ok = .true.
+                    return
+                end if
+            end do
+        end do
+
+        verdict = VERDICT_TRUE
+        ok = .true.
+    end subroutine matrix_is_identity
 
     !> Boolean antisymmetry predicate with SymPy's optional simplification switch.
     subroutine matrix_is_anti_symmetric(a, engine, e, simplify, verdict, ok, why)

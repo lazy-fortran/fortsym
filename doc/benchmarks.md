@@ -346,6 +346,15 @@ forbidden-band traversal and allocate no matrix array. The planned release
 matrix therefore has 177 rows, 131 enforced rows, and zero unwaived violations
 after the 46 documented diagnostic waivers are applied.
 
+The bounded exact structural `Matrix.is_Identity` workload adds one
+correctness-checked warm-core row over a 2x2 identity matrix. Its independent
+differential cases cover identity, non-identity, zero, non-square, and
+symbolic diagonal entries. The latest 2026-08-13 smoke sample measured a
+native/SymPy ratio of 0.09x. The native query compares literal diagonal ones
+and off-diagonal zeros directly and allocates no matrix array. The planned
+release matrix therefore has 178 rows, 132 enforced rows, and zero unwaived
+violations after the 46 documented diagnostic waivers are applied.
+
 The native-owned `Complement` constructor adds one cold end-to-end row. Its
 correctness check compares both finite-set operands with SymPy while the
 independent native invariant checks the `Complement` application head and
@@ -521,8 +530,8 @@ failure. A separate strict sample measured the pre-existing
 `relation:cold_end_to_end` constructor at 1.021x while its warm row remained
 0.779x; that similarly small host-timing difference is also explicitly
 waived. With the flat-column, trace, diagonal-query, symmetry, zero-matrix,
-and triangular, antisymmetry, symbolic, and Hessenberg coverage included, the
-planned release matrix therefore has 177 rows, 131 enforced rows, and zero
+and triangular, antisymmetry, symbolic, Hessenberg, and identity coverage
+included, the planned release matrix therefore has 178 rows, 132 enforced rows, and zero
 unwaived violations after the 46
 documented diagnostic waivers are applied.
 
