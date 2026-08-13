@@ -2448,6 +2448,10 @@
         "name": "riemann_tensor"
       },
       {
+        "concepts": [],
+        "name": "rref"
+      },
+      {
         "concepts": [
           "identity-and-validity"
         ],
@@ -3165,6 +3169,7 @@
       "nullspace",
       "operation_count",
       "rank",
+      "rref",
       "series",
       "series_coeff",
       "solve",
@@ -3348,6 +3353,7 @@
       "re",
       "refine",
       "replace",
+      "rref",
       "sech",
       "series",
       "series_coeff",
@@ -3389,10 +3395,10 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 533,
-    "python_facade_exports": 82,
-    "sympy_adapter_exports": 193,
-    "unmapped_fortran_exports": 395
+    "fortran_facade_exports": 534,
+    "python_facade_exports": 83,
+    "sympy_adapter_exports": 194,
+    "unmapped_fortran_exports": 396
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -3660,6 +3666,7 @@
     "reluctivity_density",
     "ricci_tensor",
     "riemann_tensor",
+    "rref",
     "same_index_space",
     "scalar_curvature",
     "scale_form",

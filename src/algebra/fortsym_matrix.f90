@@ -23,7 +23,7 @@ module fortsym_matrix
 
     public :: is_list, is_matrix, matrix_shape
     public :: matrix_transpose, matrix_dot, matrix_det, matrix_inverse
-    public :: matrix_row_reduce, matrix_null_space, matrix_rank, matrix_minors
+    public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
     public :: to_matrix, from_matrix
 
     ! Exact row reduction can grow intermediate expressions quickly. Keep the
@@ -487,6 +487,49 @@ contains
         if (.not. ok) return
         r = from_matrix(a, m)
     end function matrix_row_reduce
+
+    !> Reduced row-echelon form and zero-based pivot columns.
+    !>
+    !> The result is `List(reduced_matrix, List(pivot_columns))`, matching the
+    !> two-value shape of SymPy `Matrix.rref()` at the expression boundary.
+    !> The pivot-column list is zero-based because it is a Python-facing index
+    !> result; the internal elimination remains one-based Fortran indexing.
+    function matrix_rref(a, e, ok, why) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t), intent(in) :: e
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(expr_t) :: r, reduced, pivot_list
+        type(expr_t), allocatable :: m(:, :), pivot_values(:)
+        type(expr_t) :: result_parts(2)
+        integer, allocatable :: pivots(:)
+        integer :: rank, i
+
+        r = e
+        why = str("")
+        call to_matrix(e, m, ok)
+        if (.not. ok) then
+            why = str("RREF on something that is not a matrix")
+            return
+        end if
+        call rref(a, m, rank, pivots, ok, why)
+        if (.not. ok) return
+
+        reduced = from_matrix(a, m)
+        if (rank == 0) then
+            pivot_list = func_in(a, "List")
+        else
+            allocate (pivot_values(rank))
+            do i = 1, rank
+                pivot_values(i) = num(a, pivots(i) - 1)
+            end do
+            pivot_list = func("List", pivot_values)
+        end if
+        result_parts(1) = reduced
+        result_parts(2) = pivot_list
+        r = func("List", result_parts)
+        ok = .true.
+    end function matrix_rref
 
     !> A basis for the right null space of a rectangular matrix.
     !>

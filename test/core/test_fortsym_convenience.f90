@@ -32,6 +32,7 @@ program test_fortsym_convenience
     type(expr_t) :: nullspace_row_one(3), nullspace_row_two(3)
     type(expr_t) :: nullspace_rows(2), nullspace_matrix
     type(expr_t) :: nullspace_vector, nullspace_entry
+    type(expr_t) :: reduced_matrix, reduced_row, pivot_columns
     type(str_t), allocatable :: free_names(:)
     type(expr_t) :: stale
     type(engine_result_t) :: result, zero_result
@@ -174,11 +175,27 @@ program test_fortsym_convenience
     nullspace_rows(2) = func("List", nullspace_row_two)
     nullspace_matrix = func("List", nullspace_rows)
     result = nullspace(nullspace_matrix)
-    nullspace_vector = result%value%arg(1)
-    nullspace_entry = nullspace_vector%arg(1)
-    call check("facade exposes exact matrix nullspace", &
-        result%ok .and. result%value%nargs() == 1 .and. &
-        nullspace_entry == num(default_storage, -2_int64), failures)
+    if (.not. result%ok) then
+        call check("facade exposes exact matrix nullspace", .false., failures)
+    else
+        nullspace_vector = result%value%arg(1)
+        nullspace_entry = nullspace_vector%arg(1)
+        call check("facade exposes exact matrix nullspace", &
+            result%value%nargs() == 1 .and. &
+            nullspace_entry == num(default_storage, -2_int64), failures)
+    end if
+    result = rref(nullspace_matrix)
+    if (.not. result%ok) then
+        call check("facade exposes exact matrix RREF", .false., failures)
+    else
+        reduced_matrix = result%value%arg(1)
+        reduced_row = reduced_matrix%arg(1)
+        pivot_columns = result%value%arg(2)
+        call check("facade exposes exact matrix RREF", &
+            reduced_row%arg(3) == num(default_storage, 0_int64) .and. &
+            pivot_columns%arg(1) == num(default_storage, 0_int64) .and. &
+            pivot_columns%arg(2) == num(default_storage, 2_int64), failures)
+    end if
     result = series(exp(mu), mu, num(default_storage, 0_int64), 3)
     series_value = result%value
     series_expected = 1 + mu + mu**2/2 + mu**3/6

@@ -236,6 +236,14 @@ warm ratios were 0.875x and 0.490x SymPy; both remain within the performance
 baseline. The latest matrix therefore has 120 rows, 104 enforced rows, and
 zero unwaived violations after the existing nine construction diagnostics are
 waived as documented above.
+The bounded exact `Matrix.rref()` workload adds two correctness-checked rows
+over the same 2x3 rational matrix. In that standard run its cold and warm
+ratios were 1.345x and 1.326x SymPy. These rows are explicit reviewed
+exceptions: the native exact RREF owner is correct and bounded, but its current
+Fortran expression simplification/transport path is slower than SymPy on this
+small matrix. The latest matrix therefore has 122 rows, 104 enforced rows, and
+zero unwaived violations when `matrix_rref:cold_end_to_end` and
+`matrix_rref:warm_core` are explicitly waived.
 
 Run it from a built checkout with:
 

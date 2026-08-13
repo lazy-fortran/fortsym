@@ -536,6 +536,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_matrix.matrix_rref",
+        "module": "fortsym_matrix",
+        "name": "matrix_rref",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_matrix.matrix_null_space",
         "module": "fortsym_matrix",
         "name": "matrix_null_space",
@@ -629,6 +639,16 @@
         "id": "fortsym_matrix_adapter.calculate_matrix_null_space",
         "module": "fortsym_matrix_adapter",
         "name": "calculate_matrix_null_space",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_rref",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_rref",
         "owner": "src/algebra/fortsym_matrix_adapter.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -5671,6 +5691,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym_public_capi.fortsym_matrix_rref",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_rref",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym_public_capi.fortsym_chart_sqrtg",
         "module": "fortsym_public_capi",
         "name": "fortsym_chart_sqrtg",
@@ -9145,6 +9176,17 @@
         "id": "fortsym.nullspace",
         "module": "fortsym",
         "name": "nullspace",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.rref",
+        "module": "fortsym",
+        "name": "rref",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -17658,12 +17700,12 @@
     "classification_counts": {
       "delegated": 2843,
       "external": 10,
-      "facade": 734,
-      "native": 4428,
+      "facade": 736,
+      "native": 4432,
       "python-adapter": 2799,
       "refused": 24995
     },
-    "fortran_public_exports": 1673,
+    "fortran_public_exports": 1677,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

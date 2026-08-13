@@ -33,7 +33,7 @@ module fortsym
     use fortsym_linsolve_adapter, only: calculate_linsolve
     use fortsym_matrix_adapter, only: calculate_matrix_det, calculate_matrix_rank, &
         calculate_matrix_inverse, calculate_matrix_transpose, &
-        calculate_matrix_null_space
+        calculate_matrix_null_space, calculate_matrix_rref
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -265,7 +265,7 @@ module fortsym
     public :: str, chars
     public :: subs, subs_many, diff, simplify, refine, expand, factor, &
         series, series_coeff, solve, linsolve, det, rank, inv, matrix_transpose, &
-        nullspace, operation_count, free_symbols
+        nullspace, rref, operation_count, free_symbols
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -925,6 +925,26 @@ contains
             result%ok = .true.
         end if
     end function nullspace
+
+    !> Return a bounded exact reduced matrix and zero-based pivot columns.
+    function rref(expression) result(result)
+        type(expr_t), intent(in) :: expression
+        type(engine_result_t) :: result
+        logical :: ok
+        character(:), allocatable :: why
+
+        if (.not. is_valid(expression)) then
+            call report_failure(result, "rref: invalid expression")
+            return
+        end if
+        call calculate_matrix_rref( &
+            expression%a, expression, result%value, ok, why)
+        if (.not. ok) then
+            call report_failure(result, why)
+        else
+            result%ok = .true.
+        end if
+    end function rref
 
     !> Return the native three-valued zero verdict for an expression.
     !> VERDICT_TRUE means proved zero, VERDICT_FALSE means proved nonzero, and
