@@ -28,6 +28,7 @@ int main(void)
     int zero_matrix_verdict = FORTSYM_ZERO_UNKNOWN;
     int upper_verdict = FORTSYM_ZERO_UNKNOWN;
     int lower_verdict = FORTSYM_ZERO_UNKNOWN;
+    int anti_symmetric_verdict = FORTSYM_ZERO_UNKNOWN;
     int symmetric_verdict = FORTSYM_ZERO_UNKNOWN;
     const fortsym_expr *row_one_values[2];
     const fortsym_expr *row_two_values[2];
@@ -38,7 +39,7 @@ int main(void)
     const fortsym_expr *null_row_two_values[3];
     const fortsym_expr *null_rows[2];
 
-    assert(fortsym_abi_version() == 94);
+    assert(fortsym_abi_version() == 95);
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 0, &zero, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 1, &one, message, sizeof message) == FORTSYM_OK);
@@ -82,6 +83,10 @@ int main(void)
     assert(fortsym_matrix_is_lower(arena, matrix, &lower_verdict,
                                    message, sizeof message) == FORTSYM_OK);
     assert(lower_verdict == FORTSYM_ZERO_FALSE);
+    assert(fortsym_matrix_is_anti_symmetric(
+               arena, matrix, 1, &anti_symmetric_verdict, message,
+               sizeof message) == FORTSYM_OK);
+    assert(anti_symmetric_verdict == FORTSYM_ZERO_FALSE);
     assert(fortsym_matrix_is_symmetric(arena, matrix, 1, &symmetric_verdict,
                                        message, sizeof message) == FORTSYM_OK);
     assert(symmetric_verdict == FORTSYM_ZERO_FALSE);
@@ -103,6 +108,10 @@ int main(void)
     assert(fortsym_matrix_is_lower(arena, zero_matrix, &lower_verdict,
                                    message, sizeof message) == FORTSYM_OK);
     assert(lower_verdict == FORTSYM_ZERO_TRUE);
+    assert(fortsym_matrix_is_anti_symmetric(
+               arena, zero_matrix, 1, &anti_symmetric_verdict, message,
+               sizeof message) == FORTSYM_OK);
+    assert(anti_symmetric_verdict == FORTSYM_ZERO_TRUE);
     assert(fortsym_matrix_transpose(arena, matrix, &transposed, message,
                                     sizeof message) == FORTSYM_OK);
     assert(fortsym_expr_text(transposed, text, sizeof text, &required,

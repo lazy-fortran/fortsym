@@ -1433,6 +1433,14 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
     )
+    lib.matrix_is_anti_symmetric = declare(
+        "fortsym_matrix_is_anti_symmetric",
+        ctypes.c_int,
+        [
+            _CVOID, _CVOID, ctypes.c_int, ctypes.POINTER(ctypes.c_int),
+            _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.matrix_is_symmetric = declare(
         "fortsym_matrix_is_symmetric",
         ctypes.c_int,
@@ -7417,6 +7425,14 @@ class Expr:
             self._lib.matrix_is_lower,
             self._arena._require(),
             self._require(),
+        )
+
+    def is_anti_symmetric(self, simplify=True):
+        if simplify not in (False, True):
+            raise ValueError("simplify must be True or False")
+        return self._arena._verdict(
+            self._lib.matrix_is_anti_symmetric, self._arena._require(),
+            self._require(), int(simplify),
         )
 
     def is_symmetric(self, simplify=True):

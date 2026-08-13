@@ -2411,6 +2411,24 @@ class Matrix:
         self._is_lower_cache = (epoch, result)
         return result
 
+    def is_anti_symmetric(self, simplify=True):
+        if simplify not in (False, True):
+            raise UnsupportedOperationError("is_anti_symmetric options")
+        epoch = self._expression._arena._assumption_epoch
+        cached = getattr(self, "_is_anti_symmetric_cache", None)
+        if cached is not None and cached[:2] == (epoch, simplify):
+            return cached[2]
+        expression, temporary = self._matrix_expression()
+        try:
+            result = _native_operation(
+                lambda: expression.is_anti_symmetric(simplify)
+            )
+        finally:
+            if temporary is not None:
+                temporary.close()
+        self._is_anti_symmetric_cache = (epoch, simplify, result)
+        return result
+
     def is_symmetric(self, simplify=True):
         if simplify not in (False, True):
             raise UnsupportedOperationError("is_symmetric options")
