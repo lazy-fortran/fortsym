@@ -4819,10 +4819,28 @@ class SpacetimeTensor:
         )
 
     def contract(self, first, second):
-        """Contract two opposite-variance slots using zero-based slots."""
+        """Contract two opposite-variance slots using zero-based slots.
+
+        ``Index`` arguments additionally check the named space, dimension,
+        variance, and dummy label before using the native slot kernel.
+        """
         if self.variance is None:
             raise ValueError("spacetime tensor contraction needs slot variance")
-        first, second = int(first), int(second)
+        if isinstance(first, Index) or isinstance(second, Index):
+            if not isinstance(first, Index) or not isinstance(second, Index):
+                raise TypeError("typed contraction requires two Index values")
+            if not first.compatible(second):
+                raise ValueError("tensor indices are not a compatible dummy pair")
+            if first.space.dimension != self.metric.dimension:
+                raise ValueError("spacetime tensor index dimension does not match")
+            first_index, second_index = first, second
+            first, second = first_index.slot, second_index.slot
+            if self.variance[first] != first_index.variance:
+                raise ValueError("first index variance does not match the tensor slot")
+            if self.variance[second] != second_index.variance:
+                raise ValueError("second index variance does not match the tensor slot")
+        else:
+            first, second = int(first), int(second)
         if first < 0 or first >= self.rank:
             raise IndexError("first contraction slot is outside the tensor rank")
         if second < 0 or second >= self.rank:

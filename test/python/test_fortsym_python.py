@@ -81,6 +81,18 @@ class NativePackageTest(unittest.TestCase):
             self.assertEqual(
                 (contracted[()] - (2*t**2 + 2*t*x + x**2)).simplify(), 0
             )
+            spacetime_space = fortsym.IndexType(
+                "spacetime", 2, fortsym.INDEX_SPACETIME
+            )
+            upper_i = spacetime_space.index(0, "upper", "i", dummy=True)
+            lower_i = spacetime_space.index(1, "lower", "i", dummy=True)
+            lower_j = spacetime_space.index(1, "lower", "j", dummy=True)
+            self.assertEqual(
+                (product.contract(upper_i, lower_i)[()] - contracted[()]).simplify(),
+                0,
+            )
+            with self.assertRaises(ValueError):
+                product.contract(upper_i, lower_j)
             permuted = product.permute((1, 0))
             self.assertEqual(permuted.variance, (-1, 1))
             self.assertEqual((permuted[0, 1] - product[1, 0]).simplify(), 0)
