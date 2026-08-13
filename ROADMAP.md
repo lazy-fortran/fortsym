@@ -299,12 +299,12 @@ SymPy parity for the entire family.
       cache during Matrix construction; the latest stable sample is 0.847x
       against the SymPy 1.14.0 oracle. Warm-core variance remains tracked as
       a separate performance follow-up rather than being hidden in this item.
-- [ ] Bring the warm-core `Matrix.multiply_elementwise()` benchmark row to
+- [x] Bring the warm-core `Matrix.multiply_elementwise()` benchmark row to
       native/SymPy `<= 1.0` in a stable higher-repetition sample without
       duplicating the native scalar or matrix owners; the shared Matrix binary
-      helper now routes directly to the configured C function and measures
-      1.078x in the latest sample after duplicate released-handle cleanup was
-      removed from the hot path.
+      helper routes directly to the configured C function and fresh results
+      use a one-branch release path. The latest sample is 0.973x against the
+      SymPy 1.14.0 oracle.
 - [x] Align bounded `Matrix` shape metadata with SymPy through `len()` and
       `is_square`, keeping both operations O(1) and adapter-local.
 - [x] Accept flat one-dimensional `Matrix` inputs as SymPy-compatible column

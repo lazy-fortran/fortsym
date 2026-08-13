@@ -1749,6 +1749,7 @@ class Arena:
     def _typed_result(self, function, kind, *arguments):
         result = self._result(function, *arguments)
         result._kind_cache = kind
+        result._cleanup_needed = True
         return result
 
     def integer(self, value: int):
@@ -6984,6 +6985,7 @@ class Expr:
         self._arity_cache = None
         self._name_cache = None
         self._borrowed = False
+        self._cleanup_needed = False
 
     def _require(self):
         if self._handle is None:
@@ -6992,6 +6994,9 @@ class Expr:
 
     def close(self):
         if self._borrowed or self._handle is None:
+            return
+        if not self._cleanup_needed:
+            self._release()
             return
         self._simplified_result = None
         self._expanded_result = None
@@ -7041,6 +7046,7 @@ class Expr:
             patterns.update(getattr(other, "_wildcard_patterns", {}))
             if patterns:
                 result._wildcard_patterns = patterns
+                result._cleanup_needed = True
                 matcher = (getattr(self, "_wildcard_matcher", None) or
                            getattr(other, "_wildcard_matcher", None))
                 if matcher is not None:
@@ -7224,6 +7230,7 @@ class Expr:
                 return cached[2]
             result = self.xreplace({query: value})
             self._replace_results[key] = (query, value, result)
+            self._cleanup_needed = True
             if len(self._replace_results) > 8:
                 self._replace_results.pop(next(iter(self._replace_results)))
             return result
@@ -7259,6 +7266,7 @@ class Expr:
                 return dict(cached[1])
             result = direct_matcher(self, pattern, old)
             self._match_results[key] = (pattern, result)
+            self._cleanup_needed = True
             return None if result is None else dict(result)
         pattern, temporary = self._arena._coerce(pattern)
         try:
@@ -7270,6 +7278,7 @@ class Expr:
                     return dict(cached[1])
                 result = matcher(self, pattern, old)
                 self._match_results[key] = (pattern, result)
+                self._cleanup_needed = True
                 if len(self._match_results) > 8:
                     self._match_results.pop(next(iter(self._match_results)))
                 return None if result is None else dict(result)
@@ -7297,6 +7306,7 @@ class Expr:
         finally:
             raw.close()
         self._diff_results[key] = result
+        self._cleanup_needed = True
         return result
 
     def expand(self):
@@ -7309,6 +7319,7 @@ class Expr:
                                      self._require())
         result._pretty = True
         self._expanded_result = result
+        self._cleanup_needed = True
         self._expanded_epoch = self._arena._assumption_epoch
         return result
 
@@ -7322,6 +7333,7 @@ class Expr:
             self._lib.simplify, self._arena._require(), self._require()
         )
         self._simplified_result = result
+        self._cleanup_needed = True
         self._simplified_epoch = self._arena._assumption_epoch
         return result
 
@@ -7618,6 +7630,7 @@ class Expr:
             self._require(), operation.encode()
         )
         self._complex_results[operation] = (self._arena._assumption_epoch, result)
+        self._cleanup_needed = True
         return result
 
     def _zero_verdict(self):
@@ -7748,11 +7761,13 @@ class Expr:
         if status:
             raise FortSymError(status, _decode(message), "expr_is_number")
         self._number_value = bool(number.value)
+        self._cleanup_needed = True
         return self._number_value
 
     @cached_property
     def is_algebraic(self):
         if self._known_facts & (_FACT_ALGEBRAIC | _FACT_INTEGER | _FACT_RATIONAL):
+            self._cleanup_needed = True
             return True
         verdict = ctypes.c_int()
         message = _message()
@@ -7764,6 +7779,7 @@ class Expr:
         value = (True if verdict.value == 1 else
                  False if verdict.value == 2 else None)
         self._arena._algebraic_cache.add(self)
+        self._cleanup_needed = True
         return value
 
     @property
@@ -7776,6 +7792,7 @@ class Expr:
         status = self._lib.expr_kind(self._require(), ctypes.byref(value), message, len(message))
         if status: raise FortSymError(status, _decode(message), "expr_kind")
         self._kind_cache = value.value
+        self._cleanup_needed = True
         return self._kind_cache
 
     @property
@@ -7788,6 +7805,7 @@ class Expr:
         status = self._lib.expr_arity(self._require(), ctypes.byref(value), message, len(message))
         if status: raise FortSymError(status, _decode(message), "expr_arity")
         self._arity_cache = value.value
+        self._cleanup_needed = True
         return self._arity_cache
 
     def argument(self, index):
@@ -7820,6 +7838,7 @@ class Expr:
         if status:
             raise FortSymError(status, _decode(message), "expr_node_count")
         self._node_count_cache = count.value
+        self._cleanup_needed = True
         return count.value
 
     @property
@@ -7843,6 +7862,7 @@ class Expr:
             payload = buffer.raw[:max(0, required.value - 1)]
             if not payload:
                 self._free_symbols_cache = frozenset()
+                self._cleanup_needed = True
                 return self._free_symbols_cache
             symbols = frozenset(
                 self._arena.symbol(name.decode("utf-8", "replace"))
@@ -7852,6 +7872,7 @@ class Expr:
             for symbol in symbols:
                 symbol._borrowed = True
             self._free_symbols_cache = symbols
+            self._cleanup_needed = True
             return symbols
 
     def _text(self, accessor):
@@ -7948,6 +7969,7 @@ class Expr:
         self._require()
         if self._name_cache is None:
             self._name_cache = self._text(self._lib.expr_name)
+            self._cleanup_needed = True
         return self._name_cache
     @property
     def exact_text(self): return self._text(self._lib.expr_exact_text)
@@ -8003,6 +8025,7 @@ class Expr:
     def _real_value(self):
         if self._real_value_cache is None:
             self._real_value_cache = float(self._text(self._lib.expr_text))
+            self._cleanup_needed = True
         return self._real_value_cache
 
 
