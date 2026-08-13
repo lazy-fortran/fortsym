@@ -252,6 +252,10 @@ SymPy parity for the entire family.
       right-hand-side operands in `linsolve`, reusing the existing exact-
       rational parametric owner and differential-testing both RHS shapes
       against SymPy.
+- [x] Accept SymPy-shaped augmented dense `Matrix` systems and both one-
+      sequence and separate positional symbol forms in `linsolve`, reusing
+      the existing exact-rational parametric owner and differential-testing
+      unique, underdetermined, and inconsistent systems against SymPy.
 - [x] Expose bounded exact dense `Matrix` construction, `(row, column)`
       indexing, and native-backed determinant through the canonical facades;
       ragged rows and broader matrix operations remain explicit refusals.
