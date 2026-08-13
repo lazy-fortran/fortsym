@@ -151,6 +151,14 @@ def matrix_elementwise_equivalent(expected: Any, actual: Any) -> bool:
     return expected.shape == actual.shape and str(expected) == str(actual)
 
 
+def matrix_flat_equivalent(expected: Any, actual: Any) -> bool:
+    if isinstance(expected, list):
+        return [str(value) for value in expected] == [
+            str(value) for value in actual
+        ]
+    return str(expected) == str(actual)
+
+
 def tuple_equivalent(expected: Any, actual: Any) -> bool:
     if (actual._expression.name != "Tuple" or
             len(expected) != len(actual) or
@@ -813,6 +821,16 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.Matrix([[1, 2, 3], [4, 5, 6]]),
             names,
         ),
+        "matrix_flat_index": (
+            oracle.Matrix([[1, 2, 3], [4, 5, 6]]),
+            native.Matrix([[1, 2, 3], [4, 5, 6]]),
+            names,
+        ),
+        "matrix_flat_slice": (
+            oracle.Matrix([[1, 2, 3], [4, 5, 6]]),
+            native.Matrix([[1, 2, 3], [4, 5, 6]]),
+            names,
+        ),
         "assumption_query": (
             oracle.Q.positive(oracle_x),
             native.Q.positive(native_x),
@@ -866,6 +884,10 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         return engine.Matrix([[1, 2, 3], [4, 5, 6]]), (
             slice(0, 1), slice(None)
         )
+    if operation == "matrix_flat_index":
+        return engine.Matrix([[1, 2, 3], [4, 5, 6]]), -1
+    if operation == "matrix_flat_slice":
+        return engine.Matrix([[1, 2, 3], [4, 5, 6]]), slice(None, None, 2)
     if operation == "matrix_nullspace":
         return engine.Matrix([[1, 2, 3], [2, 4, 4]]), None
     if operation == "matrix_rref":
@@ -1431,6 +1453,11 @@ def correctness_cases() -> list[dict[str, Any]]:
             indices = (slice(0, 1), slice(None))
             expected = oracle_expression[indices]
             actual = native_expression[indices]
+        elif operation in ("matrix_flat_index", "matrix_flat_slice"):
+            index = (-1 if operation == "matrix_flat_index"
+                     else slice(None, None, 2))
+            expected = oracle_expression[index]
+            actual = native_expression[index]
         elif operation == "solve_rational":
             expected = oracle.solve(oracle_expression)
             actual = native.solve(native_expression)
@@ -1467,6 +1494,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                 if operation in (
                         "matrix_add", "matrix_subtract", "matrix_negate",
                         "matrix_divide", "matrix_slice")
+                else matrix_flat_equivalent(expected, actual)
+                if operation in ("matrix_flat_index", "matrix_flat_slice")
                 else root_list_equivalent(expected, actual, names)
                 if operation == "solve_rational"
                 else str(expected) == str(actual)
@@ -1555,6 +1584,13 @@ def benchmark_workload(
             indices = (slice(0, 1), slice(None))
             oracle_call = lambda: oracle_expression[indices]
             native_call = lambda: native_expression[indices]
+        elif operation == "matrix_flat_index":
+            oracle_call = lambda: oracle_expression[-1]
+            native_call = lambda: native_expression[-1]
+        elif operation == "matrix_flat_slice":
+            index = slice(None, None, 2)
+            oracle_call = lambda: oracle_expression[index]
+            native_call = lambda: native_expression[index]
         elif operation == "solve_rational":
             oracle_call = lambda: oracle.solve(oracle_expression)
             native_call = lambda: native.solve(native_expression)
@@ -1758,6 +1794,8 @@ def benchmark_workload(
                     return expression / 2
                 if operation == "matrix_slice":
                     return expression[variable]
+                if operation in ("matrix_flat_index", "matrix_flat_slice"):
+                    return expression[variable]
                 if operation == "solve_rational":
                     return engine.solve(expression)
                 if operation == "solveset_rational_condition":
@@ -1891,7 +1929,8 @@ def main() -> None:
     workloads = []
     for operation in (
         "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "rational_constructor", "tuple_constructor", "finite_set_constructor", "complement_constructor", "boolean_and_constructor", "boolean_or_constructor", "boolean_not_constructor", "boolean_xor_constructor", "boolean_implies_constructor", "boolean_equivalent_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate",
-        "matrix_divide", "matrix_slice", "solve_rational", "solveset_rational_condition",
+        "matrix_divide", "matrix_slice", "matrix_flat_index",
+        "matrix_flat_slice", "solve_rational", "solveset_rational_condition",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS, "float_equality"
     ):
         if operation in _PREDICATE_OPERATIONS:

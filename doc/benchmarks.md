@@ -354,13 +354,25 @@ unwaived violations after the 30 documented diagnostic waivers are applied.
 The bounded dense `Matrix` slicing workload adds cold end-to-end and warm-core
 rows for a row slice. Its correctness matrix additionally checks column,
 block, reverse, stepped, and empty row/column slices against SymPy with fixed
-shape/text expectations. In the 2026-08-13 standard run the native/SymPy
-ratios were 2.03x cold and 4.88x warm. These are explicit reviewed
+shape/text expectations. In the 2026-08-13 strict run the native/SymPy
+ratios were 2.03x cold and 4.75x warm. These are explicit reviewed
 matrix-construction exceptions: the native `List` owner is correct, while
 entry-view transport and result-handle construction dominate this small
 workload. They are recorded as `matrix_slice:cold_end_to_end` and
-`matrix_slice:warm_core`; the latest matrix therefore has 150 rows, 118
-enforced rows, and zero unwaived violations after the 32 documented diagnostic
+`matrix_slice:warm_core`.
+
+The bounded dense `Matrix` flat-index workload adds cold end-to-end and
+warm-core rows for negative scalar indexing and stepped flat slicing. Its
+correctness matrix additionally checks first/last/negative-boundary scalars,
+reverse and empty slices, and negative 2-D indices against SymPy. In the
+2026-08-13 strict run the native/SymPy ratios were 1.73x/5.03x for flat scalar
+indexing and 2.05x/10.11x for flat slicing, cold/warm respectively. These are
+explicit reviewed small-workload exceptions: the native entries are correct,
+while repeated handle transport dominates the short Python list result. They
+are recorded as `matrix_flat_index:cold_end_to_end`,
+`matrix_flat_index:warm_core`, `matrix_flat_slice:cold_end_to_end`, and
+`matrix_flat_slice:warm_core`; the latest matrix therefore has 154 rows, 118
+enforced rows, and zero unwaived violations after the 36 documented diagnostic
 waivers are applied.
 
 The same correctness matrix also checks four relational decision boundaries:
@@ -368,7 +380,7 @@ integer equality and inequality, plus exact rational greater-than and
 less-than. Each expected Python boolean is computed independently from the
 SymPy result and the native invariant requires a non-expression boolean, so
 these boundary checks do not rely only on matching printed output. The
-matrix size remains 150 rows because these are correctness cases rather than
+matrix size remains 154 rows because these are correctness cases rather than
 standalone timing rows.
 
 Run it from a built checkout with:

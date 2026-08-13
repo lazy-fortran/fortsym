@@ -157,6 +157,10 @@ SymPy parity for the entire family.
       empty 2-D slices through the native `List` owner, including existing
       column-vector results; flat indexing and broader matrix-expression
       slicing remain explicitly outside this slice.
+- [x] Expose bounded dense `Matrix` row-major flat scalar indexing and
+      slicing, including negative, stepped, reverse, and empty selections;
+      matrix expressions and broader indexing options remain explicitly
+      outside this slice.
 - [ ] Complete exact integer, rational, real, complex, algebraic, infinity,
       NaN, signed-zero, and complex-infinity semantics, including conversion
       and precision rules.

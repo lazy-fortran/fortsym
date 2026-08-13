@@ -677,6 +677,50 @@ class SympyDifferentialTest(unittest.TestCase):
         finally:
             native_matrix._expression.close()
 
+    def test_bounded_matrix_flat_indexing_matches_sympy(self):
+        oracle_matrix = oracle.Matrix([[1, 2, 3], [4, 5, 6]])
+        native_matrix = native.Matrix([[1, 2, 3], [4, 5, 6]])
+        cases = (
+            ("first", 0, "1"),
+            ("last", -1, "6"),
+            ("negative first", -6, "1"),
+            ("all", slice(None), "[1, 2, 3, 4, 5, 6]"),
+            ("step", slice(None, None, 2), "[1, 3, 5]"),
+            ("reverse", slice(None, None, -1), "[6, 5, 4, 3, 2, 1]"),
+            ("empty", slice(1, 1), "[]"),
+        )
+        try:
+            for label, index, expected_text in cases:
+                with self.subTest(label=label):
+                    expected = oracle_matrix[index]
+                    actual = native_matrix[index]
+                    try:
+                        self.assertEqual(str(expected), expected_text)
+                        self.assertEqual(str(actual), expected_text)
+                    finally:
+                        if isinstance(actual, list):
+                            for value in actual:
+                                value.close()
+                        else:
+                            actual.close()
+            for key in ((-1, -1), (slice(None), -1), (0, slice(None))):
+                with self.subTest(key=key):
+                    expected = oracle_matrix[key]
+                    actual = native_matrix[key]
+                    try:
+                        self.assertEqual(str(actual), str(expected))
+                    finally:
+                        if isinstance(actual, native.Matrix):
+                            actual._expression.close()
+                        else:
+                            actual.close()
+            with self.assertRaises(IndexError):
+                native_matrix[6]
+            with self.assertRaises(TypeError):
+                native_matrix[1.0]
+        finally:
+            native_matrix._expression.close()
+
     def test_matrix_refuses_ragged_rows(self):
         with self.assertRaises(ValueError):
             native.Matrix([[1, 2], [3]])
