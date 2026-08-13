@@ -491,6 +491,7 @@ fo exec example_gps_newtonian_limit
 fo exec example_magnetic_flux_coordinates
 fo exec example_boozer_coordinates
 fo exec example_spherical_coordinates
+fo exec example_cylindrical_coordinates
 fo exec example_cylindrical_fourier
 ```
 

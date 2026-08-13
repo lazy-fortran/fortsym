@@ -23,6 +23,9 @@ target_link_libraries(example_boozer_coordinates PRIVATE fortsym)
 add_executable(example_spherical_coordinates example_spherical_coordinates.f90)
 target_link_libraries(example_spherical_coordinates PRIVATE fortsym)
 
+add_executable(example_cylindrical_coordinates example_cylindrical_coordinates.f90)
+target_link_libraries(example_cylindrical_coordinates PRIVATE fortsym)
+
 add_executable(example_cylindrical_fourier example_cylindrical_fourier.f90)
 target_link_libraries(example_cylindrical_fourier PRIVATE fortsym)
 
