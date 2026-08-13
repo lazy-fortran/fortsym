@@ -675,6 +675,14 @@ class SympyDifferentialTest(unittest.TestCase):
         for actual, expected in zip(native_basis, oracle_basis):
             self.assertEqual(actual.shape, (3, 1))
             self.assertEqual(str(actual), str(expected))
+        oracle_simplified_basis = oracle_null_matrix.nullspace(simplify=True)
+        native_simplified_basis = native_null_matrix.nullspace(simplify=True)
+        self.assertEqual(len(native_simplified_basis),
+                         len(oracle_simplified_basis))
+        for actual, expected in zip(
+                native_simplified_basis, oracle_simplified_basis):
+            self.assertEqual(str(actual), str(expected))
+            actual._expression.close()
         oracle_reduced, oracle_pivots = oracle_null_matrix.rref()
         native_reduced, native_pivots = native_null_matrix.rref()
         self.assertEqual(str(native_reduced), str(oracle_reduced))
@@ -698,8 +706,6 @@ class SympyDifferentialTest(unittest.TestCase):
             tuple(str(value) for value in oracle_simplified_pivots),
         )
         native_simplified._expression.close()
-        with self.assertRaises(native.UnsupportedOperationError):
-            native_null_matrix.nullspace(simplify=True)
         with self.assertRaises(native.UnsupportedOperationError):
             native_null_matrix.nullspace(iszerofunc=lambda value: True)
 

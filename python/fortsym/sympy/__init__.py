@@ -2340,7 +2340,7 @@ class Matrix:
         return self.transpose()
 
     def nullspace(self, simplify=False, iszerofunc=None):
-        if simplify is not False or iszerofunc is not None:
+        if simplify not in (False, True) or iszerofunc is not None:
             raise UnsupportedOperationError("nullspace options")
         matrix_expression, temporary = self._matrix_expression()
         try:
