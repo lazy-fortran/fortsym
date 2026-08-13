@@ -48,39 +48,52 @@ class InconsistentAssumptions(ValueError):
 
 
 class Tuple:
-    """Small tuple-valued result owner for the bounded linsolve fragment."""
+    """Native-owned tuple-valued result for the bounded compatibility subset."""
 
     def __init__(self, *elements):
-        self._args = tuple(sympify(element) for element in elements)
+        values = tuple(sympify(element) for element in elements)
+        self._expression = _default().function("Tuple", values)
 
     @property
     def args(self):
-        return self._args
+        return self._expression.args
 
     def __iter__(self):
-        return iter(self._args)
+        return iter(self.args)
 
     def __len__(self):
-        return len(self._args)
+        return self._expression.arity
 
     def __getitem__(self, index):
-        return self._args[index]
+        if isinstance(index, slice):
+            values = self.args
+            try:
+                return Tuple(*values[index])
+            finally:
+                for value in values:
+                    value.close()
+        if index < 0:
+            index += len(self)
+        return self._expression.argument(index)
 
     def __eq__(self, other):
-        return isinstance(other, Tuple) and self._args == other._args
+        return (isinstance(other, Tuple) and
+                self._expression == other._expression)
 
     def __str__(self):
-        if len(self._args) == 1:
-            return "(" + str(self._args[0]) + ",)"
-        return "(" + ", ".join(str(element) for element in self._args) + ")"
+        values = self.args
+        try:
+            if len(values) == 1:
+                return "(" + str(values[0]) + ",)"
+            return "(" + ", ".join(str(element) for element in values) + ")"
+        finally:
+            for value in values:
+                value.close()
 
     __repr__ = __str__
 
     def close(self):
-        elements = self._args
-        self._args = ()
-        for element in elements:
-            element.close()
+        self._expression.close()
 
     def __del__(self):
         try:
@@ -91,7 +104,12 @@ class Tuple:
 
 def _set_sort_key(value):
     if isinstance(value, Tuple):
-        return (3, tuple(_sympy_sort_key(element) for element in value.args))
+        elements = value.args
+        try:
+            return (3, tuple(_sympy_sort_key(element) for element in elements))
+        finally:
+            for element in elements:
+                element.close()
     return _sympy_sort_key(value)
 
 
