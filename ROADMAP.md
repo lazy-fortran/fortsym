@@ -191,6 +191,9 @@ SymPy parity for the entire family.
       through the canonical Fortran, C, Python, and SymPy facades. Return
       distinct verified roots in the SymPy-compatible list shape and refuse
       unsupported domains/options.
+- [x] Add bounded `solveset` return semantics on that same verified path,
+      including `FiniteSet`/`EmptySet` and explicit non-default-domain
+      refusals, without duplicating the native root algorithm.
 - [ ] Complete `solve`, `solveset`, real/complex solves, `linsolve`, and
       solution conditions for polynomial, rational, radical, inverse-function,
       and supported transcendental equations.
