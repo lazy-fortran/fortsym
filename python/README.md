@@ -34,6 +34,16 @@ SymPy-compatible bounded `FiniteSet`/`EmptySet` result shape. Symbolic rational
 denominator zeros are preserved as a native-owned bounded `Complement`
 application; domains beyond the default complex-domain fragment are explicit
 refusals.
+`Poly(expression, *gens, domain=...)` is a bounded univariate view over the
+same native polynomial owner. It supports exact `degree`, coefficient and
+term queries, `div`/`quo`/`rem`, `gcd`, arithmetic, and a structured
+`factor_list()` result; `factor_list`, `gcd`, `quo`, `rem`, and `terms_gcd` use
+the same owner through their SymPy spellings. Multivariate metadata and
+unsupported domains/options are retained as explicit boundaries rather than
+silently changing coefficient domains.
+`dsolve(...)` adapts SymPy's spelling to the native `solve_ode` owner for the
+bounded first-order linear fragment, including one initial condition. Other
+hints, options, and unsupported equations are explicit refusals.
 `FiniteSet(...)` is a native-owned immutable set application with SymPy-shaped
 membership, iteration, and brace printing; `EmptySet` remains the singleton
 empty-result adapter.
@@ -511,9 +521,11 @@ does not import SymPy. Unsupported names raise
 | `series` | bounded Taylor polynomial through the requested SymPy term count, with the `O(...)` term omitted; singular/non-finite coefficients, unsupported symbolic derivatives, and unsupported options are explicit refusals |
 | `solve` | distinct verified roots for one equation in one symbol; exact univariate polynomials, bounded rational functions, and verified scalar-linear equations; unsupported domains/options are explicit refusals |
 | `solveset` | bounded native-owned `FiniteSet` plus singleton `EmptySet` result over distinct verified polynomial/rational/scalar-linear roots, with native denominator-pole transport to a native-owned `Complement` for symbolic rational functions; non-default domains and unsupported equations are explicit refusals |
+| `Poly`, `factor_list`, `gcd`, `quo`, `rem`, `terms_gcd` | bounded exact polynomial view and operations over the native owner, including univariate coefficient/degree queries, division, GCD, structured factor lists, and term-content extraction; unsupported domains, options, and unbounded multivariate operations are explicit refusals |
 | `linsolve` | verified exact-rational square and rectangular systems with one explicit right-hand side, returning a native-owned `FiniteSet(Tuple(...))` or `EmptySet`; supplied free symbols are retained, native `Matrix` coefficient/right-hand-side operands and augmented `Matrix` systems are accepted, and symbols may be passed as one sequence or separate positional arguments |
 | `linsolve_parametric` | verified rectangular exact-rational systems with one explicit right-hand side, returning one value per variable or an empty result for inconsistency; consistent free parameters are retained; symbolic coefficients and alternate forms are explicit refusals |
 | `Matrix` | bounded exact dense construction including flat sequences as column matrices, row-major flat scalar indexing and slicing, `(row, column)` indexing, value equality/inequality, `len()` and `is_square` shape metadata, row/column/block/reverse/stepped/empty 2-D slices, native-backed determinant and trace, tri-state `is_diagonal()` and `is_zero_matrix`, boolean `is_upper`, `is_lower`, `is_anti_symmetric(simplify=True/False)`, `is_symbolic()`, `is_upper_hessenberg`, `is_lower_hessenberg`, `is_Identity`, `is_echelon`, `is_hermitian`, and `is_symmetric(simplify=True/False)`, elementwise `conjugate()`, `adjoint()`, `.H`, and `multiply_elementwise()`, exact rank including `simplify=True`, inverse, transpose/`.T`, bounded `nullspace()` with `simplify=True`, `rref()` with SymPy-shaped `pivots=False` and `simplify=True` options, exact `charpoly()` and verified-fragment `eigenvals()`, elementwise `+`/`-`, unary negation, and exact `*`/`@` products or scalar scaling/division; ragged, non-square trace inputs, entries with unknown complex conjugates, unequal-shaped elementwise products, undecidable predicates outside the native zero fragment, singular, callback-controlled zero tests, unsupported characteristic roots, and broader matrix-expression operations are explicit refusals |
+| `dsolve` | bounded first-order linear ODEs through native `solve_ode`, with inferred or explicit function/variable and one initial condition; non-default hints/options and unsupported ODE families are explicit refusals |
 
 `Wild(name, exclude=(), properties=())` is an adapter-only pattern object. Its
 direct, fixed-shape, single-Wild remainder, and bounded distinct-Wild

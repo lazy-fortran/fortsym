@@ -98,6 +98,22 @@ fortsym = "The adapter exposes native-owned FiniteSet/Tuple/Complement solve res
 difference = "The result classes and operations are bounded, exact, and refusal-driven; symbolic matrix coefficients, conditional pivots, callback-controlled zero tests, general matrix expressions, general tensor slicing, sparse forms, arbitrary tensor dimensions, and the remaining SymPy options are not yet covered."
 
 [[semantic]]
+id = "polynomial-view"
+affected = ["Poly", "factor_list", "gcd", "quo", "rem", "terms_gcd"]
+parity = "partial"
+sympy = "SymPy's polynomial constructors expose dense and sparse domains, coercions, multivariate operations, division, factorisation, and extensive option and domain semantics."
+fortsym = "The adapter exposes a bounded univariate Poly view over the native polynomial owner, including exact coefficient and degree queries, arithmetic, division, GCD, structured factor lists, and term-content extraction."
+difference = "Only the native exact fragment is claimed: general domains, sparse/multivariate algorithms, algebraic roots, Groebner operations, and advanced options are explicit refusals."
+
+[[semantic]]
+id = "ordinary-differential-equations"
+affected = ["dsolve"]
+parity = "partial"
+sympy = "SymPy's dsolve classifies and solves a broad collection of first- and higher-order ODEs with hints, conditions, and simplification options."
+fortsym = "dsolve adapts the SymPy spelling to the native solve_ode owner for the bounded first-order linear fragment, with inferred or explicit function/variable and one initial condition."
+difference = "Nonlinear, higher-order, classified, condition-rich, and non-default-hint families remain explicitly unsupported."
+
+[[semantic]]
 id = "calculus-and-rational-transformations"
 affected = ["cancel", "together", "apart", "collect", "integrate", "limit", "series", "linsolve"]
 parity = "partial"

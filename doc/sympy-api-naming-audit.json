@@ -681,16 +681,22 @@
       "sympy_reference": []
     },
     {
-      "action": "Keep it in the calculus owner until its SymPy parity contract is defined.",
+      "action": "Keep solve_ode as the native owner and adapt SymPy's dsolve spelling at the Python boundary.",
       "description": "Solve the native ODE fragment.",
-      "finding": "solve_ode is a native specialized operation with no current Python or SymPy adapter entry.",
+      "finding": "solve_ode is the native owner; the bounded convenience and SymPy-compatible spellings are solve_ode and dsolve.",
       "fortran_facade": [
         "solve_ode"
       ],
       "id": "ode-solving",
-      "python_facade": [],
-      "sympy_adapter": [],
-      "sympy_reference": []
+      "python_facade": [
+        "solve_ode"
+      ],
+      "sympy_adapter": [
+        "dsolve"
+      ],
+      "sympy_reference": [
+        "dsolve"
+      ]
     }
   ],
   "exports": {
@@ -3210,6 +3216,7 @@
       "series",
       "series_coeff",
       "solve",
+      "solve_ode",
       "subs",
       "subs_many",
       "symbols",
@@ -3344,6 +3351,7 @@
       "csch",
       "det",
       "diff",
+      "dsolve",
       "doit",
       "erf",
       "erfc",

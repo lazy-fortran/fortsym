@@ -180,6 +180,28 @@ int fortsym_apart(fortsym_arena *arena, const fortsym_expr *expression,
 int fortsym_collect(fortsym_arena *arena, const fortsym_expr *expression,
                     const fortsym_expr *variable, fortsym_expr **out,
                     char *message, size_t capacity);
+/* Exact bounded polynomial views over the native sparse rational owner. */
+int fortsym_poly_coefficient(fortsym_arena *arena,
+                             const fortsym_expr *expression,
+                             const fortsym_expr *variable, int64_t degree,
+                             fortsym_expr **out, char *message, size_t capacity);
+int fortsym_poly_exponent(fortsym_arena *arena,
+                          const fortsym_expr *expression,
+                          const fortsym_expr *variable, fortsym_expr **out,
+                          char *message, size_t capacity);
+int fortsym_poly_gcd(fortsym_arena *arena, const fortsym_expr *left,
+                     const fortsym_expr *right, fortsym_expr **out,
+                     char *message, size_t capacity);
+int fortsym_poly_quotient(fortsym_arena *arena,
+                          const fortsym_expr *dividend,
+                          const fortsym_expr *divisor,
+                          const fortsym_expr *variable, fortsym_expr **out,
+                          char *message, size_t capacity);
+int fortsym_poly_remainder(fortsym_arena *arena,
+                           const fortsym_expr *dividend,
+                           const fortsym_expr *divisor,
+                           const fortsym_expr *variable, fortsym_expr **out,
+                           char *message, size_t capacity);
 /* Verified one-variable indefinite integration. The constant of integration
  * is omitted; unsupported antiderivatives return FORTSYM_UNSUPPORTED. */
 int fortsym_integrate(fortsym_arena *arena, const fortsym_expr *expression,
@@ -228,6 +250,13 @@ int fortsym_solveset(fortsym_arena *arena, const fortsym_expr *expression,
                      size_t output_capacity, size_t *count,
                      fortsym_expr *excluded_out[], size_t excluded_capacity,
                      size_t *excluded_count, char *message, size_t capacity);
+/* Verified bounded first-order linear ODE solver. The result is the native
+ * Wolfram-shaped List(List(Rule(...))) expression; unsupported equations and
+ * initial data return FORTSYM_UNSUPPORTED. */
+int fortsym_solve_ode(fortsym_arena *arena, const fortsym_expr *problem,
+                      const fortsym_expr *unknown,
+                      const fortsym_expr *variable, fortsym_expr **out,
+                      char *message, size_t capacity);
 /* Solve one square exact-rational system with one right-hand side. `matrix`
  * is a flattened column-major n-by-n handle array and `right_hand_side` has
  * n entries. The result contains n verified values in variable order. This

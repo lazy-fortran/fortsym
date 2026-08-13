@@ -1,6 +1,6 @@
 {
   "adapter_profile": {
-    "declared_count": 163,
+    "declared_count": 170,
     "explicit_refusals": [],
     "supported": [
       "ANTISYMMETRIC",
@@ -71,6 +71,7 @@
       "Or",
       "Orientation",
       "Patch",
+      "Poly",
       "Pow",
       "Q",
       "Rational",
@@ -124,15 +125,18 @@
       "csch",
       "det",
       "diff",
+      "dsolve",
       "erf",
       "erfc",
       "exp",
       "expand",
       "expand_complex",
       "factor",
+      "factor_list",
       "factorial",
       "floor",
       "gamma",
+      "gcd",
       "im",
       "integrate",
       "legendre",
@@ -143,9 +147,11 @@
       "nan",
       "oo",
       "pi",
+      "quo",
       "rank",
       "re",
       "refine",
+      "rem",
       "sech",
       "series",
       "sign",
@@ -163,6 +169,7 @@
       "tensorcontraction",
       "tensorpermute",
       "tensorproduct",
+      "terms_gcd",
       "together",
       "trace",
       "zoo"
@@ -6028,9 +6035,75 @@
           "facade",
           "native"
         ],
+        "id": "fortsym_public_capi.fortsym_poly_coefficient",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_poly_coefficient",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_poly_exponent",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_poly_exponent",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_poly_gcd",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_poly_gcd",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_poly_quotient",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_poly_quotient",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_poly_remainder",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_poly_remainder",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym_public_capi.c_integrate",
         "module": "fortsym_public_capi",
         "name": "c_integrate",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.c_definite_integral",
+        "module": "fortsym_public_capi",
+        "name": "c_definite_integral",
         "owner": "src/capi/fortsym_public_capi.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -6086,6 +6159,17 @@
         "id": "fortsym_public_capi.fortsym_solveset",
         "module": "fortsym_public_capi",
         "name": "fortsym_solveset",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_solve_ode",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_solve_ode",
         "owner": "src/capi/fortsym_public_capi.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -18464,14 +18548,14 @@
   "source_inventory": "doc/sympy-api-inventory.json",
   "summary": {
     "classification_counts": {
-      "delegated": 2958,
+      "delegated": 3065,
       "external": 10,
-      "facade": 764,
-      "native": 4620,
-      "python-adapter": 2914,
-      "refused": 24880
+      "facade": 771,
+      "native": 4734,
+      "python-adapter": 3021,
+      "refused": 24773
     },
-    "fortran_public_exports": 1750,
+    "fortran_public_exports": 1757,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
@@ -31442,13 +31526,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.Poly",
         "kind": "class",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "class is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -47428,7 +47514,7 @@
         "id": "sympy.core.expr.Expr.as_expr",
         "name": "as_expr",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.core.expr.Expr",
@@ -49133,12 +49219,14 @@
       {
         "class_id": "sympy.core.numbers.Rational",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.core.numbers.Rational.gcd",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.core.numbers.Rational",
@@ -84758,7 +84846,7 @@
         "id": "sympy.polys.polytools.Poly.LC",
         "name": "LC",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -84788,7 +84876,7 @@
         "id": "sympy.polys.polytools.Poly.TC",
         "name": "TC",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -84828,7 +84916,7 @@
         "id": "sympy.polys.polytools.Poly.all_coeffs",
         "name": "all_coeffs",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -84868,7 +84956,7 @@
         "id": "sympy.polys.polytools.Poly.as_dict",
         "name": "as_dict",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -84878,7 +84966,7 @@
         "id": "sympy.polys.polytools.Poly.as_expr",
         "name": "as_expr",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -84903,12 +84991,14 @@
       {
         "class_id": "sympy.polys.polytools.Poly",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.Poly.cancel",
         "name": "cancel",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -84938,7 +85028,7 @@
         "id": "sympy.polys.polytools.Poly.coeff_monomial",
         "name": "coeff_monomial",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -84948,7 +85038,7 @@
         "id": "sympy.polys.polytools.Poly.coeffs",
         "name": "coeffs",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85018,7 +85108,7 @@
         "id": "sympy.polys.polytools.Poly.degree",
         "name": "degree",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85033,12 +85123,14 @@
       {
         "class_id": "sympy.polys.polytools.Poly",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.Poly.diff",
         "name": "diff",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85078,7 +85170,7 @@
         "id": "sympy.polys.polytools.Poly.div",
         "name": "div",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85118,7 +85210,7 @@
         "id": "sympy.polys.polytools.Poly.exclude",
         "name": "exclude",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85143,12 +85235,14 @@
       {
         "class_id": "sympy.polys.polytools.Poly",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.Poly.factor_list",
         "name": "factor_list",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85213,12 +85307,14 @@
       {
         "class_id": "sympy.polys.polytools.Poly",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.Poly.gcd",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85323,12 +85419,14 @@
       {
         "class_id": "sympy.polys.polytools.Poly",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.Poly.integrate",
         "name": "integrate",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85418,7 +85516,7 @@
         "id": "sympy.polys.polytools.Poly.match",
         "name": "match",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85528,7 +85626,7 @@
         "id": "sympy.polys.polytools.Poly.nth",
         "name": "nth",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85613,12 +85711,14 @@
       {
         "class_id": "sympy.polys.polytools.Poly",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.Poly.quo",
         "name": "quo",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85663,12 +85763,14 @@
       {
         "class_id": "sympy.polys.polytools.Poly",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.Poly.rem",
         "name": "rem",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85688,7 +85790,7 @@
         "id": "sympy.polys.polytools.Poly.replace",
         "name": "replace",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85888,7 +85990,7 @@
         "id": "sympy.polys.polytools.Poly.terms",
         "name": "terms",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -85948,7 +86050,7 @@
         "id": "sympy.polys.polytools.Poly.total_degree",
         "name": "total_degree",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.polys.polytools.Poly",
@@ -95983,14 +96085,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.Poly",
         "kind": "class",
         "module": "sympy",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -98590,14 +98694,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.dsolve",
         "kind": "function",
         "module": "sympy",
         "name": "dsolve",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -98998,14 +99104,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.factor_list",
         "kind": "function",
         "module": "sympy",
         "name": "factor_list",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -99378,14 +99486,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.gcd",
         "kind": "function",
         "module": "sympy",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -102313,14 +102423,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.quo",
         "kind": "function",
         "module": "sympy",
         "name": "quo",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -102570,14 +102682,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.rem",
         "kind": "function",
         "module": "sympy",
         "name": "rem",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -103612,14 +103726,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.terms_gcd",
         "kind": "function",
         "module": "sympy",
         "name": "terms_gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -122384,14 +122500,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.concrete.gosper.Poly",
         "kind": "class",
         "module": "sympy.concrete.gosper",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -122741,14 +122859,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.concrete.products.quo",
         "kind": "function",
         "module": "sympy.concrete.products",
         "name": "quo",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -123012,14 +123132,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.concrete.summations.Poly",
         "kind": "class",
         "module": "sympy.concrete.summations",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -135412,14 +135534,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.crypto.crypto.Poly",
         "kind": "class",
         "module": "sympy.crypto.crypto",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -140935,14 +141059,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.combinatorial.factorials.Poly",
         "kind": "class",
         "module": "sympy.functions.combinatorial.factorials",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -150931,14 +151057,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.special.zeta_functions.Poly",
         "kind": "class",
         "module": "sympy.functions.special.zeta_functions",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -151898,14 +152026,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.geometry.ellipse.Poly",
         "kind": "class",
         "module": "sympy.geometry.ellipse",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -155303,14 +155433,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.holonomic.holonomic.Poly",
         "kind": "class",
         "module": "sympy.holonomic.holonomic",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -157193,14 +157325,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.heurisch.factor_list",
         "kind": "function",
         "module": "sympy.integrals.heurisch",
         "name": "factor_list",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -157217,14 +157351,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.heurisch.gcd",
         "kind": "function",
         "module": "sympy.integrals.heurisch",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -157401,14 +157537,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.heurisch.quo",
         "kind": "function",
         "module": "sympy.integrals.heurisch",
         "name": "quo",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -157757,14 +157895,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.integrals.Poly",
         "kind": "class",
         "module": "sympy.integrals.integrals",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -158196,14 +158336,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.intpoly.Poly",
         "kind": "class",
         "module": "sympy.integrals.intpoly",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -158930,14 +159072,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.laplace.Poly",
         "kind": "class",
         "module": "sympy.integrals.laplace",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -160478,14 +160622,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.manualintegrate.Poly",
         "kind": "class",
         "module": "sympy.integrals.manualintegrate",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -163538,14 +163684,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.prde.Poly",
         "kind": "class",
         "module": "sympy.integrals.prde",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -164295,14 +164443,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.rationaltools.Poly",
         "kind": "class",
         "module": "sympy.integrals.rationaltools",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -164514,14 +164664,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.rde.Poly",
         "kind": "class",
         "module": "sympy.integrals.rde",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -164604,14 +164756,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.rde.gcd",
         "kind": "function",
         "module": "sympy.integrals.rde",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -164981,14 +165135,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.risch.Poly",
         "kind": "class",
         "module": "sympy.integrals.risch",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -165232,14 +165388,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.risch.gcd",
         "kind": "function",
         "module": "sympy.integrals.risch",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -165995,14 +166153,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.integrals.transforms.Poly",
         "kind": "class",
         "module": "sympy.integrals.transforms",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -171190,14 +171350,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.common.Poly",
         "kind": "class",
         "module": "sympy.matrices.common",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -172335,14 +172497,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.eigen.gcd",
         "kind": "function",
         "module": "sympy.matrices.eigen",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -173805,14 +173969,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.expressions.companion.Poly",
         "kind": "class",
         "module": "sympy.matrices.expressions.companion",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -178085,14 +178251,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.Poly",
         "kind": "class",
         "module": "sympy.matrices.matrixbase",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -178516,14 +178684,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.normalforms.Poly",
         "kind": "class",
         "module": "sympy.matrices.normalforms",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -181163,14 +181333,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.ntheory.elliptic_curve.Poly",
         "kind": "class",
         "module": "sympy.ntheory.elliptic_curve",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -183214,14 +183386,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.ntheory.residue_ntheory.Poly",
         "kind": "class",
         "module": "sympy.ntheory.residue_ntheory",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -191023,14 +191197,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.physics.continuum_mechanics.beam.dsolve",
         "kind": "function",
         "module": "sympy.physics.continuum_mechanics.beam",
         "name": "dsolve",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -220905,14 +221081,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.Poly",
         "kind": "class",
         "module": "sympy.polys",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -221439,14 +221617,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.factor_list",
         "kind": "function",
         "module": "sympy.polys",
         "name": "factor_list",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -221483,14 +221663,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.gcd",
         "kind": "function",
         "module": "sympy.polys",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -221989,14 +222171,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.quo",
         "kind": "function",
         "module": "sympy.polys",
         "name": "quo",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -222055,14 +222239,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.rem",
         "kind": "function",
         "module": "sympy.polys",
         "name": "rem",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -222242,14 +222428,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.terms_gcd",
         "kind": "function",
         "module": "sympy.polys",
         "name": "terms_gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -222475,14 +222663,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.agca.extensions.Poly",
         "kind": "class",
         "module": "sympy.polys.agca.extensions",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -229022,14 +229212,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.dispersion.Poly",
         "kind": "class",
         "module": "sympy.polys.dispersion",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -229066,14 +229258,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.distributedmodules.Poly",
         "kind": "class",
         "module": "sympy.polys.distributedmodules",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -235749,14 +235943,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.matrices.eigen.Poly",
         "kind": "class",
         "module": "sympy.polys.matrices.eigen",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -236923,14 +237119,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.multivariate_resultants.Poly",
         "kind": "class",
         "module": "sympy.polys.multivariate_resultants",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -237033,14 +237231,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.multivariate_resultants.rem",
         "kind": "function",
         "module": "sympy.polys.multivariate_resultants",
         "name": "rem",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -237266,14 +237466,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.numberfields.galois_resolvents.Poly",
         "kind": "class",
         "module": "sympy.polys.numberfields.galois_resolvents",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -237719,14 +237921,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.numberfields.modules.Poly",
         "kind": "class",
         "module": "sympy.polys.numberfields.modules",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -240090,14 +240294,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polymatrix.Poly",
         "kind": "class",
         "module": "sympy.polys.polymatrix",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -240222,14 +240428,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.Poly",
         "kind": "class",
         "module": "sympy.polys.polytools",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -240391,25 +240599,29 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.factor_list",
         "kind": "function",
         "module": "sympy.polys.polytools",
         "name": "factor_list",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.gcd",
         "kind": "function",
         "module": "sympy.polys.polytools",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -240666,14 +240878,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.quo",
         "kind": "function",
         "module": "sympy.polys.polytools",
         "name": "quo",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -240710,14 +240924,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.rem",
         "kind": "function",
         "module": "sympy.polys.polytools",
         "name": "rem",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -240798,14 +241014,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.polytools.terms_gcd",
         "kind": "function",
         "module": "sympy.polys.polytools",
         "name": "terms_gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -243780,14 +243998,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.subresultants_qq_zz.Poly",
         "kind": "class",
         "module": "sympy.polys.subresultants_qq_zz",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -244094,14 +244314,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.subresultants_qq_zz.quo",
         "kind": "function",
         "module": "sympy.polys.subresultants_qq_zz",
         "name": "quo",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -244116,14 +244338,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.polys.subresultants_qq_zz.rem",
         "kind": "function",
         "module": "sympy.polys.subresultants_qq_zz",
         "name": "rem",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -262453,14 +262677,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.simplify.hyperexpand.Poly",
         "kind": "class",
         "module": "sympy.simplify.hyperexpand",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -263685,14 +263911,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.simplify.powsimp.gcd",
         "kind": "function",
         "module": "sympy.simplify.powsimp",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -264147,14 +264375,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.simplify.radsimp.gcd",
         "kind": "function",
         "module": "sympy.simplify.radsimp",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -264436,14 +264666,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.simplify.ratsimp.Poly",
         "kind": "class",
         "module": "sympy.simplify.ratsimp",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -265890,14 +266122,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.simplify.sqrtdenest.Poly",
         "kind": "class",
         "module": "sympy.simplify.sqrtdenest",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -266229,14 +266463,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.simplify.trigsimp.Poly",
         "kind": "class",
         "module": "sympy.simplify.trigsimp",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -266822,14 +267058,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.dsolve",
         "kind": "function",
         "module": "sympy.solvers",
         "name": "dsolve",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -267349,14 +267587,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.bivariate.Poly",
         "kind": "class",
         "module": "sympy.solvers.bivariate",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -267596,14 +267836,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.decompogen.Poly",
         "kind": "class",
         "module": "sympy.solvers.decompogen",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -267937,14 +268179,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.inequalities.Poly",
         "kind": "class",
         "module": "sympy.solvers.inequalities",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -268306,14 +268550,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.ode.dsolve",
         "kind": "function",
         "module": "sympy.solvers.ode",
         "name": "dsolve",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -268522,14 +268768,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.ode.hypergeometric.gcd",
         "kind": "function",
         "module": "sympy.solvers.ode.hypergeometric",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -268732,14 +268980,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.ode.lie_group.Poly",
         "kind": "class",
         "module": "sympy.solvers.ode.lie_group",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -269189,14 +269439,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.ode.nonhomogeneous.Poly",
         "kind": "class",
         "module": "sympy.solvers.ode.nonhomogeneous",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -269739,14 +269991,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.ode.ode.Poly",
         "kind": "class",
         "module": "sympy.solvers.ode.ode",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -270063,14 +270317,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.ode.ode.dsolve",
         "kind": "function",
         "module": "sympy.solvers.ode.ode",
         "name": "dsolve",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -270494,14 +270750,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.ode.ode.terms_gcd",
         "kind": "function",
         "module": "sympy.solvers.ode.ode",
         "name": "terms_gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -270601,14 +270859,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.ode.riccati.Poly",
         "kind": "class",
         "module": "sympy.solvers.ode.riccati",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -271377,14 +271637,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.ode.single.Poly",
         "kind": "class",
         "module": "sympy.solvers.ode.single",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -271725,14 +271987,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.ode.single.dsolve",
         "kind": "function",
         "module": "sympy.solvers.ode.single",
         "name": "dsolve",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -272534,14 +272798,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.ode.systems.Poly",
         "kind": "class",
         "module": "sympy.solvers.ode.systems",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -273603,14 +273869,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.polysys.Poly",
         "kind": "class",
         "module": "sympy.solvers.polysys",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -273974,14 +274242,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.recurr.Poly",
         "kind": "class",
         "module": "sympy.solvers.recurr",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -274103,14 +274373,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.recurr.gcd",
         "kind": "function",
         "module": "sympy.solvers.recurr",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -274169,14 +274441,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.recurr.quo",
         "kind": "function",
         "module": "sympy.solvers.recurr",
         "name": "quo",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -274781,14 +275055,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.solvers.Poly",
         "kind": "class",
         "module": "sympy.solvers.solvers",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -275370,14 +275646,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.solvers.gcd",
         "kind": "function",
         "module": "sympy.solvers.solvers",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -276268,14 +276546,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.solveset.Poly",
         "kind": "class",
         "module": "sympy.solvers.solveset",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -276867,14 +277147,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.solveset.gcd",
         "kind": "function",
         "module": "sympy.solvers.solveset",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -301525,14 +301807,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.vector.implicitregion.gcd",
         "kind": "function",
         "module": "sympy.vector.implicitregion",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -312584,13 +312868,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.Poly",
         "kind": "class",
         "name": "Poly",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -314960,13 +315246,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.dsolve",
         "kind": "function",
         "name": "dsolve",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -315332,13 +315620,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.factor_list",
         "kind": "function",
         "name": "factor_list",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -315678,13 +315968,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.gcd",
         "kind": "function",
         "name": "gcd",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -318348,13 +318640,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.quo",
         "kind": "function",
         "name": "quo",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -318582,13 +318876,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.rem",
         "kind": "function",
         "name": "rem",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -319532,13 +319828,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.terms_gcd",
         "kind": "function",
         "name": "terms_gcd",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [

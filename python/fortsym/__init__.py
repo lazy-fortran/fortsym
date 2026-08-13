@@ -1349,6 +1349,32 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.poly_coefficient = declare(
+        "fortsym_poly_coefficient",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, _I64, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    lib.poly_exponent = declare(
+        "fortsym_poly_exponent",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    lib.poly_gcd = declare(
+        "fortsym_poly_gcd",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    for name in ("quotient", "remainder"):
+        setattr(
+            lib,
+            "poly_" + name,
+            declare(
+                "fortsym_poly_" + name,
+                ctypes.c_int,
+                [_CVOID, _CVOID, _CVOID, _CVOID,
+                 ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+            ),
+        )
     lib.integrate = declare(
         "fortsym_integrate",
         ctypes.c_int,
@@ -1390,6 +1416,12 @@ def _configure(lib):
         [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _SIZE,
          ctypes.POINTER(_SIZE), ctypes.POINTER(_CVOID), _SIZE,
          ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
+    )
+    lib.solve_ode = declare(
+        "fortsym_solve_ode",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, _CVOID,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
     lib.linsolve = declare(
         "fortsym_linsolve",
@@ -7373,6 +7405,45 @@ class Expr:
             variable._handle
         )
 
+    def coefficient(self, variable, degree):
+        if not isinstance(degree, int) or isinstance(degree, bool):
+            raise TypeError("polynomial degree must be an integer")
+        variable = self._arena._check(variable)
+        return self._arena._result(
+            self._lib.poly_coefficient, self._arena._require(),
+            self._require(), variable._handle, degree
+        )
+
+    def exponent(self, variable):
+        variable = self._arena._check(variable)
+        return self._arena._result(
+            self._lib.poly_exponent, self._arena._require(),
+            self._require(), variable._handle
+        )
+
+    def gcd(self, other):
+        other = self._arena._check(other)
+        return self._arena._result(
+            self._lib.poly_gcd, self._arena._require(), self._require(),
+            other._handle
+        )
+
+    def quotient(self, divisor, variable):
+        divisor = self._arena._check(divisor)
+        variable = self._arena._check(variable)
+        return self._arena._result(
+            self._lib.poly_quotient, self._arena._require(), self._require(),
+            divisor._handle, variable._handle
+        )
+
+    def remainder(self, divisor, variable):
+        divisor = self._arena._check(divisor)
+        variable = self._arena._check(variable)
+        return self._arena._result(
+            self._lib.poly_remainder, self._arena._require(), self._require(),
+            divisor._handle, variable._handle
+        )
+
     def integrate(self, variable):
         variable = self._arena._check(variable)
         return self._arena._result(
@@ -7465,6 +7536,14 @@ class Expr:
         excluded = [Expr(self._arena, excluded_output[index])
                     for index in range(excluded_count.value)]
         return roots, excluded
+
+    def solve_ode(self, unknown, variable):
+        unknown = self._arena._check(unknown)
+        variable = self._arena._check(variable)
+        return self._arena._result(
+            self._lib.solve_ode, self._arena._require(), self._require(),
+            unknown._handle, variable._handle
+        )
 
     def det(self):
         return self._arena._result(
@@ -8114,6 +8193,15 @@ def together(expression: Expr): return expression.together()
 def cancel(expression: Expr): return expression.cancel()
 def apart(expression: Expr, variable=None): return expression.apart(variable)
 def collect(expression: Expr, variable): return expression.collect(variable)
+def coefficient(expression: Expr, variable: Expr, degree: int):
+    return expression.coefficient(variable, degree)
+def exponent(expression: Expr, variable: Expr):
+    return expression.exponent(variable)
+def polynomial_gcd(left: Expr, right: Expr): return left.gcd(right)
+def polynomial_quotient(dividend: Expr, divisor: Expr, variable: Expr):
+    return dividend.quotient(divisor, variable)
+def polynomial_remainder(dividend: Expr, divisor: Expr, variable: Expr):
+    return dividend.remainder(divisor, variable)
 def integrate(expression: Expr, variable: Expr): return expression.integrate(variable)
 def definite_integral(expression: Expr, variable: Expr, lower: Expr, upper: Expr):
     return expression.definite_integral(variable, lower, upper)
@@ -8134,6 +8222,8 @@ def series_coeff(expression: Expr, variable: Expr, point=0, order=0):
         if temporary is not None:
             temporary.close()
 def solve(expression: Expr, variable=None): return expression.solve(variable)
+def solve_ode(problem: Expr, unknown: Expr, variable: Expr):
+    return problem.solve_ode(unknown, variable)
 def det(expression: Expr): return expression.det()
 def rank(expression: Expr): return expression.rank()
 def inv(expression: Expr): return expression.inv()
@@ -8225,6 +8315,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "det", "rank", "inv", "transpose", "matrix_conjugate", "matrix_adjoint", "matrix_multiply_elementwise", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "coefficient", "exponent", "polynomial_gcd", "polynomial_quotient", "polynomial_remainder", "integrate", "definite_integral", "limit", "series", "series_coeff", "solve", "solve_ode", "det", "rank", "inv", "transpose", "matrix_conjugate", "matrix_adjoint", "matrix_multiply_elementwise", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

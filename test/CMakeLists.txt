@@ -147,6 +147,11 @@ target_include_directories(test_fortsym_solve_capi PRIVATE
     ${PROJECT_SOURCE_DIR}/src/capi)
 target_link_libraries(test_fortsym_solve_capi PRIVATE fortsym)
 add_test(NAME test_fortsym_solve_capi COMMAND test_fortsym_solve_capi)
+add_executable(test_fortsym_poly_ode_capi capi/test_fortsym_poly_ode_capi.c)
+target_include_directories(test_fortsym_poly_ode_capi PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/capi)
+target_link_libraries(test_fortsym_poly_ode_capi PRIVATE fortsym)
+add_test(NAME test_fortsym_poly_ode_capi COMMAND test_fortsym_poly_ode_capi)
 add_executable(test_fortsym_linsolve_capi capi/test_fortsym_linsolve_capi.c)
 target_include_directories(test_fortsym_linsolve_capi PRIVATE
     ${PROJECT_SOURCE_DIR}/src/capi)

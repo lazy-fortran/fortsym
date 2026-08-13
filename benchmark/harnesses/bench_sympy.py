@@ -160,6 +160,76 @@ def matrix_flat_equivalent(expected: Any, actual: Any) -> bool:
     return str(expected) == str(actual)
 
 
+def poly_div_equivalent(expected: Any, actual: Any) -> bool:
+    if not isinstance(actual, tuple) or len(actual) != 2:
+        return False
+    return all(
+        oracle.simplify(
+            oracle.sympify(str(native_value.as_expr())) - expected_value.as_expr()
+        ) == oracle.Integer(0)
+        for expected_value, native_value in zip(expected, actual)
+    )
+
+
+def poly_factor_list_equivalent(expected: Any, actual: Any) -> bool:
+    if not isinstance(actual, tuple) or len(actual) != 2:
+        return False
+    expected_content, expected_factors = expected
+    actual_content, actual_factors = actual
+    if len(expected_factors) != len(actual_factors):
+        return False
+    reconstructed = oracle.sympify(str(actual_content))
+    for factor_value, multiplicity in actual_factors:
+        reconstructed *= oracle.sympify(str(factor_value)) ** multiplicity
+    return oracle.simplify(
+        reconstructed - expected_content * oracle.prod(
+            factor_value ** multiplicity
+            for factor_value, multiplicity in expected_factors
+        )
+    ) == oracle.Integer(0)
+
+
+def dsolve_equivalent(expected: Any, actual: Any, names: dict[str, Any]) -> bool:
+    try:
+        actual_result = oracle.sympify(
+            result_text(actual),
+            locals={**names, "C": oracle.Function("C")},
+        )
+        if not isinstance(actual_result, oracle.Equality):
+            return False
+        variable = next(
+            symbol for symbol in names.values()
+            if isinstance(symbol, oracle.Symbol) and
+            (str(symbol).endswith("_x_fixed") or
+             str(symbol).endswith("_x_warm"))
+        )
+        function_name = next(
+            name for name, value in names.items()
+            if isinstance(value, oracle.FunctionClass) and
+            (name.endswith("_ode_y_fixed") or name.endswith("_ode_y_warm"))
+        )
+        function = names[function_name]
+        coefficient_name = next(
+            name for name, value in names.items()
+            if isinstance(value, oracle.Symbol) and
+            (name.endswith("_ode_a_fixed") or name.endswith("_ode_a_warm"))
+        )
+        coefficient = names[coefficient_name]
+        return (
+            actual_result.lhs == function(variable) and
+            oracle.simplify(
+                oracle.diff(actual_result.rhs, variable) -
+                coefficient * actual_result.rhs
+            ) == oracle.Integer(0) and
+            oracle.simplify(
+                oracle.diff(expected.rhs, variable) -
+                coefficient * expected.rhs
+            ) == oracle.Integer(0)
+        )
+    except (KeyError, StopIteration, TypeError, ValueError, SyntaxError):
+        return False
+
+
 def tuple_equivalent(expected: Any, actual: Any) -> bool:
     if (actual._expression.name != "Tuple" or
             len(expected) != len(actual) or
@@ -1036,10 +1106,45 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             native.log(native.exp(native_composition)),
             names,
         )
+    polynomial = oracle.Poly(oracle_x**3 - 1, oracle_x)
+    native_polynomial = native.Poly(native_x**3 - 1, native_x)
+    expressions.update({
+        "poly_degree": (polynomial, native_polynomial, names),
+        "poly_div": (polynomial, native_polynomial, names),
+        "poly_factor_list": (polynomial, native_polynomial, names),
+    })
+    ode_name = f"{label}_ode_y_{suffix}"
+    oracle_ode = oracle.Function(ode_name)
+    native_ode = native.Function(ode_name)
+    ode_coefficient_name = f"{label}_ode_a_{suffix}"
+    oracle_ode_coefficient = oracle.Symbol(ode_coefficient_name)
+    native_ode_coefficient = native.Symbol(ode_coefficient_name)
+    names[ode_name] = oracle_ode
+    names[ode_coefficient_name] = oracle_ode_coefficient
+    expressions["dsolve_linear"] = (
+        oracle.Eq(
+            oracle.diff(oracle_ode(oracle_x), oracle_x),
+            oracle_ode_coefficient * oracle_ode(oracle_x),
+        ),
+        native.Eq(
+            native.diff(native_ode(native_x), native_x),
+            native_ode_coefficient * native_ode(native_x),
+        ),
+        names,
+    )
     return expressions, names
 
 
 def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any]:
+    if operation in ("poly_degree", "poly_div", "poly_factor_list"):
+        x = engine.Symbol(f"{operation}_x_{suffix}")
+        return engine.Poly(x**3 - 1, x), x
+    if operation == "dsolve_linear":
+        x = engine.Symbol(f"{operation}_x_{suffix}")
+        coefficient = engine.Symbol(f"{operation}_a_{suffix}")
+        function = engine.Function(f"{operation}_y_{suffix}")
+        applied = function(x)
+        return engine.Eq(engine.diff(applied, x), coefficient * applied), applied
     if operation == "matrix_slice":
         return engine.Matrix([[1, 2, 3], [4, 5, 6]]), (
             slice(0, 1), slice(None)
@@ -1770,6 +1875,22 @@ def correctness_cases() -> list[dict[str, Any]]:
                 native_expression,
                 native.Symbol("check_x_fixed"),
             )
+        elif operation == "poly_degree":
+            expected = oracle_expression.degree()
+            actual = native_expression.degree()
+        elif operation == "poly_div":
+            oracle_x = names["check_x_fixed"]
+            native_x = native.Symbol("check_x_fixed")
+            expected = oracle.div(
+                oracle_expression, oracle.Poly(oracle_x**2 - 1, oracle_x)
+            )
+            actual = native_expression.div(native.Poly(native_x**2 - 1, native_x))
+        elif operation == "poly_factor_list":
+            expected = oracle.factor_list(oracle_expression.as_expr())
+            actual = native_expression.factor_list()
+        elif operation == "dsolve_linear":
+            expected = oracle.dsolve(oracle_expression)
+            actual = native.dsolve(native_expression)
         else:
             expected = oracle.factor(oracle_expression)
             actual = native.factor(native_expression)
@@ -1820,6 +1941,14 @@ def correctness_cases() -> list[dict[str, Any]]:
                 if operation == "linsolve_free"
                 else str(expected) == str(actual)
                 if operation == "solveset_rational_condition"
+                else expected == actual
+                if operation == "poly_degree"
+                else poly_div_equivalent(expected, actual)
+                if operation == "poly_div"
+                else poly_factor_list_equivalent(expected, actual)
+                if operation == "poly_factor_list"
+                else dsolve_equivalent(expected, actual, names)
+                if operation == "dsolve_linear"
                 else tuple_equivalent(expected, actual)
                 if operation == "tuple_constructor"
                 else finite_set_equivalent(expected, actual)
@@ -1898,6 +2027,22 @@ def benchmark_workload(
                 oracle_variable
             ).as_expr()
             native_call = lambda: native_expression.charpoly(native_variable)
+        elif operation == "poly_degree":
+            oracle_call = lambda: oracle_expression.degree()
+            native_call = lambda: native_expression.degree()
+        elif operation == "poly_div":
+            oracle_x = names["poly_div_x_warm"]
+            native_x = native.Symbol("poly_div_x_warm")
+            oracle_divisor = oracle.Poly(oracle_x**2 - 1, oracle_x)
+            native_divisor = native.Poly(native_x**2 - 1, native_x)
+            oracle_call = lambda: oracle_expression.div(oracle_divisor)
+            native_call = lambda: native_expression.div(native_divisor)
+        elif operation == "poly_factor_list":
+            oracle_call = lambda: oracle_expression.factor_list()
+            native_call = lambda: native_expression.factor_list()
+        elif operation == "dsolve_linear":
+            oracle_call = lambda: oracle.dsolve(oracle_expression)
+            native_call = lambda: native.dsolve(native_expression)
         elif operation == "matrix_is_diagonal":
             oracle_call = lambda: oracle_expression.is_diagonal()
             native_call = lambda: native_expression.is_diagonal()
@@ -2208,6 +2353,16 @@ def benchmark_workload(
                     return expression.trace()
                 if operation == "matrix_charpoly":
                     return expression.charpoly(variable)
+                if operation == "poly_degree":
+                    return expression.degree()
+                if operation == "poly_div":
+                    return expression.div(
+                        engine.Poly(variable**2 - 1, variable)
+                    )
+                if operation == "poly_factor_list":
+                    return expression.factor_list()
+                if operation == "dsolve_linear":
+                    return engine.dsolve(expression)
                 if operation == "matrix_is_diagonal":
                     return expression.is_diagonal()
                 if operation == "matrix_is_symmetric":
@@ -2406,6 +2561,7 @@ def main() -> None:
         "matrix_multiply_elementwise", "matrix_equality",
         "solve_rational", "linsolve_free",
         "solveset_rational_condition",
+        "poly_degree", "poly_div", "poly_factor_list", "dsolve_linear",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS, "float_equality"
     ):
         if operation in _PREDICATE_OPERATIONS or operation in (

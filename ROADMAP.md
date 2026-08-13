@@ -193,6 +193,10 @@ SymPy parity for the entire family.
 - [ ] Complete `factor`, `factor_list`, `cancel`, `together`, `apart`,
       `collect`, `terms_gcd`, and the corresponding polynomial constructors
       with SymPy-compatible options and conditions.
+- [x] Expose the bounded univariate `Poly` view and the matching
+      `factor_list`, `gcd`, `quo`, `rem`, and `terms_gcd` spellings through one
+      native polynomial owner; general domains, options, and multivariate
+      algorithms remain explicitly bounded.
 - [ ] Complete bounded-to-general univariate and multivariate factorisation,
       algebraic roots, root isolation, `RootOf`, and root selection without
       returning unverified roots.
@@ -374,6 +378,10 @@ SymPy parity for the entire family.
       numerical package's responsibility.
 - [ ] Complete ODE classification/solving and include PDE solving only when it
       is explicitly in the selected compatibility profile.
+- [x] Expose the bounded first-order linear ODE owner as native `solve_ode` and
+      SymPy-compatible `dsolve`, including one initial condition and
+      independent residual checks; classification and broader hint families
+      remain open.
 
 ## Phase 5 — functions and discrete mathematics
 

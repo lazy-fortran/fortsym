@@ -1834,6 +1834,142 @@ def factor(expression, **options):
     except FortSymError as error:
         raise UnsupportedOperationError(str(error)) from error
 
+
+def factor_list(expression, *gens, **options):
+    if options:
+        raise UnsupportedOperationError("factor_list options")
+    polynomial = Poly(expression, *gens)
+    try:
+        return polynomial.factor_list()
+    finally:
+        polynomial.close()
+
+
+def gcd(left, right, *gens, **options):
+    if options:
+        raise UnsupportedOperationError("gcd options")
+    left_poly = Poly(left, *gens)
+    right_poly = Poly(right, *gens)
+    try:
+        result = left_poly.gcd(right_poly)
+        try:
+            return result.as_expr()
+        finally:
+            result.close()
+    finally:
+        left_poly.close()
+        right_poly.close()
+
+
+def quo(left, right, *gens, **options):
+    if options:
+        raise UnsupportedOperationError("quo options")
+    left_poly = Poly(left, *gens)
+    right_poly = Poly(right, *gens)
+    try:
+        result = left_poly.quo(right_poly)
+        try:
+            return result.as_expr()
+        finally:
+            result.close()
+    finally:
+        left_poly.close()
+        right_poly.close()
+
+
+def rem(left, right, *gens, **options):
+    if options:
+        raise UnsupportedOperationError("rem options")
+    left_poly = Poly(left, *gens)
+    right_poly = Poly(right, *gens)
+    try:
+        result = left_poly.rem(right_poly)
+        try:
+            return result.as_expr()
+        finally:
+            result.close()
+    finally:
+        left_poly.close()
+        right_poly.close()
+
+
+def terms_gcd(expression, *gens, **options):
+    if options:
+        raise UnsupportedOperationError("terms_gcd options")
+    polynomial = Poly(expression, *gens)
+    try:
+        polynomial._univariate()
+        degree = polynomial.degree()
+        if degree < 0:
+            return polynomial.as_expr()
+        common = degree
+        for exponent_value, coefficient in polynomial.terms():
+            try:
+                common = min(common, exponent_value[0])
+            finally:
+                coefficient.close()
+        if common == 0:
+            return polynomial.as_expr()
+        variable = polynomial.gen
+        try:
+            divisor = variable**common
+            quotient = _native_operation(
+                lambda: polynomial._expression.quotient(divisor, variable)
+            )
+            result = divisor * quotient
+            divisor.close()
+            quotient.close()
+            return result
+        finally:
+            variable.close()
+    finally:
+        polynomial.close()
+
+
+_ODE_KNOWN_HEADS = frozenset({
+    "Equal", "Unequal", "Less", "LessEqual", "Greater", "GreaterEqual",
+    "Derivative1", "List", "Rule", "exp", "log", "sin", "cos", "tan",
+    "asin", "acos", "atan", "sinh", "cosh", "tanh", "asinh", "acosh",
+    "atanh", "sqrt", "abs", "Abs", "C",
+})
+
+
+def _find_ode_variable(expression):
+    if expression.kind == 9 and expression.name == "Derivative1":
+        arguments = expression.args
+        last_argument = arguments[-1] if arguments else None
+        try:
+            if last_argument is not None and last_argument.kind == 4:
+                return last_argument
+        finally:
+            for argument in arguments:
+                if argument is not last_argument:
+                    argument.close()
+    for argument in expression.args:
+        candidate = _find_ode_variable(argument)
+        argument.close()
+        if candidate is not None:
+            return candidate
+    return None
+
+
+def _find_ode_unknown(expression, variable):
+    if (expression.kind == 9 and expression.arity == 1 and
+            expression.name not in _ODE_KNOWN_HEADS):
+        argument = expression.argument(0)
+        if argument == variable:
+            argument.close()
+            return expression
+        argument.close()
+    for argument in expression.args:
+        candidate = _find_ode_unknown(argument, variable)
+        if candidate is not None:
+            if candidate is not argument:
+                argument.close()
+            return candidate
+        argument.close()
+    return None
+
 def _native_operation(call):
     try:
         return call()
@@ -1891,6 +2027,84 @@ def integrate(expression, *variables, **options):
     return _native_operation(
         lambda: sympify(expression).integrate(sympify(variable))
     )
+
+
+def dsolve(eq, func=None, hint="default", simplify=True, ics=None,
+            xi=None, eta=None, x0=0, n=6, **kwargs):
+    if kwargs or hint != "default" or simplify is not True:
+        raise UnsupportedOperationError("dsolve options")
+    if xi is not None or eta is not None or n != 6:
+        raise UnsupportedOperationError("dsolve options")
+    equation = sympify(eq)
+    variable = _find_ode_variable(equation)
+    if variable is None:
+        raise UnsupportedOperationError("dsolve needs an independent symbol")
+    unknown = None
+    temporary_unknown = False
+    temporary_func = None
+    problem = equation
+    try:
+        if func is None:
+            unknown = _find_ode_unknown(equation, variable)
+            if unknown is None:
+                raise UnsupportedOperationError("dsolve needs an unknown function")
+            temporary_unknown = True
+        else:
+            if callable(func) and not isinstance(func, Expr):
+                unknown = sympify(func(variable))
+                temporary_func = unknown
+            else:
+                unknown = sympify(func)
+            if unknown.kind != 9 or unknown.arity != 1:
+                raise UnsupportedOperationError("dsolve function form")
+            argument = unknown.argument(0)
+            try:
+                if argument != variable:
+                    raise ValueError("dsolve function uses another variable")
+            finally:
+                argument.close()
+        if ics is not None:
+            if not isinstance(ics, dict) or len(ics) != 1:
+                raise UnsupportedOperationError("dsolve initial conditions")
+            conditions = []
+            for left, right in ics.items():
+                left = sympify(left)
+                right = sympify(right)
+                conditions.append(Eq(left, right))
+            try:
+                problem = _default().function("List", (equation, conditions[0]))
+            finally:
+                for condition in conditions:
+                    if isinstance(condition, Expr):
+                        condition.close()
+        result = _native_operation(lambda: problem.solve_ode(unknown, variable))
+        try:
+            outer = result.argument(0)
+            rule = outer.argument(0)
+            try:
+                if (outer.kind != 9 or outer.name != "List" or
+                        outer.arity != 1 or rule.kind != 9 or
+                        rule.name != "Rule" or rule.arity != 2):
+                    raise UnsupportedOperationError("dsolve result shape")
+                lhs, rhs = rule.args
+                try:
+                    return Eq(lhs, rhs)
+                finally:
+                    lhs.close()
+                    rhs.close()
+            finally:
+                rule.close()
+        finally:
+            outer.close()
+            result.close()
+    finally:
+        if problem is not equation:
+            problem.close()
+        variable.close()
+        if temporary_unknown:
+            unknown.close()
+        if temporary_func is not None:
+            temporary_func.close()
 
 
 def _limit_direction(direction):
@@ -2913,6 +3127,402 @@ class Matrix:
             pass
 
 
+class Poly:
+    """Bounded univariate ``Poly`` view over the native rational owner.
+
+    The polynomial algorithms remain native.  This class owns only the
+    generator names and one native expression handle; coefficient, degree,
+    gcd, and division queries cross the same C ABI used by the low-level
+    facade.  Multivariate construction is accepted for generator metadata,
+    while coefficient-list and division methods explicitly require one
+    generator until the public domain object is complete.
+    """
+
+    def __init__(self, rep, *gens, **options):
+        allowed = {"domain", "auto", "polys"}
+        unknown = set(options) - allowed
+        if unknown:
+            raise UnsupportedOperationError("Poly options")
+        if options.get("auto", True) is not True:
+            raise UnsupportedOperationError("Poly auto option")
+        if options.get("polys", False) not in (False, True):
+            raise TypeError("Poly polys option must be boolean")
+        domain = options.get("domain")
+        if domain not in (None, "ZZ", "QQ"):
+            raise UnsupportedOperationError("Poly domain")
+        expression = sympify(rep)
+        if gens:
+            if len(gens) == 1 and isinstance(gens[0], (tuple, list)):
+                gens = tuple(gens[0])
+            generator_names = []
+            for generator in gens:
+                generator = sympify(generator)
+                if generator.kind != 4:
+                    raise ValueError("Poly generators must be symbols")
+                generator_names.append(generator.name)
+        else:
+            generator_names = sorted(
+                symbol.name for symbol in expression.free_symbols
+            )
+        if not generator_names:
+            generator_names = ["x"]
+        if len(generator_names) > 4:
+            raise UnsupportedOperationError("Poly generator count")
+        self._expression = expression.expand()
+        self._gen_names = tuple(generator_names)
+        self._domain = domain or "QQ"
+        self._degree_cache = None
+        if self._domain == "ZZ":
+            for coefficient in self.all_coeffs():
+                try:
+                    if "/" in coefficient.exact_text:
+                        raise ValueError("ZZ Poly has a rational coefficient")
+                finally:
+                    coefficient.close()
+
+    @classmethod
+    def _from_owned(cls, expression, names, domain):
+        instance = cls.__new__(cls)
+        instance._expression = expression
+        instance._gen_names = tuple(names)
+        instance._domain = domain
+        instance._degree_cache = None
+        return instance
+
+    @property
+    def gens(self):
+        return tuple(Symbol(name) for name in self._gen_names)
+
+    @property
+    def gen(self):
+        if len(self._gen_names) != 1:
+            raise UnsupportedOperationError("Poly.gen for multivariate Poly")
+        return Symbol(self._gen_names[0])
+
+    @property
+    def domain(self):
+        return self._domain
+
+    @property
+    def is_zero(self):
+        return self._expression == 0
+
+    @property
+    def is_ground(self):
+        return not self._expression.free_symbols
+
+    def _generator(self, generator=None):
+        if generator is None:
+            return self.gen
+        if isinstance(generator, int) and not isinstance(generator, bool):
+            if generator < 0:
+                generator += len(self._gen_names)
+            if generator < 0 or generator >= len(self._gen_names):
+                raise IndexError("Poly generator index")
+            return Symbol(self._gen_names[generator])
+        generator = sympify(generator)
+        if generator.kind != 4 or generator.name not in self._gen_names:
+            raise ValueError("generator is not in Poly.gens")
+        return Symbol(generator.name)
+
+    def _univariate(self):
+        if len(self._gen_names) != 1:
+            raise UnsupportedOperationError(
+                "this bounded Poly operation requires one generator"
+            )
+
+    def as_expr(self):
+        return self._expression.expand()
+
+    def degree(self, gen=None):
+        if (gen is None and len(self._gen_names) == 1 and
+                self._degree_cache is not None):
+            return self._degree_cache
+        variable = self._generator(gen)
+        try:
+            if (len(self._gen_names) == 1 and
+                    self._gen_names[0] == variable.name and
+                    self._degree_cache is not None):
+                return self._degree_cache
+            result = _native_operation(
+                lambda: self._expression.exponent(variable)
+            )
+            try:
+                degree = int(result.exact_text)
+            finally:
+                result.close()
+            if len(self._gen_names) == 1 and self._gen_names[0] == variable.name:
+                self._degree_cache = degree
+            return degree
+        finally:
+            variable.close()
+
+    @property
+    def total_degree(self):
+        self._univariate()
+        return self.degree()
+
+    def nth(self, n):
+        self._univariate()
+        if not isinstance(n, int) or isinstance(n, bool) or n < 0:
+            raise ValueError("polynomial coefficient index")
+        variable = self.gen
+        try:
+            return _native_operation(
+                lambda: self._expression.coefficient(variable, n)
+            )
+        finally:
+            variable.close()
+
+    def coeff_monomial(self, monomial):
+        self._univariate()
+        if isinstance(monomial, int) and not isinstance(monomial, bool):
+            return self.nth(monomial)
+        monomial = sympify(monomial)
+        variable = self.gen
+        try:
+            if monomial == variable:
+                degree = 1
+            elif monomial.kind == 8:
+                base, exponent = monomial.args
+                try:
+                    if base != variable or exponent.kind not in (1, 10):
+                        raise ValueError("monomial is not a power of the generator")
+                    degree = int(exponent.exact_text)
+                finally:
+                    base.close()
+                    exponent.close()
+            else:
+                raise ValueError("monomial is not a power of the generator")
+            return self.nth(degree)
+        finally:
+            variable.close()
+
+    def all_coeffs(self):
+        self._univariate()
+        degree = self.degree()
+        if degree < 0 or degree > 2000:
+            raise UnsupportedOperationError("Poly coefficient resource limit")
+        return [self.nth(index) for index in range(degree, -1, -1)]
+
+    def coeffs(self):
+        values = self.all_coeffs()
+        result = []
+        for value in values:
+            if value == 0:
+                value.close()
+            else:
+                result.append(value)
+        return result
+
+    def terms(self):
+        self._univariate()
+        degree = self.degree()
+        if degree < 0 or degree > 2000:
+            raise UnsupportedOperationError("Poly term resource limit")
+        result = []
+        for index in range(degree, -1, -1):
+            coefficient = self.nth(index)
+            if coefficient == 0:
+                coefficient.close()
+            else:
+                result.append(((index,), coefficient))
+        return result
+
+    def as_dict(self):
+        return {monomial: coefficient for monomial, coefficient in self.terms()}
+
+    def LC(self):
+        coefficients = self.all_coeffs()
+        for coefficient in coefficients:
+            if coefficient != 0:
+                for other in coefficients:
+                    if other is not coefficient:
+                        other.close()
+                return coefficient
+            coefficient.close()
+        return Integer(0)
+
+    def TC(self):
+        return self.nth(0)
+
+    def _binary(self, other, operation):
+        if not isinstance(other, Poly):
+            other = Poly(other, *self._gen_names, domain=self._domain)
+            temporary = True
+        else:
+            temporary = False
+        if other._gen_names != self._gen_names:
+            if temporary:
+                other.close()
+            raise ValueError("Poly generators do not match")
+        try:
+            expression = operation(other)
+            expanded = expression.expand()
+            expression.close()
+            return self._from_owned(expanded, self._gen_names, self._domain)
+        finally:
+            if temporary:
+                other.close()
+
+    def __add__(self, other):
+        return self._binary(other, lambda value: self._expression + value._expression)
+
+    def __radd__(self, other):
+        return self.__add__(other)
+
+    def __sub__(self, other):
+        return self._binary(other, lambda value: self._expression - value._expression)
+
+    def __rsub__(self, other):
+        temporary = Poly(other, *self._gen_names, domain=self._domain)
+        try:
+            return temporary.__sub__(self)
+        finally:
+            temporary.close()
+
+    def __mul__(self, other):
+        return self._binary(other, lambda value: self._expression * value._expression)
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def __neg__(self):
+        expression = -self._expression
+        expanded = expression.expand()
+        expression.close()
+        return self._from_owned(expanded, self._gen_names, self._domain)
+
+    def div(self, other):
+        if not isinstance(other, Poly):
+            other = Poly(other, *self._gen_names, domain=self._domain)
+            temporary = True
+        else:
+            temporary = False
+        self._univariate()
+        if other._gen_names != self._gen_names:
+            if temporary:
+                other.close()
+            raise ValueError("Poly generators do not match")
+        variable = self.gen
+        try:
+            quotient = _native_operation(
+                lambda: self._expression.quotient(other._expression, variable)
+            )
+            remainder = _native_operation(
+                lambda: self._expression.remainder(other._expression, variable)
+            )
+            quotient_expanded = quotient.expand()
+            remainder_expanded = remainder.expand()
+            quotient.close()
+            remainder.close()
+            return (
+                self._from_owned(
+                    quotient_expanded, self._gen_names, self._domain
+                ),
+                self._from_owned(
+                    remainder_expanded, self._gen_names, self._domain
+                ),
+            )
+        finally:
+            variable.close()
+            if temporary:
+                other.close()
+
+    def quo(self, other):
+        return self.div(other)[0]
+
+    def rem(self, other):
+        return self.div(other)[1]
+
+    def gcd(self, other):
+        if not isinstance(other, Poly):
+            other = Poly(other, *self._gen_names, domain=self._domain)
+            temporary = True
+        else:
+            temporary = False
+        if other._gen_names != self._gen_names:
+            if temporary:
+                other.close()
+            raise ValueError("Poly generators do not match")
+        try:
+            result = _native_operation(
+                lambda: self._expression.gcd(other._expression)
+            )
+            expanded = result.expand()
+            result.close()
+            return self._from_owned(expanded, self._gen_names, self._domain)
+        finally:
+            if temporary:
+                other.close()
+
+    def factor_list(self):
+        factored = _native_operation(lambda: factor(self._expression))
+        content = None
+        factors = []
+
+        def flatten(node):
+            if node.kind == 7:
+                values = []
+                for child in node.args:
+                    values.extend(flatten(child))
+                    child.close()
+                return values
+            if node.kind == 8:
+                base, exponent = node.args
+                try:
+                    if exponent.kind not in (1, 10):
+                        raise UnsupportedOperationError("factor_list exponent")
+                    power = int(exponent.exact_text)
+                    if power <= 0:
+                        raise UnsupportedOperationError("factor_list exponent")
+                    return [(base.expand(), power)]
+                finally:
+                    base.close()
+                    exponent.close()
+            return [(node.expand(), 1)]
+
+        try:
+            for factor_value, multiplicity in flatten(factored):
+                if factor_value.kind in (1, 2, 3, 10, 11, 12, 13):
+                    if content is None:
+                        content = factor_value
+                        factor_value = None
+                    else:
+                        updated = content * factor_value
+                        content.close()
+                        content = updated
+                    if factor_value is not None:
+                        factor_value.close()
+                else:
+                    factors.append((factor_value, multiplicity))
+            if content is None:
+                content = Integer(1)
+            return content, factors
+        finally:
+            factored.close()
+
+    def __eq__(self, other):
+        return isinstance(other, Poly) and self._gen_names == other._gen_names \
+            and self._expression == other._expression
+
+    def __str__(self):
+        return str(self._expression)
+
+    __repr__ = __str__
+
+    def close(self):
+        if getattr(self, "_expression", None) is not None:
+            self._expression.close()
+            self._expression = None
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
 def det(matrix, **options):
     if options:
         raise UnsupportedOperationError("determinant options")
@@ -2957,8 +3567,8 @@ __all__ = [
     "besselj", "besseli", "legendre", "expand_complex",
     "asinh", "acosh", "atanh", "exp", "log", "sqrt", "Abs", "sign",
     "floor", "ceiling", "re", "im", "conjugate", "adjoint", "arg", "diff", "subs", "expand",
-    "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And", "Or", "Not", "Xor", "Implies", "Equivalent",
+    "simplify", "count_ops", "factor", "factor_list", "gcd", "quo", "rem", "terms_gcd", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And", "Or", "Not", "Xor", "Implies", "Equivalent",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
-    "integrate", "limit", "series", "solve", "det", "trace", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Complement", "Tuple", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
+    "integrate", "dsolve", "limit", "series", "solve", "det", "trace", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Complement", "Tuple", "Matrix", "Poly", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
     "oo", "zoo", "nan",
 ]

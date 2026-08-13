@@ -52,6 +52,15 @@ coefficient matrix, one right-hand side, and explicit variable handles. It
 returns one value per variable for a consistent system, retaining supplied
 free variables, or a successful zero-count result for an inconsistent system.
 The lower-level square `fortsym_linsolve` contract remains unchanged.
+The polynomial C ABI includes bounded `fortsym_poly_coefficient`,
+`fortsym_poly_exponent`, `fortsym_poly_gcd`, `fortsym_poly_quotient`, and
+`fortsym_poly_remainder` operations. These preserve the native expression
+owner and reject foreign arenas, invalid degrees, unsupported domains, and
+resource overflows with the normal diagnostic status.
+`fortsym_solve_ode` is the native ODE owner used by the Python `dsolve` adapter;
+the current public fragment is first-order linear equations with optional
+one-condition list input, and unsupported ODE families return
+`FORTSYM_UNSUPPORTED`.
 The chart calculus distinguishes ordinary vectors from weight-one vector densities:
 `fortsym_chart_curl_density` returns the metric-free alternating derivative of a
 covector, while `fortsym_chart_div_density` differentiates a contravariant density
