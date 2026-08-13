@@ -269,6 +269,9 @@ SymPy parity for the entire family.
       the reduced Matrix while reusing the same native RREF owner; custom zero
       functions, conditional pivots, and other unsupported options remain
       explicit refusals.
+- [x] Accept bounded `Matrix.rref(simplify=True)` because the native RREF
+      owner already simplifies every exact pivot and elimination result;
+      callback-controlled zero tests and conditional pivots remain refused.
 - [x] Expose bounded exact dense `Matrix` products and scalar scaling through
       `*`/`@`, reusing the native matrix-dot owner and refusing mismatched
       dimensions, foreign arenas, and unsupported operands.

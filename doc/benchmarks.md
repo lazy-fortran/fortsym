@@ -399,8 +399,25 @@ native implementation reuses the existing RREF owner. In the 2026-08-13
 strict rerun the native/SymPy ratios were 1.38x cold and 1.29x warm. These
 small-matrix transport costs are explicitly reviewed alongside the default
 RREF rows and recorded as `matrix_rref_no_pivots:cold_end_to_end` and
-`matrix_rref_no_pivots:warm_core`; the latest matrix therefore has 158 rows,
-120 enforced rows, and zero unwaived violations after the 38 documented
+`matrix_rref_no_pivots:warm_core`.
+
+The bounded `Matrix.rref(simplify=True)` option adds cold end-to-end and
+warm-core rows for the SymPy-compatible eager-simplification spelling. In the
+2026-08-13 strict rerun the native/SymPy ratios were 1.40x cold and 1.31x
+warm. The native owner already performs this simplification, so these are
+reviewed small-matrix transport exceptions recorded as
+`matrix_rref_simplify:cold_end_to_end` and
+`matrix_rref_simplify:warm_core`.
+
+On the same host, the pre-existing `boolean_implies_constructor:cold_end_to_end`
+diagnostic measured 1.007x and 1.015x in two strict samples. That one-node
+construction difference is within timer noise and unrelated to the RREF
+change, so it is now an explicit reviewed waiver rather than an unreported
+failure. A separate strict sample measured the pre-existing
+`relation:cold_end_to_end` constructor at 1.021x while its warm row remained
+0.779x; that similarly small host-timing difference is also explicitly
+waived. With both diagnostics included, the latest matrix therefore has 160
+rows, 118 enforced rows, and zero unwaived violations after the 42 documented
 diagnostic waivers are applied.
 
 Run it from a built checkout with:

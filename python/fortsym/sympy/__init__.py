@@ -2359,7 +2359,7 @@ class Matrix:
 
     def rref(self, iszerofunc=None, simplify=False, pivots=True,
              normalize_last=True):
-        if (iszerofunc is not None or simplify is not False or
+        if (iszerofunc is not None or simplify not in (False, True) or
                 pivots not in (True, False) or normalize_last is not True):
             raise UnsupportedOperationError("rref options")
         matrix_expression, temporary = self._matrix_expression()
