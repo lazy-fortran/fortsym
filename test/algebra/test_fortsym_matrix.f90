@@ -305,7 +305,7 @@ contains
                 item = product%arg(j)
                 simplified = engine%simplify(item)
                 if (.not. simplified%ok .or. &
-                        chars(simplified%value%exact_text()) /= "0") then
+                    chars(simplified%value%exact_text()) /= "0") then
                     print *, "FAIL null space annihilation: nonzero product"
                     nfail = nfail + 1
                 end if
@@ -413,9 +413,11 @@ contains
     !> Bad shapes must be refused, never squared off or truncated.
     subroutine test_shape_errors_are_refused()
         type(arena_t), target :: a
-        type(expr_t) :: ragged, oblong, vector, r
+        type(expr_t) :: ragged, oblong, vector, singular, r
         type(expr_t) :: ragged_row(2), ragged_short(1), ragged_rows(2)
         type(expr_t) :: oblong_row(2), oblong_rows(1), vector_items(3)
+        type(expr_t) :: singular_row_one(2), singular_row_two(2)
+        type(expr_t) :: singular_rows(2)
         logical :: ok
         type(str_t) :: why
 
@@ -441,6 +443,19 @@ contains
         r = matrix_det(a, oblong, ok, why)
         if (ok) then
             print *, "FAIL determinant of a non-square matrix"
+            nfail = nfail + 1
+        end if
+
+        singular_row_one(1) = num(a, 1)
+        singular_row_one(2) = num(a, 2)
+        singular_row_two(1) = num(a, 2)
+        singular_row_two(2) = num(a, 4)
+        singular_rows(1) = func("List", singular_row_one)
+        singular_rows(2) = func("List", singular_row_two)
+        singular = func("List", singular_rows)
+        r = matrix_inverse(a, singular, ok, why)
+        if (ok) then
+            print *, "FAIL inverse of a singular matrix accepted"
             nfail = nfail + 1
         end if
 
