@@ -142,7 +142,8 @@ for a compact 2D example.
 `SpacetimeForm.to_tensor()` and `SpacetimeTensor.to_form()` are the shared
 runtime bridge between compact form coefficients and first-slot-fastest tensor
 components. The tensor view is exact lower, weight zero, and fully
-antisymmetric; upper slots, density weights, repeated-index nonzeros, and
+antisymmetric with pair metadata on every slot pair; upper slots, density
+weights, repeated-index nonzeros, and
 non-antisymmetric components raise a native error.
 `SpacetimeMetric.covariant()` and `.contravariant()` return typed metric
 tensors. `SpacetimeMetric.vector()`/`.covector()` create explicit component

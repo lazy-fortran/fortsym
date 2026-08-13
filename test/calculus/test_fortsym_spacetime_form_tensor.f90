@@ -16,7 +16,9 @@ program test_fortsym_spacetime_form_tensor
         spacetime_tensor_from_components, spacetime_tensor_component, &
         spacetime_tensor_density_factor, spacetime_tensor_dimension, &
         spacetime_tensor_rank, spacetime_tensor_valid, &
+        spacetime_tensor_symmetry, &
         spacetime_tensor_variance, SPACETIME_LOWER
+    use fortsym_spacetime_tensor, only: SPACETIME_ANTISYMMETRIC
     implicit none
 
     type(arena_t), target :: arena
@@ -71,6 +73,8 @@ program test_fortsym_spacetime_form_tensor
         "bridge emits lower first slot")
     call check(suite, spacetime_tensor_variance(tensor, 2) == SPACETIME_LOWER, &
         "bridge emits lower second slot")
+    call check(suite, spacetime_tensor_symmetry(tensor, 1, 2) == &
+        SPACETIME_ANTISYMMETRIC, "bridge retains antisymmetry metadata")
     call check(suite, spacetime_form_valid(round_form), &
         "tensor form round trip is valid")
     pair(1) = 1

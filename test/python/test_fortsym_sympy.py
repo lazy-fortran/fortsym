@@ -1276,6 +1276,7 @@ class SympySubsetTest(unittest.TestCase):
         self.assertFalse(two_form.is_closed)
         two_tensor = two_form.to_tensor()
         self.assertEqual(two_tensor.variance, (-1, -1))
+        self.assertEqual(two_tensor.symmetry(0, 1), sp.ANTISYMMETRIC)
         oy = oracle.Symbol("form_y")
         expected_coefficients = {3: oy, 5: 2, 6: 3, 9: 4, 10: 5, 12: 6}
         expected_two = oracle.Matrix(4, 4, lambda row, column: (

@@ -1359,6 +1359,9 @@ conversion only. They do not maintain a second geometry implementation.
     checked and false promises are refused; products, permutations,
     contractions, covariant derivatives, Lie transport, density views, and
     variance-preserving views carry surviving declarations.
+  - [x] Make the runtime form/tensor bridge retain the full antisymmetric
+    pair metadata promised by its component representation; native, Python,
+    and SymPy-compatible form conversions expose the same declaration.
 - [ ] **7A.4 Connections and vector calculus.** Extend covariant derivatives to
   every slot and every density weight, then derive `grad`, `curl`, `div`, and
   `laplacian` from the same metric, volume, and connection owners. Add
