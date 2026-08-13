@@ -1406,9 +1406,9 @@ class SympySubsetTest(unittest.TestCase):
                     ),
                     0,
                 )
+        actual_jacobian = oracle.sympify(str(chart.jacobian().simplify()))
         self.assertEqual(
-            oracle.sympify(str(chart.jacobian().simplify())),
-            expected_basis.det(),
+            oracle.simplify(actual_jacobian - expected_basis.det()), 0
         )
         actual_sqrtg_squared = oracle.sympify(
             str(chart.sqrtg().simplify())
@@ -1819,6 +1819,7 @@ class SympySubsetTest(unittest.TestCase):
         native = sp.CoordSystem("native_c", native_patch)
         self.assertTrue(native.chart.has_patch)
         self.assertIs(native.chart.patch, native_patch)
+        x, y, z = sp.symbols("diffgeom_x diffgeom_y diffgeom_z")
         direct_chart = sp.Chart((x, y, z), (x, y, z), patch=native_patch)
         self.assertTrue(direct_chart.has_patch)
         self.assertIs(direct_chart.patch, native_patch)
