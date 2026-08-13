@@ -2166,33 +2166,58 @@ class Matrix:
         return self.__rmul__(other)
 
     def __getitem__(self, key):
-        if not isinstance(key, tuple) or len(key) != 2:
-            raise TypeError("Matrix indexing requires (row, column)")
+        if not isinstance(key, tuple):
+            if isinstance(key, slice):
+                return self._flat_slice(key)
+            return self._flat_entry(self._flat_index(key))
         row, column = key
         if isinstance(row, slice) or isinstance(column, slice):
             row_indices = self._matrix_indices(row, self.rows)
             column_indices = self._matrix_indices(column, self.cols)
             return self._matrix_slice(row_indices, column_indices)
-        if self._column_vector:
-            if column != 0:
-                raise IndexError("column matrix has one column")
-            return self._expression.argument(row)
-        row_expression = self._expression.argument(row)
+        return self._entry(
+            self._matrix_index(row, self.rows),
+            self._matrix_index(column, self.cols),
+        )
+
+    def _flat_index(self, index):
+        value = _index(index)
+        size = self.rows * self.cols
+        if value < 0:
+            value += size
+        if value < 0 or value >= size:
+            raise IndexError(f"Index out of range: a[{value}]")
+        return value
+
+    def _flat_entry(self, index):
+        row, column = divmod(index, self.cols)
+        return self._entry(row, column)
+
+    def _flat_slice(self, index):
+        values = []
         try:
-            return row_expression.argument(column)
-        finally:
-            row_expression.close()
+            for flat_index in range(*index.indices(self.rows * self.cols)):
+                values.append(self._flat_entry(flat_index))
+            return values
+        except Exception:
+            for value in values:
+                value.close()
+            raise
+
+    @staticmethod
+    def _matrix_index(index, size):
+        value = _index(index)
+        if value < 0:
+            value += size
+        if value < 0 or value >= size:
+            raise IndexError(f"Index out of range: a[{value}]")
+        return value
 
     @staticmethod
     def _matrix_indices(index, size):
         if isinstance(index, slice):
             return range(*index.indices(size))
-        value = _index(index)
-        if value < 0:
-            value += size
-        if value < 0 or value >= size:
-            raise IndexError("Matrix index out of range")
-        return (value,)
+        return (Matrix._matrix_index(index, size),)
 
     def _matrix_slice(self, row_indices, column_indices):
         arena = self._expression._arena
