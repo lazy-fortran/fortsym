@@ -33,7 +33,8 @@ module fortsym
     use fortsym_linsolve_adapter, only: calculate_linsolve
     use fortsym_matrix_adapter, only: calculate_matrix_det, calculate_matrix_rank, &
         calculate_matrix_inverse, calculate_matrix_transpose, &
-        calculate_matrix_null_space, calculate_matrix_rref
+        calculate_matrix_null_space, calculate_matrix_rref, &
+        calculate_matrix_multiply
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -265,7 +266,7 @@ module fortsym
     public :: str, chars
     public :: subs, subs_many, diff, simplify, refine, expand, factor, &
         series, series_coeff, solve, linsolve, det, rank, inv, matrix_transpose, &
-        nullspace, rref, operation_count, free_symbols
+        nullspace, rref, matrix_multiply, operation_count, free_symbols
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -945,6 +946,38 @@ contains
             result%ok = .true.
         end if
     end function rref
+
+    !> Multiply dense matrices or scale a dense matrix by a scalar.
+    function matrix_multiply(left, right) result(result)
+        type(expr_t), intent(in) :: left, right
+        type(engine_result_t) :: result
+        logical :: ok
+        character(:), allocatable :: why
+        type(native_engine_t) :: engine
+
+        if (.not. is_valid(left) .or. .not. is_valid(right)) then
+            call report_failure(result, "matrix_multiply: invalid expression")
+            return
+        end if
+        if (.not. same_arena(left, right)) then
+            call report_failure(result, &
+                "matrix_multiply: expressions belong to different arenas")
+            return
+        end if
+        if (use_default_engine(left)) then
+            call calculate_matrix_multiply( &
+                left%a, default_engine, left, right, result%value, ok, why)
+        else
+            engine = make_native_engine(left%a)
+            call calculate_matrix_multiply( &
+                left%a, engine, left, right, result%value, ok, why)
+        end if
+        if (.not. ok) then
+            call report_failure(result, why)
+        else
+            result%ok = .true.
+        end if
+    end function matrix_multiply
 
     !> Return the native three-valued zero verdict for an expression.
     !> VERDICT_TRUE means proved zero, VERDICT_FALSE means proved nonzero, and

@@ -656,6 +656,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_multiply",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_multiply",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_poly.poly_together",
         "module": "fortsym_poly",
         "name": "poly_together",
@@ -5702,6 +5712,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym_public_capi.fortsym_matrix_multiply",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_multiply",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym_public_capi.fortsym_chart_sqrtg",
         "module": "fortsym_public_capi",
         "name": "fortsym_chart_sqrtg",
@@ -9187,6 +9208,17 @@
         "id": "fortsym.rref",
         "module": "fortsym",
         "name": "rref",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.matrix_multiply",
+        "module": "fortsym",
+        "name": "matrix_multiply",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -17700,12 +17732,12 @@
     "classification_counts": {
       "delegated": 2843,
       "external": 10,
-      "facade": 736,
-      "native": 4432,
+      "facade": 738,
+      "native": 4435,
       "python-adapter": 2799,
       "refused": 24995
     },
-    "fortran_public_exports": 1677,
+    "fortran_public_exports": 1680,
     "sympy": {
       "classes": 1728,
       "methods": 5781,

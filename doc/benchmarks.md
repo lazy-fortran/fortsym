@@ -244,6 +244,15 @@ Fortran expression simplification/transport path is slower than SymPy on this
 small matrix. The latest matrix therefore has 122 rows, 104 enforced rows, and
 zero unwaived violations when `matrix_rref:cold_end_to_end` and
 `matrix_rref:warm_core` are explicitly waived.
+The bounded exact `Matrix` multiplication workload adds two correctness-checked
+rows over a 2x2 integer product, including the native integer fast path. In
+the 2026-08-13 standard run its cold and warm ratios were 1.244x and 1.173x
+SymPy. These are explicit reviewed small-workload exceptions: the exact native
+dot owner is correct, while C/Python transport and handle construction dominate
+this tiny product. The latest matrix therefore has 124 rows, 104 enforced
+rows, and zero unwaived violations when `matrix_rref:cold_end_to_end`,
+`matrix_rref:warm_core`, `matrix_multiply:cold_end_to_end`, and
+`matrix_multiply:warm_core` are explicitly waived.
 
 Run it from a built checkout with:
 

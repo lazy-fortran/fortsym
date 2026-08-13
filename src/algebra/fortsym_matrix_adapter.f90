@@ -6,7 +6,7 @@ module fortsym_matrix_adapter
     use fortsym_engine, only: engine_t, engine_result_t
     use fortsym_expr, only: expr_t
     use fortsym_matrix, only: matrix_det, matrix_rank, matrix_inverse, &
-        matrix_transpose, matrix_null_space, matrix_rref
+        matrix_transpose, matrix_null_space, matrix_rref, matrix_dot
     use fortsym_string, only: str_t, chars
     implicit none
     private
@@ -17,6 +17,7 @@ module fortsym_matrix_adapter
     public :: calculate_matrix_transpose
     public :: calculate_matrix_null_space
     public :: calculate_matrix_rref
+    public :: calculate_matrix_multiply
 
 contains
 
@@ -103,6 +104,22 @@ contains
         value = matrix_rref(a, expression, ok, message)
         why = chars(message)
     end subroutine calculate_matrix_rref
+
+    subroutine calculate_matrix_multiply(a, engine, left, right, value, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: left, right
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(str_t) :: message
+        logical :: canonical
+
+        value = matrix_dot(a, left, right, ok, message, canonical)
+        why = chars(message)
+        if (.not. ok .or. canonical) return
+        call simplify_matrix_value(engine, value, ok, why)
+    end subroutine calculate_matrix_multiply
 
     subroutine simplify_matrix_value(engine, value, ok, why)
         class(engine_t), intent(inout) :: engine

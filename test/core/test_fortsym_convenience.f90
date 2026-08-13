@@ -33,6 +33,7 @@ program test_fortsym_convenience
     type(expr_t) :: nullspace_rows(2), nullspace_matrix
     type(expr_t) :: nullspace_vector, nullspace_entry
     type(expr_t) :: reduced_matrix, reduced_row, pivot_columns
+    type(expr_t) :: product_row, product_entry
     type(str_t), allocatable :: free_names(:)
     type(expr_t) :: stale
     type(engine_result_t) :: result, zero_result
@@ -195,6 +196,15 @@ program test_fortsym_convenience
             reduced_row%arg(3) == num(default_storage, 0_int64) .and. &
             pivot_columns%arg(1) == num(default_storage, 0_int64) .and. &
             pivot_columns%arg(2) == num(default_storage, 2_int64), failures)
+    end if
+    result = matrix_multiply(determinant_matrix, determinant_matrix)
+    if (.not. result%ok) then
+        call check("facade exposes exact matrix multiplication", .false., failures)
+    else
+        product_row = result%value%arg(1)
+        product_entry = product_row%arg(1)
+        call check("facade exposes exact matrix multiplication", &
+            product_entry == num(default_storage, 7_int64), failures)
     end if
     result = series(exp(mu), mu, num(default_storage, 0_int64), 3)
     series_value = result%value
