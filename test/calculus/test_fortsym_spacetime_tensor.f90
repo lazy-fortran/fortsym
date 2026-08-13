@@ -16,6 +16,7 @@ program test_fortsym_spacetime_tensor
         spacetime_tensor_rank, spacetime_tensor_dimension, &
         spacetime_tensor_variance, spacetime_tensor_density_weight, &
         spacetime_tensor_symmetry, spacetime_tensor_declare_symmetry, &
+        spacetime_tensor_symmetrize, spacetime_tensor_antisymmetrize, &
         spacetime_tensor_valid, spacetime_tensor_density_factor, &
         spacetime_tensor_raise, spacetime_tensor_lower, &
         spacetime_tensor_product, spacetime_tensor_contract, &
@@ -44,6 +45,7 @@ program test_fortsym_spacetime_tensor
     type(spacetime_tensor_t) :: typed_scalar, wrong_space_scalar
     type(spacetime_tensor_t) :: rank_four, rank_five
     type(spacetime_tensor_t) :: symmetry_value, antisymmetry_value, refused_symmetry
+    type(spacetime_tensor_t) :: symmetric_projection, antisymmetric_projection
     type(expr_t) :: coordinates(SPACETIME_DIM)
     type(expr_t) :: components(SPACETIME_DIM, SPACETIME_DIM)
     type(expr_t) :: values(SPACETIME_DIM), factor
@@ -136,6 +138,19 @@ program test_fortsym_spacetime_tensor
         1, 2, SPACETIME_ANTISYMMETRIC)
     call check(suite, spacetime_tensor_symmetry(antisymmetry_value, 1, 2) == &
         SPACETIME_ANTISYMMETRIC, "antisymmetric runtime declaration")
+    symmetry_values(3) = num(arena, 4)
+    symmetry_value = spacetime_tensor_from_components(metric, 2, symmetry_values, &
+        lower_variance)
+    symmetric_projection = spacetime_tensor_symmetrize(symmetry_value, 1, 2)
+    antisymmetric_projection = spacetime_tensor_antisymmetrize(symmetry_value, 1, 2)
+    call check(suite, spacetime_tensor_symmetry(symmetric_projection, 1, 2) == &
+        SPACETIME_SYMMETRIC, "symmetric projection metadata")
+    call check_identity(suite, engine, "symmetric runtime projection", &
+        spacetime_tensor_component(symmetric_projection, indices) - 3)
+    call check(suite, spacetime_tensor_symmetry(antisymmetric_projection, 1, 2) == &
+        SPACETIME_ANTISYMMETRIC, "antisymmetric projection metadata")
+    call check_identity(suite, engine, "antisymmetric runtime projection", &
+        spacetime_tensor_component(antisymmetric_projection, indices) - 1)
 
     factor = sqrt(num(arena, 1))
     density_value = spacetime_tensor_density_factor(upper, factor)

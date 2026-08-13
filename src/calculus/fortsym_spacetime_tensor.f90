@@ -7,7 +7,7 @@ module fortsym_spacetime_tensor
     ! silently pass through a three-dimensional representation.
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, num, is_valid, same_arena, &
-        operator(+), operator(-), operator(*), operator(==)
+        operator(+), operator(-), operator(*), operator(/), operator(==)
     use fortsym_diff, only: diff
     use fortsym_index, only: index_t, index_valid, compatible_indices, &
         index_dimension, index_slot, index_variance
@@ -52,6 +52,7 @@ module fortsym_spacetime_tensor
     public :: spacetime_tensor_rank, spacetime_tensor_dimension
     public :: spacetime_tensor_variance, spacetime_tensor_density_weight
     public :: spacetime_tensor_symmetry, spacetime_tensor_declare_symmetry
+    public :: spacetime_tensor_symmetrize, spacetime_tensor_antisymmetrize
     public :: spacetime_tensor_valid, spacetime_tensor_same_arena
     public :: spacetime_tensor_density, spacetime_tensor_density_factor
     public :: spacetime_tensor_raise, spacetime_tensor_lower
@@ -351,6 +352,26 @@ contains
         result%symmetry(first, second) = kind
         result%symmetry(second, first) = kind
     end function spacetime_tensor_declare_symmetry
+
+    !> Project two same-variance slots onto their symmetric part.
+    function spacetime_tensor_symmetrize(tensor_value, first, second) &
+            result(result)
+        type(spacetime_tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: first, second
+        type(spacetime_tensor_t) :: result
+
+        result = spacetime_symmetrize_pair(tensor_value, first, second, .false.)
+    end function spacetime_tensor_symmetrize
+
+    !> Project two same-variance slots onto their antisymmetric part.
+    function spacetime_tensor_antisymmetrize(tensor_value, first, second) &
+            result(result)
+        type(spacetime_tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: first, second
+        type(spacetime_tensor_t) :: result
+
+        result = spacetime_symmetrize_pair(tensor_value, first, second, .true.)
+    end function spacetime_tensor_antisymmetrize
 
     function spacetime_tensor_valid(tensor_value) result(value)
         type(spacetime_tensor_t), intent(in) :: tensor_value
@@ -972,6 +993,49 @@ contains
         end do
         result%valid = .true.
     end function zero_tensor
+
+    function spacetime_symmetrize_pair(tensor_value, first, second, alternating) &
+            result(result)
+        type(spacetime_tensor_t), intent(in) :: tensor_value
+        integer, intent(in) :: first, second
+        logical, intent(in) :: alternating
+        type(spacetime_tensor_t) :: result
+        integer :: indices(SPACETIME_TENSOR_MAX_RANK)
+        integer :: swapped(SPACETIME_TENSOR_MAX_RANK)
+        integer :: output_index, dimension
+        type(expr_t) :: value
+
+        if (.not. spacetime_tensor_valid(tensor_value)) return
+        if (first < 1 .or. first > tensor_value%rank) return
+        if (second < 1 .or. second > tensor_value%rank) return
+        if (first == second) return
+        if (tensor_value%variance(first) /= tensor_value%variance(second)) return
+        dimension = tensor_value%dimension
+        result = zero_tensor(tensor_value%a, dimension, tensor_value%rank, &
+            tensor_value%variance, tensor_value%density_weight)
+        do output_index = 0, component_count(tensor_value%rank, dimension) - 1
+            call decode_index(output_index, tensor_value%rank, indices, dimension)
+            swapped = indices
+            swapped(first) = indices(second)
+            swapped(second) = indices(first)
+            value = tensor_value%component(encode_index(indices, &
+                tensor_value%rank, dimension)) + &
+                tensor_value%component(encode_index(swapped, &
+                tensor_value%rank, dimension))
+            if (alternating) value = tensor_value%component(encode_index(indices, &
+                tensor_value%rank, dimension)) - &
+                tensor_value%component(encode_index(swapped, &
+                tensor_value%rank, dimension))
+            result%component(output_index) = value/num(tensor_value%a, 2)
+        end do
+        if (alternating) then
+            result%symmetry(first, second) = SPACETIME_ANTISYMMETRIC
+            result%symmetry(second, first) = SPACETIME_ANTISYMMETRIC
+        else
+            result%symmetry(first, second) = SPACETIME_SYMMETRIC
+            result%symmetry(second, first) = SPACETIME_SYMMETRIC
+        end if
+    end function spacetime_symmetrize_pair
 
     function spacetime_metric_component(g) result(value)
         type(spacetime_metric_t), intent(in) :: g

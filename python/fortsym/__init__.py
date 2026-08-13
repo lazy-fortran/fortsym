@@ -907,6 +907,12 @@ def _configure(lib):
             _SIZE, _SIZE, ctypes.c_int,
         ] + spacetime_tensor_arguments[-3:],
     )
+    lib.spacetime_tensor_symmetrize = declare(
+        "fortsym_spacetime_tensor_symmetrize", ctypes.c_int,
+        spacetime_tensor_arguments[:-4] + [
+            _SIZE, _SIZE, ctypes.c_int,
+        ] + spacetime_tensor_arguments[-3:],
+    )
     lib.spacetime_tensor_product = declare(
         "fortsym_spacetime_tensor_product", ctypes.c_int,
         [
@@ -2769,6 +2775,34 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message),
                                "spacetime_tensor_declare_symmetry")
+        return tuple(Expr(self, output[index]) for index in range(len(output)))
+
+    def _spacetime_tensor_symmetrize(self, metric, tensor, first, second,
+                                     antisymmetric):
+        if not isinstance(tensor, SpacetimeTensor) or tensor.metric is not metric:
+            raise ValueError("spacetime tensor must belong to this metric")
+        if tensor.variance is None:
+            raise ValueError("spacetime tensor symmetry needs slot variance")
+        first, second = int(first), int(second)
+        if first < 0 or first >= tensor.rank or second < 0 or second >= tensor.rank:
+            raise IndexError("spacetime tensor symmetry slot is outside the tensor rank")
+        if first == second:
+            raise ValueError("spacetime tensor symmetry needs two distinct slots")
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * (SPACETIME_DIM ** tensor.rank))(
+            *[value._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output = (_CVOID * (SPACETIME_DIM ** tensor.rank))()
+        message = _message()
+        status = self._lib.spacetime_tensor_symmetrize(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, tensor.rank, variance,
+            tensor.density_weight, first + 1, second + 1, int(antisymmetric),
+            output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "spacetime_tensor_symmetrize")
         return tuple(Expr(self, output[index]) for index in range(len(output)))
 
     def _spacetime_tensor_product(self, metric, left, right):
@@ -4830,6 +4864,38 @@ class SpacetimeTensor:
         return SpacetimeTensor(
             self.metric, components, self.shape, self.variance,
             self.density_weight, _owned=True, _symmetries=symmetries,
+        )
+
+    def symmetrize(self, first, second):
+        """Project two same-variance slots onto their symmetric part."""
+        first, second = int(first), int(second)
+        if first < 0 or first >= self.rank or second < 0 or second >= self.rank:
+            raise IndexError("spacetime tensor symmetry slot is outside the tensor rank")
+        if first == second:
+            raise ValueError("spacetime tensor symmetry needs two distinct slots")
+        components = self._arena._spacetime_tensor_symmetrize(
+            self.metric, self, first, second, False
+        )
+        return SpacetimeTensor(
+            self.metric, components, self.shape, self.variance,
+            self.density_weight, _owned=True,
+            _symmetries=((first, second, SYMMETRIC),),
+        )
+
+    def antisymmetrize(self, first, second):
+        """Project two same-variance slots onto their antisymmetric part."""
+        first, second = int(first), int(second)
+        if first < 0 or first >= self.rank or second < 0 or second >= self.rank:
+            raise IndexError("spacetime tensor symmetry slot is outside the tensor rank")
+        if first == second:
+            raise ValueError("spacetime tensor symmetry needs two distinct slots")
+        components = self._arena._spacetime_tensor_symmetrize(
+            self.metric, self, first, second, True
+        )
+        return SpacetimeTensor(
+            self.metric, components, self.shape, self.variance,
+            self.density_weight, _owned=True,
+            _symmetries=((first, second, ANTISYMMETRIC),),
         )
 
     def raise_(self, slot=0):

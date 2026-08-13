@@ -522,6 +522,14 @@ int fortsym_spacetime_tensor_declare_symmetry(
     const fortsym_expr *input[], size_t rank, const int variance[],
     int density_weight, size_t first_slot, size_t second_slot, int symmetry,
     fortsym_expr *out[], char *message, size_t capacity);
+/* `antisymmetric` is zero for symmetrization and nonzero for
+ * antisymmetrization. Slots are one-based. */
+int fortsym_spacetime_tensor_symmetrize(
+    fortsym_arena *arena, const fortsym_expr *components[], int dimension,
+    const fortsym_expr *coordinates[], const int signature[], int orientation,
+    const fortsym_expr *input[], size_t rank, const int variance[],
+    int density_weight, size_t first_slot, size_t second_slot,
+    int antisymmetric, fortsym_expr *out[], char *message, size_t capacity);
 int fortsym_spacetime_tensor_product(
     fortsym_arena *arena, const fortsym_expr *components[], int dimension,
     const fortsym_expr *coordinates[], const int signature[], int orientation,

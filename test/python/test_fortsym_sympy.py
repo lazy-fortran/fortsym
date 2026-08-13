@@ -861,6 +861,28 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(actual_inverse.symmetry(0, 1), sp.SYMMETRIC)
         declared = metric.covariant().declare_symmetry(0, 1, sp.SYMMETRIC)
         self.assertEqual(declared.symmetries, ((0, 1, sp.SYMMETRIC),))
+        nonsymmetric_components = [sp.Integer(0)] * (sp.SPACETIME_DIM ** 2)
+        nonsymmetric_components[0] = sp.Integer(1)
+        nonsymmetric_components[1] = sp.Integer(2)
+        nonsymmetric_components[4] = sp.Integer(3)
+        nonsymmetric_components[5] = sp.Integer(4)
+        nonsymmetric = sp.SpacetimeTensor(
+            metric, nonsymmetric_components, (4, 4), variance=(-1, -1)
+        )
+        symmetric_projection = nonsymmetric.symmetrize(0, 1)
+        antisymmetric_projection = nonsymmetric.antisymmetrize(0, 1)
+        self.assertEqual(symmetric_projection.symmetry(0, 1), sp.SYMMETRIC)
+        self.assertEqual(
+            oracle.sympify(str(symmetric_projection[0, 1].simplify())),
+            oracle.Rational(5, 2),
+        )
+        self.assertEqual(
+            antisymmetric_projection.symmetry(0, 1), sp.ANTISYMMETRIC
+        )
+        self.assertEqual(
+            oracle.sympify(str(antisymmetric_projection[0, 1].simplify())),
+            oracle.Rational(1, 2),
+        )
         self.assertEqual(
             oracle.Matrix(tuple(
                 oracle.sympify(str(actual_inverse[i, j].simplify()))
