@@ -15,6 +15,7 @@ import platform
 import statistics
 import sys
 import time
+from fractions import Fraction
 from pathlib import Path
 from typing import Any, Callable
 
@@ -30,7 +31,8 @@ _ASSUMPTION_OPERATIONS = (
     "rational_assumption_query", "algebraic_assumption_query",
 )
 _CONSTRUCTION_OPERATIONS = (
-    "power_constructor", "power_one_constructor", "tuple_constructor",
+    "power_constructor", "power_one_constructor", "rational_constructor",
+    "tuple_constructor",
     "finite_set_constructor", "complement_constructor",
 )
 _BOOLEAN_CONSTRUCTION_OPERATIONS = (
@@ -866,6 +868,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         x = engine.Symbol(f"{operation}_x_{suffix}", rational=True)
     elif operation == "algebraic_assumption_query":
         x = engine.Integer(2)
+    elif operation == "rational_constructor":
+        x = None
     elif (operation in _CONSTRUCTION_OPERATIONS or
           operation in _BOOLEAN_CONSTRUCTION_OPERATIONS):
         x = engine.Symbol(f"{operation}_x_{suffix}")
@@ -939,6 +943,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.Complement(
             engine.FiniteSet(x), engine.FiniteSet(y)
         )
+    elif operation == "rational_constructor":
+        expression = engine.Rational("6/8")
     elif operation == "boolean_and_constructor":
         y = engine.Symbol(f"{operation}_y_{suffix}")
         expression = engine.And(x > 1, y < 2)
@@ -1085,6 +1091,33 @@ def correctness_cases() -> list[dict[str, Any]]:
     oracle_cases = workload_factories("check", "fixed")[0]
     native_cases = workload_factories("check", "fixed")[0]
     results = []
+    rational_constructor_cases = (
+        ("fraction", (Fraction(6, -8),), "-3/4"),
+        ("ratio_string", ("6/8",), "3/4"),
+        ("finite_float", (0.75,), "3/4"),
+        (
+            "inexact_finite_float", (1.1,),
+            "2476979795053773/2251799813685248",
+        ),
+        ("zero_denominator", (1, 0), "zoo"),
+        ("zero_over_zero", (0, 0), "nan"),
+    )
+    for label, arguments, expected_text in rational_constructor_cases:
+        expected = oracle.Rational(*arguments)
+        actual = native.Rational(*arguments)
+        try:
+            actual_text = str(actual)
+        finally:
+            actual.close()
+        results.append({
+            "operation": f"rational_constructor_{label}",
+            "correct": (
+                result_text(expected) == expected_text and
+                actual_text == expected_text
+            ),
+            "expected": result_text(expected),
+            "actual": actual_text,
+        })
     relation_boundaries = (
         ("equal_int", oracle.Eq(1, 1), native.Eq(1, 1), True),
         ("unequal_int", oracle.Ne(1, 2), native.Ne(1, 2), True),
@@ -1818,7 +1851,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "tuple_constructor", "finite_set_constructor", "complement_constructor", "boolean_and_constructor", "boolean_or_constructor", "boolean_not_constructor", "boolean_xor_constructor", "boolean_implies_constructor", "boolean_equivalent_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate",
+        "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "rational_constructor", "tuple_constructor", "finite_set_constructor", "complement_constructor", "boolean_and_constructor", "boolean_or_constructor", "boolean_not_constructor", "boolean_xor_constructor", "boolean_implies_constructor", "boolean_equivalent_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate",
         "matrix_divide", "solve_rational", "solveset_rational_condition",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):
