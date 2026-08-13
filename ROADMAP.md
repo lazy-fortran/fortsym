@@ -140,6 +140,10 @@ SymPy parity for the entire family.
       simplifier: exact integer/rational `Eq`/`Ne`/ordering results and
       identical-expression `Eq`/`Ne` agree with SymPy, while unknown symbolic
       ordering remains relational and cross-arena operands are refused.
+- [x] Keep the supported tensor indexing boundary explicit: rank-one
+      `SpacetimeTensor` slices return borrowed component views, while
+      higher-rank slices are refused and the native-vs-SymPy test boundary
+      compares through the independent semantic oracle.
 - [ ] Complete exact integer, rational, real, complex, algebraic, infinity,
       NaN, signed-zero, and complex-infinity semantics, including conversion
       and precision rules.
