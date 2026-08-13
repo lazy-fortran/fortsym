@@ -1378,6 +1378,13 @@ def _configure(lib):
         [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _SIZE,
          ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
     )
+    lib.solveset = declare(
+        "fortsym_solveset",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _SIZE,
+         ctypes.POINTER(_SIZE), ctypes.POINTER(_CVOID), _SIZE,
+         ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
+    )
     lib.linsolve = declare(
         "fortsym_linsolve",
         ctypes.c_int,
@@ -7191,6 +7198,34 @@ class Expr:
         if status:
             raise FortSymError(status, _decode(message), "solve")
         return [Expr(self._arena, output[index]) for index in range(count.value)]
+
+    def _solveset(self, variable=None):
+        if variable is None:
+            symbols = self.free_symbols
+            if len(symbols) != 1:
+                raise ValueError(
+                    "solveset without a variable needs exactly one free symbol"
+                )
+            variable = next(iter(symbols))
+        variable = self._arena._check(variable)
+        output = (_CVOID * SOLVE_OUTPUT_CAPACITY)()
+        excluded_output = (_CVOID * SOLVE_OUTPUT_CAPACITY)()
+        count = _SIZE()
+        excluded_count = _SIZE()
+        message = _message()
+        status = self._lib.solveset(
+            self._arena._require(), self._require(), variable._handle,
+            output, SOLVE_OUTPUT_CAPACITY, ctypes.byref(count),
+            excluded_output, SOLVE_OUTPUT_CAPACITY,
+            ctypes.byref(excluded_count), message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "solveset")
+        roots = [Expr(self._arena, output[index])
+                 for index in range(count.value)]
+        excluded = [Expr(self._arena, excluded_output[index])
+                    for index in range(excluded_count.value)]
+        return roots, excluded
 
     def det(self):
         return self._arena._result(

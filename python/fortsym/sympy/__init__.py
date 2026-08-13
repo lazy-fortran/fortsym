@@ -136,9 +136,53 @@ class FiniteSet:
 
     __repr__ = __str__
 
-    def __del__(self):
-        for element in getattr(self, "_elements", ()):
+    def close(self):
+        elements = self._elements
+        self._elements = ()
+        for element in elements:
             element.close()
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+
+class Complement:
+    """Finite-set domain exclusion used by the bounded rational solveset."""
+
+    def __init__(self, base, excluded):
+        if not isinstance(base, FiniteSet) or not isinstance(excluded, FiniteSet):
+            raise UnsupportedOperationError("finite-set complement form")
+        self._base = base
+        self._excluded = excluded
+
+    @property
+    def args(self):
+        return self._base, self._excluded
+
+    def __iter__(self):
+        return iter(self._base)
+
+    def __len__(self):
+        return len(self._base)
+
+    def __contains__(self, value):
+        return value in self._base and value not in self._excluded
+
+    def __eq__(self, other):
+        return (isinstance(other, Complement) and
+                self.args == other.args)
+
+    def __str__(self):
+        return f"Complement({self._base}, {self._excluded})"
+
+    __repr__ = __str__
+
+    def __del__(self):
+        for value in getattr(self, "args", ()):
+            value.close()
 
 
 class _EmptySet:
@@ -1530,7 +1574,7 @@ def solve(expression, *symbols, **options):
 
 
 def solveset(expression, symbol=None, domain=None):
-    """Return a finite verified root set for the bounded solveset fragment."""
+    """Return a verified finite root set for the bounded solveset fragment."""
     if domain is not None:
         raise UnsupportedOperationError("solveset domains")
     expression = sympify(expression)
@@ -1547,8 +1591,16 @@ def solveset(expression, symbol=None, domain=None):
         symbol = next(iter(symbols))
     else:
         symbol = sympify(symbol)
-    roots = _native_operation(lambda: expression.solve(symbol))
-    return EmptySet if not roots else FiniteSet(*roots)
+    roots, excluded = _native_operation(lambda: expression._solveset(symbol))
+    surviving = [root for root in roots
+                 if not any(root == pole for pole in excluded)]
+    base = EmptySet if not surviving else FiniteSet(*surviving)
+    if not surviving or not excluded:
+        return base
+    if all(root.is_number and pole.is_number and root != pole
+           for root in surviving for pole in excluded):
+        return base
+    return Complement(base, FiniteSet(*excluded))
 
 
 def linsolve(system, *symbols, **options):
@@ -1952,6 +2004,6 @@ __all__ = [
     "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
     "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
-    "integrate", "limit", "series", "solve", "det", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Tuple", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
+    "integrate", "limit", "series", "solve", "det", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Complement", "Tuple", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
     "oo", "zoo", "nan",
 ]

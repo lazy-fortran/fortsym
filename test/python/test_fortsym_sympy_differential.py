@@ -291,6 +291,8 @@ class SympyDifferentialTest(unittest.TestCase):
              native.solveset(native_x**2 - 1, native_x)),
             (oracle.solveset((oracle_x - 1) / (oracle_x + 1), oracle_x),
              native.solveset((native_x - 1) / (native_x + 1), native_x)),
+            (oracle.solveset((oracle_x - 1) / (oracle_x - 1), oracle_x),
+             native.solveset((native_x - 1) / (native_x - 1), native_x)),
             (oracle.solveset(1 / (oracle_x - 1) - 1, oracle_x),
              native.solveset(1 / (native_x - 1) - 1, native_x)),
             (oracle.solveset((oracle_x - 1)**2),
@@ -308,6 +310,22 @@ class SympyDifferentialTest(unittest.TestCase):
         native_x = native.Symbol("solveset_refusal_x")
         with self.assertRaises(native.UnsupportedOperationError):
             native.solveset(native_x**2 - 1, native_x, domain=1)
+
+    def test_solveset_preserves_symbolic_rational_poles(self):
+        oracle_x, oracle_a, oracle_b = oracle.symbols(
+            "solveset_pole_x solveset_pole_a solveset_pole_b"
+        )
+        native_x, native_a, native_b = native.symbols(
+            "solveset_pole_x solveset_pole_a solveset_pole_b"
+        )
+        expected = oracle.solveset(
+            (oracle_x - 1) / (oracle_a * oracle_x + oracle_b), oracle_x
+        )
+        actual = native.solveset(
+            (native_x - 1) / (native_a * native_x + native_b), native_x
+        )
+        self.assertEqual(str(actual), str(expected))
+        self.assertIsInstance(actual, native.Complement)
 
     def test_bounded_linsolve_matches_sympy(self):
         oracle_x, oracle_y = oracle.symbols("linsolve_x linsolve_y")

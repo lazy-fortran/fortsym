@@ -212,6 +212,14 @@ int fortsym_solve(fortsym_arena *arena, const fortsym_expr *expression,
                   const fortsym_expr *variable, fortsym_expr *out[],
                   size_t output_capacity, size_t *count, char *message,
                   size_t capacity);
+/* Default-complex solveset fragment. `out` receives verified roots and
+ * `excluded_out` receives verified denominator poles for rational equations.
+ * The Python facade turns a nonempty pair into SymPy's Complement result. */
+int fortsym_solveset(fortsym_arena *arena, const fortsym_expr *expression,
+                     const fortsym_expr *variable, fortsym_expr *out[],
+                     size_t output_capacity, size_t *count,
+                     fortsym_expr *excluded_out[], size_t excluded_capacity,
+                     size_t *excluded_count, char *message, size_t capacity);
 /* Solve one square exact-rational system with one right-hand side. `matrix`
  * is a flattened column-major n-by-n handle array and `right_hand_side` has
  * n entries. The result contains n verified values in variable order. This

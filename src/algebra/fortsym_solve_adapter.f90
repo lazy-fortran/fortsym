@@ -15,6 +15,7 @@ module fortsym_solve_adapter
     private
 
     public :: calculate_solve
+    public :: calculate_solveset
 
 contains
 
@@ -91,6 +92,72 @@ contains
         ok = .true.
         why = ""
     end subroutine calculate_solve
+
+    subroutine calculate_solveset(a, engine, equation, variable, roots, &
+            root_count, excluded_roots, excluded_count, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: equation, variable
+        type(expr_t), allocatable, intent(out) :: roots(:), excluded_roots(:)
+        integer, intent(out) :: root_count, excluded_count
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(expr_t) :: residual
+        type(engine_result_t) :: scalar
+        character(:), allocatable :: polynomial_why, rational_why
+        logical :: good
+        integer :: k, count
+
+        allocate (roots(0), excluded_roots(0))
+        root_count = 0
+        excluded_count = 0
+        ok = .false.
+        why = ""
+
+        if (.not. same_arena_for_solve(equation, variable, a)) then
+            why = "equation, variable, and arena must agree"
+            return
+        end if
+        if (variable%kind() /= NK_SYM) then
+            why = "solve variable must be a symbol"
+            return
+        end if
+        call equation_residual(equation, residual, good, why)
+        if (.not. good) return
+
+        call solve_polynomial(a, residual, variable, roots, ok, polynomial_why)
+        if (ok) then
+            count = 0
+            do k = 1, size(roots)
+                if (.not. contains_root(roots, count, roots(k))) then
+                    count = count + 1
+                    roots(count) = roots(k)
+                end if
+            end do
+            root_count = count
+            ok = .true.
+            why = ""
+            return
+        end if
+
+        call solve_rational_polynomial( &
+            a, engine, residual, variable, roots, root_count, ok, rational_why, &
+            excluded_roots, excluded_count)
+        if (ok) return
+
+        scalar = engine%solve(residual, variable)
+        if (.not. scalar%ok) then
+            why = polynomial_why//"; rational solver: "//rational_why// &
+                "; scalar solver: "//chars(scalar%message)
+            return
+        end if
+        deallocate (roots)
+        allocate (roots(1))
+        roots(1) = scalar%value
+        root_count = 1
+        ok = .true.
+        why = ""
+    end subroutine calculate_solveset
 
     subroutine equation_residual(equation, residual, ok, why)
         type(expr_t), intent(in) :: equation

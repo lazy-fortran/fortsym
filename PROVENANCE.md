@@ -31,6 +31,7 @@ documentation.
 | Gröbner bases | Buchberger, *Bruno Buchberger's PhD thesis 1965: An algorithm for finding the basis elements of the residue class ring of a zero dimensional polynomial ideal*, JSC 41(3-4), 2006, DOI 10.1016/j.jsc.2005.09.007 | SymPy and FLINT public source, BSD-3-Clause and LGPL-3.0+ | bounded rational-domain milestone when consumer cases require it |
 | Symbolic integration | Bronstein, *Symbolic Integration I*, 2nd edition, 2005 | SymPy public source, BSD-3-Clause | planned integration milestone |
 | Limits and asymptotic scales | Gruntz, ETH thesis 11432, 1996, DOI 10.3929/ethz-a-001631582 | SymPy public source, BSD-3-Clause | planned limits milestone |
+| Rational equation solution sets | SymPy 1.14.0 `solveset` and `Complement` documentation, pinned in `scripts/collect_provenance.py` | official documentation only, BSD-3-Clause project | native verified numerator roots plus denominator-pole exclusions; no source copied |
 | CAS architecture taxonomy | Meurer et al., PeerJ Computer Science 3:e103, 2017, DOI 10.7717/peerj-cs.103 | SymPy public source, BSD-3-Clause | feature and benchmark classification |
 | Embedded CAS architecture | Bauer, Frink, and Kreckel, JSC 33, 2002, DOI 10.1006/jsco.2001.0494 | GiNaC source not copied, GPL | architecture comparison only |
 | Benchmark inputs | SymEngine 0.14.0 benchmark directory, MIT | pinned official source | planned attributed ports after semantic review |
@@ -45,3 +46,7 @@ SymPy's BSD-3-Clause license.
 Source comments cite the exact formula or algorithm used. Any future adapted
 code records the upstream revision, files, license notice, local files, and
 deviations in a new row before merge.
+
+The reproducible `scripts/collect_provenance.py` command stores the pinned
+reference pages and SHA-256 manifest under ignored `.provenance/literature/`;
+the downloaded third-party documents are not committed or redistributed.

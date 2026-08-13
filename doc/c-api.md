@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 87). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 88). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -28,6 +28,11 @@ equations are supported; the caller supplies output capacity and receives the
 root count. Unsupported domains and options return `FORTSYM_UNSUPPORTED`, and
 a too-small output array returns `FORTSYM_RESOURCE_LIMIT` without producing
 handles.
+`fortsym_solveset` uses the same equation input and returns two caller-owned
+arrays: distinct verified roots and verified denominator poles for the bounded
+rational fragment. The Python facade represents a nontrivial pair as
+`Complement`; `fortsym_solve` retains its list-oriented contract. Both output
+capacities are checked before any handle is returned.
 The chart calculus distinguishes ordinary vectors from weight-one vector densities:
 `fortsym_chart_curl_density` returns the metric-free alternating derivative of a
 covector, while `fortsym_chart_div_density` differentiates a contravariant density

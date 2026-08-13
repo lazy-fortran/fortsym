@@ -24,11 +24,14 @@ int main(void)
     char message[256];
     fortsym_arena *arena = NULL;
     fortsym_expr *x = NULL, *one = NULL, *two = NULL;
+    fortsym_expr *a = NULL, *b = NULL, *ax = NULL, *denominator = NULL;
+    fortsym_expr *numerator = NULL, *rational = NULL;
     fortsym_expr *square = NULL, *equation = NULL, *relation = NULL;
     fortsym_expr *roots[4] = {0};
+    fortsym_expr *excluded[4] = {0};
     size_t count = 0;
 
-    assert(fortsym_abi_version() == 87);
+    assert(fortsym_abi_version() == 88);
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_symbol(arena, "x", &x, message, sizeof message) ==
            FORTSYM_OK);
@@ -58,11 +61,40 @@ int main(void)
     fortsym_expr_free(roots[0]);
     memset(roots, 0, sizeof roots);
 
+    assert(fortsym_symbol(arena, "a", &a, message, sizeof message) ==
+           FORTSYM_OK);
+    assert(fortsym_symbol(arena, "b", &b, message, sizeof message) ==
+           FORTSYM_OK);
+    assert(fortsym_multiply(arena, a, x, &ax, message, sizeof message) ==
+           FORTSYM_OK);
+    assert(fortsym_add(arena, ax, b, &denominator, message,
+                       sizeof message) == FORTSYM_OK);
+    assert(fortsym_subtract(arena, x, one, &numerator, message,
+                            sizeof message) == FORTSYM_OK);
+    assert(fortsym_divide(arena, numerator, denominator, &rational, message,
+                          sizeof message) == FORTSYM_OK);
+    size_t excluded_count = 0;
+    assert(fortsym_solveset(arena, rational, x, roots, 4, &count, excluded,
+                            4, &excluded_count, message, sizeof message) ==
+           FORTSYM_OK);
+    assert(count == 1 && has_text(roots, count, "1"));
+    assert(excluded_count == 1 && has_text(excluded, excluded_count, "-b/a"));
+    fortsym_expr_free(roots[0]);
+    fortsym_expr_free(excluded[0]);
+    memset(roots, 0, sizeof roots);
+    memset(excluded, 0, sizeof excluded);
+
     assert(fortsym_solve(arena, equation, x, roots, 1, &count, message,
                          sizeof message) == FORTSYM_RESOURCE_LIMIT);
     assert(count == 2 && roots[0] == NULL && roots[1] == NULL);
 
     fortsym_expr_free(relation);
+    fortsym_expr_free(rational);
+    fortsym_expr_free(numerator);
+    fortsym_expr_free(denominator);
+    fortsym_expr_free(ax);
+    fortsym_expr_free(b);
+    fortsym_expr_free(a);
     fortsym_expr_free(equation);
     fortsym_expr_free(square);
     fortsym_expr_free(two);
