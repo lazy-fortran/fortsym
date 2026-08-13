@@ -134,7 +134,7 @@ module fortsym_public_capi
         LIMIT_MINUS_INF, FROM_BELOW, TWO_SIDED, FROM_ABOVE
     use fortsym_series_adapter, only: calculate_series, &
         calculate_series_coeff
-    use fortsym_solve_adapter, only: calculate_solve
+    use fortsym_solve_adapter, only: calculate_solve, calculate_solveset
     use fortsym_linsolve_adapter, only: calculate_linsolve
     use fortsym_matrix_adapter, only: calculate_matrix_det, calculate_matrix_rank, &
         calculate_matrix_inverse, calculate_matrix_transpose, &
@@ -194,7 +194,7 @@ module fortsym_public_capi
     public :: fortsym_expand, fortsym_simplify, fortsym_factor, &
         fortsym_together, fortsym_cancel, fortsym_apart, fortsym_collect, &
         c_integrate, c_limit, c_series, c_series_coeff
-    public :: fortsym_solve, fortsym_linsolve, fortsym_matrix_det, &
+    public :: fortsym_solve, fortsym_solveset, fortsym_linsolve, fortsym_matrix_det, &
         fortsym_matrix_rank, fortsym_matrix_inverse, fortsym_matrix_transpose, &
         fortsym_matrix_add, fortsym_matrix_subtract, fortsym_matrix_negate, &
         fortsym_matrix_divide, &
@@ -304,7 +304,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 87_c_int
+        v = 88_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -6183,6 +6183,85 @@ contains
             status = FORTSYM_OK
         end if
     end function fortsym_solve
+
+    function fortsym_solveset(raw, expression_raw, variable_raw, out, &
+            output_capacity, count, excluded_out, excluded_capacity, &
+            excluded_count, message, capacity) bind(c, &
+            name="fortsym_solveset") result(status)
+        type(c_ptr), value :: raw, expression_raw, variable_raw, out
+        type(c_ptr), value :: excluded_out
+        integer(c_size_t), value :: output_capacity, excluded_capacity
+        integer(c_size_t), intent(out) :: count, excluded_count
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, vp
+        type(expr_t) :: expression, variable
+        type(expr_t), allocatable :: roots(:), excluded_roots(:)
+        type(c_ptr), pointer :: output(:), excluded_output(:)
+        logical :: ok
+        character(:), allocatable :: why
+        integer :: root_shape(1), excluded_shape(1), root_count, excluded_count_i
+
+        count = 0_c_size_t
+        excluded_count = 0_c_size_t
+        call put_error(message, capacity, FORTSYM_OK)
+        if (.not. c_associated(out) .or. .not. c_associated(excluded_out) .or. &
+            output_capacity < 1_c_size_t .or. excluded_capacity < 1_c_size_t) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        if (output_capacity > int(huge(0), c_size_t) .or. &
+            excluded_capacity > int(huge(0), c_size_t)) then
+            call fail(status, message, capacity, FORTSYM_RESOURCE_LIMIT)
+            return
+        end if
+        root_shape(1) = int(output_capacity)
+        excluded_shape(1) = int(excluded_capacity)
+        call c_f_pointer(out, output, root_shape)
+        call c_f_pointer(excluded_out, excluded_output, excluded_shape)
+        call clear_handles(output, root_shape(1))
+        call clear_handles(excluded_output, excluded_shape(1))
+
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a) .or. &
+            .not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+
+        call calculate_solveset(a%value, a%engine, expression, variable, roots, &
+            root_count, excluded_roots, excluded_count_i, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        count = int(root_count, c_size_t)
+        excluded_count = int(excluded_count_i, c_size_t)
+        if (output_capacity < count .or. excluded_capacity < excluded_count) then
+            call fail_reason(status, message, capacity, FORTSYM_RESOURCE_LIMIT, &
+                "solveset output array is too small")
+            return
+        end if
+        if (root_count > 0) then
+            call make_expr_array(a, roots, out, root_count, status, message, &
+                capacity)
+            if (status /= FORTSYM_OK) return
+        end if
+        if (excluded_count_i > 0) then
+            call make_expr_array(a, excluded_roots, excluded_out, &
+                excluded_count_i, status, message, capacity)
+        else
+            call put_error(message, capacity, FORTSYM_OK)
+            status = FORTSYM_OK
+        end if
+    end function fortsym_solveset
 
     function fortsym_zero_test(raw, expression_raw, verdict, message, capacity) &
             bind(c, name="fortsym_zero_test") result(status)

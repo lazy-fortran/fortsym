@@ -169,6 +169,14 @@ sympy = "SymPy factor handles broader polynomial domains and returns domain-awar
 fortsym = "Native factorisation is bounded; the C ABI and adapter refuse factorizations that would discard a domain condition."
 difference = "Domain coverage, factor selection, conditions, and failure/refusal behaviour differ."
 
+[[semantic]]
+id = "equation-solving"
+affected = ["solve", "solveset"]
+parity = "partial"
+sympy = "SymPy's solveset returns a mathematical Set and preserves domain exclusions such as rational denominator zeros; solve has a separate list-oriented interface."
+fortsym = "The native one-equation path verifies polynomial roots, transports verified rational numerator and denominator roots through the C ABI, and the Python facade renders symbolic exclusions as bounded Complement results."
+difference = "Only the default complex finite polynomial/rational/scalar-linear fragment is implemented; real domains, ConditionSet, infinite solution sets, inequalities, and broader transcendental and radical families remain explicit refusals."
+
 [[implementation]]
 id = "expression-representation"
 affected = ["all-supported"]

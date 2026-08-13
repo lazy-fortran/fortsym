@@ -197,6 +197,10 @@ SymPy parity for the entire family.
 - [x] Extend one-variable `solve`/`solveset` to bounded exact rational
       functions by solving the combined numerator and verifying every candidate
       against the original residual, so denominator poles are never returned.
+- [x] Preserve bounded symbolic rational denominator poles in `solveset` as
+      native-verified `Complement` exclusions through the C ABI and Python
+      facade; keep `solve`'s list contract unchanged and refuse unsupported
+      domain/condition families explicitly.
 - [x] Expose verified square exact-rational one-right-hand-side `linsolve`
       through the canonical Fortran, C, Python, and SymPy facades as
       `FiniteSet(Tuple(...))`; singular, symbolic, free-parameter, matrix

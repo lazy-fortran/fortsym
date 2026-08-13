@@ -278,6 +278,12 @@ rows for a numerator root verified against its original denominator. In the
 both rows were within the performance baseline. The latest matrix therefore
 has 134 rows, 108 enforced rows, and zero unwaived violations after the
 previously documented diagnostics are waived.
+The symbolic-pole `solveset` workload adds two correctness-checked rows for a
+root set with a parameterised denominator exclusion. In the 2026-08-13
+standard run its cold and warm ratios were 0.037x and 0.047x SymPy; both rows
+were within the performance baseline. The latest matrix therefore has 136 rows,
+110 enforced rows, and zero unwaived violations after the previously documented
+diagnostics are waived.
 
 Run it from a built checkout with:
 

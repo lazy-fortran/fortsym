@@ -21,6 +21,19 @@ exists to prevent:
 Nothing else. If this table grows, the licence review in `COMPATIBILITY.md` §6
 applies.
 
+## Reproducible research snapshots
+
+`scripts/collect_provenance.py` downloads pinned upstream documentation into
+the ignored `.provenance/literature/` directory and writes a SHA-256 manifest.
+The default snapshot records the pinned SymPy `solveset` and set semantics
+pages used for the native `Complement` transport; it contains no copied source
+and is never part of a release. Re-run it after changing the pinned upstream
+revision or when reviewing a new algorithm:
+
+```text
+python3 scripts/collect_provenance.py
+```
+
 ## Third-party repository inventory
 
 This is the repository-level record for compatibility and algorithm work. The
@@ -100,6 +113,14 @@ implementation listed as a reference.
 | Fact propagation | Nelson & Oppen, *Fast decision procedures based on congruence closure*, JACM 27(2), 1980 |
 | Equality saturation | Willsey et al., *egg: Fast and extensible equality saturation*, POPL 2021 |
 | Probabilistic zero testing | Schwartz, JACM 27, 1980; Zippel 1979 |
+
+The bounded rational `solveset` path follows the pinned SymPy set contract:
+solve verified numerator roots, solve verified denominator zeros, and retain
+the latter as a domain exclusion rather than silently cancelling them. The
+behavioural reference is the [SymPy solveset documentation](https://docs.sympy.org/latest/modules/solvers/solveset.html)
+and the set semantics are defined by its [`Complement`](https://docs.sympy.org/latest/modules/sets.html#sympy.sets.sets.Complement)
+contract. The native polynomial and rational owners remain original code and
+retain the polynomial-method citations above.
 
 ### Geometry, tensor calculus, and plasma forms
 

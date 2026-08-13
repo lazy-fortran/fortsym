@@ -632,6 +632,17 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             (native_x - 1) / (native_x + 1),
             names,
         ),
+        "solveset_rational_condition": (
+            (oracle_x - 1) / (
+                oracle.Symbol(f"{label}_a_{suffix}") * oracle_x
+                + oracle.Symbol(f"{label}_b_{suffix}")
+            ),
+            (native_x - 1) / (
+                native.Symbol(f"{label}_a_{suffix}") * native_x
+                + native.Symbol(f"{label}_b_{suffix}")
+            ),
+            names,
+        ),
         "matrix_nullspace": (
             oracle.Matrix([[1, 2, 3], [2, 4, 4]]),
             native.Matrix([[1, 2, 3], [2, 4, 4]]),
@@ -736,6 +747,10 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
     variable = x
     if operation == "solve_rational":
         expression = (x - 1) / (x + 1)
+    elif operation == "solveset_rational_condition":
+        a = engine.Symbol(f"{operation}_a_{suffix}")
+        b = engine.Symbol(f"{operation}_b_{suffix}")
+        expression = (x - 1) / (a*x + b)
     elif operation == "expand":
         y = engine.Symbol(f"{operation}_y_{suffix}")
         expression = (x + y + 1) ** 4
@@ -1188,6 +1203,14 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation == "solve_rational":
             expected = oracle.solve(oracle_expression)
             actual = native.solve(native_expression)
+        elif operation == "solveset_rational_condition":
+            expected = oracle.solveset(
+                oracle_expression, names["check_x_fixed"]
+            )
+            actual = native.solveset(
+                native_expression,
+                native.Symbol("check_x_fixed"),
+            )
         else:
             expected = oracle.factor(oracle_expression)
             actual = native.factor(native_expression)
@@ -1212,6 +1235,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                 if operation in ("matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide")
                 else root_list_equivalent(expected, actual, names)
                 if operation == "solve_rational"
+                else str(expected) == str(actual)
+                if operation == "solveset_rational_condition"
                 else str(expected) == str(actual)
                 if operation == "relation"
                 else compound_equivalent(expected, actual)
@@ -1287,6 +1312,17 @@ def benchmark_workload(
         elif operation == "solve_rational":
             oracle_call = lambda: oracle.solve(oracle_expression)
             native_call = lambda: native.solve(native_expression)
+        elif operation == "solveset_rational_condition":
+            oracle_variable = oracle.Symbol(
+                "solveset_rational_condition_x_warm"
+            )
+            native_variable = native.Symbol("solveset_rational_condition_x_warm")
+            oracle_call = lambda: oracle.solveset(
+                oracle_expression, oracle_variable
+            )
+            native_call = lambda: native.solveset(
+                native_expression, native_variable
+            )
         elif operation == "differentiate":
             oracle_x = oracle.Symbol(f"{operation}_x_warm")
             native_x = native.Symbol(f"{operation}_x_warm")
@@ -1473,6 +1509,8 @@ def benchmark_workload(
                     return expression / 2
                 if operation == "solve_rational":
                     return engine.solve(expression)
+                if operation == "solveset_rational_condition":
+                    return engine.solveset(expression, variable)
                 if operation == "differentiate":
                     return engine.diff(expression, variable)
                 if operation in _ASSUMPTION_OPERATIONS:
@@ -1599,7 +1637,8 @@ def main() -> None:
     workloads = []
     for operation in (
         "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate",
-        "matrix_divide", "solve_rational", *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
+        "matrix_divide", "solve_rational", "solveset_rational_condition",
+        *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):
         if operation in _PREDICATE_OPERATIONS:
             scopes = ("warm_core",)
