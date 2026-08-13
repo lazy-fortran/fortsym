@@ -1047,6 +1047,13 @@ The first-class object model is staged around these metadata owners:
   weight-zero lower antisymmetric tensors convert to and from the compact form
   owner through one native operation, with C ABI/Python facade transport and
   independent refusal checks for non-antisymmetric and density-weighted input.
+- [x] Add the runtime-dimension `fortsym_spacetime_form_tensor` bridge.
+  `spacetime_form_from_tensor(metric, tensor)` and
+  `spacetime_tensor_from_form(metric, form)` share the fixed 1--4D owners and
+  retain first-slot-fastest tensor order versus form-mask order. Conversion is
+  strict for exact lower, weight-zero, fully antisymmetric tensors, including
+  repeated-index checks. C ABI 72, Python `.to_form()`/`.to_tensor()`, and
+  independent Fortran, C, Python, and SymPy checks cover the owner boundary.
 
 The core identities are the derivation contracts for every implementation:
 

@@ -965,6 +965,23 @@ def _configure(lib):
             ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    lib.spacetime_form_from_tensor = declare(
+        "fortsym_spacetime_form_from_tensor", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.spacetime_tensor_from_form = declare(
+        "fortsym_spacetime_tensor_from_form", ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.c_int,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(ctypes.c_int), ctypes.c_int,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.spacetime_form_star = declare(
         "fortsym_spacetime_form_star", ctypes.c_int,
         [
@@ -2977,6 +2994,37 @@ class Arena:
             raise FortSymError(status, _decode(message), "form_volume")
         return tuple(Expr(self, output[index]) for index in range(16))
 
+    def _spacetime_form_from_tensor(self, metric, tensor):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * (SPACETIME_DIM ** tensor.rank))(
+            *[value._handle for value in tensor.components]
+        )
+        variance = (ctypes.c_int * tensor.rank)(*tensor.variance)
+        output = (_CVOID * 16)()
+        message = _message()
+        status = self._lib.spacetime_form_from_tensor(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, tensor.rank, variance,
+            tensor.density_weight, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "form_from_tensor")
+        return tuple(Expr(self, output[index]) for index in range(16))
+
+    def _spacetime_tensor_from_form(self, metric, form):
+        components, coordinates, signature = self._spacetime_inputs(metric)
+        values = (_CVOID * 16)(*[value._handle for value in form.components])
+        output = (_CVOID * (SPACETIME_DIM ** form.degree))()
+        message = _message()
+        status = self._lib.spacetime_tensor_from_form(
+            self._require(), components, metric.dimension, coordinates, signature,
+            metric.orientation, values, form.degree, output, message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "tensor_from_form")
+        return tuple(Expr(self, output[index])
+                     for index in range(SPACETIME_DIM ** form.degree))
+
     def _spacetime_form_closed(self, metric, form):
         components, coordinates, signature = self._spacetime_inputs(metric)
         values = (_CVOID * 16)(*[value._handle for value in form.components])
@@ -4854,6 +4902,13 @@ class SpacetimeTensor:
 
     lie_derivative = lie
 
+    def to_form(self):
+        """Convert an exact lower antisymmetric tensor to a spacetime form."""
+        if self.variance is None:
+            raise ValueError("spacetime tensor-to-form conversion needs variance")
+        components = self._arena._spacetime_form_from_tensor(self.metric, self)
+        return SpacetimeForm(self.metric, components, self.rank, _owned=True)
+
     def close(self):
         if self._owned:
             for value in self.components:
@@ -5239,6 +5294,15 @@ class SpacetimeForm:
         return SpacetimeForm(self.metric, components, degree, _owned=True)
 
     exterior_diff = d
+
+    def to_tensor(self):
+        """Convert this form to its fully antisymmetric lower tensor view."""
+        components = self._arena._spacetime_tensor_from_form(self.metric, self)
+        variance = (-1,) * self.degree
+        return SpacetimeTensor(
+            self.metric, components, (SPACETIME_DIM,) * self.degree,
+            variance=variance, _owned=True,
+        )
 
     @property
     def is_closed(self):

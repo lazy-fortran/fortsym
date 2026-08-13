@@ -19,6 +19,7 @@ int main(void)
     fortsym_expr *one = NULL;
     fortsym_expr *minus_one = NULL;
     fortsym_expr *two = NULL;
+    fortsym_expr *negative_t = NULL;
     fortsym_expr *check = NULL;
     fortsym_expr *interior_check = NULL;
     fortsym_expr *lie_check = NULL;
@@ -32,6 +33,9 @@ int main(void)
     const fortsym_expr *gauge_input[16];
     const fortsym_expr *curve[4];
     const fortsym_expr *vector[4];
+    const fortsym_expr *tensor_input[16];
+    const fortsym_expr *form_bridge_input[16];
+    int tensor_variance[2] = {-1, -1};
     fortsym_expr *geodesic_output[4] = {0};
     fortsym_expr *interior_output[16] = {0};
     fortsym_expr *lie_output[16] = {0};
@@ -42,6 +46,7 @@ int main(void)
     fortsym_expr *dual_output[16] = {0};
     fortsym_expr *current_output[16] = {0};
     fortsym_expr *maxwell_output[16] = {0};
+    fortsym_expr *tensor_output[16] = {0};
 
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK);
@@ -80,6 +85,53 @@ int main(void)
     vector[1] = zero;
     vector[2] = zero;
     vector[3] = zero;
+
+    assert(fortsym_subtract(arena, zero, t, &negative_t, message,
+                            sizeof message) == FORTSYM_OK);
+    for (mask = 0; mask < 16; ++mask) {
+        tensor_input[mask] = zero;
+        form_bridge_input[mask] = zero;
+    }
+    tensor_input[4] = t;
+    tensor_input[1] = negative_t;
+
+    status = fortsym_spacetime_form_from_tensor(
+        arena, metric, 4, coordinates, signature, 1, tensor_input, 2,
+        tensor_variance, 0, output, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    assert(fortsym_subtract(arena, output[3], t, &check, message,
+                            sizeof message) == FORTSYM_OK);
+    assert(fortsym_zero_test(arena, check, &verdict, message,
+                             sizeof message) == FORTSYM_OK);
+    assert(verdict == FORTSYM_ZERO_TRUE);
+    fortsym_expr_free(check);
+    check = NULL;
+    for (mask = 0; mask < 16; ++mask)
+        form_bridge_input[mask] = output[mask];
+    status = fortsym_spacetime_tensor_from_form(
+        arena, metric, 4, coordinates, signature, 1, form_bridge_input, 2,
+        tensor_output, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    assert(fortsym_subtract(arena, tensor_output[4], t, &check, message,
+                            sizeof message) == FORTSYM_OK);
+    assert(fortsym_zero_test(arena, check, &verdict, message,
+                             sizeof message) == FORTSYM_OK);
+    assert(verdict == FORTSYM_ZERO_TRUE);
+    fortsym_expr_free(check);
+    check = NULL;
+    assert(fortsym_add(arena, tensor_output[1], t, &check, message,
+                       sizeof message) == FORTSYM_OK);
+    assert(fortsym_zero_test(arena, check, &verdict, message,
+                             sizeof message) == FORTSYM_OK);
+    assert(verdict == FORTSYM_ZERO_TRUE);
+    fortsym_expr_free(check);
+    check = NULL;
+    for (mask = 0; mask < 16; ++mask) {
+        fortsym_expr_free(output[mask]);
+        output[mask] = NULL;
+        fortsym_expr_free(tensor_output[mask]);
+        tensor_output[mask] = NULL;
+    }
 
     status = fortsym_spacetime_form_volume(
         arena, metric, 4, coordinates, signature, 1, output,
@@ -235,6 +287,7 @@ int main(void)
         fortsym_expr_free(maxwell_output[mask]);
     }
     fortsym_expr_free(two);
+    fortsym_expr_free(negative_t);
     fortsym_expr_free(minus_one);
     fortsym_expr_free(one);
     fortsym_expr_free(zero);

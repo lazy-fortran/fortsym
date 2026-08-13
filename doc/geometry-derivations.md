@@ -145,7 +145,10 @@ form Omega, the same object is:
 The code must check both representations, not merely print matching strings:
 form_from_tensor(F), interior(B,Omega), d(A), and the component density must
 agree. A non-antisymmetric or density-weighted tensor must be refused by the
-form bridge.
+form bridge. The same contract is now available for runtime spacetime owners
+as `spacetime_form_from_tensor(metric, F)` and
+`spacetime_tensor_from_form(metric, beta)`, so relativistic `F_ab` and
+differential-form calculations share one explicit component convention.
 The native magnetic owner now exposes the forward operation as
 `b_flux_form(chart, B, orientation)`, with the typed Python spelling
 `Chart.b_flux_form(B, orientation)` or `B.b_flux(orientation)`. The reverse
