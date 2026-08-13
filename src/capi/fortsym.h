@@ -180,6 +180,11 @@ int fortsym_apart(fortsym_arena *arena, const fortsym_expr *expression,
 int fortsym_collect(fortsym_arena *arena, const fortsym_expr *expression,
                     const fortsym_expr *variable, fortsym_expr **out,
                     char *message, size_t capacity);
+/* Verified one-variable indefinite integration. The constant of integration
+ * is omitted; unsupported antiderivatives return FORTSYM_UNSUPPORTED. */
+int fortsym_integrate(fortsym_arena *arena, const fortsym_expr *expression,
+                      const fortsym_expr *variable, fortsym_expr **out,
+                      char *message, size_t capacity);
 /* Coordinate and magnetic operations use three expressions for both the
  * coordinate symbols and their Cartesian position map. The dimension
  * argument is retained in the ABI so callers can validate the fixed native

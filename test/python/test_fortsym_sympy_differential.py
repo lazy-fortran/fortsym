@@ -141,6 +141,23 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(label=label):
                 self.assert_equivalent(label, oracle_call(), native_call())
 
+    def test_verified_indefinite_integrals_match_sympy(self):
+        oracle_x = oracle.Symbol("integral_x")
+        native_x = native.Symbol("integral_x")
+        cases = [
+            ("power", oracle.integrate(oracle_x**2, oracle_x),
+             native.integrate(native_x**2, native_x)),
+            ("sine", oracle.integrate(oracle.sin(oracle_x), oracle_x),
+             native.integrate(native.sin(native_x), native_x)),
+            ("exponential", oracle.integrate(oracle.exp(2*oracle_x), oracle_x),
+             native.integrate(native.exp(2*native_x), native_x)),
+            ("logarithmic", oracle.integrate(1/oracle_x, oracle_x),
+             native.integrate(1/native_x, native_x)),
+        ]
+        for label, expected, actual in cases:
+            with self.subTest(label=label):
+                self.assert_equivalent(label, expected, actual)
+
     def test_power_constructor_identities_match_oracle(self):
         def cases(api):
             x = api.Symbol("power_constructor_x")
@@ -1222,8 +1239,6 @@ class SympyDifferentialTest(unittest.TestCase):
         )
 
         refusals = [
-            ("integrate", lambda: oracle.integrate(oracle.sin(oracle_x), oracle_x),
-             lambda: native.integrate(native.sin(native_x), native_x)),
             ("limit", lambda: oracle.limit(oracle.sin(oracle_x) / oracle_x, oracle_x, 0),
              lambda: native.limit(native.sin(native_x) / native_x, native_x, 0)),
             ("series", lambda: oracle.series(oracle.exp(oracle_x), oracle_x, 0, 3),

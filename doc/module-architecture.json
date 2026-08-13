@@ -632,6 +632,16 @@
     {
       "dependencies": [
         "fortsym_arena",
+        "fortsym_expr",
+        "fortsym_integrate"
+      ],
+      "name": "fortsym_integrate_adapter",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_integrate_adapter.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
         "fortsym_dialect",
         "fortsym_expr",
         "fortsym_kernel_target",
