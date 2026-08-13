@@ -47,6 +47,76 @@ class InconsistentAssumptions(ValueError):
     """The supplied assumptions cannot hold simultaneously."""
 
 
+class FiniteSet:
+    """Small set-valued result owner for the verified solveset fragment."""
+
+    def __init__(self, *elements):
+        values = []
+        for element in elements:
+            value = sympify(element)
+            if any(value == previous for previous in values):
+                continue
+            values.append(value)
+        values.sort(key=_sympy_sort_key)
+        self._elements = tuple(values)
+
+    @property
+    def args(self):
+        return self._elements
+
+    def __iter__(self):
+        return iter(self._elements)
+
+    def __len__(self):
+        return len(self._elements)
+
+    def __contains__(self, value):
+        try:
+            value = sympify(value)
+        except (TypeError, UnsupportedOperationError):
+            return False
+        return any(value == element for element in self._elements)
+
+    def __eq__(self, other):
+        return isinstance(other, FiniteSet) and set(self._elements) == set(other._elements)
+
+    def __str__(self):
+        return "{" + ", ".join(str(element) for element in self._elements) + "}"
+
+    __repr__ = __str__
+
+    def __del__(self):
+        for element in getattr(self, "_elements", ()):
+            element.close()
+
+
+class _EmptySet:
+    args = ()
+
+    def __iter__(self):
+        return iter(())
+
+    def __len__(self):
+        return 0
+
+    def __contains__(self, _):
+        return False
+
+    def __str__(self):
+        return "EmptySet"
+
+    __repr__ = __str__
+
+    def __eq__(self, other):
+        return isinstance(other, _EmptySet)
+
+    def __hash__(self):
+        return hash(_EmptySet)
+
+
+EmptySet = _EmptySet()
+
+
 class TensorSymmetry:
     """SymPy-named pair-symmetry descriptor for native chart tensors.
 
@@ -1406,6 +1476,30 @@ def solve(expression, *symbols, **options):
     expression = sympify(expression)
     variable = None if not symbols else sympify(symbols[0])
     return _native_operation(lambda: expression.solve(variable))
+
+
+def solveset(expression, symbol=None, domain=None):
+    """Return a finite verified root set for the bounded solveset fragment."""
+    if domain is not None:
+        raise UnsupportedOperationError("solveset domains")
+    expression = sympify(expression)
+    if symbol is None:
+        symbols = expression.free_symbols
+        if len(symbols) == 0:
+            if expression == 0:
+                raise UnsupportedOperationError("universal solveset result")
+            return EmptySet
+        if len(symbols) != 1:
+            raise ValueError(
+                "solveset without a variable needs exactly one free symbol"
+            )
+        symbol = next(iter(symbols))
+    else:
+        symbol = sympify(symbol)
+    roots = _native_operation(lambda: expression.solve(symbol))
+    return EmptySet if not roots else FiniteSet(*roots)
+
+
 Matrix = _unsupported("Matrix")
 
 
@@ -1435,6 +1529,6 @@ __all__ = [
     "floor", "ceiling", "re", "im", "conjugate", "arg", "diff", "subs", "expand",
     "simplify", "count_ops", "factor", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
-    "integrate", "limit", "series", "solve", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
+    "integrate", "limit", "series", "solve", "solveset", "FiniteSet", "EmptySet", "Matrix", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
     "oo", "zoo", "nan",
 ]

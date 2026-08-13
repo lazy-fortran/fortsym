@@ -254,6 +254,28 @@ class SympyDifferentialTest(unittest.TestCase):
             native.solve(native.Symbol("solve_refusal_x") +
                          native.Symbol("solve_refusal_y") + 1)
 
+    def test_bounded_solveset_matches_sympy(self):
+        oracle_x = oracle.Symbol("solveset_x")
+        native_x = native.Symbol("solveset_x")
+        cases = [
+            (oracle.solveset(oracle_x**2 - 1, oracle_x),
+             native.solveset(native_x**2 - 1, native_x)),
+            (oracle.solveset((oracle_x - 1)**2),
+             native.solveset((native_x - 1)**2)),
+            (oracle.solveset(oracle.Eq(oracle_x, 2), oracle_x),
+             native.solveset(native.Eq(native_x, 2), native_x)),
+            (oracle.solveset(3), native.solveset(3)),
+        ]
+        for expected, actual in cases:
+            with self.subTest(expected=str(expected)):
+                self.assertEqual(str(actual), str(expected))
+                self.assertEqual(len(actual), len(expected.args))
+
+    def test_solveset_refuses_nondefault_domains(self):
+        native_x = native.Symbol("solveset_refusal_x")
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.solveset(native_x**2 - 1, native_x, domain=1)
+
     def test_power_constructor_identities_match_oracle(self):
         def cases(api):
             x = api.Symbol("power_constructor_x")
