@@ -294,10 +294,14 @@ SymPy parity for the entire family.
       direct nested-`List` owner, reusing exact scalar multiplication and
       refusing malformed or unequal-shaped matrices without materializing a
       rank-two temporary array.
-- [ ] Bring the cold end-to-end `Matrix.multiply_elementwise()` benchmark row
-      to native/SymPy `<= 1.0`; the warm-core operation is already below the
-      SymPy 1.14.0 oracle, while constructor/FFI overhead remains diagnosed in
-      the current benchmark record.
+- [x] Bring the cold end-to-end `Matrix.multiply_elementwise()` benchmark row
+      to native/SymPy `<= 1.0` by reusing the default arena's small-integer
+      cache during Matrix construction; the latest stable sample is 0.847x
+      against the SymPy 1.14.0 oracle. Warm-core variance remains tracked as
+      a separate performance follow-up rather than being hidden in this item.
+- [ ] Bring the warm-core `Matrix.multiply_elementwise()` benchmark row to
+      native/SymPy `<= 1.0` in a stable higher-repetition sample without
+      duplicating the native scalar or matrix owners.
 - [x] Align bounded `Matrix` shape metadata with SymPy through `len()` and
       `is_square`, keeping both operations O(1) and adapter-local.
 - [x] Accept flat one-dimensional `Matrix` inputs as SymPy-compatible column
