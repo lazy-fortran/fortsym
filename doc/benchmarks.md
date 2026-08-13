@@ -285,6 +285,16 @@ were within the performance baseline. The latest matrix therefore has 136 rows,
 110 enforced rows, and zero unwaived violations after the previously documented
 diagnostics are waived.
 
+The native-owned `Tuple` constructor adds one cold end-to-end row. Its
+correctness check compares the tuple shape and contents with SymPy while the
+independent native invariant checks the underlying `Tuple` application node.
+In the 2026-08-13 standard run its ratio was 2.99x SymPy. Because this is a
+small Python/ABI construction workload, the row is an explicit reviewed
+construction exception recorded as `tuple_constructor:cold_end_to_end`, rather
+than hidden in an aggregate score. The latest matrix therefore has 137 rows,
+110 enforced rows, and zero unwaived violations after the 27 documented
+diagnostic waivers are applied.
+
 Run it from a built checkout with:
 
 ```text

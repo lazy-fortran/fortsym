@@ -33,9 +33,10 @@ return an explicit refusal.
 SymPy-compatible bounded `FiniteSet`/`EmptySet` result shape. Symbolic rational
 denominator zeros are preserved as a bounded `Complement`; domains beyond the
 default complex-domain fragment are explicit refusals.
-`linsolve((matrix, right_hand_side), symbols)` exposes the verified native
-square exact-rational one-right-hand-side fragment and returns a
-`FiniteSet(Tuple(...))` result. Symbolic coefficients, singular or
+`Tuple(...)` is a native-owned immutable tuple application with SymPy's
+iteration, indexing, and printing shape. `linsolve((matrix, right_hand_side),
+symbols)` exposes the verified native square exact-rational one-right-hand-side
+fragment and returns a `FiniteSet(Tuple(...))` result. Symbolic coefficients, singular or
 non-square systems, matrix objects, free parameters, and alternate forms are
 explicit refusals.
 `Matrix(rows)` constructs a bounded exact dense matrix, supports `(row,

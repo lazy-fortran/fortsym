@@ -345,6 +345,36 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(tuple(str(value) for value in actual.args[0]),
                          tuple(str(value) for value in next(iter(expected))))
 
+    def test_tuple_result_is_native_owned_and_matches_sympy(self):
+        expected = oracle.Tuple(self.locals["x"], 2)
+        actual = native.Tuple(native.Symbol("x"), 2)
+        self.assertEqual(str(actual), str(expected))
+        self.assertEqual(len(actual), 2)
+        self.assertEqual(actual._expression.name, "Tuple")
+        self.assertEqual(actual._expression.arity, 2)
+        values = actual.args
+        try:
+            self.assertEqual([str(value) for value in values], ["x", "2"])
+        finally:
+            for value in values:
+                value.close()
+        last = actual[-1]
+        try:
+            self.assertEqual(str(last), "2")
+        finally:
+            last.close()
+        sliced = actual[:1]
+        try:
+            self.assertEqual(str(sliced), "(x,)")
+            first = sliced[0]
+            try:
+                self.assertEqual(str(first), "x")
+            finally:
+                first.close()
+        finally:
+            sliced.close()
+        actual.close()
+
     def test_bounded_matrix_and_det_match_sympy(self):
         oracle_matrix = oracle.Matrix([[1, 2], [3, 4]])
         native_matrix = native.Matrix([[1, 2], [3, 4]])
