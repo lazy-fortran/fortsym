@@ -212,6 +212,9 @@ SymPy parity for the entire family.
 - [x] Expose bounded exact dense `Matrix.nullspace()` through the canonical
       facades, returning column matrices with exact RREF basis vectors and
       refusing malformed or over-bounded forms.
+- [x] Expose bounded exact dense `Matrix.rref()` through the canonical facades,
+      returning the reduced matrix and zero-based pivot tuple with explicit
+      refusal of unsupported options and over-bounded forms.
 - [ ] Complete `solve`, `solveset`, real/complex solves, `linsolve`, and
       solution conditions for polynomial, rational, radical, inverse-function,
       and supported transcendental equations.

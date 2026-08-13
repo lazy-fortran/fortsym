@@ -1737,6 +1737,39 @@ class Matrix:
         finally:
             basis.close()
 
+    def rref(self, iszerofunc=None, simplify=False, pivots=True,
+             normalize_last=True):
+        if (iszerofunc is not None or simplify is not False or
+                pivots is not True or normalize_last is not True):
+            raise UnsupportedOperationError("rref options")
+        matrix_expression, temporary = self._matrix_expression()
+        try:
+            result = _native_operation(matrix_expression.rref)
+        finally:
+            if temporary is not None:
+                temporary.close()
+        reduced = None
+        pivot_values = []
+        try:
+            reduced = result.argument(0)
+            pivot_expression = result.argument(1)
+            try:
+                for index in range(pivot_expression.arity):
+                    pivot = pivot_expression.argument(index)
+                    try:
+                        pivot_values.append(int(pivot.exact_text))
+                    finally:
+                        pivot.close()
+            finally:
+                pivot_expression.close()
+            matrix = self._from_expression(reduced, self.rows, self.cols)
+            reduced = None
+            return matrix, tuple(pivot_values)
+        finally:
+            if reduced is not None:
+                reduced.close()
+            result.close()
+
     def __str__(self):
         if self._column_vector:
             entries = []

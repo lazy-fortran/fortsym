@@ -15,7 +15,8 @@ int main(void)
     fortsym_expr *determinant = NULL, *rank = NULL, *inverse = NULL;
     fortsym_expr *transposed = NULL;
     fortsym_expr *null_row_one = NULL, *null_row_two = NULL;
-    fortsym_expr *null_matrix = NULL, *nullspace = NULL;
+    fortsym_expr *null_matrix = NULL, *nullspace = NULL, *rref = NULL;
+    fortsym_expr *reduced = NULL, *pivots = NULL;
     fortsym_expr *inverse_row = NULL, *inverse_entry = NULL;
     const fortsym_expr *row_one_values[2];
     const fortsym_expr *row_two_values[2];
@@ -24,7 +25,7 @@ int main(void)
     const fortsym_expr *null_row_two_values[3];
     const fortsym_expr *null_rows[2];
 
-    assert(fortsym_abi_version() == 83);
+    assert(fortsym_abi_version() == 84);
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 1, &one, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 2, &two, message, sizeof message) == FORTSYM_OK);
@@ -74,6 +75,21 @@ int main(void)
     assert(fortsym_expr_text(nullspace, text, sizeof text, &required,
                              message, sizeof message) == FORTSYM_OK);
     assert(strcmp(text, "List(List(-2, 1, 0))") == 0);
+    assert(fortsym_matrix_rref(arena, null_matrix, &rref, message,
+                               sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_argument(rref, 0, &reduced, message,
+                                 sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_text(reduced, text, sizeof text, &required,
+                             message, sizeof message) == FORTSYM_OK);
+    assert(strcmp(text, "List(List(1, 2, 0), List(0, 0, 1))") == 0);
+    assert(fortsym_expr_argument(rref, 1, &pivots, message,
+                                 sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_text(pivots, text, sizeof text, &required,
+                             message, sizeof message) == FORTSYM_OK);
+    assert(strcmp(text, "List(0, 2)") == 0);
+    fortsym_expr_free(pivots);
+    fortsym_expr_free(reduced);
+    fortsym_expr_free(rref);
     assert(fortsym_matrix_rank(arena, matrix, &rank, message,
                                sizeof message) == FORTSYM_OK);
     assert(fortsym_expr_text(rank, text, sizeof text, &required,
