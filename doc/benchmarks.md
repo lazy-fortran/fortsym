@@ -91,9 +91,10 @@ Legendre infinity-domain simplification,
 and the principal `(-oo)**(3/2)` domain-power branch plus the normalized
 `(-oo)**(2/3)` phase, relational
 and compound-assumption construction, factorization, and supported assumption
-queries. It also records cold `power_constructor` and
-`power_one_constructor` rows for the universal `x**0` and `x**1` construction
-identities. Every workload passes through a SymPy
+queries. It also records cold `power_constructor`,
+`power_one_constructor`, `tuple_constructor`, and `finite_set_constructor`
+rows for construction identities and native-owned composite results. Every
+workload passes through a SymPy
 correctness check before timing; domain expressions use structural equality
 because subtracting equal infinities is itself undefined. The JSON report includes the individual
 samples, median, min/max, native-to-SymPy ratio, Python and platform metadata,
@@ -288,11 +289,21 @@ diagnostics are waived.
 The native-owned `Tuple` constructor adds one cold end-to-end row. Its
 correctness check compares the tuple shape and contents with SymPy while the
 independent native invariant checks the underlying `Tuple` application node.
-In the 2026-08-13 standard run its ratio was 2.99x SymPy. Because this is a
+In the 2026-08-13 standard run its ratio was 3.65x SymPy. Because this is a
 small Python/ABI construction workload, the row is an explicit reviewed
 construction exception recorded as `tuple_constructor:cold_end_to_end`, rather
-than hidden in an aggregate score. The latest matrix therefore has 137 rows,
-110 enforced rows, and zero unwaived violations after the 27 documented
+than hidden in an aggregate score. The matrix after this row had 137 rows, 110
+enforced rows, and zero unwaived violations after 27 documented diagnostic
+waivers were applied.
+
+The native-owned `FiniteSet` constructor adds one cold end-to-end row. Its
+correctness check compares unordered set contents with SymPy while the
+independent native invariant checks the underlying `FiniteSet` application
+node, including duplicate elimination and arity. In the 2026-08-13 standard
+run its ratio was 1.33x SymPy. This small Python/ABI construction workload is
+an explicit reviewed exception recorded as
+`finite_set_constructor:cold_end_to_end`; the latest matrix therefore has 138
+rows, 110 enforced rows, and zero unwaived violations after 28 documented
 diagnostic waivers are applied.
 
 Run it from a built checkout with:

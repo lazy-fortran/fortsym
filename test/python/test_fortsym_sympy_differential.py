@@ -375,6 +375,33 @@ class SympyDifferentialTest(unittest.TestCase):
             sliced.close()
         actual.close()
 
+    def test_finite_set_result_is_native_owned_and_matches_sympy(self):
+        self.assertEqual(str(native.FiniteSet()), str(oracle.FiniteSet()))
+        self.assertIs(native.FiniteSet(), native.EmptySet)
+        expected = oracle.FiniteSet(oracle.Symbol("set_x"), 2)
+        input_symbol = native.Symbol("set_x")
+        actual = native.FiniteSet(input_symbol, 2, input_symbol)
+        input_symbol.close()
+        try:
+            self.assertEqual(str(actual), str(expected))
+            self.assertEqual(actual._expression.name, "FiniteSet")
+            self.assertEqual(actual._expression.arity, 2)
+            values = actual.args
+            try:
+                self.assertEqual(sorted(str(value) for value in values),
+                                 ["2", "set_x"])
+            finally:
+                for value in values:
+                    value.close()
+            probe = native.Symbol("set_x")
+            try:
+                self.assertIn(probe, actual)
+            finally:
+                probe.close()
+            self.assertIn(2, actual)
+        finally:
+            actual.close()
+
     def test_bounded_matrix_and_det_match_sympy(self):
         oracle_matrix = oracle.Matrix([[1, 2], [3, 4]])
         native_matrix = native.Matrix([[1, 2], [3, 4]])

@@ -127,8 +127,8 @@ SymPy parity for the entire family.
 - [ ] Complete the expression hierarchy and canonical ordering needed by the
       compatibility profile: atoms, applications, relational/Boolean nodes,
       sets, tuples, matrices, indexed objects, and unevaluated forms. The
-      native-owned `Tuple` result fragment is complete; the remaining families
-      stay explicitly bounded below.
+      native-owned `FiniteSet` and `Tuple` result fragments are complete; the
+      remaining families stay explicitly bounded below.
 - [ ] Complete exact integer, rational, real, complex, algebraic, infinity,
       NaN, signed-zero, and complex-infinity semantics, including conversion
       and precision rules.
