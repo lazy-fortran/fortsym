@@ -207,11 +207,15 @@ after integration by parts are native owners too:
 
 The scalar boundary contribution is `-w n_i q_i`. The edge contribution is
 `-w_k s_k q`, with `s_k = -E_t(k,j)n_j`. `fourier_longitudinal_flux` and
-`fourier_transverse_flux` return `q_i` and `q`; the caller retains the outward
-normal, tangent convention, surface measure, quadrature, and mesh. Density and
-general density transformation records, source/load records, and finite-element
-basis assembly remain separate work. These formulas are summarized from the
-paper, not copied from its source code.
+`fourier_transverse_flux` return `q_i` and `q`.
+`fourier_longitudinal_boundary_flux` contracts the former with `n_i`, and
+`fourier_transverse_boundary_flux` returns `s_k q`; the corresponding
+`fourier_transverse_boundary_contraction` also contracts with an edge test
+pair. These helpers retain the coordinate normal convention and leave surface
+measure, quadrature, mesh ownership, and the weak-form minus sign to the caller.
+Density and general density transformation records, source/load records, and
+finite-element basis assembly remain separate work. These formulas are
+summarized from the paper, not copied from its source code.
 
 ## Derivation 6: relativity bridge
 

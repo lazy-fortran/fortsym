@@ -13,6 +13,8 @@ program test_fortsym_magnetic_weak
         fourier_weak_form_t, fourier_weak_form_valid, current_compatibility, &
         fourier_longitudinal_residual, fourier_transverse_residual, &
         fourier_longitudinal_flux, fourier_transverse_flux, reluctivity_density, &
+        fourier_longitudinal_boundary_flux, fourier_transverse_boundary_flux, &
+        fourier_transverse_boundary_contraction, &
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NODAL, &
         SPACE_EDGE, TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_magnetic, only: j_fourier
@@ -34,7 +36,9 @@ program test_fortsym_magnetic_weak
     type(expr_t) :: transverse_current(2), transverse_residual(2)
     type(expr_t) :: curl_scalar, expected_one, expected_two
     type(expr_t) :: longitudinal_flux_one, longitudinal_flux_two
-    type(expr_t) :: transverse_flux
+    type(expr_t) :: longitudinal_boundary_flux
+    type(expr_t) :: transverse_flux, transverse_boundary_value(2)
+    type(expr_t) :: normal(2), edge_test(2), transverse_boundary_contraction
     type(expr_t) :: mode_expression
     type(engine_result_t) :: reduced
     call arena%init()
@@ -173,6 +177,27 @@ program test_fortsym_magnetic_weak
         diff(transverse_potential(1), u(2))
     call check_identity(suite, engine, "transverse boundary flux", &
         transverse_flux - nu(3, 3)*curl_scalar)
+    normal(1) = num(arena, 2)
+    normal(2) = num(arena, 3)
+    longitudinal_boundary_flux = fourier_longitudinal_boundary_flux( &
+        chart, material, scalar_potential, normal)
+    call check_identity(suite, engine, "longitudinal normal contraction", &
+        longitudinal_boundary_flux - (normal(1)*longitudinal_flux_one + &
+        normal(2)*longitudinal_flux_two))
+    call fourier_transverse_boundary_flux(chart, material, &
+        transverse_potential, normal, transverse_boundary_value)
+    call check_identity(suite, engine, "transverse boundary coefficient 1", &
+        transverse_boundary_value(1) + normal(2)*transverse_flux)
+    call check_identity(suite, engine, "transverse boundary coefficient 2", &
+        transverse_boundary_value(2) - normal(1)*transverse_flux)
+    edge_test(1) = u(1)
+    edge_test(2) = u(2)
+    transverse_boundary_contraction = fourier_transverse_boundary_contraction( &
+        chart, material, transverse_potential, normal, edge_test)
+    call check_identity(suite, engine, "transverse boundary contraction", &
+        transverse_boundary_contraction - (edge_test(1)* &
+        transverse_boundary_value(1) + edge_test(2)* &
+        transverse_boundary_value(2)))
     transverse_residual = fourier_transverse_residual(chart, material, &
         transverse_potential, transverse_current, 2)
     mode_expression = num(arena, 2)

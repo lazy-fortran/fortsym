@@ -1806,6 +1806,50 @@ class SympySubsetTest(unittest.TestCase):
             ),
             0,
         )
+        normal = (2, 3)
+        expected_longitudinal_boundary = (
+            normal[0]*expected_flux_one + normal[1]*expected_flux_two
+        )
+        actual_longitudinal_boundary = chart.fourier_longitudinal_boundary_flux(
+            reluctivity, native_a3, normal
+        )
+        self.assertEqual(
+            oracle.simplify(
+                oracle.sympify(
+                    str(actual_longitudinal_boundary.simplify())
+                ) - expected_longitudinal_boundary
+            ),
+            0,
+        )
+        expected_edge_boundary = (-normal[1]*onu33*curl_t,
+                                  normal[0]*onu33*curl_t)
+        actual_edge_boundary = chart.fourier_transverse_boundary_flux(
+            reluctivity, native_a, normal
+        )
+        for actual_value, expected_value in zip(
+                actual_edge_boundary, expected_edge_boundary):
+            self.assertEqual(
+                oracle.simplify(
+                    oracle.sympify(str(actual_value.simplify())) -
+                    expected_value
+                ),
+                0,
+            )
+        actual_edge_contraction = (
+            chart.fourier_transverse_boundary_contraction(
+                reluctivity, native_a, normal, (u1, u2)
+            )
+        )
+        expected_edge_contraction = (
+            ox1*expected_edge_boundary[0] + ox2*expected_edge_boundary[1]
+        )
+        self.assertEqual(
+            oracle.simplify(
+                oracle.sympify(str(actual_edge_contraction.simplify())) -
+                expected_edge_contraction
+            ),
+            0,
+        )
         for actual_value, expected_value in zip(
                 actual_transverse, expected_transverse):
             self.assertEqual(

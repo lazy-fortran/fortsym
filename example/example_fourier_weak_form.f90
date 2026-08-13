@@ -16,7 +16,9 @@ program example_fourier_weak_form
     type(expr_t) :: potential(DIM), current(DIM), transverse_potential(2)
     type(expr_t) :: transverse_current(2), residual, residual_pair(2)
     type(expr_t) :: longitudinal_flux_one, longitudinal_flux_two
-    type(expr_t) :: transverse_flux
+    type(expr_t) :: longitudinal_boundary, normal(2)
+    type(expr_t) :: transverse_flux, transverse_boundary(2), edge_test(2)
+    type(expr_t) :: edge_contraction
     type(expr_t) :: full_current(DIM), full_potential(DIM), full_j(DIM)
     type(fourier_constitutive_t) :: material
     type(fourier_weak_form_t) :: longitudinal, transverse
@@ -66,6 +68,13 @@ program example_fourier_weak_form
         (-3*diff_native(potential(3), z) + &
         2*diff_native(potential(3), radius)), &
         "n=0 boundary flux component 2")
+    normal(1) = num(arena, 2)
+    normal(2) = num(arena, 3)
+    longitudinal_boundary = fourier_longitudinal_boundary_flux( &
+        chart, material, potential(3), normal)
+    call assert_zero(longitudinal_boundary - (normal(1)* &
+        longitudinal_flux_one + normal(2)*longitudinal_flux_two), &
+        "n=0 normal boundary contraction")
     residual = fourier_longitudinal_residual(chart, material, potential(3), &
         current(3))
     call assert_zero(residual - (-divergence_block(material, potential(3)) - &
@@ -81,6 +90,19 @@ program example_fourier_weak_form
         diff_native(transverse_potential(2), z) - &
         diff_native(transverse_potential(1), radius)), &
         "n/=0 boundary flux")
+    call fourier_transverse_boundary_flux(chart, material, &
+        transverse_potential, normal, transverse_boundary)
+    call assert_zero(transverse_boundary(1) + normal(2)*transverse_flux, &
+        "n/=0 edge boundary coefficient 1")
+    call assert_zero(transverse_boundary(2) - normal(1)*transverse_flux, &
+        "n/=0 edge boundary coefficient 2")
+    edge_test(1) = z
+    edge_test(2) = radius
+    edge_contraction = fourier_transverse_boundary_contraction(chart, material, &
+        transverse_potential, normal, edge_test)
+    call assert_zero(edge_contraction - (edge_test(1)*transverse_boundary(1) + &
+        edge_test(2)*transverse_boundary(2)), &
+        "n/=0 edge boundary contraction")
     residual_pair = fourier_transverse_residual(chart, material, &
         transverse_potential, transverse_current, mode)
     full_potential = num(arena, 0)

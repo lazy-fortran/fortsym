@@ -46,6 +46,12 @@ component of `nubar_t grad_t(A3)`. `Chart.fourier_transverse_flux(nu, a)`
 returns `nu33 curl_t(a)`. These are the coefficients in the paper's boundary
 terms after integration by parts. The caller supplies the boundary normal,
 tangent convention, surface measure, and finite-element quadrature.
+`Chart.fourier_longitudinal_boundary_flux(nu, A3, normal)` returns `n_i q_i`,
+while `Chart.fourier_transverse_boundary_flux(nu, a, normal)` returns the two
+coefficients `s_k q`; `fourier_transverse_boundary_contraction` contracts those
+coefficients with an edge test pair. These helpers keep the normal components
+in the coordinate convention and leave surface measure, quadrature, and the
+weak-form minus sign to the caller.
 Pass a `fortsym.sympy.Patch` as `Chart(..., patch=patch)` when the chart is
 declared on a coordinate patch; `Chart.has_patch` and `Chart.patch` retain that
 metadata without inferring topology from expressions. `CoordSystem(name,
