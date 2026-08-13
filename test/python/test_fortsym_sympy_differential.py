@@ -462,12 +462,12 @@ class SympyDifferentialTest(unittest.TestCase):
         )
         native_matrix = native.Matrix([[1, 2], [3, 4]])
         native_rhs = (
-            native.Matrix([[5], [6]]),
+            native.Matrix([5, 6]),
             native.Matrix([[5, 6]]),
         )
         oracle_matrix = oracle.Matrix([[1, 2], [3, 4]])
         oracle_rhs = (
-            oracle.Matrix([[5], [6]]),
+            oracle.Matrix([5, 6]),
             oracle.Matrix([[5, 6]]),
         )
         try:
@@ -774,6 +774,15 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(len(native_rectangular), len(oracle_rectangular))
         self.assertEqual(
             native_rectangular.is_square, oracle_rectangular.is_square
+        )
+
+        oracle_column = oracle.Matrix([5, 6])
+        native_column = native.Matrix([5, 6])
+        self.assertEqual(native_column.shape, oracle_column.shape)
+        self.assertEqual(str(native_column), str(oracle_column))
+        self.assertEqual(
+            [str(native_column[index, 0]) for index in range(2)],
+            [str(oracle_column[index, 0]) for index in range(2)],
         )
 
     def test_bounded_matrix_slices_match_sympy(self):

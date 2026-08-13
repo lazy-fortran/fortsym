@@ -257,6 +257,9 @@ SymPy parity for the entire family.
       ragged rows and broader matrix operations remain explicit refusals.
 - [x] Align bounded `Matrix` shape metadata with SymPy through `len()` and
       `is_square`, keeping both operations O(1) and adapter-local.
+- [x] Accept flat one-dimensional `Matrix` inputs as SymPy-compatible column
+      matrices, reusing the native `List` owner and existing column-vector
+      transport without adding a second matrix representation.
 - [x] Expose bounded exact dense `Matrix.rank()` through the canonical
       facades, using the existing native RREF owner and refusing malformed or
       over-bounded forms.

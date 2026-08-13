@@ -2102,12 +2102,21 @@ class Matrix:
     def __init__(self, rows):
         if not isinstance(rows, (tuple, list)) or not rows:
             raise UnsupportedOperationError("Matrix requires nonempty rows")
-        if not all(isinstance(row, (tuple, list)) for row in rows):
+        nested = all(isinstance(row, (tuple, list)) for row in rows)
+        if not nested and any(isinstance(row, (tuple, list)) for row in rows):
             raise UnsupportedOperationError("Matrix rows must be sequences")
+        arena = _default()
+        if not nested:
+            values = [sympify(value) for value in rows]
+            self._expression = arena.function("List", values)
+            self.rows = len(rows)
+            self.cols = 1
+            self.shape = (self.rows, self.cols)
+            self._column_vector = True
+            return
         width = len(rows[0])
         if width == 0 or any(len(row) != width for row in rows):
             raise ValueError("Matrix rows must have equal nonzero length")
-        arena = _default()
         native_rows = []
         row_handles = []
         try:
