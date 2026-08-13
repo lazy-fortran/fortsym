@@ -1234,6 +1234,10 @@ and independent oracle. The minimum case set is:
 - [ ] A nonorthogonal torus or flux chart with off-diagonal metric terms,
   including signed Jacobian, raise/lower, density transformation, and a
   round-trip coordinate change.
+  - [x] Add a chart-derived linear shear fixture with off-diagonal metric,
+    signed Jacobian, and positive volume factor. The existing chart-map
+    contract independently checks coordinate composition, tensor slots, and
+    density transformation; a toroidal/flux-specific fixture remains open.
 - [x] A magnetic potential `A` with `beta = d(A) = i_B(Omega)`, followed by
   `d(beta) = 0`, divergence, and the component/form comparison.
 - [ ] The Albert, Bíró, and Lainer Fourier reduction, with separate `n = 0`

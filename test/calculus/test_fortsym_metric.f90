@@ -9,7 +9,7 @@ program test_fortsym_metric
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
     use fortsym_engine_symengine, only: symengine_engine_t, &
         make_symengine_engine
-    use fortsym_chart, only: DIM, chart_t, chart_create
+    use fortsym_chart, only: DIM, chart_t, chart_create, jacobian
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
         metric_covariant, metric_contravariant, metric_det, metric_sqrtg, &
         metric_surface_measure, &
@@ -22,8 +22,9 @@ program test_fortsym_metric
     type(arena_t), target :: arena
     type(symengine_engine_t) :: engine
     type(suite_t) :: suite
-    type(chart_t) :: cartesian
-    type(metric_t) :: euclidean, shear_metric, lorentzian, invalid, degenerate
+    type(chart_t) :: cartesian, sheared
+    type(metric_t) :: euclidean, shear_metric, sheared_metric, lorentzian, &
+        invalid, degenerate
     type(expr_t) :: components(DIM, DIM), covariant(DIM, DIM)
     type(expr_t) :: inverse(DIM, DIM), product, determinant, root
     type(expr_t) :: scalar, gradient(DIM), vector(DIM), divergence_value
@@ -132,6 +133,20 @@ program test_fortsym_metric
         inner_value - (4*cartesian%u(1) + 7*cartesian%u(2) + &
         12*cartesian%u(3)))
 
+    sheared = make_sheared()
+    sheared_metric = metric_from_chart(sheared)
+    covariant = metric_covariant(sheared_metric)
+    call check_identity(suite, engine, "chart-derived shear g_11", &
+        covariant(1, 1) - 1)
+    call check_identity(suite, engine, "chart-derived shear g_12", &
+        covariant(1, 2) - 1)
+    call check_identity(suite, engine, "chart-derived shear g_22", &
+        covariant(2, 2) - 2)
+    call check_identity(suite, engine, "chart-derived shear Jacobian", &
+        jacobian(sheared) - 1)
+    call check_identity(suite, engine, "chart-derived shear sqrtg", &
+        metric_sqrtg(sheared_metric) - 1)
+
     gradient = metric_grad(lorentzian, cartesian%u(1))
     call check_identity(suite, engine, "Lorentzian metric gradient sign", &
         gradient(1) + 1)
@@ -176,5 +191,18 @@ contains
         position = u
         c = chart_create(arena, u, position)
     end function make_cartesian
+
+    function make_sheared() result(c)
+        type(chart_t) :: c
+        type(expr_t) :: u(DIM), position(DIM)
+
+        u(1) = sym(arena, "shear_u")
+        u(2) = sym(arena, "shear_v")
+        u(3) = sym(arena, "shear_w")
+        position(1) = u(1) + u(2)
+        position(2) = u(2)
+        position(3) = u(3)
+        c = chart_create(arena, u, position)
+    end function make_sheared
 
 end program test_fortsym_metric
