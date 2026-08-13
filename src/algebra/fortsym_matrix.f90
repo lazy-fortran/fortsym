@@ -25,7 +25,7 @@ module fortsym_matrix
 
     public :: is_list, is_matrix, matrix_shape
     public :: matrix_transpose, matrix_add, matrix_negate, matrix_divide, matrix_dot
-    public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_inverse
+    public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_symmetric, matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
     public :: matrix_rref_values
     public :: to_matrix, from_matrix
@@ -894,6 +894,62 @@ contains
             end if
         end select
     end function matrix_symbol_is_nonzero
+
+    !> Boolean symmetry predicate with SymPy's optional simplification switch.
+    subroutine matrix_is_symmetric(a, engine, e, simplify, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        logical, intent(in) :: simplify
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(expr_t) :: row, other_row, left, right, difference
+        type(engine_result_t) :: zero
+        integer :: rows, cols, i, j
+
+        verdict = VERDICT_FALSE
+        ok = .false.
+        why = str("")
+        call matrix_shape(e, rows, cols)
+        if (rows == 0) then
+            why = str("Symmetric test on something that is not a matrix")
+            return
+        end if
+        if (rows /= cols) then
+            verdict = VERDICT_FALSE
+            ok = .true.
+            return
+        end if
+
+        verdict = VERDICT_TRUE
+        do i = 1, rows
+            row = e%arg(i)
+            do j = i + 1, cols
+                left = row%arg(j)
+                other_row = e%arg(j)
+                right = other_row%arg(i)
+                if (left == right) cycle
+                if (.not. simplify) then
+                    verdict = VERDICT_FALSE
+                    ok = .true.
+                    return
+                end if
+                difference = left - right
+                zero = engine%zero_test(difference)
+                if (.not. zero%ok) then
+                    why = zero%message
+                    return
+                end if
+                if (zero%verdict /= VERDICT_TRUE) then
+                    verdict = VERDICT_FALSE
+                    ok = .true.
+                    return
+                end if
+            end do
+        end do
+        ok = .true.
+    end subroutine matrix_is_symmetric
 
     !> Inverse as adjugate over determinant.
     !>

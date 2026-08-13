@@ -56532,12 +56532,14 @@
       {
         "class_id": "sympy.matrices.common.MatrixProperties",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.common.MatrixProperties.is_symmetric",
         "name": "is_symmetric",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native matrix predicate implementation"
       },
       {
         "class_id": "sympy.matrices.common.MatrixProperties",
@@ -58756,12 +58758,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.is_symmetric",
         "name": "is_symmetric",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native matrix predicate implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",

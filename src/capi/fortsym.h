@@ -254,6 +254,12 @@ int fortsym_matrix_trace(fortsym_arena *arena, const fortsym_expr *matrix,
 int fortsym_matrix_is_diagonal(fortsym_arena *arena,
                                const fortsym_expr *matrix, int *verdict,
                                char *message, size_t capacity);
+/* Symmetry predicate for a dense matrix. `simplify` is 1 for SymPy's default
+ * simplified comparison and 0 for structural comparison. `verdict` uses
+ * FORTSYM_ZERO_TRUE or FORTSYM_ZERO_FALSE. */
+int fortsym_matrix_is_symmetric(fortsym_arena *arena,
+                                const fortsym_expr *matrix, int simplify,
+                                int *verdict, char *message, size_t capacity);
 /* Exact rank of a nonempty dense matrix represented by nested List
  * expressions. Ragged, over-bounded, and unsupported forms return
  * FORTSYM_UNSUPPORTED. */
