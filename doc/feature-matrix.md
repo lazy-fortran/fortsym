@@ -1,5 +1,7 @@
 # Feature matrix
 
+<!-- release-profile: sympy-1.14.0 -->
+
 The observed consumer requirements, source-class evidence, bounded semantics,
 priorities, and independent oracles are machine-readable in
 `consumer-requirements.toml`; aggregate scan coverage and operation counts are

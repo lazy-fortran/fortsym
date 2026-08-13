@@ -9,13 +9,7 @@ import tomllib
 from pathlib import Path
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("policy", type=Path)
-    parser.add_argument("audit", type=Path)
-    args = parser.parse_args()
-    policy = tomllib.loads(args.policy.read_text(encoding="utf-8"))
-    audit = json.loads(args.audit.read_text(encoding="utf-8"))
+def validate(policy: dict, audit: dict) -> str:
     assert policy["package"] == audit["package"] == "fortsym"
     assert policy["sympy_version"] == audit["sympy_version"] == "1.14.0"
     audit_ids = {item["id"] for item in audit["concepts"]}
@@ -28,7 +22,17 @@ def main() -> None:
     assert all(item["decision"] for item in families)
     native_names = [name for item in families for name in item["canonical_native"]]
     assert len(native_names) == len(set(native_names))
-    print(f"validated {len(families)} naming families covering {len(audit_ids)} audit concepts")
+    return f"validated {len(families)} naming families covering {len(audit_ids)} audit concepts"
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("policy", type=Path)
+    parser.add_argument("audit", type=Path)
+    args = parser.parse_args()
+    policy = tomllib.loads(args.policy.read_text(encoding="utf-8"))
+    audit = json.loads(args.audit.read_text(encoding="utf-8"))
+    print(validate(policy, audit))
 
 
 if __name__ == "__main__":

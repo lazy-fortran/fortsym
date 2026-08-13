@@ -90,6 +90,22 @@ fortsym = "Expr exposes the native handle operations needed by the declared subs
 difference = "The adapter is a deliberately small compatibility object, not a drop-in implementation of every Expr method or property."
 
 [[semantic]]
+id = "set-matrix-and-tensor-results"
+affected = ["FiniteSet", "EmptySet", "Tuple", "Matrix", "det", "tensorproduct", "tensorcontraction"]
+parity = "partial"
+sympy = "SymPy uses immutable set, tuple, matrix, and tensor result objects with broad construction, indexing, algebra, and option semantics."
+fortsym = "The adapter exposes native-owned FiniteSet/EmptySet/Tuple solve results, bounded exact dense Matrix construction and operations, determinant transport, and the declared tensor product/contraction fragment."
+difference = "The result classes and operations are bounded, exact, and refusal-driven; general matrix expressions, slicing, sparse forms, arbitrary tensor dimensions, and the remaining SymPy options are not yet covered."
+
+[[semantic]]
+id = "calculus-and-rational-transformations"
+affected = ["cancel", "together", "apart", "collect", "integrate", "limit", "series", "linsolve"]
+parity = "partial"
+sympy = "SymPy provides broad rational transformations, integration, limits, series, and linear-system APIs with domain, condition, and option handling."
+fortsym = "The adapter exposes the bounded native owners for exact rational normalization, partial fractions, collection, verified one-variable integration and limits, Taylor series, and square exact-rational one-right-hand-side linear solving."
+difference = "Only the documented bounded fragments are supported; broader domains, conditions, free parameters, alternate matrix inputs, Laurent/asymptotic series, and unsupported options are explicit refusals."
+
+[[semantic]]
 id = "differentiation"
 affected = ["diff", "Derivative"]
 parity = "partial"

@@ -299,6 +299,25 @@ is required for a known exception, and the waiver is recorded in the JSON
 report. The current default command is diagnostic. CI or a release benchmark
 uses `--enforce-parity` after selecting a pinned machine baseline.
 
+### Compatibility release-profile gate
+
+The pinned inventory, classification, naming policy and audit, semantic
+difference ledger, API diff, feature matrix, and benchmark schema are checked
+together by `scripts/check_release_profile.py`. CTest runs its metadata half;
+the strict release command additionally checks a fresh enforced benchmark
+report:
+
+```text
+python3 scripts/check_release_profile.py doc/release-profile.toml --metadata-only
+python3 scripts/check_release_profile.py doc/release-profile.toml \
+  --benchmark-report benchmark/results/sympy-1.14.0.json --require-parity
+```
+
+The second command must receive a report produced by `bench_sympy.py` with
+`--enforce-parity` and the reviewed workload waivers recorded in that report.
+The profile manifest is the single source of the artifact paths and the
+report's SymPy version; a mismatched or stale artifact fails the gate.
+
 ### Focused Wolfram corpus audit
 
 On 2026-08-11, fortsym revision `8ea637a` was checked against the public

@@ -113,8 +113,9 @@ SymPy parity for the entire family.
       `sympy` and `fortsym.sympy` without duplicating the cases.
 - [x] Maintain cold/warm/core benchmark measurements and fail the gate when a
       supported workload regresses beyond its reviewed budget.
-- [ ] Make the inventory, classification, naming audit, difference ledger,
-      feature matrix, and benchmark report a single checked release gate.
+- [x] Make the inventory, classification, naming audit, difference ledger,
+      feature matrix, and benchmark report a single checked release gate via
+      `doc/release-profile.toml` and `scripts/check_release_profile.py`.
 - [ ] Add a compatibility-profile command that reports the exact supported
       SymPy names and refuses to mix baselines.
 

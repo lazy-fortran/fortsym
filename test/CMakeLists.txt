@@ -215,3 +215,15 @@ add_test(
 set_tests_properties(
     test_provenance
     PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1")
+add_test(
+    NAME test_release_profile
+    COMMAND
+        ${Python3_EXECUTABLE}
+        ${PROJECT_SOURCE_DIR}/scripts/check_release_profile.py
+        ${PROJECT_SOURCE_DIR}/doc/release-profile.toml
+        --metadata-only)
+set_tests_properties(
+    test_release_profile
+    PROPERTIES
+        ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1"
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
