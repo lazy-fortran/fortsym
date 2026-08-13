@@ -422,6 +422,12 @@ warm-core rows while reusing the exact native rank owner. In the 2026-08-13
 strict rerun the native/SymPy ratios were 0.417x cold and 0.165x warm; both
 rows were faster than SymPy and remain enforced.
 
+The O(1) Matrix shape metadata operations add warm-core rows only, because
+their construction cost is outside the metadata call itself. In the
+2026-08-13 higher-repetition rerun, `len(matrix)` measured 1.000x and
+`matrix.is_square` 0.914x versus SymPy; both were correct and remained
+enforced.
+
 On the same host, the pre-existing `boolean_implies_constructor:cold_end_to_end`
 diagnostic measured 1.007x and 1.015x in two strict samples. That one-node
 construction difference is within timer noise and unrelated to the RREF
@@ -429,8 +435,8 @@ change, so it is now an explicit reviewed waiver rather than an unreported
 failure. A separate strict sample measured the pre-existing
 `relation:cold_end_to_end` constructor at 1.021x while its warm row remained
 0.779x; that similarly small host-timing difference is also explicitly
-waived. With both diagnostics included, the latest matrix therefore has 162
-rows, 120 enforced rows, and zero unwaived violations after the 42 documented
+waived. With both diagnostics included, the latest matrix therefore has 164
+rows, 122 enforced rows, and zero unwaived violations after the 42 documented
 diagnostic waivers are applied.
 
 Run it from a built checkout with:

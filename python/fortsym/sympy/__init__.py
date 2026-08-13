@@ -2230,6 +2230,13 @@ class Matrix:
     def __rmatmul__(self, other):
         return self.__rmul__(other)
 
+    def __len__(self):
+        return self.rows * self.cols
+
+    @property
+    def is_square(self):
+        return self.rows == self.cols
+
     def __getitem__(self, key):
         if not isinstance(key, tuple):
             if isinstance(key, slice):

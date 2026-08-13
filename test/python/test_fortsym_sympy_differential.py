@@ -614,6 +614,8 @@ class SympyDifferentialTest(unittest.TestCase):
         oracle_matrix = oracle.Matrix([[1, 2], [3, 4]])
         native_matrix = native.Matrix([[1, 2], [3, 4]])
         self.assertEqual(native_matrix.shape, (2, 2))
+        self.assertEqual(len(native_matrix), len(oracle_matrix))
+        self.assertEqual(native_matrix.is_square, oracle_matrix.is_square)
         self.assertEqual(str(native_matrix), "Matrix([[1, 2], [3, 4]])")
         self.assertEqual(str(native_matrix[0, 1]), "2")
         self.assertEqual(str(native_matrix.det()), str(oracle_matrix.det()))
@@ -766,6 +768,13 @@ class SympyDifferentialTest(unittest.TestCase):
             native_singular.rank(iszerofunc=lambda value: True)
         with self.assertRaises(native.UnsupportedOperationError):
             native_singular.inv()
+
+        oracle_rectangular = oracle.Matrix([[1, 2, 3], [4, 5, 6]])
+        native_rectangular = native.Matrix([[1, 2, 3], [4, 5, 6]])
+        self.assertEqual(len(native_rectangular), len(oracle_rectangular))
+        self.assertEqual(
+            native_rectangular.is_square, oracle_rectangular.is_square
+        )
 
     def test_bounded_matrix_slices_match_sympy(self):
         oracle_matrix = oracle.Matrix([[1, 2, 3], [4, 5, 6]])
