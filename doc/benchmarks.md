@@ -446,17 +446,24 @@ algorithm performs no matrix-array allocation and uses a direct exact-integer
 fast path; these two tiny scalar-result rows remain explicit reviewed
 Python/C-handle transport exceptions, recorded as
 `matrix_trace:cold_end_to_end` and `matrix_trace:warm_core`. The latest matrix
-therefore has 168 rows, 122 enforced rows, and zero unwaived violations after
+therefore has 170 rows, 124 enforced rows, and zero unwaived violations after
 the 46 documented diagnostic waivers are applied.
 
 The bounded exact `Matrix.is_diagonal()` workload adds a correctness-checked
 warm-core query over a 2x2 integer matrix. Its independent differential cases
 cover proven true, proven false, and undecidable symbolic off-diagonal values;
-the 2026-08-13 run measured a native/SymPy ratio of 0.061x. As with the other
+the 2026-08-13 run measured a native/SymPy ratio of 0.064x. As with the other
 shape and predicate queries, this row measures the query rather than matrix
 construction. The facade keeps the result valid across assumption-epoch
 changes while the native matrix owner remains the sole predicate
 implementation.
+
+The bounded exact `Matrix.is_symmetric()` workload adds independent
+correctness-checked cold end-to-end and warm-core rows over a 2x2 integer
+matrix. The final 2026-08-13 run measured native/SymPy ratios of 0.594x cold
+and 0.0069x warm; both remain enforced. The implementation supports both
+SymPy's default simplifying comparison and structural `simplify=False` while
+traversing only the upper triangle and allocating no matrix array.
 
 On the same host, the pre-existing `boolean_implies_constructor:cold_end_to_end`
 diagnostic measured 1.007x and 1.015x in two strict samples. That one-node
@@ -465,8 +472,8 @@ change, so it is now an explicit reviewed waiver rather than an unreported
 failure. A separate strict sample measured the pre-existing
 `relation:cold_end_to_end` constructor at 1.021x while its warm row remained
 0.779x; that similarly small host-timing difference is also explicitly
-waived. With the flat-column, trace, and diagonal-query coverage included, the
-latest matrix therefore has 168 rows, 122 enforced rows, and zero unwaived
+waived. With the flat-column, trace, diagonal-query, and symmetry coverage
+included, the latest matrix therefore has 170 rows, 124 enforced rows, and zero unwaived
 violations after
 the 46 documented diagnostic waivers are applied.
 

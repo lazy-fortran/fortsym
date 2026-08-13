@@ -653,6 +653,53 @@ class SympyDifferentialTest(unittest.TestCase):
             native_unknown.is_diagonal(), oracle_unknown.is_diagonal()
         )
         symbolic.close()
+        symmetric_cases = (
+            ([[1, 2], [2, 3]], True),
+            ([[1, 2], [3, 4]], False),
+            ([[1, 2, 3], [2, 4, 5]], False),
+        )
+        for rows, expected in symmetric_cases:
+            oracle_case = oracle.Matrix(rows)
+            native_case = native.Matrix(rows)
+            independent = (
+                len(rows) == len(rows[0]) and
+                all(rows[row][column] == rows[column][row]
+                    for row in range(len(rows))
+                    for column in range(row + 1, len(rows)))
+            )
+            self.assertEqual(independent, expected)
+            self.assertEqual(native_case.is_symmetric(), expected)
+            self.assertEqual(native_case.is_symmetric(False), expected)
+            self.assertEqual(
+                native_case.is_symmetric(), oracle_case.is_symmetric()
+            )
+        native_x, native_y = native.symbols("symmetric_x symmetric_y")
+        oracle_x, oracle_y = oracle.symbols("symmetric_x symmetric_y")
+        native_symbolic = native.Matrix(
+            [[1, native_x + 1], [native_x + 1, 2]]
+        )
+        oracle_symbolic = oracle.Matrix(
+            [[1, oracle_x + 1], [oracle_x + 1, 2]]
+        )
+        self.assertEqual(
+            native_symbolic.is_symmetric(), oracle_symbolic.is_symmetric()
+        )
+        self.assertEqual(
+            native_symbolic.is_symmetric(False),
+            oracle_symbolic.is_symmetric(simplify=False),
+        )
+        native_nonsymmetric = native.Matrix(
+            [[1, native_x], [native_y, 2]]
+        )
+        oracle_nonsymmetric = oracle.Matrix(
+            [[1, oracle_x], [oracle_y, 2]]
+        )
+        self.assertEqual(
+            native_nonsymmetric.is_symmetric(),
+            oracle_nonsymmetric.is_symmetric(),
+        )
+        native_x.close()
+        native_y.close()
         self.assertEqual(str(native_matrix.rank()), str(oracle_matrix.rank()))
         self.assertEqual(
             native_matrix.rank(simplify=True),
