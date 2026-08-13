@@ -116,8 +116,9 @@ SymPy parity for the entire family.
 - [x] Make the inventory, classification, naming audit, difference ledger,
       feature matrix, and benchmark report a single checked release gate via
       `doc/release-profile.toml` and `scripts/check_release_profile.py`.
-- [ ] Add a compatibility-profile command that reports the exact supported
-      SymPy names and refuses to mix baselines.
+- [x] Add a compatibility-profile command that reports the exact supported
+      SymPy names and refuses to mix baselines via
+      `scripts/compatibility_profile.py`.
 
 ## Phase 1 — coherent core semantics
 

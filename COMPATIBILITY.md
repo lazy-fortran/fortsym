@@ -80,6 +80,20 @@ Silent divergence is the one failure mode this policy exists to prevent: a
 compatibility layer that quietly returns a different answer is worse than one
 that refuses, because the caller acts on it.
 
+The exact current SymPy surface is generated from the pinned release profile;
+it is not inferred from whatever SymPy happens to be installed:
+
+```text
+python3 scripts/compatibility_profile.py doc/release-profile.toml
+python3 scripts/compatibility_profile.py doc/release-profile.toml --format json
+```
+
+The command reports top-level names, supported SymPy class paths, and supported
+method paths. It validates every artifact against the same SymPy version first,
+and exits with an error if inventory, classification, naming, ledger, or API
+diff files are mixed across baselines. Pass `--sympy-version VERSION` when a
+caller wants an additional exact-baseline assertion.
+
 ## 6. Contributor checklist for compatibility PRs
 
 - [ ] No source copied from a GPL project.

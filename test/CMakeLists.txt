@@ -227,3 +227,15 @@ set_tests_properties(
     PROPERTIES
         ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1"
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+add_test(
+    NAME test_compatibility_profile
+    COMMAND
+        ${Python3_EXECUTABLE}
+        ${PROJECT_SOURCE_DIR}/scripts/compatibility_profile.py
+        ${PROJECT_SOURCE_DIR}/doc/release-profile.toml
+        --format json)
+set_tests_properties(
+    test_compatibility_profile
+    PROPERTIES
+        ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1"
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
