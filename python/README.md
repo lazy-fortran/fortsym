@@ -59,7 +59,8 @@ nonzero mode takes two transverse components and a tangential trace. Their
 `.value` is scalar for the longitudinal branch and a two-tuple for the
 transverse branch; `.matches(weak)` rejects branch, trace, mode, or component
 count mismatches. These records stop at the source/load contract; quadrature,
-mesh, and finite-element basis assembly remain caller-owned.
+mesh, finite-element basis evaluation, and assembly remain FortFEM-owned (or
+caller-owned for another numerical client).
 Pass a `fortsym.sympy.Patch` as `Chart(..., patch=patch)` when the chart is
 declared on a coordinate patch; `Chart.has_patch` and `Chart.patch` retain that
 metadata without inferring topology from expressions. `CoordSystem(name,

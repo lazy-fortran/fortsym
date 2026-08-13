@@ -223,6 +223,9 @@ use the two-component overload with `TRACE_TANGENTIAL`. Invalid branch/trace
 combinations are represented by invalid records and are rejected by the
 matching predicates. Surface measure, quadrature, mesh, and finite-element
 basis ownership remain outside this contract.
+FortFEM is the numerical consumer for meshes, element bases, quadrature, DOF
+maps, and assembly; fortsym exports only the symbolic records and coefficient
+expressions needed by that layer.
 
 The convenience facade and the lower-level modules call the same owners; they
 do not maintain separate metric, variance, or density representations.

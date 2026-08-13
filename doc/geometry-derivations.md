@@ -278,9 +278,11 @@ The scalar boundary contribution is `-w n_i q_i`. The edge contribution is
 `fourier_transverse_boundary_contraction` also contracts with an edge test
 pair. These helpers retain the coordinate normal convention and leave surface
 measure, quadrature, mesh ownership, and the weak-form minus sign to the caller.
-Density and general density transformation records, source/load records, and
-finite-element basis assembly remain separate work. These formulas are
-summarized from the paper, not copied from its source code.
+Typed source/load records are now part of the symbolic contract. General
+density transformations remain separate only when required by a declared
+SymPy parity row; finite-element basis evaluation and assembly belong to
+FortFEM. These formulas are summarized from the paper, not copied from its
+source code.
 
 ## Derivation 6: relativity bridge
 
@@ -332,8 +334,11 @@ warnings.
 - [x] Add the native `reluctivity_density` scalar and Cartesian-matrix
   conversion, with covariant weight `-1` metadata in the Python/SymPy facade
   and an independent cylindrical Jacobian oracle.
-- [ ] Add density transformation records, boundary-normal contractions,
-  finite-element basis generation, and variational assembly.
+- [x] Add typed boundary-normal contractions and mode-specific source/load
+  records to the symbolic owner, with native and SymPy-oracle checks.
+- [ ] Add only the density transformations required by an explicit SymPy
+  compatibility row. Finite-element basis generation and variational assembly
+  are FortFEM responsibilities and are not duplicated here.
 - [x] Add executable de Sitter and GPS/Newtonian-limit derivation records.
   The native programs are CMake execution tests, and the Python/SymPy
   differential record checks the Einstein tensor, scalar curvature, wave

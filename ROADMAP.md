@@ -12,6 +12,24 @@ The roadmap is deliberately broader than the current 384-file Wolfram corpus.
 The corpus remains an important workload, but it is not the definition of the
 whole public API.
 
+## Scope boundary with FortFEM
+
+FortSym owns symbolic expressions, the SymPy-compatible Python surface,
+coordinate/tensor/form algebra, physics reductions, symbolic weak-form
+coefficients, typed traces and source/load records, and source-level kernel
+generation. It stops at those symbolic contracts.
+
+FortFEM owns numerical discretisation: meshes, finite-element families,
+finite-element basis evaluation, element/Piola maps, quadrature, degrees of
+freedom, local and global assembly, sparse matrices, and numerical solvers.
+FortSym must provide the symbolic records and generated kernels that FortFEM
+consumes, but must not duplicate those numerical owners. `basis` below means a
+coordinate basis unless it is explicitly qualified as a finite-element basis.
+Do not add physical-component, Piola, or density transformations solely to
+support a FortFEM implementation; add a transformation only when it closes an
+inventoried SymPy-compatible symbolic operation or a required native owner
+invariant.
+
 ## Governing rules
 
 ### API shape
@@ -59,7 +77,7 @@ Every public concept has one owner:
 | calculus | `fortsym_diff`, series, limits, integration, transforms |
 | equations and systems | solver modules |
 | matrices, arrays, tensors | matrix/tensor modules |
-| manifolds, patches, charts, bases, maps | geometry toolkit modules |
+| manifolds, patches, charts, coordinate bases, maps | geometry toolkit modules |
 | metrics, signatures, orientations, volume, epsilon | metric toolkit module |
 | indexed tensor algebra and densities | tensor toolkit module |
 | connections, covariant derivatives, curvature | connection toolkit module |
@@ -71,6 +89,7 @@ Every public concept has one owner:
 | engine dispatch | `fortsym_engine`, native and external adapters |
 | verification and benchmarks | verify/test/benchmark modules |
 | code generation | codegen modules |
+| finite-element meshes, elements, FE bases, quadrature, DOF maps, assembly, sparse systems, solvers | FortFEM |
 
 Modules may depend down this list only through declared interfaces. A new
 algorithm does not introduce a second implementation of an existing concept,
@@ -195,7 +214,9 @@ The staged implementation contract is:
 - [ ] **G5 — derivation corpus and examples.** Translate the paper scripts and
   the selected Callen/D'haeseleer derivations into one manifest, then produce
   native Fortran, `fortsym.sympy`, and Wolfram examples with independent
-  component, numerical, residual, and coordinate-composition checks.
+  component, numerical, residual, and coordinate-composition checks. Numerical
+  finite-element discretisation and assembly are FortFEM deliverables, not
+  additional fortsym checklist items.
 - [ ] **G6 — performance and release gate.** Benchmark the same symbolic
   derivations in SymPy and native code, separate conversion from core work,
   preserve density/index metadata in generated kernels, and reject every new
@@ -786,7 +807,8 @@ The geometry toolkit combines four views that are often taught separately:
    supplies the bridge back to computational plasma physics: weight-`+1`
    densities, the metric-free divergence and curl, the two-dimensional
    Levi-Civita density, constitutive reduction, Fourier harmonics, and the
-   distinction between nodal and edge finite-element spaces.
+   distinction between nodal and edge spaces. FortFEM owns the numerical
+   realization of those spaces; fortsym owns the symbolic reduction.
 
 The synthesis rule is: use abstract tensors and forms for definitions and
 invariants, coordinate components for physicists' formulas and generated
@@ -1219,9 +1241,10 @@ retain the distinction between raw components, density components, and the
 constitutive tensor. The current paper slice adds native strong residuals for
 the `n = 0` longitudinal scalar and symbolic/integer-mode transverse edge
 branches, boundary flux coefficients, and physical-to-coordinate constitutive
-conversion. General density transformations and finite-element assembly are
-still open; typed mode-specific source/load records now define the native
-branch, trace, and component contract.
+conversion. General density transformations remain open only where required by
+the declared SymPy parity surface; typed mode-specific source/load records now
+define the native branch, trace, and component contract. Finite-element
+discretisation and assembly are FortFEM work.
 
 The physical constitutive bridge is:
 
@@ -1271,8 +1294,9 @@ and independent oracle. The minimum case set is:
   - [x] Add typed mode-specific source/load records with native, C, Python,
     and SymPy-facade coverage. The records validate branch, mode, trace, and
     component compatibility without taking ownership of quadrature or meshes.
-  - [ ] Complete general density transformations and finite-element
-    basis/assembly owners.
+  - [ ] Complete only the general density transformations required by an
+    explicit SymPy parity row. Finite-element basis and assembly ownership is
+    in FortFEM.
 - [x] Add a standalone cylindrical-coordinate example with an explicit
   metric-owner connection path. It derives and checks `sqrtg`, reciprocal
   bases, `Gamma^rho_theta theta`, `Gamma^theta_rho theta`, gradient,
@@ -1382,15 +1406,17 @@ conversion only. They do not maintain a second geometry implementation.
   metadata. Add de Rham cohomology/refusal conditions for global exactness.
 - [ ] **7A.6 Physics toolkits.** Add magnetic and flux-coordinate descriptors,
   field-line and flux-surface operations, Clebsch/Boozer/Hamada identities,
-  and the paper's Fourier FEM reductions without coupling them into generic
-  chart, tensor, or form code. The current `b_*` and `j_fourier` subset is the
-  first checked slice, not completion of the toolkit. The first executable
-  nested-flux-surface example now checks `B^psi=0`, `div(B)=0`, and
-  `i_B(volume)=dA`; the analytic Boozer fixture now verifies that the
-  covariant angular components are flux functions, shows the metric form, and
-  checks the raised-field divergence. Equilibrium construction plus
-  Clebsch/Hamada descriptors and field-line labels remain open.
-  - [x] Add the native `reluctivity_density` constitutive bridge and expose
+  and the paper's Fourier symbolic reductions without coupling them into
+  generic chart, tensor, or form code. The current `b_*`, `j_fourier`, and
+  typed weak-form subset is the first checked slice, not completion of the
+  symbolic toolkit. The first executable nested-flux-surface example now
+  checks `B^psi=0`, `div(B)=0`, and `i_B(volume)=dA`; the analytic Boozer
+  fixture now verifies that the covariant angular components are flux
+  functions, shows the metric form, and checks the raised-field divergence.
+  Equilibrium construction plus Clebsch/Hamada descriptors and field-line
+  labels remain open. Numerical Fourier-FEM discretisation is owned by
+  FortFEM and is reached through the symbolic contracts exported here.
+- [x] Add the native `reluctivity_density` constitutive bridge and expose
     its covariant weight-`-1` result through the C/Python/SymPy facades.
 - [x] Add an executable non-orthogonal periodic flux-coordinate fixture with
   off-diagonal metric, signed/positive Jacobian separation, typed magnetic
@@ -1921,7 +1947,7 @@ without an explicit volume factor.
   components to the Python and Wolfram frontends. Round-trip tests must use
   nonorthogonal, left-handed, and periodic coordinates.
 
-### Albert, Bíró, and Lainer 2D Fourier FEM derivation
+### Albert, Bíró, and Lainer 2D Fourier symbolic reduction
 
 The `paper_magnetic` corpus is the first end-to-end geometry derivation. For
 coordinates `(x^1, x^2, x^3) = (Z, R, phi)` with an axisymmetric block metric,
@@ -1980,13 +2006,13 @@ between the two-dimensional gradient, scalar curl, and divergence.
   positive volume-density owner. The constitutive transformation
   `nubar_t = -E_t nu_t E_t` and the zero/nonzero mode branch reduction are
   implemented natively; the reduced two-dimensional Levi-Civita density and
-  its FEM assembly ownership remain open.
+  its numerical FEM assembly ownership belongs to FortFEM.
 - [x] Generate the paper's scalar longitudinal and transverse weak-form
   coefficient blocks from the native constitutive owner. The descriptor
   preserves scalar nodal versus two-dimensional edge spaces, normal versus
   tangential boundary traces, and the mode-dependent transverse mass block.
-  Typed source/load records now define the branch and trace contract; source
-  assembly and generated source terms remain open.
+  Typed source/load records now define the branch and trace contract; FortFEM
+  owns source assembly and numerical generated-source evaluation.
 - [x] Add independent native and SymPy checks for the paper's `n = 0`
   reduction to the full three-dimensional curl-curl form and its `n != 0`
   transverse reduction, including the block constitutive coefficients and
@@ -2118,8 +2144,9 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
   only in the Python adapter.
 - [x] **F1 — fixed-3D physics baseline.** Verify reciprocal bases, signed
   `J`, positive `sqrtg`, `B^i`, `B_i`, `sqrtg B^i`, `beta=i_B(Omega)`, Boozer
-  representation, relativity curvature, and the first Fourier/FEM branches
-  against independent component identities.
+  representation, relativity curvature, and the first Fourier symbolic
+  branches against independent component identities. Numerical finite-element
+  discretisation is verified in FortFEM.
 - [ ] **F2 — dimension and index generalization.** Replace fixed-size geometry
   arrays with dimension-owned storage, retain fast 3D/4D kernels, and add named
   index spaces, arbitrary supported rank, symmetry declarations, canonical
@@ -2140,9 +2167,13 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
   - [x] Add the native Clebsch component residual
     `B - grad(alpha) cross grad(beta)` through C ABI 71 and both facades;
     the signed Jacobian is explicit and no equilibrium solver is coupled in.
-- [ ] **F5 — Fourier FEM completion.** Complete the Albert--Bíro--Lainer
-  variational forms, density/constitutive transformations, traces, current
-  compatibility, and a readable Fortran/Python derivation example.
+- [x] **F5 — Fourier symbolic weak-form contract.** Complete the
+  Albert--Bíro--Lainer source-level variational forms, the supported
+  density/constitutive reductions, traces, current compatibility, typed
+  source/load records, and readable Fortran/Python derivation examples. This
+  stage ends at symbolic coefficients and code-generation-ready expressions;
+  FortFEM owns meshes, element families, finite-element bases, quadrature,
+  DOF maps, numerical source assembly, and solvers.
   - [x] Add native strong residual owners for the n=0 longitudinal and
     integer/symbolic-mode transverse equations, and expose the n=0 diffusion
     block as `nubar_t` in all facades.
@@ -2159,16 +2190,18 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
   - [x] Add typed mode-specific source/load records with branch, trace, and
     component matching. The native, C, Python, and SymPy facades preserve the
     same two-component layout and refuse incompatible branches.
-  - [ ] Add remaining typed density/constitutive transformations and
-    finite-element basis assembly. The current owners deliberately stop before
-    quadrature or mesh ownership.
+  - [x] Keep the FortSym/FortFEM handoff explicit: FortSym exports typed
+    symbolic forms, traces, and source/load records; FortFEM consumes those
+    records for finite-element discretisation and assembly.
 - [ ] **F6 — frontend and corpus parity.** Translate supported Wolfram and
   Python records through one native IR, preserve assumptions and refusals,
   and generate the same cases for `fortsym`, `fortsym.sympy`, and Fortran.
 - [ ] **F7 — independent verification.** Add determinant/component, numerical
-  point-sample, finite-difference, residual, coordinate-composition, and
-  finite-element checks. SymPy remains the correctness and performance oracle,
-  but never the only test oracle.
+  point-sample, finite-difference, residual, and coordinate-composition checks
+  for fortsym's symbolic owners. SymPy remains the correctness and performance
+  oracle, but never the only test oracle. Finite-element convergence and
+  assembly checks belong to FortFEM; cross-repository handoff tests are added
+  only when a symbolic contract changes.
 - [ ] **F8 — performance and release closure.** Benchmark cold construction,
   warm operations, conversion, memory, expression growth, and generated
   kernels against matched SymPy workloads; then gate supported compilers,
