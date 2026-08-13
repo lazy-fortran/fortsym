@@ -1,6 +1,6 @@
 {
   "adapter_profile": {
-    "declared_count": 161,
+    "declared_count": 163,
     "explicit_refusals": [],
     "supported": [
       "ANTISYMMETRIC",
@@ -101,6 +101,7 @@
       "Xor",
       "acos",
       "acosh",
+      "adjoint",
       "apart",
       "arg",
       "asin",
@@ -163,6 +164,7 @@
       "tensorpermute",
       "tensorproduct",
       "together",
+      "trace",
       "zoo"
     ]
   },
@@ -452,9 +454,39 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_linalg.parametric_linear_system_result_t",
+        "module": "fortsym_linalg",
+        "name": "parametric_linear_system_result_t",
+        "owner": "src/algebra/fortsym_linalg.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_linalg.solve_parametric_linear_system",
+        "module": "fortsym_linalg",
+        "name": "solve_parametric_linear_system",
+        "owner": "src/algebra/fortsym_linalg.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_linsolve_adapter.calculate_linsolve",
         "module": "fortsym_linsolve_adapter",
         "name": "calculate_linsolve",
+        "owner": "src/algebra/fortsym_linsolve_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_linsolve_adapter.calculate_parametric_linsolve",
+        "module": "fortsym_linsolve_adapter",
+        "name": "calculate_parametric_linsolve",
         "owner": "src/algebra/fortsym_linsolve_adapter.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -495,6 +527,36 @@
         "id": "fortsym_matrix.matrix_transpose",
         "module": "fortsym_matrix",
         "name": "matrix_transpose",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_conjugate",
+        "module": "fortsym_matrix",
+        "name": "matrix_conjugate",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_adjoint",
+        "module": "fortsym_matrix",
+        "name": "matrix_adjoint",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_multiply_elementwise",
+        "module": "fortsym_matrix",
+        "name": "matrix_multiply_elementwise",
         "owner": "src/algebra/fortsym_matrix.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -545,6 +607,136 @@
         "id": "fortsym_matrix.matrix_det",
         "module": "fortsym_matrix",
         "name": "matrix_det",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_trace",
+        "module": "fortsym_matrix",
+        "name": "matrix_trace",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_is_diagonal",
+        "module": "fortsym_matrix",
+        "name": "matrix_is_diagonal",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_is_zero_matrix",
+        "module": "fortsym_matrix",
+        "name": "matrix_is_zero_matrix",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_is_upper",
+        "module": "fortsym_matrix",
+        "name": "matrix_is_upper",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_is_lower",
+        "module": "fortsym_matrix",
+        "name": "matrix_is_lower",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_is_upper_hessenberg",
+        "module": "fortsym_matrix",
+        "name": "matrix_is_upper_hessenberg",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_is_lower_hessenberg",
+        "module": "fortsym_matrix",
+        "name": "matrix_is_lower_hessenberg",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_is_anti_symmetric",
+        "module": "fortsym_matrix",
+        "name": "matrix_is_anti_symmetric",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_is_symbolic",
+        "module": "fortsym_matrix",
+        "name": "matrix_is_symbolic",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_is_identity",
+        "module": "fortsym_matrix",
+        "name": "matrix_is_identity",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_is_echelon",
+        "module": "fortsym_matrix",
+        "name": "matrix_is_echelon",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_is_hermitian",
+        "module": "fortsym_matrix",
+        "name": "matrix_is_hermitian",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix.matrix_is_symmetric",
+        "module": "fortsym_matrix",
+        "name": "matrix_is_symmetric",
         "owner": "src/algebra/fortsym_matrix.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -612,6 +804,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_matrix.matrix_rref_values",
+        "module": "fortsym_matrix",
+        "name": "matrix_rref_values",
+        "owner": "src/algebra/fortsym_matrix.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_matrix.to_matrix",
         "module": "fortsym_matrix",
         "name": "to_matrix",
@@ -642,6 +844,136 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_trace",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_trace",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_is_diagonal",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_is_diagonal",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_is_zero_matrix",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_is_zero_matrix",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_is_upper",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_is_upper",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_is_lower",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_is_lower",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_is_upper_hessenberg",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_is_upper_hessenberg",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_is_lower_hessenberg",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_is_lower_hessenberg",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_is_identity",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_is_identity",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_is_echelon",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_is_echelon",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_is_hermitian",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_is_hermitian",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_is_anti_symmetric",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_is_anti_symmetric",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_is_symbolic",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_is_symbolic",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_is_symmetric",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_is_symmetric",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_matrix_adapter.calculate_matrix_rank",
         "module": "fortsym_matrix_adapter",
         "name": "calculate_matrix_rank",
@@ -665,6 +997,36 @@
         "id": "fortsym_matrix_adapter.calculate_matrix_transpose",
         "module": "fortsym_matrix_adapter",
         "name": "calculate_matrix_transpose",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_conjugate",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_conjugate",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_adjoint",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_adjoint",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_multiply_elementwise",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_multiply_elementwise",
         "owner": "src/algebra/fortsym_matrix_adapter.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
@@ -5743,9 +6105,163 @@
           "facade",
           "native"
         ],
+        "id": "fortsym_public_capi.fortsym_linsolve_parametric",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_linsolve_parametric",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym_public_capi.fortsym_matrix_det",
         "module": "fortsym_public_capi",
         "name": "fortsym_matrix_det",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_trace",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_trace",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_is_diagonal",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_is_diagonal",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_is_zero_matrix",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_is_zero_matrix",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_is_upper",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_is_upper",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_is_lower",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_is_lower",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_is_upper_hessenberg",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_is_upper_hessenberg",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_is_lower_hessenberg",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_is_lower_hessenberg",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_is_identity",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_is_identity",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_is_echelon",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_is_echelon",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_is_hermitian",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_is_hermitian",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_is_anti_symmetric",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_is_anti_symmetric",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_is_symbolic",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_is_symbolic",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_is_symmetric",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_is_symmetric",
         "owner": "src/capi/fortsym_public_capi.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -5779,6 +6295,39 @@
         "id": "fortsym_public_capi.fortsym_matrix_transpose",
         "module": "fortsym_public_capi",
         "name": "fortsym_matrix_transpose",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_conjugate",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_conjugate",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_adjoint",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_adjoint",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_matrix_multiply_elementwise",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_multiply_elementwise",
         "owner": "src/capi/fortsym_public_capi.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -17915,14 +18464,14 @@
   "source_inventory": "doc/sympy-api-inventory.json",
   "summary": {
     "classification_counts": {
-      "delegated": 2926,
+      "delegated": 2958,
       "external": 10,
-      "facade": 747,
-      "native": 4535,
-      "python-adapter": 2882,
-      "refused": 24912
+      "facade": 764,
+      "native": 4620,
+      "python-adapter": 2914,
+      "refused": 24880
     },
-    "fortran_public_exports": 1697,
+    "fortran_public_exports": 1750,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
@@ -22535,13 +23084,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.elementary.complexes.adjoint",
         "kind": "class",
         "name": "Dagger",
-        "owner": "ROADMAP.md",
-        "reason": "class is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -46748,12 +47299,14 @@
       {
         "class_id": "sympy.core.expr.Expr",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.core.expr.Expr.adjoint",
         "name": "adjoint",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.core.expr.Expr",
@@ -47024,12 +47577,14 @@
       {
         "class_id": "sympy.core.expr.Expr",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.core.expr.Expr.conjugate",
         "name": "conjugate",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.core.expr.Expr",
@@ -56510,14 +57065,12 @@
       {
         "class_id": "sympy.matrices.common.MatrixProperties",
         "classification": [
-          "python-adapter",
-          "delegated",
-          "native"
+          "refused"
         ],
         "id": "sympy.matrices.common.MatrixProperties.is_diagonal",
         "name": "is_diagonal",
-        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
-        "reason": "declared SymPy subset delegated to the native matrix predicate implementation"
+        "owner": "ROADMAP.md",
+        "reason": "method is inventoried for parity but is outside the declared adapter subset"
       },
       {
         "class_id": "sympy.matrices.common.MatrixProperties",
@@ -56532,14 +57085,12 @@
       {
         "class_id": "sympy.matrices.common.MatrixProperties",
         "classification": [
-          "python-adapter",
-          "delegated",
-          "native"
+          "refused"
         ],
         "id": "sympy.matrices.common.MatrixProperties.is_symmetric",
         "name": "is_symmetric",
-        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
-        "reason": "declared SymPy subset delegated to the native matrix predicate implementation"
+        "owner": "ROADMAP.md",
+        "reason": "method is inventoried for parity but is outside the declared adapter subset"
       },
       {
         "class_id": "sympy.matrices.common.MatrixProperties",
@@ -57661,7 +58212,7 @@
         "id": "sympy.matrices.matrices.MatrixDeterminant.charpoly",
         "name": "charpoly",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrices.MatrixDeterminant",
@@ -57686,12 +58237,14 @@
       {
         "class_id": "sympy.matrices.matrices.MatrixDeterminant",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrices.MatrixDeterminant.det",
         "name": "det",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrices.MatrixDeterminant",
@@ -57761,7 +58314,7 @@
         "id": "sympy.matrices.matrices.MatrixEigen.eigenvals",
         "name": "eigenvals",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrices.MatrixEigen",
@@ -58006,12 +58559,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.adjoint",
         "name": "adjoint",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58141,7 +58696,7 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.charpoly",
         "name": "charpoly",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58266,12 +58821,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.conjugate",
         "name": "conjugate",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58326,12 +58883,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.det",
         "name": "det",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58396,12 +58955,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.diff",
         "name": "diff",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58411,7 +58972,7 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.doit",
         "name": "doit",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58451,7 +59012,7 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.eigenvals",
         "name": "eigenvals",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58506,12 +59067,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.expand",
         "name": "expand",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58606,12 +59169,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.integrate",
         "name": "integrate",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58621,7 +59186,7 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.inv",
         "name": "inv",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58711,19 +59276,17 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.is_anti_symmetric",
         "name": "is_anti_symmetric",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "python-adapter",
-          "delegated",
-          "native"
+          "refused"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.is_diagonal",
         "name": "is_diagonal",
-        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
-        "reason": "declared SymPy subset delegated to the native matrix predicate implementation"
+        "owner": "ROADMAP.md",
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58753,19 +59316,17 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.is_symbolic",
         "name": "is_symbolic",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "python-adapter",
-          "delegated",
-          "native"
+          "refused"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.is_symmetric",
         "name": "is_symmetric",
-        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
-        "reason": "declared SymPy subset delegated to the native matrix predicate implementation"
+        "owner": "ROADMAP.md",
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58870,12 +59431,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.limit",
         "name": "limit",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -58965,7 +59528,7 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.multiply_elementwise",
         "name": "multiply_elementwise",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -59005,7 +59568,7 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.nullspace",
         "name": "nullspace",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -59140,12 +59703,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.rank",
         "name": "rank",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -59175,7 +59740,7 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.replace",
         "name": "replace",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -59265,7 +59830,7 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.rref",
         "name": "rref",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -59280,12 +59845,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.simplify",
         "name": "simplify",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -59310,12 +59877,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.solve",
         "name": "solve",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -59350,12 +59919,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.subs",
         "name": "subs",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -59400,12 +59971,14 @@
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.matrixbase.MatrixBase.trace",
         "name": "trace",
-        "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -59415,7 +59988,7 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.transpose",
         "name": "transpose",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -59515,7 +60088,7 @@
         "id": "sympy.matrices.matrixbase.MatrixBase.xreplace",
         "name": "xreplace",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.matrices.matrixbase.MatrixBase",
@@ -96486,14 +97059,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.adjoint",
         "kind": "class",
         "module": "sympy",
         "name": "adjoint",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -103182,14 +103757,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.trace",
         "kind": "function",
         "module": "sympy",
         "name": "trace",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -138515,14 +139092,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.adjoint",
         "kind": "class",
         "module": "sympy.functions",
         "name": "adjoint",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -142101,14 +142680,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.functions.elementary.complexes.adjoint",
         "kind": "class",
         "module": "sympy.functions.elementary.complexes",
         "name": "adjoint",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -170258,14 +170839,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.trace",
         "kind": "function",
         "module": "sympy.matrices",
         "name": "trace",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -172306,14 +172889,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.expressions.trace",
         "kind": "function",
         "module": "sympy.matrices.expressions",
         "name": "trace",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -172501,14 +173086,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.expressions.adjoint.adjoint",
         "kind": "class",
         "module": "sympy.matrices.expressions.adjoint",
         "name": "adjoint",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -173150,14 +173737,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.expressions.blockmatrix.trace",
         "kind": "function",
         "module": "sympy.matrices.expressions.blockmatrix",
         "name": "trace",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -174419,14 +175008,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.expressions.kronecker.adjoint",
         "kind": "class",
         "module": "sympy.matrices.expressions.kronecker",
         "name": "adjoint",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -174797,14 +175388,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.expressions.matadd.adjoint",
         "kind": "class",
         "module": "sympy.matrices.expressions.matadd",
         "name": "adjoint",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -175370,14 +175963,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.expressions.matexpr.adjoint",
         "kind": "class",
         "module": "sympy.matrices.expressions.matexpr",
         "name": "adjoint",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -175699,14 +176294,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.expressions.matmul.adjoint",
         "kind": "class",
         "module": "sympy.matrices.expressions.matmul",
         "name": "adjoint",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -176621,14 +177218,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.matrices.expressions.trace.trace",
         "kind": "function",
         "module": "sympy.matrices.expressions.trace",
         "name": "trace",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -191978,14 +192577,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.physics.hep.gamma_matrices.trace",
         "kind": "function",
         "module": "sympy.physics.hep.gamma_matrices",
         "name": "trace",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -312963,13 +313564,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.adjoint",
         "kind": "class",
         "name": "adjoint",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -319069,7 +319672,7 @@
         "kind": "function",
         "name": "trace",
         "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
-        "reason": "declared SymPy trace(matrix) subset delegated to the native expression implementation"
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [

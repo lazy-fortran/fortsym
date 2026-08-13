@@ -128,6 +128,7 @@ module fortsym_public_capi
         VERDICT_FALSE
     use fortsym_poly, only: poly_together, poly_cancel, poly_apart, poly_collect
     use fortsym_integrate_adapter, only: verified_antiderivative
+    use fortsym_defint, only: definite_integral
     use fortsym_limit_adapter, only: calculate_limit
     use fortsym_limits, only: limit_point_t, limit_value_t, finite_point, &
         plus_infinity, minus_infinity, LIMIT_FINITE, LIMIT_PLUS_INF, &
@@ -205,7 +206,7 @@ module fortsym_public_capi
         fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor, &
         fortsym_together, fortsym_cancel, fortsym_apart, fortsym_collect, &
-        c_integrate, c_limit, c_series, c_series_coeff
+        c_integrate, c_definite_integral, c_limit, c_series, c_series_coeff
     public :: fortsym_solve, fortsym_solveset, fortsym_linsolve, &
         fortsym_linsolve_parametric, fortsym_matrix_det, fortsym_matrix_trace, &
         fortsym_matrix_is_diagonal, fortsym_matrix_is_zero_matrix, &
@@ -5564,6 +5565,47 @@ contains
         end if
         call make_handle(a, result, out, status, message, capacity)
     end function c_integrate
+
+    function c_definite_integral(raw, expression_raw, variable_raw, lower_raw, &
+            upper_raw, out, message, capacity) bind(c, &
+            name="fortsym_definite_integral") result(status)
+        type(c_ptr), value :: raw, expression_raw, variable_raw, lower_raw, &
+            upper_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, vp, lop, hip
+        type(expr_t) :: expression, variable, lower, upper, result
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(lower_raw, lop, lower, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(upper_raw, hip, upper, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a) .or. &
+            .not. associated(vp%arena, a) .or. &
+            .not. associated(lop%arena, a) .or. &
+            .not. associated(hip%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call definite_integral(a%value, expression, variable, lower, upper, &
+            result, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, result, out, status, message, capacity)
+    end function c_definite_integral
 
     function c_limit(raw, expression_raw, variable_raw, point_raw, &
             point_kind, direction, out, message, capacity) bind(c, &

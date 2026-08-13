@@ -1875,8 +1875,21 @@ def collect(expression, variable, exact=False, distribute_order_term=None,
 def integrate(expression, *variables, **options):
     if len(variables) != 1 or options:
         raise UnsupportedOperationError("integrate options or multiple variables")
+    variable = variables[0]
+    if isinstance(variable, (tuple, list)):
+        if len(variable) != 3:
+            raise UnsupportedOperationError("integrate limits")
+        variable, lower, upper = variable
+        variable = sympify(variable)
+        lower = sympify(lower)
+        upper = sympify(upper)
+        return _native_operation(
+            lambda: sympify(expression).definite_integral(
+                variable, lower, upper
+            )
+        )
     return _native_operation(
-        lambda: sympify(expression).integrate(sympify(variables[0]))
+        lambda: sympify(expression).integrate(sympify(variable))
     )
 
 
@@ -2136,6 +2149,7 @@ class Matrix:
             raise UnsupportedOperationError("Matrix rows must be sequences")
         arena = _default()
         self._equality_key = None
+        self._charpoly_cache = {}
 
         def make_list(values):
             native_values = []
@@ -2636,6 +2650,90 @@ class Matrix:
             if temporary is not None:
                 temporary.close()
 
+    def charpoly(self, x=None, simplify=True):
+        """Return the bounded exact characteristic polynomial expression.
+
+        The determinant of ``x*I - self`` is evaluated by the native exact
+        matrix owner.  The compatibility facade returns its expanded native
+        expression rather than introducing a second ``Poly`` owner; callers
+        can pass that expression to the existing native ``solve`` path.
+        """
+        if simplify not in (False, True):
+            raise UnsupportedOperationError("charpoly options")
+        if x is None:
+            variable = Symbol("lambda")
+        else:
+            variable = sympify(x)
+        if variable.kind != 4:
+            raise ValueError("charpoly generator must be a symbol")
+        cache_key = (variable.name, simplify)
+        cached = self._charpoly_cache.get(cache_key)
+        if cached is not None and cached._handle is not None:
+            return cached
+        if not self.is_square:
+            raise ValueError("characteristic polynomial requires a square matrix")
+        if self.rows == 1:
+            result = variable - self._entry(0, 0)
+            result = result.expand()
+            self._charpoly_cache[cache_key] = result
+            return result
+        if self.rows == 2:
+            a11 = self._entry(0, 0)
+            a12 = self._entry(0, 1)
+            a21 = self._entry(1, 0)
+            a22 = self._entry(1, 1)
+            result = (variable**2 - (a11 + a22)*variable +
+                      a11*a22 - a12*a21)
+            result = result.expand()
+            self._charpoly_cache[cache_key] = result
+            return result
+        rows = []
+        temporary = []
+        try:
+            for row_index in range(self.rows):
+                entries = []
+                for column_index in range(self.cols):
+                    entry = self._entry(row_index, column_index)
+                    value = variable - entry if row_index == column_index else -entry
+                    entries.append(value)
+                    temporary.append(value)
+                rows.append(entries)
+            shifted = Matrix(rows)
+            result = shifted.det()
+            if simplify:
+                simplified = result.simplify()
+                result.close()
+                result = simplified
+            expanded = result.expand()
+            result.close()
+            self._charpoly_cache[cache_key] = expanded
+            return expanded
+        finally:
+            for value in temporary:
+                value.close()
+
+    def eigenvals(self, error_when_incomplete=True, simplify=True,
+                  multiple=False):
+        """Return exact eigenvalues from the native characteristic solver."""
+        if (error_when_incomplete is not True or
+                simplify not in (False, True) or
+                multiple not in (False, True)):
+            raise UnsupportedOperationError("eigenvals options")
+        if not self.is_square:
+            raise ValueError("eigenvalues require a square matrix")
+        variable = Symbol("lambda")
+        polynomial = self.charpoly(variable, simplify=simplify)
+        try:
+            roots = solve(polynomial, variable)
+        finally:
+            polynomial.close()
+        if multiple:
+            return roots
+        values = {}
+        for root in roots:
+            values[root] = values.get(root, 0) + 1
+        return values
+
     @classmethod
     def _from_expression(cls, expression, rows, cols):
         matrix = cls.__new__(cls)
@@ -2644,6 +2742,7 @@ class Matrix:
         matrix.cols = cols
         matrix.shape = (rows, cols)
         matrix._column_vector = False
+        matrix._charpoly_cache = {}
         return matrix
 
     @classmethod
@@ -2654,6 +2753,7 @@ class Matrix:
         matrix.cols = 1
         matrix.shape = (rows, 1)
         matrix._column_vector = True
+        matrix._charpoly_cache = {}
         return matrix
 
     def _matrix_expression(self):
@@ -2806,6 +2906,8 @@ class Matrix:
 
     def __del__(self):
         try:
+            for value in getattr(self, "_charpoly_cache", {}).values():
+                value.close()
             self._expression.close()
         except Exception:
             pass
