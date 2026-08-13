@@ -1504,6 +1504,14 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.matrix_multiply_elementwise = declare(
+        "fortsym_matrix_multiply_elementwise",
+        ctypes.c_int,
+        [
+            _CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID),
+            _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.matrix_add = declare(
         "fortsym_matrix_add",
         ctypes.c_int,
@@ -7550,6 +7558,13 @@ class Expr:
             self._lib.matrix_adjoint, self._arena._require(), self._require()
         )
 
+    def matrix_multiply_elementwise(self, other):
+        other = self._arena._check(other)
+        return self._arena._result(
+            self._lib.matrix_multiply_elementwise,
+            self._arena._require(), self._require(), other._require(),
+        )
+
     def nullspace(self):
         return self._arena._result(
             self._lib.matrix_nullspace, self._arena._require(), self._require()
@@ -8085,6 +8100,8 @@ def inv(expression: Expr): return expression.inv()
 def transpose(expression: Expr): return expression.transpose()
 def matrix_conjugate(expression: Expr): return expression.matrix_conjugate()
 def matrix_adjoint(expression: Expr): return expression.matrix_adjoint()
+def matrix_multiply_elementwise(left: Expr, right: Expr):
+    return left.matrix_multiply_elementwise(right)
 def nullspace(expression: Expr): return expression.nullspace()
 def rref(expression: Expr): return expression.rref()
 def matrix_multiply(left: Expr, right: Expr):
@@ -8168,6 +8185,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "det", "rank", "inv", "transpose", "matrix_conjugate", "matrix_adjoint", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "det", "rank", "inv", "transpose", "matrix_conjugate", "matrix_adjoint", "matrix_multiply_elementwise", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

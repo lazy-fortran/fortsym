@@ -2172,6 +2172,9 @@ class Matrix:
     def __sub__(self, other):
         return self._matrix_binary(other, "matrix_subtract")
 
+    def multiply_elementwise(self, other):
+        return self._matrix_binary(other, "matrix_multiply_elementwise")
+
     def __rsub__(self, other):
         if isinstance(other, Matrix):
             return other.__sub__(self)

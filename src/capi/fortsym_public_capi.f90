@@ -149,7 +149,8 @@ module fortsym_public_capi
         calculate_matrix_is_symmetric, calculate_matrix_rank, &
         calculate_matrix_inverse, calculate_matrix_transpose, &
         calculate_matrix_conjugate, calculate_matrix_adjoint, &
-        calculate_matrix_add, calculate_matrix_negate, calculate_matrix_divide, &
+        calculate_matrix_multiply_elementwise, calculate_matrix_add, &
+        calculate_matrix_negate, calculate_matrix_divide, &
         calculate_matrix_null_space, calculate_matrix_rref, &
         calculate_matrix_multiply
     use fortsym_complexdom, only: complex_re_part => re_part, &
@@ -218,6 +219,7 @@ module fortsym_public_capi
         fortsym_matrix_is_symmetric, &
         fortsym_matrix_rank, fortsym_matrix_inverse, fortsym_matrix_transpose, &
         fortsym_matrix_conjugate, fortsym_matrix_adjoint, &
+        fortsym_matrix_multiply_elementwise, &
         fortsym_matrix_add, fortsym_matrix_subtract, fortsym_matrix_negate, &
         fortsym_matrix_divide, &
         fortsym_matrix_nullspace, fortsym_matrix_rref
@@ -326,7 +328,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 101_c_int
+        v = 102_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -6535,6 +6537,40 @@ contains
         end if
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_matrix_adjoint
+
+    function fortsym_matrix_multiply_elementwise( &
+            raw, left_raw, right_raw, out, message, capacity) bind(c, &
+            name="fortsym_matrix_multiply_elementwise") result(status)
+        type(c_ptr), value :: raw, left_raw, right_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: left_owner, right_owner
+        type(expr_t) :: left, right, value
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(left_raw, left_owner, left, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(right_raw, right_owner, right, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(left_owner%arena, a) .or. &
+            .not. associated(right_owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call calculate_matrix_multiply_elementwise( &
+            a%value, a%engine, left, right, value, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_matrix_multiply_elementwise
 
     subroutine matrix_binary_operation(raw, left_raw, right_raw, out, message, &
             capacity, subtract, status)

@@ -290,6 +290,14 @@ SymPy parity for the entire family.
 - [x] Expose bounded `Matrix.conjugate()`, `Matrix.adjoint()`, and `.H`
       through one native complex-domain traversal, preserving rectangular
       shapes and refusing entries whose conjugates are not decidable.
+- [x] Expose SymPy-compatible `Matrix.multiply_elementwise()` through the
+      direct nested-`List` owner, reusing exact scalar multiplication and
+      refusing malformed or unequal-shaped matrices without materializing a
+      rank-two temporary array.
+- [ ] Bring the cold end-to-end `Matrix.multiply_elementwise()` benchmark row
+      to native/SymPy `<= 1.0`; the warm-core operation is already below the
+      SymPy 1.14.0 oracle, while constructor/FFI overhead remains diagnosed in
+      the current benchmark record.
 - [x] Align bounded `Matrix` shape metadata with SymPy through `len()` and
       `is_square`, keeping both operations O(1) and adapter-local.
 - [x] Accept flat one-dimensional `Matrix` inputs as SymPy-compatible column

@@ -11,7 +11,7 @@ module fortsym_matrix_adapter
         matrix_is_identity, matrix_is_echelon, matrix_is_hermitian, matrix_is_symmetric, &
         matrix_rank, matrix_inverse, &
         matrix_transpose, matrix_conjugate, matrix_adjoint, matrix_add, &
-        matrix_negate, matrix_divide, &
+        matrix_multiply_elementwise, matrix_negate, matrix_divide, &
         matrix_null_space, &
         matrix_rref, matrix_dot
     use fortsym_string, only: str_t, chars
@@ -37,6 +37,7 @@ module fortsym_matrix_adapter
     public :: calculate_matrix_transpose
     public :: calculate_matrix_conjugate
     public :: calculate_matrix_adjoint
+    public :: calculate_matrix_multiply_elementwise
     public :: calculate_matrix_add
     public :: calculate_matrix_negate
     public :: calculate_matrix_divide
@@ -304,6 +305,24 @@ contains
 
         call matrix_adjoint(a, engine, expression, value, ok, why)
     end subroutine calculate_matrix_adjoint
+
+    subroutine calculate_matrix_multiply_elementwise( &
+            a, engine, left, right, value, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: left, right
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(str_t) :: message
+        logical :: canonical
+
+        value = matrix_multiply_elementwise( &
+            a, left, right, ok, message, canonical)
+        why = chars(message)
+        if (.not. ok .or. canonical) return
+        call simplify_matrix_value(engine, value, ok, why)
+    end subroutine calculate_matrix_multiply_elementwise
 
     subroutine calculate_matrix_add(a, engine, left, right, value, ok, why, subtract)
         type(arena_t), target, intent(inout) :: a

@@ -19,6 +19,7 @@ int main(void)
     fortsym_expr *determinant = NULL, *trace = NULL, *rank = NULL, *inverse = NULL;
     fortsym_expr *transposed = NULL;
     fortsym_expr *conjugated = NULL, *adjointed = NULL;
+    fortsym_expr *elementwise = NULL;
     fortsym_expr *foreign_result = NULL;
     fortsym_expr *null_row_one = NULL, *null_row_two = NULL;
     fortsym_expr *null_matrix = NULL, *nullspace = NULL, *rref = NULL;
@@ -47,7 +48,7 @@ int main(void)
     const fortsym_expr *null_row_two_values[3];
     const fortsym_expr *null_rows[2];
 
-    assert(fortsym_abi_version() == 101);
+    assert(fortsym_abi_version() == 102);
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 0, &zero, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 1, &one, message, sizeof message) == FORTSYM_OK);
@@ -171,6 +172,12 @@ int main(void)
     assert(fortsym_expr_text(adjointed, text, sizeof text, &required,
                              message, sizeof message) == FORTSYM_OK);
     assert(strcmp(text, "List(List(1, 3), List(2, 4))") == 0);
+    assert(fortsym_matrix_multiply_elementwise(
+               arena, matrix, matrix, &elementwise, message,
+               sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_text(elementwise, text, sizeof text, &required,
+                             message, sizeof message) == FORTSYM_OK);
+    assert(strcmp(text, "List(List(1, 4), List(9, 16))") == 0);
     null_row_one_values[0] = one;
     null_row_one_values[1] = two;
     null_row_one_values[2] = three;
@@ -278,6 +285,10 @@ int main(void)
                                     message, sizeof message) ==
            FORTSYM_FOREIGN_ARENA);
     assert(foreign_result == NULL);
+    assert(fortsym_matrix_multiply_elementwise(
+               arena, matrix, foreign_one, &foreign_result, message,
+               sizeof message) == FORTSYM_FOREIGN_ARENA);
+    assert(foreign_result == NULL);
     fortsym_expr_free(bad_matrix);
     fortsym_expr_free(foreign_one);
     fortsym_arena_free(foreign_arena);
@@ -306,6 +317,7 @@ int main(void)
     fortsym_expr_free(transposed);
     fortsym_expr_free(conjugated);
     fortsym_expr_free(adjointed);
+    fortsym_expr_free(elementwise);
     fortsym_expr_free(nullspace);
     fortsym_expr_free(null_matrix);
     fortsym_expr_free(null_row_two);
