@@ -1634,6 +1634,24 @@ class SympySubsetTest(unittest.TestCase):
                           2*oracle.diff(a3, ox2), ox2)
             - source_3
         )
+        expected_flux_one = 7*oracle.diff(a3, ox1) - 5*oracle.diff(a3, ox2)
+        expected_flux_two = -3*oracle.diff(a3, ox1) + 2*oracle.diff(a3, ox2)
+        actual_flux_one = chart.fourier_longitudinal_flux(
+            reluctivity, native_a3, 1
+        )
+        actual_flux_two = chart.fourier_longitudinal_flux(
+            reluctivity, native_a3, 2
+        )
+        for actual_value, expected_value in (
+                (actual_flux_one, expected_flux_one),
+                (actual_flux_two, expected_flux_two)):
+            self.assertEqual(
+                oracle.simplify(
+                    oracle.sympify(str(actual_value.simplify())) -
+                    expected_value
+                ),
+                0,
+            )
         self.assertEqual(
             oracle.simplify(
                 oracle.sympify(str(actual_longitudinal.simplify())) -
@@ -1654,6 +1672,15 @@ class SympySubsetTest(unittest.TestCase):
         expected_transverse = (
             oracle.diff(onu33*curl_t, ox2) + 4*(7*a1 - 5*a2) - source_t[0],
             -oracle.diff(onu33*curl_t, ox1) + 4*(-3*a1 + 2*a2) - source_t[1],
+        )
+        actual_flux = chart.fourier_transverse_flux(
+            reluctivity, native_a
+        )
+        self.assertEqual(
+            oracle.simplify(
+                oracle.sympify(str(actual_flux.simplify())) - onu33*curl_t
+            ),
+            0,
         )
         for actual_value, expected_value in zip(
                 actual_transverse, expected_transverse):

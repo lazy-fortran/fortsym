@@ -182,9 +182,19 @@ constitutive density, and current-compatibility metadata. Its `n=0` diffusion
 block is `nubar_t`; its nonzero-mode block is the `nu33` transverse curl
 coefficient plus `n**2*nubar_t`. The native residual owners implement the
 strong forms directly, while the C/Python facades transport their expression
-handles without recalculating the reduction. The paper's variational
-boundary terms and finite-element assembly remain separate work. These
-formulas are summarized from the paper, not copied from its source code.
+handles without recalculating the reduction. The boundary coefficients needed
+after integration by parts are native owners too:
+
+    q_i = nubar_t(i,j) partial_j A_3
+    q   = nu_33 curl_t(a)
+
+The scalar boundary contribution is `-w n_i q_i`. The edge contribution is
+`-w_k s_k q`, with `s_k = -E_t(k,j)n_j`. `fourier_longitudinal_flux` and
+`fourier_transverse_flux` return `q_i` and `q`; the caller retains the outward
+normal, tangent convention, surface measure, quadrature, and mesh. Density and
+constitutive transformations, source/load records, and finite-element basis
+assembly remain separate work. These formulas are summarized from the paper,
+not copied from its source code.
 
 ## Derivation 6: relativity bridge
 
@@ -222,9 +232,12 @@ warnings.
 - [x] Complete the first n=0/n/=0 Fourier strong-residual owner and its
   Python facade. The descriptor now exposes `nubar_t` for the n=0 scalar
   diffusion block, and native/C/Python residuals cover the paper's
-  longitudinal and transverse equations. Variational boundary assembly,
-  finite-element basis generation, and density transformation records remain
-  open.
+  longitudinal and transverse equations.
+- [x] Add the two integration-by-parts boundary flux coefficients to the
+  native, C, and Python owners, with independent component checks against the
+  paper equations.
+- [ ] Add density transformation records, boundary-normal contractions,
+  finite-element basis generation, and variational assembly.
 - [ ] Add executable de Sitter and GPS/Newtonian-limit derivation records.
 - [ ] Run every record through native Fortran, fortsym.sympy, and the
   Wolfram input frontend without duplicating the geometry implementation.

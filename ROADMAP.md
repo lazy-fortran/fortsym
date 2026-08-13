@@ -2044,6 +2044,16 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
   - [x] Add native strong residual owners for the n=0 longitudinal and
     integer/symbolic-mode transverse equations, and expose the n=0 diffusion
     block as `nubar_t` in all facades.
+  - [x] Add native boundary-flux owners for both integration-by-parts terms:
+    `fourier_longitudinal_flux` returns a selected component of
+    `nubar_t grad_t(A_3)`, and `fourier_transverse_flux` returns
+    `nu33 curl_t(a)`. The C ABI, Python facade, and independent SymPy checks
+    carry the same coefficients without choosing a boundary normal or surface
+    measure.
+  - [ ] Add typed density/constitutive transformations, boundary-normal
+    contraction helpers, source/load records, and finite-element basis
+    assembly. The current flux owners deliberately stop before quadrature or
+    mesh ownership.
 - [ ] **F6 — frontend and corpus parity.** Translate supported Wolfram and
   Python records through one native IR, preserve assumptions and refusals,
   and generate the same cases for `fortsym`, `fortsym.sympy`, and Fortran.

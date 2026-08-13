@@ -15,6 +15,8 @@ program example_fourier_weak_form
     type(expr_t) :: z, radius, phi, mode, nu33
     type(expr_t) :: potential(DIM), current(DIM), transverse_potential(2)
     type(expr_t) :: transverse_current(2), residual, residual_pair(2)
+    type(expr_t) :: longitudinal_flux_one, longitudinal_flux_two
+    type(expr_t) :: transverse_flux
     type(expr_t) :: full_current(DIM), full_potential(DIM), full_j(DIM)
     type(fourier_constitutive_t) :: material
     type(fourier_weak_form_t) :: longitudinal, transverse
@@ -52,6 +54,18 @@ program example_fourier_weak_form
     potential(3) = z**2 + z*radius
     current = num(arena, 0)
     current(3) = z - radius
+    longitudinal_flux_one = fourier_longitudinal_flux(chart, material, &
+        potential(3), 1)
+    longitudinal_flux_two = fourier_longitudinal_flux(chart, material, &
+        potential(3), 2)
+    call assert_zero(longitudinal_flux_one - &
+        (7*diff_native(potential(3), z) - &
+        5*diff_native(potential(3), radius)), &
+        "n=0 boundary flux component 1")
+    call assert_zero(longitudinal_flux_two - &
+        (-3*diff_native(potential(3), z) + &
+        2*diff_native(potential(3), radius)), &
+        "n=0 boundary flux component 2")
     residual = fourier_longitudinal_residual(chart, material, potential(3), &
         current(3))
     call assert_zero(residual - (-divergence_block(material, potential(3)) - &
@@ -61,6 +75,12 @@ program example_fourier_weak_form
     transverse_potential(2) = z*radius
     transverse_current(1) = z - radius
     transverse_current(2) = z + 2*radius
+    transverse_flux = fourier_transverse_flux(chart, material, &
+        transverse_potential)
+    call assert_zero(transverse_flux - nu33*( &
+        diff_native(transverse_potential(2), z) - &
+        diff_native(transverse_potential(1), radius)), &
+        "n/=0 boundary flux")
     residual_pair = fourier_transverse_residual(chart, material, &
         transverse_potential, transverse_current, mode)
     full_potential = num(arena, 0)
@@ -77,7 +97,9 @@ program example_fourier_weak_form
 
     print '(a)', "Albert--Bíro--Lainer Fourier strong residuals"
     print '(a)', "  n=0: scalar nodal branch; diffusion block = nubar_t"
+    print '(a)', "       boundary flux = nubar_t grad_t(A_3)"
     print '(a)', "  n/=0: transverse edge branch; mass = n**2*nubar_t"
+    print '(a)', "       boundary flux = nu33 curl_t(a)"
     checked = simplify(residual_pair(1))
     if (.not. checked%ok) error stop "transverse residual display failed"
     print '(a,a)', "  residual_1(n) = ", chars(print_expr(checked%value))
