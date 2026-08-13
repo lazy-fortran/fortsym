@@ -545,32 +545,32 @@ contains
 
         ! The multinomial kernel already simplifies every generated monomial
         ! and collects like terms. Keep its canonical result instead of
-        ! sending it through the general simplifier a second time. Restrict
-        ! this shortcut to an already-expanded sum base; otherwise the normal
-        ! recursive path is still needed for inner products and powers.
-        if (e%kind() == NK_POW) then
-            base_id = e%a%arg_of(e%id, 1)
-            call exact_value(e%a, e%a%arg_of(e%id, 2), exponent, denominator, &
-                exact)
-            if (exact .and. denominator == 1_int64 .and. exponent >= 0_int64 .and. &
-                exponent <= MAX_EXPAND_POWER .and. e%a%kind_of(base_id) == NK_ADD &
-                .and. is_expanded_id(e%a, base_id)) then
-                expanded = e
-                expanded%id = expand_sum_power(e%a, base_id, exponent, &
-                    multinomial_ok, active_limit)
-                if (multinomial_ok) then
-                    if (active_limit%exceeded_kind /= 0) then
-                        r%message = str(resource_failure("expand", active_limit))
+        ! sending it through the general simplifier a second time. Contextual
+        ! expansion must use the normal path: the fast kernel does not visit
+        ! branch-sensitive children such as sqrt(x**2) under assumptions.
+        if (.not. associated(self%assumptions)) then
+            if (e%kind() == NK_POW) then
+                base_id = e%a%arg_of(e%id, 1)
+                call exact_value(e%a, e%a%arg_of(e%id, 2), exponent, denominator, &
+                    exact)
+                if (exact .and. denominator == 1_int64 .and. exponent >= 0_int64 .and. &
+                    exponent <= MAX_EXPAND_POWER .and. e%a%kind_of(base_id) == NK_ADD &
+                    .and. is_expanded_id(e%a, base_id)) then
+                    expanded = e
+                    expanded%id = expand_sum_power(e%a, base_id, exponent, &
+                        multinomial_ok, active_limit)
+                    if (multinomial_ok) then
+                        if (active_limit%exceeded_kind /= 0) then
+                            r%message = str(resource_failure("expand", active_limit))
+                            r%seconds = wall_seconds() - started
+                            return
+                        end if
+                        r%value = expanded
+                        r%ok = .true.
+                        self%expand_cache(e%id) = r%value%id
                         r%seconds = wall_seconds() - started
                         return
                     end if
-                    r%value = expanded
-                    r%ok = .true.
-                    if (.not. associated(self%assumptions)) then
-                        self%expand_cache(e%id) = r%value%id
-                    end if
-                    r%seconds = wall_seconds() - started
-                    return
                 end if
             end if
         end if

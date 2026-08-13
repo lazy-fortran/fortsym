@@ -287,7 +287,7 @@ def _tensor3_values(tensor):
         if (len(planes) == 3 and all(len(plane) == 3 for plane in planes)
                 and all(len(row) == 3 for plane in planes for row in plane)):
             return tuple(
-                planes[third][second][first]
+                planes[first][second][third]
                 for third in range(3)
                 for second in range(3)
                 for first in range(3)
