@@ -29,6 +29,7 @@ module fortsym
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_series_adapter, only: calculate_series, &
         calculate_series_coeff
+    use fortsym_solve_adapter, only: calculate_solve
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -259,7 +260,7 @@ module fortsym
         rational_valued, integer_valued, positive_integer, algebraic_valued
     public :: str, chars
     public :: subs, subs_many, diff, simplify, refine, expand, factor, &
-        series, series_coeff, operation_count, free_symbols
+        series, series_coeff, solve, operation_count, free_symbols
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -728,6 +729,42 @@ contains
         end if
         result%ok = .true.
     end function series_coeff
+
+    !> Solve one equation for one symbol. `roots(1:root_count)` contains the
+    !> distinct verified roots; the allocated tail, when present, is internal
+    !> solver storage and must not be read. A bare expression is treated as a
+    !> residual; an Equal(lhs, rhs) relation becomes lhs-rhs.
+    subroutine solve(expression, variable, roots, root_count, ok, why)
+        type(expr_t), intent(in) :: expression, variable
+        type(expr_t), allocatable, intent(out) :: roots(:)
+        integer, intent(out) :: root_count
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(native_engine_t) :: engine
+
+        if (.not. is_valid(expression) .or. .not. is_valid(variable)) then
+            allocate (roots(0))
+            root_count = 0
+            ok = .false.
+            why = "solve: invalid expression"
+            return
+        end if
+        if (.not. same_arena(expression, variable)) then
+            allocate (roots(0))
+            root_count = 0
+            ok = .false.
+            why = "solve: expressions belong to different arenas"
+            return
+        end if
+        if (use_default_engine(expression)) then
+            call calculate_solve(expression%a, default_engine, expression, &
+                variable, roots, root_count, ok, why)
+        else
+            engine = make_native_engine(expression%a)
+            call calculate_solve(expression%a, engine, expression, variable, &
+                roots, root_count, ok, why)
+        end if
+    end subroutine solve
 
     !> Return the native three-valued zero verdict for an expression.
     !> VERDICT_TRUE means proved zero, VERDICT_FALSE means proved nonzero, and

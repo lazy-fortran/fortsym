@@ -2453,6 +2453,14 @@
       },
       {
         "concepts": [],
+        "name": "series"
+      },
+      {
+        "concepts": [],
+        "name": "series_coeff"
+      },
+      {
+        "concepts": [],
         "name": "sharp"
       },
       {
@@ -2504,6 +2512,10 @@
           "elementary-functions"
         ],
         "name": "sinh"
+      },
+      {
+        "concepts": [],
+        "name": "solve"
       },
       {
         "concepts": [
@@ -3126,6 +3138,7 @@
       "operation_count",
       "series",
       "series_coeff",
+      "solve",
       "subs",
       "subs_many",
       "symbols",
@@ -3335,10 +3348,10 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 524,
-    "python_facade_exports": 75,
+    "fortran_facade_exports": 527,
+    "python_facade_exports": 76,
     "sympy_adapter_exports": 182,
-    "unmapped_fortran_exports": 386
+    "unmapped_fortran_exports": 389
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -3604,6 +3617,8 @@
     "scalar_curvature",
     "scale_form",
     "second_bianchi_residual",
+    "series",
+    "series_coeff",
     "sharp",
     "signature_component",
     "signature_create",
@@ -3613,6 +3628,7 @@
     "signature_positive_count",
     "signature_t",
     "signature_valid",
+    "solve",
     "spacetime_christoffel",
     "spacetime_codifferential",
     "spacetime_d",

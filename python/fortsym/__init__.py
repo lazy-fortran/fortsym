@@ -62,6 +62,7 @@ BOOZER_RESIDUAL_COUNT = 5
 HAMADA_RESIDUAL_COUNT = 5
 SPACETIME_DIM = 4
 SPACETIME_TENSOR_MAX_RANK = 5
+SOLVE_OUTPUT_CAPACITY = 16
 CONNECTION_STANDARD = 1
 CONNECTION_OPPOSITE = -1
 SYMMETRY_NONE = 0
@@ -1370,6 +1371,12 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, _CVOID, _CVOID, ctypes.c_int,
          ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
+    lib.solve = declare(
+        "fortsym_solve",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _SIZE,
+         ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
     )
     lib.zero_test = declare(
         "fortsym_zero_test",
@@ -7069,6 +7076,27 @@ class Expr:
             variable._handle, point._handle, int(order)
         )
 
+    def solve(self, variable=None):
+        if variable is None:
+            symbols = self.free_symbols
+            if len(symbols) != 1:
+                raise ValueError(
+                    "solve without a variable needs exactly one free symbol"
+                )
+            variable = next(iter(symbols))
+        variable = self._arena._check(variable)
+        output = (_CVOID * SOLVE_OUTPUT_CAPACITY)()
+        count = _SIZE()
+        message = _message()
+        status = self._lib.solve(
+            self._arena._require(), self._require(), variable._handle,
+            output, SOLVE_OUTPUT_CAPACITY, ctypes.byref(count), message,
+            len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "solve")
+        return [Expr(self._arena, output[index]) for index in range(count.value)]
+
     def _complex_operation(self, operation):
         cached = self._complex_results.get(operation)
         if (cached is not None and cached[0] == self._arena._assumption_epoch
@@ -7491,6 +7519,7 @@ def series_coeff(expression: Expr, variable: Expr, point=0, order=0):
     finally:
         if temporary is not None:
             temporary.close()
+def solve(expression: Expr, variable=None): return expression.solve(variable)
 def operation_count(expression: Expr): return expression.operation_count()
 def free_symbols(expression: Expr): return expression.free_symbols
 def tensor_product(left: Tensor, right: Tensor): return left.product(right)
@@ -7504,6 +7533,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

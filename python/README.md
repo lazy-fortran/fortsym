@@ -22,6 +22,11 @@ Taylor polynomials through the requested highest degree; `series_coeff(...)`
 returns one exact coefficient. The native result omits SymPy's `O(...)` term
 and refuses singular points, non-finite coefficients, and unsupported symbolic
 derivatives.
+`Expr.solve(variable)`, `solve(expression, variable)`, and the matching
+`fortsym.sympy.solve(...)` expose distinct verified roots for one equation in
+one symbol. Exact univariate polynomials use the native root verifier; the
+fallback is limited to verified scalar-linear equations. Unsupported domains,
+options, and equations return an explicit refusal.
 
 ## Native geometry facade
 
@@ -446,7 +451,8 @@ does not import SymPy. Unsupported names raise
 | `integrate` | verified one-variable indefinite integration in the SymPy-compatible default complex domain; unsupported antiderivatives, multiple variables, and options are explicit refusals |
 | `limit` | verified finite and infinite limits for the native bounded theorem fragment; finite poles and unsupported asymptotics are explicit refusals |
 | `series` | bounded Taylor polynomial through the requested SymPy term count, with the `O(...)` term omitted; singular/non-finite coefficients, unsupported symbolic derivatives, and unsupported options are explicit refusals |
-| `solve`, `Matrix` | explicit refusal until their semantics are covered |
+| `solve` | distinct verified roots for one equation in one symbol; exact univariate polynomials and verified scalar-linear equations; unsupported domains/options are explicit refusals |
+| `Matrix` | explicit refusal until symbolic matrix semantics are covered |
 
 `Wild(name, exclude=(), properties=())` is an adapter-only pattern object. Its
 direct, fixed-shape, single-Wild remainder, and bounded distinct-Wild
