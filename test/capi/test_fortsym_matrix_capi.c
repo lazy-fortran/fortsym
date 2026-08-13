@@ -16,7 +16,7 @@ int main(void)
     fortsym_expr *row_one = NULL, *row_two = NULL, *matrix = NULL;
     fortsym_expr *zero_row = NULL, *zero_matrix = NULL;
     fortsym_expr *bad_matrix = NULL;
-    fortsym_expr *determinant = NULL, *trace = NULL, *rank = NULL, *inverse = NULL;
+    fortsym_expr *determinant = NULL, *minor = NULL, *trace = NULL, *rank = NULL, *inverse = NULL;
     fortsym_expr *transposed = NULL;
     fortsym_expr *conjugated = NULL, *adjointed = NULL;
     fortsym_expr *elementwise = NULL;
@@ -75,6 +75,18 @@ int main(void)
     assert(fortsym_expr_text(determinant, text, sizeof text, &required,
                              message, sizeof message) == FORTSYM_OK);
     assert(strcmp(text, "-2") == 0);
+    assert(fortsym_matrix_minor(arena, matrix, 0, 0, &minor, message,
+                                sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_text(minor, text, sizeof text, &required,
+                             message, sizeof message) == FORTSYM_OK);
+    assert(strcmp(text, "4") == 0);
+    fortsym_expr_free(minor);
+    minor = NULL;
+    assert(fortsym_matrix_minor(arena, matrix, 0, 1, &minor, message,
+                                sizeof message) == FORTSYM_OK);
+    assert(fortsym_expr_text(minor, text, sizeof text, &required,
+                             message, sizeof message) == FORTSYM_OK);
+    assert(strcmp(text, "3") == 0);
     assert(fortsym_matrix_trace(arena, matrix, &trace, message,
                                 sizeof message) == FORTSYM_OK);
     assert(fortsym_expr_text(trace, text, sizeof text, &required,
@@ -267,6 +279,9 @@ int main(void)
     assert(fortsym_matrix_add(arena, bad_matrix, matrix, &sum, message,
                               sizeof message) == FORTSYM_UNSUPPORTED);
     assert(sum == NULL);
+    assert(fortsym_matrix_minor(arena, bad_matrix, 0, 0, &minor, message,
+                                sizeof message) == FORTSYM_UNSUPPORTED);
+    assert(minor == NULL);
     assert(fortsym_arena_new(&foreign_arena, message, sizeof message) ==
            FORTSYM_OK);
     assert(fortsym_int(foreign_arena, 1, &foreign_one, message,
@@ -325,6 +340,7 @@ int main(void)
     fortsym_expr_free(inverse);
     fortsym_expr_free(rank);
     fortsym_expr_free(trace);
+    fortsym_expr_free(minor);
     fortsym_expr_free(determinant);
     fortsym_expr_free(matrix);
     fortsym_expr_free(zero_matrix);

@@ -1462,6 +1462,12 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.matrix_minor = declare(
+        "fortsym_matrix_minor",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.c_int, ctypes.c_int,
+         ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.matrix_trace = declare(
         "fortsym_matrix_trace",
         ctypes.c_int,
@@ -7591,6 +7597,15 @@ class Expr:
             self._lib.matrix_det, self._arena._require(), self._require()
         )
 
+    def minor(self, row, column):
+        if (not isinstance(row, int) or isinstance(row, bool) or
+                not isinstance(column, int) or isinstance(column, bool)):
+            raise TypeError("matrix minor indices must be integers")
+        return self._arena._result(
+            self._lib.matrix_minor, self._arena._require(), self._require(),
+            int(row), int(column),
+        )
+
     def trace(self):
         return self._arena._result(
             self._lib.matrix_trace, self._arena._require(), self._require()
@@ -8272,6 +8287,8 @@ def solve_ode(problem: Expr, unknown: Expr, variable: Expr):
 def solve_univariate_inequality(expression: Expr, variable: Expr):
     return expression.solve_univariate_inequality(variable)
 def det(expression: Expr): return expression.det()
+def minor(expression: Expr, row: int, column: int):
+    return expression.minor(row, column)
 def rank(expression: Expr): return expression.rank()
 def inv(expression: Expr): return expression.inv()
 def transpose(expression: Expr): return expression.transpose()
@@ -8362,6 +8379,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "coefficient", "exponent", "polynomial_gcd", "polynomial_quotient", "polynomial_remainder", "integrate", "definite_integral", "sum_closed_form", "product_closed_form", "limit", "series", "series_coeff", "solve", "solve_ode", "solve_univariate_inequality", "det", "rank", "inv", "transpose", "matrix_conjugate", "matrix_adjoint", "matrix_multiply_elementwise", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "coefficient", "exponent", "polynomial_gcd", "polynomial_quotient", "polynomial_remainder", "integrate", "definite_integral", "sum_closed_form", "product_closed_form", "limit", "series", "series_coeff", "solve", "solve_ode", "solve_univariate_inequality", "det", "minor", "rank", "inv", "transpose", "matrix_conjugate", "matrix_adjoint", "matrix_multiply_elementwise", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

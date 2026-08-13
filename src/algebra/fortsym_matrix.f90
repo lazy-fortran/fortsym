@@ -35,7 +35,8 @@ module fortsym_matrix
         matrix_is_identity, matrix_is_echelon, matrix_is_hermitian, &
         matrix_is_symmetric, &
         matrix_inverse
-    public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
+    public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors, &
+        matrix_minor
     public :: matrix_rref_values
     public :: to_matrix, from_matrix
 
@@ -2095,6 +2096,47 @@ contains
         r = func("List", row_results)
         ok = .true.
     end function matrix_minors
+
+    !> The determinant of the submatrix obtained by deleting one row and one
+    !> column.  Keep this as a thin owner over the existing Bareiss/cofactor
+    !> path so Matrix.minor and native callers cannot acquire a second
+    !> determinant implementation.
+    function matrix_minor(a, e, row, column, ok, why) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t), intent(in) :: e
+        integer, intent(in) :: row, column
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(expr_t) :: r
+        type(expr_t), allocatable :: m(:, :)
+        integer :: rows, cols
+
+        r = e
+        ok = .false.
+        why = str("")
+        call matrix_shape(e, rows, cols)
+        if (rows == 0 .or. cols == 0) then
+            why = str("Matrix.minor requires a nonempty rectangular matrix")
+            return
+        end if
+        if (rows /= cols) then
+            why = str("Matrix.minor requires a square matrix")
+            return
+        end if
+        if (row < 1 .or. row > rows .or. column < 1 .or. column > cols) then
+            why = str("Matrix.minor row or column is outside the matrix")
+            return
+        end if
+
+        call to_matrix(e, m, ok)
+        if (.not. ok) then
+            why = str("Matrix.minor could not read the matrix")
+            return
+        end if
+        r = cofactor(a, m, row, column, ok, why)
+        if (.not. ok) return
+        if (mod(row + column, 2) == 1) r = -r
+    end function matrix_minor
 
     !> In-place exact RREF and its pivot columns.
     subroutine rref(a, m, rank, pivots, ok, why, pivot_columns)

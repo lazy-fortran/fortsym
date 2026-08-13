@@ -304,6 +304,12 @@ int fortsym_linsolve_parametric(
  * FORTSYM_UNSUPPORTED. */
 int fortsym_matrix_det(fortsym_arena *arena, const fortsym_expr *matrix,
                        fortsym_expr **out, char *message, size_t capacity);
+/* Signed-free determinant of the submatrix obtained by deleting one
+ * zero-based row and column. The matrix must be nonempty, square, and dense;
+ * malformed or unsupported forms return FORTSYM_UNSUPPORTED. */
+int fortsym_matrix_minor(fortsym_arena *arena, const fortsym_expr *matrix,
+                         int row, int column, fortsym_expr **out,
+                         char *message, size_t capacity);
 /* Trace of a nonempty square dense matrix represented by nested List
  * expressions. Non-square and unsupported forms return FORTSYM_UNSUPPORTED. */
 int fortsym_matrix_trace(fortsym_arena *arena, const fortsym_expr *matrix,

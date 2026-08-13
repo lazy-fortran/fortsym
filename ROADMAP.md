@@ -351,6 +351,10 @@ SymPy parity for the entire family.
       the reduced Matrix while reusing the same native RREF owner; custom zero
       functions, conditional pivots, and other unsupported options remain
       explicit refusals.
+- [x] Expose bounded exact dense `Matrix.minor(i, j)` through the native
+      determinant owner and public C/Python facades, with bounded
+      `minor_submatrix(i, j)` composition and explicit one-dimensional
+      refusal; non-square and broader matrix-minor families remain open.
 - [x] Accept bounded `Matrix.rref(simplify=True)` because the native RREF
       owner already simplifies every exact pivot and elimination result;
       callback-controlled zero tests and conditional pivots remain refused.

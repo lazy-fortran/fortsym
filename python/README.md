@@ -72,7 +72,8 @@ different arenas are rejected. Broader Boolean simplification and condition
 solving remain explicit roadmap work.
 `Matrix(rows)` constructs a bounded exact dense matrix; a flat sequence such as
 `Matrix([a, b])` is a column matrix. It supports `(row, column)` indexing,
-`len()`, `is_square`, `det()`/`det(matrix)`, `trace()`/`trace(matrix)`,
+`len()`, `is_square`, `det()`/`det(matrix)`, `minor(i, j)`, bounded
+`minor_submatrix(i, j)`, `trace()`/`trace(matrix)`,
 `is_diagonal()`, `is_zero_matrix`, `is_upper`, `is_lower`,
 `is_anti_symmetric(simplify=True)`, `is_symbolic()`, and
 `conjugate()`, `adjoint()`, `.H`, and `multiply_elementwise()`,

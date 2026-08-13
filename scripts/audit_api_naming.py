@@ -326,6 +326,30 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
             "solve_ode is a native specialized operation with no current Python or SymPy adapter entry.",
             "Keep it in the calculus owner until its SymPy parity contract is defined.",
         ),
+        concept(
+            "inequality-solving",
+            "Reduce a supported univariate inequality.",
+            [], ["solve_univariate_inequality"],
+            ["solve_univariate_inequality", "reduce_inequalities"],
+            ["solve_univariate_inequality", "reduce_inequalities"],
+            "The native inequality owner is exposed through the Python transport under its explicit name; the adapter also accepts SymPy's list-oriented reduce_inequalities spelling.",
+            "Keep solve_univariate_inequality as the single native inequality owner. Expose the same spelling in the convenience facade and adapt reduce_inequalities input convention without duplicating the algorithm.",
+        ),
+        concept(
+            "sums-and-products",
+            "Evaluate supported finite symbolic sums and products.",
+            [], ["sum_closed_form", "product_closed_form"],
+            ["summation", "product"], ["summation", "product"],
+            "The native closed-form owner keeps explicit sum_closed_form and product_closed_form names; the adapter preserves SymPy's summation and product spellings and bounds.",
+            "Keep one native sums/products owner and adapt SymPy's names only at the compatibility boundary.",
+        ),
+        concept(
+            "matrix-minors",
+            "Delete one row and one column from a bounded exact dense matrix and take its determinant.",
+            ["minor"], ["minor"], ["minor", "minor_submatrix"], [],
+            "The native facade keeps the concise minor name and uses one determinant owner. The compatibility adapter preserves SymPy's Matrix.minor and Matrix.minor_submatrix method spellings, with index translation at the C boundary.",
+            "Keep minor as the one native operation and compose minor_submatrix from the existing dense-matrix slice owner; do not add a second determinant or matrix representation.",
+        ),
     ]
     assigned = {
         name

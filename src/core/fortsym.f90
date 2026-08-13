@@ -35,7 +35,7 @@ module fortsym
         calculate_matrix_inverse, calculate_matrix_transpose, &
         calculate_matrix_add, calculate_matrix_negate, calculate_matrix_divide, &
         calculate_matrix_null_space, calculate_matrix_rref, &
-        calculate_matrix_multiply
+        calculate_matrix_multiply, calculate_matrix_minor
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -266,7 +266,7 @@ module fortsym
         rational_valued, integer_valued, positive_integer, algebraic_valued
     public :: str, chars
     public :: subs, subs_many, diff, simplify, refine, expand, factor, &
-        series, series_coeff, solve, linsolve, det, rank, inv, matrix_transpose, &
+        series, series_coeff, solve, linsolve, det, minor, rank, inv, matrix_transpose, &
         nullspace, rref, matrix_multiply, matrix_add, matrix_subtract, &
         matrix_negate, matrix_divide, operation_count, free_symbols
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
@@ -831,6 +831,38 @@ contains
             result%ok = .true.
         end if
     end function det
+
+    !> Return the exact determinant after deleting one one-based row and
+    !> column. The native facade uses Fortran indexing; C and SymPy adapters
+    !> translate their zero-based indices at their boundaries.
+    function minor(expression, row, column) result(result)
+        type(expr_t), intent(in) :: expression
+        integer, intent(in) :: row, column
+        type(engine_result_t) :: result
+        logical :: ok
+        character(:), allocatable :: why
+        type(native_engine_t) :: engine
+
+        if (.not. is_valid(expression)) then
+            call report_failure(result, "minor: invalid expression")
+            return
+        end if
+        if (use_default_engine(expression)) then
+            call calculate_matrix_minor( &
+                expression%a, default_engine, expression, row, column, &
+                result%value, ok, why)
+        else
+            engine = make_native_engine(expression%a)
+            call calculate_matrix_minor( &
+                expression%a, engine, expression, row, column, result%value, &
+                ok, why)
+        end if
+        if (.not. ok) then
+            call report_failure(result, why)
+        else
+            result%ok = .true.
+        end if
+    end function minor
 
     !> Return the exact rank of a dense matrix represented as nested `List`
     !> expressions. The native RREF owner decides literal exact pivots and

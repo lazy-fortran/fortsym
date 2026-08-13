@@ -13,7 +13,8 @@ one-variable indefinite `fortsym_integrate`, and verified bounded finite/infinit
 `fortsym_limit`, and bounded `fortsym_series`/`fortsym_series_coeff`;
 verified exact-rational one-right-hand-side `fortsym_linsolve` and
 `fortsym_linsolve_parametric`, and bounded dense
-matrix determinant `fortsym_matrix_det`, and exact matrix rank
+matrix determinant `fortsym_matrix_det`, bounded matrix minors
+`fortsym_matrix_minor`, and exact matrix rank
 `fortsym_matrix_rank`, exact matrix inverse `fortsym_matrix_inverse`, matrix
 transpose `fortsym_matrix_transpose`, and bounded exact nullspace
 `fortsym_matrix_nullspace`, and bounded exact RREF

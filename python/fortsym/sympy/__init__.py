@@ -2748,6 +2748,31 @@ class Matrix:
             if temporary is not None:
                 temporary.close()
 
+    def minor(self, i, j):
+        """Return the determinant after deleting row ``i`` and column ``j``."""
+        row = self._matrix_index(i, self.rows)
+        column = self._matrix_index(j, self.cols)
+        expression, temporary = self._matrix_expression()
+        try:
+            return _native_operation(lambda: expression.minor(row, column))
+        finally:
+            if temporary is not None:
+                temporary.close()
+
+    def minor_submatrix(self, i, j):
+        """Return the dense matrix with row ``i`` and column ``j`` removed."""
+        row = self._matrix_index(i, self.rows)
+        column = self._matrix_index(j, self.cols)
+        if self.rows == 1 or self.cols == 1:
+            raise UnsupportedOperationError(
+                "1-dimensional minor_submatrix results are outside the bounded matrix owner"
+            )
+        row_indices = tuple(index for index in range(self.rows) if index != row)
+        column_indices = tuple(
+            index for index in range(self.cols) if index != column
+        )
+        return self._matrix_slice(row_indices, column_indices)
+
     def trace(self):
         expression, temporary = self._matrix_expression()
         try:
