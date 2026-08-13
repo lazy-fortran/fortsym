@@ -27,7 +27,8 @@ module fortsym_matrix
     public :: is_list, is_matrix, matrix_shape
     public :: matrix_transpose, matrix_add, matrix_negate, matrix_divide, matrix_dot
     public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_zero_matrix, &
-        matrix_is_upper, matrix_is_lower, matrix_is_anti_symmetric, matrix_is_symbolic, &
+        matrix_is_upper, matrix_is_lower, matrix_is_upper_hessenberg, &
+        matrix_is_lower_hessenberg, matrix_is_anti_symmetric, matrix_is_symbolic, &
         matrix_is_symmetric, &
         matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
@@ -1109,6 +1110,83 @@ contains
         verdict = VERDICT_TRUE
         ok = .true.
     end subroutine matrix_is_triangular
+
+    subroutine matrix_is_upper_hessenberg(a, engine, e, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+
+        call matrix_is_hessenberg(engine, e, .true., verdict, ok, why)
+    end subroutine matrix_is_upper_hessenberg
+
+    subroutine matrix_is_lower_hessenberg(a, engine, e, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+
+        call matrix_is_hessenberg(engine, e, .false., verdict, ok, why)
+    end subroutine matrix_is_lower_hessenberg
+
+    subroutine matrix_is_hessenberg(engine, e, upper, verdict, ok, why)
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        logical, intent(in) :: upper
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(expr_t) :: row, value
+        type(str_t) :: entry_why
+        integer :: rows, cols, i, j, first, last, entry_verdict
+        logical :: entry_ok
+
+        verdict = VERDICT_FALSE
+        ok = .false.
+        why = str("")
+        call matrix_shape(e, rows, cols)
+        if (rows == 0) then
+            if (upper) then
+                why = str("Upper-Hessenberg test on something that is not a matrix")
+            else
+                why = str("Lower-Hessenberg test on something that is not a matrix")
+            end if
+            return
+        end if
+
+        do i = 1, rows
+            if (upper) then
+                first = 1
+                last = min(i - 2, cols)
+            else
+                first = i + 2
+                last = cols
+            end if
+            if (first > last) cycle
+            row = e%arg(i)
+            do j = first, last
+                value = row%arg(j)
+                call matrix_entry_zero( &
+                    engine, value, entry_verdict, entry_ok, entry_why)
+                if (.not. entry_ok) then
+                    why = entry_why
+                    return
+                end if
+                if (entry_verdict /= VERDICT_TRUE) then
+                    verdict = VERDICT_FALSE
+                    ok = .true.
+                    return
+                end if
+            end do
+        end do
+
+        verdict = VERDICT_TRUE
+        ok = .true.
+    end subroutine matrix_is_hessenberg
 
     !> Boolean antisymmetry predicate with SymPy's optional simplification switch.
     subroutine matrix_is_anti_symmetric(a, engine, e, simplify, verdict, ok, why)

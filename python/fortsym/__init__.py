@@ -1433,6 +1433,16 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
     )
+    lib.matrix_is_upper_hessenberg = declare(
+        "fortsym_matrix_is_upper_hessenberg",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
+    )
+    lib.matrix_is_lower_hessenberg = declare(
+        "fortsym_matrix_is_lower_hessenberg",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
+    )
     lib.matrix_is_anti_symmetric = declare(
         "fortsym_matrix_is_anti_symmetric",
         ctypes.c_int,
@@ -7428,6 +7438,20 @@ class Expr:
     def is_lower(self):
         return self._arena._verdict(
             self._lib.matrix_is_lower,
+            self._arena._require(),
+            self._require(),
+        )
+
+    def is_upper_hessenberg(self):
+        return self._arena._verdict(
+            self._lib.matrix_is_upper_hessenberg,
+            self._arena._require(),
+            self._require(),
+        )
+
+    def is_lower_hessenberg(self):
+        return self._arena._verdict(
+            self._lib.matrix_is_lower_hessenberg,
             self._arena._require(),
             self._require(),
         )

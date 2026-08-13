@@ -28,6 +28,8 @@ int main(void)
     int zero_matrix_verdict = FORTSYM_ZERO_UNKNOWN;
     int upper_verdict = FORTSYM_ZERO_UNKNOWN;
     int lower_verdict = FORTSYM_ZERO_UNKNOWN;
+    int upper_hessenberg_verdict = FORTSYM_ZERO_UNKNOWN;
+    int lower_hessenberg_verdict = FORTSYM_ZERO_UNKNOWN;
     int anti_symmetric_verdict = FORTSYM_ZERO_UNKNOWN;
     int symbolic_verdict = FORTSYM_ZERO_UNKNOWN;
     int symmetric_verdict = FORTSYM_ZERO_UNKNOWN;
@@ -40,7 +42,7 @@ int main(void)
     const fortsym_expr *null_row_two_values[3];
     const fortsym_expr *null_rows[2];
 
-    assert(fortsym_abi_version() == 96);
+    assert(fortsym_abi_version() == 97);
     assert(fortsym_arena_new(&arena, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 0, &zero, message, sizeof message) == FORTSYM_OK);
     assert(fortsym_int(arena, 1, &one, message, sizeof message) == FORTSYM_OK);
@@ -84,6 +86,14 @@ int main(void)
     assert(fortsym_matrix_is_lower(arena, matrix, &lower_verdict,
                                    message, sizeof message) == FORTSYM_OK);
     assert(lower_verdict == FORTSYM_ZERO_FALSE);
+    assert(fortsym_matrix_is_upper_hessenberg(
+               arena, matrix, &upper_hessenberg_verdict, message,
+               sizeof message) == FORTSYM_OK);
+    assert(upper_hessenberg_verdict == FORTSYM_ZERO_TRUE);
+    assert(fortsym_matrix_is_lower_hessenberg(
+               arena, matrix, &lower_hessenberg_verdict, message,
+               sizeof message) == FORTSYM_OK);
+    assert(lower_hessenberg_verdict == FORTSYM_ZERO_TRUE);
     assert(fortsym_matrix_is_anti_symmetric(
                arena, matrix, 1, &anti_symmetric_verdict, message,
                sizeof message) == FORTSYM_OK);
