@@ -6991,7 +6991,7 @@ class Expr:
         return self._handle
 
     def close(self):
-        if self._borrowed:
+        if self._borrowed or self._handle is None:
             return
         self._simplified_result = None
         self._expanded_result = None
