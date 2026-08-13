@@ -1620,11 +1620,16 @@ class Matrix:
         self.rows = len(rows)
         self.cols = width
         self.shape = (self.rows, self.cols)
+        self._column_vector = False
 
     def __getitem__(self, key):
         if not isinstance(key, tuple) or len(key) != 2:
             raise TypeError("Matrix indexing requires (row, column)")
         row, column = key
+        if self._column_vector:
+            if column != 0:
+                raise IndexError("column matrix has one column")
+            return self._expression.argument(row)
         row_expression = self._expression.argument(row)
         try:
             return row_expression.argument(column)
@@ -1634,12 +1639,22 @@ class Matrix:
     def det(self, **options):
         if options:
             raise UnsupportedOperationError("determinant options")
-        return _native_operation(self._expression.det)
+        expression, temporary = self._matrix_expression()
+        try:
+            return _native_operation(expression.det)
+        finally:
+            if temporary is not None:
+                temporary.close()
 
     def rank(self, **options):
         if options:
             raise UnsupportedOperationError("rank options")
-        return _native_operation(self._expression.rank)
+        expression, temporary = self._matrix_expression()
+        try:
+            return _native_operation(expression.rank)
+        finally:
+            if temporary is not None:
+                temporary.close()
 
     @classmethod
     def _from_expression(cls, expression, rows, cols):
@@ -1648,23 +1663,90 @@ class Matrix:
         matrix.rows = rows
         matrix.cols = cols
         matrix.shape = (rows, cols)
+        matrix._column_vector = False
         return matrix
+
+    @classmethod
+    def _from_column_expression(cls, expression, rows):
+        matrix = cls.__new__(cls)
+        matrix._expression = expression
+        matrix.rows = rows
+        matrix.cols = 1
+        matrix.shape = (rows, 1)
+        matrix._column_vector = True
+        return matrix
+
+    def _matrix_expression(self):
+        if not self._column_vector:
+            return self._expression, None
+        row_handles = []
+        try:
+            for row_index in range(self.rows):
+                entry = self._expression.argument(row_index)
+                try:
+                    row_handles.append(
+                        self._expression._arena.function("List", [entry])
+                    )
+                finally:
+                    entry.close()
+            expression = self._expression._arena.function("List", row_handles)
+        finally:
+            for row in row_handles:
+                row.close()
+        return expression, expression
 
     def inv(self, **options):
         if options:
             raise UnsupportedOperationError("inverse options")
-        expression = _native_operation(self._expression.inv)
+        matrix_expression, temporary = self._matrix_expression()
+        try:
+            expression = _native_operation(matrix_expression.inv)
+        finally:
+            if temporary is not None:
+                temporary.close()
         return self._from_expression(expression, self.rows, self.cols)
 
     def transpose(self):
-        expression = _native_operation(self._expression.transpose)
+        matrix_expression, temporary = self._matrix_expression()
+        try:
+            expression = _native_operation(matrix_expression.transpose)
+        finally:
+            if temporary is not None:
+                temporary.close()
         return self._from_expression(expression, self.cols, self.rows)
 
     @property
     def T(self):
         return self.transpose()
 
+    def nullspace(self, simplify=False, iszerofunc=None):
+        if simplify is not False or iszerofunc is not None:
+            raise UnsupportedOperationError("nullspace options")
+        matrix_expression, temporary = self._matrix_expression()
+        try:
+            basis = _native_operation(matrix_expression.nullspace)
+        finally:
+            if temporary is not None:
+                temporary.close()
+        vectors = []
+        try:
+            for index in range(basis.arity):
+                vector = basis.argument(index)
+                vectors.append(self._from_column_expression(vector, self.cols))
+            return vectors
+        finally:
+            basis.close()
+
     def __str__(self):
+        if self._column_vector:
+            entries = []
+            for row_index in range(self.rows):
+                entry = self._expression.argument(row_index)
+                try:
+                    entries.append("[" + str(entry) + "]")
+                finally:
+                    entry.close()
+            return "Matrix([" + ", ".join(entries) + "])"
         rows = []
         for row_index in range(self.rows):
             row = self._expression.argument(row_index)
