@@ -1,0 +1,15 @@
+schema_version = 1
+profile = "sympy-1.14.0"
+package = "fortsym"
+sympy_package = "sympy"
+sympy_version = "1.14.0"
+
+inventory = "doc/sympy-api-inventory.json"
+classification = "doc/sympy-api-classification.json"
+naming_policy = "doc/api-naming-policy.toml"
+naming_audit = "doc/sympy-api-naming-audit.json"
+difference_ledger = "doc/sympy-api-differences.toml"
+api_baseline = "doc/sympy-api-baseline-1.14.0.json"
+api_diff = "doc/sympy-api-diff-1.14.0.json"
+feature_matrix = "doc/feature-matrix.md"
+benchmark_report = "benchmark/results/sympy-1.14.0.json"

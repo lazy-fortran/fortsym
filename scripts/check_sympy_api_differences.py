@@ -9,14 +9,7 @@ import tomllib
 from pathlib import Path
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("ledger", type=Path)
-    parser.add_argument("classification", type=Path)
-    args = parser.parse_args()
-
-    ledger = tomllib.loads(args.ledger.read_text(encoding="utf-8"))
-    classification = json.loads(args.classification.read_text(encoding="utf-8"))
+def validate(ledger: dict, classification: dict) -> str:
     assert ledger["package"] == classification["package"] == "sympy"
     assert ledger["version"] == classification["version"] == "1.14.0"
 
@@ -44,10 +37,21 @@ def main() -> None:
     assert all(item["affected"] for item in semantic + implementation)
     assert all(item["sympy"] and item["fortsym"] and item["difference"]
                for item in semantic + implementation)
-    print(
+    return (
         f"validated {len(supported)} supported root names across "
         f"{len(semantic)} semantic and {len(implementation)} implementation entries"
     )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("ledger", type=Path)
+    parser.add_argument("classification", type=Path)
+    args = parser.parse_args()
+
+    ledger = tomllib.loads(args.ledger.read_text(encoding="utf-8"))
+    classification = json.loads(args.classification.read_text(encoding="utf-8"))
+    print(validate(ledger, classification))
 
 
 if __name__ == "__main__":
