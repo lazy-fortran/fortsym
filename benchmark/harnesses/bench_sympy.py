@@ -31,7 +31,7 @@ _ASSUMPTION_OPERATIONS = (
 )
 _CONSTRUCTION_OPERATIONS = (
     "power_constructor", "power_one_constructor", "tuple_constructor",
-    "finite_set_constructor",
+    "finite_set_constructor", "complement_constructor",
 )
 
 
@@ -171,6 +171,22 @@ def finite_set_equivalent(expected: Any, actual: Any) -> bool:
     finally:
         for value in values:
             value.close()
+
+
+def complement_equivalent(expected: Any, actual: Any) -> bool:
+    if (actual._expression.name != "Complement" or
+            actual._expression.arity != 2):
+        return False
+    actual_base, actual_excluded = actual.args
+    try:
+        expected_base, expected_excluded = expected.args
+        return (
+            finite_set_equivalent(expected_base, actual_base) and
+            finite_set_equivalent(expected_excluded, actual_excluded)
+        )
+    finally:
+        actual_base.close()
+        actual_excluded.close()
 
 
 def root_list_equivalent(expected: Any, actual: Any, names: dict[str, Any]) -> bool:
@@ -482,6 +498,15 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
         "finite_set_constructor": (
             oracle.FiniteSet(oracle_x, oracle_y, 2),
             native.FiniteSet(native_x, native_y, 2),
+            names,
+        ),
+        "complement_constructor": (
+            oracle.Complement(
+                oracle.FiniteSet(oracle_x), oracle.FiniteSet(oracle_y)
+            ),
+            native.Complement(
+                native.FiniteSet(native_x), native.FiniteSet(native_y)
+            ),
             names,
         ),
         "domain_function": (
@@ -847,6 +872,11 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
     elif operation == "finite_set_constructor":
         y = engine.Symbol(f"{operation}_y_{suffix}")
         expression = engine.FiniteSet(x, y, 2)
+    elif operation == "complement_constructor":
+        y = engine.Symbol(f"{operation}_y_{suffix}")
+        expression = engine.Complement(
+            engine.FiniteSet(x), engine.FiniteSet(y)
+        )
     elif operation in _CONSTRUCTION_OPERATIONS:
         exponent = 0 if operation == "power_constructor" else 1
         expression = x**exponent
@@ -1289,6 +1319,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                 if operation == "tuple_constructor"
                 else finite_set_equivalent(expected, actual)
                 if operation == "finite_set_constructor"
+                else complement_equivalent(expected, actual)
+                if operation == "complement_constructor"
                 else str(expected) == str(actual)
                 if operation == "relation"
                 else compound_equivalent(expected, actual)
@@ -1688,7 +1720,7 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "tuple_constructor", "finite_set_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate",
+        "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "tuple_constructor", "finite_set_constructor", "complement_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate",
         "matrix_divide", "solve_rational", "solveset_rational_condition",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):

@@ -327,6 +327,42 @@ class SympyDifferentialTest(unittest.TestCase):
         self.assertEqual(str(actual), str(expected))
         self.assertIsInstance(actual, native.Complement)
 
+    def test_complement_result_is_native_owned_and_matches_sympy(self):
+        oracle_x = oracle.Symbol("complement_x")
+        oracle_y = oracle.Symbol("complement_y")
+        native_x = native.Symbol("complement_x")
+        native_y = native.Symbol("complement_y")
+        base = native.FiniteSet(native_x)
+        excluded = native.FiniteSet(native_y)
+        actual = native.Complement(base, excluded)
+        base.close()
+        excluded.close()
+        expected = oracle.Complement(
+            oracle.FiniteSet(oracle_x), oracle.FiniteSet(oracle_y)
+        )
+        try:
+            self.assertEqual(str(actual), str(expected))
+            self.assertEqual(actual._expression.name, "Complement")
+            self.assertEqual(actual._expression.arity, 2)
+            views = actual.args
+            try:
+                self.assertEqual(len(views), 2)
+                self.assertEqual(str(views[0]), str(oracle.FiniteSet(oracle_x)))
+                self.assertEqual(str(views[1]), str(oracle.FiniteSet(oracle_y)))
+            finally:
+                for view in views:
+                    view.close()
+            probe_x = native.Symbol("complement_x")
+            probe_y = native.Symbol("complement_y")
+            try:
+                self.assertIn(probe_x, actual)
+                self.assertNotIn(probe_y, actual)
+            finally:
+                probe_x.close()
+                probe_y.close()
+        finally:
+            actual.close()
+
     def test_bounded_linsolve_matches_sympy(self):
         oracle_x, oracle_y = oracle.symbols("linsolve_x linsolve_y")
         native_x, native_y = native.symbols("linsolve_x linsolve_y")
