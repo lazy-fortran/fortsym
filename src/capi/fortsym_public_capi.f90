@@ -143,6 +143,7 @@ module fortsym_public_capi
         calculate_matrix_is_upper_hessenberg, calculate_matrix_is_lower_hessenberg, &
         calculate_matrix_is_identity, &
         calculate_matrix_is_echelon, &
+        calculate_matrix_is_hermitian, &
         calculate_matrix_is_anti_symmetric, &
         calculate_matrix_is_symbolic, &
         calculate_matrix_is_symmetric, calculate_matrix_rank, &
@@ -210,6 +211,7 @@ module fortsym_public_capi
         fortsym_matrix_is_upper_hessenberg, fortsym_matrix_is_lower_hessenberg, &
         fortsym_matrix_is_identity, &
         fortsym_matrix_is_echelon, &
+        fortsym_matrix_is_hermitian, &
         fortsym_matrix_is_anti_symmetric, &
         fortsym_matrix_is_symbolic, &
         fortsym_matrix_is_symmetric, &
@@ -322,7 +324,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 99_c_int
+        v = 100_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -6237,6 +6239,39 @@ contains
         end if
         status = FORTSYM_OK
     end function fortsym_matrix_is_echelon
+
+    function fortsym_matrix_is_hermitian(raw, expression_raw, verdict, message, capacity) &
+            bind(c, name="fortsym_matrix_is_hermitian") result(status)
+        type(c_ptr), value :: raw, expression_raw
+        integer(c_int), intent(out) :: verdict
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep
+        type(expr_t) :: expression
+        logical :: ok
+        character(:), allocatable :: why
+
+        verdict = int(VERDICT_FALSE, c_int)
+        call put_error(message, capacity, FORTSYM_OK)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call prepare_native_engine(a)
+        call calculate_matrix_is_hermitian( &
+            a%value, a%engine, expression, verdict, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        status = FORTSYM_OK
+    end function fortsym_matrix_is_hermitian
 
     function fortsym_matrix_is_anti_symmetric(raw, expression_raw, simplify, verdict, &
             message, capacity) bind(c, name="fortsym_matrix_is_anti_symmetric") &

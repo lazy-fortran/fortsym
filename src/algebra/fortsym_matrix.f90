@@ -17,7 +17,8 @@ module fortsym_matrix
         NK_ADD, NK_MUL, NK_POW
     use fortsym_expr, only: expr_t, num, rat, func, func_in, same_arena, zoo_expr, operator(+), &
         operator(-), operator(*), operator(/), operator(==)
-    use fortsym_assume, only: FACT_NONZERO
+    use fortsym_assume, only: FACT_NONZERO, assumption_context_t
+    use fortsym_complexdom, only: conjugate
     use fortsym_engine, only: engine_t, engine_result_t, VERDICT_UNKNOWN, &
         VERDICT_TRUE, VERDICT_FALSE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -29,7 +30,8 @@ module fortsym_matrix
     public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_zero_matrix, &
         matrix_is_upper, matrix_is_lower, matrix_is_upper_hessenberg, &
         matrix_is_lower_hessenberg, matrix_is_anti_symmetric, matrix_is_symbolic, &
-        matrix_is_identity, matrix_is_echelon, matrix_is_symmetric, &
+        matrix_is_identity, matrix_is_echelon, matrix_is_hermitian, &
+        matrix_is_symmetric, &
         matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
     public :: matrix_rref_values
@@ -1305,6 +1307,81 @@ contains
         verdict = VERDICT_TRUE
         ok = .true.
     end subroutine matrix_is_echelon
+
+    !> Hermitian predicate using the shared structural conjugation owner.
+    subroutine matrix_is_hermitian(a, engine, e, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(expr_t) :: row, other_row, left, right, conjugated, difference
+        type(engine_result_t) :: zero
+        type(assumption_context_t), target :: local_facts
+        type(assumption_context_t), pointer :: facts
+        character(:), allocatable :: conjugate_why
+        integer :: rows, cols, i, j
+        logical :: conjugate_ok
+
+        verdict = VERDICT_FALSE
+        ok = .false.
+        why = str("")
+        facts => null()
+        select type (native => engine)
+            type is (native_engine_t)
+            if (associated(native%assumptions)) facts => native%assumptions
+        end select
+        if (.not. associated(facts)) then
+            call local_facts%init(e%a)
+            facts => local_facts
+        end if
+
+        call matrix_shape(e, rows, cols)
+        if (rows == 0) then
+            why = str("Hermitian test on something that is not a matrix")
+            return
+        end if
+        if (rows /= cols) then
+            verdict = VERDICT_FALSE
+            ok = .true.
+            return
+        end if
+
+        do i = 1, rows
+            row = e%arg(i)
+            do j = i, cols
+                other_row = e%arg(j)
+                left = row%arg(j)
+                right = other_row%arg(i)
+                call conjugate(right, facts, conjugated, conjugate_ok, conjugate_why)
+                if (.not. conjugate_ok) then
+                    verdict = VERDICT_UNKNOWN
+                    ok = .true.
+                    return
+                end if
+                difference = left - conjugated
+                zero = engine%zero_test(difference)
+                if (.not. zero%ok) then
+                    why = zero%message
+                    return
+                end if
+                if (zero%verdict == VERDICT_UNKNOWN) then
+                    verdict = VERDICT_UNKNOWN
+                    ok = .true.
+                    return
+                end if
+                if (zero%verdict /= VERDICT_TRUE) then
+                    verdict = VERDICT_FALSE
+                    ok = .true.
+                    return
+                end if
+            end do
+        end do
+
+        verdict = VERDICT_TRUE
+        ok = .true.
+    end subroutine matrix_is_hermitian
 
     !> Boolean antisymmetry predicate with SymPy's optional simplification switch.
     subroutine matrix_is_anti_symmetric(a, engine, e, simplify, verdict, ok, why)

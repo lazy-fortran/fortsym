@@ -284,6 +284,9 @@ SymPy parity for the entire family.
       diagonal comparison without materializing a matrix array.
 - [x] Expose bounded `Matrix.is_echelon` through direct row-leading-position
       traversal and the native zero oracle without materializing a matrix array.
+- [x] Expose bounded `Matrix.is_hermitian` through the shared complex
+      conjugation owner and arena assumptions without materializing a matrix
+      array.
 - [x] Align bounded `Matrix` shape metadata with SymPy through `len()` and
       `is_square`, keeping both operations O(1) and adapter-local.
 - [x] Accept flat one-dimensional `Matrix` inputs as SymPy-compatible column

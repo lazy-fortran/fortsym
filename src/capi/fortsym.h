@@ -287,6 +287,10 @@ int fortsym_matrix_is_identity(fortsym_arena *arena,
 int fortsym_matrix_is_echelon(fortsym_arena *arena,
                               const fortsym_expr *matrix, int *verdict,
                               char *message, size_t capacity);
+/* Three-valued Hermitian predicate using structural complex conjugation. */
+int fortsym_matrix_is_hermitian(fortsym_arena *arena,
+                                const fortsym_expr *matrix, int *verdict,
+                                char *message, size_t capacity);
 /* Three-valued antisymmetry predicate. `simplify` is 1 for SymPy's default
  * simplified comparison and 0 for the structural comparison. `verdict` uses
  * enum fortsym_verdict. */

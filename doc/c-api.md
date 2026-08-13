@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 99). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 100). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -30,6 +30,7 @@ upper/lower-Hessenberg predicates
 `fortsym_matrix_is_upper_hessenberg`/`fortsym_matrix_is_lower_hessenberg`;
 and structural identity predicate `fortsym_matrix_is_identity`;
 and row-echelon predicate `fortsym_matrix_is_echelon`;
+and three-valued Hermitian predicate `fortsym_matrix_is_hermitian`;
 unsupported options, unverified antiderivatives, and limits or series outside
 their theorem fragments return `FORTSYM_UNSUPPORTED` with a diagnostic.
 `fortsym_solve` returns a caller-owned array of distinct verified roots for one

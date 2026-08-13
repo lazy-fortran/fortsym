@@ -958,6 +958,62 @@ class SympyDifferentialTest(unittest.TestCase):
             oracle_symbolic_echelon.is_echelon,
         )
         native_echelon_x.close()
+        hermitian_cases = (
+            ([[1, 2], [2, 3]], True),
+            ([[1, 2, 3], [2, 4, 5]], False),
+        )
+        for rows, expected in hermitian_cases:
+            oracle_case = oracle.Matrix(rows)
+            native_case = native.Matrix(rows)
+            self.assertEqual(native_case.is_hermitian, expected)
+            self.assertEqual(native_case.is_hermitian, oracle_case.is_hermitian)
+        native_imaginary_case = native.Matrix(
+            [[1, native.I], [-native.I, 1]]
+        )
+        oracle_imaginary_case = oracle.Matrix(
+            [[1, oracle.I], [-oracle.I, 1]]
+        )
+        self.assertTrue(native_imaginary_case.is_hermitian)
+        self.assertEqual(
+            native_imaginary_case.is_hermitian,
+            oracle_imaginary_case.is_hermitian,
+        )
+        native_nonhermitian_imaginary = native.Matrix(
+            [[1, native.I], [native.I, 1]]
+        )
+        oracle_nonhermitian_imaginary = oracle.Matrix(
+            [[1, oracle.I], [oracle.I, 1]]
+        )
+        self.assertEqual(
+            native_nonhermitian_imaginary.is_hermitian,
+            oracle_nonhermitian_imaginary.is_hermitian,
+        )
+        native_hermitian_x = native.Symbol("hermitian_x")
+        oracle_hermitian_x = oracle.Symbol("hermitian_x")
+        native_unknown_hermitian = native.Matrix(
+            [[native_hermitian_x, 0], [0, 1]]
+        )
+        oracle_unknown_hermitian = oracle.Matrix(
+            [[oracle_hermitian_x, 0], [0, 1]]
+        )
+        self.assertEqual(
+            native_unknown_hermitian.is_hermitian,
+            oracle_unknown_hermitian.is_hermitian,
+        )
+        native_real_hermitian_x = native.Symbol("hermitian_real_x", real=True)
+        oracle_real_hermitian_x = oracle.Symbol("hermitian_real_x", real=True)
+        native_real_hermitian = native.Matrix(
+            [[native_real_hermitian_x, 0], [0, 1]]
+        )
+        oracle_real_hermitian = oracle.Matrix(
+            [[oracle_real_hermitian_x, 0], [0, 1]]
+        )
+        self.assertEqual(
+            native_real_hermitian.is_hermitian,
+            oracle_real_hermitian.is_hermitian,
+        )
+        native_hermitian_x.close()
+        native_real_hermitian_x.close()
         symmetric_cases = (
             ([[1, 2], [2, 3]], True),
             ([[1, 2], [3, 4]], False),

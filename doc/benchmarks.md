@@ -364,6 +364,16 @@ positions directly with the zero oracle and allocates no matrix array. The
 planned release matrix therefore has 179 rows, 133 enforced rows, and zero
 unwaived violations after the 46 documented diagnostic waivers are applied.
 
+The bounded exact `Matrix.is_hermitian` workload adds one correctness-checked
+warm-core row over a 2x2 real symmetric matrix. Its differential cases cover
+real, imaginary, non-Hermitian, non-square, real-assumed-symbol, and unknown-
+reality entries. The latest 2026-08-13 smoke sample measured a native/SymPy
+ratio of 0.054x. The native query reuses the structural complex conjugation
+owner and arena assumptions, traversing pairs directly without a matrix-array
+temporary. The planned release matrix therefore has 180 rows, 134 enforced
+rows, and zero unwaived violations after the 46 documented diagnostic waivers
+are applied.
+
 The native-owned `Complement` constructor adds one cold end-to-end row. Its
 correctness check compares both finite-set operands with SymPy while the
 independent native invariant checks the `Complement` application head and
@@ -539,8 +549,9 @@ failure. A separate strict sample measured the pre-existing
 `relation:cold_end_to_end` constructor at 1.021x while its warm row remained
 0.779x; that similarly small host-timing difference is also explicitly
 waived. With the flat-column, trace, diagonal-query, symmetry, zero-matrix,
-and triangular, antisymmetry, symbolic, Hessenberg, identity, and echelon
-coverage included, the planned release matrix therefore has 179 rows, 133 enforced rows, and zero
+and triangular, antisymmetry, symbolic, Hessenberg, identity, echelon, and
+Hermitian coverage included, the planned release matrix therefore has 180
+rows, 134 enforced rows, and zero
 unwaived violations after the 46
 documented diagnostic waivers are applied.
 
