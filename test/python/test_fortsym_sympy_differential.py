@@ -8,6 +8,8 @@ from making the comparison vacuous.
 
 import sys
 import unittest
+from decimal import Decimal
+from fractions import Fraction
 
 try:
     import sympy as oracle
@@ -118,6 +120,54 @@ class SympyDifferentialTest(unittest.TestCase):
         for label, expected in oracle_cases.items():
             with self.subTest(label=label):
                 self.assert_equivalent(label, expected, native_cases[label])
+
+    def test_rational_constructor_inputs_match_sympy(self):
+        cases = (
+            ("fraction", (Fraction(6, -8),), "-3/4"),
+            ("ratio string", ("6/8",), "3/4"),
+            ("decimal string", ("1.1",), "11/10"),
+            ("finite float", (0.75,), "3/4"),
+            (
+                "inexact finite float", (1.1,),
+                "2476979795053773/2251799813685248",
+            ),
+            ("float numerator", (0.75, 2), "3/8"),
+            ("zero denominator", (1, 0), "zoo"),
+            ("zero over zero", (0, 0), "nan"),
+        )
+        for label, arguments, expected_text in cases:
+            with self.subTest(label=label):
+                expected = oracle.Rational(*arguments)
+                actual = native.Rational(*arguments)
+                try:
+                    self.assertEqual(str(expected), expected_text)
+                    self.assertEqual(str(actual), expected_text)
+                finally:
+                    actual.close()
+
+        native_numerator = native.Integer(3)
+        native_denominator = native.Integer(4)
+        actual = native.Rational(native_numerator, native_denominator)
+        try:
+            self.assertEqual(
+                str(oracle.Rational(oracle.Integer(3), oracle.Integer(4))),
+                "3/4",
+            )
+            self.assertEqual(str(actual), "3/4")
+        finally:
+            actual.close()
+            native_numerator.close()
+            native_denominator.close()
+
+        for value, exception in (
+            (Decimal("1.10"), TypeError),
+            ("1/0", ZeroDivisionError),
+        ):
+            with self.subTest(value=value):
+                with self.assertRaises(exception):
+                    oracle.Rational(value)
+                with self.assertRaises(exception):
+                    native.Rational(value)
 
     def test_polynomial_operations_match_sympy(self):
         oracle_x, oracle_y = oracle.symbols("poly_x poly_y")

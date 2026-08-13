@@ -144,6 +144,11 @@ SymPy parity for the entire family.
       `SpacetimeTensor` slices return borrowed component views, while
       higher-rank slices are refused and the native-vs-SymPy test boundary
       compares through the independent semantic oracle.
+- [x] Align the bounded `Rational` constructor with SymPy for integer,
+      `Fraction`, rational/decimal-string, finite-float, and native exact-number
+      inputs, including canonical reduction and `zoo`/`nan` zero-denominator
+      results; non-finite, precision, and broader exact-domain conversion remain
+      explicitly deferred.
 - [ ] Complete exact integer, rational, real, complex, algebraic, infinity,
       NaN, signed-zero, and complex-infinity semantics, including conversion
       and precision rules.

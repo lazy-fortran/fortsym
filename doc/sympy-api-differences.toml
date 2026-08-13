@@ -38,8 +38,8 @@ id = "exact-number-construction"
 affected = ["Integer", "Rational"]
 parity = "partial"
 sympy = "Integer and Rational preserve SymPy exact-number construction and canonicalization rules across supported Python inputs."
-fortsym = "Values are converted through Python int and then the native exact representation; large values cross the C ABI as exact text."
-difference = "Input coercion and edge-case canonicalization must be compared explicitly; the adapter does not claim every SymPy constructor input."
+fortsym = "Integer uses the native exact representation; Rational accepts integer, Fraction, rational/decimal-string, finite-float, and native exact-number inputs, and maps zero denominators to native zoo/nan sentinels. Large integer values cross the C ABI as exact text."
+difference = "The bounded adapter does not yet cover non-finite conversion, precision metadata, or every SymPy exact-domain constructor input."
 
 [[semantic]]
 id = "real-precision"

@@ -7,6 +7,7 @@ and never imports SymPy.  Names outside the table in ``python/README.md`` raise
 
 from __future__ import annotations
 
+from decimal import Decimal
 from fractions import Fraction
 from itertools import count
 
@@ -1404,6 +1405,22 @@ def refine(expression, assumptions=None):
         return expression.simplify()
 
 
+def _rational_input(value):
+    """Convert one supported SymPy rational constructor input exactly."""
+    if isinstance(value, Expr):
+        if value.kind not in (1, 2, 10, 11):
+            raise TypeError(f"invalid input: {value}")
+        return Fraction(str(value))
+    if isinstance(value, Decimal):
+        raise TypeError(f"invalid input: {value}")
+    if isinstance(value, float):
+        return Fraction.from_float(value)
+    try:
+        return Fraction(value)
+    except (TypeError, ValueError):
+        raise TypeError(f"invalid input: {value}") from None
+
+
 class Symbol(Expr, metaclass=_KindMeta):
     _kinds = frozenset({4})
 
@@ -1423,7 +1440,12 @@ class Rational(Expr, metaclass=_KindMeta):
     _kinds = frozenset({2, 11})
 
     def __new__(cls, numerator, denominator=1):
-        return _default().rational(int(numerator), int(denominator))
+        numerator = _rational_input(numerator)
+        denominator = _rational_input(denominator)
+        if denominator == 0:
+            return _default().constant("nan" if numerator == 0 else "zoo")
+        value = numerator / denominator
+        return _default().rational(value.numerator, value.denominator)
 
 
 class Float(Expr, metaclass=_KindMeta):

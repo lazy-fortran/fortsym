@@ -331,6 +331,16 @@ The latest matrix
 therefore has 145 rows, 117 enforced rows, and zero unwaived violations after
 the 28 documented diagnostic waivers are applied.
 
+The bounded `Rational` constructor-input workload adds one cold end-to-end row
+for the string-to-exact path used by the compatibility facade. Its correctness
+matrix additionally checks `Fraction`, rational/decimal-string, finite-float,
+and zero-denominator inputs against SymPy plus fixed expected spellings. In the
+2026-08-13 strict run its ratio was 7.98x SymPy. This is an explicit reviewed
+one-node Python/ABI construction diagnostic, not an engine-algorithm claim, and
+is recorded as `rational_constructor:cold_end_to_end`; the latest matrix
+therefore has 146 rows, 117 enforced rows, and zero unwaived violations after
+the 29 documented diagnostic waivers are applied.
+
 The same correctness matrix also checks four relational decision boundaries:
 integer equality and inequality, plus exact rational greater-than and
 less-than. Each expected Python boolean is computed independently from the
