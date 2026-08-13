@@ -31,8 +31,9 @@ denominator poles are excluded. Unsupported domains, options, and equations
 return an explicit refusal.
 `solveset(...)` uses the native set-solving path and returns the
 SymPy-compatible bounded `FiniteSet`/`EmptySet` result shape. Symbolic rational
-denominator zeros are preserved as a bounded `Complement`; domains beyond the
-default complex-domain fragment are explicit refusals.
+denominator zeros are preserved as a native-owned bounded `Complement`
+application; domains beyond the default complex-domain fragment are explicit
+refusals.
 `FiniteSet(...)` is a native-owned immutable set application with SymPy-shaped
 membership, iteration, and brace printing; `EmptySet` remains the singleton
 empty-result adapter.
@@ -475,7 +476,7 @@ does not import SymPy. Unsupported names raise
 | `limit` | verified finite and infinite limits for the native bounded theorem fragment; finite poles and unsupported asymptotics are explicit refusals |
 | `series` | bounded Taylor polynomial through the requested SymPy term count, with the `O(...)` term omitted; singular/non-finite coefficients, unsupported symbolic derivatives, and unsupported options are explicit refusals |
 | `solve` | distinct verified roots for one equation in one symbol; exact univariate polynomials, bounded rational functions, and verified scalar-linear equations; unsupported domains/options are explicit refusals |
-| `solveset` | bounded native-owned `FiniteSet` plus singleton `EmptySet` result over distinct verified polynomial/rational/scalar-linear roots, with native denominator-pole transport to `Complement` for symbolic rational functions; non-default domains and unsupported equations are explicit refusals |
+| `solveset` | bounded native-owned `FiniteSet` plus singleton `EmptySet` result over distinct verified polynomial/rational/scalar-linear roots, with native denominator-pole transport to a native-owned `Complement` for symbolic rational functions; non-default domains and unsupported equations are explicit refusals |
 | `linsolve` | verified square exact-rational systems with one explicit right-hand side, returned as `FiniteSet(Tuple(...))`; symbolic, singular, non-square, free-parameter, matrix-object, and alternate forms are explicit refusals |
 | `Matrix` | bounded exact dense construction, `(row, column)` indexing, native-backed determinant, exact rank/inverse, transpose/`.T`, bounded `nullspace()`, `rref()`, elementwise `+`/`-`, unary negation, and exact `*`/`@` products or scalar scaling/division; ragged, singular, and broader matrix operations are explicit refusals |
 

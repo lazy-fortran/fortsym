@@ -52,7 +52,7 @@ class Tuple:
 
     @classmethod
     def _from_expression(cls, expression):
-        instance = cls.__new__(cls)
+        instance = object.__new__(cls)
         instance._expression = expression
         return instance
 
@@ -140,6 +140,12 @@ def _set_element_wrapper(expression):
 class FiniteSet:
     """Native-owned finite set result for the bounded compatibility subset."""
 
+    @classmethod
+    def _from_expression(cls, expression):
+        instance = object.__new__(cls)
+        instance._expression = expression
+        return instance
+
     def __new__(cls, *elements):
         if not elements:
             return EmptySet
@@ -214,39 +220,68 @@ class FiniteSet:
 
 
 class Complement:
-    """Finite-set domain exclusion used by the bounded rational solveset."""
+    """Native-owned finite-set exclusion for bounded rational solveset."""
 
     def __init__(self, base, excluded):
         if not isinstance(base, FiniteSet) or not isinstance(excluded, FiniteSet):
             raise UnsupportedOperationError("finite-set complement form")
-        self._base = base
-        self._excluded = excluded
+        self._expression = _default().function(
+            "Complement", (base._expression, excluded._expression)
+        )
 
     @property
     def args(self):
-        return self._base, self._excluded
+        base, excluded = self._expression.args
+        return (FiniteSet._from_expression(base),
+                FiniteSet._from_expression(excluded))
 
     def __iter__(self):
-        return iter(self._base)
+        base, excluded = self.args
+        try:
+            values = base.args
+            return iter(values)
+        finally:
+            base.close()
+            excluded.close()
 
     def __len__(self):
-        return len(self._base)
+        base, excluded = self.args
+        try:
+            return len(base)
+        finally:
+            base.close()
+            excluded.close()
 
     def __contains__(self, value):
-        return value in self._base and value not in self._excluded
+        base, excluded = self.args
+        try:
+            return value in base and value not in excluded
+        finally:
+            base.close()
+            excluded.close()
 
     def __eq__(self, other):
         return (isinstance(other, Complement) and
-                self.args == other.args)
+                self._expression == other._expression)
 
     def __str__(self):
-        return f"Complement({self._base}, {self._excluded})"
+        base, excluded = self.args
+        try:
+            return f"Complement({base}, {excluded})"
+        finally:
+            base.close()
+            excluded.close()
 
     __repr__ = __str__
 
+    def close(self):
+        self._expression.close()
+
     def __del__(self):
-        for value in getattr(self, "args", ()):
-            value.close()
+        try:
+            self.close()
+        except Exception:
+            pass
 
 
 class _EmptySet:
@@ -1665,7 +1700,12 @@ def solveset(expression, symbol=None, domain=None):
         if all(root.is_number and pole.is_number and root != pole
                for root in surviving for pole in excluded):
             return base
-        return Complement(base, FiniteSet(*excluded))
+        excluded_set = FiniteSet(*excluded)
+        try:
+            return Complement(base, excluded_set)
+        finally:
+            base.close()
+            excluded_set.close()
     finally:
         for root in roots:
             root.close()
