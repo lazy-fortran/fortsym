@@ -762,6 +762,68 @@ class SympyDifferentialTest(unittest.TestCase):
             native_lower_symbol.is_lower, oracle_lower_symbol.is_lower
         )
         native_triangle_symbol.close()
+        anti_symmetric_cases = (
+            ([[0, 1, -2], [-1, 0, 3], [2, -3, 0]], True),
+            ([[1, 1], [-1, 0]], False),
+            ([[0, 0], [0, 0]], True),
+            ([[0, 1, 2], [-1, 0, 3]], False),
+        )
+        for rows, expected in anti_symmetric_cases:
+            oracle_case = oracle.Matrix(rows)
+            native_case = native.Matrix(rows)
+            independent = all(
+                rows[row][column] + rows[column][row] == 0
+                for row in range(len(rows))
+                for column in range(len(rows))
+            ) if len(rows) == len(rows[0]) else False
+            self.assertEqual(independent, expected)
+            self.assertEqual(
+                native_case.is_anti_symmetric(), oracle_case.is_anti_symmetric()
+            )
+            self.assertEqual(
+                native_case.is_anti_symmetric(False),
+                oracle_case.is_anti_symmetric(simplify=False),
+            )
+        native_anti_symbol = native.Symbol("anti_x")
+        oracle_anti_symbol = oracle.Symbol("anti_x")
+        native_anti = native.Matrix(
+            [[0, native_anti_symbol], [-native_anti_symbol, 0]]
+        )
+        oracle_anti = oracle.Matrix(
+            [[0, oracle_anti_symbol], [-oracle_anti_symbol, 0]]
+        )
+        self.assertEqual(
+            native_anti.is_anti_symmetric(), oracle_anti.is_anti_symmetric()
+        )
+        self.assertEqual(
+            native_anti.is_anti_symmetric(False),
+            oracle_anti.is_anti_symmetric(simplify=False),
+        )
+        native_anti_y = native.Symbol("anti_y")
+        native_anti_unknown = native.Matrix(
+            [[0, native_anti_symbol], [native_anti_y, 0]]
+        )
+        oracle_anti_unknown = oracle.Matrix(
+            [[0, oracle_anti_symbol], [oracle.Symbol("anti_y"), 0]]
+        )
+        self.assertEqual(
+            native_anti_unknown.is_anti_symmetric(),
+            oracle_anti_unknown.is_anti_symmetric(),
+        )
+        native_anti_unsimplified = native.Matrix(
+            [[0, native_anti_symbol**2 + 2 * native_anti_symbol + 1],
+             [-(native_anti_symbol + 1)**2, 0]]
+        )
+        oracle_anti_unsimplified = oracle.Matrix(
+            [[0, oracle_anti_symbol**2 + 2 * oracle_anti_symbol + 1],
+             [-(oracle_anti_symbol + 1)**2, 0]]
+        )
+        self.assertEqual(
+            native_anti_unsimplified.is_anti_symmetric(False),
+            oracle_anti_unsimplified.is_anti_symmetric(simplify=False),
+        )
+        native_anti_symbol.close()
+        native_anti_y.close()
         symmetric_cases = (
             ([[1, 2], [2, 3]], True),
             ([[1, 2], [3, 4]], False),

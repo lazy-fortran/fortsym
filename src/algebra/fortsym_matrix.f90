@@ -27,7 +27,8 @@ module fortsym_matrix
     public :: is_list, is_matrix, matrix_shape
     public :: matrix_transpose, matrix_add, matrix_negate, matrix_divide, matrix_dot
     public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_zero_matrix, &
-        matrix_is_upper, matrix_is_lower, matrix_is_symmetric, matrix_inverse
+        matrix_is_upper, matrix_is_lower, matrix_is_anti_symmetric, matrix_is_symmetric, &
+        matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
     public :: matrix_rref_values
     public :: to_matrix, from_matrix
@@ -1107,6 +1108,113 @@ contains
         verdict = VERDICT_TRUE
         ok = .true.
     end subroutine matrix_is_triangular
+
+    !> Boolean antisymmetry predicate with SymPy's optional simplification switch.
+    subroutine matrix_is_anti_symmetric(a, engine, e, simplify, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: e
+        logical, intent(in) :: simplify
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        type(expr_t) :: row, other_row, left, right, sum
+        integer :: rows, cols, i, j, entry_verdict
+        logical :: entry_ok
+        type(str_t) :: entry_why
+
+        verdict = VERDICT_FALSE
+        ok = .false.
+        why = str("")
+        call matrix_shape(e, rows, cols)
+        if (rows == 0) then
+            why = str("Anti-symmetric test on something that is not a matrix")
+            return
+        end if
+        if (rows /= cols) then
+            verdict = VERDICT_FALSE
+            ok = .true.
+            return
+        end if
+
+        do i = 1, rows
+            row = e%arg(i)
+            do j = i, cols
+                other_row = e%arg(j)
+                left = row%arg(j)
+                right = other_row%arg(i)
+                if (.not. simplify .and. &
+                    matrix_opposite_structural(left, right)) cycle
+                sum = left + right
+                if (.not. simplify .and. matrix_value_has_symbol(sum)) then
+                    verdict = VERDICT_UNKNOWN
+                    ok = .true.
+                    return
+                end if
+                call matrix_entry_zero( &
+                    engine, sum, entry_verdict, entry_ok, entry_why)
+                if (.not. entry_ok) then
+                    why = entry_why
+                    return
+                end if
+                if (entry_verdict == VERDICT_TRUE) cycle
+                if (entry_verdict == VERDICT_UNKNOWN) then
+                    verdict = VERDICT_UNKNOWN
+                    ok = .true.
+                    return
+                end if
+                verdict = VERDICT_FALSE
+                ok = .true.
+                return
+            end do
+        end do
+
+        verdict = VERDICT_TRUE
+        ok = .true.
+    end subroutine matrix_is_anti_symmetric
+
+    logical function matrix_opposite_structural(left, right) result(equal)
+        type(expr_t), intent(in) :: left, right
+        type(expr_t) :: candidate, factor, target
+        integer :: i, nonzero_count, nonzero_index, side
+
+        equal = .false.
+        do side = 1, 2
+            if (side == 1) then
+                candidate = right
+                target = left
+            else
+                candidate = left
+                target = right
+            end if
+            if (candidate%kind() == NK_ADD) then
+                nonzero_count = 0
+                nonzero_index = 0
+                do i = 1, candidate%nargs()
+                    factor = candidate%arg(i)
+                    if (factor%kind() == NK_INT) then
+                        if (factor%int_value() == 0_int64) cycle
+                    end if
+                    nonzero_count = nonzero_count + 1
+                    nonzero_index = i
+                end do
+                if (nonzero_count == 1) candidate = candidate%arg(nonzero_index)
+            end if
+            if (candidate%kind() /= NK_MUL) cycle
+            if (candidate%nargs() /= 2) cycle
+            do i = 1, candidate%nargs()
+                factor = candidate%arg(i)
+                if (factor%kind() /= NK_INT) cycle
+                if (factor%int_value() /= -1_int64) cycle
+                if (i == 1) then
+                    equal = target == candidate%arg(2)
+                else
+                    equal = target == candidate%arg(1)
+                end if
+                return
+            end do
+        end do
+    end function matrix_opposite_structural
 
     !> Boolean symmetry predicate with SymPy's optional simplification switch.
     subroutine matrix_is_symmetric(a, engine, e, simplify, verdict, ok, why)

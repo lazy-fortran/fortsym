@@ -318,6 +318,16 @@ matrix-array temporary. The planned release matrix therefore has 173 rows,
 diagnostic waivers are applied; unrelated host-load outliers are not included
 in that baseline.
 
+The bounded exact `Matrix.is_anti_symmetric()` workload adds one
+correctness-checked warm-core row over a 2x2 integer matrix. Its independent
+differential cases cover true, false, non-square, and undecidable symbolic
+entries, including SymPy's `simplify=False` behavior. A dedicated 2026-08-13
+sample measured a native/SymPy warm-core ratio of 0.032x. The native owner
+shares the direct pair traversal and zero oracle with the other matrix
+predicates and allocates no matrix array. The planned release matrix therefore
+has 174 rows, 128 enforced rows, and zero unwaived violations after the 46
+documented diagnostic waivers are applied.
+
 The native-owned `Complement` constructor adds one cold end-to-end row. Its
 correctness check compares both finite-set operands with SymPy while the
 independent native invariant checks the `Complement` application head and
@@ -493,8 +503,8 @@ failure. A separate strict sample measured the pre-existing
 `relation:cold_end_to_end` constructor at 1.021x while its warm row remained
 0.779x; that similarly small host-timing difference is also explicitly
 waived. With the flat-column, trace, diagonal-query, symmetry, zero-matrix,
-and triangular coverage included, the planned release matrix therefore has
-173 rows, 127 enforced rows, and zero unwaived violations after the 46
+and triangular and antisymmetry coverage included, the planned release matrix
+therefore has 174 rows, 128 enforced rows, and zero unwaived violations after the 46
 documented diagnostic waivers are applied.
 
 Run it from a built checkout with:
