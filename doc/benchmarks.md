@@ -408,6 +408,10 @@ warm. The native owner already performs this simplification, so these are
 reviewed small-matrix transport exceptions recorded as
 `matrix_rref_simplify:cold_end_to_end` and
 `matrix_rref_simplify:warm_core`.
+The corresponding `Matrix.nullspace(simplify=True)` option reuses the same
+native basis owner and is covered by the existing `matrix_nullspace` timing
+rows; its differential correctness case compares the simplified basis with
+SymPy without adding a duplicate timing workload.
 
 On the same host, the pre-existing `boolean_implies_constructor:cold_end_to_end`
 diagnostic measured 1.007x and 1.015x in two strict samples. That one-node
