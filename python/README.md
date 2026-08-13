@@ -159,6 +159,8 @@ false declaration. Metric tensors carry their checked symmetric pair, and
 surviving declarations propagate through products, permutations, contractions,
 covariant derivatives, Lie transport, density views, and unchanged slots of
 variance-changing views.
+`.symmetrize(i, j)` and `.antisymmetrize(i, j)` perform the corresponding
+native projections and return only the selected pair declaration.
 `SpacetimeTensor.covariant_diff()` (alias `.covariant_derivative()`) appends a
 lower derivative slot, applies the metric Christoffel terms to every slot, and
 preserves density weight for supported input rank at most four. The rank-five

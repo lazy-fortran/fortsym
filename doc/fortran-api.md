@@ -479,6 +479,9 @@ fixed chart owner. `spacetime_tensor_symmetry(tensor, first, second)` returns
 `SPACETIME_SYMMETRY_NONE`, `SPACETIME_SYMMETRIC`, or
 `SPACETIME_ANTISYMMETRIC`; `spacetime_tensor_declare_symmetry` checks every
 active component and returns an invalid tensor for a false declaration.
+`spacetime_tensor_symmetrize` and `spacetime_tensor_antisymmetrize` project a
+same-variance pair and record the resulting declaration; unrelated metadata is
+cleared because projection changes the tensor value.
 Metric tensors carry their checked symmetric pair automatically. Products,
 permutations, contractions, covariant derivatives, Lie transport, and density
 views preserve declarations on surviving slots; raising or lowering clears

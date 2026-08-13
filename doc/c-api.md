@@ -158,6 +158,8 @@ derivative of the covariant metric tensor.
 pair componentwise and returns unchanged output components; a false declaration
 returns `FORTSYM_INVALID_ARGUMENT`. Slots are one-based and the kind is
 `FORTSYM_SYMMETRIC` or `FORTSYM_ANTISYMMETRIC`.
+`fortsym_spacetime_tensor_symmetrize` projects one same-variance pair; pass zero
+for symmetrization and a nonzero value for antisymmetrization.
 The native library retains an
 arena while any expression handle refers to it; callers may therefore release
 the arena before releasing its expressions.

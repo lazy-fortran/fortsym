@@ -87,6 +87,20 @@ class NativePackageTest(unittest.TestCase):
             )
             with self.assertRaises(fortsym.FortSymError):
                 false_tensor.declare_symmetry(0, 1, fortsym.SYMMETRIC)
+            symmetric_projection = false_tensor.symmetrize(0, 1)
+            antisymmetric_projection = false_tensor.antisymmetrize(0, 1)
+            self.assertEqual(
+                symmetric_projection.symmetry(0, 1), fortsym.SYMMETRIC
+            )
+            self.assertEqual(
+                (symmetric_projection[0, 1] - arena.rational(5, 2)).simplify(), 0
+            )
+            self.assertEqual(
+                antisymmetric_projection.symmetry(0, 1), fortsym.ANTISYMMETRIC
+            )
+            self.assertEqual(
+                (antisymmetric_projection[0, 1] - arena.rational(1, 2)).simplify(), 0
+            )
             density = upper.density(metric.sqrtg())
             self.assertEqual(density.density_weight, 1)
             self.assertEqual((density[0] - metric.sqrtg()*upper[0]).simplify(), 0)

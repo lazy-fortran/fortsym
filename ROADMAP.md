@@ -1359,6 +1359,10 @@ conversion only. They do not maintain a second geometry implementation.
     checked and false promises are refused; products, permutations,
     contractions, covariant derivatives, Lie transport, density views, and
     variance-preserving views carry surviving declarations.
+  - [x] Add runtime `symmetrize` and `antisymmetrize` projections for
+    same-variance slot pairs through Fortran, the C ABI, and both Python
+    facades. Projections reset unrelated declarations and retain the selected
+    pair's checked symmetry metadata.
   - [x] Make the runtime form/tensor bridge retain the full antisymmetric
     pair metadata promised by its component representation; native, Python,
     and SymPy-compatible form conversions expose the same declaration.
