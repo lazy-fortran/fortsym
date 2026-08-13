@@ -307,6 +307,17 @@ an explicit reviewed exception recorded as
 rows, 110 enforced rows, and zero unwaived violations after 28 documented
 diagnostic waivers are applied.
 
+The bounded exact `Matrix.is_upper` and `Matrix.is_lower` workloads add two
+correctness-checked warm-core rows over 2x2 triangular integer matrices. Their
+independent differential cases cover upper, lower, diagonal, rectangular, and
+symbolic forbidden-triangle entries. The latest dedicated 2026-08-13 sample
+measured native/SymPy ratios of 0.039x for `is_upper` and 0.033x for
+`is_lower`. Both queries reuse one direct native triangular traversal without a
+matrix-array temporary. The planned release matrix therefore has 173 rows,
+127 enforced rows, and zero unwaived violations after the 46 documented
+diagnostic waivers are applied; unrelated host-load outliers are not included
+in that baseline.
+
 The native-owned `Complement` constructor adds one cold end-to-end row. Its
 correctness check compares both finite-set operands with SymPy while the
 independent native invariant checks the `Complement` application head and
@@ -481,10 +492,10 @@ change, so it is now an explicit reviewed waiver rather than an unreported
 failure. A separate strict sample measured the pre-existing
 `relation:cold_end_to_end` constructor at 1.021x while its warm row remained
 0.779x; that similarly small host-timing difference is also explicitly
-waived. With the flat-column, trace, diagonal-query, symmetry, and zero-matrix
-coverage included, the latest matrix therefore has 171 rows, 125 enforced rows, and zero unwaived
-violations after
-the 46 documented diagnostic waivers are applied.
+waived. With the flat-column, trace, diagonal-query, symmetry, zero-matrix,
+and triangular coverage included, the planned release matrix therefore has
+173 rows, 127 enforced rows, and zero unwaived violations after the 46
+documented diagnostic waivers are applied.
 
 Run it from a built checkout with:
 

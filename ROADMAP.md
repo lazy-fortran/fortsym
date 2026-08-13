@@ -268,6 +268,10 @@ SymPy parity for the entire family.
 - [x] Expose bounded `Matrix.is_zero_matrix` with SymPy's tri-state result
       through the canonical facades, reusing one native zero-entry helper and
       direct nested-`List` traversal without materializing a matrix array.
+- [x] Expose bounded boolean `Matrix.is_upper` and `Matrix.is_lower`
+      properties through one native forbidden-triangle traversal without
+      materializing a matrix array; undecidable forbidden entries follow
+      SymPy's boolean predicate behavior.
 - [x] Align bounded `Matrix` shape metadata with SymPy through `len()` and
       `is_square`, keeping both operations O(1) and adapter-local.
 - [x] Accept flat one-dimensional `Matrix` inputs as SymPy-compatible column

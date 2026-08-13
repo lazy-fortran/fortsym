@@ -258,6 +258,16 @@ int fortsym_matrix_is_diagonal(fortsym_arena *arena,
 int fortsym_matrix_is_zero_matrix(fortsym_arena *arena,
                                    const fortsym_expr *matrix, int *verdict,
                                    char *message, size_t capacity);
+/* Boolean upper-triangular predicate. `verdict` uses enum fortsym_verdict;
+ * undecidable entries in the forbidden triangle are treated as nonzero. */
+int fortsym_matrix_is_upper(fortsym_arena *arena,
+                            const fortsym_expr *matrix, int *verdict,
+                            char *message, size_t capacity);
+/* Boolean lower-triangular predicate. `verdict` uses enum fortsym_verdict;
+ * undecidable entries in the forbidden triangle are treated as nonzero. */
+int fortsym_matrix_is_lower(fortsym_arena *arena,
+                            const fortsym_expr *matrix, int *verdict,
+                            char *message, size_t capacity);
 /* Symmetry predicate for a dense matrix. `simplify` is 1 for SymPy's default
  * simplified comparison and 0 for structural comparison. `verdict` uses
  * FORTSYM_ZERO_TRUE or FORTSYM_ZERO_FALSE. */
