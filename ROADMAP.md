@@ -2075,10 +2075,13 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     `nu33 curl_t(a)`. The C ABI, Python facade, and independent SymPy checks
     carry the same coefficients without choosing a boundary normal or surface
     measure.
-  - [ ] Add typed density/constitutive transformations, boundary-normal
-    contraction helpers, source/load records, and finite-element basis
-    assembly. The current flux owners deliberately stop before quadrature or
-    mesh ownership.
+  - [x] Add typed boundary-normal contractions for the scalar and edge traces;
+    the native/C/Python owners return `n_i q_i`, `s_k q`, and the edge-test
+    contraction while leaving surface measure and weak-form sign ownership
+    explicit.
+  - [ ] Add remaining typed density/constitutive transformations, source/load
+    records, and finite-element basis assembly. The current owners deliberately
+    stop before quadrature or mesh ownership.
 - [ ] **F6 — frontend and corpus parity.** Translate supported Wolfram and
   Python records through one native IR, preserve assumptions and refusals,
   and generate the same cases for `fortsym`, `fortsym.sympy`, and Fortran.

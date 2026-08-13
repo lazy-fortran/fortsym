@@ -348,6 +348,22 @@ int fortsym_chart_fourier_transverse_flux(
     const fortsym_expr *position[], const fortsym_expr *reluctivity[],
     const fortsym_expr *potential[], fortsym_expr **out, char *message,
     size_t capacity);
+int fortsym_chart_fourier_longitudinal_boundary_flux(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *reluctivity[],
+    const fortsym_expr *potential, const fortsym_expr *normal[],
+    fortsym_expr **out, char *message, size_t capacity);
+int fortsym_chart_fourier_transverse_boundary_flux(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *reluctivity[],
+    const fortsym_expr *potential[], const fortsym_expr *normal[],
+    fortsym_expr *out[], char *message, size_t capacity);
+int fortsym_chart_fourier_transverse_boundary_contraction(
+    fortsym_arena *arena, const fortsym_expr *coordinates[],
+    const fortsym_expr *position[], const fortsym_expr *reluctivity[],
+    const fortsym_expr *potential[], const fortsym_expr *normal[],
+    const fortsym_expr *test[], fortsym_expr **out, char *message,
+    size_t capacity);
 int fortsym_chart_fourier_longitudinal_residual(
     fortsym_arena *arena, const fortsym_expr *coordinates[],
     const fortsym_expr *position[], const fortsym_expr *reluctivity[],

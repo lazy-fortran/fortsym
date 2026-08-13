@@ -119,7 +119,9 @@ module fortsym
         current_compatibility, nubar, fourier_constitutive_valid, &
         fourier_weak_form_valid, fourier_longitudinal_residual, &
         fourier_transverse_residual, fourier_longitudinal_flux, &
-        fourier_transverse_flux, FOURIER_INVALID, FOURIER_LONGITUDINAL, &
+        fourier_transverse_flux, fourier_longitudinal_boundary_flux, &
+        fourier_transverse_boundary_flux, fourier_transverse_boundary_contraction, &
+        FOURIER_INVALID, FOURIER_LONGITUDINAL, &
         FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, SPACE_EDGE, TRACE_NONE, &
         TRACE_NORMAL, TRACE_TANGENTIAL
     use fortsym_metric, only: metric_t, metric_create, metric_from_chart, &
@@ -293,6 +295,8 @@ module fortsym
         fourier_constitutive_valid, fourier_weak_form_valid, &
         fourier_longitudinal_residual, fourier_transverse_residual, &
         fourier_longitudinal_flux, fourier_transverse_flux, &
+        fourier_longitudinal_boundary_flux, fourier_transverse_boundary_flux, &
+        fourier_transverse_boundary_contraction, &
         FOURIER_INVALID, &
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NONE, SPACE_NODAL, &
         SPACE_EDGE, TRACE_NONE, TRACE_NORMAL, TRACE_TANGENTIAL, &

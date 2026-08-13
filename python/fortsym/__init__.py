@@ -656,6 +656,35 @@ def _configure(lib):
             ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    lib.chart_fourier_longitudinal_boundary_flux = declare(
+        "fortsym_chart_fourier_longitudinal_boundary_flux", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CVOID, ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_fourier_transverse_boundary_flux = declare(
+        "fortsym_chart_fourier_transverse_boundary_flux", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_fourier_transverse_boundary_contraction = declare(
+        "fortsym_chart_fourier_transverse_boundary_contraction", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.chart_fourier_longitudinal_residual = declare(
         "fortsym_chart_fourier_longitudinal_residual", ctypes.c_int,
         [
@@ -2003,6 +2032,192 @@ class Arena:
         if status:
             raise FortSymError(
                 status, _decode(message), "fourier_transverse_flux"
+            )
+        return Expr(self, output)
+
+    def _chart_fourier_longitudinal_boundary_flux(
+            self, chart, reluctivity, potential, normal):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporary_values = []
+        try:
+            reluctivity_values = []
+            for value in _matrix3_values(reluctivity):
+                value, temporary = self._coerce(value)
+                reluctivity_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            potential, temporary = self._coerce(potential)
+            if temporary is not None:
+                temporary_values.append(temporary)
+            normal_values = []
+            for value in normal:
+                value, temporary = self._coerce(value)
+                normal_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            if len(normal_values) != 2:
+                raise ValueError(
+                    "fourier_longitudinal_boundary_flux normal requires two "
+                    "components"
+                )
+            reluctivity_handles = (_CVOID * 9)(
+                *[value._handle for value in reluctivity_values]
+            )
+            normal_handles = (_CVOID * 2)(
+                *[value._handle for value in normal_values]
+            )
+            output = _CVOID()
+            message = _message()
+            status = self._lib.chart_fourier_longitudinal_boundary_flux(
+                self._require(), coordinate_handles, position_handles,
+                reluctivity_handles, potential._handle, normal_handles,
+                ctypes.byref(output), message, len(message),
+            )
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
+        if status:
+            raise FortSymError(
+                status, _decode(message),
+                "fourier_longitudinal_boundary_flux",
+            )
+        return Expr(self, output)
+
+    def _chart_fourier_transverse_boundary_flux(
+            self, chart, reluctivity, potential, normal):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporary_values = []
+        try:
+            reluctivity_values = []
+            for value in _matrix3_values(reluctivity):
+                value, temporary = self._coerce(value)
+                reluctivity_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            potential_values = []
+            for value in potential:
+                value, temporary = self._coerce(value)
+                potential_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            normal_values = []
+            for value in normal:
+                value, temporary = self._coerce(value)
+                normal_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            if len(potential_values) != 2:
+                raise ValueError(
+                    "fourier_transverse_boundary_flux potential requires two "
+                    "components"
+                )
+            if len(normal_values) != 2:
+                raise ValueError(
+                    "fourier_transverse_boundary_flux normal requires two "
+                    "components"
+                )
+            reluctivity_handles = (_CVOID * 9)(
+                *[value._handle for value in reluctivity_values]
+            )
+            potential_handles = (_CVOID * 2)(
+                *[value._handle for value in potential_values]
+            )
+            normal_handles = (_CVOID * 2)(
+                *[value._handle for value in normal_values]
+            )
+            output = (_CVOID * 2)()
+            message = _message()
+            status = self._lib.chart_fourier_transverse_boundary_flux(
+                self._require(), coordinate_handles, position_handles,
+                reluctivity_handles, potential_handles, normal_handles,
+                output, message, len(message),
+            )
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
+        if status:
+            raise FortSymError(
+                status, _decode(message),
+                "fourier_transverse_boundary_flux",
+            )
+        return tuple(Expr(self, output[index]) for index in range(2))
+
+    def _chart_fourier_transverse_boundary_contraction(
+            self, chart, reluctivity, potential, normal, test):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporary_values = []
+        try:
+            reluctivity_values = []
+            for value in _matrix3_values(reluctivity):
+                value, temporary = self._coerce(value)
+                reluctivity_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            potential_values = []
+            for value in potential:
+                value, temporary = self._coerce(value)
+                potential_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            normal_values = []
+            for value in normal:
+                value, temporary = self._coerce(value)
+                normal_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            test_values = []
+            for value in test:
+                value, temporary = self._coerce(value)
+                test_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            if len(potential_values) != 2:
+                raise ValueError(
+                    "fourier_transverse_boundary_contraction potential "
+                    "requires two components"
+                )
+            if len(normal_values) != 2:
+                raise ValueError(
+                    "fourier_transverse_boundary_contraction normal requires "
+                    "two components"
+                )
+            if len(test_values) != 2:
+                raise ValueError(
+                    "fourier_transverse_boundary_contraction test requires "
+                    "two components"
+                )
+            reluctivity_handles = (_CVOID * 9)(
+                *[value._handle for value in reluctivity_values]
+            )
+            potential_handles = (_CVOID * 2)(
+                *[value._handle for value in potential_values]
+            )
+            normal_handles = (_CVOID * 2)(
+                *[value._handle for value in normal_values]
+            )
+            test_handles = (_CVOID * 2)(
+                *[value._handle for value in test_values]
+            )
+            output = _CVOID()
+            message = _message()
+            status = self._lib.chart_fourier_transverse_boundary_contraction(
+                self._require(), coordinate_handles, position_handles,
+                reluctivity_handles, potential_handles, normal_handles,
+                test_handles, ctypes.byref(output), message, len(message),
+            )
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
+        if status:
+            raise FortSymError(
+                status, _decode(message),
+                "fourier_transverse_boundary_contraction",
             )
         return Expr(self, output)
 
@@ -3908,6 +4123,27 @@ class Chart:
         """Return ``q = nu33 * curl_t(A_1, A_2)`` for the edge branch."""
         return self._arena._chart_fourier_transverse_flux(
             self, reluctivity, potential,
+        )
+
+    def fourier_longitudinal_boundary_flux(
+            self, reluctivity, potential, normal):
+        """Return ``n_i q_i`` for the scalar branch boundary term."""
+        return self._arena._chart_fourier_longitudinal_boundary_flux(
+            self, reluctivity, potential, normal,
+        )
+
+    def fourier_transverse_boundary_flux(
+            self, reluctivity, potential, normal):
+        """Return ``s_k q`` for the edge branch boundary term."""
+        return self._arena._chart_fourier_transverse_boundary_flux(
+            self, reluctivity, potential, normal,
+        )
+
+    def fourier_transverse_boundary_contraction(
+            self, reluctivity, potential, normal, test):
+        """Return ``w_k s_k q`` for the edge boundary term."""
+        return self._arena._chart_fourier_transverse_boundary_contraction(
+            self, reluctivity, potential, normal, test,
         )
 
     def fourier_longitudinal_residual(self, reluctivity, potential, current):
