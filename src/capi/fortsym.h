@@ -251,6 +251,12 @@ int fortsym_matrix_subtract(fortsym_arena *arena, const fortsym_expr *left,
                             char *message, size_t capacity);
 int fortsym_matrix_negate(fortsym_arena *arena, const fortsym_expr *matrix,
                           fortsym_expr **out, char *message, size_t capacity);
+/* Divide a bounded exact dense matrix by a scalar expression. Division by
+ * zero follows the native exact-domain result; foreign arenas and malformed
+ * matrices return FORTSYM_UNSUPPORTED or FORTSYM_FOREIGN_ARENA. */
+int fortsym_matrix_divide(fortsym_arena *arena, const fortsym_expr *matrix,
+                          const fortsym_expr *scalar, fortsym_expr **out,
+                          char *message, size_t capacity);
 /* Return the bounded exact right-nullspace basis as a List of flat List
  * vectors. Ragged, over-bounded, and unsupported forms return
  * FORTSYM_UNSUPPORTED. */

@@ -138,7 +138,7 @@ module fortsym_public_capi
     use fortsym_linsolve_adapter, only: calculate_linsolve
     use fortsym_matrix_adapter, only: calculate_matrix_det, calculate_matrix_rank, &
         calculate_matrix_inverse, calculate_matrix_transpose, &
-        calculate_matrix_add, calculate_matrix_negate, &
+        calculate_matrix_add, calculate_matrix_negate, calculate_matrix_divide, &
         calculate_matrix_null_space, calculate_matrix_rref, &
         calculate_matrix_multiply
     use fortsym_complexdom, only: complex_re_part => re_part, &
@@ -197,6 +197,7 @@ module fortsym_public_capi
     public :: fortsym_solve, fortsym_linsolve, fortsym_matrix_det, &
         fortsym_matrix_rank, fortsym_matrix_inverse, fortsym_matrix_transpose, &
         fortsym_matrix_add, fortsym_matrix_subtract, fortsym_matrix_negate, &
+        fortsym_matrix_divide, &
         fortsym_matrix_nullspace, fortsym_matrix_rref
     public :: fortsym_matrix_multiply
     public :: fortsym_chart_sqrtg, fortsym_chart_surface_measure, &
@@ -303,7 +304,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 86_c_int
+        v = 87_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -5991,6 +5992,39 @@ contains
         end if
         call make_handle(a, value, out, status, message, capacity)
     end function fortsym_matrix_negate
+
+    function fortsym_matrix_divide(raw, matrix_raw, scalar_raw, out, message, capacity) &
+            bind(c, name="fortsym_matrix_divide") result(status)
+        type(c_ptr), value :: raw, matrix_raw, scalar_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: matrix_owner, scalar_owner
+        type(expr_t) :: matrix, scalar, value
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(matrix_raw, matrix_owner, matrix, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(scalar_raw, scalar_owner, scalar, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(matrix_owner%arena, a) .or. &
+            .not. associated(scalar_owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call calculate_matrix_divide( &
+            a%value, a%engine, matrix, scalar, value, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_matrix_divide
 
     function fortsym_matrix_nullspace(raw, expression_raw, out, message, capacity) &
             bind(c, name="fortsym_matrix_nullspace") result(status)

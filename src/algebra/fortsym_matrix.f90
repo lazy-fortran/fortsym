@@ -14,7 +14,7 @@ module fortsym_matrix
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_FUNC
-    use fortsym_expr, only: expr_t, num, func, func_in, operator(+), &
+    use fortsym_expr, only: expr_t, num, rat, func, func_in, same_arena, zoo_expr, operator(+), &
         operator(-), operator(*), operator(/), operator(==)
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_native, only: native_engine_t, make_native_engine
@@ -22,7 +22,7 @@ module fortsym_matrix
     private
 
     public :: is_list, is_matrix, matrix_shape
-    public :: matrix_transpose, matrix_add, matrix_negate, matrix_dot
+    public :: matrix_transpose, matrix_add, matrix_negate, matrix_divide, matrix_dot
     public :: matrix_det, matrix_inverse
     public :: matrix_row_reduce, matrix_rref, matrix_null_space, matrix_rank, matrix_minors
     public :: to_matrix, from_matrix
@@ -244,6 +244,77 @@ contains
         r = from_matrix(a, p)
         ok = .true.
     end function matrix_negate
+
+    !> Divide a dense matrix by a scalar through one exact quotient path.
+    function matrix_divide(a, matrix, scalar, ok, why, canonical) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t), intent(in) :: matrix, scalar
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        logical, optional, intent(out) :: canonical
+        type(expr_t) :: r
+        type(expr_t), allocatable :: mx(:, :), p(:, :)
+        type(expr_t) :: reciprocal
+        type(str_t) :: message
+        logical :: fast
+
+        r = matrix
+        ok = .false.
+        why = str("")
+        if (present(canonical)) canonical = .false.
+        if (.not. same_arena(matrix, scalar)) then
+            why = str("matrix division operands belong to different arenas")
+            return
+        end if
+        call to_matrix(matrix, mx, ok)
+        if (.not. ok) then
+            why = str("matrix division requires a nonempty rectangular matrix")
+            return
+        end if
+        call try_integer_matrix_divide(mx, scalar, p, fast)
+        if (fast) then
+            r = from_matrix(a, p)
+            ok = .true.
+            if (present(canonical)) canonical = .true.
+            return
+        end if
+        if (scalar%kind() == NK_INT .and. scalar%int_value() == 0_int64) then
+            reciprocal = zoo_expr(a)
+        else
+            reciprocal = num(a, 1_int64)/scalar
+        end if
+        r = matrix_dot(a, matrix, reciprocal, ok, message)
+        why = message
+    end function matrix_divide
+
+    subroutine try_integer_matrix_divide(matrix, scalar, quotient, used)
+        type(expr_t), intent(in) :: matrix(:, :), scalar
+        type(expr_t), allocatable, intent(out) :: quotient(:, :)
+        logical, intent(out) :: used
+        integer(int64) :: denominator
+        integer :: i, j
+
+        used = .false.
+        if (scalar%kind() /= NK_INT) return
+        denominator = scalar%int_value()
+        do i = 1, size(matrix, 1)
+            do j = 1, size(matrix, 2)
+                if (matrix(i, j)%kind() /= NK_INT) return
+            end do
+        end do
+        allocate (quotient(size(matrix, 1), size(matrix, 2)))
+        do i = 1, size(matrix, 1)
+            do j = 1, size(matrix, 2)
+                if (denominator == 0_int64) then
+                    quotient(i, j) = zoo_expr(matrix(i, j)%a)
+                else
+                    quotient(i, j) = rat(matrix(i, j)%a, &
+                        matrix(i, j)%int_value(), denominator)
+                end if
+            end do
+        end do
+        used = .true.
+    end subroutine try_integer_matrix_divide
 
     subroutine try_integer_matrix_add(left, right, product, subtract, used)
         type(expr_t), intent(in) :: left(:, :), right(:, :)

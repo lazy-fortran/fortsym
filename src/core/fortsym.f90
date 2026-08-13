@@ -33,7 +33,7 @@ module fortsym
     use fortsym_linsolve_adapter, only: calculate_linsolve
     use fortsym_matrix_adapter, only: calculate_matrix_det, calculate_matrix_rank, &
         calculate_matrix_inverse, calculate_matrix_transpose, &
-        calculate_matrix_add, calculate_matrix_negate, &
+        calculate_matrix_add, calculate_matrix_negate, calculate_matrix_divide, &
         calculate_matrix_null_space, calculate_matrix_rref, &
         calculate_matrix_multiply
     use fortsym_complexdom, only: complex_re_part => re_part, &
@@ -268,7 +268,7 @@ module fortsym
     public :: subs, subs_many, diff, simplify, refine, expand, factor, &
         series, series_coeff, solve, linsolve, det, rank, inv, matrix_transpose, &
         nullspace, rref, matrix_multiply, matrix_add, matrix_subtract, &
-        matrix_negate, operation_count, free_symbols
+        matrix_negate, matrix_divide, operation_count, free_symbols
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -999,6 +999,38 @@ contains
             result%ok = .true.
         end if
     end function matrix_negate
+
+    !> Divide a dense matrix by a scalar expression.
+    function matrix_divide(matrix, scalar) result(result)
+        type(expr_t), intent(in) :: matrix, scalar
+        type(engine_result_t) :: result
+        logical :: ok
+        character(:), allocatable :: why
+        type(native_engine_t) :: engine
+
+        if (.not. is_valid(matrix) .or. .not. is_valid(scalar)) then
+            call report_failure(result, "matrix_divide: invalid expression")
+            return
+        end if
+        if (.not. same_arena(matrix, scalar)) then
+            call report_failure(result, &
+                "matrix_divide: expressions belong to different arenas")
+            return
+        end if
+        if (use_default_engine(matrix)) then
+            call calculate_matrix_divide( &
+                matrix%a, default_engine, matrix, scalar, result%value, ok, why)
+        else
+            engine = make_native_engine(matrix%a)
+            call calculate_matrix_divide( &
+                matrix%a, engine, matrix, scalar, result%value, ok, why)
+        end if
+        if (.not. ok) then
+            call report_failure(result, why)
+        else
+            result%ok = .true.
+        end if
+    end function matrix_divide
 
     !> Return a bounded exact basis for the right null space of a dense matrix.
     function nullspace(expression) result(result)

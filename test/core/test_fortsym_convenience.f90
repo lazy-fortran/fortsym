@@ -234,6 +234,15 @@ program test_fortsym_convenience
         call check("facade exposes exact matrix negation", &
             sum_entry == num(default_storage, -1_int64), failures)
     end if
+    result = matrix_divide(determinant_matrix, num(default_storage, 2_int64))
+    if (.not. result%ok) then
+        call check("facade exposes exact matrix division", .false., failures)
+    else
+        sum_row = result%value%arg(1)
+        sum_entry = sum_row%arg(1)
+        call check("facade exposes exact matrix division", &
+            sum_entry == rat(default_storage, 1_int64, 2_int64), failures)
+    end if
     result = series(exp(mu), mu, num(default_storage, 0_int64), 3)
     series_value = result%value
     series_expected = 1 + mu + mu**2/2 + mu**3/6

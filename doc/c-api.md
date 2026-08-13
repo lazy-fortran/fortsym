@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 86). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 87). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -18,8 +18,8 @@ transpose `fortsym_matrix_transpose`, and bounded exact nullspace
 `fortsym_matrix_nullspace`, and bounded exact RREF
 `fortsym_matrix_rref`, bounded exact dense multiplication or scalar scaling
 `fortsym_matrix_multiply`, elementwise addition/subtraction
-`fortsym_matrix_add`/`fortsym_matrix_subtract`, and negation
-`fortsym_matrix_negate`;
+`fortsym_matrix_add`/`fortsym_matrix_subtract`, negation
+`fortsym_matrix_negate`, and scalar division `fortsym_matrix_divide`;
 unsupported options, unverified antiderivatives, and limits or series outside
 their theorem fragments return `FORTSYM_UNSUPPORTED` with a diagnostic.
 `fortsym_solve` returns a caller-owned array of distinct verified roots for one
