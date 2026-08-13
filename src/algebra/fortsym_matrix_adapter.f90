@@ -5,7 +5,8 @@ module fortsym_matrix_adapter
     use fortsym_arena, only: arena_t
     use fortsym_engine, only: engine_t, engine_result_t
     use fortsym_expr, only: expr_t
-    use fortsym_matrix, only: matrix_det, matrix_rank, matrix_inverse
+    use fortsym_matrix, only: matrix_det, matrix_rank, matrix_inverse, &
+        matrix_transpose
     use fortsym_string, only: str_t, chars
     implicit none
     private
@@ -13,6 +14,7 @@ module fortsym_matrix_adapter
     public :: calculate_matrix_det
     public :: calculate_matrix_rank
     public :: calculate_matrix_inverse
+    public :: calculate_matrix_transpose
 
 contains
 
@@ -61,6 +63,20 @@ contains
         if (.not. ok) return
         call simplify_matrix_value(engine, value, ok, why)
     end subroutine calculate_matrix_inverse
+
+    subroutine calculate_matrix_transpose(a, expression, value, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t), intent(in) :: expression
+        type(expr_t), intent(out) :: value
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        value = matrix_transpose(a, expression, ok)
+        if (ok) then
+            why = ""
+        else
+            why = "matrix transpose requires a nonempty rectangular matrix"
+        end if
+    end subroutine calculate_matrix_transpose
 
     subroutine simplify_matrix_value(engine, value, ok, why)
         class(engine_t), intent(inout) :: engine

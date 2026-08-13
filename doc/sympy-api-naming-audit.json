@@ -1999,6 +1999,10 @@
       },
       {
         "concepts": [],
+        "name": "matrix_transpose"
+      },
+      {
+        "concepts": [],
         "name": "maxwell_field_strength"
       },
       {
@@ -3164,7 +3168,8 @@
       "symbols",
       "tensor_product",
       "together",
-      "trace"
+      "trace",
+      "transpose"
     ],
     "sympy_adapter": [
       "ANTISYMMETRIC",
@@ -3245,6 +3250,7 @@
       "SpacetimeTensor",
       "Subs",
       "Symbol",
+      "T",
       "TRACE_NONE",
       "TRACE_NORMAL",
       "TRACE_TANGENTIAL",
@@ -3355,6 +3361,7 @@
       "tensorpermute",
       "tensorproduct",
       "together",
+      "transpose",
       "xreplace",
       "zoo"
     ]
@@ -3376,10 +3383,10 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 531,
-    "python_facade_exports": 80,
-    "sympy_adapter_exports": 190,
-    "unmapped_fortran_exports": 393
+    "fortran_facade_exports": 532,
+    "python_facade_exports": 81,
+    "sympy_adapter_exports": 192,
+    "unmapped_fortran_exports": 394
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -3587,6 +3594,7 @@
     "make_metric",
     "map_jacobian",
     "map_valid",
+    "matrix_transpose",
     "maxwell_field_strength",
     "maxwell_gauge_transform",
     "maxwell_residual",

@@ -236,6 +236,10 @@ int fortsym_matrix_rank(fortsym_arena *arena, const fortsym_expr *matrix,
  * FORTSYM_UNSUPPORTED. */
 int fortsym_matrix_inverse(fortsym_arena *arena, const fortsym_expr *matrix,
                            fortsym_expr **out, char *message, size_t capacity);
+/* Transpose a nonempty dense matrix represented by nested List expressions.
+ * Ragged and unsupported forms return FORTSYM_UNSUPPORTED. */
+int fortsym_matrix_transpose(fortsym_arena *arena, const fortsym_expr *matrix,
+                             fortsym_expr **out, char *message, size_t capacity);
 /* Taylor polynomial through `order`, expanded around the finite `point`.
  * The result is the normal polynomial without SymPy's O-term. */
 int fortsym_series(fortsym_arena *arena, const fortsym_expr *expression,

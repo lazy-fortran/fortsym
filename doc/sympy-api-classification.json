@@ -616,6 +616,16 @@
         "classification": [
           "native"
         ],
+        "id": "fortsym_matrix_adapter.calculate_matrix_transpose",
+        "module": "fortsym_matrix_adapter",
+        "name": "calculate_matrix_transpose",
+        "owner": "src/algebra/fortsym_matrix_adapter.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
         "id": "fortsym_poly.poly_together",
         "module": "fortsym_poly",
         "name": "poly_together",
@@ -5629,6 +5639,17 @@
           "facade",
           "native"
         ],
+        "id": "fortsym_public_capi.fortsym_matrix_transpose",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_matrix_transpose",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
         "id": "fortsym_public_capi.fortsym_chart_sqrtg",
         "module": "fortsym_public_capi",
         "name": "fortsym_chart_sqrtg",
@@ -9081,6 +9102,17 @@
         "id": "fortsym.inv",
         "module": "fortsym",
         "name": "inv",
+        "owner": "src/core/fortsym.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym.matrix_transpose",
+        "module": "fortsym",
+        "name": "matrix_transpose",
         "owner": "src/core/fortsym.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -17594,12 +17626,12 @@
     "classification_counts": {
       "delegated": 2843,
       "external": 10,
-      "facade": 730,
-      "native": 4422,
+      "facade": 732,
+      "native": 4425,
       "python-adapter": 2799,
       "refused": 24995
     },
-    "fortran_public_exports": 1667,
+    "fortran_public_exports": 1670,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
@@ -47108,7 +47140,7 @@
         "id": "sympy.core.expr.Expr.transpose",
         "name": "transpose",
         "owner": "ROADMAP.md",
-        "reason": "method is inventoried for parity but is outside the declared adapter subset"
+        "reason": "outside the declared compatibility subset; no implementation claim is made"
       },
       {
         "class_id": "sympy.core.expr.Expr",
