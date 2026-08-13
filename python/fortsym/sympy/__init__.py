@@ -1294,11 +1294,44 @@ def factor(expression, **options):
     except FortSymError as error:
         raise UnsupportedOperationError(str(error)) from error
 
+def _polynomial_operation(call):
+    try:
+        return call()
+    except FortSymError as error:
+        raise UnsupportedOperationError(str(error)) from error
 
-together = _unsupported("together")
-cancel = _unsupported("cancel")
-apart = _unsupported("apart")
-collect = _unsupported("collect")
+
+def together(expression, deep=False, fraction=False):
+    if deep or fraction:
+        raise UnsupportedOperationError("together options")
+    return _polynomial_operation(lambda: sympify(expression).together())
+
+
+def cancel(expression, *generators, **options):
+    if generators or options:
+        raise UnsupportedOperationError("cancel options")
+    return _polynomial_operation(lambda: sympify(expression).cancel())
+
+
+def apart(expression, variable=None, full=False, **options):
+    if full or options:
+        raise UnsupportedOperationError("apart options")
+    return _polynomial_operation(
+        lambda: sympify(expression).apart(
+            None if variable is None else sympify(variable)
+        )
+    )
+
+
+def collect(expression, variable, exact=False, distribute_order_term=None,
+            evaluate=True):
+    if exact or distribute_order_term is not None or not evaluate:
+        raise UnsupportedOperationError("collect options")
+    return _polynomial_operation(
+        lambda: sympify(expression).collect(sympify(variable))
+    )
+
+
 integrate = _unsupported("integrate")
 limit = _unsupported("limit")
 series = _unsupported("series")
