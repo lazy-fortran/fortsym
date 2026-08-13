@@ -159,8 +159,10 @@ SymPy parity for the entire family.
 - [ ] Implement the structural tools required by the profile, including
       `count_ops`, `cse`, `collect`, `expand`, `powsimp`, `powdenest`, and
       `powexpand`, with explicit option handling.
-- [ ] Keep `zero_test` as the one public three-valued native query. Test-only
-      assertion helpers must not become competing user-facing names.
+- [x] Keep `zero_test` as the one public three-valued native query. Test-only
+      assertion helpers remain in `fortsym_check` and do not become competing
+      user-facing names; the naming audit and Fortran/C API documentation
+      enforce this boundary.
 
 ## Phase 2 — polynomial and rational algebra
 
