@@ -207,12 +207,13 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         ),
         concept(
             "relational-constructors",
-            "Construct symbolic equality and ordering relations.",
+            "Construct symbolic equality, ordering, and bounded Boolean relations.",
             ["equal", "unequal", "less", "less_equal", "greater", "greater_equal"],
-            [], ["Eq", "Ne", "Gt", "Ge", "Lt", "Le"],
-            ["Eq", "Ne", "Gt", "Ge", "Lt", "Le"],
-            "The Fortran facade keeps relation constructors snake_case. The Python adapter preserves SymPy's constructor spellings and maps comparison operators to the same native relation nodes.",
-            "Keep one relation recorder in fortsym_assume; expose compatibility spellings only at the Python adapter boundary and refuse unsupported relation inference explicitly.",
+            [],
+            ["Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And", "Or", "Not", "Xor", "Implies", "Equivalent"],
+            ["Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And", "Or", "Not", "Xor", "Implies", "Equivalent"],
+            "The Fortran facade keeps relation constructors snake_case and the shared generic function owner handles bounded Boolean applications. The Python adapter preserves SymPy's constructor spellings and maps comparison and Boolean operators to the same native expression owner.",
+            "Keep one relation recorder in fortsym_assume and one generic application owner; expose compatibility spellings only at the Python adapter boundary and refuse unsupported relation inference explicitly.",
         ),
         concept(
             "identity-and-validity",

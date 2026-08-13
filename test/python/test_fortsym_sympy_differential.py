@@ -633,6 +633,100 @@ class SympyDifferentialTest(unittest.TestCase):
                 argument.close()
             native_compound.close()
 
+    def test_boolean_constructors_and_operators_match_sympy(self):
+        oracle_x, oracle_y = oracle.symbols("boolean_x boolean_y")
+        native_x, native_y = native.symbols("boolean_x boolean_y")
+        cases = [
+            ("And", oracle.And(oracle_x > 0, oracle_y < 1),
+             native.And(native_x > 0, native_y < 1)),
+            ("Or", oracle.Or(oracle_x > 0, oracle_y < 1),
+             native.Or(native_x > 0, native_y < 1)),
+            ("Xor", oracle.Xor(oracle_x > 0, oracle_y < 1),
+             native.Xor(native_x > 0, native_y < 1)),
+            ("Implies", oracle.Implies(oracle_x > 0, oracle_y < 1),
+             native.Implies(native_x > 0, native_y < 1)),
+            ("Equivalent", oracle.Equivalent(oracle_x > 0, oracle_y < 1),
+             native.Equivalent(native_x > 0, native_y < 1)),
+        ]
+        expected_heads = {
+            "And": "And", "Or": "Or", "Xor": "Xor",
+            "Implies": "Implies", "Equivalent": "Equivalent",
+        }
+        for label, expected, actual in cases:
+            with self.subTest(label=label):
+                self.assertEqual(actual.name, expected_heads[label])
+                actual_arguments = actual.args
+                try:
+                    self.assertEqual(len(actual_arguments), len(expected.args))
+                    self.assertEqual(
+                        [argument.name for argument in actual_arguments],
+                        [
+                            {
+                                "StrictGreaterThan": "Greater",
+                                "StrictLessThan": "Less",
+                            }.get(type(argument).__name__, type(argument).__name__)
+                            for argument in expected.args
+                        ],
+                    )
+                    self.assertEqual(
+                        [str(argument) for argument in actual_arguments],
+                        [str(argument) for argument in expected.args],
+                    )
+                finally:
+                    for argument in actual_arguments:
+                        argument.close()
+                    actual.close()
+
+        operator_cases = [
+            (oracle.And(oracle_x > 0, oracle_y < 1),
+             (native_x > 0) & (native_y < 1)),
+            (oracle.Or(oracle_x > 0, oracle_y < 1),
+             (native_x > 0) | (native_y < 1)),
+            (oracle.Xor(oracle_x > 0, oracle_y < 1),
+             (native_x > 0) ^ (native_y < 1)),
+            (oracle.Not(oracle_x > 0), ~(native_x > 0)),
+        ]
+        for expected, actual in operator_cases:
+            with self.subTest(operator=str(expected)):
+                self.assertEqual(str(actual), str(expected))
+                actual.close()
+
+    def test_boolean_constructor_boundaries_match_sympy(self):
+        native_x = native.Symbol("boolean_boundary_x")
+        self.assertEqual(native.And(), True)
+        self.assertEqual(native.Or(), False)
+        self.assertEqual(native.Xor(), False)
+        self.assertEqual(native.Equivalent(), True)
+        self.assertEqual(native.Not(True), False)
+        self.assertEqual(native.Not(False), True)
+        self.assertEqual(str(native.And(True, native_x)), str(native_x))
+        self.assertEqual(str(native.Or(False, native_x)), str(native_x))
+        self.assertEqual(str(native.Implies(False, native_x)), "True")
+        self.assertEqual(str(native.Equivalent(True, native_x)), str(native_x))
+        native_y = native.Symbol("boolean_boundary_y")
+        self.assertEqual(
+            str(native.Equivalent(True, native_x, native_y)),
+            str(oracle.Equivalent(True, oracle.Symbol("boolean_boundary_x"),
+                                  oracle.Symbol("boolean_boundary_y"))),
+        )
+        self.assertEqual(
+            str(native.Equivalent(False, native_x, native_y)),
+            str(oracle.Equivalent(False, oracle.Symbol("boolean_boundary_x"),
+                                  oracle.Symbol("boolean_boundary_y"))),
+        )
+        with self.assertRaises(TypeError):
+            native.And(2, native_x)
+        with self.assertRaises(TypeError):
+            native.Or(2, native_x)
+        with self.assertRaises(TypeError):
+            native.And(native_x + 1, native_y)
+        with self.assertRaises(ValueError):
+            native.Implies(native_x)
+        with self.assertRaises(ValueError):
+            native.Implies()
+        native_x.close()
+        native_y.close()
+
     def test_assumption_condition_results(self):
         oracle_cases = self.assumption_cases(oracle)
         native_cases = self.assumption_cases(native)

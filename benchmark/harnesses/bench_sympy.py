@@ -33,6 +33,11 @@ _CONSTRUCTION_OPERATIONS = (
     "power_constructor", "power_one_constructor", "tuple_constructor",
     "finite_set_constructor", "complement_constructor",
 )
+_BOOLEAN_CONSTRUCTION_OPERATIONS = (
+    "boolean_and_constructor", "boolean_or_constructor",
+    "boolean_not_constructor", "boolean_xor_constructor",
+    "boolean_implies_constructor", "boolean_equivalent_constructor",
+)
 
 
 def predicate_value(expression: Any, operation: str) -> Any:
@@ -187,6 +192,32 @@ def complement_equivalent(expected: Any, actual: Any) -> bool:
     finally:
         actual_base.close()
         actual_excluded.close()
+
+
+def boolean_equivalent(expected: Any, actual: Any) -> bool:
+    """Compare a named Boolean application and its independent children."""
+    expected_head = type(expected).__name__
+    actual_head = {
+        "StrictGreaterThan": "Greater",
+        "StrictLessThan": "Less",
+        "GreaterThan": "GreaterEqual",
+        "LessThan": "LessEqual",
+    }.get(expected_head, expected_head)
+    if not isinstance(actual, native.Expr) or actual.name != actual_head:
+        if isinstance(actual, native.Expr):
+            actual.close()
+        return False
+    actual_arguments = actual.args
+    try:
+        return (
+            len(actual_arguments) == len(expected.args) and
+            all(str(left) == str(right)
+                for left, right in zip(expected.args, actual_arguments))
+        )
+    finally:
+        for argument in actual_arguments:
+            argument.close()
+        actual.close()
 
 
 def root_list_equivalent(expected: Any, actual: Any, names: dict[str, Any]) -> bool:
@@ -509,6 +540,36 @@ def workload_factories(label: str, suffix: str) -> tuple[dict[str, Any], dict[st
             ),
             names,
         ),
+        "boolean_and_constructor": (
+            oracle.And(oracle_x > 1, oracle_y < 2),
+            native.And(native_x > 1, native_y < 2),
+            names,
+        ),
+        "boolean_or_constructor": (
+            oracle.Or(oracle_x > 1, oracle_y < 2),
+            native.Or(native_x > 1, native_y < 2),
+            names,
+        ),
+        "boolean_not_constructor": (
+            oracle.Not(oracle_x),
+            native.Not(native_x),
+            names,
+        ),
+        "boolean_xor_constructor": (
+            oracle.Xor(oracle_x > 1, oracle_y < 2),
+            native.Xor(native_x > 1, native_y < 2),
+            names,
+        ),
+        "boolean_implies_constructor": (
+            oracle.Implies(oracle_x > 1, oracle_y < 2),
+            native.Implies(native_x > 1, native_y < 2),
+            names,
+        ),
+        "boolean_equivalent_constructor": (
+            oracle.Equivalent(oracle_x > 1, oracle_y < 2),
+            native.Equivalent(native_x > 1, native_y < 2),
+            names,
+        ),
         "domain_function": (
             oracle.sqrt(-oracle.oo, evaluate=False),
             native.sqrt(-native_oo),
@@ -805,7 +866,8 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         x = engine.Symbol(f"{operation}_x_{suffix}", rational=True)
     elif operation == "algebraic_assumption_query":
         x = engine.Integer(2)
-    elif operation in _CONSTRUCTION_OPERATIONS:
+    elif (operation in _CONSTRUCTION_OPERATIONS or
+          operation in _BOOLEAN_CONSTRUCTION_OPERATIONS):
         x = engine.Symbol(f"{operation}_x_{suffix}")
     elif operation in ("number_predicate", "algebraic_predicate"):
         x = engine.Integer(1 if operation == "number_predicate" else 2)
@@ -877,6 +939,23 @@ def build_expression(engine: Any, operation: str, suffix: str) -> tuple[Any, Any
         expression = engine.Complement(
             engine.FiniteSet(x), engine.FiniteSet(y)
         )
+    elif operation == "boolean_and_constructor":
+        y = engine.Symbol(f"{operation}_y_{suffix}")
+        expression = engine.And(x > 1, y < 2)
+    elif operation == "boolean_or_constructor":
+        y = engine.Symbol(f"{operation}_y_{suffix}")
+        expression = engine.Or(x > 1, y < 2)
+    elif operation == "boolean_not_constructor":
+        expression = engine.Not(x)
+    elif operation == "boolean_xor_constructor":
+        y = engine.Symbol(f"{operation}_y_{suffix}")
+        expression = engine.Xor(x > 1, y < 2)
+    elif operation == "boolean_implies_constructor":
+        y = engine.Symbol(f"{operation}_y_{suffix}")
+        expression = engine.Implies(x > 1, y < 2)
+    elif operation == "boolean_equivalent_constructor":
+        y = engine.Symbol(f"{operation}_y_{suffix}")
+        expression = engine.Equivalent(x > 1, y < 2)
     elif operation in _CONSTRUCTION_OPERATIONS:
         exponent = 0 if operation == "power_constructor" else 1
         expression = x**exponent
@@ -1197,7 +1276,8 @@ def correctness_cases() -> list[dict[str, Any]]:
         elif operation == "simplify":
             expected = oracle.simplify(oracle_expression)
             actual = native.simplify(native_expression)
-        elif operation in _CONSTRUCTION_OPERATIONS:
+        elif (operation in _CONSTRUCTION_OPERATIONS or
+              operation in _BOOLEAN_CONSTRUCTION_OPERATIONS):
             expected = oracle_expression
             actual = native_expression
         elif operation == "domain_complex":
@@ -1321,6 +1401,8 @@ def correctness_cases() -> list[dict[str, Any]]:
                 if operation == "finite_set_constructor"
                 else complement_equivalent(expected, actual)
                 if operation == "complement_constructor"
+                else boolean_equivalent(expected, actual)
+                if operation in _BOOLEAN_CONSTRUCTION_OPERATIONS
                 else str(expected) == str(actual)
                 if operation == "relation"
                 else compound_equivalent(expected, actual)
@@ -1631,7 +1713,8 @@ def benchmark_workload(
                     return expression.match(variable)
                 if operation in _PREDICATE_OPERATIONS:
                     return predicate_value(expression, operation)
-                if operation in _CONSTRUCTION_OPERATIONS:
+                if (operation in _CONSTRUCTION_OPERATIONS or
+                        operation in _BOOLEAN_CONSTRUCTION_OPERATIONS):
                     return expression
                 if operation == "refine":
                     return engine.refine(expression, engine.Q.negative(variable))
@@ -1720,13 +1803,14 @@ def main() -> None:
 
     workloads = []
     for operation in (
-        "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "tuple_constructor", "finite_set_constructor", "complement_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate",
+        "expand", "count_ops", "free_symbols", "subs_simultaneous", "subs_mapping", "xreplace", "replace", "match", "match_wild", "match_wild_remainder", "match_wild_partition", "differentiate", "simplify", "refine", "composition", "sqrt_power", "power_constructor", "power_one_constructor", "tuple_constructor", "finite_set_constructor", "complement_constructor", "boolean_and_constructor", "boolean_or_constructor", "boolean_not_constructor", "boolean_xor_constructor", "boolean_implies_constructor", "boolean_equivalent_constructor", "domain_function", "domain_log_zero", "domain_log_negative", "domain_log_imaginary", "domain_gamma_pole", "domain_loggamma_pole", "domain_factorial_pole", "domain_factorial_value", "domain_factorial_large", "domain_atanh_pole", "domain_atanh_imaginary", "domain_atan_imaginary", "domain_acosh_branch", "domain_acosh_imaginary", "domain_asin_imaginary", "domain_acos_imaginary", "domain_asin_special", "domain_acos_special", "domain_atan_special", "domain_asinh_real", "domain_sqrt_negative_square", "domain_asinh_imaginary", "domain_inverse", "domain_reciprocal", "domain_error_function", "domain_gamma", "domain_atan2", "domain_bessel", "domain_legendre", "domain_complex", "domain_abs", "domain_expand_complex", "domain_power", "domain_phase", "relation", "compound", "factor", "matrix_nullspace", "matrix_rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate",
         "matrix_divide", "solve_rational", "solveset_rational_condition",
         *_ASSUMPTION_OPERATIONS, *_PREDICATE_OPERATIONS
     ):
         if operation in _PREDICATE_OPERATIONS:
             scopes = ("warm_core",)
-        elif operation in _CONSTRUCTION_OPERATIONS:
+        elif (operation in _CONSTRUCTION_OPERATIONS or
+              operation in _BOOLEAN_CONSTRUCTION_OPERATIONS):
             scopes = ("cold_end_to_end",)
         else:
             scopes = ("cold_end_to_end", "warm_core")

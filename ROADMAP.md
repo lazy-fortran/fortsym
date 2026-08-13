@@ -127,8 +127,14 @@ SymPy parity for the entire family.
 - [ ] Complete the expression hierarchy and canonical ordering needed by the
       compatibility profile: atoms, applications, relational/Boolean nodes,
       sets, tuples, matrices, indexed objects, and unevaluated forms. The
-      native-owned `FiniteSet`, `Tuple`, and `Complement` result fragments are
-      complete; the remaining families stay explicitly bounded below.
+      native-owned `FiniteSet`, `Tuple`, and `Complement` result fragments and
+      the bounded native Boolean application slice are complete; the remaining
+      families stay explicitly bounded below.
+- [x] Add the bounded relational/Boolean constructor slice: `And`, `Or`,
+      `Not`, `Xor`, `Implies`, and `Equivalent`, shared native application
+      ownership, `&`/`|`/`^`/`~` expression syntax, Boolean identity edges, and
+      complementary relational negation. Full Boolean simplification and
+      condition reduction remain later work.
 - [ ] Complete exact integer, rational, real, complex, algebraic, infinity,
       NaN, signed-zero, and complex-infinity semantics, including conversion
       and precision rules.
