@@ -1656,6 +1656,14 @@ class Matrix:
         expression = _native_operation(self._expression.inv)
         return self._from_expression(expression, self.rows, self.cols)
 
+    def transpose(self):
+        expression = _native_operation(self._expression.transpose)
+        return self._from_expression(expression, self.cols, self.rows)
+
+    @property
+    def T(self):
+        return self.transpose()
+
     def __str__(self):
         rows = []
         for row_index in range(self.rows):

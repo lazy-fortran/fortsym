@@ -28,6 +28,7 @@ program test_fortsym_convenience
     type(expr_t) :: determinant_row_one(2), determinant_row_two(2)
     type(expr_t) :: determinant_rows(2), determinant_matrix
     type(expr_t) :: inverse_row, inverse_entry
+    type(expr_t) :: transpose_row, transpose_entry
     type(str_t), allocatable :: free_names(:)
     type(expr_t) :: stale
     type(engine_result_t) :: result, zero_result
@@ -155,6 +156,11 @@ program test_fortsym_convenience
     inverse_entry = inverse_row%arg(1)
     call check("facade exposes exact matrix inverse", &
         result%ok .and. inverse_entry == num(default_storage, -2_int64), failures)
+    result = matrix_transpose(determinant_matrix)
+    transpose_row = result%value%arg(1)
+    transpose_entry = transpose_row%arg(2)
+    call check("facade exposes exact matrix transpose", &
+        result%ok .and. transpose_entry == num(default_storage, 3_int64), failures)
     result = series(exp(mu), mu, num(default_storage, 0_int64), 3)
     series_value = result%value
     series_expected = 1 + mu + mu**2/2 + mu**3/6
