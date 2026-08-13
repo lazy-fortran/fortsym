@@ -391,15 +391,13 @@ correctness-checked rows over a 2x2 integer matrix. Its native owner traverses
 the nested `List` directly and uses a one-pass integer fast path before falling
 back to the shared scalar simplifier for symbolic entries; it does not
 materialize a rank-two matrix array. The latest 2026-08-13 smoke sample
-measured native/SymPy ratios of 0.754x cold end-to-end and 1.078x warm core
+measured native/SymPy ratios of 0.675x cold end-to-end and 0.973x warm core
 in the stable higher-repetition sample. Reusing the default arena's
 small-integer cache, routing the shared Matrix binary helper directly to the
 configured C function, and avoiding duplicate cleanup of already-released
-handles bring the cold row below SymPy and reduce the warm overhead; the warm
-row remains a separate performance follow-up because it is not yet below the
-SymPy 1.14.0 oracle. The planned release matrix therefore has 184 rows and
-138 enforced rows, with that warm row explicitly tracked rather than silently
-waived.
+handles bring both rows below the SymPy 1.14.0 oracle. The planned release
+matrix therefore has 184 rows and 138 enforced rows, with zero unwaived
+violations after the documented diagnostic waivers are applied.
 
 The native-owned `Complement` constructor adds one cold end-to-end row. Its
 correctness check compares both finite-set operands with SymPy while the
@@ -579,8 +577,7 @@ waived. With the flat-column, trace, diagonal-query, symmetry, zero-matrix,
 and triangular, antisymmetry, symbolic, Hessenberg, identity, echelon,
 Hermitian, conjugation, adjoint, and elementwise multiplication coverage
 included, the planned release matrix therefore has 184 rows, 138 enforced
-rows; the warm elementwise multiplication row remains a performance-parity
-item alongside the documented diagnostic waivers after the 46
+rows and zero unwaived performance violations after the 46
 documented diagnostic waivers are applied.
 
 Run it from a built checkout with:
