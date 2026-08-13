@@ -127,6 +127,8 @@ module fortsym_public_capi
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE
     use fortsym_poly, only: poly_together, poly_cancel, poly_apart, poly_collect
+    use fortsym_poly, only: poly_coefficient, poly_exponent, poly_gcd_expr, &
+        poly_divide
     use fortsym_integrate_adapter, only: verified_antiderivative
     use fortsym_defint, only: definite_integral
     use fortsym_limit_adapter, only: calculate_limit
@@ -136,6 +138,7 @@ module fortsym_public_capi
     use fortsym_series_adapter, only: calculate_series, &
         calculate_series_coeff
     use fortsym_solve_adapter, only: calculate_solve, calculate_solveset
+    use fortsym_ode, only: solve_ode
     use fortsym_linsolve_adapter, only: calculate_linsolve, &
         calculate_parametric_linsolve
     use fortsym_matrix_adapter, only: calculate_matrix_det, calculate_matrix_trace, &
@@ -206,8 +209,11 @@ module fortsym_public_capi
         fortsym_expr_free
     public :: fortsym_expand, fortsym_simplify, fortsym_factor, &
         fortsym_together, fortsym_cancel, fortsym_apart, fortsym_collect, &
+        fortsym_poly_coefficient, fortsym_poly_exponent, fortsym_poly_gcd, &
+        fortsym_poly_quotient, fortsym_poly_remainder, &
         c_integrate, c_definite_integral, c_limit, c_series, c_series_coeff
-    public :: fortsym_solve, fortsym_solveset, fortsym_linsolve, &
+    public :: fortsym_solve, fortsym_solveset, fortsym_solve_ode, &
+        fortsym_linsolve, &
         fortsym_linsolve_parametric, fortsym_matrix_det, fortsym_matrix_trace, &
         fortsym_matrix_is_diagonal, fortsym_matrix_is_zero_matrix, &
         fortsym_matrix_is_upper, fortsym_matrix_is_lower, &
@@ -5531,6 +5537,205 @@ contains
         call make_handle(a, result, out, status, message, capacity)
     end subroutine finish_poly_operation
 
+    function fortsym_poly_coefficient(raw, expression_raw, variable_raw, degree, &
+            out, message, capacity) bind(c, name="fortsym_poly_coefficient") &
+            result(status)
+        type(c_ptr), value :: raw, expression_raw, variable_raw, out
+        integer(c_int64_t), value :: degree
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, vp
+        type(expr_t) :: expression, variable, result
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (degree > int(huge(0), c_int64_t) .or. &
+                degree < -int(huge(0), c_int64_t) - 1_c_int64_t) then
+            call fail(status, message, capacity, FORTSYM_RESOURCE_LIMIT)
+            return
+        end if
+        call poly_coefficient(a%value, expression, variable, int(degree), &
+            result, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, result, out, status, message, capacity)
+    end function fortsym_poly_coefficient
+
+    function fortsym_poly_exponent(raw, expression_raw, variable_raw, out, &
+            message, capacity) bind(c, name="fortsym_poly_exponent") result(status)
+        type(c_ptr), value :: raw, expression_raw, variable_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, vp
+        type(expr_t) :: expression, variable, result
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call poly_exponent(a%value, expression, variable, result, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, result, out, status, message, capacity)
+    end function fortsym_poly_exponent
+
+    function fortsym_poly_gcd(raw, left_raw, right_raw, out, message, capacity) &
+            bind(c, name="fortsym_poly_gcd") result(status)
+        type(c_ptr), value :: raw, left_raw, right_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: lp, rp
+        type(expr_t) :: left, right, result
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(left_raw, lp, left, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(right_raw, rp, right, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(lp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(rp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call poly_gcd_expr(a%value, left, right, result, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, result, out, status, message, capacity)
+    end function fortsym_poly_gcd
+
+    function fortsym_poly_quotient(raw, dividend_raw, divisor_raw, variable_raw, &
+            out, message, capacity) bind(c, name="fortsym_poly_quotient") &
+            result(status)
+        type(c_ptr), value :: raw, dividend_raw, divisor_raw, variable_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: dp, qp, vp
+        type(expr_t) :: dividend, divisor, variable, result
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(dividend_raw, dp, dividend, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(divisor_raw, qp, divisor, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(dp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(qp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call poly_divide(a%value, dividend, divisor, variable, .true., result, &
+            ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, result, out, status, message, capacity)
+    end function fortsym_poly_quotient
+
+    function fortsym_poly_remainder(raw, dividend_raw, divisor_raw, variable_raw, &
+            out, message, capacity) bind(c, name="fortsym_poly_remainder") &
+            result(status)
+        type(c_ptr), value :: raw, dividend_raw, divisor_raw, variable_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: dp, qp, vp
+        type(expr_t) :: dividend, divisor, variable, result
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(dividend_raw, dp, dividend, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(divisor_raw, qp, divisor, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(dp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(qp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call poly_divide(a%value, dividend, divisor, variable, .false., result, &
+            ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, result, out, status, message, capacity)
+    end function fortsym_poly_remainder
+
     function c_integrate(raw, expression_raw, variable_raw, out, &
             message, capacity) bind(c, name="fortsym_integrate") result(status)
         type(c_ptr), value :: raw, expression_raw, variable_raw, out
@@ -6969,6 +7174,48 @@ contains
             status = FORTSYM_OK
         end if
     end function fortsym_solveset
+
+    function fortsym_solve_ode(raw, problem_raw, unknown_raw, variable_raw, &
+            out, message, capacity) bind(c, name="fortsym_solve_ode") &
+            result(status)
+        type(c_ptr), value :: raw, problem_raw, unknown_raw, variable_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: pp, up, vp
+        type(expr_t) :: problem, unknown, variable, result
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(problem_raw, pp, problem, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(unknown_raw, up, unknown, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(pp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(up%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        result = solve_ode(a%value, a%engine, problem, unknown, variable, ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, result, out, status, message, capacity)
+    end function fortsym_solve_ode
 
     function fortsym_zero_test(raw, expression_raw, verdict, message, capacity) &
             bind(c, name="fortsym_zero_test") result(status)

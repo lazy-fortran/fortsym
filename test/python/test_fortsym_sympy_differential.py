@@ -215,6 +215,70 @@ class SympyDifferentialTest(unittest.TestCase):
             with self.subTest(label=label):
                 self.assert_equivalent(label, oracle_call(), native_call())
 
+    def test_bounded_poly_view_matches_sympy(self):
+        oracle_x = oracle.Symbol("poly_view_x")
+        native_x = native.Symbol("poly_view_x")
+        oracle_poly = oracle.Poly(oracle_x**3 - 1, oracle_x)
+        native_poly = native.Poly(native_x**3 - 1, native_x)
+        self.assertEqual(native_poly.degree(), oracle_poly.degree())
+        actual_coefficients = native_poly.all_coeffs()
+        try:
+            expected_coefficients = oracle_poly.all_coeffs()
+            self.assertEqual(len(actual_coefficients), len(expected_coefficients))
+            for expected, actual in zip(expected_coefficients, actual_coefficients):
+                self.assert_equivalent("Poly coefficient", expected, actual)
+        finally:
+            for coefficient in actual_coefficients:
+                coefficient.close()
+        quotient, remainder = native_poly.div(native.Poly(native_x**2 - 1, native_x))
+        try:
+            expected_quotient, expected_remainder = oracle.div(
+                oracle.Poly(oracle_x**3 - 1, oracle_x),
+                oracle.Poly(oracle_x**2 - 1, oracle_x),
+            )
+            self.assert_equivalent("Poly quotient", expected_quotient.as_expr(), quotient.as_expr())
+            self.assert_equivalent("Poly remainder", expected_remainder.as_expr(), remainder.as_expr())
+        finally:
+            quotient.close()
+            remainder.close()
+        greatest_common_divisor = native_poly.gcd(
+            native.Poly(native_x**2 - 1, native_x)
+        )
+        try:
+            self.assert_equivalent(
+                "Poly gcd",
+                oracle.gcd(oracle_x**3 - 1, oracle_x**2 - 1),
+                greatest_common_divisor.as_expr(),
+            )
+        finally:
+            greatest_common_divisor.close()
+        content, factors = native.factor_list(native_x**2 - 1, native_x)
+        try:
+            self.assertEqual(str(content), str(oracle.Integer(1)))
+            reconstructed = oracle.Integer(1)
+            for factor, multiplicity in factors:
+                parsed = oracle.sympify(str(factor), locals={"poly_view_x": oracle_x})
+                reconstructed *= parsed**multiplicity
+            self.assertEqual(
+                oracle.simplify(reconstructed - (oracle_x**2 - 1)),
+                oracle.Integer(0),
+            )
+        finally:
+            content.close()
+            for factor, _ in factors:
+                factor.close()
+        actual_terms_gcd = native.terms_gcd(native_x**3 + native_x**2, native_x)
+        try:
+            self.assert_equivalent(
+                "terms_gcd",
+                oracle.terms_gcd(oracle_x**3 + oracle_x**2, oracle_x),
+                actual_terms_gcd,
+            )
+        finally:
+            actual_terms_gcd.close()
+        native_poly.close()
+        native_x.close()
+
     def test_verified_indefinite_integrals_match_sympy(self):
         oracle_x = oracle.Symbol("integral_x")
         native_x = native.Symbol("integral_x")
@@ -250,6 +314,52 @@ class SympyDifferentialTest(unittest.TestCase):
         for label, expected, actual in cases:
             with self.subTest(label=label):
                 self.assert_equivalent(label, expected, actual)
+
+    def test_bounded_dsolve_matches_sympy(self):
+        oracle_x = oracle.Symbol("dsolve_x")
+        oracle_y = oracle.Function("dsolve_y")
+        oracle_a = oracle.Symbol("dsolve_a")
+        native_x = native.Symbol("dsolve_x")
+        native_y = native.Function("dsolve_y")
+        native_a = native.Symbol("dsolve_a")
+        native_function = native_y(native_x)
+        native_equation = native.Eq(
+            native.diff(native_function, native_x), native_a*native_function
+        )
+        actual = native.dsolve(native_equation, native_function)
+        try:
+            parsed = oracle.sympify(
+                str(actual),
+                locals={"dsolve_x": oracle_x, "dsolve_y": oracle_y},
+            )
+            expected = oracle.dsolve(
+                oracle.Eq(oracle.diff(oracle_y(oracle_x), oracle_x),
+                          oracle_a*oracle_y(oracle_x)),
+                oracle_y(oracle_x),
+            )
+            self.assertEqual(parsed.lhs, oracle_y(oracle_x))
+            self.assertEqual(
+                oracle.simplify(
+                    oracle.diff(parsed.rhs, oracle_x) -
+                    oracle_a*parsed.rhs
+                ),
+                oracle.Integer(0),
+            )
+            self.assertEqual(
+                oracle.simplify(
+                    oracle.diff(expected.rhs, oracle_x) -
+                    oracle_a*expected.rhs
+                ),
+                oracle.Integer(0),
+            )
+        finally:
+            actual.close()
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.dsolve(native_equation, native_function, hint="best")
+        native_equation.close()
+        native_function.close()
+        native_x.close()
+        native_a.close()
 
     def test_verified_limits_match_sympy(self):
         oracle_x = oracle.Symbol("limit_x")
