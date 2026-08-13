@@ -708,6 +708,72 @@ class SympySubsetTest(unittest.TestCase):
         )
 
     @unittest.skipIf(oracle is None, "SymPy is not installed")
+    def test_de_sitter_and_gps_records_match_sympy(self):
+        t, x, y, z = sp.symbols("record_t record_x record_y record_z")
+        hubble = sp.Symbol("record_H")
+        scale = sp.exp(hubble*t)
+        curved = sp.SpacetimeMetric(
+            (t, x, y, z),
+            ((-1, 0, 0, 0), (0, scale**2, 0, 0),
+             (0, 0, scale**2, 0), (0, 0, 0, scale**2)),
+            signature=(-1, 1, 1, 1),
+        )
+        oracle_coordinates = oracle.symbols(
+            "record_t record_x record_y record_z"
+        )
+        oracle_hubble = oracle.Symbol("record_H")
+        oracle_metric = oracle.diag(
+            -1,
+            oracle.exp(oracle_hubble*oracle_coordinates[0])**2,
+            oracle.exp(oracle_hubble*oracle_coordinates[0])**2,
+            oracle.exp(oracle_hubble*oracle_coordinates[0])**2,
+        )
+        einstein = curved.einstein()
+        expected_einstein = -3*oracle_hubble**2*oracle_metric
+        for row in range(4):
+            for column in range(4):
+                actual = oracle.sympify(
+                    str(einstein[row, column].simplify())
+                )
+                self.assertEqual(
+                    oracle.simplify(actual - expected_einstein[row, column]),
+                    0,
+                )
+        self.assertEqual(
+            oracle.sympify(str(curved.scalar_curvature().simplify())),
+            12*oracle_hubble**2,
+        )
+        self.assertEqual(
+            oracle.sympify(str(curved.laplacian(t).simplify())),
+            -3*oracle_hubble,
+        )
+
+        radius, theta, phi = sp.symbols(
+            "record_radius record_theta record_phi"
+        )
+        mu = sp.Symbol("record_mu")
+        potential = -mu/radius
+        weak = sp.SpacetimeMetric(
+            (t, radius, theta, phi),
+            ((-(1 + 2*potential), 0, 0, 0), (0, 1, 0, 0),
+             (0, 0, 1, 0), (0, 0, 0, 1)),
+            signature=(-1, 1, 1, 1),
+        )
+        christoffel = weak.christoffel()
+        oracle_radius, oracle_mu = oracle.symbols("record_radius record_mu")
+        expected_derivative = oracle.diff(-oracle_mu/oracle_radius, oracle_radius)
+        actual_derivative = oracle.sympify(
+            str(christoffel[1, 0, 0].simplify())
+        )
+        self.assertEqual(
+            oracle.simplify(actual_derivative - expected_derivative), 0
+        )
+        self.assertEqual(
+            oracle.simplify(-expected_derivative + oracle_mu/oracle_radius**2),
+            0,
+        )
+
+    @unittest.skipIf(oracle is None, "SymPy is not installed")
     def test_spacetime_tensor_variance_and_density_match_sympy(self):
         t, x, y, z = sp.symbols("tensor_oracle_t tensor_oracle_x tensor_oracle_y tensor_oracle_z")
         metric = sp.SpacetimeMetric(

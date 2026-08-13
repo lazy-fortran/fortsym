@@ -96,6 +96,10 @@ fortsym_add_test(test_fortsym_spacetime_tensor calculus/test_fortsym_spacetime_t
 fortsym_add_test(test_fortsym_toroidal calculus/test_fortsym_toroidal.f90)
 fortsym_add_test(test_fortsym_easy_geometry calculus/test_fortsym_easy_geometry.f90)
 
+# --- executable geometry derivations ---
+add_test(NAME example_de_sitter COMMAND example_de_sitter)
+add_test(NAME example_gps_newtonian_limit COMMAND example_gps_newtonian_limit)
+
 # --- reading Fortran back ---
 fortsym_add_test(test_fortsym_fparse parse_fortran/test_fortsym_fparse.f90)
 

@@ -1941,6 +1941,10 @@ between the two-dimensional gradient, scalar curl, and divergence.
   with geodesics, curvature, Ricci, scalar curvature, and Einstein tensor.
   Include a flat-space zero-curvature case and a curved-space case with an
   independently known invariant.
+  - [x] Register the native de Sitter and GPS weak-field/Newtonian-limit
+    derivations as CMake execution tests, and compare the same Einstein,
+    curvature, wave-operator, Christoffel, and radial-acceleration contracts
+    through `fortsym.sympy` and an independent SymPy formula.
 - [ ] Add electromagnetic forms, a magnetic two-form, and a gauge-equivalent
   vector-potential example. Compare the form and tensor/vector outputs in both
   frontends.
