@@ -391,13 +391,14 @@ correctness-checked rows over a 2x2 integer matrix. Its native owner traverses
 the nested `List` directly and uses a one-pass integer fast path before falling
 back to the shared scalar simplifier for symbolic entries; it does not
 materialize a rank-two matrix array. The latest 2026-08-13 smoke sample
-measured native/SymPy ratios of 0.847x cold end-to-end and 1.257x warm core
+measured native/SymPy ratios of 0.802x cold end-to-end and 1.164x warm core
 in the stable higher-repetition sample. Reusing the default arena's
-small-integer cache brings the cold row below SymPy; the warm row remains a
-separate performance follow-up because its small native/FFI result-handling
-overhead is not yet below the SymPy 1.14.0 oracle. The planned release matrix
-therefore has 184 rows and 138 enforced rows, with that warm row explicitly
-tracked rather than silently waived.
+small-integer cache and routing the shared Matrix binary helper directly to
+the configured C function bring the cold row below SymPy and reduce the warm
+overhead; the warm row remains a separate performance follow-up because it is
+not yet below the SymPy 1.14.0 oracle. The planned release matrix therefore
+has 184 rows and 138 enforced rows, with that warm row explicitly tracked
+rather than silently waived.
 
 The native-owned `Complement` constructor adds one cold end-to-end row. Its
 correctness check compares both finite-set operands with SymPy while the
