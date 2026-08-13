@@ -1209,9 +1209,10 @@ For the paper's block metric and `A_3 = 0`, the transverse block becomes:
 
 Here `E_t` is the two-dimensional antisymmetric density. The native owner must
 retain the distinction between raw components, density components, and the
-constitutive tensor. The next paper slice adds the `n = 0` longitudinal scalar
-weak form, the `n != 0` transverse edge form, boundary traces, and the
-compatibility condition for the current density.
+constitutive tensor. The current paper slice adds native strong residuals for
+the `n = 0` longitudinal scalar and symbolic/integer-mode transverse edge
+branches; the remaining variational boundary terms, density transformations,
+and finite-element assembly are still open.
 
 The implementation keeps the following distinctions visible in names and
 types. These are the Levi-Civita symbol, Levi-Civita tensor, and
@@ -2038,8 +2039,11 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     Python facades; equilibrium construction and the remaining descriptors
     stay open.
 - [ ] **F5 — Fourier FEM completion.** Complete the Albert--Bíro--Lainer
-  `n=0` and `n!=0` weak forms, density/constitutive transformations, traces,
-  current compatibility, and a readable Fortran/Python derivation example.
+  variational forms, density/constitutive transformations, traces, current
+  compatibility, and a readable Fortran/Python derivation example.
+  - [x] Add native strong residual owners for the n=0 longitudinal and
+    integer/symbolic-mode transverse equations, and expose the n=0 diffusion
+    block as `nubar_t` in all facades.
 - [ ] **F6 — frontend and corpus parity.** Translate supported Wolfram and
   Python records through one native IR, preserve assumptions and refusals,
   and generate the same cases for `fortsym`, `fortsym.sympy`, and Fortran.
@@ -2312,6 +2316,10 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     Repeated `factor` calls now reuse the exact factorized DAG while retaining
     the conditional nonzero-domain diagnostic on cache hits; arena clearing
     invalidates the cache with the existing generation contract.
+  - [x] Remove the duplicate symbolic-denominator traversal from native
+    simplification. Conditional cancellation diagnostics still scan the
+    original expression when the result changes, while the unchanged and
+    denominator-free hot paths do no redundant domain walk.
 - [x] Cache immutable explicit metric determinant, inverse, and positive
   `sqrtg` views in the native `metric_t` owner. Repeated gradient, divergence,
   Laplace--Beltrami, Hodge, and raise/lower calls reuse the same expression

@@ -48,7 +48,8 @@ module fortsym_magnetic_weak
         logical :: has_curl_term = .false.
         logical :: has_mass_term = .false.
         logical :: requires_current_compatibility = .false.
-        type(expr_t) :: scalar_coefficient
+        ! The n=0 scalar problem uses -div_t(nubar_t grad_t A_3).
+        type(expr_t) :: longitudinal_diffusion(2, 2)
         type(expr_t) :: transverse_curl_coefficient
         type(expr_t) :: transverse_mass(2, 2)
     end type fourier_weak_form_t
@@ -67,9 +68,19 @@ module fortsym_magnetic_weak
         module procedure current_compatibility_expression
     end interface current_compatibility
 
+    interface fourier_longitudinal_residual
+        module procedure fourier_longitudinal_residual_scalar
+    end interface fourier_longitudinal_residual
+
+    interface fourier_transverse_residual
+        module procedure fourier_transverse_residual_integer
+        module procedure fourier_transverse_residual_expression
+    end interface fourier_transverse_residual
+
     public :: fourier_constitutive
     public :: fourier_weak_form
     public :: current_compatibility
+    public :: fourier_longitudinal_residual, fourier_transverse_residual
     public :: nubar, fourier_constitutive_valid, fourier_weak_form_valid
 
 contains
@@ -170,10 +181,10 @@ contains
         if (.not. material%valid) return
         if (.not. same_arena(material%nu33, c%u(1))) return
         zero = num(c%a, 0_int64)
-        value%scalar_coefficient = zero
         value%transverse_curl_coefficient = zero
         do i = 1, 2
             do j = 1, 2
+                value%longitudinal_diffusion(i, j) = zero
                 value%transverse_mass(i, j) = zero
             end do
         end do
@@ -186,7 +197,12 @@ contains
             value%test_components = 1
             value%boundary_trace = TRACE_NORMAL
             value%has_gradient_term = .true.
-            value%scalar_coefficient = material%nu33
+            do i = 1, 2
+                do j = 1, 2
+                    value%longitudinal_diffusion(i, j) = &
+                        material%nubar_t(i, j)
+                end do
+            end do
         else
             value%branch = FOURIER_TRANSVERSE
             value%trial_space = SPACE_EDGE
@@ -206,6 +222,105 @@ contains
         end if
         value%valid = .true.
     end function fourier_weak_form_integer
+
+    !> Residual of the n=0 longitudinal scalar equation.
+    !>
+    !> The scalar unknown is A_3 and the supplied source is the longitudinal
+    !> contravariant current density J^3.  The returned expression is
+    !> -div_t(nubar_t grad_t A_3) - J^3, so a solution is represented by zero.
+    function fourier_longitudinal_residual_scalar(c, material, potential, &
+            current) result(value)
+        type(chart_t), intent(in) :: c
+        type(fourier_constitutive_t), intent(in) :: material
+        type(expr_t), intent(in) :: potential, current
+        type(expr_t) :: value
+        type(expr_t) :: gradient_one, gradient_two
+        type(expr_t) :: flux_one, flux_two
+
+        if (.not. associated(c%a)) return
+        if (.not. material%valid) return
+        if (.not. is_valid(potential)) return
+        if (.not. is_valid(current)) return
+        if (.not. same_arena(potential, c%u(1))) return
+        if (.not. same_arena(current, c%u(1))) return
+
+        gradient_one = diff(potential, c%u(1))
+        gradient_two = diff(potential, c%u(2))
+        flux_one = material%nubar_t(1, 1)*gradient_one + &
+            material%nubar_t(1, 2)*gradient_two
+        flux_two = material%nubar_t(2, 1)*gradient_one + &
+            material%nubar_t(2, 2)*gradient_two
+        value = -(diff(flux_one, c%u(1)) + diff(flux_two, c%u(2))) - current
+    end function fourier_longitudinal_residual_scalar
+
+    !> Residual of the n/=0 transverse two-component equation.
+    !>
+    !> The supplied potential is the covariant transverse pair (A_1,A_2)
+    !> and the source is the contravariant density pair (J^1,J^2).  The
+    !> result is curl_t(nu33 curl_t(a)) + n^2 nubar_t a - j.
+    function fourier_transverse_residual_integer(c, material, potential, &
+            current, mode) result(value)
+        type(chart_t), intent(in) :: c
+        type(fourier_constitutive_t), intent(in) :: material
+        type(expr_t), intent(in) :: potential(2), current(2)
+        integer, intent(in) :: mode
+        type(expr_t) :: value(2)
+        type(expr_t) :: mode_square
+
+        mode_square = num(c%a, int(mode, int64)*int(mode, int64))
+        value = fourier_transverse_residual_from_square(c, material, potential, &
+            current, mode_square)
+    end function fourier_transverse_residual_integer
+
+    function fourier_transverse_residual_expression(c, material, potential, &
+            current, mode) result(value)
+        type(chart_t), intent(in) :: c
+        type(fourier_constitutive_t), intent(in) :: material
+        type(expr_t), intent(in) :: potential(2), current(2), mode
+        type(expr_t) :: value(2)
+        type(expr_t) :: mode_square
+
+        mode_square = mode*mode
+        value = fourier_transverse_residual_from_square(c, material, potential, &
+            current, mode_square)
+    end function fourier_transverse_residual_expression
+
+    function fourier_transverse_residual_from_square(c, material, potential, &
+            current, mode_square) result(value)
+        type(chart_t), intent(in) :: c
+        type(fourier_constitutive_t), intent(in) :: material
+        type(expr_t), intent(in) :: potential(2), current(2), mode_square
+        type(expr_t) :: value(2)
+        type(expr_t) :: curl_scalar, weighted_curl
+        type(expr_t) :: mass_one, mass_two
+        integer :: i
+
+        do i = 1, 2
+            value(i) = expr_t()
+        end do
+        if (.not. associated(c%a)) return
+        if (.not. material%valid) return
+        if (.not. is_valid(mode_square)) return
+        if (.not. same_arena(mode_square, c%u(1))) return
+        do i = 1, 2
+            if (.not. is_valid(potential(i))) return
+            if (.not. is_valid(current(i))) return
+            if (.not. same_arena(potential(i), c%u(1))) return
+            if (.not. same_arena(current(i), c%u(1))) return
+        end do
+
+        curl_scalar = diff(potential(2), c%u(1)) - &
+            diff(potential(1), c%u(2))
+        weighted_curl = material%nu33*curl_scalar
+        mass_one = material%nubar_t(1, 1)*potential(1) + &
+            material%nubar_t(1, 2)*potential(2)
+        mass_two = material%nubar_t(2, 1)*potential(1) + &
+            material%nubar_t(2, 2)*potential(2)
+        value(1) = diff(weighted_curl, c%u(2)) + mode_square*mass_one - &
+            current(1)
+        value(2) = -diff(weighted_curl, c%u(1)) + mode_square*mass_two - &
+            current(2)
+    end function fourier_transverse_residual_from_square
 
     !> Metric-free compatibility residual for a Fourier current density.
     !>

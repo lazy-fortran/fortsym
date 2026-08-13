@@ -622,6 +622,25 @@ def _configure(lib):
             ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    lib.chart_fourier_longitudinal_residual = declare(
+        "fortsym_chart_fourier_longitudinal_residual", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CVOID, _CVOID, ctypes.POINTER(_CVOID),
+            _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_fourier_transverse_residual = declare(
+        "fortsym_chart_fourier_transverse_residual", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), _CVOID, ctypes.POINTER(_CVOID),
+            _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.chart_current_compatibility = declare(
         "fortsym_chart_current_compatibility", ctypes.c_int,
         [
@@ -1803,7 +1822,7 @@ class Arena:
             trial_components = ctypes.c_int()
             test_components = ctypes.c_int()
             boundary_trace = ctypes.c_int()
-            scalar = _CVOID()
+            diffusion = (_CVOID * 4)()
             transverse_curl = _CVOID()
             mass = (_CVOID * 4)()
             message = _message()
@@ -1812,20 +1831,124 @@ class Arena:
                 reluctivity_handles, mode, ctypes.byref(branch),
                 ctypes.byref(trial_space), ctypes.byref(test_space),
                 ctypes.byref(trial_components), ctypes.byref(test_components),
-                ctypes.byref(boundary_trace), ctypes.byref(scalar),
-                ctypes.byref(transverse_curl), mass, message, len(message),
+                ctypes.byref(boundary_trace),
+                diffusion, ctypes.byref(transverse_curl), mass, message,
+                len(message),
             )
         finally:
             for temporary in temporary_values:
                 temporary.close()
         if status:
             raise FortSymError(status, _decode(message), "fourier_weak_form")
+        diffusion_components = tuple(
+            Expr(self, diffusion[index]) for index in range(4)
+        )
         components = tuple(Expr(self, mass[index]) for index in range(4))
         return FourierWeakForm(
             chart, mode, branch.value, trial_space.value, test_space.value,
             trial_components.value, test_components.value, boundary_trace.value,
-            Expr(self, scalar), Expr(self, transverse_curl), components,
+            diffusion_components,
+            Expr(self, transverse_curl), components,
         )
+
+    def _chart_fourier_longitudinal_residual(
+            self, chart, reluctivity, potential, current):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporary_values = []
+        try:
+            reluctivity_values = []
+            for value in _matrix3_values(reluctivity):
+                value, temporary = self._coerce(value)
+                reluctivity_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            potential, temporary = self._coerce(potential)
+            if temporary is not None:
+                temporary_values.append(temporary)
+            current, temporary = self._coerce(current)
+            if temporary is not None:
+                temporary_values.append(temporary)
+            reluctivity_handles = (_CVOID * 9)(
+                *[value._handle for value in reluctivity_values]
+            )
+            output = _CVOID()
+            message = _message()
+            status = self._lib.chart_fourier_longitudinal_residual(
+                self._require(), coordinate_handles, position_handles,
+                reluctivity_handles, potential._handle, current._handle,
+                ctypes.byref(output), message, len(message),
+            )
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
+        if status:
+            raise FortSymError(
+                status, _decode(message), "fourier_longitudinal_residual"
+            )
+        return Expr(self, output)
+
+    def _chart_fourier_transverse_residual(
+            self, chart, reluctivity, potential, current, mode):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporary_values = []
+        try:
+            reluctivity_values = []
+            for value in _matrix3_values(reluctivity):
+                value, temporary = self._coerce(value)
+                reluctivity_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            potential_values = []
+            current_values = []
+            for value in potential:
+                value, temporary = self._coerce(value)
+                potential_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            for value in current:
+                value, temporary = self._coerce(value)
+                current_values.append(value)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+            if len(potential_values) != 2:
+                raise ValueError(
+                    "fourier_transverse_residual potential requires two components"
+                )
+            if len(current_values) != 2:
+                raise ValueError(
+                    "fourier_transverse_residual current requires two components"
+                )
+            mode, temporary = self._coerce(mode)
+            if temporary is not None:
+                temporary_values.append(temporary)
+            reluctivity_handles = (_CVOID * 9)(
+                *[value._handle for value in reluctivity_values]
+            )
+            potential_handles = (_CVOID * 2)(
+                *[value._handle for value in potential_values]
+            )
+            current_handles = (_CVOID * 2)(
+                *[value._handle for value in current_values]
+            )
+            output = (_CVOID * 2)()
+            message = _message()
+            status = self._lib.chart_fourier_transverse_residual(
+                self._require(), coordinate_handles, position_handles,
+                reluctivity_handles, potential_handles, current_handles,
+                mode._handle, output, message, len(message),
+            )
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
+        if status:
+            raise FortSymError(
+                status, _decode(message), "fourier_transverse_residual"
+            )
+        return tuple(Expr(self, output[index]) for index in range(2))
 
     def _chart_current_compatibility(self, chart, current, mode):
         if not isinstance(mode, int) or isinstance(mode, bool):
@@ -3608,6 +3731,19 @@ class Chart:
             self, reluctivity, mode,
         )
 
+    def fourier_longitudinal_residual(self, reluctivity, potential, current):
+        """Return the n=0 scalar Fourier residual."""
+        return self._arena._chart_fourier_longitudinal_residual(
+            self, reluctivity, potential, current,
+        )
+
+    def fourier_transverse_residual(
+            self, reluctivity, potential, current, mode):
+        """Return the two-component Fourier residual for any mode."""
+        return self._arena._chart_fourier_transverse_residual(
+            self, reluctivity, potential, current, mode,
+        )
+
     def current_compatibility(self, current, mode):
         """Return the native metric-free Fourier current divergence."""
         return self._arena._chart_current_compatibility(self, current, mode)
@@ -4674,7 +4810,7 @@ class FourierWeakForm:
 
     def __init__(self, chart, mode, branch, trial_space, test_space,
                  trial_components, test_components, boundary_trace,
-                 scalar_coefficient, transverse_curl_coefficient, mass):
+                 longitudinal_diffusion, transverse_curl_coefficient, mass):
         self.chart = chart
         self.mode = mode
         self.branch = branch
@@ -4683,7 +4819,10 @@ class FourierWeakForm:
         self.trial_components = trial_components
         self.test_components = test_components
         self.boundary_trace = boundary_trace
-        self.scalar_coefficient = scalar_coefficient
+        self.longitudinal_diffusion = (
+            (longitudinal_diffusion[0], longitudinal_diffusion[2]),
+            (longitudinal_diffusion[1], longitudinal_diffusion[3]),
+        )
         self.transverse_curl_coefficient = transverse_curl_coefficient
         self.transverse_mass = (
             (mass[0], mass[2]),

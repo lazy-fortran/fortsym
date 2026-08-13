@@ -29,10 +29,13 @@ computes the native fixed-3D Fourier curl-curl operator; `nu` accepts a nested
 3x3 matrix or a nine-entry first-slot-fastest (column-major) sequence.
 `Chart.fourier_weak_form(nu, n)` returns the native Albert--Bíro--Lainer
 branch descriptor. `n=0` selects a scalar nodal form with a normal boundary
-trace; `n!=0` selects a two-component edge form with the transformed
-transverse mass block and a tangential boundary trace. The returned
-`FourierWeakForm` contains native expression handles and integer metadata;
-the Python layer does not recalculate the constitutive reduction.
+trace and the `longitudinal_diffusion` block `nubar_t`; `n!=0` selects a
+two-component edge form with the transformed transverse mass block and a
+tangential boundary trace. The returned `FourierWeakForm` contains native
+expression handles and integer metadata; the Python layer does not
+recalculate the constitutive reduction. `Chart.fourier_longitudinal_residual`
+and `Chart.fourier_transverse_residual` expose the corresponding strong
+residuals, with the latter accepting an integer or symbolic mode.
 Pass a `fortsym.sympy.Patch` as `Chart(..., patch=patch)` when the chart is
 declared on a coordinate patch; `Chart.has_patch` and `Chart.patch` retain that
 metadata without inferring topology from expressions. `CoordSystem(name,

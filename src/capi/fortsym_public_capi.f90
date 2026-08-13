@@ -34,6 +34,7 @@ module fortsym_public_capi
         FLUX_BOOZER, FLUX_HAMADA, BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT
     use fortsym_magnetic_weak, only: fourier_constitutive, fourier_weak_form, &
         current_compatibility, &
+        fourier_longitudinal_residual, fourier_transverse_residual, &
         fourier_constitutive_t, fourier_weak_form_t, &
         FOURIER_LONGITUDINAL, FOURIER_TRANSVERSE, SPACE_NODAL, SPACE_EDGE, &
         TRACE_NORMAL, TRACE_TANGENTIAL
@@ -177,6 +178,8 @@ module fortsym_public_capi
         fortsym_chart_h_cov, fortsym_chart_h_con, &
         fortsym_chart_b_fourier, fortsym_chart_b_fourier_density, &
         fortsym_chart_j_fourier, fortsym_chart_fourier_weak_form, &
+        fortsym_chart_fourier_longitudinal_residual, &
+        fortsym_chart_fourier_transverse_residual, &
         fortsym_chart_current_compatibility, &
         fortsym_metric_sqrtg, fortsym_metric_surface_measure, &
         fortsym_metric_contravariant, &
@@ -2937,7 +2940,8 @@ contains
     function fortsym_chart_fourier_weak_form(raw, coordinates, position, &
             reluctivity, mode, branch, trial_space, test_space, &
             trial_components, test_components, boundary_trace, &
-            scalar_coefficient, transverse_curl_coefficient, transverse_mass, &
+            longitudinal_diffusion, &
+            transverse_curl_coefficient, transverse_mass, &
             message, capacity) bind(c, name="fortsym_chart_fourier_weak_form") &
             result(status)
         type(c_ptr), value :: raw, coordinates, position, reluctivity
@@ -2945,16 +2949,16 @@ contains
         integer(c_int), intent(out) :: branch, trial_space, test_space
         integer(c_int), intent(out) :: trial_components, test_components
         integer(c_int), intent(out) :: boundary_trace
-        type(c_ptr), value :: scalar_coefficient, transverse_curl_coefficient
-        type(c_ptr), value :: transverse_mass
+        type(c_ptr), value :: longitudinal_diffusion
+        type(c_ptr), value :: transverse_curl_coefficient, transverse_mass
         character(kind=c_char), intent(out) :: message(*)
         integer(c_size_t), value :: capacity
         integer(c_int) :: status
         type(arena_owner_t), pointer :: a
         type(expr_owner_t), pointer :: owner
         type(chart_t) :: chart
-        type(expr_t) :: nu(DIM, DIM), value_scalar, value_curl
-        type(expr_t) :: value_mass(4)
+        type(expr_t) :: nu(DIM, DIM), value_curl
+        type(expr_t) :: value_diffusion(4), value_mass(4)
         type(fourier_constitutive_t) :: material
         type(fourier_weak_form_t) :: form
         type(c_ptr), pointer :: reluctivity_values(:)
@@ -2966,7 +2970,9 @@ contains
         trial_components = 0_c_int
         test_components = 0_c_int
         boundary_trace = 0_c_int
-        call begin_output(scalar_coefficient, message, capacity)
+        call prepare_expr_array(longitudinal_diffusion, 4, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
         call begin_output(transverse_curl_coefficient, message, capacity)
         call prepare_expr_array(transverse_mass, 4, status, message, capacity)
         if (status /= FORTSYM_OK) return
@@ -3004,24 +3010,156 @@ contains
         trial_components = int(form%trial_components, c_int)
         test_components = int(form%test_components, c_int)
         boundary_trace = int(form%boundary_trace, c_int)
-        value_scalar = form%scalar_coefficient
         value_curl = form%transverse_curl_coefficient
         flat = 0
         do j = 1, 2
             do i = 1, 2
                 flat = flat + 1
+                value_diffusion(flat) = form%longitudinal_diffusion(i, j)
                 value_mass(flat) = form%transverse_mass(i, j)
             end do
         end do
-        call make_handle(a, value_scalar, scalar_coefficient, status, &
-            message, capacity)
-        if (status /= FORTSYM_OK) return
         call make_handle(a, value_curl, transverse_curl_coefficient, status, &
             message, capacity)
+        if (status /= FORTSYM_OK) return
+        call make_expr_array(a, value_diffusion, longitudinal_diffusion, 4, &
+            status, message, capacity)
         if (status /= FORTSYM_OK) return
         call make_expr_array(a, value_mass, transverse_mass, 4, status, &
             message, capacity)
     end function fortsym_chart_fourier_weak_form
+
+    function fortsym_chart_fourier_longitudinal_residual(raw, coordinates, &
+            position, reluctivity, potential, current, out, message, capacity) &
+            bind(c, name="fortsym_chart_fourier_longitudinal_residual") &
+            result(status)
+        type(c_ptr), value :: raw, coordinates, position, reluctivity, potential
+        type(c_ptr), value :: current, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(expr_t) :: nu(DIM, DIM), value
+        type(expr_t) :: potential_value, current_value
+        type(c_ptr), pointer :: reluctivity_values(:)
+        integer :: i, j, flat, shape_matrix(1)
+
+        call begin_output(out, message, capacity)
+        shape_matrix(1) = DIM*DIM
+        call c_f_pointer(reluctivity, reluctivity_values, shape_matrix)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(potential, owner, potential_value, status, message, &
+            capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call get_expr(current, owner, current_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        flat = 0
+        do j = 1, DIM
+            do i = 1, DIM
+                flat = flat + 1
+                call get_expr(reluctivity_values(flat), owner, nu(i, j), &
+                    status, message, capacity)
+                if (status /= FORTSYM_OK) return
+                if (.not. associated(owner%arena, a)) then
+                    call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                    return
+                end if
+            end do
+        end do
+        value = fourier_longitudinal_residual(chart, fourier_constitutive(chart, nu), &
+            potential_value, current_value)
+        if (.not. is_valid(value)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call make_handle(a, value, out, status, message, capacity)
+    end function fortsym_chart_fourier_longitudinal_residual
+
+    function fortsym_chart_fourier_transverse_residual(raw, coordinates, &
+            position, reluctivity, potential, current, mode, out, message, &
+            capacity) bind(c, &
+            name="fortsym_chart_fourier_transverse_residual") result(status)
+        type(c_ptr), value :: raw, coordinates, position, reluctivity, potential
+        type(c_ptr), value :: current, mode, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(expr_t) :: nu(DIM, DIM), input(2), source(2), value(2)
+        type(expr_t) :: mode_value
+        type(fourier_constitutive_t) :: material
+        type(c_ptr), pointer :: reluctivity_values(:), potential_values(:)
+        type(c_ptr), pointer :: current_values(:), output(:)
+        integer :: i, j, flat, shape_matrix(1), shape_pair(1)
+
+        shape_matrix(1) = DIM*DIM
+        shape_pair(1) = 2
+        call c_f_pointer(reluctivity, reluctivity_values, shape_matrix)
+        call c_f_pointer(potential, potential_values, shape_pair)
+        call c_f_pointer(current, current_values, shape_pair)
+        call c_f_pointer(out, output, shape_pair)
+        call clear_array_outputs(output)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        do i = 1, 2
+            call get_expr(potential_values(i), owner, input(i), status, &
+                message, capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+            call get_expr(current_values(i), owner, source(i), status, message, &
+                capacity)
+            if (status /= FORTSYM_OK) return
+            if (.not. associated(owner%arena, a)) then
+                call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        flat = 0
+        do j = 1, DIM
+            do i = 1, DIM
+                flat = flat + 1
+                call get_expr(reluctivity_values(flat), owner, nu(i, j), &
+                    status, message, capacity)
+                if (status /= FORTSYM_OK) return
+                if (.not. associated(owner%arena, a)) then
+                    call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                    return
+                end if
+            end do
+        end do
+        call get_expr(mode, owner, mode_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        material = fourier_constitutive(chart, nu)
+        if (.not. material%valid) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        value = fourier_transverse_residual(chart, material, input, source, &
+            mode_value)
+        call make_expr_array(a, value, out, 2, status, message, capacity)
+    end function fortsym_chart_fourier_transverse_residual
 
     function fortsym_chart_current_compatibility(raw, coordinates, position, &
             current, mode, out, message, capacity) bind(c, &
