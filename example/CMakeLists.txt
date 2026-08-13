@@ -1,4 +1,5 @@
-# Worked examples. Built so they cannot rot, but not registered as tests.
+# Worked examples. They are also registered as CTest execution tests in
+# test/CMakeLists.txt, so the derivations cannot silently rot.
 add_executable(example_workflow example_workflow.f90)
 target_link_libraries(example_workflow PRIVATE fortsym)
 

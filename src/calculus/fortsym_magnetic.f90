@@ -17,6 +17,9 @@ module fortsym_magnetic
         operator(+), operator(-), operator(*), operator(/)
     use fortsym_form, only: form_t, form_one, exterior_diff, form_valid, &
         form_degree, form_chart_compatible, star, sharp, interior, volume_form
+    use fortsym_metric, only: metric_t, &
+        metric_owner_contravariant => metric_contravariant, metric_valid, &
+        metric_same_arena
     use fortsym_tensor, only: tensor_t, tensor_vector, tensor_covector, density, &
         tensor_valid
     implicit none
@@ -78,6 +81,11 @@ module fortsym_magnetic
     interface j_fourier
         module procedure j_fourier_integer, j_fourier_expression
     end interface j_fourier
+
+    interface h_con
+        module procedure h_con_chart
+        module procedure h_con_metric
+    end interface h_con
 
 contains
 
@@ -554,7 +562,7 @@ contains
     !> accepts H_i rather than reluctivity and B again, so constitutive
     !> evaluation and index conversion remain composable single-responsibility
     !> operations.
-    function h_con(c, covariant) result(value)
+    function h_con_chart(c, covariant) result(value)
         type(chart_t), intent(in) :: c
         type(expr_t), intent(in) :: covariant(DIM)
         type(expr_t) :: value(DIM)
@@ -575,7 +583,36 @@ contains
                 value(i) = value(i) + inverse(i, j)*covariant(j)
             end do
         end do
-    end function h_con
+    end function h_con_chart
+
+    !> Raise a covector with an explicit metric owner. This overload is useful
+    !> when a chart's raw Cartesian chain-rule metric is deliberately replaced
+    !> by a compact analytic metric representation; the cached inverse then
+    !> keeps the contraction small and avoids expression swell.
+    function h_con_metric(g, covariant) result(value)
+        type(metric_t), intent(in) :: g
+        type(expr_t), intent(in) :: covariant(DIM)
+        type(expr_t) :: value(DIM)
+        type(expr_t) :: inverse(DIM, DIM)
+        integer :: i, j
+
+        if (.not. metric_valid(g)) return
+        if (.not. is_valid(covariant(1))) return
+        if (.not. metric_same_arena(g, covariant(1)%a)) return
+        do i = 1, DIM
+            if (.not. is_valid(covariant(i))) return
+            if (.not. associated(covariant(i)%a, covariant(1)%a)) return
+        end do
+
+        inverse = metric_owner_contravariant(g)
+        value = num(covariant(1)%a, 0)
+        do i = 1, DIM
+            value(i) = inverse(i, 1)*covariant(1)
+            do j = 2, DIM
+                value(i) = value(i) + inverse(i, j)*covariant(j)
+            end do
+        end do
+    end function h_con_metric
 
     !> Contravariant Fourier-mode curl for a symmetry coordinate u^3.
     !>

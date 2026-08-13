@@ -378,12 +378,20 @@ contains
         logical :: branch_sensitive
         logical :: trig_ok, together_ok, cancel_ok
         logical :: saw_exponential_again, decidable_again, formal_exponential_again
+        logical :: exact_decidable
         character(:), allocatable :: trig_reason, cancel_reason
 
         simplified = self%simplify(e)
         r = simplified
         r%verdict = VERDICT_UNKNOWN
         if (.not. simplified%ok) return
+
+        ! The ordinary simplifier already decides exact scalar results. Do not
+        ! send the common `... - ... -> 0` identity through the exponential,
+        ! rational, and expansion normal forms below; that work is only needed
+        ! for a genuinely unresolved symbolic residual.
+        call exact_zero_verdict(simplified%value, r%verdict, exact_decidable)
+        if (exact_decidable) return
 
         ! The general simplifier deliberately does not rewrite exponentials:
         ! that would make ordinary pretty-printing choose a complex
@@ -1402,6 +1410,37 @@ contains
             verdict = VERDICT_FALSE
         end if
     end subroutine algebraic_zero_status
+
+    subroutine exact_zero_verdict(e, verdict, decided)
+        type(expr_t), intent(in) :: e
+        integer, intent(out) :: verdict
+        logical, intent(out) :: decided
+
+        verdict = VERDICT_UNKNOWN
+        decided = .true.
+        select case (e%kind())
+        case (NK_INT, NK_RAT)
+            if (e%int_value() == 0_int64) then
+                verdict = VERDICT_TRUE
+            else
+                verdict = VERDICT_FALSE
+            end if
+        case (NK_BIG_INT, NK_BIG_RAT)
+            ! Canonical zero is downcast to NK_INT by the arena.
+            verdict = VERDICT_FALSE
+        case (NK_REAL)
+            if (e%real_value() == 0.0_dp) then
+                verdict = VERDICT_TRUE
+            else
+                verdict = VERDICT_FALSE
+            end if
+        case (NK_ALGEBRAIC)
+            call algebraic_zero_status(e, verdict)
+            decided = verdict /= VERDICT_UNKNOWN
+        case default
+            decided = .false.
+        end select
+    end subroutine exact_zero_verdict
 
     function native_exp_normal_form(e, saw_exponential, decidable, &
             formal_exponential) result(out)
