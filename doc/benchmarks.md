@@ -386,6 +386,17 @@ therefore has 182 rows, 136 enforced rows,
 and zero unwaived violations after the 46 documented diagnostic waivers are
 applied.
 
+The bounded exact `Matrix.multiply_elementwise()` workload adds two
+correctness-checked rows over a 2x2 integer matrix. Its native owner traverses
+the nested `List` directly and uses a one-pass integer fast path before falling
+back to the shared scalar simplifier for symbolic entries; it does not
+materialize a rank-two matrix array. The latest 2026-08-13 smoke sample
+measured native/SymPy ratios of 1.234x cold end-to-end and 0.944x warm core.
+The warm operation is below SymPy's time; the cold result retains the same
+constructor/FFI diagnostic overhead tracked by the existing matrix workload
+waivers. The planned release matrix therefore has 184 rows and 138 enforced
+rows, with the new cold row remaining a performance-parity item.
+
 The native-owned `Complement` constructor adds one cold end-to-end row. Its
 correctness check compares both finite-set operands with SymPy while the
 independent native invariant checks the `Complement` application head and
@@ -562,9 +573,10 @@ failure. A separate strict sample measured the pre-existing
 0.779x; that similarly small host-timing difference is also explicitly
 waived. With the flat-column, trace, diagonal-query, symmetry, zero-matrix,
 and triangular, antisymmetry, symbolic, Hessenberg, identity, echelon,
-Hermitian, conjugation, and adjoint coverage included, the planned release
-matrix therefore has 182 rows, 136 enforced rows, and zero
-unwaived violations after the 46
+Hermitian, conjugation, adjoint, and elementwise multiplication coverage
+included, the planned release matrix therefore has 184 rows, 138 enforced
+rows; the new cold elementwise multiplication row remains a performance-
+parity item alongside the documented diagnostic waivers after the 46
 documented diagnostic waivers are applied.
 
 Run it from a built checkout with:

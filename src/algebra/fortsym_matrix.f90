@@ -26,8 +26,9 @@ module fortsym_matrix
     private
 
     public :: is_list, is_matrix, matrix_shape
-    public :: matrix_transpose, matrix_conjugate, matrix_adjoint, matrix_add, &
-        matrix_negate, matrix_divide, matrix_dot
+    public :: matrix_transpose, matrix_conjugate, matrix_adjoint, &
+        matrix_multiply_elementwise, matrix_add, matrix_negate, matrix_divide, &
+        matrix_dot
     public :: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_zero_matrix, &
         matrix_is_upper, matrix_is_lower, matrix_is_upper_hessenberg, &
         matrix_is_lower_hessenberg, matrix_is_anti_symmetric, matrix_is_symbolic, &
@@ -252,6 +253,70 @@ contains
         value = func("List", output_rows)
         ok = .true.
     end subroutine matrix_complex_transform
+
+    !> Multiply corresponding entries of two dense matrices directly.
+    function matrix_multiply_elementwise(a, x, y, ok, why, canonical) result(r)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t), intent(in) :: x, y
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: why
+        logical, optional, intent(out) :: canonical
+        type(expr_t) :: r, left_row, right_row, left_entry, right_entry
+        type(expr_t), allocatable :: output_rows(:), output_entries(:)
+        integer(int64) :: left_value, right_value
+        integer :: rows, cols, right_rows, right_cols, i, j
+        logical :: integer_fast
+
+        r = x
+        ok = .false.
+        why = str("")
+        if (present(canonical)) canonical = .false.
+        call matrix_shape(x, rows, cols)
+        call matrix_shape(y, right_rows, right_cols)
+        if (rows == 0 .or. right_rows == 0) then
+            why = str("elementwise matrix multiplication requires nonempty matrices")
+            return
+        end if
+        if (rows /= right_rows .or. cols /= right_cols) then
+            why = str("elementwise matrix multiplication requires equal dimensions")
+            return
+        end if
+
+        integer_fast = .true.
+        allocate (output_rows(rows))
+        do i = 1, rows
+            left_row = x%arg(i)
+            right_row = y%arg(i)
+            allocate (output_entries(cols))
+            do j = 1, cols
+                left_entry = left_row%arg(j)
+                right_entry = right_row%arg(j)
+                if (integer_fast) then
+                    if (left_entry%kind() /= NK_INT) then
+                        integer_fast = .false.
+                    else if (right_entry%kind() /= NK_INT) then
+                        integer_fast = .false.
+                    else
+                        left_value = left_entry%int_value()
+                        right_value = right_entry%int_value()
+                        if (integer_product_fits(left_value, right_value)) then
+                            output_entries(j) = num(a, left_value*right_value)
+                        else
+                            integer_fast = .false.
+                        end if
+                    end if
+                end if
+                if (.not. integer_fast) then
+                    output_entries(j) = left_entry*right_entry
+                end if
+            end do
+            output_rows(i) = func("List", output_entries)
+            deallocate (output_entries)
+        end do
+        r = func("List", output_rows)
+        ok = .true.
+        if (present(canonical)) canonical = integer_fast
+    end function matrix_multiply_elementwise
 
     !> Add or subtract two nonempty rectangular dense matrices.
     !>
@@ -647,7 +712,14 @@ contains
         integer(int64), intent(in) :: left, right
         integer(int64), parameter :: largest = huge(0_int64)
         integer(int64), parameter :: smallest = -largest - 1_int64
+        integer(int64), parameter :: fast_limit = 3037000499_int64
 
+        if (left >= -fast_limit .and. left <= fast_limit) then
+            if (right >= -fast_limit .and. right <= fast_limit) then
+                integer_product_fits = .true.
+                return
+            end if
+        end if
         if (left == 0_int64 .or. right == 0_int64) then
             integer_product_fits = .true.
         else if (left > 0_int64) then

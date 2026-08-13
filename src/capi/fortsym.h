@@ -329,6 +329,10 @@ int fortsym_matrix_conjugate(fortsym_arena *arena, const fortsym_expr *matrix,
 /* Conjugate transpose (Hermitian adjoint) of a dense matrix. */
 int fortsym_matrix_adjoint(fortsym_arena *arena, const fortsym_expr *matrix,
                            fortsym_expr **out, char *message, size_t capacity);
+/* Multiply corresponding entries of two equal-shaped dense matrices. */
+int fortsym_matrix_multiply_elementwise(
+    fortsym_arena *arena, const fortsym_expr *left, const fortsym_expr *right,
+    fortsym_expr **out, char *message, size_t capacity);
 /* Add, subtract, or negate bounded exact dense matrices represented by nested
  * Lists. Unequal dimensions, malformed forms, and unsupported operands return
  * FORTSYM_UNSUPPORTED. */

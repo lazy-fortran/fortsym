@@ -1057,6 +1057,22 @@ class SympyDifferentialTest(unittest.TestCase):
             native.Matrix([[native_unknown_matrix_x]]).conjugate()
         native_unknown_matrix_x.close()
         native_real_matrix_x.close()
+        native_elementwise_left = native.Matrix([[1, 2], [3, 4]])
+        native_elementwise_right = native.Matrix([[2, 3], [4, 5]])
+        oracle_elementwise_left = oracle.Matrix([[1, 2], [3, 4]])
+        oracle_elementwise_right = oracle.Matrix([[2, 3], [4, 5]])
+        self.assertEqual(
+            str(native_elementwise_left.multiply_elementwise(
+                native_elementwise_right
+            )),
+            str(oracle_elementwise_left.multiply_elementwise(
+                oracle_elementwise_right
+            )),
+        )
+        with self.assertRaises(ValueError):
+            native_elementwise_left.multiply_elementwise(
+                native.Matrix([[1, 2, 3]])
+            )
         symmetric_cases = (
             ([[1, 2], [2, 3]], True),
             ([[1, 2], [3, 4]], False),
