@@ -107,6 +107,7 @@ add_test(NAME example_nonorthogonal_flux_coordinates
     COMMAND example_nonorthogonal_flux_coordinates)
 add_test(NAME example_boozer_coordinates COMMAND example_boozer_coordinates)
 add_test(NAME example_spherical_coordinates COMMAND example_spherical_coordinates)
+add_test(NAME example_cylindrical_coordinates COMMAND example_cylindrical_coordinates)
 add_test(NAME example_cylindrical_fourier COMMAND example_cylindrical_fourier)
 add_test(NAME example_fourier_weak_form COMMAND example_fourier_weak_form)
 add_test(NAME example_fourier_constitutive_density

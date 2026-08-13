@@ -1269,6 +1269,11 @@ and independent oracle. The minimum case set is:
     density conversion with native, C, Python, and SymPy-oracle coverage.
   - [ ] Complete general density transformations, source/load records, and
     finite-element basis/assembly owners.
+- [x] Add a standalone cylindrical-coordinate example with an explicit
+  metric-owner connection path. It derives and checks `sqrtg`, reciprocal
+  bases, `Gamma^rho_theta theta`, `Gamma^theta_rho theta`, gradient,
+  divergence, curl, and the scalar Laplacian; the existing Fourier example
+  remains the paper-specific cylindrical branch.
 - [ ] Flat and curved pseudo-Riemannian examples with an explicit signature,
   connection sign convention, geodesic residual, and curvature invariant.
 
