@@ -6,7 +6,7 @@ module fortsym_matrix_adapter
     use fortsym_engine, only: engine_t, engine_result_t
     use fortsym_expr, only: expr_t
     use fortsym_matrix, only: matrix_det, matrix_trace, matrix_is_diagonal, matrix_is_zero_matrix, &
-        matrix_is_symmetric, matrix_rank, matrix_inverse, &
+        matrix_is_upper, matrix_is_lower, matrix_is_symmetric, matrix_rank, matrix_inverse, &
         matrix_transpose, matrix_add, matrix_negate, matrix_divide, &
         matrix_null_space, &
         matrix_rref, matrix_dot
@@ -18,6 +18,8 @@ module fortsym_matrix_adapter
     public :: calculate_matrix_trace
     public :: calculate_matrix_is_diagonal
     public :: calculate_matrix_is_zero_matrix
+    public :: calculate_matrix_is_upper
+    public :: calculate_matrix_is_lower
     public :: calculate_matrix_is_symmetric
     public :: calculate_matrix_rank
     public :: calculate_matrix_inverse
@@ -88,6 +90,32 @@ contains
         call matrix_is_zero_matrix(a, engine, expression, verdict, ok, message)
         why = chars(message)
     end subroutine calculate_matrix_is_zero_matrix
+
+    subroutine calculate_matrix_is_upper(a, engine, expression, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: expression
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(str_t) :: message
+
+        call matrix_is_upper(a, engine, expression, verdict, ok, message)
+        why = chars(message)
+    end subroutine calculate_matrix_is_upper
+
+    subroutine calculate_matrix_is_lower(a, engine, expression, verdict, ok, why)
+        type(arena_t), target, intent(inout) :: a
+        class(engine_t), intent(inout) :: engine
+        type(expr_t), intent(in) :: expression
+        integer, intent(out) :: verdict
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(str_t) :: message
+
+        call matrix_is_lower(a, engine, expression, verdict, ok, message)
+        why = chars(message)
+    end subroutine calculate_matrix_is_lower
 
     subroutine calculate_matrix_is_symmetric(a, engine, expression, simplify, verdict, ok, why)
         type(arena_t), target, intent(inout) :: a

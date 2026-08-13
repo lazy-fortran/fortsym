@@ -1423,6 +1423,16 @@ def _configure(lib):
         ctypes.c_int,
         [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
     )
+    lib.matrix_is_upper = declare(
+        "fortsym_matrix_is_upper",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
+    )
+    lib.matrix_is_lower = declare(
+        "fortsym_matrix_is_lower",
+        ctypes.c_int,
+        [_CVOID, _CVOID, ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
+    )
     lib.matrix_is_symmetric = declare(
         "fortsym_matrix_is_symmetric",
         ctypes.c_int,
@@ -7391,6 +7401,20 @@ class Expr:
     def is_zero_matrix(self):
         return self._arena._verdict(
             self._lib.matrix_is_zero_matrix,
+            self._arena._require(),
+            self._require(),
+        )
+
+    def is_upper(self):
+        return self._arena._verdict(
+            self._lib.matrix_is_upper,
+            self._arena._require(),
+            self._require(),
+        )
+
+    def is_lower(self):
+        return self._arena._verdict(
+            self._lib.matrix_is_lower,
             self._arena._require(),
             self._require(),
         )

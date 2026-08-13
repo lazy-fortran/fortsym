@@ -709,6 +709,59 @@ class SympyDifferentialTest(unittest.TestCase):
             native_zero_exp.is_zero_matrix, oracle_zero_exp.is_zero_matrix
         )
         native_zero_symbol.close()
+        triangular_cases = (
+            ([[1, 2, 3], [0, 4, 5]], True, False),
+            ([[1, 0], [2, 3]], False, True),
+            ([[1, 0], [0, 3]], True, True),
+            ([[1, 2], [3, 4]], False, False),
+            ([[1, 2, 3], [0, 4, 5], [0, 0, 6]], True, False),
+        )
+        for rows, expected_upper, expected_lower in triangular_cases:
+            oracle_case = oracle.Matrix(rows)
+            native_case = native.Matrix(rows)
+            independent_upper = all(
+                value == 0
+                for row, values in enumerate(rows)
+                for value in values[:row]
+            )
+            independent_lower = all(
+                value == 0
+                for row, values in enumerate(rows)
+                for value in values[row + 1:]
+            )
+            self.assertEqual(independent_upper, expected_upper)
+            self.assertEqual(independent_lower, expected_lower)
+            self.assertEqual(native_case.is_upper, expected_upper)
+            self.assertEqual(native_case.is_lower, expected_lower)
+            self.assertEqual(native_case.is_upper, oracle_case.is_upper)
+            self.assertEqual(native_case.is_lower, oracle_case.is_lower)
+        native_triangle_symbol = native.Symbol("triangle_x")
+        oracle_triangle_symbol = oracle.Symbol("triangle_x")
+        native_upper_symbol = native.Matrix(
+            [[1, native_triangle_symbol], [0, 2]]
+        )
+        oracle_upper_symbol = oracle.Matrix(
+            [[1, oracle_triangle_symbol], [0, 2]]
+        )
+        self.assertTrue(native_upper_symbol.is_upper)
+        self.assertEqual(
+            native_upper_symbol.is_upper, oracle_upper_symbol.is_upper
+        )
+        native_lower_symbol = native.Matrix(
+            [[1, 0], [native_triangle_symbol, 2]]
+        )
+        oracle_lower_symbol = oracle.Matrix(
+            [[1, 0], [oracle_triangle_symbol, 2]]
+        )
+        self.assertFalse(native_lower_symbol.is_upper)
+        self.assertTrue(native_lower_symbol.is_lower)
+        self.assertEqual(
+            native_lower_symbol.is_upper, oracle_lower_symbol.is_upper
+        )
+        self.assertEqual(
+            native_lower_symbol.is_lower, oracle_lower_symbol.is_lower
+        )
+        native_triangle_symbol.close()
         symmetric_cases = (
             ([[1, 2], [2, 3]], True),
             ([[1, 2], [3, 4]], False),
