@@ -339,5 +339,9 @@ warnings.
   differential record checks the Einstein tensor, scalar curvature, wave
   operator, weak-field Christoffel coefficient, and Newtonian radial
   acceleration against independently assembled formulas.
+- [x] Add the compact pseudo-Riemannian sign corpus. The native and Python
+  records check flat four-dimensional Minkowski curvature, the curved
+  Lorentzian two-dimensional invariant `R = 2 H^2`, signed Riemann/Ricci
+  components, and flat/comoving geodesic residuals.
 - [ ] Run every record through native Fortran, fortsym.sympy, and the
   Wolfram input frontend without duplicating the geometry implementation.
