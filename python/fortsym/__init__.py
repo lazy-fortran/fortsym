@@ -1423,6 +1423,11 @@ def _configure(lib):
         [_CVOID, _CVOID, _CVOID, _CVOID,
          ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
     )
+    lib.solve_univariate_inequality = declare(
+        "fortsym_solve_univariate_inequality",
+        ctypes.c_int,
+        [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE],
+    )
     lib.linsolve = declare(
         "fortsym_linsolve",
         ctypes.c_int,
@@ -7545,6 +7550,13 @@ class Expr:
             unknown._handle, variable._handle
         )
 
+    def solve_univariate_inequality(self, variable):
+        variable = self._arena._check(variable)
+        return self._arena._result(
+            self._lib.solve_univariate_inequality,
+            self._arena._require(), self._require(), variable._handle
+        )
+
     def det(self):
         return self._arena._result(
             self._lib.matrix_det, self._arena._require(), self._require()
@@ -8224,6 +8236,8 @@ def series_coeff(expression: Expr, variable: Expr, point=0, order=0):
 def solve(expression: Expr, variable=None): return expression.solve(variable)
 def solve_ode(problem: Expr, unknown: Expr, variable: Expr):
     return problem.solve_ode(unknown, variable)
+def solve_univariate_inequality(expression: Expr, variable: Expr):
+    return expression.solve_univariate_inequality(variable)
 def det(expression: Expr): return expression.det()
 def rank(expression: Expr): return expression.rank()
 def inv(expression: Expr): return expression.inv()
@@ -8315,6 +8329,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "coefficient", "exponent", "polynomial_gcd", "polynomial_quotient", "polynomial_remainder", "integrate", "definite_integral", "limit", "series", "series_coeff", "solve", "solve_ode", "det", "rank", "inv", "transpose", "matrix_conjugate", "matrix_adjoint", "matrix_multiply_elementwise", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "coefficient", "exponent", "polynomial_gcd", "polynomial_quotient", "polynomial_remainder", "integrate", "definite_integral", "limit", "series", "series_coeff", "solve", "solve_ode", "solve_univariate_inequality", "det", "rank", "inv", "transpose", "matrix_conjugate", "matrix_adjoint", "matrix_multiply_elementwise", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

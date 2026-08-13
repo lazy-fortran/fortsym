@@ -370,6 +370,10 @@ SymPy parity for the entire family.
       and supported transcendental equations.
 - [ ] Add inequality reduction, compound-domain reasoning, Diophantine
       solving, recurrences, and elimination where present in the profile.
+- [x] Expose the bounded exact affine one-variable inequality slice as native
+      `solve_univariate_inequality` plus SymPy-compatible
+      `solve_univariate_inequality`/`reduce_inequalities`; higher-degree,
+      compound-domain, and condition-reduction families remain open.
 - [ ] Complete dense/sparse exact matrices: construction, indexing, slicing,
       determinant, inverse, rank, nullspace, decompositions, eigenvalues,
       characteristic/minimal polynomials, and `DomainMatrix` equivalents.

@@ -697,6 +697,26 @@
       "sympy_reference": [
         "dsolve"
       ]
+    },
+    {
+      "action": "Keep solve_univariate_inequality as the single native owner and adapt reduce_inequalities input handling at the Python boundary.",
+      "description": "Reduce one exact affine one-variable inequality.",
+      "finding": "The native and convenience facades use solve_univariate_inequality; the SymPy adapter exposes both solve_univariate_inequality and reduce_inequalities without duplicating the solver.",
+      "fortran_facade": [
+        "solve_univariate_inequality"
+      ],
+      "id": "inequality-solving",
+      "python_facade": [
+        "solve_univariate_inequality"
+      ],
+      "sympy_adapter": [
+        "reduce_inequalities",
+        "solve_univariate_inequality"
+      ],
+      "sympy_reference": [
+        "reduce_inequalities",
+        "solve_univariate_inequality"
+      ]
     }
   ],
   "exports": {
@@ -2590,6 +2610,12 @@
         "name": "solve_ode"
       },
       {
+        "concepts": [
+          "inequality-solving"
+        ],
+        "name": "solve_univariate_inequality"
+      },
+      {
         "concepts": [],
         "name": "spacetime_christoffel"
       },
@@ -3408,6 +3434,7 @@
       "rank",
       "re",
       "refine",
+      "reduce_inequalities",
       "replace",
       "rref",
       "sech",
@@ -3418,6 +3445,7 @@
       "sin",
       "sinh",
       "solve",
+      "solve_univariate_inequality",
       "solveset",
       "sqrt",
       "subs",

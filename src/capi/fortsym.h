@@ -257,6 +257,14 @@ int fortsym_solve_ode(fortsym_arena *arena, const fortsym_expr *problem,
                       const fortsym_expr *unknown,
                       const fortsym_expr *variable, fortsym_expr **out,
                       char *message, size_t capacity);
+/* Verified affine one-variable inequality reduction.  The result is a native
+ * And of two relational bounds (or True/False for a constant relation).
+ * Quadratic and symbolic-coefficient inequalities return FORTSYM_UNSUPPORTED.
+ */
+int fortsym_solve_univariate_inequality(
+    fortsym_arena *arena, const fortsym_expr *expression,
+    const fortsym_expr *variable, fortsym_expr **out,
+    char *message, size_t capacity);
 /* Solve one square exact-rational system with one right-hand side. `matrix`
  * is a flattened column-major n-by-n handle array and `right_hand_side` has
  * n entries. The result contains n verified values in variable order. This

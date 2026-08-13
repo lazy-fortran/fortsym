@@ -139,6 +139,7 @@ module fortsym_public_capi
         calculate_series_coeff
     use fortsym_solve_adapter, only: calculate_solve, calculate_solveset
     use fortsym_ode, only: solve_ode
+    use fortsym_inequality, only: solve_univariate_inequality
     use fortsym_linsolve_adapter, only: calculate_linsolve, &
         calculate_parametric_linsolve
     use fortsym_matrix_adapter, only: calculate_matrix_det, calculate_matrix_trace, &
@@ -213,6 +214,7 @@ module fortsym_public_capi
         fortsym_poly_quotient, fortsym_poly_remainder, &
         c_integrate, c_definite_integral, c_limit, c_series, c_series_coeff
     public :: fortsym_solve, fortsym_solveset, fortsym_solve_ode, &
+        fortsym_solve_univariate_inequality, &
         fortsym_linsolve, &
         fortsym_linsolve_parametric, fortsym_matrix_det, fortsym_matrix_trace, &
         fortsym_matrix_is_diagonal, fortsym_matrix_is_zero_matrix, &
@@ -7216,6 +7218,43 @@ contains
         end if
         call make_handle(a, result, out, status, message, capacity)
     end function fortsym_solve_ode
+
+    function fortsym_solve_univariate_inequality( &
+            raw, expression_raw, variable_raw, out, message, capacity) &
+            bind(c, name="fortsym_solve_univariate_inequality") result(status)
+        type(c_ptr), value :: raw, expression_raw, variable_raw, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: ep, vp
+        type(expr_t) :: expression, variable, result
+        logical :: ok
+        character(:), allocatable :: why
+
+        call begin_output(out, message, capacity)
+        call get_arena(raw, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(expression_raw, ep, expression, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(variable_raw, vp, variable, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(ep%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        if (.not. associated(vp%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call solve_univariate_inequality(a%value, expression, variable, result, &
+            ok, why)
+        if (.not. ok) then
+            call fail_reason(status, message, capacity, FORTSYM_UNSUPPORTED, why)
+            return
+        end if
+        call make_handle(a, result, out, status, message, capacity)
+    end function fortsym_solve_univariate_inequality
 
     function fortsym_zero_test(raw, expression_raw, verdict, message, capacity) &
             bind(c, name="fortsym_zero_test") result(status)

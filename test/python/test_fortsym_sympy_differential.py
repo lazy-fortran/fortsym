@@ -241,6 +241,7 @@ class SympyDifferentialTest(unittest.TestCase):
         finally:
             quotient.close()
             remainder.close()
+
         greatest_common_divisor = native_poly.gcd(
             native.Poly(native_x**2 - 1, native_x)
         )
@@ -278,6 +279,66 @@ class SympyDifferentialTest(unittest.TestCase):
             actual_terms_gcd.close()
         native_poly.close()
         native_x.close()
+
+    def test_affine_inequalities_match_sympy_and_direct_samples(self):
+        oracle_x = oracle.Symbol("inequality_x")
+        native_x = native.Symbol("inequality_x")
+        cases = (
+            (oracle.Gt(2 * oracle_x + 3, 0),
+             native.Gt(2 * native_x + 3, 0)),
+            (oracle.Ge(2 * oracle_x + 3, 0),
+             native.Ge(2 * native_x + 3, 0)),
+            (oracle.Lt(-2 * oracle_x + 3, 0),
+             native.Lt(-2 * native_x + 3, 0)),
+            (oracle.Le(-2 * oracle_x + 3, 0),
+             native.Le(-2 * native_x + 3, 0)),
+        )
+        samples = (
+            oracle.Rational(-3), oracle.Rational(-3, 2),
+            oracle.Rational(0), oracle.Rational(3, 2), oracle.Rational(3),
+        )
+        for expected_relation, native_relation in cases:
+            with self.subTest(relation=str(expected_relation)):
+                expected = oracle.solve_univariate_inequality(
+                    expected_relation, oracle_x
+                )
+                actual = native.solve_univariate_inequality(
+                    native_relation, native_x
+                )
+                actual_parsed = oracle.sympify(
+                    str(actual),
+                    locals={**self.locals, "inequality_x": oracle_x,
+                            "oo": oracle.oo},
+                )
+                self.assertEqual(
+                    oracle.simplify_logic(actual_parsed ^ expected),
+                    oracle.false,
+                )
+                for sample in samples:
+                    with self.subTest(sample=sample):
+                        expected_value = bool(expected_relation.subs(
+                            oracle_x, sample
+                        ))
+                        actual_value = bool(actual_parsed.subs(
+                            oracle_x, sample
+                        ))
+                        self.assertEqual(actual_value, expected_value)
+
+        reduced = native.reduce_inequalities(
+            [native.Gt(2 * native_x + 3, 0)], native_x
+        )
+        direct = native.solve_univariate_inequality(
+            native.Gt(2 * native_x + 3, 0), native_x
+        )
+        self.assertEqual(str(reduced), str(direct))
+        reduced.close()
+        direct.close()
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.solve_univariate_inequality(native.Gt(native_x**2, 0), native_x)
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.solve_univariate_inequality(
+                native.Gt(2 * native_x + 3, 0), native_x, relational=False
+            )
 
     def test_verified_indefinite_integrals_match_sympy(self):
         oracle_x = oracle.Symbol("integral_x")

@@ -2175,6 +2175,54 @@ def solve(expression, *symbols, **options):
     return _native_operation(lambda: expression.solve(variable))
 
 
+def solve_univariate_inequality(expression, gen, relational=True):
+    """Reduce one exact affine inequality through the native owner."""
+    if relational is not True:
+        raise UnsupportedOperationError(
+            "solve_univariate_inequality relational=False"
+        )
+    gen = sympify(gen)
+    if isinstance(expression, bool):
+        if not expression:
+            return False
+        return And(Lt(-oo, gen), Lt(gen, oo))
+    expression = sympify(expression)
+    return _native_operation(
+        lambda: expression.solve_univariate_inequality(gen)
+    )
+
+
+def reduce_inequalities(inequalities, symbols=None, **options):
+    """Reduce one exact affine inequality using the same native solver."""
+    if options:
+        raise UnsupportedOperationError("reduce_inequalities options")
+    if isinstance(inequalities, (tuple, list)):
+        if len(inequalities) != 1:
+            raise UnsupportedOperationError(
+                "reduce_inequalities accepts one inequality"
+            )
+        inequality = inequalities[0]
+    else:
+        inequality = inequalities
+    inequality = sympify(inequality)
+    if symbols is None:
+        free = inequality.free_symbols
+        if len(free) != 1:
+            raise ValueError(
+                "reduce_inequalities needs exactly one free symbol"
+            )
+        symbol = next(iter(free))
+    elif isinstance(symbols, (tuple, list)):
+        if len(symbols) != 1:
+            raise UnsupportedOperationError(
+                "reduce_inequalities accepts one symbol"
+            )
+        symbol = sympify(symbols[0])
+    else:
+        symbol = sympify(symbols)
+    return solve_univariate_inequality(inequality, symbol)
+
+
 def solveset(expression, symbol=None, domain=None):
     """Return a verified finite root set for the bounded solveset fragment."""
     if domain is not None:
@@ -3569,6 +3617,6 @@ __all__ = [
     "floor", "ceiling", "re", "im", "conjugate", "adjoint", "arg", "diff", "subs", "expand",
     "simplify", "count_ops", "factor", "factor_list", "gcd", "quo", "rem", "terms_gcd", "refine", "Eq", "Ne", "Gt", "Ge", "Lt", "Le", "And", "Or", "Not", "Xor", "Implies", "Equivalent",
     "Q", "ask", "assuming", "together", "cancel", "apart", "collect",
-    "integrate", "dsolve", "limit", "series", "solve", "det", "trace", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Complement", "Tuple", "Matrix", "Poly", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
+    "integrate", "dsolve", "limit", "series", "solve", "solve_univariate_inequality", "reduce_inequalities", "det", "trace", "rank", "solveset", "linsolve", "FiniteSet", "EmptySet", "Complement", "Tuple", "Matrix", "Poly", "tensorproduct", "tensorcontraction", "tensorpermute", "pi", "E", "I",
     "oo", "zoo", "nan",
 ]

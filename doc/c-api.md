@@ -61,6 +61,11 @@ resource overflows with the normal diagnostic status.
 the current public fragment is first-order linear equations with optional
 one-condition list input, and unsupported ODE families return
 `FORTSYM_UNSUPPORTED`.
+`fortsym_solve_univariate_inequality` is the native owner for one relational
+expression in one symbol when its residual is an exact affine polynomial. It
+returns a normal native `And` expression containing the exact open or closed
+boundary and refuses higher-degree, non-exact, foreign-arena, and unsupported
+relation inputs with `FORTSYM_UNSUPPORTED`.
 The chart calculus distinguishes ordinary vectors from weight-one vector densities:
 `fortsym_chart_curl_density` returns the metric-free alternating derivative of a
 covector, while `fortsym_chart_div_density` differentiates a contravariant density

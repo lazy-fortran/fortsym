@@ -1,6 +1,6 @@
 {
   "adapter_profile": {
-    "declared_count": 170,
+    "declared_count": 172,
     "explicit_refusals": [],
     "supported": [
       "ANTISYMMETRIC",
@@ -150,6 +150,7 @@
       "quo",
       "rank",
       "re",
+      "reduce_inequalities",
       "refine",
       "rem",
       "sech",
@@ -159,6 +160,7 @@
       "sin",
       "sinh",
       "solve",
+      "solve_univariate_inequality",
       "solveset",
       "sqrt",
       "subs",
@@ -255,6 +257,16 @@
         "module": "fortsym_defint",
         "name": "definite_integral",
         "owner": "src/algebra/fortsym_defint.f90",
+        "reason": "public declaration is owned by the in-process Fortran implementation"
+      },
+      {
+        "classification": [
+          "native"
+        ],
+        "id": "fortsym_inequality.solve_univariate_inequality",
+        "module": "fortsym_inequality",
+        "name": "solve_univariate_inequality",
+        "owner": "src/algebra/fortsym_inequality.f90",
         "reason": "public declaration is owned by the in-process Fortran implementation"
       },
       {
@@ -6170,6 +6182,17 @@
         "id": "fortsym_public_capi.fortsym_solve_ode",
         "module": "fortsym_public_capi",
         "name": "fortsym_solve_ode",
+        "owner": "src/capi/fortsym_public_capi.f90",
+        "reason": "public convenience or C-ABI surface over the native Fortran owner"
+      },
+      {
+        "classification": [
+          "facade",
+          "native"
+        ],
+        "id": "fortsym_public_capi.fortsym_solve_univariate_inequality",
+        "module": "fortsym_public_capi",
+        "name": "fortsym_solve_univariate_inequality",
         "owner": "src/capi/fortsym_public_capi.f90",
         "reason": "public convenience or C-ABI surface over the native Fortran owner"
       },
@@ -18548,14 +18571,14 @@
   "source_inventory": "doc/sympy-api-inventory.json",
   "summary": {
     "classification_counts": {
-      "delegated": 3065,
+      "delegated": 3073,
       "external": 10,
-      "facade": 771,
-      "native": 4734,
-      "python-adapter": 3021,
-      "refused": 24773
+      "facade": 772,
+      "native": 4744,
+      "python-adapter": 3029,
+      "refused": 24765
     },
-    "fortran_public_exports": 1757,
+    "fortran_public_exports": 1759,
     "sympy": {
       "classes": 1728,
       "methods": 5781,
@@ -102603,14 +102626,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.reduce_inequalities",
         "kind": "function",
         "module": "sympy",
         "name": "reduce_inequalities",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -103314,14 +103339,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solve_univariate_inequality",
         "kind": "function",
         "module": "sympy",
         "name": "solve_univariate_inequality",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -267271,14 +267298,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.reduce_inequalities",
         "kind": "function",
         "module": "sympy.solvers",
         "name": "reduce_inequalities",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -267427,14 +267456,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.solve_univariate_inequality",
         "kind": "function",
         "module": "sympy.solvers",
         "name": "solve_univariate_inequality",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -268370,14 +268401,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.inequalities.reduce_inequalities",
         "kind": "function",
         "module": "sympy.solvers.inequalities",
         "name": "reduce_inequalities",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -268436,14 +268469,16 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "sympy.solvers.inequalities.solve_univariate_inequality",
         "kind": "function",
         "module": "sympy.solvers.inequalities",
         "name": "solve_univariate_inequality",
-        "owner": "ROADMAP.md",
-        "reason": "the individual module export is not a declared supported adapter object"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -318804,13 +318839,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.reduce_inequalities",
         "kind": "function",
         "name": "reduce_inequalities",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
@@ -319452,13 +319489,15 @@
       },
       {
         "classification": [
-          "refused"
+          "python-adapter",
+          "delegated",
+          "native"
         ],
         "id": "root.solve_univariate_inequality",
         "kind": "function",
         "name": "solve_univariate_inequality",
-        "owner": "ROADMAP.md",
-        "reason": "outside the declared compatibility subset; no implementation claim is made"
+        "owner": "python/fortsym/sympy/__init__.py -> python/fortsym/__init__.py -> Fortran C ABI",
+        "reason": "declared SymPy subset delegated to the native expression implementation"
       },
       {
         "classification": [
