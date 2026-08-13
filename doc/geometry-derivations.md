@@ -238,6 +238,10 @@ warnings.
   paper equations.
 - [ ] Add density transformation records, boundary-normal contractions,
   finite-element basis generation, and variational assembly.
-- [ ] Add executable de Sitter and GPS/Newtonian-limit derivation records.
+- [x] Add executable de Sitter and GPS/Newtonian-limit derivation records.
+  The native programs are CMake execution tests, and the Python/SymPy
+  differential record checks the Einstein tensor, scalar curvature, wave
+  operator, weak-field Christoffel coefficient, and Newtonian radial
+  acceleration against independently assembled formulas.
 - [ ] Run every record through native Fortran, fortsym.sympy, and the
   Wolfram input frontend without duplicating the geometry implementation.
