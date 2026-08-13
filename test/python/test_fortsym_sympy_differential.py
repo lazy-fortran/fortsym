@@ -276,6 +276,42 @@ class SympyDifferentialTest(unittest.TestCase):
         with self.assertRaises(native.UnsupportedOperationError):
             native.solveset(native_x**2 - 1, native_x, domain=1)
 
+    def test_bounded_linsolve_matches_sympy(self):
+        oracle_x, oracle_y = oracle.symbols("linsolve_x linsolve_y")
+        native_x, native_y = native.symbols("linsolve_x linsolve_y")
+        matrix = ((1, 2), (3, 4))
+        right_hand_side = (5, 6)
+        expected = oracle.linsolve(
+            (oracle.Matrix(matrix), oracle.Matrix(right_hand_side)),
+            (oracle_x, oracle_y),
+        )
+        actual = native.linsolve(
+            (matrix, right_hand_side), (native_x, native_y)
+        )
+        self.assertEqual(str(actual), str(expected))
+        self.assertEqual(len(actual), 1)
+        self.assertIsInstance(actual.args[0], native.Tuple)
+        self.assertEqual(tuple(str(value) for value in actual.args[0]),
+                         tuple(str(value) for value in next(iter(expected))))
+
+    def test_linsolve_refuses_unverified_forms(self):
+        native_x, native_y = native.symbols("linsolve_refusal_x linsolve_refusal_y")
+        system = (((1, 2), (3, 4)), (5, 6))
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.linsolve(system)
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.linsolve(system, (native_x, native_y), dict=True)
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.linsolve(
+                (((native_x, 2), (3, 4)), (5, 6)),
+                (native_x, native_y),
+            )
+        with self.assertRaises(native.UnsupportedOperationError):
+            native.linsolve(
+                (((1, 2), (2, 4)), (5, 10)),
+                (native_x, native_y),
+            )
+
     def test_power_constructor_identities_match_oracle(self):
         def cases(api):
             x = api.Symbol("power_constructor_x")

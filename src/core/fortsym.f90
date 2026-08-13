@@ -30,6 +30,7 @@ module fortsym
     use fortsym_series_adapter, only: calculate_series, &
         calculate_series_coeff
     use fortsym_solve_adapter, only: calculate_solve
+    use fortsym_linsolve_adapter, only: calculate_linsolve
     use fortsym_complexdom, only: complex_re_part => re_part, &
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
@@ -260,7 +261,7 @@ module fortsym
         rational_valued, integer_valued, positive_integer, algebraic_valued
     public :: str, chars
     public :: subs, subs_many, diff, simplify, refine, expand, factor, &
-        series, series_coeff, solve, operation_count, free_symbols
+        series, series_coeff, solve, linsolve, operation_count, free_symbols
     public :: re_part, im_part, conjugate, arg_of, abs_of, complex_expand
     public :: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     public :: engine_result_t, zero_test, VERDICT_UNKNOWN, VERDICT_TRUE, &
@@ -765,6 +766,34 @@ contains
                 roots, root_count, ok, why)
         end if
     end subroutine solve
+
+    !> Solve one square exact linear system with one right-hand side.
+    !> `values` contains the verified solution in variable order. This
+    !> facade intentionally exposes only the invertible rational fragment;
+    !> symbolic coefficients, singular systems, and non-square systems are
+    !> reported through `ok` and `why`.
+    subroutine linsolve(matrix, right_hand_side, values, ok, why)
+        type(expr_t), intent(in) :: matrix(:, :), right_hand_side(:)
+        type(expr_t), allocatable, intent(out) :: values(:)
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(native_engine_t) :: engine
+        if (size(matrix, 1) < 1) then
+            allocate(values(0))
+            ok = .false.
+            why = "linsolve requires a nonempty matrix"
+            return
+        end if
+
+        if (use_default_engine(matrix(1, 1))) then
+            call calculate_linsolve( &
+                default_engine, matrix, right_hand_side, values, ok, why)
+        else
+            engine = make_native_engine(matrix(1, 1)%a)
+            call calculate_linsolve( &
+                engine, matrix, right_hand_side, values, ok, why)
+        end if
+    end subroutine linsolve
 
     !> Return the native three-valued zero verdict for an expression.
     !> VERDICT_TRUE means proved zero, VERDICT_FALSE means proved nonzero, and

@@ -1378,6 +1378,15 @@ def _configure(lib):
         [_CVOID, _CVOID, _CVOID, ctypes.POINTER(_CVOID), _SIZE,
          ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
     )
+    lib.linsolve = declare(
+        "fortsym_linsolve",
+        ctypes.c_int,
+        [
+            _CVOID, ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _SIZE,
+            ctypes.POINTER(_CVOID), _SIZE, ctypes.POINTER(_SIZE), _CHAR_PTR,
+            _SIZE,
+        ],
+    )
     lib.zero_test = declare(
         "fortsym_zero_test",
         ctypes.c_int,
@@ -4084,6 +4093,37 @@ class Arena:
             raise ValueError("expression belongs to another arena")
         expression._require()
         return expression
+
+    def linsolve(self, matrix, right_hand_side):
+        dimension = len(matrix)
+        if dimension < 1:
+            raise ValueError("linsolve requires a nonempty square matrix")
+        rows = []
+        for row in matrix:
+            if len(row) != dimension:
+                raise ValueError("linsolve requires a square matrix")
+            rows.append([self._check(value) for value in row])
+        if len(right_hand_side) != dimension:
+            raise ValueError("linsolve requires a compatible right-hand side")
+        rhs = [self._check(value) for value in right_hand_side]
+        matrix_handles = (_CVOID * (dimension * dimension))(
+            *[
+                rows[row][column]._handle
+                for column in range(dimension)
+                for row in range(dimension)
+            ]
+        )
+        rhs_handles = (_CVOID * dimension)(*[value._handle for value in rhs])
+        output = (_CVOID * dimension)()
+        count = _SIZE()
+        message = _message()
+        status = self._lib.linsolve(
+            self._require(), matrix_handles, rhs_handles, dimension, output,
+            dimension, ctypes.byref(count), message, len(message),
+        )
+        if status:
+            raise FortSymError(status, _decode(message), "linsolve")
+        return [Expr(self, output[index]) for index in range(count.value)]
 
 
 class Chart:
@@ -7520,6 +7560,29 @@ def series_coeff(expression: Expr, variable: Expr, point=0, order=0):
         if temporary is not None:
             temporary.close()
 def solve(expression: Expr, variable=None): return expression.solve(variable)
+def linsolve(matrix, right_hand_side):
+    arena = _default()
+    values = []
+    temporaries = []
+    try:
+        for row in matrix:
+            converted = []
+            for value in row:
+                expression, temporary = arena._coerce(value)
+                converted.append(expression)
+                if temporary is not None:
+                    temporaries.append(temporary)
+            values.append(converted)
+        rhs = []
+        for value in right_hand_side:
+            expression, temporary = arena._coerce(value)
+            rhs.append(expression)
+            if temporary is not None:
+                temporaries.append(temporary)
+        return arena.linsolve(values, rhs)
+    finally:
+        for temporary in temporaries:
+            temporary.close()
 def operation_count(expression: Expr): return expression.operation_count()
 def free_symbols(expression: Expr): return expression.free_symbols
 def tensor_product(left: Tensor, right: Tensor): return left.product(right)
@@ -7533,6 +7596,6 @@ __all__ = [
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
-    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "operation_count", "tensor_product", "contract", "trace",
+    "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "integrate", "limit", "series", "series_coeff", "solve", "linsolve", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols",
 ]

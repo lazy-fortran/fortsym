@@ -212,6 +212,15 @@ int fortsym_solve(fortsym_arena *arena, const fortsym_expr *expression,
                   const fortsym_expr *variable, fortsym_expr *out[],
                   size_t output_capacity, size_t *count, char *message,
                   size_t capacity);
+/* Solve one square exact-rational system with one right-hand side. `matrix`
+ * is a flattened column-major n-by-n handle array and `right_hand_side` has
+ * n entries. The result contains n verified values in variable order. This
+ * bounded ABI fragment rejects symbolic coefficients, singular systems,
+ * non-square systems, and free-parameter systems explicitly. */
+int fortsym_linsolve(fortsym_arena *arena, const fortsym_expr *matrix[],
+                     const fortsym_expr *right_hand_side[], size_t dimension,
+                     fortsym_expr *out[], size_t output_capacity,
+                     size_t *count, char *message, size_t capacity);
 /* Taylor polynomial through `order`, expanded around the finite `point`.
  * The result is the normal polynomial without SymPy's O-term. */
 int fortsym_series(fortsym_arena *arena, const fortsym_expr *expression,

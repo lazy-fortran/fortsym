@@ -1886,6 +1886,10 @@
         "name": "lie_derivative"
       },
       {
+        "concepts": [],
+        "name": "linsolve"
+      },
+      {
         "concepts": [
           "elementary-functions"
         ],
@@ -3135,6 +3139,7 @@
       "free_symbols",
       "integrate",
       "limit",
+      "linsolve",
       "operation_count",
       "series",
       "series_coeff",
@@ -3233,6 +3238,7 @@
       "TensorIndexType",
       "TensorProduct",
       "TensorSymmetry",
+      "Tuple",
       "UnsupportedOperationError",
       "WedgeProduct",
       "Wild",
@@ -3295,6 +3301,7 @@
       "kind",
       "legendre",
       "limit",
+      "linsolve",
       "log",
       "loggamma",
       "match",
@@ -3351,10 +3358,10 @@
   "summary": {
     "assigned_names": 181,
     "concept_groups": 31,
-    "fortran_facade_exports": 527,
-    "python_facade_exports": 76,
-    "sympy_adapter_exports": 185,
-    "unmapped_fortran_exports": 389
+    "fortran_facade_exports": 528,
+    "python_facade_exports": 77,
+    "sympy_adapter_exports": 187,
+    "unmapped_fortran_exports": 390
   },
   "sympy_version": "1.14.0",
   "unmapped_fortran_exports": [
@@ -3537,6 +3544,7 @@
     "levi_civita_symbol",
     "lie",
     "lie_derivative",
+    "linsolve",
     "lower",
     "magnetic_chart",
     "magnetic_chart_average",
