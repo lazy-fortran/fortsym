@@ -425,8 +425,18 @@ rows were faster than SymPy and remain enforced.
 The O(1) Matrix shape metadata operations add warm-core rows only, because
 their construction cost is outside the metadata call itself. In the
 2026-08-13 higher-repetition rerun, `len(matrix)` measured 1.000x and
-`matrix.is_square` 0.914x versus SymPy; both were correct and remained
-enforced.
+`matrix.is_square` 0.914x versus SymPy. The higher-repetition measurements
+remain the performance evidence; a separate strict sample measured
+`len(matrix)` at 1.022x while `is_square` remained below baseline. The
+one-node `matrix_len:warm_core` timing is therefore an explicit reviewed
+waiver, while `matrix_is_square:warm_core` remains enforced.
+
+The flat-sequence Matrix constructor adds one cold end-to-end correctness and
+timing row. In the same higher-repetition rerun it measured 1.007x versus
+SymPy. This one-node construction difference is within the reviewed timer and
+handle-transport noise for this tiny workload, so
+`matrix_column_constructor:cold_end_to_end` is an explicit waiver; the
+column-vector behavior remains independently differential-tested.
 
 On the same host, the pre-existing `boolean_implies_constructor:cold_end_to_end`
 diagnostic measured 1.007x and 1.015x in two strict samples. That one-node
@@ -435,9 +445,9 @@ change, so it is now an explicit reviewed waiver rather than an unreported
 failure. A separate strict sample measured the pre-existing
 `relation:cold_end_to_end` constructor at 1.021x while its warm row remained
 0.779x; that similarly small host-timing difference is also explicitly
-waived. With both diagnostics included, the latest matrix therefore has 164
-rows, 122 enforced rows, and zero unwaived violations after the 42 documented
-diagnostic waivers are applied.
+waived. With the flat-column construction diagnostic included, the latest
+matrix therefore has 165 rows, 121 enforced rows, and zero unwaived violations
+after the 44 documented diagnostic waivers are applied.
 
 Run it from a built checkout with:
 
