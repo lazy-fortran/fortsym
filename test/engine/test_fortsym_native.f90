@@ -206,10 +206,22 @@ contains
 
     subroutine test_like_terms_and_powers()
         type(engine_result_t) :: r
-        type(expr_t) :: sqrt_argument
+        type(expr_t) :: sqrt_argument, wide
+        integer :: k
 
         r = engine%simplify(x + x + 2*x - 4*x)
         call check("like terms cancel exactly", r%value == num(arena, 0))
+
+        ! The independent oracle is the coefficient count: adding x sixty-four
+        ! times is 64*x. The flat node exercises the high-arity collector
+        ! rather than the binary fast path.
+        wide = x
+        do k = 2, 64
+            wide = wide + x
+        end do
+        r = engine%simplify(wide)
+        call check("high-arity like terms simplify", &
+            r%ok .and. r%value == num(arena, 64)*x)
 
         r = engine%simplify(x*x*x**(-1))
         call check("integer powers collect", r%value == x)

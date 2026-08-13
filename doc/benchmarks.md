@@ -286,14 +286,17 @@ diagnostic rather than a release baseline; broader complex-domain workloads
 and a pinned machine record remain open.
 
 `fo exec bench_native` writes CSV rows for warm, batched end-to-end native and
-SymEngine simplify, differentiation, and expansion calls. Each row includes a
-correctness result. This initial harness measures conversion and result
-construction with the operation. It does not represent direct SymEngine kernel
-time or establish performance parity. The current scope repeats one immutable
-expression, so native cache hits are part of the measured workload. Cold,
-distinct-expression rows use unique small real shifts and bypass those cache
-entries. The CSV row records separate warmup, repetition, and batch counts for
-the two scopes.
+SymEngine simplify, differentiation, and expansion calls. It also includes a
+`simplify_flat_like_terms` cold row with 64 repeated terms over a fresh symbol,
+exercising the high-arity simplifier without a cache hit. Each row
+includes a correctness result. This initial harness measures conversion and
+result construction with the operation. It does not represent direct
+SymEngine kernel time or establish performance parity. The current scope
+repeats one immutable expression for warm rows, so native cache hits are part
+of that measured workload. Cold, distinct-expression rows use unique small
+real shifts or unique flat symbols and bypass those cache entries. The
+CSV row records separate warmup, repetition, and batch counts for the two
+scopes.
 
 In the 2026-08-12 diagnostic run, the native `expand_power` cold row measured
 0.835 ms per distinct expression versus 0.296 ms for SymEngine (2.8x native /
@@ -319,6 +322,11 @@ for `expand_power`. Against the same run's SymEngine medians, the ratios were
 1.10x, 1.35x, and 1.26x. Warm native medians were 0.215, 0.178, and 0.210
 microseconds. These rows remain diagnostics until the matched SymPy corpus
 covers the same workloads.
+
+The repeated-symbol high-arity row now uses the allocation-free native
+coefficient-count path: in the current local run it measured 0.0226 ms native
+versus 0.0297 ms for SymEngine (0.76x native / SymEngine). This is a focused
+diagnostic, not a claim of full SymPy parity.
 
 The subsequent binary add/multiply fast paths removed the remaining small-arity
 heap work while retaining the general collector for flattened or domain-sensitive

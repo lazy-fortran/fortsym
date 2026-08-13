@@ -2377,6 +2377,11 @@ each item is a separately reviewable owner, test corpus, and benchmark row:
     simplification. Conditional cancellation diagnostics still scan the
     original expression when the result changes, while the unchanged and
     denominator-free hot paths do no redundant domain walk.
+  - [x] Add an allocation-free fast path for flat n-ary sums containing one
+    repeated symbolic support. The independent high-arity coefficient test
+    remains green; the new `simplify_flat_like_terms` diagnostic measured
+    0.0226 ms native versus 0.0297 ms SymEngine on the current machine. The
+    complete SymPy performance gate remains open.
 - [x] Cache immutable explicit metric determinant, inverse, and positive
   `sqrtg` views in the native `metric_t` owner. Repeated gradient, divergence,
   Laplace--Beltrami, Hodge, and raise/lower calls reuse the same expression

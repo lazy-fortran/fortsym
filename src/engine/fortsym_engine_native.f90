@@ -1942,6 +1942,25 @@ contains
         ! Preserve a composite term long enough to cancel its explicit
         ! negative. Flattening u + (-u) first would splice u's children into
         ! the outer sum and hide that the two operands are opposites.
+        if (size(operands) >= 4) then
+            base = operands(1)
+            if (a%kind_of(base) == NK_SYM) then
+                combined = .true.
+                do i = 2, size(operands)
+                    if (operands(i) /= base) then
+                        combined = .false.
+                        exit
+                    end if
+                end do
+                if (combined) then
+                    pair(1) = a%int(int(size(operands), int64))
+                    pair(2) = base
+                    out = a%mul(pair)
+                    return
+                end if
+            end if
+        end if
+
         allocate (top_live(size(operands)), source=.true.)
         do i = 1, size(operands)
             if (.not. top_live(i)) cycle

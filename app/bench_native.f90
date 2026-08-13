@@ -24,6 +24,7 @@ program bench_native
     integer, parameter :: OP_SIMPLIFY = 1
     integer, parameter :: OP_DIFF = 2
     integer, parameter :: OP_EXPAND = 3
+    integer, parameter :: OP_FLAT_SIMPLIFY = 4
 
     write (*, '(a)') "schema,compiler,workload,engine,scope,warmups,"// &
         "repetitions,batch,median_seconds,min_seconds,correct"
@@ -72,6 +73,8 @@ contains
             expand_input, x, a)
         call benchmark_cold(eng, engine_name, OP_SIMPLIFY, "simplify_collect", &
             x, y, a)
+        call benchmark_cold(eng, engine_name, OP_FLAT_SIMPLIFY, &
+            "simplify_flat_like_terms", x, y, a)
         call benchmark_cold(eng, engine_name, OP_DIFF, "differentiate_power", &
             x, y, a)
         call benchmark_cold(eng, engine_name, OP_EXPAND, "expand_power", &
@@ -104,7 +107,7 @@ contains
             samples(repetition) = (wall_seconds() - started)/real(BATCH, dp)
         end do
 
-        correct = validate(operation, result, input, a)
+        correct = validate(operation, result, input, variable, a)
         call emit_row(workload, engine_name, "warm_same_expression", samples, &
             correct, WARMUPS, REPETITIONS, BATCH)
     end subroutine benchmark
@@ -143,7 +146,7 @@ contains
             samples(repetition) = (wall_seconds() - started)/real(COLD_BATCH, dp)
         end do
 
-        correct = validate(operation, result, inputs(total), a)
+        correct = validate(operation, result, inputs(total), x, a)
         call emit_row(workload, engine_name, "cold_distinct_expression", &
             samples, correct, COLD_WARMUPS, COLD_REPETITIONS, COLD_BATCH)
     end subroutine benchmark_cold
@@ -155,11 +158,18 @@ contains
         type(expr_t)        :: e
         type(expr_t) :: marker
         real(dp) :: shift
+        integer :: i
 
         select case (operation)
         case (OP_SIMPLIFY)
             marker = sym(a, "cold_"//chars(str(index)))
             e = x + x + 2*x - 4*x + marker - marker
+        case (OP_FLAT_SIMPLIFY)
+            marker = sym(a, "flat_"//chars(str(index)))
+            e = marker
+            do i = 2, 64
+                e = e + marker
+            end do
         case (OP_DIFF)
             shift = real(index, dp)*1.0e-6_dp
             e = (x + shift)**8
@@ -176,7 +186,7 @@ contains
         type(engine_result_t)          :: r
 
         select case (operation)
-        case (OP_SIMPLIFY)
+        case (OP_SIMPLIFY, OP_FLAT_SIMPLIFY)
             r = eng%simplify(input)
         case (OP_DIFF)
             r = eng%diff(input, variable)
@@ -185,10 +195,10 @@ contains
         end select
     end function perform
 
-    function validate(operation, result, input, a) result(correct)
+    function validate(operation, result, input, variable, a) result(correct)
         integer,               intent(in) :: operation
         type(engine_result_t), intent(in) :: result
-        type(expr_t),          intent(in) :: input
+        type(expr_t),          intent(in) :: input, variable
         type(arena_t),         intent(inout) :: a
         logical                           :: correct
 
@@ -198,6 +208,8 @@ contains
         select case (operation)
         case (OP_SIMPLIFY)
             correct = result%value == num(a, 0)
+        case (OP_FLAT_SIMPLIFY)
+            correct = result%value == num(a, 64)*input%arg(1)
         case (OP_DIFF)
             correct = derivative_agrees(result%value, input, 0.375_dp, -0.5_dp)
         case (OP_EXPAND)
