@@ -86,10 +86,21 @@ contains
 
         do i = 1, n
             term = diff(e%arg(i), v)
+            if (is_zero(term)) cycle
             do j = 1, n
-                if (j /= i) term = term*e%arg(j)
+                if (j == i) cycle
+                if (is_zero(e%arg(j))) then
+                    term = num(e%a, 0)
+                    exit
+                end if
+                term = term*e%arg(j)
             end do
-            d = d + term
+            if (is_zero(term)) cycle
+            if (is_zero(d)) then
+                d = term
+            else
+                d = d + term
+            end if
         end do
     end function diff_product
 
@@ -200,6 +211,10 @@ contains
         if (name == "besselj") then
             x = e%arg(2)
             dx = diff(x, v)
+            if (is_zero(dx)) then
+                d = num(a, 0)
+                return
+            end if
             d = (besselj(e%arg(1) - 1, x) - besselj(e%arg(1) + 1, x))*dx/2
             return
         end if
@@ -211,6 +226,10 @@ contains
         if (name == "legendrep" .or. name == "legendreq") then
             x = e%arg(3)
             dx = diff(x, v)
+            if (is_zero(dx)) then
+                d = num(a, 0)
+                return
+            end if
             if (name == "legendrep") then
                 term = legendrep(e%arg(1) - 1, e%arg(2), x)
             else
@@ -223,6 +242,13 @@ contains
 
         x = e%arg(1)
         dx = diff(x, v)
+
+        if (e%nargs() == 1) then
+            if (is_zero(dx)) then
+                d = num(a, 0)
+                return
+            end if
+        end if
 
         ! Two-argument atan2 first: it has two derivatives to combine, and its
         ! argument order is (y, x).

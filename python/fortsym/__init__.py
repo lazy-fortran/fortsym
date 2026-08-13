@@ -609,6 +609,22 @@ def _configure(lib):
             ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
         ],
     )
+    lib.chart_reluctivity_density_scalar = declare(
+        "fortsym_chart_reluctivity_density_scalar", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CVOID,
+            ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
+    lib.chart_reluctivity_density_matrix = declare(
+        "fortsym_chart_reluctivity_density_matrix", ctypes.c_int,
+        [
+            _CVOID,
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID),
+            ctypes.POINTER(_CVOID), ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE,
+        ],
+    )
     lib.chart_fourier_weak_form = declare(
         "fortsym_chart_fourier_weak_form", ctypes.c_int,
         [
@@ -1776,6 +1792,43 @@ class Arena:
         if status:
             raise FortSymError(status, _decode(message), "j_fourier")
         return tuple(Expr(self, output[index]) for index in range(3))
+
+    def _chart_reluctivity_density(self, chart, physical, scalar):
+        coordinate_handles, position_handles = self._chart_inputs(
+            chart.coordinates, chart.position
+        )
+        temporary_values = []
+        try:
+            output = (_CVOID * 9)()
+            message = _message()
+            if scalar:
+                physical_value, temporary = self._coerce(physical)
+                if temporary is not None:
+                    temporary_values.append(temporary)
+                status = self._lib.chart_reluctivity_density_scalar(
+                    self._require(), coordinate_handles, position_handles,
+                    physical_value._handle, output, message, len(message),
+                )
+            else:
+                physical_values = []
+                for value in _matrix3_values(physical):
+                    value, temporary = self._coerce(value)
+                    physical_values.append(value)
+                    if temporary is not None:
+                        temporary_values.append(temporary)
+                physical_handles = (_CVOID * 9)(
+                    *[value._handle for value in physical_values]
+                )
+                status = self._lib.chart_reluctivity_density_matrix(
+                    self._require(), coordinate_handles, position_handles,
+                    physical_handles, output, message, len(message),
+                )
+        finally:
+            for temporary in temporary_values:
+                temporary.close()
+        if status:
+            raise FortSymError(status, _decode(message), "reluctivity_density")
+        return tuple(Expr(self, output[index]) for index in range(9))
 
     def _chart_h_cov(self, chart, reluctivity, vector):
         coordinate_handles, position_handles = self._chart_inputs(
@@ -3825,6 +3878,18 @@ class Chart:
         reluctivity = _matrix3_values(reluctivity)
         return self._arena._chart_j_fourier(
             self, reluctivity, potential, mode,
+        )
+
+    def reluctivity_density(self, physical):
+        """Return covariant weight-minus-one reluctivity density components."""
+        scalar = isinstance(physical, (Expr, int, float, Fraction))
+        components = self._arena._chart_reluctivity_density(
+            self, physical, scalar,
+        )
+        symmetries = ((0, 1, SYMMETRIC),) if scalar else ()
+        return Tensor(
+            self, components, (-1, -1), density_weight=-1, _owned=True,
+            _symmetries=symmetries,
         )
 
     def fourier_weak_form(self, reluctivity, mode):

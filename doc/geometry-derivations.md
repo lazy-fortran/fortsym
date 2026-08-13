@@ -167,6 +167,23 @@ cylindrical order (Z,R,phi):
     sqrtg*B^2_n =  i*n*A_1
     sqrtg*B^3_n =  partial_1*A_2 - partial_2*A_1
 
+The native constitutive bridge starts from a physical Cartesian reluctivity
+`hat(nu)_ab`. With `e_i^a = partial_i x^a`, the coordinate quantity used by
+the Fourier owner is:
+
+    nu_ij = e_i^a hat(nu)_ab e_j^b / sqrtg
+
+For an isotropic scalar `nu_phys`, this is
+`nu_ij = nu_phys (e_i dot e_j) / sqrtg`. `reluctivity_density` owns both
+overloads: a scalar isotropic input and a full Cartesian matrix input. The
+returned component matrix is tagged as a covariant rank-two density of weight
+`-1` by the Python tensor facade; the Fortran component owner remains usable
+directly with `fourier_constitutive`. It refuses an invalid chart or an input
+expression from another arena; singular-map domains remain explicit rather
+than being assigned a spurious branch. The independent cylindrical
+and anisotropic checks compare the component contraction and `sqrtg` against
+an independently assembled SymPy Jacobian.
+
 For n=0, the longitudinal scalar branch is:
 
     -div_t(nu_bar_t grad_t A_3) = J^3
@@ -192,9 +209,9 @@ The scalar boundary contribution is `-w n_i q_i`. The edge contribution is
 `-w_k s_k q`, with `s_k = -E_t(k,j)n_j`. `fourier_longitudinal_flux` and
 `fourier_transverse_flux` return `q_i` and `q`; the caller retains the outward
 normal, tangent convention, surface measure, quadrature, and mesh. Density and
-constitutive transformations, source/load records, and finite-element basis
-assembly remain separate work. These formulas are summarized from the paper,
-not copied from its source code.
+general density transformation records, source/load records, and finite-element
+basis assembly remain separate work. These formulas are summarized from the
+paper, not copied from its source code.
 
 ## Derivation 6: relativity bridge
 
@@ -238,6 +255,9 @@ warnings.
 - [x] Add the two integration-by-parts boundary flux coefficients to the
   native, C, and Python owners, with independent component checks against the
   paper equations.
+- [x] Add the native `reluctivity_density` scalar and Cartesian-matrix
+  conversion, with covariant weight `-1` metadata in the Python/SymPy facade
+  and an independent cylindrical Jacobian oracle.
 - [ ] Add density transformation records, boundary-normal contractions,
   finite-element basis generation, and variational assembly.
 - [x] Add executable de Sitter and GPS/Newtonian-limit derivation records.

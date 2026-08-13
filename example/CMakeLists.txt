@@ -24,6 +24,10 @@ target_link_libraries(example_cylindrical_fourier PRIVATE fortsym)
 add_executable(example_fourier_weak_form example_fourier_weak_form.f90)
 target_link_libraries(example_fourier_weak_form PRIVATE fortsym)
 
+add_executable(example_fourier_constitutive_density
+    example_fourier_constitutive_density.f90)
+target_link_libraries(example_fourier_constitutive_density PRIVATE fortsym)
+
 add_executable(example_killing_vectors example_killing_vectors.f90)
 target_link_libraries(example_killing_vectors PRIVATE fortsym)
 

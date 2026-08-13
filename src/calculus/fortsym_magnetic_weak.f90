@@ -6,10 +6,12 @@ module fortsym_magnetic_weak
     ! component kernels; this layer only turns a block reluctivity and a
     ! Fourier mode into the two variational branches used by the paper.
     use, intrinsic :: iso_fortran_env, only: int64
-    use fortsym_chart, only: chart_t, DIM
+    use fortsym_chart, only: chart_t, DIM, sqrtg
     use fortsym_diff, only: diff
+    use fortsym_engine, only: engine_result_t, VERDICT_TRUE
+    use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_expr, only: expr_t, i_expr, num, is_valid, same_arena, &
-        operator(+), operator(-), operator(*), operator(==)
+        operator(+), operator(-), operator(*), operator(/), operator(==)
     implicit none
     private
 
@@ -59,6 +61,11 @@ module fortsym_magnetic_weak
         module procedure fourier_constitutive_blocks
     end interface fourier_constitutive
 
+    interface reluctivity_density
+        module procedure reluctivity_density_scalar
+        module procedure reluctivity_density_matrix
+    end interface reluctivity_density
+
     interface fourier_weak_form
         module procedure fourier_weak_form_integer
     end interface fourier_weak_form
@@ -86,6 +93,7 @@ module fortsym_magnetic_weak
     end interface fourier_transverse_flux
 
     public :: fourier_constitutive
+    public :: reluctivity_density
     public :: fourier_weak_form
     public :: current_compatibility
     public :: fourier_longitudinal_residual, fourier_transverse_residual
@@ -105,6 +113,8 @@ contains
         type(fourier_constitutive_t) :: value
         type(expr_t) :: zero
         integer :: i, j
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: checked
 
         value%valid = .false.
         value%block_diagonal = .false.
@@ -124,9 +134,33 @@ contains
         value%nu33 = reluctivity(3, 3)
         call set_nubar(value%nubar_t, value%nu_t)
 
-        value%block_diagonal = reluctivity(1, 3) == zero .and. &
-            reluctivity(2, 3) == zero .and. reluctivity(3, 1) == zero .and. &
-            reluctivity(3, 2) == zero
+        engine = make_native_engine(c%a)
+        value%block_diagonal = reluctivity(1, 3) == zero
+        if (.not. value%block_diagonal) then
+            checked = engine%zero_test(reluctivity(1, 3))
+            value%block_diagonal = checked%verdict == VERDICT_TRUE
+        end if
+        if (value%block_diagonal) then
+            value%block_diagonal = reluctivity(2, 3) == zero
+            if (.not. value%block_diagonal) then
+                checked = engine%zero_test(reluctivity(2, 3))
+                value%block_diagonal = checked%verdict == VERDICT_TRUE
+            end if
+        end if
+        if (value%block_diagonal) then
+            value%block_diagonal = reluctivity(3, 1) == zero
+            if (.not. value%block_diagonal) then
+                checked = engine%zero_test(reluctivity(3, 1))
+                value%block_diagonal = checked%verdict == VERDICT_TRUE
+            end if
+        end if
+        if (value%block_diagonal) then
+            value%block_diagonal = reluctivity(3, 2) == zero
+            if (.not. value%block_diagonal) then
+                checked = engine%zero_test(reluctivity(3, 2))
+                value%block_diagonal = checked%verdict == VERDICT_TRUE
+            end if
+        end if
         value%valid = value%block_diagonal
     end function fourier_constitutive_matrix
 
@@ -174,6 +208,95 @@ contains
         value(2, 1) = -nu_t(1, 2)
         value(2, 2) = nu_t(1, 1)
     end subroutine set_nubar
+
+    !> Convert an isotropic Cartesian reluctivity into the paper's covariant
+    !> weight-minus-one density components.
+    !>
+    !> The physical scalar multiplies the Euclidean Cartesian identity, so
+    !> nu_ij = physical * (e_i dot e_j) / sqrtg.  The output is a component
+    !> matrix for fourier_constitutive, whose caller records the -1 weight.
+    subroutine reluctivity_density_scalar(c, physical, value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: physical
+        type(expr_t), intent(out) :: value(DIM, DIM)
+        type(expr_t) :: volume, term, left, right, zero
+        integer :: i, j, k
+
+        do i = 1, DIM
+            do j = 1, DIM
+                value(i, j) = expr_t()
+            end do
+        end do
+        if (.not. associated(c%a)) return
+        if (.not. is_valid(physical)) return
+        if (.not. same_arena(physical, c%u(1))) return
+        volume = sqrtg(c)
+        if (.not. is_valid(volume)) return
+        zero = num(c%a, 0_int64)
+        do i = 1, DIM
+            do j = 1, DIM
+                value(i, j) = zero
+                do k = 1, DIM
+                    left = diff(c%x(k), c%u(i))
+                    right = diff(c%x(k), c%u(j))
+                    if (left == zero) cycle
+                    if (right == zero) cycle
+                    term = left*right
+                    value(i, j) = value(i, j) + physical*term
+                end do
+                if (value(i, j) == zero) cycle
+                value(i, j) = value(i, j)/volume
+            end do
+        end do
+    end subroutine reluctivity_density_scalar
+
+    !> Convert a Cartesian reluctivity matrix into covariant weight-minus-one
+    !> density components, nu_ij = e_i^a physical_ab e_j^b / sqrtg.
+    !>
+    !> The input is expressed in the orthonormal embedding basis owned by the
+    !> chart position map.  No metric is inferred from the matrix, and no
+    !> density factor is hidden in the returned component values.
+    subroutine reluctivity_density_matrix(c, physical, value)
+        type(chart_t), intent(in) :: c
+        type(expr_t), intent(in) :: physical(DIM, DIM)
+        type(expr_t), intent(out) :: value(DIM, DIM)
+        type(expr_t) :: volume, term, left, right, zero
+        integer :: i, j, aindex, bindex
+
+        do i = 1, DIM
+            do j = 1, DIM
+                value(i, j) = expr_t()
+            end do
+        end do
+        if (.not. associated(c%a)) return
+        do aindex = 1, DIM
+            do bindex = 1, DIM
+                if (.not. is_valid(physical(aindex, bindex))) return
+                if (.not. same_arena(physical(aindex, bindex), c%u(1))) return
+            end do
+        end do
+        volume = sqrtg(c)
+        if (.not. is_valid(volume)) return
+        zero = num(c%a, 0_int64)
+        do i = 1, DIM
+            do j = 1, DIM
+                value(i, j) = zero
+                do aindex = 1, DIM
+                    do bindex = 1, DIM
+                        if (physical(aindex, bindex) == zero) cycle
+                        left = diff(c%x(aindex), c%u(i))
+                        right = diff(c%x(bindex), c%u(j))
+                        if (left == zero) cycle
+                        if (right == zero) cycle
+                        term = left*physical(aindex, bindex)*right
+                        value(i, j) = value(i, j) + term
+                    end do
+                end do
+                if (value(i, j) == zero) cycle
+                value(i, j) = value(i, j)/volume
+            end do
+        end do
+    end subroutine reluctivity_density_matrix
 
     !> Describe the n=0 scalar or n/=0 transverse variational branch.
     function fourier_weak_form_integer(c, material, mode) result(value)

@@ -33,6 +33,7 @@ module fortsym_public_capi
         straight_field_line_residual, boozer_residuals, hamada_residuals, &
         FLUX_BOOZER, FLUX_HAMADA, BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT
     use fortsym_magnetic_weak, only: fourier_constitutive, fourier_weak_form, &
+        reluctivity_density, &
         current_compatibility, &
         fourier_longitudinal_residual, fourier_transverse_residual, &
         fourier_longitudinal_flux, fourier_transverse_flux, &
@@ -178,7 +179,10 @@ module fortsym_public_capi
         fortsym_chart_hamada_residuals, &
         fortsym_chart_h_cov, fortsym_chart_h_con, &
         fortsym_chart_b_fourier, fortsym_chart_b_fourier_density, &
-        fortsym_chart_j_fourier, fortsym_chart_fourier_weak_form, &
+        fortsym_chart_j_fourier, &
+        fortsym_chart_reluctivity_density_scalar, &
+        fortsym_chart_reluctivity_density_matrix, &
+        fortsym_chart_fourier_weak_form, &
         fortsym_chart_fourier_longitudinal_flux, &
         fortsym_chart_fourier_transverse_flux, &
         fortsym_chart_fourier_longitudinal_residual, &
@@ -253,7 +257,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 66_c_int
+        v = 67_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -2939,6 +2943,71 @@ contains
         value = j_fourier(chart, nu, input, mode_value)
         call make_array_handles(a, value, output, status, message, capacity)
     end function fortsym_chart_j_fourier
+
+    function fortsym_chart_reluctivity_density_scalar(raw, coordinates, &
+            position, physical, out, message, capacity) bind(c, &
+            name="fortsym_chart_reluctivity_density_scalar") result(status)
+        type(c_ptr), value :: raw, coordinates, position, physical, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(expr_t) :: physical_value, value(DIM, DIM)
+
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        call get_expr(physical, owner, physical_value, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        if (.not. associated(owner%arena, a)) then
+            call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+            return
+        end if
+        call reluctivity_density(chart, physical_value, value)
+        call make_chart_matrix_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_reluctivity_density_scalar
+
+    function fortsym_chart_reluctivity_density_matrix(raw, coordinates, &
+            position, physical, out, message, capacity) bind(c, &
+            name="fortsym_chart_reluctivity_density_matrix") result(status)
+        type(c_ptr), value :: raw, coordinates, position, physical, out
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(chart_t) :: chart
+        type(expr_t) :: physical_value(DIM, DIM), value(DIM, DIM)
+        type(c_ptr), pointer :: physical_values(:)
+        integer :: i, j, flat, shape_matrix(1)
+
+        if (.not. c_associated(physical)) then
+            call fail(status, message, capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        shape_matrix(1) = DIM*DIM
+        call c_f_pointer(physical, physical_values, shape_matrix)
+        call get_chart_inputs(raw, coordinates, position, int(DIM, c_size_t), &
+            chart, a, status, message, capacity)
+        if (status /= FORTSYM_OK) return
+        flat = 0
+        do j = 1, DIM
+            do i = 1, DIM
+                flat = flat + 1
+                call get_expr(physical_values(flat), owner, &
+                    physical_value(i, j), status, message, capacity)
+                if (status /= FORTSYM_OK) return
+                if (.not. associated(owner%arena, a)) then
+                    call fail(status, message, capacity, FORTSYM_FOREIGN_ARENA)
+                    return
+                end if
+            end do
+        end do
+        call reluctivity_density(chart, physical_value, value)
+        call make_chart_matrix_array(a, value, out, status, message, capacity)
+    end function fortsym_chart_reluctivity_density_matrix
 
     function fortsym_chart_fourier_weak_form(raw, coordinates, position, &
             reluctivity, mode, branch, trial_space, test_space, &
