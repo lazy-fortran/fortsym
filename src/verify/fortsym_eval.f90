@@ -248,7 +248,7 @@ contains
         v = 0.0_dp
         name = chars(a%name_of(id))
 
-        if (name == "besselj" .or. name == "besseli") then
+        if (name == "besselj" .or. name == "besseli" .or. name == "besselk") then
             x = ev(a, a%arg_of(id, 1), b, defined)
             if (.not. defined) return
             if (x /= real(nint(x), dp)) then
@@ -260,8 +260,10 @@ contains
             if (.not. defined) return
             if (name == "besselj") then
                 v = bessel_jn(order, y)
-            else
+            else if (name == "besseli") then
                 v = modified_bessel_i(order, y)
+            else
+                v = modified_bessel_k(order, y, defined)
             end if
             return
         end if
@@ -377,5 +379,38 @@ contains
         end do
         if (x < 0.0_dp .and. modulo(n, 2) == 1) value = -value
     end function modified_bessel_i
+
+    function modified_bessel_k(order, x, defined) result(value)
+        ! K_n(x) = integral_0^infinity exp(-x cosh(t)) cosh(n t) dt.
+        ! This conservative quadrature is for real positive probes only; the
+        ! symbolic expression remains available outside that evaluator domain.
+        integer, intent(in) :: order
+        real(dp), intent(in) :: x
+        logical, intent(inout) :: defined
+        real(dp) :: value, h, t, weight, term
+        integer, parameter :: nsteps = 4096
+        integer :: k, n
+
+        value = 0.0_dp
+        if (x <= 0.0_dp) then
+            defined = .false.
+            return
+        end if
+        n = abs(order)
+        h = 12.0_dp/real(nsteps, dp)
+        do k = 0, nsteps
+            t = real(k, dp)*h
+            term = exp(-x*cosh(t))*cosh(real(n, dp)*t)
+            if (k == 0 .or. k == nsteps) then
+                weight = 1.0_dp
+            else if (mod(k, 2) == 0) then
+                weight = 2.0_dp
+            else
+                weight = 4.0_dp
+            end if
+            value = value + weight*term
+        end do
+        value = value*h/3.0_dp
+    end function modified_bessel_k
 
 end module fortsym_eval

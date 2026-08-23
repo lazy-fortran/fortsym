@@ -102,7 +102,7 @@ contains
             case ("sin", "cos", "tan", "asin", "acos", "atan", &
                     "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", &
                     "atanh", "exp", "log", "erf", "erfc", "gamma", &
-                    "loggamma", "factorial", "besselj", "besseli", &
+                    "loggamma", "factorial", "besselj", "besseli", "besselk", &
                     "legendrep", "legendreq")
                 verdict = compound_status(expression, assumptions)
                 if (verdict == VERDICT_TRUE) verdict = VERDICT_FALSE

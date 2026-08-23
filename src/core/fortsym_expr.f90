@@ -35,7 +35,7 @@ module fortsym_expr
     public :: sin, cos, tan, asin, acos, atan, atan2, &
               sinh, cosh, tanh, asinh, acosh, atanh, &
               exp, log, sqrt, abs, erf, erfc, gamma, besselj, besseli, &
-              legendrep, legendreq
+              besselk, legendrep, legendreq
 
     integer, parameter :: dp = real64
 
@@ -123,6 +123,10 @@ module fortsym_expr
     interface besseli
         module procedure fn_besseli_ee
         module procedure fn_besseli_ie
+    end interface
+    interface besselk
+        module procedure fn_besselk_ee
+        module procedure fn_besselk_ie
     end interface
     interface legendrep
         module procedure fn_legendrep
@@ -845,6 +849,23 @@ contains
         type(expr_t)             :: e
         e = besseli(num(x%a, order), x)
     end function fn_besseli_ie
+
+    !> Modified Bessel function of the second kind K_order(x).
+    function fn_besselk_ee(order, x) result(e)
+        type(expr_t), intent(in) :: order, x
+        type(expr_t)             :: e
+        type(expr_t) :: args(2)
+        args(1) = order
+        args(2) = x
+        e = func("besselk", args)
+    end function fn_besselk_ee
+
+    function fn_besselk_ie(order, x) result(e)
+        integer, intent(in) :: order
+        type(expr_t), intent(in) :: x
+        type(expr_t)             :: e
+        e = besselk(num(x%a, order), x)
+    end function fn_besselk_ie
 
     !> Associated Legendre function P_degree^order(x).
     function fn_legendrep(degree, order, x) result(e)

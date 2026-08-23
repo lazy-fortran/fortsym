@@ -6,7 +6,7 @@ program test_fortsym_diff
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, num, exact, func, besselj, besseli, legendrep, &
+    use fortsym_expr, only: expr_t, sym, num, exact, func, besselj, besseli, besselk, legendrep, &
         legendreq, log, operator(+), operator(-), operator(*), operator(/), &
         operator(==)
     use fortsym_diff, only: diff, partial_derivative
@@ -68,6 +68,22 @@ program test_fortsym_diff
         modified_i1_series(3*(point - step)))/(2*step)
     call check("chained modified-Bessel derivative is numerically defined", defined)
     call check("modified-Bessel derivative applies the chain rule", &
+        abs(symbolic_value - numeric_value) < 1.0e-7_dp)
+
+    got = diff(besselk(0, x), x)
+    symbolic_value = eval_expr(got, bindings, defined)
+    numeric_value = (numeric_besselk(0, point + step) - &
+        numeric_besselk(0, point - step))/(2*step)
+    call check("K0 derivative is numerically defined", defined)
+    call check("K0 derivative agrees with finite difference", &
+        abs(symbolic_value - numeric_value) < 1.0e-8_dp)
+
+    got = diff(besselk(1, 3*x), x)
+    symbolic_value = eval_expr(got, bindings, defined)
+    numeric_value = (numeric_besselk(1, 3*(point + step)) - &
+        numeric_besselk(1, 3*(point - step)))/(2*step)
+    call check("chained modified-Bessel-K derivative is numerically defined", defined)
+    call check("modified-Bessel-K derivative applies the chain rule", &
         abs(symbolic_value - numeric_value) < 1.0e-7_dp)
 
     call test_multivariate_partials()
@@ -241,5 +257,32 @@ contains
             if (abs(term) < 1.0e-16_dp*max(1.0_dp, abs(result_value))) exit
         end do
     end function modified_i1_series
+
+    function numeric_besselk(order, value) result(result_value)
+        ! Independent oracle: direct composite Simpson quadrature of the
+        ! defining integral K_n(x)=int_0^infinity exp(-x cosh(t)) cosh(n t) dt.
+        integer, intent(in) :: order
+        real(dp), intent(in) :: value
+        real(dp) :: result_value, h, t, term, weight
+        integer, parameter :: nsteps = 4096
+        integer :: k, n
+
+        result_value = 0.0_dp
+        n = abs(order)
+        h = 12.0_dp/real(nsteps, dp)
+        do k = 0, nsteps
+            t = real(k, dp)*h
+            term = exp(-value*cosh(t))*cosh(real(n, dp)*t)
+            if (k == 0 .or. k == nsteps) then
+                weight = 1.0_dp
+            else if (mod(k, 2) == 0) then
+                weight = 2.0_dp
+            else
+                weight = 4.0_dp
+            end if
+            result_value = result_value + weight*term
+        end do
+        result_value = result_value*h/3.0_dp
+    end function numeric_besselk
 
 end program test_fortsym_diff
