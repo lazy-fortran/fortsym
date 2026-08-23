@@ -9,7 +9,7 @@ module fortsym
         real_text_expr, algebraic_expr, const, func, func_in, partial, pi_expr, e_expr, &
         i_expr, oo_expr, zoo_expr, nan_expr, sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, &
         tanh, asinh, acosh, atanh, exp, log, sqrt, abs, erf, erfc, &
-        gamma, besselj, besseli, legendrep, legendreq, &
+        gamma, besselj, besseli, besselk, legendrep, legendreq, &
         is_valid, same_arena, operator(+), operator(-), operator(*), &
         operator(/), operator(**), operator(==), operator(/=)
     use fortsym_relation, only: equal, unequal, less, less_equal, greater, &
@@ -419,7 +419,7 @@ module fortsym
         operator(==), operator(/=)
     public :: sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, tanh, &
         asinh, acosh, atanh, exp, log, sqrt, abs, erf, erfc, gamma, &
-        besselj, besseli, legendrep, legendreq
+        besselj, besseli, besselk, legendrep, legendreq
     public :: default_arena, reset, symbols
     public :: assignment(=)
 

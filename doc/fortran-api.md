@@ -731,9 +731,10 @@ The two-argument `atan2` head evaluates the directed `(+/-oo, +/-oo)`
 quadrants (`0`, `pi`, and `-pi`); complex-infinity and other ambiguous pairs
 remain applied heads.
 The Bessel heads add `besselj(order, +/-oo)=0` and
-`besseli(order, oo)=oo`. The public Fortran constructors `besselj` and
-`besseli` accept an integer or expression order, and native differentiation
-uses the standard order recurrences. Symbolic order at negative infinity uses the phase
+`besseli(order, oo)=oo`. The public Fortran constructors `besselj`, `besseli`,
+and `besselk` accept an integer or expression order, and native differentiation
+uses the standard order recurrences, including
+`d K_n(x)/dx=-(K_(n-1)(x)+K_(n+1)(x))/2`. Symbolic order at negative infinity uses the phase
 `oo*(-1)**order`, and integer orders reduce to signed infinity; unsupported
 exact non-integer and complex-infinity cases remain applied heads. NaN is not
 generically propagated through the
