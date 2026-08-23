@@ -248,7 +248,7 @@ contains
         v = 0.0_dp
         name = chars(a%name_of(id))
 
-        if (name == "besselj") then
+        if (name == "besselj" .or. name == "besseli") then
             x = ev(a, a%arg_of(id, 1), b, defined)
             if (.not. defined) return
             if (x /= real(nint(x), dp)) then
@@ -258,7 +258,11 @@ contains
             order = nint(x)
             y = ev(a, a%arg_of(id, 2), b, defined)
             if (.not. defined) return
-            v = bessel_jn(order, y)
+            if (name == "besselj") then
+                v = bessel_jn(order, y)
+            else
+                v = modified_bessel_i(order, y)
+            end if
             return
         end if
 
@@ -348,5 +352,30 @@ contains
             defined = .false.
         end select
     end function apply
+
+    !> Real integer-order modified Bessel I_n, evaluated without relying on a
+    !> compiler-specific intrinsic. The series is stable for the moderate
+    !> arguments used by the evaluator and preserves I_{-n}=I_n.
+    pure function modified_bessel_i(order, x) result(value)
+        integer, intent(in) :: order
+        real(dp), intent(in) :: x
+        real(dp) :: value, term, positive_x
+        integer :: n, k
+
+        n = abs(order)
+        positive_x = abs(x)
+        term = (positive_x/2.0_dp)**n
+        do k = 1, n
+            term = term/real(k, dp)
+        end do
+        value = term
+        do k = 0, 200
+            term = term*(positive_x*positive_x/4.0_dp)/ &
+                (real(k + 1, dp)*real(k + n + 1, dp))
+            value = value + term
+            if (abs(term) < 1.0e-16_dp*max(1.0_dp, abs(value))) exit
+        end do
+        if (x < 0.0_dp .and. modulo(n, 2) == 1) value = -value
+    end function modified_bessel_i
 
 end module fortsym_eval

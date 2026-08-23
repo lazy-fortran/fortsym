@@ -208,10 +208,12 @@ subset.
 deterministic exact elimination, rejects unsupported symbolic pivots rather
 than guessing, and reconstructs every residual before returning a solution.
 
-**Differentiate Bessel functions.** `besselj(n, x)` represents the Bessel
-function of the first kind and native differentiation uses the standard
-order recurrence, including the chain rule. Generated Fortran spells it as the
-standard `bessel_jn` intrinsic.
+**Differentiate Bessel functions.** `besselj(n, x)` and `besseli(n, x)`
+represent the ordinary and modified Bessel functions of the first kind.
+Native differentiation uses their standard order recurrences, including the
+chain rule; real evaluation supports integer orders through the corresponding
+series. Generated Fortran spells them as the standard `bessel_jn` and
+`bessel_in` intrinsics.
 
 **Keep multivariate derivatives symbolic.** Differentiating an opaque applied
 function such as `func("psi", [r, u])` visits every argument and produces a
