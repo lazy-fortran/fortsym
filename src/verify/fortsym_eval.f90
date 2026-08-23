@@ -387,9 +387,9 @@ contains
         integer, intent(in) :: order
         real(dp), intent(in) :: x
         logical, intent(inout) :: defined
-        real(dp) :: value, h, t, weight, term
+        real(dp) :: value, h, t, weight, term, k0, k1, next
         integer, parameter :: nsteps = 4096
-        integer :: k, n
+        integer :: k, n, recurrence_order
 
         value = 0.0_dp
         if (x <= 0.0_dp) then
@@ -397,6 +397,20 @@ contains
             return
         end if
         n = abs(order)
+        if (x <= 2.0_dp) then
+            call modified_bessel_k01_series(x, k0, k1)
+            if (n == 0) then
+                value = k0
+                return
+            end if
+            do recurrence_order = 1, n - 1
+                next = k0 + 2.0_dp*real(recurrence_order, dp)*k1/x
+                k0 = k1
+                k1 = next
+            end do
+            value = k1
+            return
+        end if
         h = 12.0_dp/real(nsteps, dp)
         do k = 0, nsteps
             t = real(k, dp)*h
@@ -412,5 +426,38 @@ contains
         end do
         value = value*h/3.0_dp
     end function modified_bessel_k
+
+    !> Convergent DLMF 10.31.1--2 series for K_0 and K_1.  The previous
+    !> fixed-range integral silently truncated K_n(x) when x was very small:
+    !> its significant t range grows like log(1/x), far beyond t=12.
+    pure subroutine modified_bessel_k01_series(x, k0, k1)
+        real(dp), intent(in) :: x
+        real(dp), intent(out) :: k0, k1
+        real(dp), parameter :: euler_gamma = &
+            0.577215664901532860606512090082402431_dp
+        real(dp) :: q, term, harmonic, i0, i1, s0, ds0, scale
+        integer :: k
+
+        q = x*x/4.0_dp
+        term = 1.0_dp
+        harmonic = 0.0_dp
+        i0 = 1.0_dp
+        i1 = 0.0_dp
+        s0 = 0.0_dp
+        ds0 = 0.0_dp
+        do k = 1, 200
+            term = term*q/real(k*k, dp)
+            harmonic = harmonic + 1.0_dp/real(k, dp)
+            i0 = i0 + term
+            i1 = i1 + 2.0_dp*real(k, dp)*term/x
+            s0 = s0 + harmonic*term
+            ds0 = ds0 + 2.0_dp*real(k, dp)*harmonic*term/x
+            scale = max(1.0_dp, abs(i0), abs(s0))
+            if (abs(term) < epsilon(1.0_dp)*scale) exit
+        end do
+        scale = log(x/2.0_dp) + euler_gamma
+        k0 = -scale*i0 + s0
+        k1 = i0/x + scale*i1 - ds0
+    end subroutine modified_bessel_k01_series
 
 end module fortsym_eval
