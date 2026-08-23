@@ -27,6 +27,7 @@ program test_fortsym_check
     eng = make_symengine_engine(arena)
 
     call test_evaluator()
+    call test_small_argument_besselk()
     call test_undefined_points()
     call test_free_symbols()
     call test_probe_separates_identities()
@@ -132,6 +133,24 @@ contains
         call ok("atan2 order", defined .and. &
             abs(v - 1.5707963267948966_dp) < 1.0e-12_dp)
     end subroutine test_evaluator
+
+    subroutine test_small_argument_besselk()
+        type(binding_t) :: b
+        real(dp) :: v
+        logical :: defined
+
+        b = bind1("x", 1.0e-16_dp)
+        v = eval_expr(parsed("besselk(0, x)"), b, defined)
+        ! Independent reference value from the defining DLMF 10.31.2 series.
+        call ok("evaluates small-argument K0 without integral truncation", &
+            defined .and. abs(v - 36.957293003563143_dp) < 2.0e-14_dp)
+
+        b%values(1) = 0.1_dp
+        v = eval_expr(parsed("besselk(1, x)"), b, defined)
+        ! Independent reference value from DLMF 10.31.1.
+        call ok("evaluates small-argument K1", &
+            defined .and. abs(v - 9.853844780870606_dp) < 2.0e-14_dp)
+    end subroutine test_small_argument_besselk
 
     !> A probe samples arbitrary points, so hitting a pole or a branch cut is an
     !> ordinary event that must be reported rather than signalled.
