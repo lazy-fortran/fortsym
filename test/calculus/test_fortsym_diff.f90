@@ -6,7 +6,7 @@ program test_fortsym_diff
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, num, exact, func, besselj, legendrep, &
+    use fortsym_expr, only: expr_t, sym, num, exact, func, besselj, besseli, legendrep, &
         legendreq, log, operator(+), operator(-), operator(*), operator(/), &
         operator(==)
     use fortsym_diff, only: diff, partial_derivative
@@ -53,6 +53,22 @@ program test_fortsym_diff
     call check("chained Bessel derivative is numerically defined", defined)
     call check("Bessel derivative applies the chain rule", &
         abs(symbolic_value - numeric_value) < 1.0e-8_dp)
+
+    got = diff(besseli(0, x), x)
+    symbolic_value = eval_expr(got, bindings, defined)
+    numeric_value = (modified_i0_series(point + step) - &
+        modified_i0_series(point - step))/(2*step)
+    call check("I0 derivative is numerically defined", defined)
+    call check("I0 derivative agrees with finite difference", &
+        abs(symbolic_value - numeric_value) < 1.0e-8_dp)
+
+    got = diff(besseli(1, 3*x), x)
+    symbolic_value = eval_expr(got, bindings, defined)
+    numeric_value = (modified_i1_series(3*(point + step)) - &
+        modified_i1_series(3*(point - step)))/(2*step)
+    call check("chained modified-Bessel derivative is numerically defined", defined)
+    call check("modified-Bessel derivative applies the chain rule", &
+        abs(symbolic_value - numeric_value) < 1.0e-7_dp)
 
     call test_multivariate_partials()
     call test_legendre_derivative()
@@ -194,5 +210,36 @@ contains
 
         q1_value = 0.5_dp*value*log((value + 1.0_dp)/(value - 1.0_dp)) - 1.0_dp
     end function q1_closed
+
+    ! Independent numerical oracle for the two modified Bessel values used
+    ! above. The power series follows directly from the defining series and
+    ! does not call the symbolic derivative or the library's function head.
+    pure function modified_i0_series(value) result(result_value)
+        real(dp), intent(in) :: value
+        real(dp) :: result_value, term
+        integer :: k
+
+        result_value = 1.0_dp
+        term = 1.0_dp
+        do k = 0, 200
+            term = term*(value*value/4.0_dp)/real((k + 1)*(k + 1), dp)
+            result_value = result_value + term
+            if (abs(term) < 1.0e-16_dp*max(1.0_dp, abs(result_value))) exit
+        end do
+    end function modified_i0_series
+
+    pure function modified_i1_series(value) result(result_value)
+        real(dp), intent(in) :: value
+        real(dp) :: result_value, term
+        integer :: k
+
+        term = value/2.0_dp
+        result_value = term
+        do k = 0, 200
+            term = term*(value*value/4.0_dp)/real((k + 1)*(k + 2), dp)
+            result_value = result_value + term
+            if (abs(term) < 1.0e-16_dp*max(1.0_dp, abs(result_value))) exit
+        end do
+    end function modified_i1_series
 
 end program test_fortsym_diff

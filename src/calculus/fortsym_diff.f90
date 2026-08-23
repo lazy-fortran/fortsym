@@ -18,7 +18,7 @@ module fortsym_diff
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
         NK_ALGEBRAIC
     use fortsym_expr, only: expr_t, sym, num, func, partial, is_valid, &
-        besselj, legendrep, legendreq, &
+        besselj, besseli, legendrep, legendreq, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), sin, cos, tan, exp, log, sqrt, abs, sinh, cosh, tanh
     implicit none
@@ -216,6 +216,19 @@ contains
                 return
             end if
             d = (besselj(e%arg(1) - 1, x) - besselj(e%arg(1) + 1, x))*dx/2
+            return
+        end if
+
+        ! DLMF 10.29.1 gives
+        !   d I_n(x)/dx = (I_(n-1)(x) + I_(n+1)(x))/2.
+        if (name == "besseli") then
+            x = e%arg(2)
+            dx = diff(x, v)
+            if (is_zero(dx)) then
+                d = num(a, 0)
+                return
+            end if
+            d = (besseli(e%arg(1) - 1, x) + besseli(e%arg(1) + 1, x))*dx/2
             return
         end if
 

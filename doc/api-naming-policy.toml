@@ -23,8 +23,8 @@ decision = "Keep the short native constructors. Keep func_in distinct because it
 [[family]]
 id = "elementary-functions"
 audit_concepts = ["elementary-functions"]
-canonical_native = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", "besselj", "legendrep", "legendreq"]
-current_native = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", "besselj", "legendrep", "legendreq"]
+canonical_native = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", "besselj", "besseli", "legendrep", "legendreq"]
+current_native = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", "besselj", "besseli", "legendrep", "legendreq"]
 transition_aliases = []
 python_facade = []
 sympy_adapter = ["sin", "cos", "tan", "asin", "acos", "atan", "atan2", "sinh", "cosh", "tanh", "csch", "sech", "coth", "erf", "erfc", "gamma", "loggamma", "factorial", "besselj", "besseli", "legendre", "asinh", "acosh", "atanh", "exp", "log", "sqrt"]
