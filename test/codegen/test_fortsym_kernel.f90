@@ -25,6 +25,7 @@ program test_fortsym_kernel
     integer, parameter :: dp = real64
     character(len=1), parameter :: X_ARGS(1) = [character(len=1) :: "x"]
     character(len=1), parameter :: XY_ARGS(2) = [character(len=1) :: "x", "y"]
+    character(len=1), parameter :: ZR_ARGS(2) = [character(len=1) :: "z", "r"]
     character(len=1), parameter :: AB_ARGS(2) = [character(len=1) :: "a", "b"]
     character(len=1), parameter :: XV_ARGS(2) = [character(len=1) :: "x", "v"]
     character(len=1), parameter :: XU_ARGS(2) = [character(len=1) :: "x", "u"]
@@ -53,6 +54,7 @@ program test_fortsym_kernel
     call test_intrinsic_integer_argument_is_real()
     call test_array_subscript_stays_integer()
     call test_complex_kernel()
+    call test_mixed_real_complex_kernel()
     call test_array_shaped_arguments()
     call test_rank_two_array_arguments()
     call test_multi_element_array_output()
@@ -783,6 +785,55 @@ contains
             call ok("complex generated kernel runs", stat == 0)
         end if
     end subroutine test_complex_kernel
+
+    subroutine test_mixed_real_complex_kernel()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(1)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code
+        integer :: unit, ios, stat
+
+        call a%init()
+        roots(1) = parsed(a, "z/r")
+        spec = spec_for("mixed_quotient", ZR_ARGS, VALUE_OUT)
+        spec%module_name = str("generated_mixed_quotient")
+        spec%scalar_type = str("complex(dp)")
+        allocate (spec%arg_types(2))
+        spec%arg_types(1) = str("complex(dp)")
+        spec%arg_types(2) = str("real(dp)")
+        code = chars(emit_kernel(roots, spec))
+        call ok("mixed complex input is declared", &
+            index(code, "complex(dp), intent(in) :: z") > 0)
+        call ok("mixed real input is declared", &
+            index(code, "real(dp), intent(in) :: r") > 0)
+
+        open (newunit=unit, file="/tmp/fortsym_gen_mixed.f90", &
+            status="replace", action="write", iostat=ios)
+        if (ios /= 0) then
+            call ok("mixed kernel fixture opens", .false.)
+            return
+        end if
+        write (unit, "(a)") code
+        write (unit, "(a)") "program drive_mixed"
+        write (unit, "(a)") "  use generated_mixed_quotient"
+        write (unit, "(a)") "  use, intrinsic :: iso_fortran_env, only: dp => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  complex(dp) :: value"
+        write (unit, "(a)") "  call mixed_quotient((3.0_dp, -1.0_dp), 2.0_dp, value)"
+        write (unit, "(a)") "  if (value /= (1.5_dp, -0.5_dp)) error stop 1"
+        write (unit, "(a)") "end program drive_mixed"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -J /tmp -o /tmp/fortsym_gen_mixed "// &
+            "/tmp/fortsym_gen_mixed.f90 > /tmp/fortsym_gen_mixed.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("mixed generated kernel compiles", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("/tmp/fortsym_gen_mixed", wait=.true., &
+                exitstat=stat)
+            call ok("mixed kernel preserves intrinsic quotient", stat == 0)
+        end if
+    end subroutine test_mixed_real_complex_kernel
 
     subroutine test_array_shaped_arguments()
         type(arena_t), target :: a

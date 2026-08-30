@@ -84,6 +84,11 @@ module fortsym_kernel
         type(str_t), allocatable :: args(:)
         !> Optional declaration suffixes such as "(1)" or "(:)" for inputs.
         type(str_t), allocatable :: arg_shapes(:)
+        !> Optional per-argument Fortran types. When absent every input uses
+        !> scalar_type (or the selected real precision). This permits mixed
+        !> intrinsic arithmetic such as complex/real without changing the
+        !> symbolic expression or declaring every input complex.
+        type(str_t), allocatable :: arg_types(:)
         !> Declared output arguments. Several expressions may target elements
         !> of one declared array through output_references.
         type(str_t), allocatable :: outputs(:)
@@ -755,6 +760,7 @@ contains
         logical, allocatable :: changed_names(:)
         logical :: valid, emit_openmp, emit_openacc
         character(:), allocatable :: diagnostic
+        integer :: k
 
         call prepare_fortran_kernel(roots, spec, mapped_arena, mapped_roots, &
             mapped_spec, original_names, emitted_names, changed_names, valid, &
@@ -800,6 +806,16 @@ contains
             if (size(mapped_spec%arg_shapes) /= size(mapped_spec%args)) then
                 error stop "arg_shapes must match args"
             end if
+        end if
+        if (allocated(mapped_spec%arg_types)) then
+            if (size(mapped_spec%arg_types) /= size(mapped_spec%args)) then
+                error stop "arg_types must match args"
+            end if
+            do k = 1, size(mapped_spec%arg_types)
+                if (len_trim(chars(mapped_spec%arg_types(k))) == 0) then
+                    error stop "arg_types entries must not be empty"
+                end if
+            end do
         end if
         if (allocated(mapped_spec%output_shapes)) then
             if (size(mapped_spec%output_shapes) /= size(mapped_spec%outputs)) then
@@ -1171,7 +1187,17 @@ contains
         call b%append("    implicit none")
         call b%newline()
 
-        if (allocated(spec%arg_shapes)) then
+        if (allocated(spec%arg_types)) then
+            do k = 1, size(spec%args)
+                if (allocated(spec%arg_shapes)) then
+                    call declare(b, chars(spec%arg_types(k)), "intent(in)", &
+                        spec%args(k:k), spec%arg_shapes(k:k))
+                else
+                    call declare(b, chars(spec%arg_types(k)), "intent(in)", &
+                        spec%args(k:k))
+                end if
+            end do
+        else if (allocated(spec%arg_shapes)) then
             call declare(b, input_type, "intent(in)", spec%args, spec%arg_shapes)
         else
             call declare(b, input_type, "intent(in)", spec%args)
