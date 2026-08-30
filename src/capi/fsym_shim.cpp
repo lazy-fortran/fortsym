@@ -23,6 +23,7 @@
 #include <symengine/printers.h>
 #include <symengine/series.h>
 #include <symengine/simplify.h>
+#include <symengine/subs.h>
 #include <symengine/symbol.h>
 #include <symengine/symengine_casts.h>
 #include <symengine/symengine_exception.h>
@@ -41,13 +42,10 @@
 
 #include "fsym_shim.h"
 
-/* cwrapper.h declares `typedef struct CRCPBasic basic_struct;` for C++ but
- * defines CRCPBasic only inside SymEngine's own cwrapper.cpp, so a third-party
- * shim has to restate it. cwrapper.h documents the contract: CRCPBasic holds a
- * single RCP<const Basic>, and its size and alignment must match the CRCPBasic_C
- * placeholder that C callers allocate. The static_asserts below reproduce
- * upstream's check, so a future layout change in SymEngine breaks this
- * translation unit at compile time instead of corrupting memory at run time. */
+/* SymEngine 0.14 names its opaque C++ storage CRCPBasic; 0.15 exposes only the
+ * CRCPBasic_C placeholder. Both document the same layout contract: the object
+ * has the size and alignment of one RCP<const Basic>. Restate that private
+ * storage here, with compile-time guards against any future layout change. */
 struct CRCPBasic {
     SymEngine::RCP<const SymEngine::Basic> m;
 };
@@ -484,7 +482,12 @@ bool algebraic_gaussian_rational_text(const char *text,
 
 inline const SymEngine::RCP<const SymEngine::Basic> &deref(const basic s)
 {
-    return s->m;
+    return reinterpret_cast<const CRCPBasic *>(s)->m;
+}
+
+inline SymEngine::RCP<const SymEngine::Basic> &deref(basic s)
+{
+    return reinterpret_cast<CRCPBasic *>(s)->m;
 }
 
 /*! Default ceiling on intermediate node count during normalization. Expansion
@@ -517,50 +520,43 @@ unsigned long node_count(const SymEngine::RCP<const SymEngine::Basic> &e,
  *  exp(-I*(x+y)) and exp(-I*x-I*y) are distinct terms and never cancel.
  *
  *  SymEngine represents exp(a) as Pow(E, a), so this hooks Pow. */
-class ExpNormalizer
-    : public SymEngine::BaseVisitor<ExpNormalizer, SymEngine::TransformVisitor>
-{
-public:
-    using SymEngine::TransformVisitor::bvisit;
-
-    void bvisit(const SymEngine::Pow &x)
-    {
-        auto base = apply(x.get_base());
-        auto ex = apply(x.get_exp());
-
-        if (!SymEngine::eq(*base, *SymEngine::E)) {
-            result_ = SymEngine::pow(base, ex);
-            return;
-        }
-
-        ex = SymEngine::expand(ex);
-
-        // exp(log(u)) -> u
-        if (SymEngine::is_a<SymEngine::Log>(*ex)) {
-            result_ = ex->get_args()[0];
-            return;
-        }
-
-        // exp(c*log(u)) -> u**c, for any cofactor c
-        if (SymEngine::is_a<SymEngine::Mul>(*ex)) {
-            for (const auto &factor : ex->get_args()) {
-                if (SymEngine::is_a<SymEngine::Log>(*factor)) {
-                    const auto cofactor = SymEngine::div(ex, factor);
-                    result_ = SymEngine::pow(factor->get_args()[0], cofactor);
-                    return;
-                }
-            }
-        }
-
-        result_ = SymEngine::pow(base, ex);
-    }
-};
-
 SymEngine::RCP<const SymEngine::Basic>
 exp_normalize(const SymEngine::RCP<const SymEngine::Basic> &e)
 {
-    ExpNormalizer v;
-    return v.apply(e);
+    SymEngine::map_basic_basic replacements;
+    for (const auto &arg : e->get_args()) {
+        const auto normalized = exp_normalize(arg);
+        if (normalized != arg) {
+            replacements[arg] = normalized;
+        }
+    }
+    const auto rebuilt = replacements.empty()
+                             ? e
+                             : SymEngine::xreplace(e, replacements);
+    if (!SymEngine::is_a<SymEngine::Pow>(*rebuilt)) {
+        return rebuilt;
+    }
+
+    const auto &power = SymEngine::down_cast<const SymEngine::Pow &>(*rebuilt);
+    const auto base = power.get_base();
+    auto exponent = power.get_exp();
+    if (!SymEngine::eq(*base, *SymEngine::E)) {
+        return rebuilt;
+    }
+
+    exponent = SymEngine::expand(exponent);
+    if (SymEngine::is_a<SymEngine::Log>(*exponent)) {
+        return exponent->get_args()[0];
+    }
+    if (SymEngine::is_a<SymEngine::Mul>(*exponent)) {
+        for (const auto &factor : exponent->get_args()) {
+            if (SymEngine::is_a<SymEngine::Log>(*factor)) {
+                const auto cofactor = SymEngine::div(exponent, factor);
+                return SymEngine::pow(factor->get_args()[0], cofactor);
+            }
+        }
+    }
+    return SymEngine::pow(base, exponent);
 }
 
 /*! Exponential normal form: the shared front half of fsym_zero_test and
@@ -704,7 +700,8 @@ size_t fsym_str_render(const basic s, int mode)
     try {
         switch (mode) {
         case FSYM_STR_CCODE:
-            g_render_buffer = SymEngine::ccode(*deref(s));
+            g_render_buffer = SymEngine::ccode(
+                *deref(s), SymEngine::CodePrinterPrecision::Double);
             break;
         case FSYM_STR_LATEX:
             g_render_buffer = SymEngine::latex(*deref(s));
@@ -1225,7 +1222,7 @@ CWRAPPER_OUTPUT_TYPE fsym_series(basic out, const basic ex, const basic var,
         }
         const auto sym
             = SymEngine::rcp_static_cast<const SymEngine::Symbol>(deref(var));
-        out->m = SymEngine::series(deref(ex), sym, prec)->as_basic();
+        deref(out) = SymEngine::series(deref(ex), sym, prec)->as_basic();
     } catch (const SymEngine::SymEngineException &) {
         return SYMENGINE_RUNTIME_ERROR;
     } catch (...) {
@@ -1246,7 +1243,7 @@ unsigned int fsym_count_ops(const basic ex)
 CWRAPPER_OUTPUT_TYPE fsym_normal_form(basic out, const basic ex)
 {
     try {
-        out->m = normal_form(deref(ex));
+        deref(out) = normal_form(deref(ex));
     } catch (...) {
         return SYMENGINE_RUNTIME_ERROR;
     }
@@ -1380,7 +1377,7 @@ CWRAPPER_OUTPUT_TYPE fsym_simplify(basic out, const basic ex)
             }
         }
 
-        out->m = best;
+        deref(out) = best;
     } catch (...) {
         return SYMENGINE_RUNTIME_ERROR;
     }
