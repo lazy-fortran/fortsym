@@ -111,7 +111,9 @@ The legacy expression emitter exposes target-specific CSE choices on
 `kernel_spec_t`: `CSE_NONE`, `CSE_THRESHOLDED`, or `CSE_FULL`, plus a
 `remat_threshold` that trades repeated arithmetic for shorter temporary live
 ranges. The default is full CSE with threshold zero, preserving existing
-generated output until a consumer measures another choice.
+generated output until a consumer measures another choice. Complex kernels
+set `scalar_type`; optional per-input `arg_types` retain mixed intrinsic
+arithmetic such as complex divided by real.
 
 **Cross-check engines.** When several engines answer, agreement raises
 confidence and **disagreement is reported as a finding**, not averaged away: it
