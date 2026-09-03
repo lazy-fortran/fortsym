@@ -829,6 +829,7 @@ contains
         type(native_engine_t) :: assumed_engine
         type(engine_result_t) :: r
         type(expr_t) :: u, z, negative_x, nonpositive_x, zero_x
+        type(expr_t) :: positive_base, positive_sum
         type(expr_t) :: log_real, log_nonzero, unknown_log
 
         r = engine%zero_test(sqrt(x**2) - x)
@@ -907,7 +908,55 @@ contains
         if (r%verdict /= VERDICT_TRUE) then
             print *, "  compound residual: ", chars(print_expr(r%value))
         end if
+
+        !  Nested rational powers.  `(a**p)**q = a**(p*q)` is false in general
+        !  -- `((-1)**2)**(1/2)` is 1 and `(-1)**1` is -1 -- so it must stay
+        !  refused for a bare symbol.  On a positive base it is exactly true,
+        !  and refusing it there strands every expression that reaches a
+        !  fractional power twice, which is the ordinary shape of a solved
+        !  crossover point.
+        r = engine%zero_test((x**rat(arena, 2_int64, 3_int64)) &
+            **rat(arena, -3_int64, 2_int64) - one_over(x))
+        call check("nested rational powers stay refused without a domain", &
+            r%verdict /= VERDICT_TRUE)
+
+        positive_base = sym(arena, "positive_base")
+        call assume(assumptions, positive(positive_base))
+        assumed_engine = make_native_engine(arena, assumptions)
+        r = assumed_engine%zero_test( &
+            (positive_base**rat(arena, 2_int64, 3_int64)) &
+            **rat(arena, -3_int64, 2_int64) - one_over(positive_base))
+        call check("positive base permits ((a^(2/3))^(-3/2)) = 1/a", &
+            r%verdict == VERDICT_TRUE)
+        if (r%verdict /= VERDICT_TRUE) then
+            print *, "  nested power residual: ", chars(print_expr(r%value))
+        end if
+
+        !  The same flattening on a positive *compound* base, which is the
+        !  form a solved equation actually returns.
+        positive_sum = x**2 + num(arena, 1)
+        call assume(assumptions, positive(positive_sum))
+        assumed_engine = make_native_engine(arena, assumptions)
+        r = assumed_engine%zero_test( &
+            (positive_sum**rat(arena, 2_int64, 3_int64)) &
+            **rat(arena, -3_int64, 2_int64) - one_over(positive_sum))
+        call check("positive compound base permits the same flattening", &
+            r%verdict == VERDICT_TRUE)
+
+        !  A negative base must still be refused: this is the counterexample.
+        r = assumed_engine%zero_test( &
+            (negative_x**num(arena, 2))**rat(arena, 1_int64, 2_int64) &
+            - negative_x)
+        call check("negative base still refuses the flattening", &
+            r%verdict /= VERDICT_TRUE)
     end subroutine test_assumptions
+
+    function one_over(e) result(r)
+        type(expr_t), intent(in) :: e
+        type(expr_t) :: r
+
+        r = e**num(arena, -1)
+    end function one_over
 
     subroutine test_assumption_relations()
         type(assumption_context_t) :: parent, child, negative_context

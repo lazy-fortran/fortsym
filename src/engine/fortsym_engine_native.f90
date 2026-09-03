@@ -1812,6 +1812,8 @@ contains
             base_id = contextual_id(a, a%arg_of(id, 1), context, memo, done, limit)
             exponent_id = contextual_id(a, a%arg_of(id, 2), context, memo, done, limit)
             out = a%pow(base_id, exponent_id)
+            call try_positive_power_flatten(a, base_id, exponent_id, context, &
+                out, applied)
         case (NK_FUNC)
             allocate (children(a%nargs_of(id)))
             do k = 1, size(children)
@@ -1882,6 +1884,55 @@ contains
         done(id) = .true.
         memo(id) = out
     end function contextual_id
+
+    !> `(a**p)**q = a**(p*q)` for rational `p`, `q`, when `a` is positive.
+    !>
+    !> The restriction is the point. On an arbitrary base the identity is
+    !> false -- `((-1)**2)**(1/2)` is `1` while `(-1)**1` is `-1` -- because
+    !> the outer fractional power takes a principal branch that the inner one
+    !> has already left. So `simplify_power` refuses every fractional
+    !> exponent outright, and without a contextual rewrite an expression that
+    !> reaches a fractional power twice can never close. That shape is
+    !> ordinary: solving `x**(-3/2) c = 1` returns `x = c**(2/3)`, and
+    !> substituting it back produces exactly `(c**(2/3))**(-3/2)`.
+    !>
+    !> Positivity is required, not merely non-negativity: `0**(-1)` has no
+    !> value, so a base that might be zero cannot be flattened through a
+    !> negative combined exponent.
+    subroutine try_positive_power_flatten(a, base, exponent_id, context, out, &
+            applied)
+        type(arena_t), target, intent(inout) :: a
+        integer, intent(in) :: base, exponent_id
+        type(assumption_context_t), intent(in) :: context
+        integer, intent(inout) :: out
+        logical, intent(out) :: applied
+        type(expr_t) :: inner_expression
+        integer :: inner_base
+        integer(int64) :: n_outer, d_outer, n_inner, d_inner
+        integer(int64) :: n_combined, d_combined
+        logical :: exact_outer, exact_inner, exact
+
+        applied = .false.
+        if (a%kind_of(base) /= NK_POW) return
+        call exact_value(a, exponent_id, n_outer, d_outer, exact_outer)
+        if (.not. exact_outer) return
+        call exact_value(a, a%arg_of(base, 2), n_inner, d_inner, exact_inner)
+        if (.not. exact_inner) return
+
+        inner_base = a%arg_of(base, 1)
+        inner_expression%a => a
+        inner_expression%id = inner_base
+        inner_expression%generation = a%generation_value()
+        if (.not. context%has(inner_expression, FACT_POSITIVE)) return
+
+        call checked_mul(n_outer, n_inner, n_combined, exact)
+        if (.not. exact) return
+        call checked_mul(d_outer, d_inner, d_combined, exact)
+        if (.not. exact) return
+
+        out = simplify_power(a, inner_base, a%rat(n_combined, d_combined))
+        applied = .true.
+    end subroutine try_positive_power_flatten
 
     subroutine is_square_power(a, id, base, square)
         type(arena_t), intent(in)  :: a
