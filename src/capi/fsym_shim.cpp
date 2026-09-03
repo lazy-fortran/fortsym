@@ -633,11 +633,21 @@ try_cancel(const SymEngine::RCP<const SymEngine::Basic> &e)
             return RCP<const Basic>();
         }
 
+        // `cancel<UIntPolyFlint>` is univariate. Handed a multivariate
+        // expression it does not merely leave its outputs unset: it faults
+        // inside its own RCP handling, before returning, so the `catch (...)`
+        // below never runs and the whole process dies. `(2/3)(b - (3/2)a)
+        // - (2/3)b` is enough to trigger it. Screen the arity here, which is
+        // the only place the guard can still be effective.
+        if (free_symbols(*e).size() > 1) {
+            return RCP<const Basic>();
+        }
+
         RCP<const UIntPolyFlint> rn, rd, common;
         cancel<UIntPolyFlint>(numer, denom, outArg(rn), outArg(rd),
                               outArg(common));
         if (rn.is_null() || rd.is_null()) {
-            return RCP<const Basic>(); // multivariate; cancel() left them unset
+            return RCP<const Basic>();
         }
         return div(rn->as_symbolic(), rd->as_symbolic());
     } catch (...) {
