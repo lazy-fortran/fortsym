@@ -74,7 +74,8 @@ contains
         spec%variable = str("x")
         spec%lower = -1.0_dp
         spec%upper = 1.0_dp
-        spec%samples = 101
+        ! A dyadic step hits zero exactly, even with fused multiply-add.
+        spec%samples = 129
         ok = sample_curve(expr_of(a, "1/x"), spec, c, why)
         if (.not. ok) then
             call fail("1/x should still be plottable: "//chars(why))
