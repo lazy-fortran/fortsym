@@ -123,6 +123,11 @@ add_test(NAME paper_magnetic_native COMMAND paper_magnetic_native)
 fortsym_add_test(test_fortsym_fparse parse_fortran/test_fortsym_fparse.f90)
 
 # --- C ABI over SymEngine ---
+add_executable(test_fortsym_shim_strings capi/test_fortsym_shim_strings.c)
+target_link_libraries(test_fortsym_shim_strings PRIVATE fortsym)
+target_include_directories(test_fortsym_shim_strings PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/capi)
+add_test(NAME test_fortsym_shim_strings COMMAND test_fortsym_shim_strings)
 add_executable(test_fortsym_capi capi/test_fortsym_capi.c)
 target_link_libraries(test_fortsym_capi PRIVATE fortsym)
 target_include_directories(test_fortsym_capi PRIVATE ${PROJECT_SOURCE_DIR}/src/capi)

@@ -710,8 +710,7 @@ size_t fsym_str_render(const basic s, int mode)
     try {
         switch (mode) {
         case FSYM_STR_CCODE:
-            g_render_buffer = SymEngine::ccode(
-                *deref(s), SymEngine::CodePrinterPrecision::Double);
+            g_render_buffer = SymEngine::ccode(*deref(s));
             break;
         case FSYM_STR_LATEX:
             g_render_buffer = SymEngine::latex(*deref(s));
