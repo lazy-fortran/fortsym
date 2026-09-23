@@ -118,6 +118,7 @@ target_sources(fortsym PRIVATE
     calculus/fortsym_tensor.f90
     calculus/fortsym_connection.f90
     calculus/fortsym_toroidal.f90
+    calculus/fortsym_phasespace.f90
 
     # reading Fortran back
     parse_fortran/fortsym_fparse.f90
