@@ -57,6 +57,7 @@ fortsym_add_test(test_fortsym_kernel_emit codegen/test_fortsym_kernel_emit.f90)
 fortsym_add_test(test_fortsym_kernel_typed codegen/test_fortsym_kernel_typed.f90)
 fortsym_add_test(test_fortsym_kernel_typed_negpow codegen/test_fortsym_kernel_typed_negpow.f90)
 fortsym_add_test(test_fortsym_kernel_taylor codegen/test_fortsym_kernel_taylor.f90)
+fortsym_add_test(test_fortsym_kernel_taylor_typed codegen/test_fortsym_kernel_taylor_typed.f90)
 fortsym_add_test(test_fortsym_kernel_ir codegen/test_fortsym_kernel_ir.f90)
 fortsym_add_test(test_fortsym_rigorous_emit codegen/test_fortsym_rigorous_emit.f90)
 # The emitted leaves are compiled against the reference runtimes, which are

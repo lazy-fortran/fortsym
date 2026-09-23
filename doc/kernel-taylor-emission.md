@@ -43,7 +43,7 @@ type(taylor_emit_spec_t) :: spec
 spec%name = str("taylor_step")
 spec%args = [str("x")]
 spec%outputs = [str("f1"), str("f2"), str("f3")]
-spec%mul_name = str("ts_mul")        ! defaults shown; all configurable
+spec%mul_name = str("ts_mul")        ! caller-named recurrences; no default
 spec%div_name = str("ts_div")
 spec%sincos_name = str("ts_sincos")
 spec%exp_name = str("ts_exp")
@@ -53,9 +53,38 @@ source = emit_taylor_step([f1, f2, f3], spec, ok, message)
 
 The emitted subroutine's signature is
 `subroutine <name>(k, args..., outputs..., temps...)`, where every array
-argument (including the generated temporaries) is `real(dp), intent(inout)
-:: name(0:*)`: the caller allocates them once, seeds the known input
-coefficients, and calls the subroutine once per order.
+argument (including the generated temporaries) is, by default,
+`real(dp), intent(inout) :: name(0:*)`: the caller allocates them once,
+seeds the known input coefficients, and calls the subroutine once per order.
+Every input series (`spec%args`) is opaque to the emitter -- it is read only
+through `mul_name`/`div_name`/`sincos_name`/`exp_name` calls and coefficient
+indexing, never constructed or inspected -- so a caller-supplied history
+(e.g. from an upstream ODE step) is a valid argument as-is.
+
+## Generic element type
+
+`spec%type_name` and `spec%literal_constructor` generalise every series
+array's element type beyond `real(dp)`, the same knob
+`fortsym_kernel_typed`'s `typed_kernel_spec_t` offers for scalar kernels:
+
+```fortran
+spec%type_name = str("dual_t")           ! default "": real(dp), unchanged
+spec%literal_constructor = str("dual_t") ! default "": bare "2.0_dp" literals
+```
+
+With `type_name` set, every array argument, output, temporary, and the
+internal constant-one series (needed for a negative integer power) is
+declared `type(<type_name>), intent(inout) :: name(0:*)` instead of
+`real(dp)`. `type_name` must already provide `+`, `-`, `*`, `/`, integer
+`**`, and whatever `mul_name`/`div_name`/`sincos_name`/`exp_name` compute
+over it -- a complex-dual number, an interval type, or any other
+operator-overloaded numeric type works, exactly as for the typed scalar
+kernel. With `literal_constructor` set, every literal the emitter writes
+(a true constant such as the `2` in `2+x`, and the `0`/`1` identities the
+constant-one series and additive constant-series contributions need) is
+wrapped in a call to it, e.g. `dual_t(2.0_dp)`, instead of emitted bare.
+Leaving both fields empty keeps the original `real(dp)`-only emission
+byte-for-byte identical to before this knob existed.
 
 Supported operations: `+`/`-` (linear, inlined), `*` (a pure-constant factor
 is inlined as a scale; two series call `mul_name`), `/` and a negative
@@ -79,3 +108,14 @@ recurrences, written once, never touched by the emitter) and drives it for
 closed forms neither the emitter nor the harness computes: the `n!`-based
 Maclaurin coefficients of `sin` and `exp`, and the geometric series
 `t/(1-t) = sum_n t^n`.
+
+`test/codegen/test_fortsym_kernel_taylor_typed.f90` exercises the generic
+element-type knob: it emits the step for `f1(x) = (2+x)**(-2)` (a negative
+integer power) and `f2(x) = (3+x)/(1+x)` (a division) with `type_name =
+"dual_t"` and `literal_constructor = "dual_t"`, compiles it against an
+independent hand-written forward-mode-AD `dual_t (v, d)` number type -- the
+same `ts_mul`/`ts_div` recurrences, written once, layered on `dual_t`
+arithmetic instead of bare `real(dp)` -- and checks both the value and the
+`d/da` component of every coefficient at `x(t) = a*t`, `a = 2`, against
+closed forms hand-derived from the binomial and geometric series of
+`(2+a t)**(-2)` and `(3+a t)/(1+a t)`.

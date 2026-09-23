@@ -53,6 +53,20 @@ module fortsym_kernel_taylor
         type(str_t) :: div_name
         type(str_t) :: sincos_name
         type(str_t) :: exp_name
+        !> Empty (default): every series array is declared "real(dp),
+        !> intent(inout) :: name(0:*)", exactly as before this field
+        !> existed. Nonempty: the coefficient element type is instead
+        !> "type(<type_name>)", e.g. a caller-supplied complex-dual or
+        !> interval number type that overloads +, -, *, / and whichever
+        !> elementary functions mul_name/div_name/sincos_name/exp_name and
+        !> the emitted `**` need over that type.
+        type(str_t) :: type_name
+        !> Empty (default): real literals are emitted bare (e.g. "2.0_dp"),
+        !> exactly as before this field existed. Nonempty: every literal
+        !> (including the "0.0_dp"/"1.0_dp" identities the merge-seed and
+        !> constant-series contributions need) is instead wrapped in a call
+        !> to this constructor name, e.g. "dual_t(2.0_dp)".
+        type(str_t) :: literal_constructor
     end type taylor_emit_spec_t
 
     !> How to refer to one IR node's coefficient k (scalar) and, once
@@ -123,7 +137,8 @@ contains
             one_name = temp_prefix_of(spec)//str("one")
             call body%append("    ")
             call body%append(one_name)
-            call body%append("(k) = merge(1.0_dp, 0.0_dp, k == 0)")
+            call body%append("(k) = ")
+            call body%append(merge_text(1.0_dp, spec))
             call body%newline()
         end if
 
@@ -179,10 +194,10 @@ contains
             ref(idx)%has_array = .true.
             return
         case (IR_LITERAL, IR_CONSTANT)
-            ref(idx)%scalar = merge_text(ir%nodes(idx)%value)
+            ref(idx)%scalar = merge_text(ir%nodes(idx)%value, spec)
             ref(idx)%has_array = .false.
             ref(idx)%is_literal = .true.
-            ref(idx)%literal_raw = raw_text(ir%nodes(idx)%value)
+            ref(idx)%literal_raw = raw_text(ir%nodes(idx)%value, spec)
             return
         end select
 
@@ -331,10 +346,10 @@ contains
         end if
         n = nint(expval)
         if (n == 0) then
-            ref(idx)%scalar = merge_text(1.0_dp)
+            ref(idx)%scalar = merge_text(1.0_dp, spec)
             ref(idx)%has_array = .false.
             ref(idx)%is_literal = .true.
-            ref(idx)%literal_raw = raw_text(1.0_dp)
+            ref(idx)%literal_raw = raw_text(1.0_dp, spec)
             return
         end if
         if (n == 1) then
@@ -485,14 +500,66 @@ contains
         if (prefix%is_empty()) prefix = str("s")
     end function temp_prefix_of
 
-    function merge_text(value) result(text)
+    !> The k==0-only contribution of a constant series to an additive sum,
+    !> generalised to spec%type_name/literal_constructor: "merge(<value>,
+    !> <zero>, k == 0)", with both the value and the zero built through
+    !> typed_literal/zero_text so a non-default element type gets a real
+    !> zero of its own type rather than a bare "0.0_dp" it may not accept.
+    function merge_text(value, spec) result(text)
         real(dp), intent(in) :: value
+        type(taylor_emit_spec_t), intent(in) :: spec
+        type(str_t) :: text
+
+        text = str("merge(")//typed_literal(value, spec)//str(", ")// &
+            zero_text(spec)//str(", k == 0)")
+    end function merge_text
+
+    !> "real(dp)" (default) or "type(<type_name>)": the element type every
+    !> series array (args, outputs, temporaries, the constant-one series)
+    !> is declared with.
+    function elem_type_text(spec) result(text)
+        type(taylor_emit_spec_t), intent(in) :: spec
+        type(str_t) :: text
+
+        if (spec%type_name%is_empty()) then
+            text = str("real(dp)")
+        else
+            text = str("type(")//spec%type_name//str(")")
+        end if
+    end function elem_type_text
+
+    !> A literal value, bare (default) or wrapped in literal_constructor.
+    !> Shared by merge_text (the nonzero side) and raw_text.
+    function typed_literal(value, spec) result(text)
+        real(dp), intent(in) :: value
+        type(taylor_emit_spec_t), intent(in) :: spec
         type(str_t) :: text
         character(32) :: buf
 
         write (buf, '(ES24.16E3)') value
-        text = str("merge("//trim(adjustl(buf))//"_dp, 0.0_dp, k == 0)")
-    end function merge_text
+        if (spec%literal_constructor%is_empty()) then
+            text = str(trim(adjustl(buf))//"_dp")
+        else
+            text = spec%literal_constructor//str("(")// &
+                str(trim(adjustl(buf))//"_dp")//str(")")
+        end if
+    end function typed_literal
+
+    !> The additive/multiplicative-identity zero literal. Default emits the
+    !> exact "0.0_dp" merge_text always used before this field existed
+    !> (not typed_literal(0.0_dp, ...), which would reformat it through
+    !> ES24.16E3 and change the default emission); a nonempty
+    !> literal_constructor wraps it the same way as any other literal.
+    function zero_text(spec) result(text)
+        type(taylor_emit_spec_t), intent(in) :: spec
+        type(str_t) :: text
+
+        if (spec%literal_constructor%is_empty()) then
+            text = str("0.0_dp")
+        else
+            text = spec%literal_constructor//str("(0.0_dp)")
+        end if
+    end function zero_text
 
     !> The text to use when this node is one factor of a scalar-times-series
     !> multiplication: a true constant's raw value (multiplies every order),
@@ -511,13 +578,12 @@ contains
     !> The literal's own value, undecorated by order -- what a true
     !> scalar-times-series scaling needs, as opposed to merge_text's
     !> per-order constant-series contribution.
-    function raw_text(value) result(text)
+    function raw_text(value, spec) result(text)
         real(dp), intent(in) :: value
+        type(taylor_emit_spec_t), intent(in) :: spec
         type(str_t) :: text
-        character(32) :: buf
 
-        write (buf, '(ES24.16E3)') value
-        text = str(trim(adjustl(buf))//"_dp")
+        text = typed_literal(value, spec)
     end function raw_text
 
     subroutine find_arg_index(spec, name, j, ok)
@@ -579,25 +645,33 @@ contains
         call out%append("    integer, intent(in) :: k")
         call out%newline()
         do k = 1, size(spec%args)
-            call out%append("    real(dp), intent(inout) :: ")
+            call out%append("    ")
+            call out%append(elem_type_text(spec))
+            call out%append(", intent(inout) :: ")
             call out%append(spec%args(k))
             call out%append("(0:*)")
             call out%newline()
         end do
         do k = 1, size(spec%outputs)
-            call out%append("    real(dp), intent(inout) :: ")
+            call out%append("    ")
+            call out%append(elem_type_text(spec))
+            call out%append(", intent(inout) :: ")
             call out%append(spec%outputs(k))
             call out%append("(0:*)")
             call out%newline()
         end do
         if (needs_one) then
-            call out%append("    real(dp), intent(inout) :: ")
+            call out%append("    ")
+            call out%append(elem_type_text(spec))
+            call out%append(", intent(inout) :: ")
             call out%append(one_name)
             call out%append("(0:*)")
             call out%newline()
         end if
         do k = 1, size(temp_names)
-            call out%append("    real(dp), intent(inout) :: ")
+            call out%append("    ")
+            call out%append(elem_type_text(spec))
+            call out%append(", intent(inout) :: ")
             call out%append(temp_names(k))
             call out%append("(0:*)")
             call out%newline()
