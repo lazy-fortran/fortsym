@@ -94,14 +94,14 @@ contains
 
         allocate (omega(pl%n, pl%n))
         do j = 1, pl%n
-            do i = 1, pl%n
-                if (i == j) then
-                    omega(i, j) = num(pl%q(1)%a, 0)
-                else if (i < j) then
-                    omega(i, j) = diff(pl%a(j), pl%q(i)) - diff(pl%a(i), pl%q(j))
-                else
-                    omega(i, j) = -omega(j, i)
-                end if
+            omega(j, j) = num(pl%q(1)%a, 0)
+            do i = 1, j - 1
+                omega(i, j) = diff(pl%a(j), pl%q(i)) - diff(pl%a(i), pl%q(j))
+            end do
+        end do
+        do j = 1, pl%n
+            do i = j + 1, pl%n
+                omega(i, j) = -omega(j, i)
             end do
         end do
     end function symplectic_form
