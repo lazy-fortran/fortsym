@@ -5234,6 +5234,12 @@ contains
                     found = .true.
                     return
                 end if
+            else if (.not. is_euler_base(a, a%arg_of(id, 1))) then
+                ! x**l with symbolic l is exp(l log x): branch sensitive, and
+                ! the normal form does not merge x*x**(l-1) with x**l, so a
+                ! leftover residual refutes nothing.
+                found = .true.
+                return
             end if
         end select
 
@@ -5244,6 +5250,14 @@ contains
             end if
         end do
     end function has_branch_sensitive_power
+
+    logical function is_euler_base(a, id)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+
+        is_euler_base = .false.
+        if (a%kind_of(id) == NK_CONST) is_euler_base = chars(a%name_of(id)) == "e"
+    end function is_euler_base
 
     function is_zero_id(a, id) result(yes)
         type(arena_t), intent(in) :: a
