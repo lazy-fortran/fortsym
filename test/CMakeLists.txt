@@ -103,6 +103,7 @@ fortsym_add_test(test_fortsym_spacetime_form calculus/test_fortsym_spacetime_for
 fortsym_add_test(test_fortsym_spacetime_form_tensor calculus/test_fortsym_spacetime_form_tensor.f90)
 fortsym_add_test(test_fortsym_spacetime_tensor calculus/test_fortsym_spacetime_tensor.f90)
 fortsym_add_test(test_fortsym_toroidal calculus/test_fortsym_toroidal.f90)
+fortsym_add_test(test_fortsym_phasespace calculus/test_fortsym_phasespace.f90)
 fortsym_add_test(test_fortsym_easy_geometry calculus/test_fortsym_easy_geometry.f90)
 
 # --- executable examples and geometry derivations ---
