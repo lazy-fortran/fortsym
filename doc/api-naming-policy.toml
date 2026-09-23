@@ -171,6 +171,16 @@ sympy_adapter = []
 decision = "Keep the kernel specification, emitter, and subroutine mode together under the code-generation owner; do not duplicate backend-evidence names."
 
 [[family]]
+id = "rigorous-code-generation"
+audit_concepts = ["code-generation"]
+canonical_native = ["rigorous_runtime_t", "rigorous_kernel_spec_t", "ball_runtime", "interval_runtime", "emit_rigorous_kernel", "emit_float_kernel", "RUNTIME_BALL", "RUNTIME_INTERVAL"]
+current_native = ["rigorous_runtime_t", "rigorous_kernel_spec_t", "ball_runtime", "interval_runtime", "emit_rigorous_kernel", "emit_float_kernel", "RUNTIME_BALL", "RUNTIME_INTERVAL"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = []
+decision = "fortsym_rigorous_emit owns enclosure emission. The float and rigorous emitters share one name family because they render one lowered operation list; runtime descriptors are values, so a consumer runtime plugs in without a new emitter."
+
+[[family]]
 id = "numeric-inspection"
 audit_concepts = ["numeric-inspection"]
 canonical_native = ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_real_text_t", "numeric_complex_text", "numeric_complex_text_t", "numeric_callable_t"]

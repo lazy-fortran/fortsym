@@ -136,6 +136,20 @@ translated code, or figures are copied from them. The corresponding native
 derivations must carry an independent identity or numerical check in addition
 to the SymPy comparison.
 
+### Enclosure arithmetic and certified bounds
+
+Implemented in `src/codegen/fortsym_rigorous_emit.f90` (emission only; the
+reference runtimes are test fixtures under `test/codegen/runtime/`).
+
+| Method | Citation |
+|---|---|
+| Midpoint-radius (ball) arithmetic with rounding folded into the radius | S. M. Rump, *Fast and parallel interval arithmetic*, BIT 39 (1999) 534--554 |
+| Branch-free directed rounding by successor/predecessor in round-to-nearest | Rump, Zimmermann, Boldo & Melquiond, *Computing predecessor and successor in rounding to nearest*, BIT 49 (2009) 419--431, Algorithm 2 |
+| Error bound sqrt(5) u for floating-point complex multiplication | Brent, Percival & Zimmermann, *Error bounds on complex floating-point multiplication*, Math. Comp. 76 (2007) 1469--1481 |
+| Horner evaluation for enclosures | R. E. Moore, R. B. Kearfott & M. J. Cloud, *Introduction to Interval Analysis*, SIAM, 2009, Ch. 5 |
+
+No implementation source was taken from any interval library.
+
 ## Behavioural oracles
 
 Systems fortsym runs and compares against. Running an oracle is ordinary use of

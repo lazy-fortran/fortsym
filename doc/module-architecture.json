@@ -8,22 +8,22 @@
     {
       "from": "algebra",
       "to": "calculus",
-      "uses": 3
+      "uses": 4
     },
     {
       "from": "algebra",
       "to": "core",
-      "uses": 44
+      "uses": 48
     },
     {
       "from": "algebra",
       "to": "engine",
-      "uses": 17
+      "uses": 19
     },
     {
       "from": "algebra",
       "to": "util",
-      "uses": 14
+      "uses": 16
     },
     {
       "from": "algebra",
@@ -58,12 +58,12 @@
     {
       "from": "capi",
       "to": "algebra",
-      "uses": 9
+      "uses": 12
     },
     {
       "from": "capi",
       "to": "calculus",
-      "uses": 17
+      "uses": 18
     },
     {
       "from": "capi",
@@ -93,7 +93,7 @@
     {
       "from": "codegen",
       "to": "core",
-      "uses": 14
+      "uses": 16
     },
     {
       "from": "codegen",
@@ -108,7 +108,7 @@
     {
       "from": "codegen",
       "to": "util",
-      "uses": 7
+      "uses": 8
     },
     {
       "from": "codegen",
@@ -694,6 +694,20 @@
     {
       "dependencies": [
         "fortsym_arena",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_expr",
+        "fortsym_poly",
+        "fortsym_relation",
+        "fortsym_string"
+      ],
+      "name": "fortsym_inequality",
+      "owner": "algebra",
+      "path": "src/algebra/fortsym_inequality.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
         "fortsym_diff",
         "fortsym_engine",
         "fortsym_engine_native",
@@ -806,6 +820,7 @@
         "fortsym_arena",
         "fortsym_engine",
         "fortsym_expr",
+        "fortsym_matrix",
         "fortsym_string"
       ],
       "name": "fortsym_linalg",
@@ -853,6 +868,8 @@
     {
       "dependencies": [
         "fortsym_arena",
+        "fortsym_assume",
+        "fortsym_complexdom",
         "fortsym_engine",
         "fortsym_engine_native",
         "fortsym_expr",
@@ -1037,6 +1054,7 @@
         "fortsym_chart_map",
         "fortsym_complexdom",
         "fortsym_connection",
+        "fortsym_defint",
         "fortsym_diff",
         "fortsym_engine",
         "fortsym_engine_native",
@@ -1045,6 +1063,7 @@
         "fortsym_flux",
         "fortsym_form",
         "fortsym_form_tensor",
+        "fortsym_inequality",
         "fortsym_integrate_adapter",
         "fortsym_limit_adapter",
         "fortsym_limits",
@@ -1054,6 +1073,7 @@
         "fortsym_matrix_adapter",
         "fortsym_maxwell",
         "fortsym_metric",
+        "fortsym_ode",
         "fortsym_poly",
         "fortsym_predicates",
         "fortsym_print",
@@ -1065,6 +1085,7 @@
         "fortsym_spacetime_tensor",
         "fortsym_string",
         "fortsym_subs",
+        "fortsym_sums",
         "fortsym_tensor",
         "fortsym_volume"
       ],
@@ -1134,6 +1155,17 @@
     },
     {
       "dependencies": [
+        "fortsym_arena",
+        "fortsym_expr",
+        "fortsym_names",
+        "fortsym_string"
+      ],
+      "name": "fortsym_rigorous_emit",
+      "owner": "codegen",
+      "path": "src/codegen/fortsym_rigorous_emit.f90"
+    },
+    {
+      "dependencies": [
         "fortsym_exact",
         "fortsym_rk_trees",
         "fortsym_string"
@@ -1176,10 +1208,12 @@
     {
       "dependencies": [
         "fortsym_arena",
+        "fortsym_diff",
         "fortsym_engine",
         "fortsym_expr",
         "fortsym_poly",
         "fortsym_polysolve",
+        "fortsym_string",
         "fortsym_subs"
       ],
       "name": "fortsym_solve_rational",
@@ -1393,11 +1427,11 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 474,
+    "internal_edges": 494,
     "module_file_mismatches": 0,
-    "module_units": 91,
-    "modules": 91,
-    "source_units": 92,
+    "module_units": 93,
+    "modules": 93,
+    "source_units": 94,
     "unknown_internal_dependencies": 0
   },
   "violations": {
