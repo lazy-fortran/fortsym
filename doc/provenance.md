@@ -150,6 +150,21 @@ reference runtimes are test fixtures under `test/codegen/runtime/`).
 
 No implementation source was taken from any interval library.
 
+### Certified outputs
+
+Implemented in `src/verify/fortsym_certificate.f90` and
+`src/verify/fortsym_obligation.f90`; see `doc/certificate.md` for the
+derivations.
+
+| Method | Citation |
+|---|---|
+| Complementary variational principles for non-self-adjoint problems | Cherkaev & Gibiansky, J. Math. Phys. 35 (1994) 127--145 |
+| Dual-weighted-residual estimate | Becker & Rannacher, Acta Numerica 10 (2001) 1--102 |
+| Goal-oriented error estimation and adaptivity | Oden & Prudhomme, Comput. Math. Appl. 41 (2001) 735--756 |
+
+The residual-pairing radius and the per-level gap decomposition are derived
+in `doc/certificate.md`; no implementation source was used.
+
 ## Behavioural oracles
 
 Systems fortsym runs and compares against. Running an oracle is ordinary use of

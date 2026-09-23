@@ -1005,13 +1005,20 @@ contains
             call b%append("pure ")
         end if
         call b%append("subroutine "//chars(spec%name)//"(")
-        do k = 1, size(spec%args)
-            call b%append(chars(spec%args(k))//", ")
+        allocate (names(0))
+        names = [spec%args, spec%outputs]
+        do k = 1, size(names)
+            call b%append(chars(names(k)))
+            if (k < size(names)) then
+                call b%append(", ")
+                if (mod(k, 6) == 0) then
+                    call b%append("&")
+                    call b%newline()
+                    call b%append("        ")
+                end if
+            end if
         end do
-        do k = 1, size(spec%outputs)
-            call b%append(chars(spec%outputs(k)))
-            if (k < size(spec%outputs)) call b%append(", ")
-        end do
+        deallocate (names)
         call b%append(")")
         call b%newline()
         call b%append("    use, intrinsic :: iso_fortran_env, only: real64")

@@ -47,3 +47,10 @@ target_link_libraries(example_2d_spacetime_forms PRIVATE fortsym)
 
 add_executable(example_spacetime_tensor_calculus example_spacetime_tensor_calculus.f90)
 target_link_libraries(example_spacetime_tensor_calculus PRIVATE fortsym)
+
+add_executable(example_certificate_matrix example_certificate_matrix.f90)
+target_link_libraries(example_certificate_matrix PRIVATE fortsym)
+
+add_executable(example_certificate_advection_diffusion
+    example_certificate_advection_diffusion.f90)
+target_link_libraries(example_certificate_advection_diffusion PRIVATE fortsym)

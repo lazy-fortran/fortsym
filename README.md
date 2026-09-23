@@ -123,6 +123,14 @@ pluggable runtime interface rather than a fortsym runtime. The same spec thus
 drives a trial solver and a certified evaluation. See
 [`doc/rigorous-runtime.md`](doc/rigorous-runtime.md).
 
+**Certify outputs.** `fortsym_certificate` derives, from a symbolic
+symmetric/skew split `K = S + A`, the Ritz and complementary functionals
+that bracket `<s, K^{-1} s>`, their constraints, per-level gap indicators,
+the residual-pairing (dual-weighted-residual) estimate and radius for
+non-symmetric outputs, and parameter gradients from the same dual solution.
+Each derived formula carries proof obligations in a ledger that separates
+proofs from numeric probes. See [`doc/certificate.md`](doc/certificate.md).
+
 **Cross-check engines.** When several engines answer, agreement raises
 confidence and **disagreement is reported as a finding**, not averaged away: it
 means one of them is wrong. Per-engine timings fall out of normal operation, so
