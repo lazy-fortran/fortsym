@@ -108,17 +108,12 @@ contains
             r2 = se%zero_test(residual)
         end if
         if (decided(r1) .and. decided(r2)) then
-            if (r1%verdict /= r2%verdict) then
-                item%status = OBLIGATION_FAILED
-                item%evidence = str("native and symengine disagree (native "// &
-                    verdict_word(r1%verdict)//", symengine "// &
-                    verdict_word(r2%verdict)//"): "//chars(print_expr(residual)))
-            else if (r1%verdict == VERDICT_TRUE) then
+            if (r1%verdict == VERDICT_TRUE .and. r2%verdict == VERDICT_TRUE) then
                 item%status = OBLIGATION_PROVED
                 item%evidence = str("native zero test, symengine agrees")
             else
-                item%status = OBLIGATION_FAILED
-                item%evidence = str("decided nonzero: "//chars(print_expr(residual)))
+                call refuted(ledger, residual, "native "//verdict_word(r1%verdict)// &
+                    ", symengine "//verdict_word(r2%verdict), item)
             end if
         else if (decided(r1) .or. decided(r2)) then
             if (verdict_of(r1, r2) == VERDICT_TRUE) then
@@ -128,9 +123,10 @@ contains
                 else
                     item%evidence = str("symengine zero test")
                 end if
+            else if (decided(r1)) then
+                call refuted(ledger, residual, "native nonzero", item)
             else
-                item%status = OBLIGATION_FAILED
-                item%evidence = str("decided nonzero: "//chars(print_expr(residual)))
+                call refuted(ledger, residual, "symengine nonzero", item)
             end if
         else if (ledger%allow_probe) then
             call probe(ledger, residual, item%status, why)
@@ -141,6 +137,34 @@ contains
         end if
         call record_obligation(ledger, item)
     end subroutine prove_zero
+
+    !> An engine answered "nonzero" or the engines disagree. Outside their
+    !> decidable fragments the engines can refute true identities (symbolic
+    !> exponents, overflowed normal forms), so a refutation is never taken on
+    !> its own and never averaged with a "zero": the residual is probed. A
+    !> vanishing probe leaves the item PROBED with the conflict recorded as a
+    !> finding; a nonvanishing probe confirms the failure.
+    subroutine refuted(ledger, residual, verdicts, item)
+        type(obligation_ledger_t), intent(in) :: ledger
+        type(expr_t), intent(in) :: residual
+        character(*), intent(in) :: verdicts
+        type(obligation_t), intent(inout) :: item
+        character(:), allocatable :: why
+
+        if (.not. ledger%allow_probe) then
+            item%status = OBLIGATION_FAILED
+            item%evidence = str(verdicts//"; probing disabled: "// &
+                chars(print_expr(residual)))
+            return
+        end if
+        call probe(ledger, residual, item%status, why)
+        if (item%status == OBLIGATION_PROBED) then
+            item%evidence = str("FINDING engines refute ("//verdicts// &
+                ") but the probe vanishes; "//why)
+        else
+            item%evidence = str(verdicts//", confirmed by probe: "//why)
+        end if
+    end subroutine refuted
 
     logical function decided(r)
         type(engine_result_t), intent(in) :: r

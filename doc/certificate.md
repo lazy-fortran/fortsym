@@ -108,8 +108,13 @@ expansion in pitch angle, but nothing in the module refers to one.
 ## Proof obligations
 
 `prove_zero(ledger, label, residual)` asks the native decision procedure
-and SymEngine. Agreement on zero is PROVED; a decided nonzero or a
-disagreement is FAILED, never a vote. If no engine decides, the residual is
+and SymEngine. A zero verdict with no contrary verdict is PROVED. A
+"nonzero" verdict or a disagreement is never taken on its own and never
+averaged: outside their decidable fragments both engines refute true
+identities (symbolic exponents such as `x*x**(l-1) = x**l`, normal forms
+that overflowed), so the residual is probed. If the probe confirms, the
+item FAILS; if the probe vanishes, the item is PROBED and its evidence
+starts with `FINDING` so the conflict stays visible. If no engine decides, the residual is
 evaluated to 40 digits at random exact rational points, with every opaque
 function value and derivative replaced by an independent rational (jet
 substitution); vanishing at all points is PROBED, which the report labels as
@@ -121,7 +126,8 @@ probed. Consumers refuse to emit kernels when the ledger does not hold.
 The cross-check is not decorative: on the 4x4 example the native engine
 once refuted the Ritz tightness identity after its rational normal form
 overflowed 64-bit coefficients, while SymEngine and exact evaluation gave
-zero. The native engine now leaves such residuals undecided.
+zero. The native engine now leaves such residuals undecided, and it no
+longer refutes residuals that contain powers with symbolic exponents.
 
 ## Examples
 
