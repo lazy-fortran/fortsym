@@ -326,7 +326,27 @@ contains
             if (r%conditional) call check("native factor condition is named", &
                 chars(r%condition) == "cancelled denominator bases must be nonzero")
         end if
+        call test_overflowed_normal_form_is_undecided()
     end subroutine test_polynomial_cancellation
+
+    !> A true rational identity whose normal form overflows checked 64-bit
+    !> coefficient arithmetic. Before the fix the leftover residual was
+    !> reported NONZERO; it must stay undecided (or be decided zero).
+    subroutine test_overflowed_normal_form_is_undecided()
+        type(engine_result_t) :: r
+        type(expr_t) :: p, den, a, b, e
+
+        p = sym(arena, "p")
+        den = p**2 - p*8 + 52
+        a = (p - rat(arena, 8_int64, 5_int64))*10/den
+        b = (p - rat(arena, 8_int64, 5_int64))*(p + rat(arena, 4_int64, 5_int64))* &
+            rat(arena, 25_int64, 3_int64)/den + rat(arena, 5_int64, 3_int64)
+        e = -a**2*3 - a*4 - (p*a - b)**2/2 - (a*2 - b/2)**2/rat(arena, 5_int64, 2_int64) &
+            - (b - (p - rat(arena, 8_int64, 5_int64))*20/den) + b*2
+        r = engine%zero_test(e)
+        call check("native zero test does not refute an identity after overflow", &
+            r%verdict /= VERDICT_FALSE)
+    end subroutine test_overflowed_normal_form_is_undecided
 
     subroutine test_expansion()
         type(engine_result_t) :: r
