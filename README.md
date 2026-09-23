@@ -115,6 +115,14 @@ generated output until a consumer measures another choice. Complex kernels
 set `scalar_type`; optional per-input `arg_types` retain mixed intrinsic
 arithmetic such as complex divided by real.
 
+**Generate rigorous kernels.** `fortsym_rigorous_emit` renders one DAG as a
+floating-point leaf and as an enclosure leaf whose outputs contain the exact
+value for every input in the argument balls or intervals. Rational literals
+stay exact, decimal literals are refused, and the leaf calls a small
+pluggable runtime interface rather than a fortsym runtime. The same spec thus
+drives a trial solver and a certified evaluation. See
+[`doc/rigorous-runtime.md`](doc/rigorous-runtime.md).
+
 **Cross-check engines.** When several engines answer, agreement raises
 confidence and **disagreement is reported as a finding**, not averaged away: it
 means one of them is wrong. Per-engine timings fall out of normal operation, so

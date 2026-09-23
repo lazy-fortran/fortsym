@@ -55,6 +55,13 @@ fortsym_add_test(test_fortsym_council council/test_fortsym_council.f90)
 fortsym_add_test(test_fortsym_enzyme codegen/test_fortsym_enzyme.f90)
 fortsym_add_test(test_fortsym_kernel_emit codegen/test_fortsym_kernel_emit.f90)
 fortsym_add_test(test_fortsym_kernel_ir codegen/test_fortsym_kernel_ir.f90)
+fortsym_add_test(test_fortsym_rigorous_emit codegen/test_fortsym_rigorous_emit.f90)
+# The emitted leaves are compiled against the reference runtimes, which are
+# test fixtures rather than library modules.
+if(TEST test_fortsym_rigorous_emit)
+    set_property(TEST test_fortsym_rigorous_emit APPEND PROPERTY ENVIRONMENT
+        "FORTSYM_TEST_RUNTIME_DIR=${CMAKE_CURRENT_SOURCE_DIR}/codegen/runtime")
+endif()
 fortsym_add_test(test_fortsym_kernel codegen/test_fortsym_kernel.f90)
 fortsym_add_test(test_fortsym_wl_f90 codegen/test_fortsym_wl_f90.f90)
 
