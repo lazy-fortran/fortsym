@@ -68,6 +68,7 @@ fortsym_add_test(test_fortsym_wl_f90 codegen/test_fortsym_wl_f90.f90)
 # --- verification ---
 fortsym_add_test(test_fortsym_accuracy verify/test_fortsym_accuracy.f90)
 fortsym_add_test(test_fortsym_check verify/test_fortsym_check.f90)
+fortsym_add_test(test_fortsym_certificate verify/test_fortsym_certificate.f90)
 fortsym_add_test(test_fortsym_numeric verify/test_fortsym_numeric.f90)
 fortsym_add_test(test_fortsym_backend codegen/test_fortsym_backend.f90)
 fortsym_add_test(test_fortsym_exact_padding core/test_fortsym_exact_padding.f90)
@@ -106,6 +107,9 @@ fortsym_add_test(test_fortsym_easy_geometry calculus/test_fortsym_easy_geometry.
 
 # --- executable examples and geometry derivations ---
 add_test(NAME example_workflow COMMAND example_workflow)
+add_test(NAME example_certificate_matrix COMMAND example_certificate_matrix)
+add_test(NAME example_certificate_advection_diffusion
+    COMMAND example_certificate_advection_diffusion)
 add_test(NAME example_de_sitter COMMAND example_de_sitter)
 add_test(NAME example_gps_newtonian_limit COMMAND example_gps_newtonian_limit)
 add_test(NAME example_pseudo_riemannian COMMAND example_pseudo_riemannian)

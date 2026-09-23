@@ -263,22 +263,22 @@
     {
       "from": "verify",
       "to": "core",
-      "uses": 12
+      "uses": 19
     },
     {
       "from": "verify",
       "to": "engine",
-      "uses": 3
+      "uses": 8
     },
     {
       "from": "verify",
       "to": "io",
-      "uses": 1
+      "uses": 2
     },
     {
       "from": "verify",
       "to": "util",
-      "uses": 5
+      "uses": 7
     }
   ],
   "modules": [
@@ -409,6 +409,21 @@
       "name": "fortsym_capi",
       "owner": "capi",
       "path": "src/capi/fortsym_capi.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_expr",
+        "fortsym_numeric",
+        "fortsym_obligation",
+        "fortsym_string",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_certificate",
+      "owner": "verify",
+      "path": "src/verify/fortsym_certificate.f90"
     },
     {
       "dependencies": [
@@ -939,6 +954,23 @@
     {
       "dependencies": [
         "fortsym_arena",
+        "fortsym_assume",
+        "fortsym_engine",
+        "fortsym_engine_native",
+        "fortsym_engine_symengine",
+        "fortsym_expr",
+        "fortsym_numeric",
+        "fortsym_print",
+        "fortsym_string",
+        "fortsym_subs"
+      ],
+      "name": "fortsym_obligation",
+      "owner": "verify",
+      "path": "src/verify/fortsym_obligation.f90"
+    },
+    {
+      "dependencies": [
+        "fortsym_arena",
         "fortsym_diff",
         "fortsym_engine",
         "fortsym_engine_native",
@@ -1427,11 +1459,11 @@
     "cycles": 0,
     "duplicate_modules": 0,
     "facade_importers": 0,
-    "internal_edges": 494,
+    "internal_edges": 512,
     "module_file_mismatches": 0,
-    "module_units": 93,
-    "modules": 93,
-    "source_units": 94,
+    "module_units": 95,
+    "modules": 95,
+    "source_units": 96,
     "unknown_internal_dependencies": 0
   },
   "violations": {

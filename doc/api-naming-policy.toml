@@ -181,6 +181,16 @@ sympy_adapter = []
 decision = "fortsym_rigorous_emit owns enclosure emission. The float and rigorous emitters share one name family because they render one lowered operation list; runtime descriptors are values, so a consumer runtime plugs in without a new emitter."
 
 [[family]]
+id = "certified-outputs"
+audit_concepts = ["code-generation"]
+canonical_native = ["obligation_t", "obligation_ledger_t", "prove_zero", "prove_positive", "record_obligation", "ledger_holds", "ledger_report", "obligation_status_name", "opaque_leaves", "OBLIGATION_PROVED", "OBLIGATION_PROBED", "OBLIGATION_FAILED", "OBLIGATION_UNKNOWN", "operator_split_t", "split_bounds_t", "dwr_t", "derivation_t", "first_order_t", "split_obligations", "split_bounds", "split_exact", "split_indicators", "odd_source_transfer", "split_dwr", "dwr_exact", "dwr_gradient", "weighted_adjoint", "polarisation", "apply_derivation", "derivation_symbol", "first_order_adjoint", "ladder_obligations", "constraint_obligations"]
+current_native = ["obligation_t", "obligation_ledger_t", "prove_zero", "prove_positive", "record_obligation", "ledger_holds", "ledger_report", "obligation_status_name", "opaque_leaves", "OBLIGATION_PROVED", "OBLIGATION_PROBED", "OBLIGATION_FAILED", "OBLIGATION_UNKNOWN", "operator_split_t", "split_bounds_t", "dwr_t", "derivation_t", "first_order_t", "split_obligations", "split_bounds", "split_exact", "split_indicators", "odd_source_transfer", "split_dwr", "dwr_exact", "dwr_gradient", "weighted_adjoint", "polarisation", "apply_derivation", "derivation_symbol", "first_order_adjoint", "ladder_obligations", "constraint_obligations"]
+transition_aliases = []
+python_facade = []
+sympy_adapter = []
+decision = "fortsym_obligation owns the proof-obligation ledger and fortsym_certificate the split, ladder, and residual-pairing derivations. The split_ and dwr_ prefixes name the representation a procedure works on; ledger verbs stay short because they are called once per derived identity."
+
+[[family]]
 id = "numeric-inspection"
 audit_concepts = ["numeric-inspection"]
 canonical_native = ["numeric_value", "numeric_text", "numeric_precision_text", "numeric_real_text_t", "numeric_complex_text", "numeric_complex_text_t", "numeric_callable_t"]

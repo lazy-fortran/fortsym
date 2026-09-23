@@ -84,6 +84,8 @@ target_sources(fortsym PRIVATE
     verify/fortsym_numeric.f90
     verify/fortsym_accuracy.f90
     verify/fortsym_check.f90
+    verify/fortsym_obligation.f90
+    verify/fortsym_certificate.f90
     verify/fortsym_rk_trees.f90
     core/fortsym_quadratic.f90
     algebra/fortsym_quadratic_linalg.f90
