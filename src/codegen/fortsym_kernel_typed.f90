@@ -320,7 +320,14 @@ contains
         expval = ir%nodes(exp_idx)%value
         if (abs(expval - nint(expval)) < 1.0e-12_dp) then
             iexp = nint(expval)
-            text = ref(base_idx)//str("**")//str(iexp)
+            if (iexp < 0) then
+                ! A bare "**-3" is a GNU extension gfortran warns about
+                ! (Extension: Unary operator following arithmetic operator);
+                ! "**(-3)" is standard-conforming and silent.
+                text = ref(base_idx)//str("**(")//str(iexp)//str(")")
+            else
+                text = ref(base_idx)//str("**")//str(iexp)
+            end if
         else if (abs(expval - 0.5_dp) < 1.0e-12_dp) then
             call function_spelling(spec, "sqrt", fname)
             text = fname//str("(")//ref(base_idx)//str(")")
