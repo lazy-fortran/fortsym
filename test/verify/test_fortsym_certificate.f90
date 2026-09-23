@@ -125,6 +125,10 @@ contains
         call prove_zero(led, "jet identity", apply_derivation(derivation(), 1/rho) + &
             drho()/rho**2)
         call check("jet identity is PROVED", led%items(4)%status == OBLIGATION_PROVED)
+        call prove_zero(led, "symbolic exponent identity", &
+            x*(x**2*(l*x**(l - 1)))/x**2 - l*x**l)
+        call check("identity with a symbolic exponent is not refuted", &
+            led%items(5)%status /= OBLIGATION_FAILED)
         led%allow_probe = .false.
         call check("probe evidence rejected when probes are disallowed", &
             .not. ledger_holds(led))
