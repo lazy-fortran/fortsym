@@ -54,6 +54,7 @@ fortsym_add_test(test_fortsym_council council/test_fortsym_council.f90)
 # --- code generation ---
 fortsym_add_test(test_fortsym_enzyme codegen/test_fortsym_enzyme.f90)
 fortsym_add_test(test_fortsym_kernel_emit codegen/test_fortsym_kernel_emit.f90)
+fortsym_add_test(test_fortsym_kernel_typed codegen/test_fortsym_kernel_typed.f90)
 fortsym_add_test(test_fortsym_kernel_ir codegen/test_fortsym_kernel_ir.f90)
 fortsym_add_test(test_fortsym_rigorous_emit codegen/test_fortsym_rigorous_emit.f90)
 # The emitted leaves are compiled against the reference runtimes, which are
