@@ -4,6 +4,12 @@
 add_executable(gen_demo gen_demo.f90)
 target_link_libraries(gen_demo PRIVATE fortsym)
 
+add_executable(gen_dual_demo gen_dual_demo.f90)
+target_link_libraries(gen_dual_demo PRIVATE fortsym)
+
+add_executable(gen_taylor_demo gen_taylor_demo.f90)
+target_link_libraries(gen_taylor_demo PRIVATE fortsym)
+
 add_executable(gen_legendre_recurrence gen_legendre_recurrence.f90)
 target_link_libraries(gen_legendre_recurrence PRIVATE fortsym)
 
