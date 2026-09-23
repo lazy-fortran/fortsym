@@ -346,6 +346,12 @@ contains
         r = engine%zero_test(e)
         call check("native zero test does not refute an identity after overflow", &
             r%verdict /= VERDICT_FALSE)
+        r = engine%zero_test(x*x**(p - 1) - x**p)
+        call check("native zero test does not refute x*x**(p-1) = x**p", &
+            r%verdict /= VERDICT_FALSE)
+        r = engine%zero_test(x**(p + 1)/x - x**p)
+        call check("native zero test does not refute x**(p+1)/x = x**p", &
+            r%verdict /= VERDICT_FALSE)
     end subroutine test_overflowed_normal_form_is_undecided
 
     subroutine test_expansion()
