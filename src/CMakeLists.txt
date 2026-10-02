@@ -133,8 +133,10 @@ target_include_directories(fortsym
         $<INSTALL_INTERFACE:include>
     PRIVATE ${PROJECT_SOURCE_DIR}/src/capi)
 
+target_link_libraries(fortsym PRIVATE
+    fortgen::fortgen)
+
 target_link_libraries(fortsym PUBLIC
-    $<BUILD_INTERFACE:fortgen::fortgen>
     $<BUILD_INTERFACE:fortsym::symengine>
     $<BUILD_INTERFACE:fortsym::mpfr>
     $<BUILD_INTERFACE:fortsym::flint>
