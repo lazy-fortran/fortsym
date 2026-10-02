@@ -30,7 +30,7 @@ naming rule and lifetime contract.
    and the bounded sparse multivariate polynomial/rational layer.
 6. `src/council` compares supported engine answers and records disagreement.
 7. `src/verify` supplies independent real evaluation and three-valued checks.
-8. `src/codegen` selects shared subexpressions and emits Fortran kernels.
+8. `src/codegen` lowers FortSym expressions and delegates ordinary scalar Fortran/CUDA emission through the pinned FortGen kernel IR/backend. FortSym retains typed, Taylor, rigorous, and expression-aware wrappers.
 
 ### Module ownership audit
 
@@ -48,6 +48,11 @@ cross-directory edges for review; aggregation by `fortsym`, the public C ABI,
 Wolfram I/O, and the native engine is intentional orchestration, not a second
 public vocabulary. Generated source units without a module are listed rather
 than treated as module owners.
+
+The ordinary scalar kernel IR has a public counterpart in FortGen
+(`fortgen.kernel_ir.v1`). `fortsym_fortgen_adapter` is deliberately one-way:
+FortSym owns the symbolic DAG, while the backend receives only a topological
+numeric kernel DAG. Existing FortSym public types remain source-compatible.
 
 Kernel targets are represented by stable integer identities with canonical
 names: `fortran_cpu`, `fortran_openmp_target`, `fortran_openacc`, and `cuda`.
