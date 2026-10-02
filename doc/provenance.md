@@ -189,7 +189,11 @@ Versions, licences and linking rules are in `LEGAL.md` §3 and
 
 The ordinary scalar Fortran/CUDA backend is shared with
 [`lazy-fortran/fortgen`](https://github.com/lazy-fortran/fortgen) (MIT) at the
-exact revision pinned in `fpm.toml` and `CMakeLists.txt`. FortGen receives
+exact revision pinned in `fpm.toml` and `CMakeLists.txt`.
+ The compatibility bridge is original code in
+`src/codegen/fortsym_fortgen_adapter.f90`; it performs only a field-by-field
+mapping from FortSym's established scalar DAG to the public FortGen IR and
+contains no adapted third-party algorithm. FortGen receives
 only the lowered scalar kernel IR; it is not a symbolic-algebra oracle and does
 not participate in CAS decisions. The direct SymPy frontend in FortGen gives an
 independent route into the same backend.
