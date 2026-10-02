@@ -95,6 +95,13 @@ Candidate simplifications from every engine are *verified equivalent first*,
 then ranked by operation count after CSE — so the winner is the cheapest form
 that is provably the same function.
 
+Generated numerical leaves now lower through the shared
+[FortGen](https://github.com/lazy-fortran/fortgen) scalar kernel backend. FortSym
+still owns symbolic expressions, CAS adjudication, differentiation, geometry,
+and the `expr_t -> kernel IR` lowering; FortGen owns the neutral scalar IR
+contract and final Fortran/CUDA source spelling. This is also the backend used
+by FortGen's direct ordinary-SymPy frontend.
+
 Generated numerical leaves select a stable target identity: `fortran_cpu`,
 `fortran_openmp_target`, `fortran_openacc`, or `cuda`. The target only chooses
 source spelling and leaf decoration; fortsym emits no parallel schedule, data
