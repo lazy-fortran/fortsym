@@ -51,6 +51,18 @@ include(cmake/deps/yacas.cmake)
 # options, while fortplot owns rendering. Keep the upstream revision pinned and
 # avoid pulling fortarray into the symbolic library.
 include(FetchContent)
+
+# Scalar code generation is shared with the direct SymPy frontend through
+# FortGen. Pin the same revision as fpm so both build systems exercise one
+# backend contract.
+set(FORTGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(fortgen
+    GIT_REPOSITORY https://github.com/lazy-fortran/fortgen.git
+    GIT_TAG b8bbb2254a3b3218ab8fbc89db31e8d34c8f7534
+    GIT_SHALLOW FALSE
+)
+FetchContent_MakeAvailable(fortgen)
+
 set(FORTPLOT_BUILD_FORTARRAY_ADAPTER OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(fortplot
     GIT_REPOSITORY https://github.com/lazy-fortran/fortplot.git
