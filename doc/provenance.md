@@ -183,3 +183,13 @@ does**, and none of these is a permitted implementation source.
 
 Versions, licences and linking rules are in `LEGAL.md` §3 and
 `doc/upstream-baselines.toml`, which is authoritative.
+
+
+## Shared code-generation dependency
+
+The ordinary scalar Fortran/CUDA backend is shared with
+[`lazy-fortran/fortgen`](https://github.com/lazy-fortran/fortgen) (MIT) at the
+exact revision pinned in `fpm.toml` and `CMakeLists.txt`. FortGen receives
+only the lowered scalar kernel IR; it is not a symbolic-algebra oracle and does
+not participate in CAS decisions. The direct SymPy frontend in FortGen gives an
+independent route into the same backend.
