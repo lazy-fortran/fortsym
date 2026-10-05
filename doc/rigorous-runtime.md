@@ -84,6 +84,14 @@ Unmatched operations use the scalar `sin`/`cos` fields and still require their
 names; a descriptor naming only `sincos` suffices for complete pairs.
 Default descriptors leave `sincos` empty, preserving existing dispatch.
 
+The optional `abs` descriptor names a unary enclosure function for the entire
+absolute-value image of its input, including intervals crossing zero.
+Default descriptors leave this field empty and reject rigorous absolute
+value; the floating leaf uses the Fortran intrinsic. Complex floating
+absolute value has a real result. The real derivative `x/abs(x)` is supported
+only for `x /= 0`; an enclosure reaching zero gives no finite derivative
+certificate. This operation does not introduce a derivative at the cusp.
+
 ## Runtime interface
 
 A runtime is a Fortran module with one enclosure type and the procedures
