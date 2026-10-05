@@ -9,8 +9,9 @@
   runtime, so each output encloses the exact value of the expression for
   every input inside the argument enclosures.
 
-Both leaves come from the same lowered operation list, so they perform the
-same operations in the same order. A consumer that assembles a trial
+Both leaves come from the same lowered scalar operation list. An optional
+paired sine/cosine runtime call shares evaluation work in the rigorous leaf
+while preserving these scalar expressions. A consumer that assembles a trial
 operator in floating point and evaluates a certified functional with balls
 therefore cannot end up with two different formulas: there is one spec.
 
@@ -71,6 +72,17 @@ and `cos` operations are emitted only when the runtime descriptor names
 the corresponding enclosure procedures. Their contract is enclosure over
 the entire input interval or ball; the emitter does not assume libm rounding.
 Default descriptors leave these names unset and continue to refuse them.
+
+An optional `sincos` descriptor names a subroutine
+`sincos(argument, sine, cosine)`, with one input enclosure and two output
+enclosures. It must enclose both exact images over the entire input enclosure,
+and be pure/elemental whenever the generated leaf requires that property.
+When sine and cosine have the identical lowered argument, the rigorous
+renderer calls this procedure once at the earlier operation. The symbolic
+DAG, derivatives, and floating leaf retain their separate scalar functions.
+Unmatched operations use the scalar `sin`/`cos` fields and still require their
+names; a descriptor naming only `sincos` suffices for complete pairs.
+Default descriptors leave `sincos` empty, preserving existing dispatch.
 
 ## Runtime interface
 
@@ -136,3 +148,10 @@ for an intrinsic transcendental call. Floating leaves use the corresponding
 Fortran intrinsic. The emitter's special-value compile/run fixture tests
 runtime dispatch independently; numerical enclosure algorithms remain the
 runtime owner's responsibility.
+
+`test_fortsym_rigorous_sincos` additionally compiles paired, reversed-order,
+unmatched, mixed and nested dispatch, and the derivatives of the shared
+expression. Its interval fixture uses exact dyadic Taylor bounds on
+`[-1/2,1/2]`; independent binary128 point and box-interior values must lie
+inside the emitted value and derivative enclosures. This is an emitter
+dispatch check, not evidence for a production runtime's rounding algorithm.
