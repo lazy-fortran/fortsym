@@ -951,8 +951,13 @@ p = result%value
 ```
 
 `diff` is the evaluated native derivative. The `fortsym_diff` module remains
-available for the deliberately unsimplified derivative DAG. `subs` is structural and
-simultaneous for its one replacement pair; `subs_many` applies paired arrays
+available for the deliberately unsimplified derivative DAG. Its repeated
+polynomial derivatives preserve real domains for literal exact exponents.
+Normalize composed constant exponents before low-level differentiation;
+`diff_n(x**(2+1), x, 4)` and `diff_n(x**(1+0), x, 2)` can otherwise emit NaNs
+at `x=0`. The [manual compiled reproducer](reproducers/composed-exponent/README.md)
+retains this open limitation and the independent finite-zero oracle.
+`subs` is structural and simultaneous for its one replacement pair; `subs_many` applies paired arrays
 simultaneously. `simplify`, `refine`, `expand`, and
 `factor` use the native engine in the expression's arena. All six functions
 return the

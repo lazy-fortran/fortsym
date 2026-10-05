@@ -7,17 +7,17 @@ module fortsym_diff
     ! components and twenty-seven of their derivatives, and paying a conversion
     ! (or worse, a subprocess) for each would dominate everything else.
     !
-    ! Results are not simplified. d(x*y)/dx comes back as 1*y + x*0 rather than
-    ! y, because simplification belongs to the engines and the council, and
-    ! hash-consing means the redundant pieces cost one node each rather than a
-    ! subtree. Callers that want a tidy result ask an engine for one; callers
-    ! generating a kernel let CSE and the tournament handle it.
+    ! Results are not generally simplified. Exact zeros and literal exact
+    ! exponent shifts preserve polynomial domains under repeated differentiation.
+    ! Composed constant exponents require normalization before differentiation;
+    ! broader simplification belongs to the engines and the council.
     use, intrinsic :: iso_fortran_env, only: int64
-    use fortsym_string, only: str, chars
+    use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
         NK_ALGEBRAIC
-    use fortsym_expr, only: expr_t, sym, num, func, partial, is_valid, &
+    use fortsym_exact, only: exact_sub
+    use fortsym_expr, only: expr_t, sym, num, exact, func, partial, is_valid, &
         besselj, besseli, besselk, legendrep, legendreq, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), sin, cos, tan, exp, log, sqrt, abs, sinh, cosh, tanh
@@ -33,6 +33,7 @@ contains
         type(expr_t), intent(in) :: e, v
         type(expr_t)             :: d
         type(arena_t), pointer :: a
+        type(expr_t) :: term
         integer :: k, n
 
         a => e%a
@@ -54,9 +55,15 @@ contains
             end if
 
         case (NK_ADD)
-            d = diff(e%arg(1), v)
-            do k = 2, e%nargs()
-                d = d + diff(e%arg(k), v)
+            d = num(a, 0)
+            do k = 1, e%nargs()
+                term = diff(e%arg(k), v)
+                if (is_zero(term)) cycle
+                if (is_zero(d)) then
+                    d = term
+                else
+                    d = d + term
+                end if
             end do
 
         case (NK_MUL)
@@ -114,15 +121,36 @@ contains
     recursive function diff_power(e, v) result(d)
         type(expr_t), intent(in) :: e, v
         type(expr_t)             :: d
-        type(expr_t) :: base, expo, dbase, dexpo
+        type(expr_t) :: base, expo, dbase, dexpo, reduced_expo
+        type(str_t) :: reduced_text
+        logical :: reduced_ok
 
         base = e%arg(1)
         expo = e%arg(2)
+        if (is_zero(expo)) then
+            d = num(e%a, 0)
+            return
+        end if
         dbase = diff(base, v)
+        if (is_one(expo)) then
+            d = dbase
+            return
+        end if
         dexpo = diff(expo, v)
 
         if (is_zero(dexpo)) then
-            d = expo*base**(expo - 1)*dbase
+            if (is_zero(dbase)) then
+                d = num(e%a, 0)
+                return
+            end if
+            reduced_expo = expo - 1
+            select case (expo%kind())
+            case (NK_INT, NK_RAT, NK_BIG_INT, NK_BIG_RAT)
+                reduced_text = exact_sub(chars(expo%a%exact_text_of(expo%id)), &
+                    "1", reduced_ok)
+                if (reduced_ok) reduced_expo = exact(e%a, chars(reduced_text))
+            end select
+            d = expo*base**reduced_expo*dbase
             return
         end if
 

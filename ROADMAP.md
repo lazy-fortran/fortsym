@@ -211,6 +211,10 @@ SymPy parity for the entire family.
 
 - [ ] Complete scalar, multivariate, implicit, indexed, matrix, tensor, and
       unevaluated derivative semantics for `diff`, `Derivative`, and `doit`.
+- [ ] Preserve low-level repeated-derivative domains for unsimplified composed
+      constant exponents; retain the [compiled finite-zero reproducer](
+      doc/reproducers/composed-exponent/README.md). Literal exact exponent shifts
+      are handled independently of broader native simplification.
 - [ ] Complete Taylor, Laurent, Puiseux, formal, asymptotic, and composed
       series, including `Order` and coefficient extraction.
 - [ ] Complete residues, sequence limits, directional limits, one-sided

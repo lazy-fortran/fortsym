@@ -38,6 +38,7 @@ program test_fortsym_kernel
     character(len=2), parameter :: R12_OUT(2) = [character(len=2) :: "r1", "r2"]
     integer :: nfail = 0
 
+    call test_repeated_polynomial_derivatives()
     call test_exact_constant_quotients()
     call test_cse_finds_sharing()
     call test_cse_skips_atoms()
@@ -85,6 +86,89 @@ program test_fortsym_kernel
     end if
 
 contains
+
+    subroutine test_repeated_polynomial_derivatives()
+        type(arena_t), target :: a
+        type(expr_t) :: x, roots(8), symbolic(1), polynomial
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code, symbolic_code
+        integer :: unit, stat, j
+        character(2) :: output_name
+        logical :: good
+
+        call a%init()
+        x = sym(a, "x")
+        polynomial = x**2
+        roots(1) = diff(diff(polynomial, x), x)
+        roots(2) = diff(roots(1), x)
+        polynomial = x**4
+        roots(3) = diff(diff(diff(diff(polynomial, x), x), x), x)
+        roots(4) = diff(roots(3), x)
+        roots(5) = diff(diff((2*x + 1)**2, x), x)
+        roots(6) = diff(x**num(a, 0), x)
+        roots(7) = diff(x**num(a, 1), x)
+        roots(8) = diff(diff(diff(x**num(a, 3), x), x), x)
+        spec%name = str("repeated_polynomial_derivatives")
+        allocate (spec%args(1), spec%outputs(8))
+        spec%args(1) = str("x")
+        do j = 1, 8
+            write (output_name, '(a,i1)') "r", j
+            spec%outputs(j) = str(output_name)
+        end do
+        spec%openmp_declare_target = .false.
+        spec%openacc_routine_seq = .false.
+        code = chars(emit_kernel(roots, spec, good))
+        call ok("repeated polynomial derivatives emit", good)
+        if (.not. good) return
+        symbolic(1) = diff(x**x, x)
+        spec%name = str("symbolic_exponent_derivative")
+        deallocate (spec%outputs)
+        allocate (spec%outputs(1))
+        spec%outputs(1) = str("r")
+        symbolic_code = chars(emit_kernel(symbolic, spec, good))
+        call ok("symbolic exponent derivative emits", good)
+        if (.not. good) return
+        open (newunit=unit, file="/tmp/fortsym_polynomial_derivatives.f90", &
+            status="replace", action="write")
+        write (unit, '(a)') code
+        write (unit, '(a)') symbolic_code
+        write (unit, '(a)') "program drive_polynomial_derivatives"
+        write (unit, '(a)') "use, intrinsic :: iso_fortran_env, only: real64"
+        write (unit, '(a)') "use, intrinsic :: ieee_arithmetic, only: ieee_is_finite"
+        write (unit, '(a)') "implicit none"
+        write (unit, '(a)') "real(real64) :: x, r(8), value, expected"
+        write (unit, '(a)') "integer :: k"
+        write (unit, '(a)') "do k=-1,1"
+        write (unit, '(a)') "x=real(k,real64)"
+        write (unit, '(a)') "call repeated_polynomial_derivatives(x,r(1),r(2),"// &
+            "r(3),r(4),r(5),r(6),r(7),r(8))"
+        write (unit, '(a)') "if (.not. all(ieee_is_finite(r))) error stop 1"
+        write (unit, '(a)') "if (maxval(abs(r - "// &
+            "[2.0_real64,0.0_real64,24.0_real64,0.0_real64,8.0_real64,"// &
+            "0.0_real64,1.0_real64,6.0_real64])) > 1.0e-13_real64) error stop 2"
+        write (unit, '(a)') "end do"
+        write (unit, '(a)') "do k=1,4"
+        write (unit, '(a)') "x=0.5_real64*real(k,real64)"
+        write (unit, '(a)') "call symbolic_exponent_derivative(x,value)"
+        write (unit, '(a)') "expected=x**x*(log(x)+1.0_real64)"
+        write (unit, '(a)') "if (.not. ieee_is_finite(value)) error stop 3"
+        write (unit, '(a)') "if(abs(value-expected)>1.0e-13_real64) error stop 4"
+        write (unit, '(a)') "end do"
+        write (unit, '(a)') "end program drive_polynomial_derivatives"
+        close (unit)
+        call execute_command_line("gfortran -O2 -fno-fast-math "// &
+            "-ffp-contract=off -o /tmp/fortsym_polynomial_derivatives "// &
+            "/tmp/fortsym_polynomial_derivatives.f90 "// &
+            "> /tmp/fortsym_polynomial_derivatives.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("repeated polynomial derivatives compile", stat == 0)
+        if (stat /= 0) return
+        call execute_command_line("/tmp/fortsym_polynomial_derivatives "// &
+            ">> /tmp/fortsym_polynomial_derivatives.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("literal-exponent derivatives retain real domains and exact values", &
+            stat == 0)
+    end subroutine test_repeated_polynomial_derivatives
 
     subroutine test_exact_constant_quotients()
         type(arena_t), target :: a
