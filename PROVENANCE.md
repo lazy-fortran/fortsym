@@ -34,6 +34,7 @@ documentation.
 | Rational equation solution sets | SymPy 1.14.0 `solveset` and `Complement` documentation, pinned in `scripts/collect_provenance.py` | official documentation only, BSD-3-Clause project | native verified numerator roots plus denominator-pole exclusions; no source copied |
 | CAS architecture taxonomy | Meurer et al., PeerJ Computer Science 3:e103, 2017, DOI 10.7717/peerj-cs.103 | SymPy public source, BSD-3-Clause | feature and benchmark classification |
 | Embedded CAS architecture | Bauer, Frink, and Kreckel, JSC 33, 2002, DOI 10.1006/jsco.2001.0494 | GiNaC source not copied, GPL | architecture comparison only |
+| Emitted numerical audit | original local exact-rational map, centered finite differences, and adjoint duality | existing FortSym emitter APIs and reference interval fixture only | `app/gen_emitted_kernel_audit.f90` and `benchmark/harnesses/bench_emitted_kernels.f90`: native shared-definition generator, independent real128/derivative checks, and raw execution samples; no external workload copied |
 | Benchmark inputs | SymEngine 0.14.0 benchmark directory, MIT | pinned official source | planned attributed ports after semantic review |
 
 The standalone `sympy_benchmarks` repository at inspected revision

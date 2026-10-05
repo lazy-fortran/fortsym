@@ -42,6 +42,37 @@ target_link_libraries(bench_algebraic PRIVATE fortsym)
 add_executable(bench_complexdom bench_complexdom.f90)
 target_link_libraries(bench_complexdom PRIVATE fortsym)
 
+# Emitted runtime measurements are optional; correctness has its own short gate.
+add_executable(gen_emitted_kernel_audit gen_emitted_kernel_audit.f90)
+target_link_libraries(gen_emitted_kernel_audit PRIVATE fortsym)
+execute_process(COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    OUTPUT_VARIABLE FORTSYM_AUDIT_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT FORTSYM_AUDIT_REVISION)
+    set(FORTSYM_AUDIT_REVISION "unknown-source-revision")
+endif()
+set(FORTSYM_AUDIT_SOURCE ${CMAKE_CURRENT_BINARY_DIR}/emitted_audit_kernels.f90)
+add_custom_command(OUTPUT ${FORTSYM_AUDIT_SOURCE}
+    COMMAND gen_emitted_kernel_audit ${FORTSYM_AUDIT_SOURCE} ${FORTSYM_AUDIT_REVISION}
+    DEPENDS gen_emitted_kernel_audit
+    VERBATIM)
+add_library(fortsym_emitted_audit_kernels STATIC ${FORTSYM_AUDIT_SOURCE}
+    ${PROJECT_SOURCE_DIR}/test/codegen/runtime/fortsym_interval_runtime.f90)
+set(FORTSYM_AUDIT_MODULES ${CMAKE_CURRENT_BINARY_DIR}/audit-modules)
+file(MAKE_DIRECTORY ${FORTSYM_AUDIT_MODULES})
+set_target_properties(fortsym_emitted_audit_kernels PROPERTIES
+    Fortran_MODULE_DIRECTORY ${FORTSYM_AUDIT_MODULES})
+target_include_directories(fortsym_emitted_audit_kernels PUBLIC ${FORTSYM_AUDIT_MODULES})
+add_executable(bench_emitted_kernels
+    ${PROJECT_SOURCE_DIR}/benchmark/harnesses/bench_emitted_kernels.f90)
+target_link_libraries(bench_emitted_kernels PRIVATE fortsym_emitted_audit_kernels)
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(fortsym_emitted_audit_kernels PRIVATE
+        -O3 -fno-fast-math -ffp-contract=off)
+    target_compile_options(bench_emitted_kernels PRIVATE
+        -O3 -fno-fast-math -ffp-contract=off)
+endif()
+
 add_executable(fortsym_wl_to_f90 fortsym_wl_to_f90.f90)
 target_link_libraries(fortsym_wl_to_f90 PRIVATE fortsym)
 

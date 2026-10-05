@@ -58,6 +58,15 @@ FE basis evaluation, assembly, and solver workflows are FortFEM work.
   example. Tests compare independently computed behaviour, not repository
   state or duplicated formulas.
 
+## Emitted numerical kernel feedback
+
+- [x] Retain a native emitted primal/JVP/VJP and reference-enclosure audit from
+      one symbolic definition, with independent correctness checks and raw
+      timing/memory records separate from the registered short gate.
+- [ ] Add bounded-roundoff emission only with a justified arithmetic/domain
+      model and independent oracle; measure caller-certified accuracy before
+      optimizing its execution schedule. See [benchmark contracts](doc/benchmarks.md).
+
 ## Definition of done for every parity slice
 
 - [ ] SymPy 1.14.0 reference cases cover ordinary, boundary, branch, domain,
