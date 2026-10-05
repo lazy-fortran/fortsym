@@ -76,8 +76,8 @@ rule, which is tighter than the monomial sum on enclosures.
 Exact constant arithmetic in exponents is folded before classification, so
 unsimplified derivative products containing `2-1` or `-1-1` require no caller
 simplification. Symbolic or decimal exponents and cube roots are refused.
-Optional `exp`, `sin`
-and `cos` operations are emitted only when the runtime descriptor names
+Optional `exp`, `sin`, `cos`
+and `log` operations are emitted only when the runtime descriptor names
 the corresponding enclosure procedures. Their contract is enclosure over
 the entire input interval or ball; the emitter does not assume libm rounding.
 Default descriptors leave these names unset and continue to refuse them.
@@ -120,7 +120,7 @@ spellings and accept a module and type name override.
 | `sqrt(a)` | `bsqrt` | `isqrt` | principal square root |
 | `powi(a, n)` | `bpowi` | `ipowi` | `a**n`, integer `n >= 2` |
 | `scale(a, x)` | `bscale` | `iscale` | `a * x`, exact real64 `x` |
-| `exp(a)`, `sin(a)`, `cos(a)` | optional named procedures | optional named procedures | exact transcendental image of every input point |
+| `exp(a)`, `sin(a)`, `cos(a)`, `log(a)` | optional named procedures | optional named procedures | exact transcendental image of every input point |
 
 All procedures take and return values (no allocation), and must be `pure`
 when `pure_procedure` is requested and `elemental` when
@@ -158,7 +158,7 @@ propagation errors (a mutated `bsqrt` radius fails it). It cannot establish
 the soundness of a runtime's rounding analysis, which is at the unit
 roundoff and needs a proof or an exhaustive check of the runtime itself.
 
-The `exp`, `sin`, and `cos` descriptor fields are optional. For FortNum's
+The `exp`, `sin`, `cos`, and `log` descriptor fields are optional. For FortNum's
 real interval runtime, set each field to its matching exported generic name.
 Leaving a field empty rejects that operation rather than assuming a bound
 for an intrinsic transcendental call. Floating leaves use the corresponding
@@ -172,3 +172,10 @@ expression. Its interval fixture uses exact dyadic Taylor bounds on
 `[-1/2,1/2]`; independent binary128 point and box-interior values must lie
 inside the emitted value and derivative enclosures. This is an emitter
 dispatch check, not evidence for a production runtime's rounding algorithm.
+
+The real `log` hook requires strictly positive operands. Its runtime must
+enclose the logarithm over the entire input interval and report a domain
+failure for nonpositive input; a floating `log` call with ad hoc padding is
+not a rigorous implementation. Absent `log` descriptors refuse emission.
+The independent runtime fixture checks `log(1)=0` and binary128 floating
+evaluation at a nonspecial value.
