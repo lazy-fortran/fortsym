@@ -45,7 +45,7 @@ module fortsym_rigorous_emit
     integer, parameter :: OP_ARG = 1, OP_POINT = 2, OP_CPOINT = 3, &
         OP_ENCLOSE = 4, OP_ADD = 5, OP_SUB = 6, OP_MUL = 7, OP_DIV = 8, &
         OP_NEG = 9, OP_INV = 10, OP_SQRT = 11, OP_POWI = 12, OP_SCALE = 13, &
-        OP_EXP = 14, OP_SIN = 15, OP_COS = 16
+        OP_EXP = 14, OP_SIN = 15, OP_COS = 16, OP_ABS = 17
 
     !> The runtime interface a rigorous leaf calls. Every procedure is pure
     !> and elemental in the reference runtimes; a consumer runtime must at
@@ -71,6 +71,8 @@ module fortsym_rigorous_emit
         ! Optional pure subroutine sincos(argument, sine, cosine). This shares
         ! evaluation work without changing the scalar mathematical DAG.
         type(str_t) :: sincos
+        ! Optional enclosure of the absolute-value image, including zero.
+        type(str_t) :: abs
     end type rigorous_runtime_t
 
     type :: rigorous_kernel_spec_t
@@ -400,6 +402,8 @@ contains
             name = chars(rt%sin)
         case (OP_COS)
             name = chars(rt%cos)
+        case (OP_ABS)
+            name = chars(rt%abs)
         case (OP_POWI)
             name = chars(rt%powi)
         case (OP_SCALE)
@@ -440,6 +444,8 @@ contains
             name = "sin"
         case (OP_COS)
             name = "cos"
+        case (OP_ABS)
+            name = "abs"
         case (OP_POWI)
             name = "powi"
         case (OP_SCALE)
@@ -733,6 +739,8 @@ contains
                 idx = push(ir, OP_SIN, a=k)
             case ("cos")
                 idx = push(ir, OP_COS, a=k)
+            case ("abs")
+                idx = push(ir, OP_ABS, a=k)
             case default
                 call fail(low, "function "//name//" is outside the runtime interface")
             end select
@@ -1038,7 +1046,7 @@ contains
                 if (allocated(spec%complex_args)) cplx(k) = spec%complex_args(ir%ops(k)%n)
             case (OP_CPOINT)
                 cplx(k) = .true.
-            case (OP_POINT, OP_ENCLOSE)
+            case (OP_POINT, OP_ENCLOSE, OP_ABS)
                 cplx(k) = .false.
             case default
                 if (ir%ops(k)%a > 0) cplx(k) = cplx(ir%ops(k)%a)
@@ -1101,7 +1109,7 @@ contains
         call b%append("    use, intrinsic :: iso_fortran_env, only: real64")
         call b%newline()
         if (rigorous) then
-            allocate (used(OP_COS), source=.false.)
+            allocate (used(OP_ABS), source=.false.)
             do k = 1, ir%n
                 if (pairs(k) /= 0) cycle
                 if (ir%ops(k)%op /= OP_ARG) used(ir%ops(k)%op) = .true.
@@ -1109,7 +1117,7 @@ contains
             allocate (names(0))
             names = [names, spec%runtime%type_name]
             if (any(pairs /= 0)) names = [names, spec%runtime%sincos]
-            do op = OP_POINT, OP_COS
+            do op = OP_POINT, OP_ABS
                 if (used(op)) names = [names, str(runtime_name(spec%runtime, op))]
             end do
             call append_list(b, "    use "//chars(spec%runtime%module_name)//", only: ", &
@@ -1247,7 +1255,7 @@ contains
                 text = fn//"("//literal(r%x)//", "//literal(r%y)//")"
             case (OP_ADD, OP_SUB, OP_MUL, OP_DIV)
                 text = fn//"("//a//", "//b//")"
-            case (OP_NEG, OP_INV, OP_SQRT, OP_EXP, OP_SIN, OP_COS)
+            case (OP_NEG, OP_INV, OP_SQRT, OP_EXP, OP_SIN, OP_COS, OP_ABS)
                 text = fn//"("//a//")"
             case (OP_POWI)
                 text = fn//"("//a//", "//itoa(r%n)//")"
@@ -1283,6 +1291,8 @@ contains
             text = "sin("//a//")"
         case (OP_COS)
             text = "cos("//a//")"
+        case (OP_ABS)
+            text = "abs("//a//")"
         case (OP_POWI)
             text = a//"**"//itoa(r%n)
         case (OP_SCALE)
