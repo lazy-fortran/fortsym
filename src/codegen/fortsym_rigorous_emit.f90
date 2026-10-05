@@ -20,10 +20,11 @@ module fortsym_rigorous_emit
     ! cover. Refusal is a diagnostic, never a silently widened kernel.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_SYM, NK_CONST, NK_ADD, &
-        NK_MUL, NK_POW, NK_FUNC, node_kind_name
+        NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, node_kind_name
     use fortsym_expr, only: expr_t
     use fortsym_string, only: str_t, strbuf_t, str, chars
     use fortsym_names, only: valid_fortran_name
+    use fortsym_exact, only: exact_add, exact_mul, exact_pow
     implicit none
     private
 
@@ -536,7 +537,7 @@ contains
         power_of_two = q > 0_int64 .and. iand(q, q - 1_int64) == 0_int64
     end function power_of_two
 
-    !> Exact real64 point of an integer, or a failure beyond 2**53.
+    !> Exact integer: a point through 2**53, otherwise exact decimal chunks.
     function int_point(low, ir, p) result(idx)
         type(lowering_t), intent(inout) :: low
         type(rir_t), intent(inout) :: ir
@@ -544,12 +545,85 @@ contains
         integer :: idx
 
         idx = 0
-        if (abs(p) > EXACT_LIMIT) then
-            call fail(low, "integer literal is not exact in real64")
+        if (p > EXACT_LIMIT .or. p < -EXACT_LIMIT) then
+            idx = integer_text_value(low, ir, chars(str(p)))
             return
         end if
         idx = push(ir, OP_POINT, x=real(p, dp))
     end function int_point
+
+    function integer_text_value(low, ir, text) result(idx)
+        type(lowering_t), intent(inout) :: low
+        type(rir_t), intent(inout) :: ir
+        character(*), intent(in) :: text
+        integer :: idx, first, last, start, chunk, status, k
+        logical :: negative
+
+        idx = 0
+        start = 1
+        negative = .false.
+        if (len(text) == 0) then
+            call fail(low, "empty exact integer")
+            return
+        end if
+        if (text(1:1) == "-") then
+            negative = .true.
+            start = 2
+        end if
+        if (start > len(text)) then
+            call fail(low, "invalid exact integer")
+            return
+        end if
+        do k = start, len(text)
+            if (text(k:k) < "0" .or. text(k:k) > "9") then
+                call fail(low, "invalid exact integer")
+                return
+            end if
+        end do
+        ! Every chunk and the base 10**9 are exact binary64 integers.
+        ! Runtime multiplication/addition encloses the entire integer; no
+        ! conversion of an arbitrary-precision value to a rounded point occurs.
+        first = start
+        last = start + mod(len(text) - start, 9)
+        do
+            read (text(first:last), *, iostat=status) chunk
+            if (status /= 0) then
+                call fail(low, "invalid exact integer chunk")
+                return
+            end if
+            if (idx == 0) then
+                idx = push(ir, OP_POINT, x=real(chunk, dp))
+            else
+                idx = push(ir, OP_SCALE, a=idx, x=1000000000.0_dp)
+                idx = push(ir, OP_ADD, a=idx, &
+                    b=push(ir, OP_POINT, x=real(chunk, dp)))
+            end if
+            if (last == len(text)) exit
+            first = last + 1
+            last = first + 8
+        end do
+        if (negative) idx = push(ir, OP_NEG, a=idx)
+    end function integer_text_value
+
+    function rational_text_value(low, ir, text) result(idx)
+        type(lowering_t), intent(inout) :: low
+        type(rir_t), intent(inout) :: ir
+        character(*), intent(in) :: text
+        integer :: idx, slash, numerator, denominator
+
+        slash = index(text, "/")
+        if (slash == 0) then
+            idx = integer_text_value(low, ir, text)
+        else
+            numerator = integer_text_value(low, ir, text(:slash - 1))
+            if (.not. low%ok) then
+                idx = 0
+                return
+            end if
+            denominator = integer_text_value(low, ir, text(slash + 1:))
+            idx = push(ir, OP_DIV, a=numerator, b=denominator)
+        end if
+    end function rational_text_value
 
     function rational_value(low, ir, p, q) result(idx)
         type(lowering_t), intent(inout) :: low
@@ -560,7 +634,7 @@ contains
         idx = 0
         if (q == 1_int64) then
             idx = int_point(low, ir, p)
-        else if (power_of_two(q) .and. abs(p) <= EXACT_LIMIT) then
+        else if (power_of_two(q) .and. p <= EXACT_LIMIT .and. p >= -EXACT_LIMIT) then
             idx = push(ir, OP_POINT, x=real(p, dp)/real(q, dp))
         else
             idx = push(ir, OP_DIV, a=int_point(low, ir, p), b=int_point(low, ir, q))
@@ -579,8 +653,8 @@ contains
         if (p == q) return
         if (p == -q) then
             idx = push(ir, OP_NEG, a=v)
-        else if (abs(p) > EXACT_LIMIT .or. q > EXACT_LIMIT) then
-            call fail(low, "rational coefficient is not exact in real64")
+        else if (p > EXACT_LIMIT .or. p < -EXACT_LIMIT .or. q > EXACT_LIMIT) then
+            idx = push(ir, OP_MUL, a=v, b=rational_value(low, ir, p, q))
         else if (power_of_two(q)) then
             idx = push(ir, OP_SCALE, a=v, x=real(p, dp)/real(q, dp))
         else
@@ -643,12 +717,17 @@ contains
         g = max(x, 1_int64)
     end function gcd64
 
-    logical function numeric_node(low, id, p, q)
+    recursive logical function numeric_node(low, id, p, q) result(numeric)
         type(lowering_t), intent(in) :: low
         integer, intent(in) :: id
         integer(int64), intent(out) :: p, q
 
-        numeric_node = .true.
+        type(str_t) :: exact
+        character(:), allocatable :: text
+        logical :: folded
+        integer :: slash, status
+
+        numeric = .true.
         p = 0_int64
         q = 1_int64
         select case (low%arena%kind_of(id))
@@ -657,10 +736,82 @@ contains
         case (NK_RAT)
             p = low%arena%num_of(id)
             q = low%arena%den_of(id)
+        case (NK_ADD, NK_MUL, NK_POW)
+            exact = constant_exact(low, id, folded)
+            numeric = .false.
+            if (.not. folded) return
+            text = chars(exact)
+            slash = index(text, "/")
+            if (slash == 0) then
+                read (text, *, iostat=status) p
+                if (status /= 0) return
+            else
+                read (text(:slash - 1), *, iostat=status) p
+                if (status /= 0) return
+                read (text(slash + 1:), *, iostat=status) q
+                if (status /= 0) return
+            end if
+            numeric = q > 0_int64
         case default
-            numeric_node = .false.
+            numeric = .false.
         end select
+        ! The coefficient/sign shortcuts take abs(p). Keep the asymmetric
+        ! most-negative int64 in ordinary exact literal lowering instead.
+        if (numeric) then
+            if (p == -huge(p) - 1_int64) numeric = .false.
+        end if
     end function numeric_node
+
+    recursive function constant_exact(low, id, ok) result(value)
+        type(lowering_t), intent(in) :: low
+        integer, intent(in) :: id
+        logical, intent(out) :: ok
+        type(str_t) :: value, term, updated
+        character(:), allocatable :: text
+        integer(int64) :: exponent
+        integer :: k, status, kind
+        logical :: folded
+
+        value = str("")
+        ok = .false.
+        kind = low%arena%kind_of(id)
+        select case (kind)
+        case (NK_INT, NK_RAT, NK_BIG_INT, NK_BIG_RAT)
+            value = low%arena%exact_text_of(id)
+            ok = .true.
+        case (NK_ADD, NK_MUL)
+            if (kind == NK_ADD) then
+                value = str("0")
+            else
+                value = str("1")
+            end if
+            do k = 1, low%arena%nargs_of(id)
+                term = constant_exact(low, low%arena%arg_of(id, k), folded)
+                if (.not. folded) return
+                if (kind == NK_ADD) then
+                    updated = exact_add(chars(value), chars(term), folded)
+                else
+                    updated = exact_mul(chars(value), chars(term), folded)
+                end if
+                if (.not. folded) return
+                value = updated
+            end do
+            ok = .true.
+        case (NK_POW)
+            term = constant_exact(low, low%arena%arg_of(id, 2), folded)
+            if (.not. folded) return
+            text = chars(term)
+            if (index(text, "/") /= 0) return
+            read (text, *, iostat=status) exponent
+            if (status /= 0) return
+            ! Avoid expanding huge constant powers merely for a coefficient
+            ! shortcut. They retain ordinary runtime power lowering instead.
+            if (exponent > 1024_int64 .or. exponent < -1024_int64) return
+            term = constant_exact(low, low%arena%arg_of(id, 1), folded)
+            if (.not. folded) return
+            value = exact_pow(chars(term), exponent, ok)
+        end select
+    end function constant_exact
 
     recursive function lower_node(low, ir, id) result(idx)
         type(lowering_t), intent(inout) :: low
@@ -690,7 +841,10 @@ contains
             end do
             if (idx == 0) call fail(low, "free symbol "//name//" is not an argument")
         case (NK_INT, NK_RAT)
-            if (numeric_node(low, id, p, q)) idx = rational_value(low, ir, p, q)
+            idx = rational_value(low, ir, low%arena%num_of(id), &
+                low%arena%den_of(id))
+        case (NK_BIG_INT, NK_BIG_RAT)
+            idx = rational_text_value(low, ir, chars(low%arena%exact_text_of(id)))
         case (NK_CONST)
             name = chars(low%arena%name_of(id))
             select case (name)
@@ -844,10 +998,10 @@ contains
         end if
         if (cq /= 1_int64 .and. .not. power_of_two(cq)) then
             if (cq > EXACT_LIMIT) then
-                call fail(low, "rational coefficient is not exact in real64")
-                return
+                den = push(ir, OP_MUL, a=den, b=int_point(low, ir, cq))
+            else
+                den = push(ir, OP_SCALE, a=den, x=real(cq, dp))
             end if
-            den = push(ir, OP_SCALE, a=den, x=real(cq, dp))
             cq = 1_int64
         end if
         if (num == 0) then
