@@ -1351,10 +1351,10 @@ contains
                 if (expo == -1) then
                     ! Plain reciprocal: print the base at power precedence so a
                     ! compound base keeps its parentheses.
-                    call emit(b, a, base, d, PREC_POW, ids, names, bindings)
+                    call emit_divisor(b, a, base, d, ids, names, bindings)
                 else
                     ! A higher reciprocal power: print base**|expo|.
-                    call emit(b, a, base, d, PREC_POW, ids, names, bindings)
+                    call emit_divisor(b, a, base, d, ids, names, bindings)
                     call b%append(chars(d%power))
                     call b%append(chars(str(-expo)))
                 end if
@@ -1365,6 +1365,54 @@ contains
         if (wrap) call b%append(")")
         deallocate (numer, denom)
     end subroutine emit_product_factors
+
+    !> Quotient operands must use real arithmetic even when their exact DAG
+    !> contains only integers. Keep integer spelling elsewhere: exponents,
+    !> function orders and array subscripts require it.
+    recursive subroutine emit_divisor(b, a, id, d, ids, names, bindings)
+        type(strbuf_t), intent(inout) :: b
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id, ids(:)
+        type(dialect_t), intent(in) :: d
+        type(str_t), intent(in) :: names(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
+        logical :: promote
+
+        promote = .false.
+        if (d%id == DIA_FORTRAN) promote = integer_rendering(a, id, ids)
+        if (promote) then
+            call b%append("real(")
+            call emit(b, a, id, d, PREC_ADD, ids, names, bindings)
+            call b%append(", kind=kind(0"//chars(d%int_real_suffix)//"))")
+        else
+            call emit(b, a, id, d, PREC_POW, ids, names, bindings)
+        end if
+    end subroutine emit_divisor
+
+    recursive function integer_rendering(a, id, ids) result(yes)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id, ids(:)
+        logical :: yes
+        integer :: k, exponent
+
+        yes = .false.
+        ! CSE temporaries have the kernel's real/complex scalar declaration.
+        if (subst_slot(id, ids) > 0) return
+        select case (a%kind_of(id))
+        case (NK_INT)
+            yes = .true.
+        case (NK_ADD, NK_MUL)
+            do k = 1, a%nargs_of(id)
+                if (.not. integer_rendering(a, a%arg_of(id, k), ids)) return
+            end do
+            yes = .true.
+        case (NK_POW)
+            exponent = a%arg_of(id, 2)
+            if (a%kind_of(exponent) /= NK_INT) return
+            if (a%num_of(exponent) < 0_int64) return
+            yes = integer_rendering(a, a%arg_of(id, 1), ids)
+        end select
+    end function integer_rendering
 
     function has_big_exact_in(factors, a) result(yes)
         integer,       intent(in) :: factors(:)

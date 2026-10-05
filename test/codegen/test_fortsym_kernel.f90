@@ -14,7 +14,8 @@ program test_fortsym_kernel
     use fortsym_arena, only: arena_t, NK_FUNC
     use fortsym_expr
     use fortsym_parse, only: parse_expr
-    use fortsym_diff, only: partial_derivative
+    use fortsym_diff, only: partial_derivative, diff
+    use fortsym_subs, only: subs
     use fortsym_products, only: jvp, vjp
     use fortsym_kernel
     use fortsym_engine, only: engine_result_t
@@ -37,6 +38,7 @@ program test_fortsym_kernel
     character(len=2), parameter :: R12_OUT(2) = [character(len=2) :: "r1", "r2"]
     integer :: nfail = 0
 
+    call test_exact_constant_quotients()
     call test_cse_finds_sharing()
     call test_cse_skips_atoms()
     call test_cse_policies()
@@ -83,6 +85,85 @@ program test_fortsym_kernel
     end if
 
 contains
+
+    subroutine test_exact_constant_quotients()
+        type(arena_t), target :: a
+        type(expr_t) :: x, primitive, mass, roots(6)
+        type(kernel_spec_t) :: spec
+        character(:), allocatable :: code, input_kind, output_kind, command, tolerance
+        integer :: unit, stat, precision, level, flags
+        logical :: good
+
+        call a%init()
+        x = sym(a, "x")
+        primitive = 3*(x - x**3/3)/4
+        mass = subs(primitive, x, num(a, 1)) - subs(primitive, x, num(a, -1))
+        roots(1) = num(a, 1)/num(a, 3)
+        roots(2) = mass
+        roots(3) = mass*x
+        roots(4) = diff(x*roots(1), x)
+        roots(5) = num(a, 2)/(num(a, -2)**3)
+        roots(6) = num(a, 2)/(num(a, 1) + num(a, 2))
+        spec%name = str("exact_constant_quotients")
+        allocate (spec%args(1), spec%outputs(6))
+        spec%args(1) = str("x")
+        spec%outputs(1) = str("r1")
+        spec%outputs(2) = str("r2")
+        spec%outputs(3) = str("r3")
+        spec%outputs(4) = str("r4")
+        spec%outputs(5) = str("r5")
+        spec%outputs(6) = str("r6")
+        spec%openmp_declare_target = .false.
+        spec%openacc_routine_seq = .false.
+        do precision = PRECISION_REAL64, PRECISION_MIXED
+            spec%precision = precision
+            input_kind = "real64"
+            if (precision /= PRECISION_REAL64) input_kind = "real32"
+            tolerance = "1.0e-14_real64"
+            if (precision /= PRECISION_REAL64) tolerance = "1.0e-7_real64"
+            output_kind = "real64"
+            if (precision == PRECISION_REAL32) output_kind = "real32"
+            do level = CSE_NONE, CSE_FULL, CSE_FULL - CSE_NONE
+                spec%cse_level = level
+                code = chars(emit_kernel(roots, spec, good))
+                call ok("constant quotient kernel emits", good)
+                if (.not. good) cycle
+                open (newunit=unit, file="/tmp/fortsym_exact_quotients.f90", &
+                    status="replace", action="write")
+                write (unit, '(a)') code
+                write (unit, '(a)') "program drive_exact_quotients"
+                write (unit, '(a)') &
+                    "use, intrinsic :: iso_fortran_env, only: real32, real64"
+                write (unit, '(a)') "implicit none"
+                write (unit, '(a)') "real("//output_kind//") :: r(6)"
+                write (unit, '(a)') "call exact_constant_quotients(0.5_"// &
+                    input_kind//", r(1), r(2), r(3), r(4), r(5), r(6))"
+                write (unit, '(a)') "if (maxval(abs(real(r,real64) - "// &
+                    "[1.0_real64/3.0_real64, 1.0_real64, 0.5_real64, "// &
+                    "1.0_real64/3.0_real64, -0.25_real64, "// &
+                    "2.0_real64/3.0_real64])) > "//tolerance//") error stop 1"
+                write (unit, '(a)') "end program drive_exact_quotients"
+                close (unit)
+                do flags = 1, 2
+                    command = "gfortran "
+                    if (flags == 2) command = command// &
+                        "-O2 -fno-fast-math -ffp-contract=off "
+                    command = command//"-o /tmp/fortsym_exact_quotients "// &
+                        "/tmp/fortsym_exact_quotients.f90 "// &
+                        "> /tmp/fortsym_exact_quotients.log 2>&1"
+                    call execute_command_line(command, wait=.true., exitstat=stat)
+                    call ok("constant quotient kernel compiles", stat == 0)
+                    if (stat /= 0) cycle
+                    call execute_command_line("/tmp/fortsym_exact_quotients "// &
+                        ">> /tmp/fortsym_exact_quotients.log 2>&1", &
+                        wait=.true., exitstat=stat)
+                    call ok("constant quotients match independent rational oracle", &
+                        stat == 0)
+                end do
+            end do
+        end do
+    end subroutine test_exact_constant_quotients
+
 
     subroutine ok(label, cond)
         character(*), intent(in) :: label
