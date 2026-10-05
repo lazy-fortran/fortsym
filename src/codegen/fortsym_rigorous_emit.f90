@@ -46,7 +46,7 @@ module fortsym_rigorous_emit
     integer, parameter :: OP_ARG = 1, OP_POINT = 2, OP_CPOINT = 3, &
         OP_ENCLOSE = 4, OP_ADD = 5, OP_SUB = 6, OP_MUL = 7, OP_DIV = 8, &
         OP_NEG = 9, OP_INV = 10, OP_SQRT = 11, OP_POWI = 12, OP_SCALE = 13, &
-        OP_EXP = 14, OP_SIN = 15, OP_COS = 16, OP_ABS = 17
+        OP_EXP = 14, OP_SIN = 15, OP_COS = 16, OP_ABS = 17, OP_LOG = 18
 
     !> The runtime interface a rigorous leaf calls. Every procedure is pure
     !> and elemental in the reference runtimes; a consumer runtime must at
@@ -68,7 +68,7 @@ module fortsym_rigorous_emit
         type(str_t) :: add, sub, mul, div, neg, inv, sqrt, powi, scale
         type(str_t) :: point, cpoint, enclose
         ! Optional transcendental enclosure procedures; absent means refusal.
-        type(str_t) :: exp, sin, cos
+        type(str_t) :: exp, sin, cos, log
         ! Optional pure subroutine sincos(argument, sine, cosine). This shares
         ! evaluation work without changing the scalar mathematical DAG.
         type(str_t) :: sincos
@@ -397,6 +397,8 @@ contains
             name = chars(rt%inv)
         case (OP_SQRT)
             name = chars(rt%sqrt)
+        case (OP_LOG)
+            name = chars(rt%log)
         case (OP_EXP)
             name = chars(rt%exp)
         case (OP_SIN)
@@ -439,6 +441,8 @@ contains
             name = "inv"
         case (OP_SQRT)
             name = "sqrt"
+        case (OP_LOG)
+            name = "log"
         case (OP_EXP)
             name = "exp"
         case (OP_SIN)
@@ -887,6 +891,8 @@ contains
             select case (name)
             case ("sqrt")
                 idx = push(ir, OP_SQRT, a=k)
+            case ("log")
+                idx = push(ir, OP_LOG, a=k)
             case ("exp")
                 idx = push(ir, OP_EXP, a=k)
             case ("sin")
@@ -1263,7 +1269,7 @@ contains
         call b%append("    use, intrinsic :: iso_fortran_env, only: real64")
         call b%newline()
         if (rigorous) then
-            allocate (used(OP_ABS), source=.false.)
+            allocate (used(OP_LOG), source=.false.)
             do k = 1, ir%n
                 if (pairs(k) /= 0) cycle
                 if (ir%ops(k)%op /= OP_ARG) used(ir%ops(k)%op) = .true.
@@ -1271,7 +1277,7 @@ contains
             allocate (names(0))
             names = [names, spec%runtime%type_name]
             if (any(pairs /= 0)) names = [names, spec%runtime%sincos]
-            do op = OP_POINT, OP_ABS
+            do op = OP_POINT, OP_LOG
                 if (used(op)) names = [names, str(runtime_name(spec%runtime, op))]
             end do
             call append_list(b, "    use "//chars(spec%runtime%module_name)//", only: ", &
@@ -1409,7 +1415,7 @@ contains
                 text = fn//"("//literal(r%x)//", "//literal(r%y)//")"
             case (OP_ADD, OP_SUB, OP_MUL, OP_DIV)
                 text = fn//"("//a//", "//b//")"
-            case (OP_NEG, OP_INV, OP_SQRT, OP_EXP, OP_SIN, OP_COS, OP_ABS)
+            case (OP_NEG, OP_INV, OP_SQRT, OP_EXP, OP_SIN, OP_COS, OP_ABS, OP_LOG)
                 text = fn//"("//a//")"
             case (OP_POWI)
                 text = fn//"("//a//", "//itoa(r%n)//")"
@@ -1439,6 +1445,8 @@ contains
             text = "1.0_real64/"//a
         case (OP_SQRT)
             text = "sqrt("//a//")"
+        case (OP_LOG)
+            text = "log("//a//")"
         case (OP_EXP)
             text = "exp("//a//")"
         case (OP_SIN)
