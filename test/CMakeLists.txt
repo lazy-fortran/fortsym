@@ -66,6 +66,26 @@ fortsym_add_test(test_fortsym_rigorous_emit codegen/test_fortsym_rigorous_emit.f
 fortsym_add_test(test_fortsym_rigorous_functions codegen/test_fortsym_rigorous_functions.f90)
 fortsym_add_test(test_fortsym_rigorous_sincos codegen/test_fortsym_rigorous_sincos.f90)
 fortsym_add_test(test_fortsym_rigorous_abs codegen/test_fortsym_rigorous_abs.f90)
+fortsym_add_test(test_fortsym_rigorous_rationals codegen/test_fortsym_rigorous_rationals.f90)
+fortsym_add_test(test_fortsym_rigorous_raw_products codegen/test_fortsym_rigorous_raw_products.f90)
+if(TEST test_fortsym_rigorous_raw_products)
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/rigorous-raw-products")
+    set_tests_properties(test_fortsym_rigorous_raw_products PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/rigorous-raw-products"
+        ENVIRONMENT "FORTSYM_TEST_RUNTIME_DIR=${CMAKE_CURRENT_SOURCE_DIR}/codegen/runtime")
+endif()
+# The complete runtime oracle uses the ordinary external FortNum sources only
+# when explicitly supplied. Normal generation coverage has no FortNum dependency.
+set(FORTSYM_TEST_FORTNUM_SOURCE_DIR "" CACHE PATH "FortNum sources for exact-rational runtime oracle")
+if(FORTSYM_TEST_FORTNUM_SOURCE_DIR AND TARGET test_fortsym_rigorous_rationals)
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/rigorous-rational-runtime")
+    add_test(NAME test_fortsym_rigorous_rationals_runtime
+        COMMAND test_fortsym_rigorous_rationals --runtime)
+    set_tests_properties(test_fortsym_rigorous_rationals_runtime PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/rigorous-rational-runtime"
+        ENVIRONMENT "FORTSYM_TEST_FORTNUM_SOURCE_DIR=${FORTSYM_TEST_FORTNUM_SOURCE_DIR};FORTSYM_TEST_COMPILER=${CMAKE_Fortran_COMPILER}")
+endif()
+
 # The emitted leaves are compiled against the reference runtimes, which are
 # test fixtures rather than library modules.
 if(TEST test_fortsym_rigorous_emit)

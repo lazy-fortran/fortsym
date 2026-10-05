@@ -51,10 +51,16 @@ returns `ok = .false.` and a diagnostic; there is no silent widening.
 ### Exactness of literals
 
 - An integer up to 2**53 in magnitude is an exact real64 point.
+- Larger exact integers, including arbitrary-precision atoms, are constructed
+  from exact chunks of at most nine decimal digits by runtime scaling with
+  `10**9` and addition. The resulting enclosure contains the integer; it is
+  never supplied as a rounded real64 point.
 - A rational with a power-of-two denominator is an exact point (`7/2`), and
   as a coefficient it is an exact `scale`.
-- Any other rational `p/q` is a runtime division of two exact points, so
-  `1/10` is enclosed rather than rounded once at compile time.
+- Any other rational `p/q` is a runtime division of exact integer points or
+  their chunked enclosures, so `1/10` and `1/27!` are enclosed rather than
+  rounded once at compile time. Runtime overflow may yield an uninformative
+  enclosure and remains the consumer's explicit arithmetic failure.
 - `pi` and `e` are `enclose(m, r)` with `r` above the real64 rounding error.
 - The imaginary unit is `cpoint(0, 1)` (ball runtimes only).
 - Decimal floating literals are refused: the value the author meant is
@@ -67,7 +73,10 @@ negative powers), half-integer powers through `sqrt`, and `sqrt` itself. A
 product's factors with negative exponents form a single denominator. A sum
 whose terms are `c * b**k` for one base node `b` is evaluated by Horner's
 rule, which is tighter than the monomial sum on enclosures.
-Symbolic exponents and cube roots are refused. Optional `exp`, `sin`
+Exact constant arithmetic in exponents is folded before classification, so
+unsimplified derivative products containing `2-1` or `-1-1` require no caller
+simplification. Symbolic or decimal exponents and cube roots are refused.
+Optional `exp`, `sin`
 and `cos` operations are emitted only when the runtime descriptor names
 the corresponding enclosure procedures. Their contract is enclosure over
 the entire input interval or ball; the emitter does not assume libm rounding.
