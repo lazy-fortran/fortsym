@@ -60,6 +60,7 @@ fortsym_add_test(test_fortsym_kernel_taylor codegen/test_fortsym_kernel_taylor.f
 fortsym_add_test(test_fortsym_kernel_taylor_typed codegen/test_fortsym_kernel_taylor_typed.f90)
 fortsym_add_test(test_fortsym_kernel_ir codegen/test_fortsym_kernel_ir.f90)
 fortsym_add_test(test_fortsym_rigorous_emit codegen/test_fortsym_rigorous_emit.f90)
+fortsym_add_test(test_fortsym_rigorous_functions codegen/test_fortsym_rigorous_functions.f90)
 # The emitted leaves are compiled against the reference runtimes, which are
 # test fixtures rather than library modules.
 if(TEST test_fortsym_rigorous_emit)

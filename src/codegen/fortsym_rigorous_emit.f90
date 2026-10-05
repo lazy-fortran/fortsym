@@ -43,7 +43,8 @@ module fortsym_rigorous_emit
 
     integer, parameter :: OP_ARG = 1, OP_POINT = 2, OP_CPOINT = 3, &
         OP_ENCLOSE = 4, OP_ADD = 5, OP_SUB = 6, OP_MUL = 7, OP_DIV = 8, &
-        OP_NEG = 9, OP_INV = 10, OP_SQRT = 11, OP_POWI = 12, OP_SCALE = 13
+        OP_NEG = 9, OP_INV = 10, OP_SQRT = 11, OP_POWI = 12, OP_SCALE = 13, &
+        OP_EXP = 14, OP_SIN = 15, OP_COS = 16
 
     !> The runtime interface a rigorous leaf calls. Every procedure is pure
     !> and elemental in the reference runtimes; a consumer runtime must at
@@ -64,6 +65,8 @@ module fortsym_rigorous_emit
         type(str_t) :: type_name
         type(str_t) :: add, sub, mul, div, neg, inv, sqrt, powi, scale
         type(str_t) :: point, cpoint, enclose
+        ! Optional transcendental enclosure procedures; absent means refusal.
+        type(str_t) :: exp, sin, cos
     end type rigorous_runtime_t
 
     type :: rigorous_kernel_spec_t
@@ -344,6 +347,12 @@ contains
             name = chars(rt%inv)
         case (OP_SQRT)
             name = chars(rt%sqrt)
+        case (OP_EXP)
+            name = chars(rt%exp)
+        case (OP_SIN)
+            name = chars(rt%sin)
+        case (OP_COS)
+            name = chars(rt%cos)
         case (OP_POWI)
             name = chars(rt%powi)
         case (OP_SCALE)
@@ -378,6 +387,12 @@ contains
             name = "inv"
         case (OP_SQRT)
             name = "sqrt"
+        case (OP_EXP)
+            name = "exp"
+        case (OP_SIN)
+            name = "sin"
+        case (OP_COS)
+            name = "cos"
         case (OP_POWI)
             name = "powi"
         case (OP_SCALE)
@@ -656,12 +671,24 @@ contains
             idx = lower_power(low, ir, base, ep, eq)
         case (NK_FUNC)
             name = chars(low%arena%name_of(id))
-            if (name == "sqrt" .and. low%arena%nargs_of(id) == 1) then
-                k = lower_node(low, ir, low%arena%arg_of(id, 1))
-                if (low%ok) idx = push(ir, OP_SQRT, a=k)
-            else
+            if (low%arena%nargs_of(id) /= 1) then
                 call fail(low, "function "//name//" is outside the runtime interface")
+                return
             end if
+            k = lower_node(low, ir, low%arena%arg_of(id, 1))
+            if (.not. low%ok) return
+            select case (name)
+            case ("sqrt")
+                idx = push(ir, OP_SQRT, a=k)
+            case ("exp")
+                idx = push(ir, OP_EXP, a=k)
+            case ("sin")
+                idx = push(ir, OP_SIN, a=k)
+            case ("cos")
+                idx = push(ir, OP_COS, a=k)
+            case default
+                call fail(low, "function "//name//" is outside the runtime interface")
+            end select
         case default
             call fail(low, "unsupported node kind "// &
                 chars(node_kind_name(low%arena%kind_of(id)))// &
@@ -1024,13 +1051,13 @@ contains
         call b%append("    use, intrinsic :: iso_fortran_env, only: real64")
         call b%newline()
         if (rigorous) then
-            allocate (used(13), source=.false.)
+            allocate (used(OP_COS), source=.false.)
             do k = 1, ir%n
                 if (ir%ops(k)%op /= OP_ARG) used(ir%ops(k)%op) = .true.
             end do
             allocate (names(0))
             names = [names, spec%runtime%type_name]
-            do op = OP_POINT, OP_SCALE
+            do op = OP_POINT, OP_COS
                 if (used(op)) names = [names, str(runtime_name(spec%runtime, op))]
             end do
             call append_list(b, "    use "//chars(spec%runtime%module_name)//", only: ", &
@@ -1154,7 +1181,7 @@ contains
                 text = fn//"("//literal(r%x)//", "//literal(r%y)//")"
             case (OP_ADD, OP_SUB, OP_MUL, OP_DIV)
                 text = fn//"("//a//", "//b//")"
-            case (OP_NEG, OP_INV, OP_SQRT)
+            case (OP_NEG, OP_INV, OP_SQRT, OP_EXP, OP_SIN, OP_COS)
                 text = fn//"("//a//")"
             case (OP_POWI)
                 text = fn//"("//a//", "//itoa(r%n)//")"
@@ -1184,6 +1211,12 @@ contains
             text = "1.0_real64/"//a
         case (OP_SQRT)
             text = "sqrt("//a//")"
+        case (OP_EXP)
+            text = "exp("//a//")"
+        case (OP_SIN)
+            text = "sin("//a//")"
+        case (OP_COS)
+            text = "cos("//a//")"
         case (OP_POWI)
             text = a//"**"//itoa(r%n)
         case (OP_SCALE)

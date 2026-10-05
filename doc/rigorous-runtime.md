@@ -65,9 +65,12 @@ Sums, products, quotients, integer powers (`powi` for |n| >= 2, `inv` for
 negative powers), half-integer powers through `sqrt`, and `sqrt` itself. A
 product's factors with negative exponents form a single denominator. A sum
 whose terms are `c * b**k` for one base node `b` is evaluated by Horner's
-rule, which is tighter than the monomial sum on enclosures. Anything else
-(`sin`, `exp`, symbolic exponents, cube roots) is refused until the runtime
-interface grows a procedure with a documented enclosure contract.
+rule, which is tighter than the monomial sum on enclosures.
+Symbolic exponents and cube roots are refused. Optional `exp`, `sin`
+and `cos` operations are emitted only when the runtime descriptor names
+the corresponding enclosure procedures. Their contract is enclosure over
+the entire input interval or ball; the emitter does not assume libm rounding.
+Default descriptors leave these names unset and continue to refuse them.
 
 ## Runtime interface
 
@@ -88,6 +91,7 @@ spellings and accept a module and type name override.
 | `sqrt(a)` | `bsqrt` | `isqrt` | principal square root |
 | `powi(a, n)` | `bpowi` | `ipowi` | `a**n`, integer `n >= 2` |
 | `scale(a, x)` | `bscale` | `iscale` | `a * x`, exact real64 `x` |
+| `exp(a)`, `sin(a)`, `cos(a)` | optional named procedures | optional named procedures | exact transcendental image of every input point |
 
 All procedures take and return values (no allocation), and must be `pure`
 when `pure_procedure` is requested and `elemental` when
@@ -124,3 +128,11 @@ widened enclosures contain the oracle over the whole input box. It detects
 propagation errors (a mutated `bsqrt` radius fails it). It cannot establish
 the soundness of a runtime's rounding analysis, which is at the unit
 roundoff and needs a proof or an exhaustive check of the runtime itself.
+
+The `exp`, `sin`, and `cos` descriptor fields are optional. For FortNum's
+real interval runtime, set each field to its matching exported generic name.
+Leaving a field empty rejects that operation rather than assuming a bound
+for an intrinsic transcendental call. Floating leaves use the corresponding
+Fortran intrinsic. The emitter's special-value compile/run fixture tests
+runtime dispatch independently; numerical enclosure algorithms remain the
+runtime owner's responsibility.
