@@ -52,6 +52,9 @@ fortsym_add_test(test_fortsym_yacas engine/test_fortsym_yacas.f90)
 fortsym_add_test(test_fortsym_council council/test_fortsym_council.f90)
 
 # --- code generation ---
+if(TARGET bench_emitted_kernels)
+    add_test(NAME test_fortsym_emitted_audit COMMAND bench_emitted_kernels --validate-only)
+endif()
 fortsym_add_test(test_fortsym_enzyme codegen/test_fortsym_enzyme.f90)
 fortsym_add_test(test_fortsym_kernel_emit codegen/test_fortsym_kernel_emit.f90)
 fortsym_add_test(test_fortsym_kernel_typed codegen/test_fortsym_kernel_typed.f90)

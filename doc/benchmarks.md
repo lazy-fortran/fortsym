@@ -15,6 +15,47 @@ Cold startup, conversion, operation, printing, compilation, and generated
 kernel execution are separate measurements. Direct SymEngine C or C++ calls
 form the library baseline. fortsym reports native-only and end-to-end rows.
 
+## Emitted numerical leaves
+
+`bench_emitted_kernels` is a native CMake diagnostic for one exact-rational,
+nonlinear two-input/two-output map. `gen_emitted_kernel_audit` emits its primal,
+JVP, VJP, and supported interval leaves from one symbolic definition. The paired
+floating leaf shares the interval emitter's lowered operation schedule. All
+sources remain in the build tree; the generator is retained in `app/`.
+The benchmark runs only when explicitly invoked. Its short registered gate is
+present when the audit application target is available.
+
+```sh
+cmake --build build --target bench_emitted_kernels
+ctest --test-dir build -R '^test_fortsym_emitted_audit$' --output-on-failure
+/usr/bin/time -v build/bin/bench_emitted_kernels > samples.csv 2> resources.txt
+```
+
+The registered gate uses `--validate-only` and exits before timing. Independent
+real128 value evaluation, centered finite differences, and the adjoint identity
+check the generated floating leaves at 257 fixed points, including negative
+and zero coordinates. Point and cell enclosures contain independent real128
+samples; intentionally corrupted values and missed enclosures are rejected.
+These checks exercise the existing reference interval fixture. They establish
+neither a general enclosure proof nor a continuous-equation certificate.
+
+The optional run writes every timing sample for primal, JVP, VJP, paired float,
+point enclosure, and cell enclosure evaluation. Two warmups precede eleven
+samples; each sample repeats the same 257-point workload 200 times. Results are
+checked against the independent oracles after each timed batch, and a consumed
+checksum prevents unused-output measurements. External generated procedures
+are compiled without LTO. Compiler identity/options, source revision, domain,
+cell radius, and persistent harness storage accompany the CSV. Record the exact
+base/patch digest, executable hash, full build command, affinity, CPU/frequency
+policy, dependency pins, and process-level peak RSS alongside it. These are
+raw execution costs, with no speed threshold in the correctness gate.
+
+GNU builds use `-O3 -fno-fast-math -ffp-contract=off` for both the generated leaves
+and the harness. The reference runtime is an emitter test fixture; callers use
+their validated runtime and declare the required certified accuracy. A direct
+bounded-roundoff leaf remains planned until its arithmetic/domain contract and
+independent oracle exist. Arbitrary libm inflation supplies no proof budget.
+
 ## Workloads and oracles
 
 | Workload | Measurements | Independent oracle |
