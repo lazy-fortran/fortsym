@@ -8,6 +8,10 @@ one well-defined compatibility slice at a time.
 This roadmap is about symbolic computation. It is not a finite-element or
 finite-volume roadmap.
 
+[PLAN.md](PLAN.md) owns current implementation order, including complete
+standalone SymPy derivation export. This roadmap retains the broader parity
+scope and completion gates; expression printers alone do not complete export.
+
 ## Scope boundary: FortSym and FortFEM
 
 FortSym owns:
@@ -443,6 +447,9 @@ finite-element responsibilities into FortSym.
 
 ## Phase 7 — input/output, numerics, and code generation
 
+- [ ] Record complete supported derivations and export standalone runnable
+      SymPy scripts, with ordinary-SymPy/native-drop-in replay and retained
+      assumptions, conditions and checks; see [PLAN.md](PLAN.md).
 - [ ] Complete SymPy-compatible text, LaTeX, pretty, MathML, Wolfram, and
       Fortran parsing/printing for the supported expression hierarchy.
 - [ ] Complete `evalf`, numerical substitution, lambdify-style dispatch, and
