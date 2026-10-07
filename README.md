@@ -209,6 +209,11 @@ returns the symbolic expression that file computes, so a hand-written kernel can
 be checked against its definition without anyone transcribing the code into the
 checker by hand.
 
+Fortran `REAL(value[, kind])` readback accepts positional and `KIND=` arguments.
+Only integer values `0`, `+/-1` and `+/-2` simplify across all real kinds;
+general conversions remain opaque. This is exact expression algebra, not a
+proof of floating-point rounding, type checking or statement control flow.
+
 **Build derivative products contracted.** `jvp`, `vjp`, `gradient` and `hvp`
 never form a Jacobian or a Hessian, and the implicit-function builders emit the
 actions of `R_y` and `R_p` directly — differentiating the defining equation, so

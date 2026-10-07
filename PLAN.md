@@ -99,3 +99,11 @@ SymPy-compatible surface and completion rules. Export design is in
   [#80](https://github.com/lazy-fortran/fortsym/issues/80),
   [#81](https://github.com/lazy-fortran/fortsym/issues/81). No exporter completion
   or whole-course replay is claimed.
+
+## Bounded Fortran REAL readback
+
+- Native Fortran REAL(value[,kind]) and named KIND syntax are supported. Only exact integer0/±1/±2 values simplify; other casts remain opaque. This is not typed floating-point or control-flow equivalence.
+- Independent real32/64/128 and rounded-real32 negative oracles pass; four focused native CTest gates pass.
+- Original generated KIN6D source readback:16/16 exact identities pass with the repaired owner library, without changing the consumer's pinned build or source.
+- Task-owned Fo driver3a6eabb7 (0.3.2) starts a CMake lane but status/stop return state-provider error3; owner PID has exited. No resident-verification claim. Native CMake/CTest remain authoritative; [Fo #193](https://github.com/lazy-fortran/fo/issues/193) configuration/state evidence remains open.
+- Evidence: [native/consumer receipt](doc/evidence/fortran-real-kind-20261007.json). Full derivation recording/export/replay tasks above remain open.
