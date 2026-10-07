@@ -29,7 +29,7 @@ SymPy-compatible surface and completion rules. Export design is in
 
 | Stage | Deliverable | Dependency / review gate |
 |---|---|---|
-| H0 | Account for useful old branches, worktrees and PR #77 | Preserve dirty evidence; independently verify useful code before integration |
+| H0 | Scalar backend integrated; obsolete snapshots archived | Independent native gates passed; controller owns final branch/worktree removal |
 | E0 | Exact neutral Expr IR in FortGen [#8](https://github.com/lazy-fortran/fortgen/issues/8) | Review literal/domain/branch contract before implementing adapters |
 | D0 | Native/API derivation recording [#78](https://github.com/lazy-fortran/fortsym/issues/78) | Can design alongside E0; retain operations when executed |
 | A0 | External assumption boundary [#81](https://github.com/lazy-fortran/fortsym/issues/81) | Independent reproducer; share reviewed assumption serialization |
@@ -76,16 +76,24 @@ SymPy-compatible surface and completion rules. Export design is in
   location; they do not require FortSym infrastructure in upstream solvers.
 - Execution schedules, launch geometry and application data are separate.
 
-## Hygiene gate
+## Verified status
 
-- Main inspection base: `a6142712af998b727c245fb6cfbb3745b296ec24`.
-- [PR #77](https://github.com/lazy-fortran/fortsym/pull/77) and
-  [FortGen #7](https://github.com/lazy-fortran/fortgen/pull/7) supply the shared
-  scalar backend and one-way adapter, reconciled with this planning baseline.
-- `fix/typed-real-generic-literals` is superseded by the current printer's
-  broader typed-intrinsic argument whitelist. The compiled fixture covers
-  MAX/MIN, ATAN2, discrete Bessel order, integer powers and array indices.
-- `interval-emit` and `agent/tmp-power-wrap-fix` are ancestors of inspected main.
-- Three detached October 5 worktrees contain incorporated/superseded changes;
-  retain their patches and untracked-file inventory before removing them.
-- These are inventory conclusions, not fresh test results or completed cleanup.
+- Verified source base: `bb3b1e090f6855707243d564c1c500b0bd5c15b0`.
+- Shared scalar backend and one-way adapter are integrated from
+  [PR #77](https://github.com/lazy-fortran/fortsym/pull/77) and
+  [FortGen #7](https://github.com/lazy-fortran/fortgen/pull/7).
+- Native CMake/CTest: 113 passed; one optional SymPy differential test skipped
+  where SymPy was unavailable. With ordinary SymPy 1.14.0: 77 checks passed.
+- Compiled typed-intrinsic oracle: 32 finite real128 samples. The old
+  `fix/typed-real-generic-literals` implementation is superseded.
+- Fo's frozen consumer-audit fixture passed with explicit fixture inputs;
+  its incomplete inventory is not evidence of complete dependency closure.
+- Three dirty October 5 snapshots are archived with exact bases, binary
+  patches and copied untracked sources. Their four untracked files match main.
+- The active Grad–Shafranov generator worktree is preserved. Final branch and
+  obsolete-worktree removal belongs to the integration controller.
+- Remaining open issues: [#78](https://github.com/lazy-fortran/fortsym/issues/78),
+  [#79](https://github.com/lazy-fortran/fortsym/issues/79),
+  [#80](https://github.com/lazy-fortran/fortsym/issues/80),
+  [#81](https://github.com/lazy-fortran/fortsym/issues/81). No exporter completion
+  or whole-course replay is claimed.
