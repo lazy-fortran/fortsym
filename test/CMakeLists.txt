@@ -181,6 +181,7 @@ add_test(NAME paper_magnetic_native COMMAND paper_magnetic_native)
 
 # --- reading Fortran back ---
 fortsym_add_test(test_fortsym_fparse parse_fortran/test_fortsym_fparse.f90)
+fortsym_add_test(test_fortran_real_kind parse_fortran/test_fortran_real_kind.f90)
 
 # --- C ABI over SymEngine ---
 add_executable(test_fortsym_shim_strings capi/test_fortsym_shim_strings.c)

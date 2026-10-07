@@ -1,0 +1,29 @@
+{
+  "session_id": "3946217-1791388306-594380384",
+  "driver_sha256": "3a6eabb7677d4fefebc5041db5da3459c139fe8dfca5104781c46f5d1ce84138",
+  "start": "returned running",
+  "status": "exit2 Gremlin state provider error:3",
+  "native_CTest": "4/4 targeted passes",
+  "consumer_CTest": "1/1 passes (16 exact generated-KIN readback identities)",
+  "cleanup_owner_process_present": false,
+  "base_commit": "a3703ec4267071356bef97ca72e808229fce7112",
+  "worker_patch_sha256": "b5e5cbec649a9dfd89ff4d6297e74b675f97ecfc60aa4d323eb92ac4a8a594da",
+  "scope": "Fortran REAL expression syntax and universally exact tiny-integer conversions; general casts opaque, no typed FP proof.",
+  "native_tests": [
+    "test_fortran_real_kind",
+    "test_fortsym_fparse",
+    "test_fortsym_notation",
+    "test_fortsym_wolfram"
+  ],
+  "consumer_source": "/home/ert/code/kin6d/src/generated/kin6d_grad_shafranov_leaves.f90",
+  "consumer_source_sha256": "91ef98b2d71b857598b068320004937063fb0a6c6db329e06f655858ccd26510",
+  "consumer_build": "/tmp/tc24-fortsym-root-consumer-20261007/build",
+  "consumer_checks": {
+    "suite": "GS strong weak and ideal-variation algebra",
+    "total": 16,
+    "passed": 16,
+    "proved": 16,
+    "by_probe": 0,
+    "failed": 0
+  }
+}

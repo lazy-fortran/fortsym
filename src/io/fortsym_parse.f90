@@ -1539,6 +1539,14 @@ contains
                 e = func_in(a, canon)
             else if (p%tok == T_LPAREN .and. .not. d%wolfram_syntax) then
                 call advance(p, d)
+                if (d%id == DIA_FORTRAN) then
+                    if (fortran_lower(name) == "real") then
+                        e = parse_fortran_real_call(p, a, d)
+                        if (p%failed) return
+                        e = parse_postfix(p, a, d, e)
+                        return
+                    end if
+                end if
                 call parse_arg_list(p, a, d, fargs, nargs, T_RPAREN)
                 if (p%failed) return
                 canon = chars(fn_canonical(d, name))
@@ -1869,6 +1877,70 @@ contains
         parts(3) = argument
         e = func("Derivative1", parts)
     end function prime_derivative
+
+    ! REAL has one positional value and an optional positional or named KIND.
+    ! Keep general conversions opaque: target precision is not inferred from
+    ! a kind variable or discarded. Only 0, +/-1 and +/-2 are exact in every
+    ! valid Fortran real model, independently of the selected kind.
+    recursive function parse_fortran_real_call(p, a, d) result(e)
+        type(parser_t), intent(inout) :: p
+        type(arena_t), target, intent(inout) :: a
+        type(dialect_t), intent(in) :: d
+        type(expr_t) :: e, args(2)
+        type(parser_t) :: lookahead
+        integer :: nargs
+        integer(int64) :: value
+
+        args(1) = parse_binary(p, a, d, 0)
+        if (p%failed) return
+        nargs = 1
+        if (p%tok == T_COMMA) then
+            call advance(p, d)
+            if (p%tok == T_NAME) then
+                if (fortran_lower(p%text) == "kind") then
+                    lookahead = p
+                    call skip_trivia(lookahead, len(lookahead%src))
+                    ! Consume only this grammar's keyword separator. The
+                    ! ordinary expression lexer must still reject assignment.
+                    if (lookahead%pos <= len(lookahead%src)) then
+                        if (lookahead%src(lookahead%pos:lookahead%pos) == "=") then
+                            p = lookahead
+                            p%pos = p%pos + 1
+                            call advance(p, d)
+                        end if
+                    end if
+                end if
+            end if
+            args(2) = parse_binary(p, a, d, 0)
+            if (p%failed) return
+            nargs = 2
+        end if
+        if (p%tok /= T_RPAREN) then
+            call fail(p, "REAL expects a value and optional KIND argument")
+            return
+        end if
+        call advance(p, d)
+        if (args(1)%kind() == NK_INT) then
+            value = args(1)%int_value()
+            if (value >= -2_int64 .and. value <= 2_int64) then
+                e = args(1)
+                return
+            end if
+        end if
+        e = func("real", args(1:nargs))
+    end function parse_fortran_real_call
+
+    pure function fortran_lower(text) result(lower)
+        character(*), intent(in) :: text
+        character(len(text)) :: lower
+        integer :: k, code
+        lower = text
+        do k = 1, len(text)
+            code = iachar(text(k:k))
+            if (code >= iachar("A") .and. code <= iachar("Z")) &
+                lower(k:k) = achar(code + iachar("a") - iachar("A"))
+        end do
+    end function fortran_lower
 
     recursive subroutine parse_arg_list(p, a, d, fargs, nargs, closer)
         type(parser_t),            intent(inout) :: p
