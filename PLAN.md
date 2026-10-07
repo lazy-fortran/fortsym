@@ -90,9 +90,10 @@ SymPy-compatible surface and completion rules. Export design is in
   its incomplete inventory is not evidence of complete dependency closure.
 - Three dirty October 5 snapshots are archived with exact bases, binary
   patches and copied untracked sources. Their four untracked files match main.
-- Finished feature branches and six obsolete worktrees were removed after
-  preserving exact commit refs and archived source/evidence. Only main and
-  the active pinned Grad–Shafranov worktree remain; no open PRs.
+- Finished feature branches and six obsolete worktrees across FortSym (four)
+  and FortGen (two) were removed after preserving exact commit refs and
+  archived source/evidence. Only main and the active pinned Grad–Shafranov
+  worktree remain; no open PRs.
 - Remaining open issues: [#78](https://github.com/lazy-fortran/fortsym/issues/78),
   [#79](https://github.com/lazy-fortran/fortsym/issues/79),
   [#80](https://github.com/lazy-fortran/fortsym/issues/80),
