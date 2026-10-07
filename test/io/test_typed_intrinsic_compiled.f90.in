@@ -1,0 +1,28 @@
+program test_typed_intrinsic_compiled
+    use, intrinsic :: iso_fortran_env, only: real64, real128
+    implicit none
+    real(real64) :: x, arr(2), values(6)
+    real(real128) :: xr, reference(6), tolerance
+    integer :: i
+    interface
+        subroutine typed_intrinsic_fixture(x, arr, values)
+            import real64
+            real(real64), intent(in) :: x, arr(2)
+            real(real64), intent(out) :: values(6)
+        end subroutine typed_intrinsic_fixture
+    end interface
+
+    arr = [7.0_real64, -9.0_real64]
+    do i = -16, 16
+        if (i == 0) cycle
+        x = real(i, real64)/4.0_real64
+        call typed_intrinsic_fixture(x, arr, values)
+        xr = real(x, real128)
+        reference = [max(0.0_real128, xr), min(xr, -1.0_real128), &
+            atan2(xr, 0.0_real128), bessel_jn(1, xr), xr*xr*xr, 7.0_real128]
+        tolerance = 32.0_real128*real(epsilon(x), real128)
+        if (any(abs(real(values, real128) - reference) > &
+            tolerance*max(1.0_real128, abs(reference)))) error stop "typed mismatch"
+    end do
+    print *, "typed intrinsic fixture: 32 independent real128 samples passed"
+end program test_typed_intrinsic_compiled

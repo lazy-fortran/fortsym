@@ -22,6 +22,7 @@ auto-tests = true
 link = ["symengine", "flint", "mpfr", "gmp", "stdc++", "dl"]
 
 [dependencies]
+fortgen = { git = "https://github.com/lazy-fortran/fortgen", rev = "488335bf491bfdf99c257cf6da822e5e95f5d2d6" }
 # Plotting. fortsym samples an expression into arrays and maps options; it
 # implements no plotting of its own, and anything missing is fixed upstream in
 # fortplot rather than worked around here. See issue #44.
@@ -31,3 +32,13 @@ fortplot = { git = "https://github.com/lazy-fortran/fortplot", rev = "178e6fd2f0
 implicit-typing = false
 implicit-external = false
 source-form = "free"
+
+# The native consumer-audit test executes these retained Python fixtures.
+# Declare them so frozen Gremlin views preserve the actual test inputs.
+[[extra.fo.inputs]]
+path = "test/audit/test_consumer_audit.py"
+role = "test-fixture"
+
+[[extra.fo.inputs]]
+path = "scripts/audit_consumer_requirements.py"
+role = "test-fixture"

@@ -96,6 +96,11 @@ Candidate simplifications from every engine are *verified equivalent first*,
 then ranked by operation count after CSE — so the winner is the cheapest form
 that is provably the same function.
 
+Ordinary scalar IR Fortran/CUDA emission uses the shared FortGen backend through
+a one-way adapter. FortSym retains symbolic lowering, public API ownership and
+expression-aware typed, Taylor and rigorous generation. FortGen's numerical
+Kernel IR does not provide exact-expression interchange or derivation export.
+
 Generated numerical leaves select a stable target identity: `fortran_cpu`,
 `fortran_openmp_target`, `fortran_openacc`, or `cuda`. The target only chooses
 source spelling and leaf decoration; fortsym emits no parallel schedule, data
@@ -132,9 +137,11 @@ non-symmetric outputs, and parameter gradients from the same dual solution.
 Each derived formula carries proof obligations in a ledger that separates
 proofs from numeric probes. See [`doc/certificate.md`](doc/certificate.md).
 
-**Cross-check engines.** When several engines answer, agreement raises
-confidence and **disagreement is reported as a finding**, not averaged away: it
-means one of them is wrong. Per-engine timings fall out of normal operation, so
+**Cross-check engines.** Retain each engine's answer, assumptions and conditions.
+Agreement is supporting evidence, not a voting proof; shared transformations or
+common errors can produce the same answer. Disagreement requires an independent
+behavioral or mathematical check of the actual obligation and domains.
+Per-engine timings fall out of normal operation, so
 the test run produces a benchmark table. Measured here over the same nine
 questions:
 

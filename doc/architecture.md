@@ -30,7 +30,11 @@ naming rule and lifetime contract.
    and the bounded sparse multivariate polynomial/rational layer.
 6. `src/council` compares supported engine answers and records disagreement.
 7. `src/verify` supplies independent real evaluation and three-valued checks.
-8. `src/codegen` selects shared subexpressions and emits Fortran kernels.
+8. `src/codegen` selects shared subexpressions and owns symbolic lowering.
+   `fortsym_fortgen_adapter` maps its established scalar DAG to FortGen's
+   numerical Kernel IR; ordinary scalar Fortran/CUDA emission uses that backend.
+   Typed, Taylor and rigorous expression-aware generators retain their existing
+   FortSym owners. Exact Expr IR and derivation history remain separate work.
 
 ### Module ownership audit
 

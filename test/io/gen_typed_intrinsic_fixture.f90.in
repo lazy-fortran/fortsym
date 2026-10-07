@@ -1,0 +1,42 @@
+program gen_typed_intrinsic_fixture
+    use fortsym_arena, only: arena_t
+    use fortsym_expr, only: expr_t, sym, num, func, operator(**)
+    use fortsym_dialect, only: dialect, DIA_FORTRAN
+    use fortsym_print, only: print_expr_sub, fortran_roots_representable
+    use fortsym_string, only: chars, str, str_t
+    implicit none
+    type(arena_t), target :: arena
+    type(expr_t) :: x, expressions(6)
+    type(str_t), allocatable :: names(:)
+    integer, allocatable :: ids(:)
+    integer :: unit, i
+    character(2048) :: path
+    character(16) :: index
+
+    call get_command_argument(1, path)
+    call arena%init()
+    x = sym(arena, "x")
+    expressions(1) = func("max", [num(arena, 0), x])
+    expressions(2) = func("min", [x, num(arena, -1)])
+    expressions(3) = func("atan2", [x, num(arena, 0)])
+    expressions(4) = func("besselj", [num(arena, 1), x])
+    expressions(5) = x**3
+    expressions(6) = func("arr", [num(arena, 1)])
+    if (.not. fortran_roots_representable(expressions, &
+        array_names=[str("arr")])) error stop "fixture not representable"
+    allocate(ids(0), names(0))
+    open(newunit=unit, file=trim(path), status="replace", action="write")
+    write(unit, '(a)') "subroutine typed_intrinsic_fixture(x, arr, values)"
+    write(unit, '(a)') "use, intrinsic :: iso_fortran_env, only: dp => real64"
+    write(unit, '(a)') "implicit none"
+    write(unit, '(a)') "real(dp), intent(in) :: x, arr(2)"
+    write(unit, '(a)') "real(dp), intent(out) :: values(6)"
+    do i = 1, size(expressions)
+        write(index, '(i0)') i
+        write(unit, '(a)') "values("//trim(index)//") = "// &
+            chars(print_expr_sub(expressions(i), dialect(DIA_FORTRAN), &
+                ids, names, prechecked=.true.))
+    end do
+    write(unit, '(a)') "end subroutine typed_intrinsic_fixture"
+    close(unit)
+end program gen_typed_intrinsic_fixture

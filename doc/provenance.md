@@ -183,3 +183,14 @@ does**, and none of these is a permitted implementation source.
 
 Versions, licences and linking rules are in `LEGAL.md` §3 and
 `doc/upstream-baselines.toml`, which is authoritative.
+
+## Shared code-generation dependency
+
+- The scalar Fortran/CUDA backend uses `lazy-fortran/fortgen` (MIT), pinned in
+  `fpm.toml` and `CMakeLists.txt`.
+- `src/codegen/fortsym_fortgen_adapter.f90` is original field-mapping code;
+  it contains no adapted third-party algorithm.
+- FortGen receives lowered numerical computation and emission policy. It is
+  not a symbolic algebra oracle or a participant in CAS decisions.
+- FortGen's ordinary-SymPy frontend enters the same backend independently of
+  FortSym, while mathematical derivation history stays with FortSym.

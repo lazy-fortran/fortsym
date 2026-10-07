@@ -39,6 +39,24 @@ fortsym_add_test(test_fortsym_polysolve algebra/test_fortsym_polysolve.f90)
 
 # --- surface syntax ---
 fortsym_add_test(test_fortsym_roundtrip io/test_fortsym_roundtrip.f90)
+# Build-time compilation fixtures are excluded from fpm auto-test discovery.
+configure_file(io/gen_typed_intrinsic_fixture.f90.in
+    ${CMAKE_CURRENT_BINARY_DIR}/gen_typed_intrinsic_fixture.f90 COPYONLY)
+configure_file(io/test_typed_intrinsic_compiled.f90.in
+    ${CMAKE_CURRENT_BINARY_DIR}/test_typed_intrinsic_compiled.f90 COPYONLY)
+add_executable(gen_typed_intrinsic_fixture
+    ${CMAKE_CURRENT_BINARY_DIR}/gen_typed_intrinsic_fixture.f90)
+target_link_libraries(gen_typed_intrinsic_fixture PRIVATE fortsym)
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/typed_intrinsic_fixture.f90
+    COMMAND $<TARGET_FILE:gen_typed_intrinsic_fixture>
+        ${CMAKE_CURRENT_BINARY_DIR}/typed_intrinsic_fixture.f90
+    DEPENDS gen_typed_intrinsic_fixture
+    VERBATIM)
+add_executable(test_typed_intrinsic_compiled
+    ${CMAKE_CURRENT_BINARY_DIR}/test_typed_intrinsic_compiled.f90
+    ${CMAKE_CURRENT_BINARY_DIR}/typed_intrinsic_fixture.f90)
+add_test(NAME test_typed_intrinsic_compiled COMMAND test_typed_intrinsic_compiled)
 fortsym_add_test(test_fortsym_latex io/test_fortsym_latex.f90)
 fortsym_add_test(test_fortsym_wolfram io/test_fortsym_wolfram.f90)
 fortsym_add_test(test_fortsym_plotfamily io/test_fortsym_plotfamily.f90)
