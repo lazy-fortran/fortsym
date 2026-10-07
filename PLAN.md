@@ -29,7 +29,7 @@ SymPy-compatible surface and completion rules. Export design is in
 
 | Stage | Deliverable | Dependency / review gate |
 |---|---|---|
-| H0 | Scalar backend integrated; obsolete snapshots archived | Independent native gates passed; controller owns final branch/worktree removal |
+| H0 | Scalar backend integrated; obsolete snapshots archived | Independent native gates passed; finished refs removed; active GS worktree preserved |
 | E0 | Exact neutral Expr IR in FortGen [#8](https://github.com/lazy-fortran/fortgen/issues/8) | Review literal/domain/branch contract before implementing adapters |
 | D0 | Native/API derivation recording [#78](https://github.com/lazy-fortran/fortsym/issues/78) | Can design alongside E0; retain operations when executed |
 | A0 | External assumption boundary [#81](https://github.com/lazy-fortran/fortsym/issues/81) | Independent reproducer; share reviewed assumption serialization |
@@ -90,8 +90,9 @@ SymPy-compatible surface and completion rules. Export design is in
   its incomplete inventory is not evidence of complete dependency closure.
 - Three dirty October 5 snapshots are archived with exact bases, binary
   patches and copied untracked sources. Their four untracked files match main.
-- The active Grad–Shafranov generator worktree is preserved. Final branch and
-  obsolete-worktree removal belongs to the integration controller.
+- Finished feature branches and six obsolete worktrees were removed after
+  preserving exact commit refs and archived source/evidence. Only main and
+  the active pinned Grad–Shafranov worktree remain; no open PRs.
 - Remaining open issues: [#78](https://github.com/lazy-fortran/fortsym/issues/78),
   [#79](https://github.com/lazy-fortran/fortsym/issues/79),
   [#80](https://github.com/lazy-fortran/fortsym/issues/80),
