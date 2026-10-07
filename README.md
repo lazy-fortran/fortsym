@@ -38,9 +38,10 @@ Your code never names an engine.
 Python callers use the installed `fortsym` package through the stable C ABI.
 `DIA_SYMPY` describes the expression spelling used by the subprocess adapter,
 which provides simplification and zero-test checks. It does not interpret an
-arbitrary SymPy script or provide a SymPy session. The existing consumer
-inventory contains no SymPy-authored derivation that requires one, so the
-supported Python path is host-language composition through the package API.
+arbitrary SymPy script or export a complete derivation. The supported Python
+path is host-language composition through the package API. The
+[implementation plan](PLAN.md) adds recorded derivations, standalone SymPy
+script export and replay through ordinary SymPy and the native drop-in.
 The Wolfram session remains a separate compatibility surface because the
 repository has an existing `.wl` derivation corpus to read.
 
@@ -62,7 +63,7 @@ API are described in [`doc/fortran-api.md`](doc/fortran-api.md). Verification
 and code generation have dedicated modules because they have their own result
 and output contracts.
 
-## Why
+## Motivation
 
 Three problems this exists to solve, all drawn from real code in these repos:
 
@@ -78,12 +79,12 @@ Three problems this exists to solve, all drawn from real code in these repos:
 fortsym keeps the generator in the repository, regenerates it in CI, and checks
 generated code against the symbolic definition in the same test binary.
 
-## What it does
+## Capabilities
 
 **Decide identities.** A real zero-decision procedure, not a bag of rewrite
 rules: expressions go to exponential normal form, so the Pythagorean,
 hyperbolic, angle-sum, multiple-angle, tangent-addition, exp/log and rational
-identities are all decided. Crucially it also refuses to decide what it cannot:
+identities are all decided. Expressions outside its decision domain remain explicit:
 `sqrt(x²)−x` and `atan x + atan(1/x) − π/2` hold only on part of the domain and
 are correctly *not* reported as identities, and expressions outside the decidable
 fragment (gamma, Bessel, zeta) return `UNKNOWN` rather than a confident guess.
