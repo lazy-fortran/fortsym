@@ -28,6 +28,14 @@ module fortsym_kernel_emit
         PRECISION_MIXED, precision_is_valid, precision_name
     use fortsym_names, only: valid_fortran_name, same_fortran_name, &
         map_fortran_names
+    use fortsym_fortgen_adapter, only: to_fortgen_kernel_ir
+    use fortgen_kernel_ir, only: fg_kernel_ir_t => kernel_ir_t
+    use fortgen_kernel_emit, only: fg_kernel_emit_spec_t => kernel_emit_spec_t, &
+        fg_emit_fortran_kernel_ir => emit_fortran_kernel_ir, &
+        fg_emit_cuda_device_ir => emit_cuda_device_ir
+    use fortgen_kernel_target, only: fg_target_from_name => target_from_name
+    use fortgen_precision, only: fg_precision_from_name => precision_from_name
+    use fortgen_string, only: fg_str_t => str_t, fg_str => str, fg_chars => chars
     implicit none
     private
 
@@ -458,35 +466,80 @@ contains
         end if
     end function table_trailer
 
+    subroutine map_fortgen_spec(spec, fg_spec, ok, message)
+        type(kernel_emit_spec_t), intent(in) :: spec
+        type(fg_kernel_emit_spec_t), intent(out) :: fg_spec
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        integer :: k
+
+        ok = .false.
+        message = ""
+        if (.not. allocated(spec%args)) then
+            message = "kernel emitter: argument names are not allocated"
+            return
+        end if
+        if (.not. allocated(spec%outputs)) then
+            message = "kernel emitter: output names are not allocated"
+            return
+        end if
+
+        fg_spec%name = fg_str(chars(spec%name))
+        allocate(fg_spec%args(size(spec%args)))
+        allocate(fg_spec%outputs(size(spec%outputs)))
+        do k = 1, size(spec%args)
+            fg_spec%args(k) = fg_str(chars(spec%args(k)))
+        end do
+        do k = 1, size(spec%outputs)
+            fg_spec%outputs(k) = fg_str(chars(spec%outputs(k)))
+        end do
+        fg_spec%temp_prefix = fg_str(chars(spec%temp_prefix))
+        fg_spec%target = fg_target_from_name(target_name(spec%target))
+        fg_spec%precision = fg_precision_from_name(precision_name(spec%precision))
+        if (fg_spec%target == -999 .or. fg_spec%precision == 0) then
+            message = "kernel emitter: FortGen target/precision mapping failed"
+            return
+        end if
+        fg_spec%policy%small_power_limit = spec%policy%small_power_limit
+        fg_spec%policy%fold_exact_constants = spec%policy%fold_exact_constants
+        fg_spec%policy%eliminate_constant_divisions = &
+            spec%policy%eliminate_constant_divisions
+        fg_spec%policy%shape_fma = spec%policy%shape_fma
+        fg_spec%pure_procedure = spec%pure_procedure
+        fg_spec%special_module = fg_str(chars(spec%special_module))
+        fg_spec%producer = fg_str("fortsym")
+        fg_spec%generator = fg_str(chars(spec%generator))
+        fg_spec%generator_revision = fg_str(chars(spec%generator_revision))
+        fg_spec%regenerate_command = fg_str(chars(spec%regenerate_command))
+        ok = .true.
+    end subroutine map_fortgen_spec
+
     function emit_fortran_kernel_ir(ir, spec, ok, message) result(source)
         type(kernel_ir_t), intent(in) :: ir
         type(kernel_emit_spec_t), intent(in) :: spec
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: message
         type(str_t) :: source
-        type(kernel_ir_t) :: mapped_ir, prepared
-        type(kernel_emit_spec_t) :: mapped_spec
-        type(str_t), allocatable :: original_names(:), emitted_names(:)
-        logical, allocatable :: changed_names(:)
+        type(fg_kernel_ir_t) :: fg_ir
+        type(fg_kernel_emit_spec_t) :: fg_spec
+        type(fg_str_t) :: fg_source
 
-        call prepare_fortran_ir(ir, spec, mapped_ir, mapped_spec, original_names, &
-            emitted_names, changed_names, ok, message)
+        call to_fortgen_kernel_ir(ir, fg_ir, ok, message)
         if (.not. ok) then
             source = str("")
             return
         end if
-        call validate(mapped_ir, mapped_spec, BACKEND_FORTRAN, ok, message)
+        call map_fortgen_spec(spec, fg_spec, ok, message)
         if (.not. ok) then
             source = str("")
             return
         end if
-        call apply_emission_policy(mapped_ir, mapped_spec%policy, prepared, ok, message)
+        fg_source = fg_emit_fortran_kernel_ir(fg_ir, fg_spec, ok, message)
         if (.not. ok) then
             source = str("")
             return
         end if
-        source = emit_source(prepared, mapped_spec, BACKEND_FORTRAN, original_names, &
-            emitted_names, changed_names)
+        source = str(fg_chars(fg_source))
     end function emit_fortran_kernel_ir
 
     function emit_cuda_device_ir(ir, spec, ok, message) result(source)
@@ -495,19 +548,26 @@ contains
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: message
         type(str_t) :: source
-        type(kernel_ir_t) :: prepared
+        type(fg_kernel_ir_t) :: fg_ir
+        type(fg_kernel_emit_spec_t) :: fg_spec
+        type(fg_str_t) :: fg_source
 
-        call validate(ir, spec, BACKEND_CUDA, ok, message)
+        call to_fortgen_kernel_ir(ir, fg_ir, ok, message)
         if (.not. ok) then
             source = str("")
             return
         end if
-        call apply_emission_policy(ir, spec%policy, prepared, ok, message)
+        call map_fortgen_spec(spec, fg_spec, ok, message)
         if (.not. ok) then
             source = str("")
             return
         end if
-        source = emit_source(prepared, spec, BACKEND_CUDA)
+        fg_source = fg_emit_cuda_device_ir(fg_ir, fg_spec, ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        source = str(fg_chars(fg_source))
     end function emit_cuda_device_ir
 
     subroutine prepare_fortran_ir(ir, spec, mapped_ir, mapped_spec, original_names, &

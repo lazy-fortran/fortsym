@@ -73,6 +73,7 @@ target_sources(fortsym PRIVATE
     codegen/fortsym_kernel_target.f90
     codegen/fortsym_kernel_emit.f90
     codegen/fortsym_kernel_ir.f90
+    codegen/fortsym_fortgen_adapter.f90
     codegen/fortsym_rigorous_emit.f90
     codegen/fortsym_kernel_typed.f90
     codegen/fortsym_kernel_taylor.f90
@@ -131,6 +132,9 @@ target_include_directories(fortsym
         $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>
         $<INSTALL_INTERFACE:include>
     PRIVATE ${PROJECT_SOURCE_DIR}/src/capi)
+
+target_link_libraries(fortsym PRIVATE
+    fortgen::fortgen)
 
 target_link_libraries(fortsym PUBLIC
     $<BUILD_INTERFACE:fortsym::symengine>

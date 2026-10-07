@@ -80,10 +80,11 @@ SymPy-compatible surface and completion rules. Export design is in
 
 - Main inspection base: `a6142712af998b727c245fb6cfbb3745b296ec24`.
 - [PR #77](https://github.com/lazy-fortran/fortsym/pull/77) and
-  [FortGen #7](https://github.com/lazy-fortran/fortgen/pull/7) contain useful
-  shared scalar backend work; reconcile and verify it before deleting branches.
-- `fix/typed-real-generic-literals` contains useful unmerged MAX/MIN typing;
-  ingest with a compiled behavioral oracle, then remove its branch.
+  [FortGen #7](https://github.com/lazy-fortran/fortgen/pull/7) supply the shared
+  scalar backend and one-way adapter, reconciled with this planning baseline.
+- `fix/typed-real-generic-literals` is superseded by the current printer's
+  broader typed-intrinsic argument whitelist. The compiled fixture covers
+  MAX/MIN, ATAN2, discrete Bessel order, integer powers and array indices.
 - `interval-emit` and `agent/tmp-power-wrap-fix` are ancestors of inspected main.
 - Three detached October 5 worktrees contain incorporated/superseded changes;
   retain their patches and untracked-file inventory before removing them.
