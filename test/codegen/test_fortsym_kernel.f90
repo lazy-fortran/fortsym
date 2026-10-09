@@ -8,7 +8,7 @@ program test_fortsym_kernel
     ! about correctness; this catches a lost sign, a wrong precedence or a
     ! mis-ordered CSE temporary. Golden strings are used only where formatting
     ! itself is the requirement.
-    use, intrinsic :: iso_fortran_env, only: real32, real64
+    use, intrinsic :: iso_fortran_env, only: int64, real32, real64
     use fortsym_string, only: str, str_t, chars
     use fortsym_algebraic, only: algebraic_from_re_im, algebraic_sqrt
     use fortsym_arena, only: arena_t, NK_FUNC
@@ -50,6 +50,7 @@ program test_fortsym_kernel
     call test_real_algebraic_codegen()
     call test_temporaries_are_declared()
     call test_precision_modes()
+    call test_real64_kind_alias_hygiene()
     call test_default_temporary_prefix()
     call test_explicit_regeneration_command()
     call test_generator_revision()
@@ -86,6 +87,78 @@ program test_fortsym_kernel
     end if
 
 contains
+
+    subroutine test_real64_kind_alias_hygiene()
+        type(arena_t), target :: a
+        type(expr_t) :: roots(2), common
+        type(kernel_spec_t) :: spec
+        integer :: unit, stat
+
+        call a%init()
+        open (newunit=unit, file="/tmp/fortsym_kind_alias.f90", &
+            status="replace", action="write")
+
+        ! Names are legal, including collisions with successive fallback
+        ! aliases. Fortran identifiers are case insensitive.
+        spec = spec_for("kind_input", &
+            [character(17) :: "DP", "fortsym_real64", "FoRtSyM_ReAl64_1"], R_OUT)
+        spec%scalar_type = str("real(dp)")
+        spec%arg_types = [str("real(kind=DP)"), str("real(dp)"), str("real(dp)")]
+        roots(1) = (sym(a, "DP") + sym(a, "fortsym_real64"))* &
+            sym(a, "FoRtSyM_ReAl64_1") + rat(a, 1_int64, 8_int64)
+        write (unit, "(a)") chars(emit_kernel(roots(:1), spec))
+
+        spec = spec_for("kind_output", X_ARGS, [character(2) :: "DP"])
+        roots(1) = sym(a, "x")/num(a, 2) + rat(a, 1_int64, 8_int64)
+        write (unit, "(a)") chars(emit_kernel(roots(:1), spec))
+
+        spec = spec_for("dp", X_ARGS, R_OUT)
+        roots(1) = sym(a, "x") + rat(a, 1_int64, 8_int64)
+        write (unit, "(a)") chars(emit_kernel(roots(:1), spec))
+
+        spec = spec_for("kind_temporary", &
+            [character(14) :: "dp", "fortsym_real64", "x"], R12_OUT)
+        spec%temp_prefix = str("fortsym_real64_")
+        common = sym(a, "dp") + sym(a, "fortsym_real64") + &
+            sym(a, "x") + rat(a, 1_int64, 8_int64)
+        roots = [common**2, common**3]
+        write (unit, "(a)") chars(emit_kernel(roots, spec))
+
+        spec = spec_for("kind_complex", [character(2) :: "dp", "z"], R_OUT)
+        spec%scalar_type = str("complex(DP)")
+        spec%arg_types = [str("real(dp)"), str("complex(kind=dp)")]
+        roots(1) = sym(a, "z")/sym(a, "dp") + rat(a, 1_int64, 8_int64)
+        write (unit, "(a)") chars(emit_kernel(roots(:1), spec))
+
+        write (unit, "(a)") "program drive_kind_alias"
+        write (unit, "(a)") "  use iso_fortran_env, only: rk => real64"
+        write (unit, "(a)") "  implicit none"
+        write (unit, "(a)") "  real(rk) :: r, s"
+        write (unit, "(a)") "  complex(rk) :: z"
+        write (unit, "(a)") "  call kind_input(2.0_rk, 3.0_rk, 4.0_rk, r)"
+        write (unit, "(a)") "  if (abs(r - 20.125_rk) > 1.e-13_rk) error stop 1"
+        write (unit, "(a)") "  call kind_output(3.0_rk, r)"
+        write (unit, "(a)") "  if (abs(r - 1.625_rk) > 1.e-13_rk) error stop 2"
+        write (unit, "(a)") "  call dp(3.0_rk, r)"
+        write (unit, "(a)") "  if (abs(r - 3.125_rk) > 1.e-13_rk) error stop 3"
+        write (unit, "(a)") "  call kind_temporary(1.0_rk, 2.0_rk, 3.0_rk, r, s)"
+        write (unit, "(a)") "  if (abs(r - 6.125_rk**2) > 1.e-13_rk) error stop 4"
+        write (unit, "(a)") "  if (abs(s - 6.125_rk**3) > 1.e-13_rk) error stop 5"
+        write (unit, "(a)") &
+            "  call kind_complex(2.0_rk, cmplx(2.0_rk, 4.0_rk, rk), z)"
+        write (unit, "(a)") &
+            "  if (abs(z - cmplx(1.125_rk, 2.0_rk, rk)) > 1.e-13_rk) error stop 6"
+        write (unit, "(a)") "end program drive_kind_alias"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -o /tmp/fortsym_kind_alias /tmp/fortsym_kind_alias.f90 "// &
+            "> /tmp/fortsym_kind_alias.log 2>&1", wait=.true., exitstat=stat)
+        call ok("colliding real64 kind names compile", stat == 0)
+        if (stat /= 0) return
+        call execute_command_line("/tmp/fortsym_kind_alias", &
+            wait=.true., exitstat=stat)
+        call ok("colliding real64 kind names match independent values", stat == 0)
+    end subroutine test_real64_kind_alias_hygiene
 
     subroutine test_repeated_polynomial_derivatives()
         type(arena_t), target :: a

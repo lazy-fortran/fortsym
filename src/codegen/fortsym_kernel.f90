@@ -600,12 +600,13 @@ contains
     end function is_reciprocal_power
 
     !> The assignment statements: every temporary, then every output.
-    function emit_statements(roots, spec, res, ok, prechecked) result(s)
+    function emit_statements(roots, spec, res, ok, prechecked, real64_alias) result(s)
         type(expr_t),       intent(in) :: roots(:)
         type(kernel_spec_t), intent(in) :: spec
         type(cse_result_t), intent(in) :: res
         logical, intent(out), optional :: ok
         logical, intent(in), optional :: prechecked
+        character(*), intent(in), optional :: real64_alias
         type(str_t)                    :: s
 
         type(strbuf_t)  :: b
@@ -622,6 +623,10 @@ contains
         else
             d%real_suffix = str("_dp")
             d%int_real_suffix = str(".0_dp")
+            if (present(real64_alias)) then
+                d%real_suffix = str("_"//real64_alias)
+                d%int_real_suffix = str(".0_"//real64_alias)
+            end if
         end if
         if (present(prechecked)) then
             valid = prechecked
@@ -978,6 +983,75 @@ contains
         ok = .true.
     end subroutine prepare_fortran_kernel
 
+    ! Keep historical source unchanged unless an emitted identifier shadows
+    ! the imported kind. Check the mapped interface and actual CSE names.
+    function real64_kind_alias(spec, res) result(alias)
+        type(kernel_spec_t), intent(in) :: spec
+        type(cse_result_t), intent(in) :: res
+        character(:), allocatable :: alias
+        character(20) :: suffix
+        integer :: k, attempt
+        logical :: used
+
+        alias = "dp"
+        attempt = 0
+        do
+            used = same_fortran_name(alias, chars(spec%name)) .or. &
+                same_fortran_name(alias, chars(spec%module_name))
+            do k = 1, size(spec%args)
+                used = used .or. same_fortran_name(alias, chars(spec%args(k)))
+            end do
+            do k = 1, size(spec%outputs)
+                used = used .or. same_fortran_name(alias, chars(spec%outputs(k)))
+            end do
+            do k = 1, res%n
+                used = used .or. same_fortran_name(alias, chars(res%names(k)))
+            end do
+            if (.not. used) return
+            alias = "fortsym_real64"
+            if (attempt > 0) then
+                write (suffix, "(i0)") attempt
+                alias = alias//"_"//trim(suffix)
+            end if
+            attempt = attempt + 1
+        end do
+    end function real64_kind_alias
+
+    ! Explicit real(dp)/complex(dp) declaration policies refer to the same
+    ! kind as default declarations. Replace whole identifiers, ignoring case.
+    function aliased_kind_type(declaration, alias) result(mapped)
+        character(*), intent(in) :: declaration, alias
+        character(:), allocatable :: mapped
+        type(strbuf_t) :: b
+        integer :: first, last
+
+        if (alias == "dp") then
+            mapped = declaration
+            return
+        end if
+        first = 1
+        do while (first <= len(declaration))
+            last = first
+            do while (last <= len(declaration))
+                if (index("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"// &
+                    "0123456789_", declaration(last:last)) == 0) exit
+                last = last + 1
+            end do
+            if (last == first) then
+                call b%append(declaration(first:first))
+                first = first + 1
+            else
+                if (same_fortran_name(declaration(first:last - 1), "dp")) then
+                    call b%append(alias)
+                else
+                    call b%append(declaration(first:last - 1))
+                end if
+                first = last
+            end if
+        end do
+        mapped = chars(b%to_str())
+    end function aliased_kind_type
+
     recursive subroutine map_fortran_kernel_node(mapped_arena, original_arena, id, &
             args, mapped_args, visited, ok, message)
         type(arena_t), intent(inout) :: mapped_arena
@@ -1123,17 +1197,22 @@ contains
         type(strbuf_t) :: header
         character(:), allocatable :: scalar_type, input_type, output_type
         character(:), allocatable :: temporary_type
+        character(:), allocatable :: kind_alias, argument_type
         integer :: k
 
-        scalar_type = chars(spec%scalar_type)
+        kind_alias = "dp"
+        if (spec%precision == PRECISION_REAL64) then
+            kind_alias = real64_kind_alias(spec, res)
+        end if
+        scalar_type = aliased_kind_type(chars(spec%scalar_type), kind_alias)
         if (len(scalar_type) == 0) then
             if (spec%precision == PRECISION_REAL32 .or. &
                 spec%precision == PRECISION_MIXED) then
                 input_type = "real(real32)"
                 temporary_type = "real(real32)"
             else
-                input_type = "real(dp)"
-                temporary_type = "real(dp)"
+                input_type = "real("//kind_alias//")"
+                temporary_type = input_type
             end if
             if (spec%precision == PRECISION_MIXED) then
                 output_type = "real(real64)"
@@ -1178,10 +1257,9 @@ contains
             call b%append("    use, intrinsic :: iso_fortran_env, only: real32")
         else if (spec%precision == PRECISION_MIXED) then
             call b%append("    use, intrinsic :: iso_fortran_env, only: real32, real64")
-        else if (len(chars(spec%scalar_type)) == 0) then
-            call b%append("    use, intrinsic :: iso_fortran_env, only: dp => real64")
         else
-            call b%append("    use, intrinsic :: iso_fortran_env, only: dp => real64")
+            call b%append("    use, intrinsic :: iso_fortran_env, only: "// &
+                kind_alias//" => real64")
         end if
         call b%newline()
         call b%append("    implicit none")
@@ -1189,11 +1267,12 @@ contains
 
         if (allocated(spec%arg_types)) then
             do k = 1, size(spec%args)
+                argument_type = aliased_kind_type(chars(spec%arg_types(k)), kind_alias)
                 if (allocated(spec%arg_shapes)) then
-                    call declare(b, chars(spec%arg_types(k)), "intent(in)", &
+                    call declare(b, argument_type, "intent(in)", &
                         spec%args(k:k), spec%arg_shapes(k:k))
                 else
-                    call declare(b, chars(spec%arg_types(k)), "intent(in)", &
+                    call declare(b, argument_type, "intent(in)", &
                         spec%args(k:k))
                 end if
             end do
@@ -1217,7 +1296,7 @@ contains
 
         call b%newline()
         call b%append(chars(emit_statements(roots, spec, res, &
-            prechecked=.true.)))
+            prechecked=.true., real64_alias=kind_alias)))
         call b%newline()
         call b%append("end subroutine ")
         call b%append(chars(spec%name))
