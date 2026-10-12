@@ -19,17 +19,21 @@ program test_fortsym_kernel_batch
     ! variants of the same expressions; 9 is a SIMD batch with a private leaf.
     ! kref is the scalar leaf each batch is compared with. Expressions 1-2 use
     ! only + - * /, so their SIMD variants are exactly equal to the scalar leaf.
-    integer, parameter :: nk = 9
+    integer, parameter :: nk = 10
     character(8), parameter :: kname(nk) = [character(8) :: "kd_poly", "kd_rat", &
-        "kd_trans", "kd_dsin", "kf_poly", "kf_rat", "kf_trans", "kf_dsin", "ki_poly"]
-    integer, parameter :: kexpr(nk) = [1, 2, 3, 4, 1, 2, 3, 4, 1]
-    integer, parameter :: kref(nk) = [1, 2, 3, 4, 1, 2, 3, 4, 1]
+        "kd_trans", "kd_dsin", "kf_poly", "kf_rat", "kf_trans", "kf_dsin", "ki_poly", &
+        "ks_poly"]
+    integer, parameter :: kexpr(nk) = [1, 2, 3, 4, 1, 2, 3, 4, 1, 1]
+    integer, parameter :: kref(nk) = [1, 2, 3, 4, 1, 2, 3, 4, 1, 1]
     logical, parameter :: kdet(nk) = [.true., .true., .true., .true., .false., &
-        .false., .false., .false., .false.]
+        .false., .false., .false., .false., .false.]
+    ! ks_poly: SIMD driver without a thread team of its own (batch_threaded off).
+    logical, parameter :: kthreaded(nk) = [.true., .true., .true., .true., .true., &
+        .true., .true., .true., .true., .false.]
     logical, parameter :: kinline(nk) = [.false., .false., .false., .false., &
-        .false., .false., .false., .false., .true.]
+        .false., .false., .false., .false., .true., .false.]
     logical, parameter :: kexact(nk) = [.true., .true., .true., .true., .true., &
-        .true., .false., .false., .true.]
+        .true., .false., .false., .true., .true.]
 
     call test_leaf_directive()
     call test_batch_rejections()
@@ -160,6 +164,14 @@ contains
             index(src, "!$omp parallel do simd schedule(static)") > 0 .and. &
             index(src, "!$omp declare simd uniform(a)") > 0 .and. &
             index(src, "noinline") == 0)
+        spec%batch_threaded = .false.
+        src = chars(emit_fortran_batch_ir(ir, spec, good, message))
+        call ok("unthreaded SIMD batch has a simd loop and no thread team", good .and. &
+            index(src, "!$omp simd") > 0 .and. index(src, "parallel") == 0)
+        spec%batch_deterministic = .true.
+        src = chars(emit_fortran_batch_ir(ir, spec, good, message))
+        call ok("unthreaded deterministic batch has no OpenMP loop directive", good .and. &
+            index(src, "!$omp simd") == 0 .and. index(src, "parallel") == 0)
     end subroutine test_batch_rejections
 
     subroutine write_text(unit, text)
@@ -191,6 +203,7 @@ contains
             call fill_spec(spec, trim(kname(k)))
             spec%batch_deterministic = kdet(k)
             spec%batch_inline = kinline(k)
+            spec%batch_threaded = kthreaded(k)
             spec%batch_parallel_min = 1000
             src = chars(emit_fortran_batch_ir(ir, spec, good, message))
             call ok("batch emits: " // trim(kname(k)) // " " // message, good)
