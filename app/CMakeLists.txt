@@ -66,6 +66,9 @@ target_include_directories(fortsym_emitted_audit_kernels PUBLIC ${FORTSYM_AUDIT_
 add_executable(bench_emitted_kernels
     ${PROJECT_SOURCE_DIR}/benchmark/harnesses/bench_emitted_kernels.f90)
 target_link_libraries(bench_emitted_kernels PRIVATE fortsym_emitted_audit_kernels)
+add_executable(gen_kernel_batch_bench
+    ${PROJECT_SOURCE_DIR}/benchmark/harnesses/gen_kernel_batch_bench.f90)
+target_link_libraries(gen_kernel_batch_bench PRIVATE fortsym)
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
     target_compile_options(fortsym_emitted_audit_kernels PRIVATE
         -O3 -fno-fast-math -ffp-contract=off)
