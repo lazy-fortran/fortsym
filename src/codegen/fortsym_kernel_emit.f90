@@ -23,6 +23,7 @@ module fortsym_kernel_emit
         TARGET_FORTRAN_OPENACC_VALUE => TARGET_FORTRAN_OPENACC, &
         TARGET_DUAL_VALUE => TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, &
         TARGET_CUDA_VALUE => TARGET_CUDA, &
+        TARGET_SIMD_VALUE => TARGET_FORTRAN_OPENMP_SIMD, &
         target_directives, target_is_valid, target_name
     use fortsym_precision, only: PRECISION_REAL64, PRECISION_REAL32, &
         PRECISION_MIXED, precision_is_valid, precision_name
@@ -41,10 +42,12 @@ module fortsym_kernel_emit
 
     public :: kernel_emission_policy_t, kernel_emit_spec_t
     public :: emit_fortran_kernel_ir, emit_cuda_device_ir
+    public :: emit_fortran_batch_ir
     public :: emit_table
     public :: TARGET_DEFAULT, TARGET_FORTRAN_CPU
     public :: TARGET_FORTRAN_OPENMP_TARGET, TARGET_FORTRAN_OPENACC
     public :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, TARGET_CUDA
+    public :: TARGET_FORTRAN_OPENMP_SIMD
     public :: target_name
     public :: PRECISION_REAL64, PRECISION_REAL32, PRECISION_MIXED
     public :: precision_name
@@ -56,6 +59,7 @@ module fortsym_kernel_emit
     integer, parameter :: TARGET_FORTRAN_OPENACC = TARGET_FORTRAN_OPENACC_VALUE
     integer, parameter :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC = TARGET_DUAL_VALUE
     integer, parameter :: TARGET_CUDA = TARGET_CUDA_VALUE
+    integer, parameter :: TARGET_FORTRAN_OPENMP_SIMD = TARGET_SIMD_VALUE
 
     !> Named, unconditional source-emission policies. These are structural
     !> choices made from the exact expression before a compiler sees floats;
@@ -106,6 +110,23 @@ module fortsym_kernel_emit
         !> Optional module supplying nonstandard special functions. An empty
         !> value selects the consumer-standard `fortnum_special` umbrella.
         type(str_t) :: special_module
+        !> Batch driver only (`emit_fortran_batch_ir`): names of `args` that
+        !> are uniform across the batch. They are scalars in the driver and
+        !> appear in the leaf's `uniform(...)` clause.
+        type(str_t), allocatable :: uniform(:)
+        !> Batch driver only: keep the leaf private to the generated module
+        !> so the compiler inlines it into the loop. Otherwise it is public.
+        logical :: batch_inline = .false.
+        !> Batch driver only: smallest batch size run on a thread team.
+        integer :: batch_parallel_min = 2048
+        !> Batch driver only. When true (default), the leaf is called as a
+        !> scalar, non-inlined, non-SIMD procedure from a `parallel do` loop,
+        !> so every element is bitwise the scalar leaf for any thread count
+        !> and the vectoriser cannot substitute libmvec for libm. When false,
+        !> the leaf carries `declare simd` and the loop is `parallel do simd`;
+        !> kernels using only + - * / are still bitwise equal under
+        !> -ffp-contract=off, transcendental ones agree to libmvec accuracy.
+        logical :: batch_deterministic = .true.
         type(str_t) :: generator
         type(str_t) :: generator_revision
         type(str_t) :: regenerate_command
@@ -494,7 +515,13 @@ contains
             fg_spec%outputs(k) = fg_str(chars(spec%outputs(k)))
         end do
         fg_spec%temp_prefix = fg_str(chars(spec%temp_prefix))
-        fg_spec%target = fg_target_from_name(target_name(spec%target))
+        if (spec%target == TARGET_FORTRAN_OPENMP_SIMD) then
+            ! The body is the CPU leaf; the declare-simd line is added by
+            ! emit_fortran_kernel_ir after FortGen has produced it.
+            fg_spec%target = fg_target_from_name(target_name(TARGET_FORTRAN_CPU))
+        else
+            fg_spec%target = fg_target_from_name(target_name(spec%target))
+        end if
         fg_spec%precision = fg_precision_from_name(precision_name(spec%precision))
         if (fg_spec%target == -999 .or. fg_spec%precision == 0) then
             message = "kernel emitter: FortGen target/precision mapping failed"
@@ -540,7 +567,284 @@ contains
             return
         end if
         source = str(fg_chars(fg_source))
+        if (spec%target == TARGET_FORTRAN_OPENMP_SIMD) then
+            source = str(add_declare_simd(fg_chars(fg_source), spec, ok, message))
+            if (.not. ok) source = str("")
+        end if
     end function emit_fortran_kernel_ir
+
+    !> Insert `!$omp declare simd [uniform(...)]` as the first line of
+    !> the leaf's specification part, directly after its subroutine statement.
+    function add_declare_simd(source, spec, ok, message) result(text)
+        character(*), intent(in) :: source
+        type(kernel_emit_spec_t), intent(in) :: spec
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        character(:), allocatable :: text, header, directive
+        integer :: pos, eol, k, j
+        logical :: found
+
+        ok = .false.
+        message = ""
+        text = source
+        ! The nameless form applies to the enclosing procedure; the named form
+        ! is rejected by older gfortran inside a module procedure.
+        directive = "    !$omp declare simd"
+        if (allocated(spec%uniform)) then
+            if (size(spec%uniform) > 0) then
+                directive = directive // " uniform("
+                do k = 1, size(spec%uniform)
+                    found = .false.
+                    do j = 1, size(spec%args)
+                        if (same_fortran_name(chars(spec%uniform(k)), &
+                            chars(spec%args(j)))) found = .true.
+                    end do
+                    if (.not. found) then
+                        message = "kernel emitter: uniform name is not an argument: " &
+                            // chars(spec%uniform(k))
+                        return
+                    end if
+                    if (k > 1) directive = directive // ", "
+                    directive = directive // chars(spec%uniform(k))
+                end do
+                directive = directive // ")"
+            end if
+        end if
+        text = insert_after_header(source, chars(spec%name), directive, ok, message)
+    end function add_declare_simd
+
+    !> Insert one directive line as the first line of a leaf's specification
+    !> part, directly after its (optionally pure) subroutine statement.
+    function insert_after_header(source, name, directive, ok, message) result(text)
+        character(*), intent(in) :: source, name, directive
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        character(:), allocatable :: text, header
+        integer :: pos, eol
+
+        ok = .false.
+        message = ""
+        text = source
+        header = "subroutine " // name // "("
+        pos = index(source, new_line("a") // header)
+        if (pos > 0) then
+            pos = pos + 1
+        else if (index(source, header) == 1) then
+            pos = 1
+        else
+            pos = index(source, new_line("a") // "pure " // header)
+            if (pos == 0) then
+                message = "kernel emitter: leaf header not found for declare simd"
+                return
+            end if
+            pos = pos + 1
+        end if
+        eol = index(source(pos:), new_line("a"))
+        if (eol == 0) then
+            message = "kernel emitter: leaf header is not terminated"
+            return
+        end if
+        eol = pos + eol - 1
+        text = source(1:eol) // directive // new_line("a") // source(eol + 1:)
+        ok = .true.
+    end function insert_after_header
+
+    !> Emit a Fortran module `<name>_batch_mod` holding the `declare simd`
+    !> leaf `<name>` and the host driver `<name>_batch(n, args..., outputs...)`.
+    !> Varying arguments and outputs are explicit-shape rank-one arrays of
+    !> extent n; names in `spec%uniform` are scalars. The loop is
+    !> `parallel do simd schedule(static)`, and every element is computed by
+    !> the leaf alone, so results do not depend on thread count or lane
+    !> width. They equal the scalar leaf bit for bit when the compiler does
+    !> not contract multiply-add differently in the two paths (compile with
+    !> -ffp-contract=off for the deterministic mode).
+    function emit_fortran_batch_ir(ir, spec, ok, message) result(source)
+        type(kernel_ir_t), intent(in) :: ir
+        type(kernel_emit_spec_t), intent(in) :: spec
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(str_t) :: source
+        type(kernel_emit_spec_t) :: leaf_spec
+        type(strbuf_t) :: b
+        character(:), allocatable :: name, leaf, in_kind, out_kind
+        integer :: k, pos
+        logical :: uniform_arg, need32, need64
+
+        source = str("")
+        ok = .false.
+        message = ""
+        name = chars(spec%name)
+        if (.not. allocated(spec%args) .or. .not. allocated(spec%outputs)) then
+            message = "kernel emitter: argument or output names are not allocated"
+            return
+        end if
+        if (len(name) + 10 > 63) then
+            message = "kernel emitter: kernel name is too long for the batch module"
+            return
+        end if
+        if (spec%target /= TARGET_DEFAULT .and. spec%target /= TARGET_FORTRAN_CPU &
+            .and. spec%target /= TARGET_FORTRAN_OPENMP_SIMD) then
+            message = "kernel emitter: batch driver needs a host Fortran target"
+            return
+        end if
+        if (spec%batch_parallel_min < 0) then
+            message = "kernel emitter: batch parallel threshold is negative"
+            return
+        end if
+        do k = 1, size(spec%args)
+            if (same_fortran_name(chars(spec%args(k)), "batch_n") .or. &
+                same_fortran_name(chars(spec%args(k)), "batch_i")) then
+                message = "kernel emitter: argument name is reserved by batch driver"
+                return
+            end if
+        end do
+        do k = 1, size(spec%outputs)
+            if (same_fortran_name(chars(spec%outputs(k)), "batch_n") .or. &
+                same_fortran_name(chars(spec%outputs(k)), "batch_i")) then
+                message = "kernel emitter: output name is reserved by the batch driver"
+                return
+            end if
+        end do
+
+        leaf_spec = spec
+        if (spec%batch_deterministic) then
+            leaf_spec%target = TARGET_FORTRAN_CPU
+        else
+            leaf_spec%target = TARGET_FORTRAN_OPENMP_SIMD
+        end if
+        leaf = chars(emit_fortran_kernel_ir(ir, leaf_spec, ok, message))
+        if (.not. ok) return
+        if (spec%batch_deterministic) then
+            ! GCC attribute directives must follow the use statements.
+            pos = index(leaf, "    implicit none" // new_line("a"))
+            if (pos == 0) then
+                message = "kernel emitter: leaf has no implicit none statement"
+                return
+            end if
+            pos = pos + len("    implicit none")
+            leaf = leaf(1:pos) // "    !GCC$ ATTRIBUTES noinline :: " // name // &
+                new_line("a") // leaf(pos + 1:)
+        end if
+        ok = .false.
+
+        need32 = spec%precision /= PRECISION_REAL64
+        need64 = spec%precision /= PRECISION_REAL32
+        if (spec%precision == PRECISION_REAL64) then
+            in_kind = "real(real64)"
+            out_kind = "real(real64)"
+        else if (spec%precision == PRECISION_REAL32) then
+            in_kind = "real(real32)"
+            out_kind = "real(real32)"
+        else
+            in_kind = "real(real32)"
+            out_kind = "real(real64)"
+        end if
+
+        call b%append("! Generated by fortsym. Do not edit.")
+        call b%newline()
+        call b%append("module " // name // "_batch_mod")
+        call b%newline()
+        if (need32 .and. need64) then
+            call b%append("    use, intrinsic :: iso_fortran_env, only: real32, real64")
+        else if (need32) then
+            call b%append("    use, intrinsic :: iso_fortran_env, only: real32")
+        else
+            call b%append("    use, intrinsic :: iso_fortran_env, only: real64")
+        end if
+        call b%newline()
+        call b%append("    implicit none")
+        call b%newline()
+        call b%append("    private")
+        call b%newline()
+        call b%append("    public :: " // name // "_batch")
+        call b%newline()
+        if (.not. spec%batch_inline) then
+            call b%append("    public :: " // name)
+            call b%newline()
+        end if
+        call b%append("contains")
+        call b%newline()
+        call b%newline()
+        call b%append(leaf)
+        call b%newline()
+        call b%append("    subroutine " // name // "_batch(batch_n")
+        do k = 1, size(spec%args)
+            call b%append(", " // chars(spec%args(k)))
+        end do
+        do k = 1, size(spec%outputs)
+            call b%append(", " // chars(spec%outputs(k)))
+        end do
+        call b%append(")")
+        call b%newline()
+        call b%append("        integer, intent(in) :: batch_n")
+        call b%newline()
+        do k = 1, size(spec%args)
+            uniform_arg = is_uniform_name(spec, chars(spec%args(k)))
+            call b%append("        " // in_kind // ", intent(in) :: " // &
+                chars(spec%args(k)))
+            if (.not. uniform_arg) call b%append("(batch_n)")
+            call b%newline()
+        end do
+        do k = 1, size(spec%outputs)
+            call b%append("        " // out_kind // ", intent(out) :: " // &
+                chars(spec%outputs(k)) // "(batch_n)")
+            call b%newline()
+        end do
+        call b%append("        integer :: batch_i")
+        call b%newline()
+        call b%newline()
+        if (spec%batch_deterministic) then
+            call b%append("        !$omp parallel do schedule(static) &")
+        else
+            call b%append("        !$omp parallel do simd schedule(static) &")
+        end if
+        call b%newline()
+        call b%append("        !$omp& if(parallel: batch_n >= " // &
+            chars(str(spec%batch_parallel_min)) // ")")
+        call b%newline()
+        call b%append("        do batch_i = 1, batch_n")
+        call b%newline()
+        call b%append("            call " // name // "(")
+        do k = 1, size(spec%args)
+            if (k > 1) call b%append(", ")
+            call b%append(chars(spec%args(k)))
+            if (.not. is_uniform_name(spec, chars(spec%args(k)))) &
+                call b%append("(batch_i)")
+        end do
+        do k = 1, size(spec%outputs)
+            if (size(spec%args) > 0 .or. k > 1) call b%append(", ")
+            call b%append(chars(spec%outputs(k)) // "(batch_i)")
+        end do
+        call b%append(")")
+        call b%newline()
+        call b%append("        end do")
+        call b%newline()
+        if (spec%batch_deterministic) then
+            call b%append("        !$omp end parallel do")
+        else
+            call b%append("        !$omp end parallel do simd")
+        end if
+        call b%newline()
+        call b%append("    end subroutine " // name // "_batch")
+        call b%newline()
+        call b%newline()
+        call b%append("end module " // name // "_batch_mod")
+        call b%newline()
+        source = b%to_str()
+        ok = .true.
+    end function emit_fortran_batch_ir
+
+    logical function is_uniform_name(spec, arg) result(found)
+        type(kernel_emit_spec_t), intent(in) :: spec
+        character(*), intent(in) :: arg
+        integer :: k
+
+        found = .false.
+        if (.not. allocated(spec%uniform)) return
+        do k = 1, size(spec%uniform)
+            if (same_fortran_name(chars(spec%uniform(k)), arg)) found = .true.
+        end do
+    end function is_uniform_name
 
     function emit_cuda_device_ir(ir, spec, ok, message) result(source)
         type(kernel_ir_t), intent(in) :: ir

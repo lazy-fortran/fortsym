@@ -9,6 +9,7 @@ module fortsym_kernel_target
     public :: TARGET_DEFAULT, TARGET_FORTRAN_CPU
     public :: TARGET_FORTRAN_OPENMP_TARGET, TARGET_FORTRAN_OPENACC
     public :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, TARGET_CUDA
+    public :: TARGET_FORTRAN_OPENMP_SIMD
     public :: target_directives, target_is_valid, target_name
 
     !> Preserve the pre-descriptor API: its legacy logical flags decide the
@@ -24,6 +25,9 @@ module fortsym_kernel_target
     integer, parameter :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC = 3
     !> CUDA device leaf; decoration is emitted by the CUDA backend itself.
     integer, parameter :: TARGET_CUDA = 4
+    !> Host Fortran leaf carrying `!$omp declare simd`, so element loops can
+    !> call it from a vectorised region. The leaf body is the CPU leaf.
+    integer, parameter :: TARGET_FORTRAN_OPENMP_SIMD = 5
 
 contains
 
@@ -34,7 +38,8 @@ contains
         select case (target)
         case (TARGET_DEFAULT, TARGET_FORTRAN_CPU, &
                 TARGET_FORTRAN_OPENMP_TARGET, TARGET_FORTRAN_OPENACC, &
-                TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, TARGET_CUDA)
+                TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, TARGET_CUDA, &
+                TARGET_FORTRAN_OPENMP_SIMD)
             valid = .true.
         case default
             valid = .false.
@@ -58,6 +63,8 @@ contains
             name = "fortran_openmp_target+fortran_openacc"
         case (TARGET_CUDA)
             name = "cuda"
+        case (TARGET_FORTRAN_OPENMP_SIMD)
+            name = "fortran_openmp_simd"
         case default
             name = "invalid"
         end select
@@ -85,7 +92,7 @@ contains
         case (TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC)
             emit_openmp = .true.
             emit_openacc = .true.
-        case (TARGET_FORTRAN_CPU, TARGET_CUDA)
+        case (TARGET_FORTRAN_CPU, TARGET_CUDA, TARGET_FORTRAN_OPENMP_SIMD)
             continue
         end select
     end subroutine target_directives

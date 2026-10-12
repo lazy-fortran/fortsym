@@ -28,6 +28,7 @@ module fortsym_kernel
         TARGET_FORTRAN_OPENACC_VALUE => TARGET_FORTRAN_OPENACC, &
         TARGET_DUAL_VALUE => TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, &
         TARGET_CUDA_VALUE => TARGET_CUDA, &
+        TARGET_SIMD_VALUE => TARGET_FORTRAN_OPENMP_SIMD, &
         target_directives, target_is_valid, target_name
     use fortsym_precision, only: PRECISION_REAL64, PRECISION_REAL32, &
         PRECISION_MIXED, precision_is_valid, precision_name
@@ -42,6 +43,7 @@ module fortsym_kernel
     public :: TARGET_DEFAULT, TARGET_FORTRAN_CPU
     public :: TARGET_FORTRAN_OPENMP_TARGET, TARGET_FORTRAN_OPENACC
     public :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, TARGET_CUDA
+    public :: TARGET_FORTRAN_OPENMP_SIMD
     public :: target_name
     public :: CSE_NONE, CSE_THRESHOLDED, CSE_FULL
     public :: PRECISION_REAL64, PRECISION_REAL32, PRECISION_MIXED
@@ -54,6 +56,7 @@ module fortsym_kernel
     integer, parameter :: TARGET_FORTRAN_OPENACC = TARGET_FORTRAN_OPENACC_VALUE
     integer, parameter :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC = TARGET_DUAL_VALUE
     integer, parameter :: TARGET_CUDA = TARGET_CUDA_VALUE
+    integer, parameter :: TARGET_FORTRAN_OPENMP_SIMD = TARGET_SIMD_VALUE
 
     !> CSE policy choices. FULL is the historical behaviour. THRESHOLDED
     !> names only repeated compounds whose tree recomputation cost reaches
