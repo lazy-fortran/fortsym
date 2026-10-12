@@ -143,6 +143,10 @@ contains
         call fill_spec(spec, "rej")
         src = chars(emit_fortran_batch_ir(ir, spec, good, message))
         call ok("batch emits", good)
+        call ok("batch defaults to the SIMD driver", &
+            index(src, "!$omp parallel do simd schedule(static)") > 0)
+        spec%batch_deterministic = .true.
+        src = chars(emit_fortran_batch_ir(ir, spec, good, message))
         call ok("batch module has the driver", &
             index(src, "module rej_batch_mod") > 0 .and. &
             index(src, "subroutine rej_batch(batch_n, x, y, a, r)") > 0 .and. &

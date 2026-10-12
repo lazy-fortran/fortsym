@@ -125,8 +125,10 @@ module fortsym_kernel_emit
         !> and the vectoriser cannot substitute libmvec for libm. When false,
         !> the leaf carries `declare simd` and the loop is `parallel do simd`;
         !> kernels using only + - * / are still bitwise equal under
-        !> -ffp-contract=off, transcendental ones agree to libmvec accuracy.
-        logical :: batch_deterministic = .true.
+        !> -ffp-contract=off, transcendental ones agree to libmvec accuracy
+        !> (a few ulp). SIMD is the default because it is up to ~6x faster;
+        !> set .true. only when bitwise thread invariance is required.
+        logical :: batch_deterministic = .false.
         type(str_t) :: generator
         type(str_t) :: generator_revision
         type(str_t) :: regenerate_command
