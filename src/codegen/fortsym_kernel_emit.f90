@@ -129,6 +129,11 @@ module fortsym_kernel_emit
         !> (a few ulp). SIMD is the default because it is up to ~6x faster;
         !> set .true. only when bitwise thread invariance is required.
         logical :: batch_deterministic = .false.
+        !> Batch driver only. When false, the driver opens no thread team: the
+        !> loop is `!$omp simd` (or a plain loop in deterministic mode). Use it
+        !> when the consumer calls the driver from inside its own parallel
+        !> region, where a nested one-thread team costs more than the kernel.
+        logical :: batch_threaded = .true.
         type(str_t) :: generator
         type(str_t) :: generator_revision
         type(str_t) :: regenerate_command
@@ -795,15 +800,20 @@ contains
         call b%append("        integer :: batch_i")
         call b%newline()
         call b%newline()
-        if (spec%batch_deterministic) then
-            call b%append("        !$omp parallel do schedule(static) &")
-        else
-            call b%append("        !$omp parallel do simd schedule(static) &")
+        if (spec%batch_threaded) then
+            if (spec%batch_deterministic) then
+                call b%append("        !$omp parallel do schedule(static) &")
+            else
+                call b%append("        !$omp parallel do simd schedule(static) &")
+            end if
+            call b%newline()
+            call b%append("        !$omp& if(parallel: batch_n >= " // &
+                chars(str(spec%batch_parallel_min)) // ")")
+            call b%newline()
+        else if (.not. spec%batch_deterministic) then
+            call b%append("        !$omp simd")
+            call b%newline()
         end if
-        call b%newline()
-        call b%append("        !$omp& if(parallel: batch_n >= " // &
-            chars(str(spec%batch_parallel_min)) // ")")
-        call b%newline()
         call b%append("        do batch_i = 1, batch_n")
         call b%newline()
         call b%append("            call " // name // "(")
@@ -821,12 +831,14 @@ contains
         call b%newline()
         call b%append("        end do")
         call b%newline()
-        if (spec%batch_deterministic) then
-            call b%append("        !$omp end parallel do")
-        else
-            call b%append("        !$omp end parallel do simd")
+        if (spec%batch_threaded) then
+            if (spec%batch_deterministic) then
+                call b%append("        !$omp end parallel do")
+            else
+                call b%append("        !$omp end parallel do simd")
+            end if
+            call b%newline()
         end if
-        call b%newline()
         call b%append("    end subroutine " // name // "_batch")
         call b%newline()
         call b%newline()
