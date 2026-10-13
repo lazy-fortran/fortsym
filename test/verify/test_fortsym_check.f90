@@ -40,6 +40,19 @@ program test_fortsym_check
         parsed("sin(x)**2 + cos(x)**2 - 1"))
     call check_zero(s, eng, "rational cancellation (decidable)", &
         parsed("(x**2 - 1)/(x - 1) - (x + 1)"))
+    ! The base collapses to 2*z when expanded; SymEngine's expand() must not
+    ! leave a Mul with a numeric coefficient as an Add key (Debug SymEngine
+    ! aborts on it, release keeps it and then fails to cancel).
+    call check_zero(s, eng, "power of a collapsing sum (decidable)", &
+        parsed("(-2*r**2*z + 2*z*(1 + r**2))**2 - 4*z**2"))
+    call check_zero(s, eng, "collapsing sum under a coefficient (decidable)", &
+        parsed("-2*(-2*r**2*z + 2*z*(1 + r**2)) - " // &
+        "(-2*r**2*z + 2*z*(1 + r**2))**2 + 4*z + 4*z**2"))
+    ! as_numer_denom on a/sqrt(z**2) + b*sqrt(z**2)/z**2 trips a SymEngine
+    ! canonical-form assertion in Debug builds; the atom is opaque to the proof.
+    call check_zero(s, eng, "sqrt of a square under a fraction (decidable)", &
+        parsed("(a/sqrt(z**2) + b*sqrt(z**2)/z**2)*z**2 - a*z**2/sqrt(z**2)" // &
+        " - b*sqrt(z**2)"))
     call check_zero(s, eng, "gamma recurrence (probe only)", &
         parsed("gamma(x + 1) - x*gamma(x)"))
     call check_identity(s, eng, "strict variant accepts a proof", &
@@ -236,8 +249,8 @@ contains
     end subroutine test_probe_separates_identities
 
     subroutine check_counts()
-        call ok("all four suite checks passed", s%passed == 4)
-        call ok("three were proved", s%proved == 3)
+        call ok("all seven suite checks passed", s%passed == 7)
+        call ok("six were proved", s%proved == 6)
         call ok("one passed by probe only", s%by_probe == 1)
         call ok("none failed", s%failed == 0)
     end subroutine check_counts

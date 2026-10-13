@@ -509,6 +509,55 @@ unsigned long node_count(const SymEngine::RCP<const SymEngine::Basic> &e,
     return n;
 }
 
+/*! Powers of sums whose base collapses when expanded, bottom-up.
+ *
+ *  SymEngine's expand() has a branch for Pow(Add, p) whose expanded base is no
+ *  longer an Add -- for example (-2*r**2*z + 2*z*(1 + r**2))**2, whose base is
+ *  2*z -- that files pow(2*z, 2) = 4*z**2 into the result's term dictionary
+ *  without splitting off the numeric coefficient. The resulting Add carries a
+ *  Mul with a coefficient (or a bare number) as a key. That is not canonical:
+ *  a Debug SymEngine aborts in Add::is_canonical, and a release build keeps
+ *  the malformed key, which can then fail to cancel against a plain 4*z**2.
+ *
+ *  Expanding every such base up front means expand() later meets a base that
+ *  is already in expanded form and takes the regular path. The rebuild goes
+ *  through SymEngine's canonicalising constructors. */
+SymEngine::RCP<const SymEngine::Basic>
+expand_pow_bases(const SymEngine::RCP<const SymEngine::Basic> &e)
+{
+    SymEngine::map_basic_basic replacements;
+    for (const auto &arg : e->get_args()) {
+        const auto next = expand_pow_bases(arg);
+        if (next != arg) {
+            replacements[arg] = next;
+        }
+    }
+    const auto rebuilt = replacements.empty()
+                             ? e
+                             : SymEngine::xreplace(e, replacements);
+    if (!SymEngine::is_a<SymEngine::Pow>(*rebuilt)) {
+        return rebuilt;
+    }
+
+    const auto &power = SymEngine::down_cast<const SymEngine::Pow &>(*rebuilt);
+    const auto base = power.get_base();
+    if (!SymEngine::is_a<SymEngine::Add>(*base)) {
+        return rebuilt;
+    }
+    const auto expanded = SymEngine::expand(base);
+    if (SymEngine::eq(*expanded, *base)) {
+        return rebuilt;
+    }
+    return SymEngine::pow(expanded, power.get_exp());
+}
+
+/*! expand() that does not leave a malformed Add behind; see expand_pow_bases. */
+SymEngine::RCP<const SymEngine::Basic>
+expand_canonical(const SymEngine::RCP<const SymEngine::Basic> &e)
+{
+    return SymEngine::expand(expand_pow_bases(e));
+}
+
 /*! Canonicalizes exponentials so that structurally different spellings of the
  *  same quantity collapse:
  *
@@ -544,7 +593,7 @@ exp_normalize(const SymEngine::RCP<const SymEngine::Basic> &e)
         return rebuilt;
     }
 
-    exponent = SymEngine::expand(exponent);
+    exponent = expand_canonical(exponent);
     if (SymEngine::is_a<SymEngine::Log>(*exponent)) {
         return exponent->get_args()[0];
     }
@@ -557,6 +606,78 @@ exp_normalize(const SymEngine::RCP<const SymEngine::Basic> &e)
         }
     }
     return SymEngine::pow(base, exponent);
+}
+
+/*! Replaces every (u**n)**(p/q) -- sqrt(z**2) and friends -- by a fresh symbol,
+ *  recording the replacement in atoms. Equal powers share one symbol. Only
+ *  safe_numer_denom uses this, and it puts the powers back. */
+SymEngine::RCP<const SymEngine::Basic>
+shield_square_roots(const SymEngine::RCP<const SymEngine::Basic> &e,
+                    SymEngine::map_basic_basic &atoms)
+{
+    const auto args = e->get_args();
+    if (args.empty()) {
+        return e;
+    }
+    SymEngine::map_basic_basic replacements;
+    for (const auto &arg : args) {
+        const auto next = shield_square_roots(arg, atoms);
+        if (next != arg) {
+            replacements[arg] = next;
+        }
+    }
+    const auto rebuilt = replacements.empty()
+                             ? e
+                             : SymEngine::xreplace(e, replacements);
+    if (!SymEngine::is_a<SymEngine::Pow>(*rebuilt)) {
+        return rebuilt;
+    }
+
+    const auto &power = SymEngine::down_cast<const SymEngine::Pow &>(*rebuilt);
+    const auto base = power.get_base();
+    const auto exponent = power.get_exp();
+    if (!SymEngine::is_a<SymEngine::Pow>(*base)
+        || !SymEngine::is_a<SymEngine::Integer>(
+            *SymEngine::down_cast<const SymEngine::Pow &>(*base).get_exp())
+        || !SymEngine::is_a<SymEngine::Rational>(*exponent)) {
+        return rebuilt;
+    }
+    const auto found = atoms.find(rebuilt);
+    if (found != atoms.end()) {
+        return found->second;
+    }
+    const auto atom
+        = SymEngine::symbol("fsym_root_atom_" + std::to_string(atoms.size()));
+    atoms[rebuilt] = atom;
+    return atom;
+}
+
+/*! as_numer_denom() that survives powers of the form (u**n)**(p/q).
+ *
+ *  SymEngine's as_numer_denom() on `a/sqrt(z**2) + b*sqrt(z**2)/z**2` builds a
+ *  Mul whose dictionary holds both the key z**2 (exponent 1/2) and the key z
+ *  (exponent -2); that fails Mul::is_canonical and aborts a Debug SymEngine
+ *  (a release build carries the malformed Mul on). The powers are therefore
+ *  hidden behind symbols while the fraction is folded and substituted back in
+ *  numerator and denominator, where the canonicalising constructors apply the
+ *  usual relations again (sqrt(z**2)**2 = z**2, ...). Folding with the atom
+ *  independent of z is still a valid rewriting of the same rational function. */
+void safe_numer_denom(const SymEngine::RCP<const SymEngine::Basic> &e,
+                      const SymEngine::Ptr<SymEngine::RCP<const SymEngine::Basic>> &numer,
+                      const SymEngine::Ptr<SymEngine::RCP<const SymEngine::Basic>> &denom)
+{
+    SymEngine::map_basic_basic atoms;
+    const auto shielded = shield_square_roots(e, atoms);
+    SymEngine::as_numer_denom(shielded, numer, denom);
+    if (atoms.empty()) {
+        return;
+    }
+    SymEngine::map_basic_basic restore;
+    for (const auto &entry : atoms) {
+        restore[entry.second] = entry.first;
+    }
+    *numer = SymEngine::xreplace(*numer, restore);
+    *denom = SymEngine::xreplace(*denom, restore);
 }
 
 /*! Exponential normal form: the shared front half of fsym_zero_test and
@@ -628,7 +749,7 @@ try_cancel(const SymEngine::RCP<const SymEngine::Basic> &e)
     using namespace SymEngine;
     try {
         RCP<const Basic> numer, denom;
-        as_numer_denom(e, outArg(numer), outArg(denom));
+        safe_numer_denom(e, outArg(numer), outArg(denom));
         if (eq(*denom, *one)) {
             return RCP<const Basic>();
         }
@@ -1284,13 +1405,13 @@ int fsym_zero_test(const basic ex, unsigned long max_nodes)
         // this), so re-fold a bounded number of times.
         RCP<const Basic> numer, denom;
         for (int pass = 0; pass < 4; ++pass) {
-            as_numer_denom(r, outArg(numer), outArg(denom));
+            safe_numer_denom(r, outArg(numer), outArg(denom));
 
             if (node_count(numer, limit) > limit) {
                 return FSYM_ZERO_UNKNOWN;
             }
 
-            numer = exp_normalize(expand(numer));
+            numer = exp_normalize(expand_canonical(numer));
             if (eq(*numer, *zero)) {
                 return FSYM_ZERO_TRUE;
             }
@@ -1347,23 +1468,24 @@ CWRAPPER_OUTPUT_TYPE fsym_simplify(basic out, const basic ex)
         } catch (...) {
         }
         try {
-            offer(expand(input));
+            offer(expand_canonical(input));
         } catch (...) {
         }
         try {
             RCP<const Basic> n, d;
-            as_numer_denom(input, outArg(n), outArg(d));
-            offer(div(expand(n), expand(d)));
+            safe_numer_denom(input, outArg(n), outArg(d));
+            offer(div(expand_canonical(n), expand_canonical(d)));
         } catch (...) {
         }
         offer(try_cancel(input));
-        offer(try_cancel(expand(input)));
+        offer(try_cancel(expand_canonical(input)));
         try {
             // Round trip through exponential normal form. This is what turns
             // sin(x)**2 + cos(x)**2 into 1.
             RCP<const Basic> n, d;
-            as_numer_denom(normal_form(input), outArg(n), outArg(d));
-            const auto folded = div(exp_normalize(expand(n)), expand(d));
+            safe_numer_denom(normal_form(input), outArg(n), outArg(d));
+            const auto folded
+                = div(exp_normalize(expand_canonical(n)), expand_canonical(d));
             offer(folded);
             // ... and back to trigonometric form, which usually reads better
             // than a sum of complex exponentials.
