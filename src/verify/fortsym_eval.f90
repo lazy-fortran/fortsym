@@ -248,6 +248,20 @@ contains
         v = 0.0_dp
         name = chars(a%name_of(id))
 
+        ! The head fixes the arity. Reading an argument that is not there would
+        ! index past the node's argument list, so a call with the wrong number of
+        ! arguments has no value instead.
+        if (name == "besselj" .or. name == "besseli" .or. name == "besselk" &
+            .or. name == "atan2") then
+            if (a%nargs_of(id) /= 2) then
+                defined = .false.
+                return
+            end if
+        else if (a%nargs_of(id) /= 1) then
+            defined = .false.
+            return
+        end if
+
         if (name == "besselj" .or. name == "besseli" .or. name == "besselk") then
             x = ev(a, a%arg_of(id, 1), b, defined)
             if (.not. defined) return
