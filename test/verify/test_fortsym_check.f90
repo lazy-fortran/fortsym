@@ -184,8 +184,17 @@ contains
 
         ! Likewise an unknown function head.
         b = bind1("x", 1.0_dp)
-        v = eval_expr(parsed("besselj(x)"), b, defined)
+        v = eval_expr(parsed("nosuchfn(x)"), b, defined)
         call ok("unknown function is undefined", .not. defined)
+
+        ! A known head with the wrong number of arguments must not read past
+        ! its argument list.
+        v = eval_expr(parsed("besselj(x)"), b, defined)
+        call ok("besselj with one argument is undefined", .not. defined)
+        v = eval_expr(parsed("atan2(x)"), b, defined)
+        call ok("atan2 with one argument is undefined", .not. defined)
+        v = eval_expr(parsed("sin(x, x)"), b, defined)
+        call ok("sin with two arguments is undefined", .not. defined)
     end subroutine test_undefined_points
 
     subroutine test_free_symbols()
