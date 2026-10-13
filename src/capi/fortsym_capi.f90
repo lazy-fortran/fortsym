@@ -843,6 +843,12 @@ module fortsym_capi
             integer(c_int)     :: rc
         end function fsym_normal_form
 
+        function fsym_expand(out, ex) bind(c, name="fsym_expand") result(rc)
+            import :: c_ptr, c_int
+            type(c_ptr), value :: out, ex
+            integer(c_int)     :: rc
+        end function fsym_expand
+
     end interface
 
 end module fortsym_capi
