@@ -7,10 +7,12 @@ program test_fortsym_check
     ! probe_zero and the evaluator -- and only the passing paths go through the
     ! full suite.
     use, intrinsic :: iso_fortran_env, only: real64
-    use fortsym_string, only: str_t, str
+    use fortsym_string, only: str_t, str, chars
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t
     use fortsym_parse, only: parse_expr
+    use fortsym_print, only: print_expr
+    use fortsym_engine, only: engine_result_t
     use fortsym_eval, only: binding_t, eval_expr, collect_free_symbols
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortsym_check
@@ -31,6 +33,7 @@ program test_fortsym_check
     call test_undefined_points()
     call test_free_symbols()
     call test_probe_separates_identities()
+    call test_expand_collapsing_base()
 
     ! The passing paths, through the real harness. A true identity inside the
     ! decidable fragment must be proved; one outside it must pass by probe. The
@@ -226,6 +229,22 @@ contains
     !> The probe must accept true identities and reject false ones, including
     !> ones the symbolic engine cannot decide -- that is the whole reason it
     !> exists as a fallback.
+    subroutine test_expand_collapsing_base()
+        ! The base expands to 2*z; SymEngine's own expand files 4*z**2 under a
+        ! non-canonical Add key (a Debug SymEngine aborts), so the engine
+        ! expands through fsym_expand.
+        type(engine_result_t) :: r
+
+        r = eng%expand(parsed("(-2*r**2*z + 2*z*(1 + r**2))**2 - 4*z**2"))
+        call ok("expand of a collapsing power cancels", r%ok .and. &
+            chars(print_expr(r%value)) == chars(print_expr(parsed("0"))))
+        r = eng%expand(parsed("(-2*r**2*z + 2*z*(1 + r**2))**2 + 2*(-2*r**2*z + " // &
+            "2*z*(1 + r**2))"))
+        call ok("expand of a collapsing power and its base", r%ok .and. &
+            chars(print_expr(r%value)) == &
+            chars(print_expr(parsed("4*z + 4*z**2"))))
+    end subroutine test_expand_collapsing_base
+
     subroutine test_probe_separates_identities()
         logical :: clean
         integer :: tried, agreed

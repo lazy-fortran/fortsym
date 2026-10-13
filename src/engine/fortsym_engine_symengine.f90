@@ -652,7 +652,7 @@ contains
         call init_conversion_cache(e%a, e%node_count(), cache)
         h = to_symengine(e%a, e%id, cache)
         out = basic_new_heap()
-        rc = basic_expand(out, h)
+        rc = fsym_expand(out, h)
 
         if (rc == SYMENGINE_NO_EXCEPTION) then
             r%value = from_symengine(self%home, out, good)

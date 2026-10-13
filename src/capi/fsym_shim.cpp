@@ -1380,6 +1380,16 @@ CWRAPPER_OUTPUT_TYPE fsym_normal_form(basic out, const basic ex)
     return SYMENGINE_NO_EXCEPTION;
 }
 
+CWRAPPER_OUTPUT_TYPE fsym_expand(basic out, const basic ex)
+{
+    try {
+        deref(out) = expand_canonical(deref(ex));
+    } catch (...) {
+        return SYMENGINE_RUNTIME_ERROR;
+    }
+    return SYMENGINE_NO_EXCEPTION;
+}
+
 int fsym_zero_test(const basic ex, unsigned long max_nodes)
 {
     using namespace SymEngine;

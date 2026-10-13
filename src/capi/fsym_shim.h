@@ -244,6 +244,11 @@ int fsym_zero_test(const basic ex, unsigned long max_nodes);
  *  because it is the canonical form worth inspecting when a check fails. */
 CWRAPPER_OUTPUT_TYPE fsym_normal_form(basic out, const basic ex);
 
+/*! Assign to out the expansion of ex. Unlike basic_expand it first expands the
+ *  sum bases of powers, so SymEngine's expand cannot file a collapsed base
+ *  (such as 4*z**2) under a non-canonical Add key. */
+CWRAPPER_OUTPUT_TYPE fsym_expand(basic out, const basic ex);
+
 #ifdef __cplusplus
 }
 #endif
