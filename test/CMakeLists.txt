@@ -85,6 +85,17 @@ fortsym_add_test(test_fortsym_rigorous_emit codegen/test_fortsym_rigorous_emit.f
 fortsym_add_test(test_fortsym_rigorous_functions codegen/test_fortsym_rigorous_functions.f90)
 fortsym_add_test(test_fortsym_rigorous_sincos codegen/test_fortsym_rigorous_sincos.f90)
 fortsym_add_test(test_fortsym_rigorous_abs codegen/test_fortsym_rigorous_abs.f90)
+# These three compile Fortran fixtures that all define the modules `fixture` and
+# `leaves` in the working directory. Sharing one directory makes the .mod files
+# race under `ctest -j`, so each test gets a private one.
+foreach(_rigorous_fixture_test IN ITEMS functions sincos abs)
+    set(_name test_fortsym_rigorous_${_rigorous_fixture_test})
+    if(TEST ${_name})
+        file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/work/${_name}")
+        set_property(TEST ${_name} PROPERTY
+            WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/work/${_name}")
+    endif()
+endforeach()
 fortsym_add_test(test_fortsym_rigorous_rationals codegen/test_fortsym_rigorous_rationals.f90)
 fortsym_add_test(test_fortsym_rigorous_raw_products codegen/test_fortsym_rigorous_raw_products.f90)
 if(TEST test_fortsym_rigorous_raw_products)
