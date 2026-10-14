@@ -558,8 +558,9 @@ contains
         yes = k == NK_ADD .or. k == NK_MUL .or. k == NK_POW .or. k == NK_FUNC
         if (k == NK_POW) yes = .not. is_reciprocal_power(a, id)
         if (.not. yes) return
-        if (level == CSE_THRESHOLDED .and. &
-            rematerialization_cost(a, id) < threshold) yes = .false.
+        if (level == CSE_THRESHOLDED) then
+            if (rematerialization_cost(a, id) < threshold) yes = .false.
+        end if
     end function worth_naming
 
     !> Count the work needed to recompute one occurrence of a node's tree.
