@@ -506,3 +506,19 @@ short:
   as an oracle for developing fortsym itself. The reasoning is recorded in
   LEGAL.md §5.
 - Contributors must never paste or transcribe GPL engine source into fortsym.
+
+## Finite scalar Lie pullback
+
+`fortsym_lie:lie_series(f, coordinates, vector, parameter, order, value, ok, why)`
+constructs the finite sum `sum(k=0..order) parameter**k L_vector**k(f)/k!`,
+where `L_vector(f) = sum_i vector(i)*partial_i(f)`. It uses the shared-DAG
+JVP implementation. Coordinates must be distinct symbols, every expression
+must share one arena, and the parameter must be independent of coordinates.
+Orders 0 through 12 are supported; other orders and invalid inputs return
+`ok=.false.` with a diagnostic and an invalid output expression. A new call
+resets the output. No convergence, symplecticity, Hamiltonian bracket,
+homological solve, angle average, or physical normal form is implied.
+
+The definition is the ordinary finite exponential of a derivation, implemented
+locally without copying engine source. Exact translation, rotation, and
+invariant-polynomial oracles are registered in `test_fortsym_lie`.

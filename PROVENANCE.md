@@ -51,3 +51,8 @@ deviations in a new row before merge.
 The reproducible `scripts/collect_provenance.py` command stores the pinned
 reference pages and SHA-256 manifest under ignored `.provenance/literature/`;
 the downloaded third-party documents are not committed or redistributed.
+
+Finite scalar Lie pullback (`fortsym_lie`): standard exponential-of-a-derivation
+definition; original composition of native shared-DAG JVP operations. No
+external implementation was copied. Test oracles are exact translation, the
+Taylor polynomial of planar rotation, and its quadratic invariant.

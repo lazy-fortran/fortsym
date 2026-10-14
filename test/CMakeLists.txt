@@ -322,3 +322,8 @@ set_tests_properties(
     PROPERTIES
         ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1"
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+
+fortsym_add_test(test_fortsym_lie calculus/test_fortsym_lie.f90)
+
+fortsym_add_test(test_fortsym_cse_dag codegen/test_fortsym_cse_dag.f90)
+set_tests_properties(test_fortsym_cse_dag PROPERTIES TIMEOUT 30)

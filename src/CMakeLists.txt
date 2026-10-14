@@ -98,6 +98,7 @@ target_sources(fortsym PRIVATE
 
     # differential geometry
     calculus/fortsym_domain.f90
+    calculus/fortsym_lie.f90
     calculus/fortsym_diff.f90
     calculus/fortsym_geometry_metadata.f90
     calculus/fortsym_ode.f90
