@@ -121,6 +121,13 @@ generated output until a consumer measures another choice. Complex kernels
 set `scalar_type`; optional per-input `arg_types` retain mixed intrinsic
 arithmetic such as complex divided by real.
 
+For large legacy Fortran leaves, `kernel_spec_t%array_temporaries=.true.`
+places CSE temporaries in one local array named by `temp_prefix` (default `t`).
+The mathematical assignment order is unchanged. The option avoids compiler
+register-allocation costs from thousands of scalar locals; scalar declarations
+remain the default. A collision with an input/output, procedure or imported kind name is refused. The
+caller controls compilation flags and recursive/thread-local storage policy.
+
 **Generate rigorous kernels.** `fortsym_rigorous_emit` renders one DAG as a
 floating-point leaf and as an enclosure leaf whose outputs contain the exact
 value for every input in the argument balls or intervals. Rational literals
