@@ -1295,7 +1295,12 @@ contains
         if (res%n > 0) then
             ! Temporaries are declared explicitly, never left to an implicit
             ! typing rule.
-            call declare(b, temporary_type, "", res%names(1:res%n))
+            ! Bound declarations even for thousands of CSE temporaries:
+            ! Fortran 2018 allows at most 255 continuation lines.
+            do k = 1, res%n, 256
+                call declare(b, temporary_type, "", &
+                    res%names(k:min(k+255,res%n)))
+            end do
         end if
 
         call b%newline()

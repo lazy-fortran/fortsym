@@ -40,6 +40,7 @@ program test_fortsym_products
 
     call suite_begin(s, "derivative products")
 
+    call test_inactive_shared_jvp()
     call test_jvp_matches_jacobian()
     call test_vjp_matches_jacobian()
     call test_adjoint_identity()
@@ -58,6 +59,44 @@ program test_fortsym_products
     print *, "test_fortsym_products: all checks passed"
 
 contains
+
+    subroutine test_inactive_shared_jvp()
+        type(expr_t) :: x, y, inactive, roots(3), tangent(3), again(3)
+        type(expr_t) :: variables(1), direction(1)
+        integer :: i
+        x = sym(arena, "inactive_x")
+        y = sym(arena, "inactive_y")
+        inactive = exp(y)
+        do i = 1, 24
+            inactive = inactive**2 + sin(inactive) + i
+        end do
+        roots(1) = x**2+inactive
+        roots(2) = sin(x)+inactive
+        roots(3) = inactive
+        variables(1) = x
+        direction(1) = num(arena, 1)
+        tangent = jvp(roots, variables, direction)
+        call check_zero(s, eng, "shared inactive JVP: quadratic", tangent(1)-2*x)
+        call check_zero(s, eng, "shared inactive JVP: sine", tangent(2)-cos(x))
+        call check_zero(s, eng, "shared inactive JVP: constant", tangent(3))
+        again = jvp(tangent, variables, direction)
+        call check_zero(s, eng, "repeated inactive JVP: quadratic", again(1)-2)
+        call check_zero(s, eng, "repeated inactive JVP: sine", again(2)+sin(x))
+        call check_zero(s, eng, "repeated inactive JVP: constant", again(3))
+        block
+            type(arena_t), target :: other
+            type(expr_t) :: foreign
+            call other%init()
+            foreign = sym(other, "foreign")
+            roots(1) = x**2
+            roots(2) = foreign**2
+            roots(3) = x**2
+            tangent = jvp(roots, variables, direction)
+            call check_zero(s, eng, "mixed-arena JVP first output", tangent(1)-2*x)
+            call check_zero(s, eng, "mixed-arena JVP foreign output", tangent(2))
+            call check_zero(s, eng, "mixed-arena JVP returned output", tangent(3)-2*x)
+        end block
+    end subroutine test_inactive_shared_jvp
 
     !> A deliberately non-symmetric, non-separable map. A diagonal or linear one
     !> would let a transposed contraction pass unnoticed.

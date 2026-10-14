@@ -1295,13 +1295,27 @@ contains
         if (ok) out = expression%id
     end subroutine try_algebraic_value
 
-    recursive function contains_algebraic_atom(a, id) result(found)
+    function contains_algebraic_atom(a, id) result(found)
         type(arena_t), intent(in) :: a
         integer, intent(in) :: id
+        logical :: found
+        logical, allocatable :: visited(:)
+        allocate(visited(a%size()), source=.false.)
+        found = visit_algebraic_atom(a, id, visited)
+    end function contains_algebraic_atom
+
+    recursive function visit_algebraic_atom(a, id, visited) result(found)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical, intent(inout) :: visited(:)
         logical :: found
         integer :: k
 
         found = .false.
+        if (visited(id)) return
+        visited(id) = .true.
+        ! A positive result immediately ends the entire search. Revisited
+        ! nodes have therefore already been searched with a negative result.
         select case (a%kind_of(id))
         case (NK_ALGEBRAIC)
             found = .true.
@@ -1309,15 +1323,15 @@ contains
             found = chars(a%name_of(id)) == "i"
         case (NK_ADD, NK_MUL)
             do k = 1, a%nargs_of(id)
-                if (contains_algebraic_atom(a, a%arg_of(id, k))) then
+                if (visit_algebraic_atom(a, a%arg_of(id, k), visited)) then
                     found = .true.
                     return
                 end if
             end do
         case (NK_POW)
-            found = contains_algebraic_atom(a, a%arg_of(id, 1))
+            found = visit_algebraic_atom(a, a%arg_of(id, 1), visited)
         end select
-    end function contains_algebraic_atom
+    end function visit_algebraic_atom
 
     recursive function is_gaussian_rational_expression(a, id) result(found)
         type(arena_t), intent(in) :: a
@@ -5113,15 +5127,27 @@ contains
         end select
     end subroutine exact_value
 
-    recursive function contains_negative_power(a, id) result(found)
+    function contains_negative_power(a, id) result(found)
         type(arena_t), intent(in) :: a
         integer, intent(in) :: id
+        logical :: found
+        logical, allocatable :: visited(:)
+        allocate(visited(a%size()), source=.false.)
+        found = visit_negative_power(a, id, visited)
+    end function contains_negative_power
+
+    recursive function visit_negative_power(a, id, visited) result(found)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical, intent(inout) :: visited(:)
         logical :: found
         integer(int64) :: exponent, denominator
         integer :: k
         logical :: exact
 
         found = .false.
+        if (visited(id)) return
+        visited(id) = .true.
         if (a%kind_of(id) == NK_POW) then
             call exact_value(a, a%arg_of(id, 2), exponent, denominator, exact)
             if (exact) then
@@ -5134,13 +5160,13 @@ contains
         select case (a%kind_of(id))
         case (NK_ADD, NK_MUL, NK_FUNC, NK_POW)
             do k = 1, a%nargs_of(id)
-                if (contains_negative_power(a, a%arg_of(id, k))) then
+                if (visit_negative_power(a, a%arg_of(id, k), visited)) then
                     found = .true.
                     return
                 end if
             end do
         end select
-    end function contains_negative_power
+    end function visit_negative_power
 
     function has_symbolic_denominator(a, id) result(found)
         type(arena_t), intent(in) :: a
