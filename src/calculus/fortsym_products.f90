@@ -56,10 +56,27 @@ contains
     function jvp(f, v, w) result(r)
         type(expr_t), intent(in) :: f(:), v(:), w(:)
         type(expr_t)             :: r(size(f))
-        integer :: i
+        integer :: i, node_count
+        type(expr_t), allocatable :: cache(:)
+        logical, allocatable :: known(:)
+        type(arena_t), pointer :: a
 
+        a => null()
         do i = 1, size(f)
-            r(i) = forward_tangent(f(i), v, w)
+            ! Outputs in one arena share a primal-DAG traversal. Preserve
+            ! the previous behavior for outputs from distinct arenas.
+            if (allocated(cache)) then
+                if (.not. associated(a, f(i)%a)) then
+                    deallocate(cache, known)
+                end if
+            end if
+            if (.not. allocated(cache)) then
+                a => f(i)%a
+                node_count = a%size()
+                allocate(cache(node_count), known(node_count))
+                known = .false.
+            end if
+            r(i) = tangent_node(f(i), v, w, cache, known)
         end do
     end function jvp
 
@@ -97,22 +114,8 @@ contains
         end do
     end function vjp
 
-    !> Forward-mode propagation over the primal DAG. Unlike a sum of separately
-    !> expanded partial derivatives, this visits every primal node once and
-    !> preserves shared intermediates for code-generation CSE.
-    function forward_tangent(root, variables, directions) result(tangent)
-        type(expr_t), intent(in) :: root, variables(:), directions(:)
-        type(expr_t) :: tangent
-        type(expr_t), allocatable :: cache(:)
-        logical, allocatable :: known(:)
-        integer :: node_count
-
-        node_count = root%a%size()
-        allocate (cache(node_count), known(node_count))
-        known = .false.
-        tangent = tangent_node(root, variables, directions, cache, known)
-    end function forward_tangent
-
+    !> Forward-mode propagation over the primal DAG. Exact inactive
+    !> tangents remain zero instead of acquiring products with zero factors.
     recursive function tangent_node(e, variables, directions, cache, known) &
             result(tangent)
         type(expr_t), intent(in) :: e, variables(:), directions(:)
@@ -120,7 +123,8 @@ contains
         logical, intent(inout) :: known(:)
         type(expr_t) :: tangent
         type(expr_t) :: child, base, expo, dbase, dexpo, term
-        integer :: i, j
+        integer :: i, j, count
+        integer, allocatable :: terms(:)
         character(:), allocatable :: name
 
         if (known(e%id)) then
@@ -140,22 +144,35 @@ contains
                 end if
             end do
         case (NK_ADD)
-            tangent = tangent_node( &
-                e%arg(1), variables, directions, cache, known)
-            do i = 2, e%nargs()
-                tangent = tangent + tangent_node( &
-                    e%arg(i), variables, directions, cache, known)
-            end do
-        case (NK_MUL)
-            tangent = num(e%a, 0)
+            allocate(terms(e%nargs()))
+            count = 0
             do i = 1, e%nargs()
-                term = tangent_node( &
-                    e%arg(i), variables, directions, cache, known)
-                do j = 1, e%nargs()
-                    if (j /= i) term = term*e%arg(j)
-                end do
-                tangent = tangent + term
+                term = tangent_node(e%arg(i), variables, directions, cache, known)
+                if (is_zero_expr(term)) cycle
+                count = count + 1
+                terms(count) = term%id
             end do
+            tangent = sum_tangents(e, terms(:count))
+        case (NK_MUL)
+            allocate(terms(e%nargs()))
+            count = 0
+            do i = 1, e%nargs()
+                term = tangent_node(e%arg(i), variables, directions, cache, known)
+                if (is_zero_expr(term)) cycle
+                do j = 1, e%nargs()
+                    if (j == i) cycle
+                    child = e%arg(j)
+                    if (is_zero_expr(child)) then
+                        term = num(e%a, 0)
+                        exit
+                    end if
+                    term = term*child
+                end do
+                if (is_zero_expr(term)) cycle
+                count = count + 1
+                terms(count) = term%id
+            end do
+            tangent = sum_tangents(e, terms(:count))
         case (NK_POW)
             base = e%arg(1)
             expo = e%arg(2)
@@ -164,7 +181,10 @@ contains
             dexpo = tangent_node( &
                 expo, variables, directions, cache, known)
             if (is_zero_expr(dexpo)) then
-                tangent = expo*base**(expo - 1)*dbase
+                tangent = num(e%a, 0)
+                if (.not. is_zero_expr(dbase)) then
+                    tangent = expo*base**(expo - 1)*dbase
+                end if
             else if (is_zero_expr(dbase)) then
                 tangent = base**expo*log(base)*dexpo
             else
@@ -180,9 +200,15 @@ contains
                 expo = e%arg(2)
                 dexpo = tangent_node( &
                     expo, variables, directions, cache, known)
-                tangent = (dbase*expo - child*dexpo)/(child**2 + expo**2)
+                tangent = num(e%a, 0)
+                if (.not. is_zero_expr(dbase) .or. .not. is_zero_expr(dexpo)) then
+                    tangent = (dbase*expo - child*dexpo)/(child**2 + expo**2)
+                end if
             else
-                tangent = function_tangent(name, child, dbase)
+                tangent = num(e%a, 0)
+                if (.not. is_zero_expr(dbase)) then
+                    tangent = function_tangent(name, child, dbase)
+                end if
             end if
         case default
             tangent = num(e%a, 0)
@@ -191,6 +217,17 @@ contains
         known(e%id) = .true.
         cache(e%id) = tangent
     end function tangent_node
+
+    function sum_tangents(e, terms) result(value)
+        type(expr_t), intent(in) :: e
+        integer, intent(in) :: terms(:)
+        type(expr_t) :: value
+        value = num(e%a, 0)
+        if (size(terms) == 0) return
+        value = e
+        ! Flatten and sort one n-ary sum, rather than every growing prefix.
+        value%id = e%a%add(terms)
+    end function sum_tangents
 
     function function_tangent(name, x, dx) result(tangent)
         character(*), intent(in) :: name
