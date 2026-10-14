@@ -3,8 +3,9 @@ program test_fortsym_cse_dag
     ! Compiler execution against a numerical recurrence is the value oracle.
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, sin, cos, operator(+), operator(/), operator(**)
-    use fortsym_kernel, only: kernel_spec_t, emit_kernel, TARGET_FORTRAN_CPU
-    use fortsym_string, only: str, chars
+    use fortsym_kernel, only: kernel_spec_t, emit_kernel, TARGET_FORTRAN_CPU, &
+        PRECISION_REAL32
+    use fortsym_string, only: str_t, str, chars
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine, only: engine_result_t
     implicit none
@@ -44,6 +45,33 @@ program test_fortsym_cse_dag
         spec%output_references(i) = str('y('//chars(str(i))//')')
     end do
     write(unit,'(a)') chars(emit_kernel(wide,spec))
+    spec%name = str('wide_shared_array')
+    spec%temp_prefix = str('dp')
+    spec%array_temporaries = .true.
+    write(unit,'(a)') chars(emit_kernel(wide,spec))
+    block
+        type(kernel_spec_t) :: collision
+        type(expr_t) :: q, repeated, expression(1)
+        type(str_t) :: source
+        logical :: ok
+        collision = spec
+        collision%args(1) = str('dp')
+        deallocate(collision%output_references)
+        allocate(collision%output_references(1))
+        collision%output_references(1) = str('y(1)')
+        q = sym(arena,'dp')
+        repeated = sin(q)
+        expression(1) = repeated**2+cos(repeated)
+        source = emit_kernel(expression,collision,ok=ok)
+        if (ok) error stop 'temporary array collision was accepted'
+        collision%temp_prefix = collision%name
+        source = emit_kernel(expression,collision,ok=ok)
+        if (ok) error stop 'temporary array procedure collision was accepted'
+        collision%temp_prefix = str('real32')
+        collision%precision = PRECISION_REAL32
+        source = emit_kernel(expression,collision,ok=ok)
+        if (ok) error stop 'temporary array kind collision was accepted'
+    end block
     write(unit,'(a)') 'program check_deep_shared'
     write(unit,'(a)') 'use, intrinsic :: iso_fortran_env, only: dp=>real64'
     write(unit,'(a)') 'implicit none'
@@ -60,6 +88,12 @@ program test_fortsym_cse_dag
     write(unit,'(a)') 'phase=sin(0.37_dp+i)'
     write(unit,'(a)') 'reference=phase**2+cos(phase)'
     write(unit,'(a)') 'if(abs(values(i)-reference)>2.0e-14_dp) error stop 2'
+    write(unit,'(a)') 'end do'
+    write(unit,'(a)') 'call wide_shared_array(0.37_dp,values)'
+    write(unit,'(a)') 'do i=1,4400'
+    write(unit,'(a)') 'phase=sin(0.37_dp+i)'
+    write(unit,'(a)') 'reference=phase**2+cos(phase)'
+    write(unit,'(a)') 'if(abs(values(i)-reference)>2.0e-14_dp) error stop 3'
     write(unit,'(a)') 'end do'
     write(unit,'(a)') 'end program check_deep_shared'
     close(unit)

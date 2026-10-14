@@ -105,6 +105,9 @@ module fortsym_kernel
         type(kernel_binding_t), allocatable :: bindings(:)
         !> Prefix for generated temporaries.
         type(str_t)              :: temp_prefix
+        !> Store CSE temporaries in one array, avoiding tens of thousands of
+        !> scalar locals in large straight-line Fortran leaves. Opt-in.
+        logical                  :: array_temporaries = .false.
         !> Fortran type used for inputs, outputs, and temporaries. Empty
         !> defaults to real(dp); complex(dp) supports holomorphic kernels.
         type(str_t)              :: scalar_type
@@ -768,7 +771,7 @@ contains
         type(str_t), allocatable :: original_names(:), emitted_names(:)
         logical, allocatable :: changed_names(:)
         logical :: valid, emit_openmp, emit_openacc
-        character(:), allocatable :: diagnostic
+        character(:), allocatable :: diagnostic, array_name
         integer :: k
 
         call prepare_fortran_kernel(roots, spec, mapped_arena, mapped_roots, &
@@ -851,6 +854,34 @@ contains
         else
             res = cse_analyse(mapped_roots, "t", mapped_spec%cse_level, &
                 mapped_spec%remat_threshold)
+        end if
+
+        if (mapped_spec%array_temporaries .and. res%n > 0) then
+            array_name = temporary_array_name(mapped_spec)
+            valid = .not. same_fortran_name(array_name, chars(mapped_spec%name))
+            if (mapped_spec%precision /= PRECISION_REAL64) then
+                if (same_fortran_name(array_name, "real32")) valid = .false.
+            end if
+            if (mapped_spec%precision == PRECISION_MIXED) then
+                if (same_fortran_name(array_name, "real64")) valid = .false.
+            end if
+            do k = 1, size(mapped_spec%args)
+                if (same_fortran_name(array_name, chars(mapped_spec%args(k)))) &
+                    valid = .false.
+            end do
+            do k = 1, size(mapped_spec%outputs)
+                if (same_fortran_name(array_name, chars(mapped_spec%outputs(k)))) &
+                    valid = .false.
+            end do
+            if (.not. valid) then
+                if (present(ok)) ok = .false.
+                if (present(message)) message = "temporary array name collides with a procedure, argument or kind"
+                s = str("")
+                return
+            end if
+            do k = 1, res%n
+                res%names(k) = str(array_name//"("//chars(str(k))//")")
+            end do
         end if
 
         call append_banner(b, mapped_spec, original_names, emitted_names, changed_names)
@@ -1002,6 +1033,9 @@ contains
         do
             used = same_fortran_name(alias, chars(spec%name)) .or. &
                 same_fortran_name(alias, chars(spec%module_name))
+            if (spec%array_temporaries) then
+                used = used .or. same_fortran_name(alias, temporary_array_name(spec))
+            end if
             do k = 1, size(spec%args)
                 used = used .or. same_fortran_name(alias, chars(spec%args(k)))
             end do
@@ -1192,6 +1226,13 @@ contains
         arena%names(index) = str(name)
     end function append_mapped_arena_name
 
+    function temporary_array_name(spec) result(name)
+        type(kernel_spec_t), intent(in) :: spec
+        character(:), allocatable :: name
+        name = chars(spec%temp_prefix)
+        if (len(name) == 0) name = "t"
+    end function temporary_array_name
+
     subroutine append_subroutine(b, roots, spec, res, emit_openmp, emit_openacc)
         type(strbuf_t), intent(inout) :: b
         type(expr_t), intent(in) :: roots(:)
@@ -1203,6 +1244,7 @@ contains
         character(:), allocatable :: temporary_type
         character(:), allocatable :: kind_alias, argument_type
         integer :: k
+        type(str_t) :: array_names(1), array_shapes(1)
 
         kind_alias = "dp"
         if (spec%precision == PRECISION_REAL64) then
@@ -1297,10 +1339,16 @@ contains
             ! typing rule.
             ! Bound declarations even for thousands of CSE temporaries:
             ! Fortran 2018 allows at most 255 continuation lines.
-            do k = 1, res%n, 256
-                call declare(b, temporary_type, "", &
-                    res%names(k:min(k+255,res%n)))
-            end do
+            if (spec%array_temporaries) then
+                array_names(1) = str(temporary_array_name(spec))
+                array_shapes(1) = str("("//chars(str(res%n))//")")
+                call declare(b, temporary_type, "", array_names, array_shapes)
+            else
+                do k = 1, res%n, 256
+                    call declare(b, temporary_type, "", &
+                        res%names(k:min(k+255,res%n)))
+                end do
+            end if
         end if
 
         call b%newline()
