@@ -127,6 +127,16 @@ contains
         spec%uniform(1) = str("missing")
         src = chars(emit_fortran_kernel_ir(ir, spec, good, message))
         call ok("unknown uniform name is refused", .not. good)
+        ! A 63-character name continues the subroutine statement; the
+        ! directive must follow the whole statement, not its first line.
+        call fill_spec(spec, repeat("long_leaf_", 6)//"abc")
+        spec%target = TARGET_FORTRAN_OPENMP_SIMD
+        spec%pure_procedure = .true.
+        src = chars(emit_fortran_kernel_ir(ir, spec, good, message))
+        p = index(src, "!$omp declare simd uniform(a)")
+        call ok("declare simd follows a continued subroutine statement", &
+            good .and. p > 2 .and. index(src, " &"//new_line("a")) > 0 .and. &
+            src(max(1, p - 6):max(1, p - 1)) == ")"//new_line("a")//"    ")
     end subroutine test_leaf_directive
 
     subroutine test_batch_rejections()

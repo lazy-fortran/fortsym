@@ -652,9 +652,31 @@ contains
             return
         end if
         eol = pos + eol - 1
+        ! A long header is continued over several lines; the directive goes
+        ! after the whole statement.
+        do while (statement_continues(source(pos:eol - 1)))
+            pos = eol + 1
+            eol = index(source(pos:), new_line("a"))
+            if (eol == 0) then
+                message = "kernel emitter: leaf header is not terminated"
+                return
+            end if
+            eol = pos + eol - 1
+        end do
         text = source(1:eol) // directive // new_line("a") // source(eol + 1:)
         ok = .true.
     end function insert_after_header
+
+    !> True when a free-form source line ends with a continuation ampersand.
+    pure function statement_continues(line) result(continues)
+        character(*), intent(in) :: line
+        logical :: continues
+        integer :: last
+
+        last = len_trim(line)
+        continues = .false.
+        if (last > 0) continues = line(last:last) == "&"
+    end function statement_continues
 
     !> Emit a Fortran module `<name>_batch_mod` holding the `declare simd`
     !> leaf `<name>` and the host driver `<name>_batch(n, args..., outputs...)`.
