@@ -875,7 +875,8 @@ contains
             end do
             if (.not. valid) then
                 if (present(ok)) ok = .false.
-                if (present(message)) message = "temporary array name collides with a procedure, argument or kind"
+                if (present(message)) message = &
+                    "temporary array name collides with a procedure, argument or kind"
                 s = str("")
                 return
             end if

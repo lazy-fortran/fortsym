@@ -1,7 +1,7 @@
 program test_fortsym_lie
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, num, operator(+), operator(-), &
-        operator(*), operator(/), operator(**)
+                            operator(*), operator(/), operator(**)
     use fortsym_lie, only: lie_series
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_identity
@@ -18,7 +18,7 @@ program test_fortsym_lie
     y = sym(arena, 'y')
     t = sym(arena, 't')
     vars1(1) = x
-    vec1(1) = num(arena,1)
+    vec1(1) = num(arena, 1)
     vars2(1) = x
     vars2(2) = y
     vec2(1) = -y
@@ -33,7 +33,7 @@ program test_fortsym_lie
     call lie_series(x, vars2, vec2, t, 3, got, ok, why)
     if (.not. ok) error stop 'rotation refused'
     call check_identity(suite, engine, 'rotation Taylor polynomial', &
-        got - (x - t*y - t**2*x/2 + t**3*y/6))
+                        got - (x - t*y - t**2*x/2 + t**3*y/6))
     call lie_series(x*x + y*y, vars2, vec2, t, 5, got, ok, why)
     if (.not. ok) error stop 'invariant refused'
     call check_identity(suite, engine, 'rotation invariant', got - x*x - y*y)
@@ -50,7 +50,7 @@ program test_fortsym_lie
     if (ok) error stop 'duplicate coordinates accepted'
     call lie_series(x, vars1, vec1, x, 2, got, ok, why)
     if (ok) error stop 'coordinate-dependent parameter accepted'
-    vec1(1) = sym(other,'y')
+    vec1(1) = sym(other, 'y')
     call lie_series(x, vars1, vec1, t, 2, got, ok, why)
     if (ok) error stop 'foreign arena accepted'
     vec1(1) = x
