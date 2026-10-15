@@ -4,7 +4,7 @@ module fortsym_lie
     ! No application-specific symplectic form or homological equation is assumed.
     use fortsym_arena, only: NK_SYM
     use fortsym_expr, only: expr_t, num, is_valid, operator(+), operator(*), &
-        operator(/), operator(==)
+                            operator(/), operator(==)
     use fortsym_diff, only: diff
     use fortsym_products, only: jvp
     implicit none
