@@ -61,6 +61,25 @@ fortsym_add_test(test_fortsym_latex io/test_fortsym_latex.f90)
 fortsym_add_test(test_fortsym_wolfram io/test_fortsym_wolfram.f90)
 fortsym_add_test(test_fortsym_plotfamily io/test_fortsym_plotfamily.f90)
 
+# Shared scalar emitter: compile actual CUDA spelling as ordinary host C++.
+# Device attributes are erased by the oracle; no CUDA runtime/device is used.
+configure_file(codegen/gen_reciprocal_fixture.f90.in
+    ${CMAKE_CURRENT_BINARY_DIR}/gen_reciprocal_fixture.f90 COPYONLY)
+configure_file(codegen/test_reciprocal_host.cpp.in
+    ${CMAKE_CURRENT_BINARY_DIR}/test_reciprocal_host.cpp COPYONLY)
+add_executable(gen_reciprocal_fixture ${CMAKE_CURRENT_BINARY_DIR}/gen_reciprocal_fixture.f90)
+target_link_libraries(gen_reciprocal_fixture PRIVATE fortsym)
+add_custom_command(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/reciprocal_products.cuh
+    COMMAND $<TARGET_FILE:gen_reciprocal_fixture>
+        ${CMAKE_CURRENT_BINARY_DIR}/reciprocal_products.cuh
+    DEPENDS gen_reciprocal_fixture
+    VERBATIM)
+add_executable(test_reciprocal_host ${CMAKE_CURRENT_BINARY_DIR}/test_reciprocal_host.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/reciprocal_products.cuh)
+target_include_directories(test_reciprocal_host PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+add_test(NAME test_reciprocal_host COMMAND test_reciprocal_host)
+
 # --- engines ---
 fortsym_add_test(test_fortsym_native engine/test_fortsym_native.f90)
 fortsym_add_test(test_fortsym_identities engine/test_fortsym_identities.f90)

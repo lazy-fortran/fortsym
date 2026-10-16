@@ -217,8 +217,9 @@ contains
         call ok("CUDA emitter has a diagnostic-free result", len(message) == 0)
         call ok("CUDA emitter uses a device leaf", &
             index(chars(cuda_source), "__device__") > 0)
-        call ok("CUDA emitter maps powers to CUDA math", &
-            index(chars(cuda_source), "pow(") > 0)
+        call ok("CUDA emitter expands these exact small powers", &
+            index(chars(cuda_source), "pow(") == 0 .and. &
+            index(chars(cuda_source), " / ") > 0)
 
         spec%args(1) = str("x")
         spec%args(2) = str("bad-name")

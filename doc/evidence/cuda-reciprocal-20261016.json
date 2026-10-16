@@ -1,0 +1,52 @@
+{
+  "scope": "Exact small negative-power scalar source lowering; no scheduling IR or GPU runtime claim",
+  "fortsym_base": "1372fbd1e8dd2f072ed34a0f82eef60dc68d74cd",
+  "fortgen_base": "fc60fc29b18ed52aa82bbe4c38a7c546c0095065",
+  "fortgen_fix": "42a4c6cce9272a6bc92e0539b21f3ffc0c97a068",
+  "native_checks": {
+    "fortgen": [
+      "kernel_ir",
+      "compiled_kernel",
+      "reciprocal_kernel"
+    ],
+    "fortsym": [
+      "test_reciprocal_host",
+      "test_fortsym_kernel_emit",
+      "test_fortsym_kernel_batch",
+      "test_fortsym_kernel_ir",
+      "test_fortsym_kernel"
+    ],
+    "result": "all passed",
+    "fortsym_optional_cuda": "compiler hidden from PATH for existing auto-run fixture; no GPU execution"
+  },
+  "arithmetic_contract": "Existing small_power_limit (default3); exact integer exponents only; reciprocal-first repeated products. Mathematical nonzero-base domain; IEEE exceptions checked separately. No faithful-rounding claim for a*(1/b).",
+  "cuda_compile": {
+    "device_execution": "not run",
+    "target": "sm_120/compute_120",
+    "host": "GNU C++14 for FortGen device fixtures",
+    "fast_math": "not enabled"
+  },
+  "consumer": {
+    "repository": "lazy-fortran/fortsparse",
+    "source": "src/native/fsparse_spd_cuda.cu",
+    "source_sha256": "dfa5ff99cd57d8a31afda9dda04d1729ec53bc27fc8e088164af39aca8d82a94",
+    "recipe": "Compile actual consumer source with its existing NVCC command, replacing only generated-header include/output paths; generated from retained gen/gen_spd_leaves.f90 definitions linked to updated FortSym/FortGen.",
+    "before": {
+      "ptx_bytes": 27779,
+      "pow_text_references": 7,
+      "factor_sass_instruction_records": 744,
+      "ptx_sha256": "963482da39630b4bc90bb31cf231fa9d49bcb39dd3de6788ae68260314bab634"
+    },
+    "after": {
+      "ptx_bytes": 19500,
+      "pow_text_references": 0,
+      "factor_sass_instruction_records": 608,
+      "ptx_sha256": "18ec8e04b95d488a41c0f24fc8a66af96238ed3f90adf23cced4572b38cd99c4",
+      "rebase_byteidentical_to_prior_fix": true
+    },
+    "limits": "Static instruction records, not executed instruction counts or timing. Preview only; delivery leaves must be regenerated after owner integration and pin update."
+  },
+  "prior_reviewed_fortgen_fix": "4bee8106c4dc273933ffeaef1a17c529c550d2d8",
+  "integration_note": "Rebased onto upstream long-Fortran-statement wrapping; retained both independent test cases.",
+  "rebased_native_checks": "FortGen3/3 including upstream long-statement compiler oracle; FortSym5/5; CUDA2fixtures compile/link only."
+}
