@@ -22,7 +22,7 @@ auto-tests = true
 link = ["symengine", "flint", "mpfr", "gmp", "stdc++", "dl"]
 
 [dependencies]
-fortgen = { git = "https://github.com/lazy-fortran/fortgen", rev = "488335bf491bfdf99c257cf6da822e5e95f5d2d6" }
+fortgen = { git = "https://github.com/lazy-fortran/fortgen", rev = "4bee8106c4dc273933ffeaef1a17c529c550d2d8" }
 # Plotting. fortsym samples an expression into arrays and maps options; it
 # implements no plotting of its own, and anything missing is fixed upstream in
 # fortplot rather than worked around here. See issue #44.
