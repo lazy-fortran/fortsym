@@ -112,6 +112,11 @@ The IR emitter also accepts explicit source policies for small-power expansion,
 constant folding, constant-division elimination, and FMA shaping. These are
 deterministic source choices rather than compiler fast-math flags; the `pure`
 procedure option remains opt-in for compatibility with downstream consumers.
+Exact small negative integer powers lower to typed reciprocal products through
+the shared backend. This avoids general CUDA power calls while preserving
+signed-zero/infinity behavior at poles. It does not fuse `a*(1/b)` into `a/b`:
+callers retain their intermediate-range/error contract, and rigorous enclosure
+emission is unchanged.
 
 The legacy expression emitter exposes target-specific CSE choices on
 `kernel_spec_t`: `CSE_NONE`, `CSE_THRESHOLDED`, or `CSE_FULL`, plus a
