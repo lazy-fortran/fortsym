@@ -1,0 +1,39 @@
+program gen_reciprocal_fixture
+    use fortsym_arena, only: arena_t
+    use fortsym_expr, only: expr_t, sym, operator(+), operator(*), operator(/)
+    use fortsym_diff, only: diff
+    use fortsym_kernel_ir, only: kernel_ir_t, lower_kernel_ir
+    use fortsym_kernel_emit, only: kernel_emit_spec_t, emit_cuda_device_ir
+    use fortsym_string, only: str_t, str, chars
+    implicit none
+    type(arena_t), target :: arena
+    type(expr_t) :: a, b, da, db, seed, f, roots(4)
+    type(kernel_ir_t) :: ir
+    type(kernel_emit_spec_t) :: spec
+    type(str_t) :: source
+    character(2048) :: path
+    character(:), allocatable :: message
+    logical :: ok
+    integer :: unit
+    call arena%init()
+    a = sym(arena, 'a')
+    b = sym(arena, 'b')
+    da = sym(arena, 'da')
+    db = sym(arena, 'db')
+    seed = sym(arena, 'seed')
+    f = a/b
+    roots = [f, diff(f,a)*da + diff(f,b)*db, seed*diff(f,a), seed*diff(f,b)]
+    call lower_kernel_ir(roots, ir, ok, message)
+    if (.not. ok) error stop message
+    spec%name = str('reciprocal_products')
+    spec%args = [str('a'), str('b'), str('da'), str('db'), str('seed')]
+    spec%outputs = [str('value'), str('tangent'), str('abar'), str('bbar')]
+    spec%generator = str('test/codegen/gen_reciprocal_fixture.f90.in')
+    spec%regenerate_command = str('cmake --build build --target test_reciprocal_host')
+    source = emit_cuda_device_ir(ir, spec, ok, message)
+    if (.not. ok) error stop message
+    call get_command_argument(1, path)
+    open(newunit=unit, file=trim(path), status='replace', action='write')
+    write(unit,'(a)') chars(source)
+    close(unit)
+end program gen_reciprocal_fixture

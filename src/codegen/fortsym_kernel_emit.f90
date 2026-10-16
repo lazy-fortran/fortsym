@@ -65,7 +65,8 @@ module fortsym_kernel_emit
     !> choices made from the exact expression before a compiler sees floats;
     !> they do not rely on fast-math reassociation.
     type :: kernel_emission_policy_t
-        !> Expand positive integer powers through this degree. Zero disables
+        !> Expand exact integer powers through this magnitude in scalar IR
+        !> emission; negative powers multiply typed reciprocals. Zero disables
         !> expansion while retaining exact neutral-element folding.
         integer :: small_power_limit = 3
         !> Remove exact zero/one neutral elements and fold exact constant powers.
