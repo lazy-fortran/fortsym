@@ -1,0 +1,53 @@
+#include <cfloat>
+#include <cmath>
+#include <cstdio>
+#include <limits>
+// Exercise CUDA source spelling on the host without querying/using a device.
+#define __device__
+#define __forceinline__ inline
+#include "reciprocal_products.cuh"
+
+int main() {
+    const double inf = std::numeric_limits<double>::infinity();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const double samples[] = {-4.0, -0.125, 0.125, 3.0, -1e155, 1e155,
+        -1e-155, 1e-155, DBL_MAX, -DBL_MAX, DBL_MIN, -DBL_MIN,
+        0.0, -0.0, inf, -inf, nan};
+    for (double b : samples) {
+        double result[4];
+        reciprocal_products(0.75, b, -0.375, 0.25, 1.25,
+                            result, result+1, result+2, result+3);
+        const long double br = b;
+        const long double reference[] = {0.75L/br,
+            -0.375L/br - 0.1875L/(br*br), 1.25L/br, -0.9375L/(br*br)};
+        for (int j = 0; j < 4; ++j) {
+            const double actual = result[j];
+            const long double expected = reference[j];
+            bool valid;
+            if (b == 0.0 && j == 1) {
+                // The tangent is outside its mathematical domain at the pole.
+                valid = !std::isfinite(actual);
+            } else if (std::isnan(expected)) valid = std::isnan(actual);
+            else if (fabsl(expected) > DBL_MAX)
+                valid = std::isinf(actual) && std::signbit(actual) == std::signbit(expected);
+            else {
+                const long double tolerance = 32.0L*DBL_EPSILON*fmaxl(fabsl(expected), DBL_MIN);
+                valid = std::isfinite(actual) && fabsl(actual-expected) <= tolerance;
+                if (expected == 0.0L)
+                    valid = valid && std::signbit(actual) == std::signbit(expected);
+            }
+            if (!valid) {
+                std::fprintf(stderr, "symbolic reciprocal b=%g output=%d mismatch\n", b, j);
+                return 1;
+            }
+        }
+    }
+    // The recorded floating computation multiplies by an inverse. It does not
+    // promise faithful rounding of a/b when the intermediate inverse overflows.
+    double result[4];
+    const double subnormal = std::numeric_limits<double>::denorm_min();
+    reciprocal_products(subnormal, subnormal, 0, 0, 1,
+                        result, result+1, result+2, result+3);
+    if (!std::isinf(result[0])) return 2;
+    std::puts("symbolically derived CUDA primal/JVP/VJP: host long-double/IEEE oracle passes");
+}
