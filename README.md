@@ -126,6 +126,16 @@ generated output until a consumer measures another choice. Complex kernels
 set `scalar_type`; optional per-input `arg_types` retain mixed intrinsic
 arithmetic such as complex divided by real.
 
+`kernel_spec_t%ordered_output_dependencies=.true.` permits a later root to
+read an exact output target assigned by an earlier root. This opt-in requires
+`CSE_NONE`, preserving the caller's assignment order and intermediate floating
+point range. Scalar outputs and fixed positive integer array subscripts are
+supported; target ranks and plain integer literal declaration bounds are
+checked. Named or assumed bounds remain the caller/compiler's responsibility.
+Boolean-atom output names `True` and `False` are reserved. Self, forward,
+unassigned-element and whole-array reads, repeated targets and reordered CSE
+are refused. The default still requires every free symbol to be an input.
+
 For large legacy Fortran leaves, `kernel_spec_t%array_temporaries=.true.`
 places CSE temporaries in one local array named by `temp_prefix` (default `t`).
 The mathematical assignment order is unchanged. The option avoids compiler
