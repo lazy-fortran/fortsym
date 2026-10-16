@@ -477,6 +477,21 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
+Install with `cmake --install build --prefix /path/to/fortsym`. A consumer
+using a compatible Fortran compiler can then set `CMAKE_PREFIX_PATH` to that
+prefix and link the installed shared library:
+
+```cmake
+find_package(fortsym CONFIG REQUIRED)
+target_link_libraries(my_generator PRIVATE fortsym::fortsym)
+```
+
+Consumers do not need to discover SymEngine, MPFR or FLINT development
+packages. The installation carries the bundled shared libraries; system
+arithmetic and compiler runtime libraries must still be available. The native
+`test_fortsym_installed_package` gate relocates a private installation and
+checks an external consumer's expression evaluation, derivative and emission.
+
 `flake.nix` provides the exact dependency closure CI builds against — FLINT and
 MPFR are pinned to a single version each, so a machine whose distribution ships
 another one cannot configure at all. `nix develop` enters Tier 1; `nix develop

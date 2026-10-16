@@ -19,6 +19,16 @@ endfunction()
 # --- utilities ---
 fortsym_add_test(test_fortsym_string util/test_fortsym_string.f90)
 
+# A separate consumer must use the installed package without discovering the
+# implementation's C/C++ development packages or retaining the original prefix.
+configure_file(install/test_installed_package.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/test_installed_package.cmake @ONLY)
+add_test(NAME test_fortsym_installed_package
+    COMMAND ${CMAKE_COMMAND} -DFORTSYM_TEST_CONFIG=$<CONFIG>
+        -P ${CMAKE_CURRENT_BINARY_DIR}/test_installed_package.cmake)
+set_tests_properties(test_fortsym_installed_package PROPERTIES
+    RUN_SERIAL TRUE TIMEOUT 180)
+
 # --- core representation ---
 fortsym_add_test(test_fortsym_algebraic core/test_fortsym_algebraic.f90)
 fortsym_add_test(test_fortsym_algebraic_expr core/test_fortsym_algebraic_expr.f90)
