@@ -152,6 +152,14 @@ if(TEST test_fortsym_rigorous_emit)
         "FORTSYM_TEST_RUNTIME_DIR=${CMAKE_CURRENT_SOURCE_DIR}/codegen/runtime")
 endif()
 fortsym_add_test(test_fortsym_kernel codegen/test_fortsym_kernel.f90)
+fortsym_add_test(test_fortsym_ordered_outputs codegen/test_fortsym_ordered_outputs.f90)
+if(TEST test_fortsym_ordered_outputs)
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/work/test_fortsym_ordered_outputs")
+    set_property(TEST test_fortsym_ordered_outputs PROPERTY WORKING_DIRECTORY
+        "${CMAKE_CURRENT_BINARY_DIR}/work/test_fortsym_ordered_outputs")
+    set_property(TEST test_fortsym_ordered_outputs APPEND PROPERTY ENVIRONMENT
+        "FORTSYM_TEST_COMPILER=${CMAKE_Fortran_COMPILER}")
+endif()
 fortsym_add_test(test_fortsym_wl_f90 codegen/test_fortsym_wl_f90.f90)
 
 # --- verification ---

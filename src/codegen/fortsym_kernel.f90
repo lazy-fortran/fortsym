@@ -100,6 +100,11 @@ module fortsym_kernel
         !> Optional assignment targets, one per expression, such as
         !> "jacobian(1,1)" and "jacobian(1,2)".
         type(str_t), allocatable :: output_references(:)
+        !> Permit a root to read an exact output target assigned by an earlier
+        !> root. Opt-in, CSE_NONE only: global CSE would move reads before the
+        !> assignments they depend on. Array targets use fixed positive integer
+        !> subscripts; self, forward and unassigned-element reads are refused.
+        logical                  :: ordered_output_dependencies = .false.
         !> Consumer-owned replacements for opaque applied functions and their
         !> canonical symbolic partial derivatives. Unbound heads are refused.
         type(kernel_binding_t), allocatable :: bindings(:)
@@ -607,7 +612,7 @@ contains
     end function is_reciprocal_power
 
     !> The assignment statements: every temporary, then every output.
-    function emit_statements(roots, spec, res, ok, prechecked, real64_alias) result(s)
+    recursive function emit_statements(roots, spec, res, ok, prechecked, real64_alias) result(s)
         type(expr_t),       intent(in) :: roots(:)
         type(kernel_spec_t), intent(in) :: spec
         type(cse_result_t), intent(in) :: res
@@ -619,8 +624,44 @@ contains
         type(strbuf_t)  :: b
         type(dialect_t) :: d
         type(expr_t)    :: tmp
+        type(arena_t), target :: mapped_arena
+        type(expr_t), allocatable :: mapped_roots(:)
+        type(kernel_spec_t) :: mapped_spec
+        type(str_t), allocatable :: original_names(:), emitted_names(:)
+        logical, allocatable :: changed_names(:)
+        character(:), allocatable :: message
         integer :: k
-        logical :: valid
+        logical :: valid, needs_check
+
+        if (spec%ordered_output_dependencies) then
+            if (spec%cse_level /= CSE_NONE .or. res%n /= 0) then
+                if (present(ok)) ok = .false.
+                s = str("")
+                return
+            end if
+            needs_check = .true.
+            if (present(prechecked)) then
+                if (.not. prechecked) then
+                    if (present(ok)) ok = .false.
+                    s = str("")
+                    return
+                end if
+                needs_check = .false.
+            end if
+            if (needs_check) then
+                call prepare_fortran_kernel(roots, spec, mapped_arena, mapped_roots, &
+                    mapped_spec, original_names, emitted_names, changed_names, &
+                    valid, message)
+                if (.not. valid) then
+                    if (present(ok)) ok = .false.
+                    s = str("")
+                    return
+                end if
+                s = emit_statements(mapped_roots, mapped_spec, res, ok, &
+                    prechecked=.true., real64_alias=real64_alias)
+                return
+            end if
+        end if
 
         d = dialect(DIA_FORTRAN)
         if (spec%precision == PRECISION_REAL32 .or. &
@@ -768,7 +809,7 @@ contains
         type(arena_t), target :: mapped_arena
         type(expr_t), allocatable :: mapped_roots(:)
         type(kernel_spec_t) :: mapped_spec
-        type(str_t), allocatable :: original_names(:), emitted_names(:)
+        type(str_t), allocatable :: original_names(:), emitted_names(:), check_names(:)
         logical, allocatable :: changed_names(:)
         logical :: valid, emit_openmp, emit_openacc
         character(:), allocatable :: diagnostic, array_name
@@ -780,8 +821,9 @@ contains
         if (present(message)) message = diagnostic
         if (valid .and. (spec%precision == PRECISION_REAL32 .or. &
             spec%precision == PRECISION_MIXED)) then
+            call kernel_check_names(mapped_spec, check_names)
             valid = fortran_roots_representable_kind(mapped_roots, real32, &
-                mapped_spec%args, mapped_spec%bindings)
+                check_names, mapped_spec%bindings)
         end if
         if (present(ok)) ok = valid
         if (present(cost_record)) cost_record = str("")
@@ -957,6 +999,7 @@ contains
         character(:), allocatable, intent(out) :: message
 
         integer :: k, n_args, n_outputs
+        type(str_t), allocatable :: output_targets(:), mapped_targets(:), check_names(:)
         logical, allocatable :: visited(:)
         logical :: map_ok
 
@@ -986,6 +1029,11 @@ contains
         if (.not. map_ok) return
         mapped_spec%args = emitted_names(1:n_args)
         if (n_outputs > 0) mapped_spec%outputs = emitted_names(n_args + 1:)
+        if (spec%ordered_output_dependencies) then
+            call prepare_ordered_output_targets(spec, mapped_spec, size(roots), &
+                output_targets, mapped_targets, ok, message)
+            if (.not. ok) return
+        end if
         if (.not. valid_fortran_name(chars(spec%name))) then
             message = "kernel emitter: kernel name is not a valid Fortran identifier: "// &
                 chars(spec%name)
@@ -1005,12 +1053,19 @@ contains
             end do
             allocate (visited(mapped_arena%n_nodes), source=.false.)
             do k = 1, size(roots)
-                call map_fortran_kernel_node(mapped_arena, roots(1)%a, &
-                    roots(k)%id, spec%args, mapped_spec%args, visited, ok, message)
+                if (spec%ordered_output_dependencies) then
+                    call map_fortran_kernel_node(mapped_arena, roots(1)%a, &
+                        roots(k)%id, spec%args, mapped_spec%args, visited, ok, message, &
+                        output_targets, mapped_targets, k - 1)
+                else
+                    call map_fortran_kernel_node(mapped_arena, roots(1)%a, &
+                        roots(k)%id, spec%args, mapped_spec%args, visited, ok, message)
+                end if
                 if (.not. ok) return
             end do
         end if
-        if (.not. fortran_roots_representable(mapped_roots, mapped_spec%args, &
+        call kernel_check_names(mapped_spec, check_names)
+        if (.not. fortran_roots_representable(mapped_roots, check_names, &
             mapped_spec%bindings)) then
             ok = .false.
             message = "kernel emitter: expression contains a value not representable in Fortran"
@@ -1018,6 +1073,286 @@ contains
         end if
         ok = .true.
     end subroutine prepare_fortran_kernel
+
+    subroutine kernel_check_names(spec, names)
+        type(kernel_spec_t), intent(in) :: spec
+        type(str_t), allocatable, intent(out) :: names(:)
+        integer :: n_args, n_outputs
+
+        n_args = size(spec%args)
+        n_outputs = 0
+        if (spec%ordered_output_dependencies) n_outputs = size(spec%outputs)
+        allocate (names(n_args + n_outputs))
+        names(:n_args) = spec%args
+        if (n_outputs > 0) names(n_args + 1:) = spec%outputs
+    end subroutine kernel_check_names
+
+    subroutine prepare_ordered_output_targets(spec, mapped_spec, n_roots, targets, &
+            mapped_targets, ok, message)
+        type(kernel_spec_t), intent(in) :: spec
+        type(kernel_spec_t), intent(inout) :: mapped_spec
+        integer, intent(in) :: n_roots
+        type(str_t), allocatable, intent(out) :: targets(:), mapped_targets(:)
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        character(:), allocatable :: raw, base, suffix, shape_text
+        integer :: k, j, owner, rank, shape_rank
+
+        ok = .false.
+        message = ""
+        if (spec%cse_level /= CSE_NONE) then
+            message = "kernel emitter: ordered output dependencies require CSE_NONE"
+            return
+        end if
+        if (allocated(spec%output_references)) then
+            if (size(spec%output_references) /= n_roots) then
+                message = "kernel emitter: output_references must match expressions"
+                return
+            end if
+        else if (size(spec%outputs) /= n_roots) then
+            message = "kernel emitter: outputs must match expressions without output_references"
+            return
+        end if
+        if (allocated(spec%output_shapes)) then
+            if (size(spec%output_shapes) /= size(spec%outputs)) then
+                message = "kernel emitter: output_shapes must match outputs"
+                return
+            end if
+        end if
+        do j = 1, size(spec%outputs)
+            raw = trim(chars(spec%outputs(j)))
+            if (same_fortran_name(raw, "True") .or. same_fortran_name(raw, "False")) then
+                message = "kernel emitter: ordered output name conflicts with a Boolean atom: "//raw
+                return
+            end if
+        end do
+        allocate (targets(n_roots), mapped_targets(n_roots))
+        do k = 1, n_roots
+            if (allocated(spec%output_references)) then
+                raw = chars(spec%output_references(k))
+            else
+                raw = chars(spec%outputs(k))
+            end if
+            call parse_fixed_output_reference(raw, base, suffix, rank, ok)
+            if (.not. ok) then
+                message = "kernel emitter: ordered output target requires a scalar name "// &
+                    "or fixed positive integer subscripts: "//raw
+                return
+            end if
+            owner = 0
+            do j = 1, size(spec%outputs)
+                if (base /= trim(chars(spec%outputs(j)))) cycle
+                owner = j
+                exit
+            end do
+            if (owner == 0) then
+                do j = 1, size(spec%outputs)
+                    if (.not. same_fortran_name(base, trim(chars(spec%outputs(j))))) cycle
+                    owner = j
+                    exit
+                end do
+            end if
+            if (owner == 0) then
+                ok = .false.
+                message = "kernel emitter: ordered output target is not a declared output: "//raw
+                return
+            end if
+            shape_rank = 0
+            if (allocated(spec%output_shapes)) then
+                shape_text = trim(chars(spec%output_shapes(owner)))
+                call output_shape_rank(shape_text, shape_rank, ok)
+                if (.not. ok) then
+                    message = "kernel emitter: invalid ordered output shape: "//shape_text
+                    return
+                end if
+            end if
+            if (rank /= shape_rank) then
+                ok = .false.
+                message = "kernel emitter: ordered output target rank differs from its "// &
+                    "declaration: "//raw
+                return
+            end if
+            if (rank > 0) then
+                if (.not. ordered_target_within_known_bounds(shape_text, suffix)) then
+                    ok = .false.
+                    message = "kernel emitter: ordered output target is outside its "// &
+                        "declared bounds: "//raw
+                    return
+                end if
+            end if
+            targets(k) = str(trim(chars(spec%outputs(owner)))//suffix)
+            mapped_targets(k) = str(chars(mapped_spec%outputs(owner))//suffix)
+            do j = 1, k - 1
+                if (.not. same_fortran_name(chars(mapped_targets(k)), &
+                    chars(mapped_targets(j)))) cycle
+                ok = .false.
+                message = "kernel emitter: ordered output target is assigned more than once: "//raw
+                return
+            end do
+        end do
+        mapped_spec%output_references = mapped_targets
+        ok = .true.
+    end subroutine prepare_ordered_output_targets
+
+    ! Normalize only fixed scalar element names. Expressions, sections and
+    ! dynamic subscripts cannot alias a previously written target implicitly.
+    subroutine parse_fixed_output_reference(raw, base, suffix, rank, ok)
+        character(*), intent(in) :: raw
+        character(:), allocatable, intent(out) :: base, suffix
+        integer, intent(out) :: rank
+        logical, intent(out) :: ok
+        character(:), allocatable :: compact, part
+        integer :: k, opening, first, last, digit
+
+        compact = ""
+        base = ""
+        suffix = ""
+        rank = 0
+        ok = .false.
+        do k = 1, len_trim(raw)
+            if (raw(k:k) == " " .or. iachar(raw(k:k)) == 9) cycle
+            compact = compact//raw(k:k)
+        end do
+        opening = index(compact, "(")
+        if (opening == 0) then
+            base = compact
+            ok = valid_fortran_name(base)
+            return
+        end if
+        if (opening <= 1) return
+        base = compact(:opening - 1)
+        if (.not. valid_fortran_name(base)) return
+        if (len(compact) <= opening + 1) return
+        if (compact(len(compact):) /= ")") return
+        first = opening + 1
+        suffix = "("
+        do
+            last = first
+            do while (last < len(compact))
+                if (compact(last:last) == ",") exit
+                if (compact(last:last) < "0" .or. compact(last:last) > "9") return
+                last = last + 1
+            end do
+            if (last == first) return
+            part = compact(first:last - 1)
+            digit = 1
+            do while (digit < len(part))
+                if (part(digit:digit) /= "0") exit
+                digit = digit + 1
+            end do
+            part = part(digit:)
+            if (part == "0") return
+            if (rank > 0) suffix = suffix//","
+            suffix = suffix//part
+            rank = rank + 1
+            if (last == len(compact)) exit
+            first = last + 1
+        end do
+        suffix = suffix//")"
+        ok = .true.
+    end subroutine parse_fixed_output_reference
+
+    subroutine output_shape_rank(shape_text, rank, ok)
+        character(*), intent(in) :: shape_text
+        integer, intent(out) :: rank
+        logical, intent(out) :: ok
+        integer :: k, depth
+
+        rank = 0
+        ok = .true.
+        if (len_trim(shape_text) == 0) return
+        ok = .false.
+        if (len(shape_text) < 3) return
+        if (shape_text(1:1) /= "(" .or. &
+            shape_text(len(shape_text):) /= ")") return
+        depth = 0
+        rank = 1
+        do k = 1, len(shape_text)
+            select case (shape_text(k:k))
+            case ("(")
+                depth = depth + 1
+            case (")")
+                depth = depth - 1
+                if (depth == 0 .and. k < len(shape_text)) return
+                if (depth < 0) return
+            case (",")
+                if (depth == 1) rank = rank + 1
+            end select
+        end do
+        ok = depth == 0
+    end subroutine output_shape_rank
+
+    logical function ordered_target_within_known_bounds(shape_text, suffix) result(ok)
+        character(*), intent(in) :: shape_text, suffix
+        character(:), allocatable :: dimension, index_text
+        integer :: k, depth, first, index_first, index_last, colon, ios
+        integer(int64) :: subscript, lower, upper
+        logical :: lower_known, upper_known
+
+        ok = .false.
+        depth = 1
+        first = 2
+        index_first = 2
+        do k = 2, len(shape_text)
+            select case (shape_text(k:k))
+            case ("(")
+                depth = depth + 1
+            case (")")
+                depth = depth - 1
+            end select
+            if (depth /= 0) then
+                if (shape_text(k:k) /= "," .or. depth /= 1) cycle
+            end if
+            dimension = shape_text(first:k - 1)
+            index_last = index_first
+            do while (index_last < len(suffix))
+                if (suffix(index_last:index_last) == ",") exit
+                index_last = index_last + 1
+            end do
+            index_text = suffix(index_first:index_last - 1)
+            read (index_text, *, iostat=ios) subscript
+            if (ios /= 0) return
+            colon = index(dimension, ":")
+            if (colon == 0) then
+                lower = 1_int64
+                lower_known = .true.
+                call literal_integer_bound(dimension, upper, upper_known)
+            else
+                call literal_integer_bound(dimension(:colon - 1), lower, lower_known)
+                call literal_integer_bound(dimension(colon + 1:), upper, upper_known)
+            end if
+            if (lower_known) then
+                if (subscript < lower) return
+            end if
+            if (upper_known) then
+                if (subscript > upper) return
+            end if
+            first = k + 1
+            index_first = index_last + 1
+        end do
+        ok = .true.
+    end function ordered_target_within_known_bounds
+
+    subroutine literal_integer_bound(text, value, known)
+        character(*), intent(in) :: text
+        integer(int64), intent(out) :: value
+        logical, intent(out) :: known
+        character(:), allocatable :: token
+        integer :: k, first, ios
+
+        value = 0_int64
+        known = .false.
+        token = trim(adjustl(text))
+        if (len(token) == 0) return
+        first = 1
+        if (token(1:1) == "+" .or. token(1:1) == "-") first = 2
+        if (first > len(token)) return
+        do k = first, len(token)
+            if (token(k:k) < "0" .or. token(k:k) > "9") return
+        end do
+        read (token, *, iostat=ios) value
+        known = ios == 0
+    end subroutine literal_integer_bound
 
     ! Keep historical source unchanged unless an emitted identifier shadows
     ! the imported kind. Check the mapped interface and actual CSE names.
@@ -1092,7 +1427,8 @@ contains
     end function aliased_kind_type
 
     recursive subroutine map_fortran_kernel_node(mapped_arena, original_arena, id, &
-            args, mapped_args, visited, ok, message)
+            args, mapped_args, visited, ok, message, output_targets, mapped_targets, &
+            assigned_count)
         type(arena_t), intent(inout) :: mapped_arena
         type(arena_t), intent(in) :: original_arena
         integer, intent(in) :: id
@@ -1100,10 +1436,13 @@ contains
         logical, intent(inout) :: visited(:)
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: message
+        type(str_t), intent(in), optional :: output_targets(:), mapped_targets(:)
+        integer, intent(in), optional :: assigned_count
 
         integer :: k, j, node_name, first_arg
-        character(:), allocatable :: raw_name, emitted_name
-        logical :: found
+        character(:), allocatable :: raw_name, emitted_name, base, suffix, target
+        logical :: found, reference_ok
+        integer :: rank
 
         ok = .false.
         message = ""
@@ -1116,7 +1455,8 @@ contains
         if (is_derivative_function(mapped_arena, id)) first_arg = 2
         do k = first_arg, mapped_arena%nargs_of(id)
             call map_fortran_kernel_node(mapped_arena, original_arena, &
-                mapped_arena%arg_of(id, k), args, mapped_args, visited, ok, message)
+                mapped_arena%arg_of(id, k), args, mapped_args, visited, ok, message, &
+                output_targets, mapped_targets, assigned_count)
             if (.not. ok) return
         end do
         if (mapped_arena%kind_of(id) /= NK_SYM) then
@@ -1137,6 +1477,24 @@ contains
             found = .true.
             exit
         end do
+        if (.not. found .and. present(output_targets) .and. present(mapped_targets) .and. &
+            present(assigned_count)) then
+            call parse_fixed_output_reference(raw_name, base, suffix, rank, reference_ok)
+            if (reference_ok) then
+                target = base//suffix
+                do j = 1, size(output_targets)
+                    if (target /= chars(output_targets(j))) cycle
+                    if (j > assigned_count) then
+                        message = "kernel emitter: output target is read before assignment: "// &
+                            raw_name
+                        return
+                    end if
+                    emitted_name = chars(mapped_targets(j))
+                    found = .true.
+                    exit
+                end do
+            end if
+        end if
         if (.not. found) then
             do j = 1, size(args)
                 if (.not. symbol_matches_argument(raw_name, chars(args(j)))) cycle
@@ -1146,8 +1504,27 @@ contains
                 exit
             end do
         end if
+        if (.not. found .and. present(output_targets) .and. present(mapped_targets) .and. &
+            present(assigned_count)) then
+            if (reference_ok) then
+                do j = 1, size(output_targets)
+                    if (.not. same_fortran_name(target, chars(output_targets(j)))) cycle
+                    if (j > assigned_count) then
+                        message = "kernel emitter: output target is read before assignment: "// &
+                            raw_name
+                        return
+                    end if
+                    emitted_name = chars(mapped_targets(j))
+                    found = .true.
+                    exit
+                end do
+            end if
+        end if
         if (.not. found) then
-            if (.not. valid_fortran_name(raw_name)) then
+            if (present(output_targets)) then
+                message = "kernel emitter: symbol is neither an input nor a previously "// &
+                    "assigned output target: "//raw_name
+            else if (.not. valid_fortran_name(raw_name)) then
                 message = "kernel emitter: symbol name is not a valid Fortran identifier: "// &
                     raw_name
             else
