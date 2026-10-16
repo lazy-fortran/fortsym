@@ -1,7 +1,6 @@
 @PACKAGE_INIT@
 
-include(CMakeFindDependencyMacro)
-find_dependency(SymEngine 0.14 CONFIG)
-find_dependency(MPFR)
-find_dependency(FLINT)
+# The installed shared target exposes the Fortran modules and C ABI only.
+# Its symbolic engines and arithmetic libraries are runtime dependencies,
+# not configure-time dependencies of consumers.
 include("${CMAKE_CURRENT_LIST_DIR}/fortsymTargets.cmake")

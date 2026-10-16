@@ -1,0 +1,28 @@
+set(work "@CMAKE_CURRENT_BINARY_DIR@/installed-package")
+set(original "${work}/original")
+set(relocated "${work}/relocated")
+file(REMOVE_RECURSE "${work}")
+file(MAKE_DIRECTORY "${work}")
+
+function(run_checked label)
+    execute_process(COMMAND ${ARGN}
+        RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+    if(NOT result STREQUAL "0")
+        message(FATAL_ERROR "${label} failed (${result}):\n${output}\n${error}")
+    endif()
+endfunction()
+
+run_checked("Install" "@CMAKE_COMMAND@" --install "@PROJECT_BINARY_DIR@"
+    --prefix "${original}" --config "${FORTSYM_TEST_CONFIG}")
+file(RENAME "${original}" "${relocated}")
+run_checked("Configure consumer" "@CMAKE_COMMAND@"
+    -S "@CMAKE_CURRENT_SOURCE_DIR@/install/consumer" -B "${work}/consumer"
+    "-DCMAKE_PREFIX_PATH=${relocated}"
+    "-DCMAKE_Fortran_COMPILER=@CMAKE_Fortran_COMPILER@")
+run_checked("Build consumer" "@CMAKE_COMMAND@" --build "${work}/consumer"
+    --config "${FORTSYM_TEST_CONFIG}")
+run_checked("Run consumer" "@CMAKE_COMMAND@" -E env
+    --unset=LD_LIBRARY_PATH --unset=DYLD_LIBRARY_PATH
+    --unset=DYLD_FALLBACK_LIBRARY_PATH
+    "@CMAKE_CTEST_COMMAND@" --test-dir "${work}/consumer"
+    --build-config "${FORTSYM_TEST_CONFIG}" --output-on-failure)

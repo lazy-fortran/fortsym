@@ -1,0 +1,47 @@
+program installed_consumer
+    use, intrinsic :: iso_fortran_env, only: dp => real64
+    use fortsym, only: expr_t, engine_result_t, kernel_spec_t, reset, &
+        symbols, diff, str, chars, emit_kernel, KERNEL_SUBROUTINE, &
+        operator(+), operator(*)
+    use fortsym_eval, only: binding_t, eval_expr
+    implicit none
+
+    type(expr_t) :: x, roots(2)
+    type(engine_result_t) :: derivative
+    type(kernel_spec_t) :: spec
+    type(binding_t) :: bindings
+    character(:), allocatable :: source
+    real(dp) :: value, derivative_value, point
+    logical :: ok
+    integer :: i
+
+    call reset()
+    call symbols("x", x, ok=ok)
+    if (.not. ok) error stop "symbol construction failed"
+    roots(1) = x*x + 3*x
+    derivative = diff(roots(1), x)
+    if (.not. derivative%ok) error stop "differentiation failed"
+    roots(2) = derivative%value
+
+    bindings%names = [str("x")]
+    allocate (bindings%values(1))
+    bindings%n = 1
+    do i = -2, 2
+        point = real(i, dp)
+        bindings%values(1) = point
+        value = eval_expr(roots(1), bindings, ok)
+        if (.not. ok) error stop "undefined expression value"
+        if (value /= point*point + 3*point) error stop "incorrect value"
+        derivative_value = eval_expr(roots(2), bindings, ok)
+        if (.not. ok) error stop "undefined derivative value"
+        if (derivative_value /= 2*point + 3) error stop "incorrect derivative"
+    end do
+
+    spec%name = str("installed_kernel")
+    spec%mode = KERNEL_SUBROUTINE
+    spec%args = [str("x")]
+    spec%outputs = [str("value"), str("derivative")]
+    source = chars(emit_kernel(roots, spec, ok))
+    if (.not. ok) error stop "kernel emission failed"
+    if (len(source) == 0) error stop "empty kernel source"
+end program installed_consumer

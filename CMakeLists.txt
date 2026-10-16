@@ -75,6 +75,31 @@ add_subdirectory(src)
 add_subdirectory(app)
 add_subdirectory(example)
 
+# Bundled shared dependencies are installed beside fortsym. Each library must
+# find its siblings after the install prefix moves, including indirect loads
+# for which an executable's RUNPATH is insufficient on ELF platforms.
+if(APPLE)
+    set(_fortsym_loader_origin "@loader_path")
+elseif(UNIX)
+    set(_fortsym_loader_origin "$ORIGIN")
+endif()
+if(DEFINED _fortsym_loader_origin)
+    foreach(_fortsym_runtime_target IN ITEMS
+            fortsym fortgen fortplot symengine libyacas libyacas_mp)
+        if(TARGET ${_fortsym_runtime_target})
+            get_target_property(_fortsym_imported
+                ${_fortsym_runtime_target} IMPORTED)
+            if(NOT _fortsym_imported)
+                set_property(TARGET ${_fortsym_runtime_target} APPEND PROPERTY
+                    INSTALL_RPATH "${_fortsym_loader_origin}")
+            endif()
+        endif()
+    endforeach()
+    unset(_fortsym_loader_origin)
+    unset(_fortsym_runtime_target)
+    unset(_fortsym_imported)
+endif()
+
 if(FORTSYM_BUILD_TESTING)
     enable_testing()
     add_subdirectory(test)
@@ -82,6 +107,11 @@ endif()
 
 install(TARGETS fortsym
     EXPORT fortsymTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+# FortPlot deliberately leaves deployment to its parent in subproject mode.
+install(TARGETS fortplot
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
