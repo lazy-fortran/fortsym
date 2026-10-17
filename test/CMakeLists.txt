@@ -233,6 +233,11 @@ fortsym_add_test(test_fortsym_fparse parse_fortran/test_fortsym_fparse.f90)
 fortsym_add_test(test_fortran_real_kind parse_fortran/test_fortran_real_kind.f90)
 
 # --- C ABI over SymEngine ---
+add_executable(test_fortsym_shim_zero capi/test_fortsym_shim_zero.c)
+target_link_libraries(test_fortsym_shim_zero PRIVATE fortsym)
+target_include_directories(test_fortsym_shim_zero PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/capi)
+add_test(NAME test_fortsym_shim_zero COMMAND test_fortsym_shim_zero)
 add_executable(test_fortsym_shim_strings capi/test_fortsym_shim_strings.c)
 target_link_libraries(test_fortsym_shim_strings PRIVATE fortsym)
 target_include_directories(test_fortsym_shim_strings PRIVATE
