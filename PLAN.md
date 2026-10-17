@@ -76,6 +76,15 @@ SymPy-compatible surface and completion rules. Export design is in
   location; they do not require FortSym infrastructure in upstream solvers.
 - Execution schedules, launch geometry and application data are separate.
 
+## Shared generator dependency (2026-10-17)
+
+- CMake and FPM both pin FortGen `3bfb380958f6827a9639425f0f7447b83c3813f6`,
+  including the long-interface, temporary-name and native FPM fixture-link fixes.
+- An isolated native release build and the affected `test_fortsym_kernel_ir`
+  and compiled `test_reciprocal_host` gates pass (2/2). The legacy Fortran
+  emitter tests with absolute `/tmp` fixtures were not run under the workspace
+  storage rule; no full-suite or FPM qualification is implied.
+
 ## Verified status
 
 - Verified source base: `bb3b1e090f6855707243d564c1c500b0bd5c15b0`.
