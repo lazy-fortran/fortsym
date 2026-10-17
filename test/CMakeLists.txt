@@ -92,6 +92,7 @@ add_test(NAME test_reciprocal_host COMMAND test_reciprocal_host)
 
 # --- engines ---
 fortsym_add_test(test_fortsym_native engine/test_fortsym_native.f90)
+fortsym_add_test(test_fortsym_native_zero_limits engine/test_fortsym_native_zero_limits.f90)
 fortsym_add_test(test_fortsym_identities engine/test_fortsym_identities.f90)
 fortsym_add_test(test_fortsym_yacas engine/test_fortsym_yacas.f90)
 
