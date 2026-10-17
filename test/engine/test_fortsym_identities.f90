@@ -70,6 +70,12 @@ program test_fortsym_identities
     ! SymEngine is only the exercised conversion/decision path, not the source
     ! of the expected value.
     call check("18446744073709551616 - 2**64", MUST_ZERO)
+    ! Independent distributive identity with a common nonzero weight. Fraction
+    ! folding used to leave unexpanded symbolic power exponents and return a
+    ! definitive NONZERO for these exact zeros.
+    call check("s**(-alpha)*(1 + 1/s) - s**(-alpha) - s**(-1-alpha)", MUST_ZERO)
+    call check("-N*alpha*exp(-alpha*log(s))/s + N_s*exp(-alpha*log(s))"// &
+        " - exp(-alpha*log(s))*(N_s - N*alpha/s)", MUST_ZERO)
 
     print *, ""
     print *, "-- must never be claimed ZERO --"

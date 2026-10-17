@@ -18,8 +18,10 @@ int main() {
         reciprocal_products(0.75, b, -0.375, 0.25, 1.25,
                             result, result+1, result+2, result+3);
         const long double br = b;
+        // long double may be binary64: divide successively so br*br cannot
+        // overflow before a representable subnormal reference is formed.
         const long double reference[] = {0.75L/br,
-            -0.375L/br - 0.1875L/(br*br), 1.25L/br, -0.9375L/(br*br)};
+            -0.375L/br - (0.1875L/br)/br, 1.25L/br, (-0.9375L/br)/br};
         for (int j = 0; j < 4; ++j) {
             const double actual = result[j];
             const long double expected = reference[j];

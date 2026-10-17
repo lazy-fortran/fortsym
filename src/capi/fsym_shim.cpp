@@ -1,6 +1,7 @@
 /* Implementation of fortsym's shim over SymEngine. See fsym_shim.h for why
  * each entry point exists. */
 
+#include <algorithm>
 #include <cstring>
 #include <cstdint>
 #include <cmath>
@@ -9,8 +10,10 @@
 #include <dlfcn.h>
 #include <limits>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <string_view>
+#include <stdexcept>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -558,6 +561,66 @@ expand_canonical(const SymEngine::RCP<const SymEngine::Basic> &e)
     return SymEngine::expand(expand_pow_bases(e));
 }
 
+/*! Conservative term-count bound before expanding a power exponent. The
+ *  subsequent node guard also accounts for the size of individual terms. */
+bool exponent_expansion_fits(
+    const SymEngine::RCP<const SymEngine::Basic> &e,
+    unsigned long limit, unsigned long &terms)
+{
+    using namespace SymEngine;
+    terms = 1;
+    if (is_a<Add>(*e) || is_a<Mul>(*e)) {
+        const bool sum = is_a<Add>(*e);
+        terms = sum ? 0 : 1;
+        for (const auto &arg : e->get_args()) {
+            unsigned long next;
+            if (!exponent_expansion_fits(arg, limit, next)) {
+                return false;
+            }
+            if (sum) {
+                if (next > limit - terms) return false;
+                terms += next;
+            } else {
+                if (next != 0 && terms > limit/next) return false;
+                terms *= next;
+            }
+        }
+    } else if (is_a<Pow>(*e)) {
+        const auto &power = down_cast<const Pow &>(*e);
+        unsigned long base_terms;
+        if (!exponent_expansion_fits(power.get_base(), limit, base_terms)) {
+            return false;
+        }
+        if (is_a<Integer>(*power.get_exp())) {
+            const auto n = down_cast<const Integer &>(*power.get_exp()).as_int();
+            if (n > 0 && base_terms > 1) {
+                const auto degree = static_cast<unsigned long>(n);
+                const auto rank = base_terms - 1;
+                if (degree > std::numeric_limits<unsigned long>::max() - rank) {
+                    return false;
+                }
+                const auto total = degree + rank;
+                const auto count = std::min(degree, rank);
+                // At most binomial(n + r - 1, r - 1) monomials arise from
+                // an r-term base. Cancel denominators before multiplying.
+                for (unsigned long k = 1; k <= count; ++k) {
+                    auto numerator = total - count + k;
+                    auto denominator = k;
+                    auto common = std::gcd(numerator, denominator);
+                    numerator /= common;
+                    denominator /= common;
+                    common = std::gcd(terms, denominator);
+                    terms /= common;
+                    denominator /= common;
+                    if (denominator != 1 || terms > limit/numerator) return false;
+                    terms *= numerator;
+                }
+            }
+        }
+    }
+    return terms <= limit;
+}
+
 /*! Canonicalizes exponentials so that structurally different spellings of the
  *  same quantity collapse:
  *
@@ -570,11 +633,12 @@ expand_canonical(const SymEngine::RCP<const SymEngine::Basic> &e)
  *
  *  SymEngine represents exp(a) as Pow(E, a), so this hooks Pow. */
 SymEngine::RCP<const SymEngine::Basic>
-exp_normalize(const SymEngine::RCP<const SymEngine::Basic> &e)
+exp_normalize(const SymEngine::RCP<const SymEngine::Basic> &e,
+              unsigned long limit = kDefaultMaxNodes)
 {
     SymEngine::map_basic_basic replacements;
     for (const auto &arg : e->get_args()) {
-        const auto normalized = exp_normalize(arg);
+        const auto normalized = exp_normalize(arg, limit);
         if (normalized != arg) {
             replacements[arg] = normalized;
         }
@@ -589,11 +653,26 @@ exp_normalize(const SymEngine::RCP<const SymEngine::Basic> &e)
     const auto &power = SymEngine::down_cast<const SymEngine::Pow &>(*rebuilt);
     const auto base = power.get_base();
     auto exponent = power.get_exp();
-    if (!SymEngine::eq(*base, *SymEngine::E)) {
-        return rebuilt;
+    if (exponent->get_args().empty()) {
+        return rebuilt; // atomic exponent arithmetic is already canonical
     }
-
+    unsigned long terms;
+    if (node_count(exponent, limit) > limit
+        || !exponent_expansion_fits(exponent, limit, terms)) {
+        throw std::runtime_error("power exponent expansion exceeds node budget");
+    }
     exponent = expand_canonical(exponent);
+    if (node_count(exponent, limit) > limit) {
+        throw std::runtime_error("expanded power exponent exceeds node budget");
+    }
+    // Fraction folding can create s**(1 + alpha - (1 + alpha)). Normalize
+    // exponent arithmetic for every base, preserving the base and all branch
+    // structure; exp-only normalization otherwise mistakes this identity for
+    // a nonzero canonical numerator.
+    if (!SymEngine::eq(*base, *SymEngine::E)) {
+        return SymEngine::eq(*exponent, *power.get_exp())
+                   ? rebuilt : SymEngine::pow(base, exponent);
+    }
     if (SymEngine::is_a<SymEngine::Log>(*exponent)) {
         return exponent->get_args()[0];
     }
@@ -683,9 +762,10 @@ void safe_numer_denom(const SymEngine::RCP<const SymEngine::Basic> &e,
 /*! Exponential normal form: the shared front half of fsym_zero_test and
  *  fsym_normal_form. Throws whatever SymEngine throws. */
 SymEngine::RCP<const SymEngine::Basic>
-normal_form(const SymEngine::RCP<const SymEngine::Basic> &e)
+normal_form(const SymEngine::RCP<const SymEngine::Basic> &e,
+            unsigned long limit = kDefaultMaxNodes)
 {
-    return exp_normalize(SymEngine::rewrite_as_exp(e));
+    return exp_normalize(SymEngine::rewrite_as_exp(e), limit);
 }
 
 /*! True when every node of e lies in the fragment fsym_zero_test can decide:
@@ -1407,7 +1487,7 @@ int fsym_zero_test(const basic ex, unsigned long max_nodes)
         // Exponential normal form. rewrite_as_exp has no rule for gamma, erf,
         // the Bessel family and friends; when it gives up, so does the
         // symbolic path, and the caller falls back to a numeric probe.
-        RCP<const Basic> r = normal_form(e);
+        RCP<const Basic> r = normal_form(e, limit);
 
         // Fold onto a single rational function and expand the numerator. One
         // pass suffices for most inputs; expanding can expose fractions that
@@ -1421,7 +1501,10 @@ int fsym_zero_test(const basic ex, unsigned long max_nodes)
                 return FSYM_ZERO_UNKNOWN;
             }
 
-            numer = exp_normalize(expand_canonical(numer));
+            numer = exp_normalize(expand_canonical(numer), limit);
+            if (node_count(numer, limit) > limit) {
+                return FSYM_ZERO_UNKNOWN;
+            }
             if (eq(*numer, *zero)) {
                 return FSYM_ZERO_TRUE;
             }
