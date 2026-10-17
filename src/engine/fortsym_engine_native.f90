@@ -378,7 +378,7 @@ contains
         logical :: branch_sensitive
         logical :: trig_ok, together_ok, cancel_ok
         logical :: saw_exponential_again, decidable_again, formal_exponential_again
-        logical :: exact_decidable, coefficient_overflow
+        logical :: exact_decidable, rational_form_incomplete
         character(:), allocatable :: trig_reason, cancel_reason
 
         simplified = self%simplify(e)
@@ -407,11 +407,11 @@ contains
         end if
         normalised = native_exp_normal_form(exp_input, &
             saw_exponential, decidable, formal_exponential)
-        coefficient_overflow = .false.
+        rational_form_incomplete = .false.
         call poly_together(normalised%a, normalised, together, together_ok, &
             cancel_reason)
         if (together_ok) normalised = together
-        if (.not. together_ok) coefficient_overflow = overflowed(cancel_reason)
+        if (.not. together_ok) rational_form_incomplete = .true.
         numerator = poly_numerator(normalised%a, normalised)
         denominator = poly_denominator(normalised%a, normalised)
         expanded = self%expand(numerator)
@@ -428,14 +428,14 @@ contains
             call poly_together(normalised%a, normalised, together, together_ok, &
                 cancel_reason)
             if (together_ok) normalised = together
-            if (.not. together_ok) coefficient_overflow = coefficient_overflow .or. &
-                overflowed(cancel_reason)
+            if (.not. together_ok) rational_form_incomplete = .true.
+        else
+            rational_form_incomplete = .true.
         end if
         call poly_cancel(normalised%a, normalised, cancelled, cancel_ok, &
             cancel_reason)
         if (cancel_ok) normalised = cancelled
-        if (.not. cancel_ok) coefficient_overflow = coefficient_overflow .or. &
-            overflowed(cancel_reason)
+        if (.not. cancel_ok) rational_form_incomplete = .true.
         renormalised = native_exp_normal_form(normalised, &
             saw_exponential_again, decidable_again, formal_exponential_again)
         normalised = renormalised
@@ -468,10 +468,12 @@ contains
         case (NK_ALGEBRAIC)
             call algebraic_zero_status(r%value, r%verdict)
         end select
-        ! A rational normal form that overflowed its checked coefficient
-        ! arithmetic is not canonical, so a leftover residual proves nothing.
+        ! A refused rational normalization is not canonical: arithmetic,
+        ! term, degree, variable and other bounds all leave a residual whose
+        ! structure cannot establish NONZERO. Exact scalar decisions above
+        ! remain valid independently of any earlier refusal.
         if (decidable .and. formal_exponential .and. .not. branch_sensitive .and. &
-            .not. coefficient_overflow .and. r%verdict == VERDICT_UNKNOWN) then
+            .not. rational_form_incomplete .and. r%verdict == VERDICT_UNKNOWN) then
             ! Distinct canonical formal exponentials are distinct functions.
             ! The same fragment also includes exact rational expressions; an
             ! unsupported head must remain UNKNOWN.
@@ -1432,12 +1434,6 @@ contains
             verdict = VERDICT_FALSE
         end if
     end subroutine algebraic_zero_status
-
-    pure logical function overflowed(reason)
-        character(*), intent(in) :: reason
-
-        overflowed = index(reason, "overflow") > 0
-    end function overflowed
 
     subroutine exact_zero_verdict(e, verdict, decided)
         type(expr_t), intent(in) :: e

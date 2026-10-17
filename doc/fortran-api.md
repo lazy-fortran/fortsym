@@ -975,5 +975,9 @@ nonzero expression, and `VERDICT_UNKNOWN` when the native engine declines to
 decide. `%value` contains the expression result produced by the engine when the
 query succeeds.
 `verdict_name` renders those outcomes as `ZERO`, `NONZERO`, and `UNKNOWN`.
+A rational-normalization refusal, including polynomial term, degree, variable
+or coefficient bounds, leaves the query `UNKNOWN` unless an exact scalar
+result independently decides it. An unfinished normal form is not evidence
+that the residual is nonzero.
 `fortsym_check` contains the assertion helpers and numeric probe. They are test
 utilities, not additional symbolic predicates.
