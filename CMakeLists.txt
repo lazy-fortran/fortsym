@@ -58,7 +58,7 @@ include(FetchContent)
 set(FORTGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(fortgen
     GIT_REPOSITORY https://github.com/lazy-fortran/fortgen.git
-    GIT_TAG 9bbe8515259d2af36338e0b5dc9648ed072dc6c1
+    GIT_TAG 85f9473cac7c9e71af4902f5f251fce779c3b028
     GIT_SHALLOW FALSE
 )
 FetchContent_MakeAvailable(fortgen)
@@ -70,6 +70,12 @@ FetchContent_Declare(fortplot
     GIT_SHALLOW FALSE
 )
 FetchContent_MakeAvailable(fortplot)
+
+# External shared libraries that SymEngine pulls in by absolute path (for
+# example MPC under Nix) are not covered by $ORIGIN. Keep their directories in
+# the installed RUNPATH so a relocated consumer can load libfortsym without
+# LD_LIBRARY_PATH; CMake omits the build tree and system directories.
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH ON)
 
 add_subdirectory(src)
 add_subdirectory(app)

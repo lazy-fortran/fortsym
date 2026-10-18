@@ -78,7 +78,7 @@ SymPy-compatible surface and completion rules. Export design is in
 
 ## Shared generator dependency (2026-10-17)
 
-- CMake and FPM both pin FortGen `9bbe8515259d2af36338e0b5dc9648ed072dc6c1`,
+- CMake and FPM both pin FortGen `85f9473cac7c9e71af4902f5f251fce779c3b028`,
   including the long-interface, temporary-name, native FPM fixture-link and
   complete elliptic K/E (`ellip_k`/`ellip_e` from `fortnum_special`) fixes.
 - An isolated native release build and the affected `test_fortsym_kernel_ir`
