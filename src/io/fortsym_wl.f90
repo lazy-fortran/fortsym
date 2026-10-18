@@ -5399,6 +5399,7 @@ contains
                 "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
                 "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", &
                 "loggamma", "polygamma", "besselj", "legendrep", "legendreq", &
+                "elliptic_k", "elliptic_e", &
                 "re", "im", "conjugate", "arg")
             yes = .true.
         case default

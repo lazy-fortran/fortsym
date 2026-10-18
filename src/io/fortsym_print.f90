@@ -1900,7 +1900,7 @@ contains
                 "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
                 "exp", "log", "log10", "sqrt", "abs", &
                 "erf", "erfc", "gamma", "loggamma", "max", "min", &
-                "Min", "Max")
+                "Min", "Max", "elliptic_k", "elliptic_e")
             is_real = .true.
         case ("besselj", "bessely", "besseli", "besselk")
             ! All four Fortran Bessel entry points take an integer order
@@ -2314,6 +2314,8 @@ contains
         case ("erf"); rendered = "operatorname{erf}"
         case ("erfc"); rendered = "operatorname{erfc}"
         case ("gamma"); rendered = "Gamma"
+        case ("elliptic_k"); rendered = "operatorname{K}"
+        case ("elliptic_e"); rendered = "operatorname{E}"
         case default; rendered = "operatorname{"//latex_escape(name)//"}"
         end select
     end function latex_function_name
