@@ -77,6 +77,7 @@ program test_fortsym_kernel
     call test_snippet_mode()
     call test_generated_kernel_compiles_and_agrees()
     call test_applied_function_bindings()
+    call test_bound_function_arguments_omitted()
     call test_piecewise_kernel_compiles_and_agrees()
 
     if (nfail == 0) then
@@ -1958,6 +1959,65 @@ contains
             call ok("bound applied-function snippet matches finite differences", stat == 0)
         end if
     end subroutine test_applied_function_bindings
+
+    !> A binding without `%args%` prints no call arguments, so symbols and
+    !> subexpressions that occur only there are neither required as inputs nor
+    !> given temporaries. An `%args%` binding still prints them and is refused
+    !> when they are undeclared.
+    subroutine test_bound_function_arguments_omitted()
+        type(arena_t), target :: a
+        type(expr_t) :: rho, theta, phi, call_args(3), radius, potential, rho2
+        type(expr_t) :: roots(2)
+        type(kernel_spec_t) :: spec
+        type(str_t) :: source
+        logical :: good
+        character(:), allocatable :: message
+
+        call a%init()
+        rho = sym(a, "rho")
+        theta = sym(a, "theta")
+        phi = sym(a, "phi")
+        call_args(1) = rho
+        call_args(2) = theta
+        call_args(3) = phi
+        radius = func("R", call_args)
+        rho2 = rho**2
+        potential = func("AP", [rho2])
+        roots(1) = radius*rho + partial_derivative(radius, 2)
+        roots(2) = potential + partial_derivative(potential, 1)*rho
+
+        spec%name = str("bound_without_arguments")
+        spec%temp_prefix = str("tmp_")
+        allocate (spec%args(1), spec%outputs(2), spec%bindings(4))
+        spec%args(1) = str("rho")
+        spec%outputs(1) = str("out_r")
+        spec%outputs(2) = str("out_a")
+        spec%bindings(1)%head = str("R")
+        spec%bindings(1)%replacement = str("r_val")
+        spec%bindings(2)%head = str("R")
+        spec%bindings(2)%derivative_indices = [2]
+        spec%bindings(2)%replacement = str("r_t")
+        spec%bindings(3)%head = str("AP")
+        spec%bindings(3)%replacement = str("ap")
+        spec%bindings(4)%head = str("AP")
+        spec%bindings(4)%derivative_indices = [1]
+        spec%bindings(4)%replacement = str("ap_p")
+        source = emit_kernel(roots, spec, good, message=message)
+        call ok("binding without %args% ignores undeclared call arguments", good)
+        call ok("binding without %args% emits replacements", &
+            index(chars(source), "r_val") > 0 .and. index(chars(source), "r_t") > 0 &
+            .and. index(chars(source), "ap_p") > 0)
+        call ok("unprinted call arguments are not emitted", &
+            index(chars(source), "theta") == 0 .and. index(chars(source), "phi") == 0)
+        call ok("subexpression only inside unprinted arguments gets no temporary", &
+            index(chars(source), "tmp_") == 0 .and. index(chars(source), "rho**2") == 0)
+
+        spec%bindings(1)%replacement = str("r_fn(%args%)")
+        source = emit_kernel(roots, spec, good, message=message)
+        call ok("%args% binding with undeclared argument is refused", &
+            .not. good .and. len(chars(source)) == 0 .and. &
+            index(message, "theta") > 0)
+    end subroutine test_bound_function_arguments_omitted
 
     !> Piecewise emission is checked at both sides of every branch boundary
     !> against the direct definition, including the first-true branch rule.

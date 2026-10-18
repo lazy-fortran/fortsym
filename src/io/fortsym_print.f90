@@ -33,6 +33,7 @@ module fortsym_print
     public :: print_expr, print_expr_in, print_expr_sub, print_expr_latex
     public :: fortran_representable
     public :: fortran_roots_representable, fortran_roots_representable_kind
+    public :: binding_omits_arguments
     public :: kernel_binding_t
 
     integer, parameter :: dp = real64
@@ -304,6 +305,8 @@ contains
                 ok = fortran_function_node_representable(a, id)
             end if
             if (.not. ok) return
+            ! A binding without `%args%` never prints the call arguments.
+            if (binding_omits_arguments(a, id, bindings)) return
         end select
         do k = 1, a%nargs_of(id)
             if (present(array_names) .and. present(bindings)) then
@@ -425,6 +428,8 @@ contains
                 ok = fortran_function_node_representable(a, id)
             end if
             if (.not. ok) return
+            ! A binding without `%args%` never prints the call arguments.
+            if (binding_omits_arguments(a, id, bindings)) return
         end select
         do k = 1, a%nargs_of(id)
             if (present(array_names) .and. present(bindings)) then
@@ -606,6 +611,33 @@ contains
                 (a%kind_of(order) == NK_RAT .and. a%den_of(order) == 1)
         end if
     end function fortran_function_node_representable
+
+    !> True when the Fortran printer replaces applied-function node `id` (or
+    !> its canonical partial derivative) by a binding whose replacement has no
+    !> `%args%` marker. The call arguments are then absent from the emitted
+    !> text, so walks that prepare emission must not descend into them.
+    logical function binding_omits_arguments(a, id, bindings) result(omits)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
+        character(:), allocatable :: name
+        integer :: k
+
+        omits = .false.
+        if (.not. present(bindings)) return
+        if (a%kind_of(id) /= NK_FUNC) return
+        name = chars(a%name_of(id))
+        ! These heads are printed structurally before bindings are consulted.
+        if (name == "Piecewise" .or. name == "If" .or. name == "Boole") return
+        if (fortran_condition_function(name)) return
+        ! The first matching binding is the one emit_function prints.
+        do k = 1, size(bindings)
+            if (binding_matches(a, id, bindings(k))) then
+                omits = index(chars(bindings(k)%replacement), "%args%") == 0
+                return
+            end if
+        end do
+    end function binding_omits_arguments
 
     logical function binding_matches(a, id, binding) result(matches)
         type(arena_t), intent(in) :: a
