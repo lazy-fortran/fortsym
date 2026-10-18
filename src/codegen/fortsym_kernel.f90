@@ -19,7 +19,8 @@ module fortsym_kernel
     use fortsym_expr, only: expr_t
     use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
     use fortsym_print, only: kernel_binding_t, print_expr_sub, &
-        fortran_roots_representable, fortran_roots_representable_kind
+        fortran_roots_representable, fortran_roots_representable_kind, &
+        binding_omits_arguments
     use fortsym_names, only: valid_fortran_name, same_fortran_name, &
         map_fortran_names
     use fortsym_kernel_target, only: TARGET_DEFAULT_VALUE => TARGET_DEFAULT, &
@@ -469,10 +470,15 @@ contains
     !> A node qualifies when it is referenced more than once *and* is worth
     !> naming. Atoms are excluded: a symbol or a small integer costs nothing to
     !> repeat and naming it would make the output longer and slower to read.
-    function cse_analyse(roots, prefix, cse_level, remat_threshold) result(res)
+    !>
+    !> With `bindings`, the call arguments of a node bound to a replacement
+    !> without `%args%` are not printed, so they are neither counted nor named.
+    function cse_analyse(roots, prefix, cse_level, remat_threshold, bindings) &
+            result(res)
         type(expr_t), intent(in) :: roots(:)
         character(*), intent(in) :: prefix
         integer, intent(in), optional :: cse_level, remat_threshold
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         type(cse_result_t)       :: res
 
         integer, allocatable :: refs(:)
@@ -499,19 +505,21 @@ contains
 
         ! Count parents. Each root counts once even when two roots share it.
         do k = 1, size(roots)
-            call count_refs(a, roots(k)%id, refs)
+            call count_refs(a, roots(k)%id, refs, bindings)
         end do
 
         ! Post-order, so a temporary's own dependencies are assigned first.
         do k = 1, size(roots)
-            call collect(a, roots(k)%id, refs, emitted, res, prefix, level, threshold)
+            call collect(a, roots(k)%id, refs, emitted, res, prefix, level, &
+                threshold, bindings)
         end do
     end function cse_analyse
 
-    recursive subroutine count_refs(a, id, refs)
+    recursive subroutine count_refs(a, id, refs, bindings)
         type(arena_t), intent(in)    :: a
         integer,       intent(in)    :: id
         integer,       intent(inout) :: refs(:)
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         integer :: k
 
         refs(id) = refs(id) + 1
@@ -519,12 +527,14 @@ contains
         ! shared node is identical on every visit, so descending again would
         ! inflate the counts of everything beneath it.
         if (refs(id) > 1) return
+        if (binding_omits_arguments(a, id, bindings)) return
         do k = 1, a%nargs_of(id)
-            call count_refs(a, a%arg_of(id, k), refs)
+            call count_refs(a, a%arg_of(id, k), refs, bindings)
         end do
     end subroutine count_refs
 
-    recursive subroutine collect(a, id, refs, emitted, res, prefix, level, threshold)
+    recursive subroutine collect(a, id, refs, emitted, res, prefix, level, threshold, &
+            bindings)
         type(arena_t),      intent(in)    :: a
         integer,            intent(in)    :: id
         integer,            intent(in)    :: refs(:)
@@ -532,14 +542,18 @@ contains
         type(cse_result_t), intent(inout) :: res
         character(*),       intent(in)    :: prefix
         integer,            intent(in)    :: level, threshold
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
         integer :: k
 
         if (emitted(id)) return
         emitted(id) = .true.
 
-        do k = 1, a%nargs_of(id)
-            call collect(a, a%arg_of(id, k), refs, emitted, res, prefix, level, threshold)
-        end do
+        if (.not. binding_omits_arguments(a, id, bindings)) then
+            do k = 1, a%nargs_of(id)
+                call collect(a, a%arg_of(id, k), refs, emitted, res, prefix, level, &
+                    threshold, bindings)
+            end do
+        end if
 
         if (refs(id) > 1 .and. worth_naming(a, id, level, threshold)) then
             res%n = res%n + 1
@@ -892,10 +906,11 @@ contains
 
         if (len(chars(mapped_spec%temp_prefix)) > 0) then
             res = cse_analyse(mapped_roots, chars(mapped_spec%temp_prefix), &
-                mapped_spec%cse_level, mapped_spec%remat_threshold)
+                mapped_spec%cse_level, mapped_spec%remat_threshold, &
+                mapped_spec%bindings)
         else
             res = cse_analyse(mapped_roots, "t", mapped_spec%cse_level, &
-                mapped_spec%remat_threshold)
+                mapped_spec%remat_threshold, mapped_spec%bindings)
         end if
 
         if (mapped_spec%array_temporaries .and. res%n > 0) then
@@ -1056,10 +1071,11 @@ contains
                 if (spec%ordered_output_dependencies) then
                     call map_fortran_kernel_node(mapped_arena, roots(1)%a, &
                         roots(k)%id, spec%args, mapped_spec%args, visited, ok, message, &
-                        output_targets, mapped_targets, k - 1)
+                        output_targets, mapped_targets, k - 1, bindings=spec%bindings)
                 else
                     call map_fortran_kernel_node(mapped_arena, roots(1)%a, &
-                        roots(k)%id, spec%args, mapped_spec%args, visited, ok, message)
+                        roots(k)%id, spec%args, mapped_spec%args, visited, ok, &
+                        message, bindings=spec%bindings)
                 end if
                 if (.not. ok) return
             end do
@@ -1428,7 +1444,7 @@ contains
 
     recursive subroutine map_fortran_kernel_node(mapped_arena, original_arena, id, &
             args, mapped_args, visited, ok, message, output_targets, mapped_targets, &
-            assigned_count)
+            assigned_count, bindings)
         type(arena_t), intent(inout) :: mapped_arena
         type(arena_t), intent(in) :: original_arena
         integer, intent(in) :: id
@@ -1438,6 +1454,7 @@ contains
         character(:), allocatable, intent(out) :: message
         type(str_t), intent(in), optional :: output_targets(:), mapped_targets(:)
         integer, intent(in), optional :: assigned_count
+        type(kernel_binding_t), intent(in), optional :: bindings(:)
 
         integer :: k, j, node_name, first_arg
         character(:), allocatable :: raw_name, emitted_name, base, suffix, target
@@ -1451,12 +1468,18 @@ contains
             return
         end if
         visited(id) = .true.
+        ! A binding without `%args%` prints no call arguments, so their symbols
+        ! need not be inputs.
+        if (binding_omits_arguments(mapped_arena, id, bindings)) then
+            ok = .true.
+            return
+        end if
         first_arg = 1
         if (is_derivative_function(mapped_arena, id)) first_arg = 2
         do k = first_arg, mapped_arena%nargs_of(id)
             call map_fortran_kernel_node(mapped_arena, original_arena, &
                 mapped_arena%arg_of(id, k), args, mapped_args, visited, ok, message, &
-                output_targets, mapped_targets, assigned_count)
+                output_targets, mapped_targets, assigned_count, bindings)
             if (.not. ok) return
         end do
         if (mapped_arena%kind_of(id) /= NK_SYM) then
