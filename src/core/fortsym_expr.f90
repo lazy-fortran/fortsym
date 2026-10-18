@@ -35,7 +35,7 @@ module fortsym_expr
     public :: sin, cos, tan, asin, acos, atan, atan2, &
               sinh, cosh, tanh, asinh, acosh, atanh, &
               exp, log, sqrt, abs, erf, erfc, gamma, besselj, besseli, &
-              besselk, legendrep, legendreq
+              besselk, legendrep, legendreq, elliptic_k, elliptic_e
 
     integer, parameter :: dp = real64
 
@@ -116,6 +116,8 @@ module fortsym_expr
     interface erf; module procedure fn_erf; end interface
     interface erfc; module procedure fn_erfc; end interface
     interface gamma; module procedure fn_gamma; end interface
+    interface elliptic_k; module procedure fn_elliptic_k; end interface
+    interface elliptic_e; module procedure fn_elliptic_e; end interface
     interface besselj
         module procedure fn_besselj_ee
         module procedure fn_besselj_ie
@@ -815,6 +817,22 @@ contains
         type(expr_t)             :: e
         e = apply1("gamma", x)
     end function fn_gamma
+
+    !> Complete elliptic integral of the first kind K(m) in the parameter
+    !> convention m = k**2 (DLMF 19.2.8 with k**2 = m), as in SymPy
+    !> elliptic_k and fortnum ellip_k.
+    function fn_elliptic_k(m) result(e)
+        type(expr_t), intent(in) :: m
+        type(expr_t)             :: e
+        e = apply1("elliptic_k", m)
+    end function fn_elliptic_k
+
+    !> Complete elliptic integral of the second kind E(m), m = k**2.
+    function fn_elliptic_e(m) result(e)
+        type(expr_t), intent(in) :: m
+        type(expr_t)             :: e
+        e = apply1("elliptic_e", m)
+    end function fn_elliptic_e
 
     !> Bessel function of the first kind J_order(x).
     function fn_besselj_ee(order, x) result(e)

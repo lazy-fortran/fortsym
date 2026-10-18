@@ -18,7 +18,7 @@ module fortsym_diff
         NK_ALGEBRAIC
     use fortsym_exact, only: exact_sub
     use fortsym_expr, only: expr_t, sym, num, exact, func, partial, is_valid, &
-        besselj, besseli, besselk, legendrep, legendreq, &
+        besselj, besseli, besselk, legendrep, legendreq, elliptic_k, elliptic_e, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), sin, cos, tan, exp, log, sqrt, abs, sinh, cosh, tanh
     implicit none
@@ -270,6 +270,26 @@ contains
                 return
             end if
             d = -(besselk(e%arg(1) - 1, x) + besselk(e%arg(1) + 1, x))*dx/2
+            return
+        end if
+
+        ! Complete elliptic integrals in the parameter m = k**2. DLMF 19.4.1
+        !   dK/dk = (E - k'**2 K)/(k k'**2),   dE/dk = (E - K)/k,
+        ! with dk/dm = 1/(2k), gives
+        !   dK/dm = (E - (1-m) K)/(2 m (1-m)),   dE/dm = (E - K)/(2 m).
+        ! https://dlmf.nist.gov/19.4.E1
+        if (name == "elliptic_k" .or. name == "elliptic_e") then
+            x = e%arg(1)
+            dx = diff(x, v)
+            if (is_zero(dx)) then
+                d = num(a, 0)
+                return
+            end if
+            if (name == "elliptic_k") then
+                d = (elliptic_e(x) - (1 - x)*elliptic_k(x))*dx/(2*x*(1 - x))
+            else
+                d = (elliptic_e(x) - elliptic_k(x))*dx/(2*x)
+            end if
             return
         end if
 
