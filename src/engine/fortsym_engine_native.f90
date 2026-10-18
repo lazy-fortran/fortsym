@@ -2892,6 +2892,16 @@ contains
             call exact_loggamma_value(a, args(1), out, exact)
         case ("legendrep")
             call exact_legendre_value(a, args, out, exact)
+        case ("elliptic_k", "elliptic_e")
+            ! K(0) = E(0) = pi/2 and E(1) = 1 (DLMF 19.6.1); K(1) diverges
+            ! and stays applied.
+            if (is_zero_id(a, args(1))) then
+                pair(1) = a%rat(1_int64, 2_int64)
+                pair(2) = a%const("pi")
+                out = simplify_mul(a, pair)
+            else if (name == "elliptic_e" .and. is_one_id(a, args(1))) then
+                out = a%int(1_int64)
+            end if
         case ("besselj")
             if (size(args) < 2) return
             call exact_value(a, args(1), order, den, exact)

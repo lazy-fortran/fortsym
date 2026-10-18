@@ -236,7 +236,9 @@ output, legends, and panel layout.
 Fortran kernel emission uses the dialect's declared function map rather than
 passing symbolic heads through as identifiers. Standard intrinsics cover
 `erf`, `erfc`, `gamma`, `log_gamma`, `bessel_jn`, and `bessel_yn`; the default
-`fortnum_special` module supplies `bessel_in` and `bessel_kn`. Bessel orders
+`fortnum_special` module supplies `bessel_in`, `bessel_kn` and the complete
+elliptic integrals `ellip_k`/`ellip_e` (heads `elliptic_k`/`elliptic_e`,
+parameter `m = k**2`; CUDA refuses them). Bessel orders
 must be integer literals in the scalar kernel IR, and an unmapped head is
 refused before source is returned. A consumer can override the special-module
 name in `kernel_emit_spec_t` when its dependency exposes the same procedures.

@@ -309,7 +309,7 @@ contains
         case ("sin", "cos", "tan", "asin", "acos", "atan", "atan2", &
                 "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
                 "exp", "log", "sqrt", "abs", "erf", "erfc", "gamma", &
-                "loggamma", "sign", "besselj")
+                "loggamma", "sign", "besselj", "elliptic_k", "elliptic_e")
             safe = .true.
         case default
             safe = .false.

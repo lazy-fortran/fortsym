@@ -78,8 +78,9 @@ SymPy-compatible surface and completion rules. Export design is in
 
 ## Shared generator dependency (2026-10-17)
 
-- CMake and FPM both pin FortGen `3bfb380958f6827a9639425f0f7447b83c3813f6`,
-  including the long-interface, temporary-name and native FPM fixture-link fixes.
+- CMake and FPM both pin FortGen `9bbe8515259d2af36338e0b5dc9648ed072dc6c1`,
+  including the long-interface, temporary-name, native FPM fixture-link and
+  complete elliptic K/E (`ellip_k`/`ellip_e` from `fortnum_special`) fixes.
 - An isolated native release build and the affected `test_fortsym_kernel_ir`
   and compiled `test_reciprocal_host` gates pass (2/2). The legacy Fortran
   emitter tests with absolute `/tmp` fixtures were not run under the workspace

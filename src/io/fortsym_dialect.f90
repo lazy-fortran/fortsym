@@ -178,6 +178,13 @@ contains
             end select
         case (DIA_WOLFRAM)
             s = wolfram_spelling(canonical)
+        case (DIA_MAXIMA)
+            ! Maxima's complete elliptic integrals take the parameter m = k**2.
+            select case (canonical)
+            case ("elliptic_k"); s = str("elliptic_kc")
+            case ("elliptic_e"); s = str("elliptic_ec")
+            case default;        s = str(canonical)
+            end select
         case (DIA_FORTRAN)
             select case (canonical)
             case ("loggamma"); s = str("log_gamma")
@@ -185,6 +192,8 @@ contains
             case ("bessely");  s = str("bessel_yn")
             case ("besseli");  s = str("bessel_in")
             case ("besselk");  s = str("bessel_kn")
+            case ("elliptic_k"); s = str("ellip_k")
+            case ("elliptic_e"); s = str("ellip_e")
             case ("Min");      s = str("min")
             case ("Max");      s = str("max")
             case default;       s = str(canonical)
@@ -234,6 +243,12 @@ contains
             case ("Abs"); s = str("abs")
             case default; s = str(spelling)
             end select
+        case (DIA_MAXIMA)
+            select case (spelling)
+            case ("elliptic_kc"); s = str("elliptic_k")
+            case ("elliptic_ec"); s = str("elliptic_e")
+            case default;         s = str(spelling)
+            end select
         case (DIA_FORTRAN)
             select case (spelling)
             case ("log_gamma"); s = str("loggamma")
@@ -241,6 +256,8 @@ contains
             case ("bessel_yn"); s = str("bessely")
             case ("bessel_in"); s = str("besseli")
             case ("bessel_kn"); s = str("besselk")
+            case ("ellip_k");   s = str("elliptic_k")
+            case ("ellip_e");   s = str("elliptic_e")
             case ("min");       s = str("Min")
             case ("max");       s = str("Max")
             case default;        s = str(spelling)
@@ -261,7 +278,8 @@ contains
                 "sinh", "cosh", "tanh", "asinh", "acosh", "atanh", &
                 "exp", "log", "log10", "sqrt", "abs", "erf", "erfc", &
                 "gamma", "loggamma", "max", "min", "Min", "Max", &
-                "besselj", "bessely", "besseli", "besselk")
+                "besselj", "bessely", "besseli", "besselk", &
+                "elliptic_k", "elliptic_e")
             ok = .true.
         case default
             ok = .false.
@@ -289,7 +307,8 @@ contains
     pure logical function fortran_function_uses_special(name) result(ok)
         character(*), intent(in) :: name
 
-        ok = name == "besseli" .or. name == "besselk"
+        ok = name == "besseli" .or. name == "besselk" .or. &
+            name == "elliptic_k" .or. name == "elliptic_e"
     end function fortran_function_uses_special
 
     !> Spelling of a named constant. fortsym's canonical names are pi, e, i,
@@ -420,6 +439,8 @@ contains
         case ("bessely");   s = str("BesselY")
         case ("besseli");   s = str("BesselI")
         case ("besselk");   s = str("BesselK")
+        case ("elliptic_k"); s = str("EllipticK")
+        case ("elliptic_e"); s = str("EllipticE")
         case ("re");        s = str("Re")
         case ("im");        s = str("Im")
         case ("conjugate"); s = str("Conjugate")
@@ -467,6 +488,8 @@ contains
         case ("BesselY");   s = str("bessely")
         case ("BesselI");   s = str("besseli")
         case ("BesselK");   s = str("besselk")
+        case ("EllipticK"); s = str("elliptic_k")
+        case ("EllipticE"); s = str("elliptic_e")
         case ("Re");        s = str("re")
         case ("Im");        s = str("im")
         case ("Conjugate"); s = str("conjugate")
