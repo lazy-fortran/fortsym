@@ -350,6 +350,13 @@ contains
         case ("abs");   v = abs(x)
         case ("erf");   v = erf(x)
         case ("erfc");  v = erfc(x)
+        case ("elliptic_k", "elliptic_e")
+            ! Real-valued only below the logarithmic singularity at m = 1.
+            if (x >= 1.0_dp) then
+                defined = .false.
+            else
+                v = complete_elliptic(x, name == "elliptic_k")
+            end if
         case ("gamma")
             if (x <= 0.0_dp) then
                 defined = .false.
@@ -372,6 +379,35 @@ contains
     !> Real integer-order modified Bessel I_n, evaluated without relying on a
     !> compiler-specific intrinsic. The series is stable for the moderate
     !> arguments used by the evaluator and preserves I_{-n}=I_n.
+    !> Complete elliptic integral K(m) (first) or E(m) (second kind) for
+    !> m < 1 by the arithmetic-geometric mean, DLMF 19.8.1 and 19.8.6:
+    !> K = pi/(2 M(1, sqrt(1-m))), E = K (1 - sum_n 2**(n-1) c_n**2),
+    !> c_0**2 = m, c_(n+1) = (a_n - g_n)/2.
+    pure function complete_elliptic(m, first_kind) result(value)
+        real(dp), intent(in) :: m
+        logical, intent(in) :: first_kind
+        real(dp) :: value
+        real(dp), parameter :: pi_dp = acos(-1.0_dp)
+        real(dp) :: a, g, c, a_next, power, total
+        integer :: n
+
+        a = 1.0_dp
+        g = sqrt(1.0_dp - m)
+        power = 0.5_dp
+        total = power*m
+        do n = 1, 64
+            c = 0.5_dp*(a - g)
+            a_next = 0.5_dp*(a + g)
+            g = sqrt(a*g)
+            a = a_next
+            power = 2.0_dp*power
+            total = total + power*c*c
+            if (abs(c) <= epsilon(1.0_dp)*a) exit
+        end do
+        value = pi_dp/(2.0_dp*a)
+        if (.not. first_kind) value = value*(1.0_dp - total)
+    end function complete_elliptic
+
     pure function modified_bessel_i(order, x) result(value)
         integer, intent(in) :: order
         real(dp), intent(in) :: x

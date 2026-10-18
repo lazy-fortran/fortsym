@@ -268,6 +268,13 @@ rule; real evaluation supports integer `J_n`/`I_n` orders and positive-real
 `K_n` probes. Generated Fortran spells the heads as the `fortnum` special
 function entry points `bessel_jn`, `bessel_in`, and `bessel_kn`.
 
+**Differentiate complete elliptic integrals.** `elliptic_k(m)` and
+`elliptic_e(m)` use the parameter `m = k**2` (as SymPy and `fortnum`).
+Differentiation follows DLMF 19.4.1, `dK/dm = (E - (1-m) K)/(2 m (1-m))` and
+`dE/dm = (E - K)/(2 m)`; `K(0) = E(0) = pi/2` and `E(1) = 1` simplify natively,
+and real probes use the arithmetic-geometric mean for `m < 1`. Generated
+Fortran calls `ellip_k`/`ellip_e` from `fortnum_special`.
+
 **Keep multivariate derivatives symbolic.** Differentiating an opaque applied
 function such as `func("psi", [r, u])` visits every argument and produces a
 canonical `partial_derivative` application. Mixed partial indices are sorted,

@@ -135,13 +135,25 @@ contains
         call ok("besseli maps to bessel_in", index(chars(source), "bessel_in(0,") > 0)
         call ok("besselk maps to bessel_kn", index(chars(source), "bessel_kn(0,") > 0)
 
-        root = named1("elliptic_k", x)
+        root = named1("elliptic_k", x) + named1("elliptic_e", x)
+        roots(1) = root
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("elliptic IR lowers", good)
+        source = emit_fortran_kernel_ir(ir, spec, good, message)
+        call ok("elliptic integrals emit", good)
+        call ok("elliptic integrals import fortnum_special", &
+            index(chars(source), "use fortnum_special, only: ellip_k, ellip_e") > 0)
+        call ok("elliptic_k maps to ellip_k", index(chars(source), "ellip_k(x)") > 0)
+        call ok("elliptic_e maps to ellip_e", index(chars(source), "ellip_e(x)") > 0)
+        call ok("elliptic integrals are representable", fortran_representable(root))
+
+        root = named1("zeta", x)
         roots(1) = root
         call lower_kernel_ir(roots, ir, good, message)
         call ok("unmapped special IR lowers for refusal", good)
         source = emit_fortran_kernel_ir(ir, spec, good, message)
         call ok("unmapped special is refused at emission", .not. good)
-        call ok("unmapped special names the head", index(message, "elliptic_k") > 0)
+        call ok("unmapped special names the head", index(message, "zeta") > 0)
         call ok("unmapped special is refused by representability", &
             .not. fortran_representable(root))
     end subroutine test_special_function_emission
