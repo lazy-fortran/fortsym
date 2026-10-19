@@ -1,6 +1,9 @@
 import gc
+import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 from fractions import Fraction
 
@@ -241,6 +244,95 @@ class NativePackageTest(unittest.TestCase):
             x + 1
         x.close()
         gc.collect()
+
+    def _kernel_case(self, arena):
+        names = ("k", "n", "iota", "sigma", "m_p", "n_p", "z", "d", "kk")
+        k, n, iota, sigma, mp, np_, z, d, kk = [arena.symbol(v) for v in names]
+        x = k*iota + n
+        outputs = {
+            "torque": -(mp*iota + np_)*x/(x**2 + sigma**2),
+            "u": (2 - z)*(-d - kk),
+            "v": -z*d + (2 - 3*z)*kk,
+            "w": x**-2 + arena.rational(3, 7)*z**3 - 1,
+        }
+        point = dict(zip(names, (Fraction(3, 7), Fraction(-5, 3), Fraction(2, 9),
+                                 Fraction(1, 4), Fraction(4, 1), Fraction(-7, 5),
+                                 Fraction(5, 2), Fraction(1, 3), Fraction(-2, 11))))
+        symbols = [arena.symbol(v) for v in names]
+        values = [arena.rational(point[v].numerator, point[v].denominator)
+                  for v in names]
+        exact = {name: Fraction(expression._subs_many(symbols, values).exact_text)
+                 for name, expression in outputs.items()}
+        return names, outputs, point, exact
+
+    def test_emit_kernel_fortran_and_cuda(self):
+        with fortsym.Arena() as arena:
+            names, outputs, _, _ = self._kernel_case(arena)
+            source = fortsym.emit_kernel("torque_leaf", names, outputs,
+                                         generator="test_fortsym_python")
+            self.assertIn("subroutine torque_leaf(k, n, iota, sigma, m_p, n_p, "
+                          "z, d, kk, torque, u, v, w)", source)
+            self.assertIn("Generator: test_fortsym_python", source)
+            self.assertIn("end subroutine torque_leaf", source)
+            cuda = fortsym.emit_kernel("torque_leaf", names, outputs,
+                                       target="cuda")
+            self.assertIn("__device__", cuda)
+            self.assertIn("double* torque", cuda)
+
+    def test_emit_kernel_refusals(self):
+        with fortsym.Arena() as arena:
+            x = arena.symbol("x")
+            imaginary = arena.constant("I")*x/(x**2 + 1)
+            with self.assertRaisesRegex(fortsym.FortSymError,
+                                        "unsupported Fortran constant"):
+                fortsym.emit_kernel("c", ["x"], {"out": imaginary})
+            with self.assertRaisesRegex(fortsym.FortSymError,
+                                        "not an input argument: x"):
+                fortsym.emit_kernel("missing", [], {"out": x + 1})
+            for target in ("python", "c"):
+                with self.assertRaisesRegex(fortsym.FortSymError,
+                                            "not provided by FortGen"):
+                    fortsym.emit_kernel("f", ["x"], {"out": x}, target=target)
+            with self.assertRaises(ValueError):
+                fortsym.emit_kernel("f", ["x"], {})
+
+    def test_emitted_fortran_matches_exact_value(self):
+        compiler = os.environ.get("FORTSYM_TEST_FC") or shutil.which("gfortran")
+        if not compiler:
+            self.skipTest("no Fortran compiler")
+        with fortsym.Arena() as arena:
+            names, outputs, point, exact = self._kernel_case(arena)
+            source = fortsym.emit_kernel("torque_leaf", names, outputs)
+        literals = "".join(
+            f"    inputs({index}) = {value.numerator}.0_real64/"
+            f"{value.denominator}.0_real64\n"
+            for index, value in enumerate((point[name] for name in names), 1))
+        driver = (
+            "program driver\n"
+            "    use, intrinsic :: iso_fortran_env, only: real64\n"
+            "    implicit none\n"
+            "    real(real64) :: inputs(9), results(4)\n"
+            f"{literals}"
+            "    call torque_leaf(inputs(1), inputs(2), inputs(3), inputs(4), &\n"
+            "        inputs(5), inputs(6), inputs(7), inputs(8), inputs(9), &\n"
+            "        results(1), results(2), results(3), results(4))\n"
+            "    print '(4es26.17)', results\n"
+            "end program driver\n")
+        with tempfile.TemporaryDirectory(
+                dir=os.environ.get("FORTSYM_TEST_WORK")) as work:
+            with open(os.path.join(work, "kernel.f90"), "w") as handle:
+                handle.write(source)
+            with open(os.path.join(work, "driver.f90"), "w") as handle:
+                handle.write(driver)
+            program = os.path.join(work, "driver")
+            subprocess.run([compiler, "-std=f2018", "-Wall", "-Werror",
+                            "-o", program, "kernel.f90", "driver.f90"],
+                           cwd=work, check=True)
+            printed = subprocess.run([program], check=True, capture_output=True,
+                                     text=True).stdout.split()
+        for name, text in zip(outputs, printed):
+            want = float(exact[name])
+            self.assertLessEqual(abs(float(text) - want), 1e-13*abs(want), name)
 
     def test_public_constructors_do_not_need_sympy(self):
         x, y = fortsym.symbols("x y")

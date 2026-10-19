@@ -1203,6 +1203,28 @@ int fortsym_expr_free_symbols(const fortsym_expr *expression, char *buffer,
 int fortsym_expr_text(const fortsym_expr *expression, char *buffer,
                       size_t capacity, size_t *required, char *message,
                       size_t message_capacity);
+enum fortsym_kernel_target {
+    FORTSYM_KERNEL_FORTRAN = 1,
+    FORTSYM_KERNEL_CUDA = 2
+};
+
+/* Emit one named scalar kernel through the FortGen IR backend: a Fortran
+ * subroutine or a CUDA device function with real double inputs, in the given
+ * order, and one real double output per expression. Every free symbol must
+ * be an input; complex constants and unknown functions return
+ * FORTSYM_UNSUPPORTED with a diagnostic. All outputs share one arena.
+ * `generator` and `regenerate_command` fill the provenance banner; NULL or
+ * empty selects a neutral default. `required` includes the final NUL.
+ * Emitted source is not a proof of equivalence. */
+int fortsym_emit_kernel(const char *name, int target,
+                        const char *const input_names[], size_t input_count,
+                        const char *const output_names[],
+                        const fortsym_expr *const outputs[],
+                        size_t output_count, const char *generator,
+                        const char *regenerate_command, char *buffer,
+                        size_t capacity,
+                        size_t *required, char *message,
+                        size_t message_capacity);
 int fortsym_expr_name(const fortsym_expr *expression, char *buffer,
                       size_t capacity, size_t *required, char *message,
                       size_t message_capacity);
