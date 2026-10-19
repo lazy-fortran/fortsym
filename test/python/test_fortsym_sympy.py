@@ -19,6 +19,28 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual((signature.positive_count, signature.negative_count), (2, 1))
         self.assertEqual(orientation.value, -1)
 
+    def test_printer_has_no_additive_zero(self):
+        # Issue #86: negation was built as 0 - x and kept its zero summand.
+        k, n, iota, sigma, mp, np_, z, d, kk = sp.symbols(
+            "k n iota sigma m_p n_p z d kk")
+        x = k*iota + n
+        expressions = [
+            -(mp*iota + np_)*x/(x**2 + sigma**2),
+            (2 - z)*(-d - kk),
+            -z*d + (2 - 3*z)*kk,
+            -z,
+            0 - z,
+            z + 0,
+        ]
+        for expression in expressions:
+            text = str(expression)
+            self.assertNotIn("+ 0", text)
+            self.assertNotIn("- 0", text)
+        self.assertEqual(str(-(mp*iota + np_)), "-(n_p + iota*m_p)")
+        self.assertEqual(-z, 0 - z)
+        self.assertEqual(z + 0, z)
+        self.assertEqual(sp.Integer(0) + 0, 0)
+
     def test_native_subset_and_kind_classes(self):
         x, y = sp.symbols("x y")
         self.assertIsInstance(x, sp.Symbol)
