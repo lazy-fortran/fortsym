@@ -23,7 +23,7 @@ module fortsym_engine_native
     use fortsym_diff, only: diff_expr => diff
     use fortsym_subs, only: subs
     use fortsym_poly, only: poly_together, poly_cancel, poly_factor, &
-        poly_numerator, poly_denominator
+        poly_numerator, poly_denominator, poly_radical_zero
     use fortsym_trigrewrite, only: trig_to_exp
     use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
         resource_exceeded, resource_visit, resource_failure, wall_seconds, &
@@ -378,7 +378,7 @@ contains
         logical :: branch_sensitive
         logical :: trig_ok, together_ok, cancel_ok
         logical :: saw_exponential_again, decidable_again, formal_exponential_again
-        logical :: exact_decidable, rational_form_incomplete
+        logical :: exact_decidable, rational_form_incomplete, radical_zero
         character(:), allocatable :: trig_reason, cancel_reason
 
         simplified = self%simplify(e)
@@ -478,6 +478,17 @@ contains
             ! The same fragment also includes exact rational expressions; an
             ! unsupported head must remain UNKNOWN.
             r%verdict = VERDICT_FALSE
+        end if
+        ! Defining relations provide additional proofs only after the existing
+        ! decision path is exhausted. Prove the original input expression,
+        ! independently of the intervening expansion/exponential rewrites.
+        ! No previously decided verdict changes.
+        if (r%verdict == VERDICT_UNKNOWN .and. branch_sensitive) then
+            call poly_radical_zero(e%a, e, radical_zero)
+            if (radical_zero) then
+                r%verdict = VERDICT_TRUE
+                r%value = num(e%a, 0_int64)
+            end if
         end if
     end function native_zero_test
 

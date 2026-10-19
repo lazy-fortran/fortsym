@@ -94,6 +94,7 @@ add_test(NAME test_reciprocal_host COMMAND test_reciprocal_host)
 # --- engines ---
 fortsym_add_test(test_fortsym_native engine/test_fortsym_native.f90)
 fortsym_add_test(test_fortsym_native_zero_limits engine/test_fortsym_native_zero_limits.f90)
+fortsym_add_test(test_fortsym_radical_zero engine/test_fortsym_radical_zero.f90)
 fortsym_add_test(test_fortsym_identities engine/test_fortsym_identities.f90)
 fortsym_add_test(test_fortsym_yacas engine/test_fortsym_yacas.f90)
 
@@ -303,6 +304,12 @@ add_test(NAME test_fortsym_header_cpp COMMAND test_fortsym_header_cpp)
 
 # --- privacy-safe consumer evidence tooling ---
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_test(NAME test_fortsym_radical_zero_differential
+    COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/python/test_fortsym_radical_zero.py)
+set_tests_properties(test_fortsym_radical_zero_differential PROPERTIES
+    SKIP_RETURN_CODE 77
+    ENVIRONMENT "PYTHONPATH=${PROJECT_SOURCE_DIR}/python;FORTSYM_LIBRARY=$<TARGET_FILE:fortsym>")
 add_test(
     NAME test_fortsym_python
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/python/test_fortsym_python.py)
