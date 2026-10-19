@@ -1205,14 +1205,18 @@ int fortsym_expr_text(const fortsym_expr *expression, char *buffer,
                       size_t message_capacity);
 enum fortsym_kernel_target {
     FORTSYM_KERNEL_FORTRAN = 1,
-    FORTSYM_KERNEL_CUDA = 2
+    FORTSYM_KERNEL_CUDA = 2,
+    FORTSYM_KERNEL_PYTHON = 3
 };
 
 /* Emit one named scalar kernel through the FortGen IR backend: a Fortran
  * subroutine or a CUDA device function with real double inputs, in the given
- * order, and one real double output per expression. Every free symbol must
- * be an input; complex constants and unknown functions return
- * FORTSYM_UNSUPPORTED with a diagnostic. All outputs share one arena.
+ * order, and one real double output per expression; or a Python function
+ * `def name(inputs):` returning one value or a tuple in output order, with
+ * NumPy-broadcasting arithmetic and the imaginary unit as `1j`. Every free
+ * symbol must be an input; the imaginary unit outside Python, and functions
+ * a target cannot spell, return FORTSYM_UNSUPPORTED with a diagnostic. All
+ * outputs share one arena.
  * `generator` and `regenerate_command` fill the provenance banner; NULL or
  * empty selects a neutral default. `required` includes the final NUL.
  * Emitted source is not a proof of equivalence. */

@@ -1749,7 +1749,7 @@ def _pretty_expanded(text):
     return " + ".join(rendered)
 
 
-_KERNEL_TARGETS = {"fortran": 1, "cuda": 2}
+_KERNEL_TARGETS = {"fortran": 1, "cuda": 2, "python": 3}
 
 
 def emit_kernel(name, inputs, outputs, target="fortran", *, generator=None,
@@ -1759,11 +1759,14 @@ def emit_kernel(name, inputs, outputs, target="fortran", *, generator=None,
     ``inputs`` lists the real scalar arguments in order, as symbols or names.
     ``outputs`` maps output names to expressions of one arena (a mapping or a
     sequence of ``(name, expression)`` pairs). ``target`` is ``"fortran"``
-    (a subroutine with ``real(dp)`` arguments) or ``"cuda"`` (a device
-    function). FortGen provides no Python or C target yet; those and complex
-    constants such as ``I`` raise ``FortSymError`` instead of emitting
-    approximate code. ``generator`` and ``regenerate_command`` fill the
-    provenance banner. The source is generated, not proved equivalent.
+    (a subroutine with ``real(dp)`` arguments), ``"cuda"`` (a device
+    function) or ``"python"`` (``def name(inputs)`` returning one value or a
+    tuple in output order; arithmetic broadcasts over NumPy arrays, functions
+    and ``pi``/``E`` need NumPy, and ``I`` is emitted as ``1j``). Fortran and
+    CUDA refuse ``I``; FortGen has no C target. Refusals raise
+    ``FortSymError`` instead of emitting approximate code. ``generator`` and
+    ``regenerate_command`` fill the provenance banner. The source is
+    generated, not proved equivalent.
     """
     if target not in _KERNEL_TARGETS:
         raise FortSymError(

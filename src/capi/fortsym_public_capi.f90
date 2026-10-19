@@ -165,8 +165,9 @@ module fortsym_public_capi
         complex_expand_expr => complex_expand
     use fortsym_kernel_ir, only: kernel_ir_t, lower_kernel_ir
     use fortsym_kernel_emit, only: kernel_emit_spec_t, emit_fortran_kernel_ir, &
-        emit_cuda_device_ir, KERNEL_TARGET_FORTRAN_CPU => TARGET_FORTRAN_CPU, &
-        KERNEL_TARGET_CUDA => TARGET_CUDA
+        emit_cuda_device_ir, emit_python_kernel_ir, &
+        KERNEL_TARGET_FORTRAN_CPU => TARGET_FORTRAN_CPU, &
+        KERNEL_TARGET_CUDA => TARGET_CUDA, KERNEL_TARGET_DEFAULT => TARGET_DEFAULT
     use fortsym_string, only: kernel_str => str
     implicit none
     private
@@ -181,6 +182,7 @@ module fortsym_public_capi
     integer(c_int), parameter, public :: FORTSYM_CONFLICT = 7_c_int
     integer(c_int), parameter, public :: FORTSYM_KERNEL_FORTRAN = 1_c_int
     integer(c_int), parameter, public :: FORTSYM_KERNEL_CUDA = 2_c_int
+    integer(c_int), parameter, public :: FORTSYM_KERNEL_PYTHON = 3_c_int
     integer, parameter :: MAX_KERNEL_NAME = 4096
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
     integer, parameter :: SPACETIME_TENSOR_COMPONENTS = &
@@ -7722,11 +7724,14 @@ contains
             call fail(status, message, message_capacity, FORTSYM_INVALID_ARGUMENT)
             return
         end if
-        if (target /= FORTSYM_KERNEL_FORTRAN .and. target /= FORTSYM_KERNEL_CUDA) then
+        select case (target)
+        case (FORTSYM_KERNEL_FORTRAN, FORTSYM_KERNEL_CUDA, FORTSYM_KERNEL_PYTHON)
+            continue
+        case default
             call fail_reason(status, message, message_capacity, &
                 FORTSYM_UNSUPPORTED, "kernel target is not provided by FortGen")
             return
-        end if
+        end select
         n_inputs = int(input_count)
         n_outputs = int(output_count)
         spec%name = kernel_str(from_c_string(name))
@@ -7762,18 +7767,24 @@ contains
         spec%regenerate_command = kernel_str("rerun the generating script")
         call c_name(regenerate_command, text, ok)
         if (ok) spec%regenerate_command = kernel_str(text)
-        if (target == FORTSYM_KERNEL_CUDA) then
+        select case (target)
+        case (FORTSYM_KERNEL_CUDA)
             spec%target = KERNEL_TARGET_CUDA
-        else
+        case (FORTSYM_KERNEL_PYTHON)
+            spec%target = KERNEL_TARGET_DEFAULT
+        case default
             spec%target = KERNEL_TARGET_FORTRAN_CPU
-        end if
+        end select
         call lower_kernel_ir(roots, ir, ok, diagnostic)
         if (ok) then
-            if (target == FORTSYM_KERNEL_CUDA) then
+            select case (target)
+            case (FORTSYM_KERNEL_CUDA)
                 source = emit_cuda_device_ir(ir, spec, ok, diagnostic)
-            else
+            case (FORTSYM_KERNEL_PYTHON)
+                source = emit_python_kernel_ir(ir, spec, ok, diagnostic)
+            case default
                 source = emit_fortran_kernel_ir(ir, spec, ok, diagnostic)
-            end if
+            end select
         end if
         if (.not. ok) then
             call fail_reason(status, message, message_capacity, &

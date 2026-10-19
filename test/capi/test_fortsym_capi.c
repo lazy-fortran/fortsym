@@ -78,6 +78,13 @@ static void check_emit_kernel(void)
                                  sizeof source, &required, message,
                                  sizeof message);
     assert(status == FORTSYM_UNSUPPORTED);
+    status = fortsym_emit_kernel("leaf", FORTSYM_KERNEL_PYTHON, inputs, 2,
+                                 names, outputs, 1, NULL, NULL, source,
+                                 sizeof source, &required, message,
+                                 sizeof message);
+    assert(status == FORTSYM_OK);
+    assert(strstr(source, "def leaf(x, y):") != NULL);
+    assert(strstr(source, "return 1j") != NULL);
     status = fortsym_emit_kernel("leaf", FORTSYM_KERNEL_FORTRAN, inputs, 2,
                                  names, outputs, 0, NULL, NULL, source,
                                  sizeof source, &required, message,
