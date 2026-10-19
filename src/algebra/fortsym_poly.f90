@@ -61,7 +61,7 @@ module fortsym_poly
     public :: poly_together, poly_cancel, poly_apart, poly_factor
     public :: poly_coefficient, poly_coefficient_list, poly_collect
     public :: poly_exponent, poly_gcd_expr, poly_divide
-    public :: poly_numerator, poly_denominator
+    public :: poly_numerator, poly_denominator, poly_radical_zero
 
     integer(int64), parameter :: MAX_I64 = huge(0_int64)
     integer(int64), parameter :: MIN_I64 = -huge(0_int64) - 1_int64
@@ -110,10 +110,18 @@ module fortsym_poly
         integer                  :: mult = 1
     end type ufactor_t
 
-    !> The generators, as arena node ids. Interning makes equal expressions
-    !> share an id, so identity of generators is exact rather than textual.
+    !> A formal principal root of a base, used only for zero proofs.
+    type :: root_t
+        integer :: base, degree
+        integer :: node, weight = 0
+        logical :: mixed = .false.
+    end type root_t
+
+    !> Ordinary generators are interned arena ids; zero proofs additionally
+    !> reserve negative ids for the formal roots in dependency order.
     type :: ctx_t
         integer, allocatable :: atom(:)
+        type(root_t), allocatable :: root(:)
     end type ctx_t
 
 contains
@@ -121,6 +129,233 @@ contains
     ! =====================================================================
     ! Public entry points
     ! =====================================================================
+
+    !> Proof-only reduction in a tower of principal roots. For b=N/D and
+    !> g=b**(1/q), D*g**q-N vanishes wherever b is defined. Polynomial
+    !> (pseudo-)division preserves equality modulo these defining relations.
+    !> A zero remainder proves zero; a nonzero one says nothing about branches.
+    subroutine poly_radical_zero(a, e, proved)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t), intent(in) :: e
+        logical, intent(out) :: proved
+        type(ctx_t) :: ctx
+        type(ratf_t) :: f, base
+        type(poly_t), allocatable :: relations(:)
+        type(poly_t) :: g, power, product, remainder
+        logical :: ok
+        character(:), allocatable :: why
+        integer :: k, n
+
+        proved = .false.
+        if (.not. is_valid(e)) return
+        if (.not. associated(e%a, a)) return
+        allocate (ctx%root(0))
+        call collect_roots(a, e%id, ctx, 1, ok)
+        if (.not. ok) return
+        n = size(ctx%root)
+        if (n == 0) return
+        ! The sum of absolute exponent weights bounds numerator degrees even
+        ! after clearing denominators. Without different same-base powers,
+        ! sub-defining weights cannot expose any new relation or cancellation.
+        ! Avoid polynomial allocation for common branch-sensitive nonzeros.
+        if (.not. any(ctx%root%mixed)) then
+            if (all(ctx%root%weight < ctx%root%degree)) return
+        end if
+        ! Negative ids are local formal roots, never arena expressions. All
+        ! ordinary polynomial entry points retain their independent generators.
+        allocate (ctx%atom(n), relations(n))
+        do k = 1, n
+            ctx%atom(k) = -k
+        end do
+        call read_in_ctx(a, e, ctx, f, ok, why)
+        if (.not. ok) return
+        ! A nonzero numerator already below every defining degree cannot
+        ! reduce. Shared-root cancellations have already happened in reading.
+        if (.not. p_is_zero(f%n)) then
+            do k = 1, n
+                if (p_deg_v(f%n, k) >= ctx%root(k)%degree) exit
+            end do
+            if (k > n) return
+        end if
+        do k = 1, n
+            call read_node(a, ctx%root(k)%base, ctx, base, ok, why)
+            if (.not. ok) return
+            call p_var(k, size(ctx%atom), g)
+            call p_shift_v(g, k, ctx%root(k)%degree - 1, power, ok, why)
+            if (.not. ok) return
+            call p_mul(base%d, power, product, ok, why)
+            if (.not. ok) return
+            call p_sub(product, base%n, relations(k), ok, why)
+            if (.not. ok) return
+        end do
+        call p_pad(f%n, size(ctx%atom))
+        call p_pad(f%d, size(ctx%atom))
+        do k = 1, n
+            call p_pad(relations(k), size(ctx%atom))
+        end do
+        ! Postorder collection means outer roots are eliminated first. Later
+        ! elimination cannot reintroduce them. Reject identically zero base
+        ! denominators as well as an identically zero expression denominator.
+        do k = 1, n
+            call p_coeff_v(relations(k), k, ctx%root(k)%degree, g)
+            call reduce_roots(g, relations, k - 1, remainder, ok, why)
+            if (.not. ok) return
+            if (p_is_zero(remainder)) return
+        end do
+        call reduce_roots(f%d, relations, n, remainder, ok, why)
+        if (.not. ok) return
+        if (p_is_zero(remainder)) return
+        call reduce_roots(f%n, relations, n, remainder, ok, why)
+        if (.not. ok) return
+        proved = p_is_zero(remainder)
+    end subroutine poly_radical_zero
+
+    subroutine reduce_roots(p, relations, n, remainder, ok, why)
+        type(poly_t), intent(in) :: p, relations(:)
+        integer, intent(in) :: n
+        type(poly_t), intent(out) :: remainder
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: why
+        type(poly_t) :: tmp, quotient, leading
+        integer :: k, degree
+
+        remainder = p
+        ok = .true.
+        why = ''
+        do k = n, 1, -1
+            degree = p_deg_v(relations(k), k)
+            if (p_deg_v(remainder, k) < degree) cycle
+            call p_coeff_v(relations(k), k, degree, leading)
+            if (p_is_const(leading)) then
+                call p_divmod_v(remainder, relations(k), k, quotient, tmp, &
+                    ok, why)
+            else
+                call p_prem(remainder, relations(k), k, tmp, ok, why)
+            end if
+            if (.not. ok) return
+            remainder = tmp
+        end do
+    end subroutine reduce_roots
+
+    !> Recognize symbolic radical syntax. NK_ALGEBRAIC is instead a numeric
+    !> qqbar atom; its exact decisions stay with the existing scalar owner.
+    subroutine radical_parts(a, id, base, p, q)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        integer, intent(out) :: base
+        integer(int64), intent(out) :: p, q
+        integer :: exponent
+
+        base = 0
+        p = 0_int64
+        q = 1_int64
+        select case (a%kind_of(id))
+        case (NK_POW)
+            exponent = a%arg_of(id, 2)
+            if (a%kind_of(exponent) /= NK_RAT) return
+            p = a%num_of(exponent)
+            q = a%den_of(exponent)
+            base = a%arg_of(id, 1)
+        case (NK_FUNC)
+            if (chars(a%name_of(id)) /= 'sqrt') return
+            if (a%nargs_of(id) /= 1) return
+            base = a%arg_of(id, 1)
+            p = 1_int64
+            q = 2_int64
+        end select
+    end subroutine radical_parts
+
+    recursive subroutine collect_roots(a, id, ctx, weight, ok)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        type(ctx_t), intent(inout) :: ctx
+        integer, intent(in) :: weight
+        logical, intent(out) :: ok
+        type(root_t), allocatable :: bigger(:)
+        integer(int64) :: p, q, degree
+        integer :: base, k, n, child_weight
+
+        call radical_parts(a, id, base, p, q)
+        ok = .false.
+        if (base /= 0) then
+            if (q < 2 .or. q > MAX_DEGREE) return
+            if (p < -int(MAX_DEGREE, int64) .or. p > MAX_DEGREE) return
+            call collect_roots(a, base, ctx, 1, ok)
+            if (.not. ok) return
+            do k = 1, size(ctx%root)
+                if (ctx%root(k)%base /= base) cycle
+                ctx%root(k)%mixed = ctx%root(k)%mixed .or. &
+                    ctx%root(k)%node /= id
+                ctx%root(k)%weight = min(MAX_DEGREE + 1, &
+                    ctx%root(k)%weight + weight*int(abs(p)))
+                call lcm_i64(int(ctx%root(k)%degree, int64), q, degree, ok)
+                if (.not. ok) return
+                ok = degree <= MAX_DEGREE
+                if (ok) ctx%root(k)%degree = int(degree)
+                return
+            end do
+            n = size(ctx%root)
+            allocate (bigger(n + 1))
+            bigger(:n) = ctx%root
+            bigger(n + 1)%base = base
+            bigger(n + 1)%degree = int(q)
+            bigger(n + 1)%node = id
+            bigger(n + 1)%weight = min(MAX_DEGREE + 1, weight*int(abs(p)))
+            call move_alloc(bigger, ctx%root)
+        else
+            select case (a%kind_of(id))
+            case (NK_ADD, NK_MUL)
+                do k = 1, a%nargs_of(id)
+                    call collect_roots(a, a%arg_of(id, k), ctx, weight, ok)
+                    if (.not. ok) return
+                end do
+            case (NK_POW)
+                if (a%kind_of(a%arg_of(id, 2)) == NK_INT) then
+                    p = a%num_of(a%arg_of(id, 2))
+                    child_weight = MAX_DEGREE + 1
+                    if (p >= -int(MAX_DEGREE, int64) .and. p <= MAX_DEGREE) then
+                        child_weight = min(MAX_DEGREE + 1, weight*int(abs(p)))
+                    end if
+                    call collect_roots(a, a%arg_of(id, 1), ctx, child_weight, ok)
+                    if (.not. ok) return
+                end if
+            end select
+        end if
+        ok = .true.
+    end subroutine collect_roots
+
+    subroutine read_root(a, id, ctx, f, handled, ok, why)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        type(ctx_t), intent(in) :: ctx
+        type(ratf_t), intent(out) :: f
+        logical, intent(out) :: handled, ok
+        character(:), allocatable, intent(out) :: why
+        type(ratf_t) :: root
+        integer(int64) :: p, q, exponent
+        integer :: base, k
+
+        call radical_parts(a, id, base, p, q)
+        handled = base /= 0
+        ok = .false.
+        why = ''
+        if (.not. handled) return
+        do k = 1, size(ctx%root)
+            if (ctx%root(k)%base /= base) cycle
+            ! Same-base principal powers share exp(Log(base)/L). This does
+            ! not identify roots of different bases or denest (x**q)**(1/q).
+            exponent = p*(int(ctx%root(k)%degree, int64)/q)
+            if (abs(exponent) > MAX_DEGREE) then
+                why = 'a radical exponent beyond the supported degree bound'
+                return
+            end if
+            call p_var(k, size(ctx%atom), root%n)
+            call p_const(rat_of(1_int64), size(ctx%atom), root%d)
+            call ratf_pow(root, int(exponent), f, ok, why)
+            return
+        end do
+        why = 'a radical base is missing from the generator context'
+    end subroutine read_root
 
     !> Together[e]: one fraction, with the common factor removed.
     subroutine poly_together(a, e, out, ok, why)
@@ -619,6 +854,7 @@ contains
         type(rat_t)  :: r
         integer      :: k, kind
         integer(int64) :: expo
+        logical :: handled
 
         ok = .false.
         why = ""
@@ -679,6 +915,10 @@ contains
             ok = .true.
 
         case (NK_POW)
+            if (allocated(ctx%root)) then
+                call read_root(a, id, ctx, f, handled, ok, why)
+                if (handled) return
+            end if
             if (a%kind_of(a%arg_of(id, 2)) /= NK_INT) then
                 ! A symbolic or fractional power is not a rational function of
                 ! its base, so the whole power becomes one generator.
@@ -694,7 +934,14 @@ contains
             if (.not. ok) return
             call ratf_pow(part, int(expo), f, ok, why)
 
-        case (NK_SYM, NK_CONST, NK_FUNC)
+        case (NK_FUNC)
+            if (allocated(ctx%root)) then
+                call read_root(a, id, ctx, f, handled, ok, why)
+                if (handled) return
+            end if
+            call atom_ratf(ctx, id, f, ok, why)
+
+        case (NK_SYM, NK_CONST)
             call atom_ratf(ctx, id, f, ok, why)
 
         case default
