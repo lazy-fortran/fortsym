@@ -162,8 +162,8 @@ contains
         call correct_or_refused("sin2 cos2 [0,pi/4]", s**2*c**2, 0, 1, 1, 4, .true.)
         call correct_or_refused("sin2 cos2 [0,1]", s**2*c**2, 0, 1, 1, 1, &
             .false.)
-        call correct_or_refused("sin(x)**(3/2) [0,pi/2]", s**rat(arena, 3_int64, 2_int64), &
-            0, 1, 1, 2, .true.)
+        call correct_or_refused("sin(x)**(3/2) [0,pi/2]", &
+            s**rat(arena, 3_int64, 2_int64), 0, 1, 1, 2, .true.)
         call correct_or_refused("cos2/sin [pi/3,pi/2]", c**2/s, 1, 3, 1, 2, &
             .true.)
         call correct_or_refused("sin cos(2x) [0,pi]", s*cos(2*x), 0, 1, 1, 1, &
