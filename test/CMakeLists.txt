@@ -41,6 +41,7 @@ fortsym_add_test(test_fortsym_subs core/test_fortsym_subs.f90)
 # --- exact linear algebra ---
 fortsym_add_test(test_fortsym_linalg algebra/test_fortsym_linalg.f90)
 fortsym_add_test(test_fortsym_integrate algebra/test_fortsym_integrate.f90)
+fortsym_add_test(test_fortsym_defint algebra/test_fortsym_defint.f90)
 fortsym_add_test(test_fortsym_complexdom algebra/test_fortsym_complexdom.f90)
 fortsym_add_test(test_fortsym_limits algebra/test_fortsym_limits.f90)
 fortsym_add_test(test_fortsym_matrix algebra/test_fortsym_matrix.f90)
