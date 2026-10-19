@@ -885,7 +885,9 @@ contains
 
     subroutine p_const(r, nv, p)
         type(rat_t),  intent(in)  :: r
-        integer,      intent(in)  :: nv
+        ! Snapshot the dimension before intent(out) resets p: callers may
+        ! construct a constant in place with p%nv as the dimension.
+        integer, value, intent(in) :: nv
         type(poly_t), intent(out) :: p
 
         if (r%n == 0_int64) then
