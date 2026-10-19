@@ -376,6 +376,16 @@ contains
 
         ! Subtraction is addition of a negation, so both spellings agree.
         call ok("a-b equals a+(-1)*b", (x - x) == (x + (-1)*x))
+
+        ! Exact zero is the additive identity, removed like a bracket: x + 0,
+        ! 0 + x and 0 - x intern as x and -x. Inexact 0.0 stays a summand.
+        call ok("x + 0 is x", (x + 0) == x)
+        call ok("0 + x is x", (0 + x) == x)
+        call ok("0 - x is -x", (num(a, 0) - x) == (-x))
+        call ok("0 + 0 is 0", (num(a, 0) + num(a, 0)) == num(a, 0))
+        call ok("x - x + 0 keeps the sum", (x - x + 0) == (x - x))
+        zero_ish = x + 0.0_real64
+        call ok("x + 0.0 stays a sum", zero_ish%kind() == NK_ADD)
     end subroutine test_no_premature_simplification
 
     subroutine test_node_count()

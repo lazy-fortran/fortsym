@@ -17,6 +17,32 @@ kept alive by that cache and remain valid while the expression is alive.
 The native `Expr.factor()` method and top-level `factor()` function expose
 bounded polynomial factorisation; factorizations that would discard a domain
 condition are refused by the C ABI.
+`fortsym.emit_kernel(name, inputs, outputs, target="fortran", *,
+generator=None, regenerate_command=None)` emits one named scalar kernel
+through the native FortGen IR backend and returns its source text. `inputs`
+lists real scalar arguments (symbols or names) in order; `outputs` maps output
+names to expressions of one arena. `target="fortran"` gives a `real(real64)`
+subroutine, `target="cuda"` a device function and `target="python"` a
+self-contained `def name(inputs):` that returns one value or a tuple in output
+order. Python arithmetic broadcasts over NumPy arrays; functions and `pi`/`E`
+use NumPy (imported inside the function only when used) and `I` is emitted as
+`1j`. Fortran and CUDA refuse `I`; FortGen has no C target. Unbound functions,
+names a target cannot use and free symbols that are not inputs are refused
+with `FortSymError`. Generated source is not a proof: check it against the
+expression, as `test/python/test_fortsym_python.py` does by compiling the
+Fortran, executing the Python and comparing both with exact rational
+evaluation.
+
+```python
+import fortsym
+import fortsym.sympy as sp
+
+x, y = sp.symbols("x y")
+source = fortsym.emit_kernel("leaf", [x, y], {"f": x*y/(x**2 + 1)})
+weight = fortsym.emit_kernel("weight", [x, y], {"w": sp.I*x/(x**2 + y**2)},
+                             target="python")
+```
+
 `Expr.series(variable, point, order)` and `series(...)` expose bounded native
 Taylor polynomials through the requested highest degree; `series_coeff(...)`
 returns one exact coefficient. The native result omits SymPy's `O(...)` term

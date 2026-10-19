@@ -76,11 +76,13 @@ SymPy-compatible surface and completion rules. Export design is in
   location; they do not require FortSym infrastructure in upstream solvers.
 - Execution schedules, launch geometry and application data are separate.
 
-## Shared generator dependency (2026-10-17)
+## Shared generator dependency (2026-10-19)
 
-- CMake and FPM both pin FortGen `85f9473cac7c9e71af4902f5f251fce779c3b028`,
-  including the long-interface, temporary-name, native FPM fixture-link and
-  complete elliptic K/E (`ellip_k`/`ellip_e` from `fortnum_special`) fixes.
+- CMake and FPM both pin FortGen `a441661863e48188073986378d11567d2a5b9194`,
+  which adds the Python function backend used by `fortsym_emit_kernel`
+  ([#86](https://github.com/lazy-fortran/fortsym/issues/86)) on top of
+  `85f9473c` with the long-interface, temporary-name, native FPM fixture-link
+  and complete elliptic K/E (`ellip_k`/`ellip_e` from `fortnum_special`) fixes.
 - An isolated native release build and the affected `test_fortsym_kernel_ir`
   and compiled `test_reciprocal_host` gates pass (2/2). The legacy Fortran
   emitter tests with absolute `/tmp` fixtures were not run under the workspace
