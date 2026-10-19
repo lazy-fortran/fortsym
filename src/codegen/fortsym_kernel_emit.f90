@@ -33,7 +33,8 @@ module fortsym_kernel_emit
     use fortgen_kernel_ir, only: fg_kernel_ir_t => kernel_ir_t
     use fortgen_kernel_emit, only: fg_kernel_emit_spec_t => kernel_emit_spec_t, &
         fg_emit_fortran_kernel_ir => emit_fortran_kernel_ir, &
-        fg_emit_cuda_device_ir => emit_cuda_device_ir
+        fg_emit_cuda_device_ir => emit_cuda_device_ir, &
+        fg_emit_python_kernel_ir => emit_python_kernel_ir
     use fortgen_kernel_target, only: fg_target_from_name => target_from_name
     use fortgen_precision, only: fg_precision_from_name => precision_from_name
     use fortgen_string, only: fg_str_t => str_t, fg_str => str, fg_chars => chars
@@ -41,7 +42,7 @@ module fortsym_kernel_emit
     private
 
     public :: kernel_emission_policy_t, kernel_emit_spec_t
-    public :: emit_fortran_kernel_ir, emit_cuda_device_ir
+    public :: emit_fortran_kernel_ir, emit_cuda_device_ir, emit_python_kernel_ir
     public :: emit_fortran_batch_ir
     public :: emit_table
     public :: TARGET_DEFAULT, TARGET_FORTRAN_CPU
@@ -580,6 +581,28 @@ contains
             if (.not. ok) source = str("")
         end if
     end function emit_fortran_kernel_ir
+
+    !> Emit a Python function through FortGen. The spec target must be
+    !> TARGET_DEFAULT; the imaginary unit is emitted as `1j`.
+    function emit_python_kernel_ir(ir, spec, ok, message) result(source)
+        type(kernel_ir_t), intent(in) :: ir
+        type(kernel_emit_spec_t), intent(in) :: spec
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(str_t) :: source
+        type(fg_kernel_ir_t) :: fg_ir
+        type(fg_kernel_emit_spec_t) :: fg_spec
+        type(fg_str_t) :: fg_source
+
+        source = str("")
+        call to_fortgen_kernel_ir(ir, fg_ir, ok, message)
+        if (.not. ok) return
+        call map_fortgen_spec(spec, fg_spec, ok, message)
+        if (.not. ok) return
+        fg_source = fg_emit_python_kernel_ir(fg_ir, fg_spec, ok, message)
+        if (.not. ok) return
+        source = str(fg_chars(fg_source))
+    end function emit_python_kernel_ir
 
     !> Insert `!$omp declare simd [uniform(...)]` as the first line of
     !> the leaf's specification part, directly after its subroutine statement.

@@ -279,6 +279,74 @@ class NativePackageTest(unittest.TestCase):
             self.assertIn("__device__", cuda)
             self.assertIn("double* torque", cuda)
 
+    def _python_kernel_case(self):
+        import fortsym.sympy as sp
+
+        symbols = sp.symbols("k n iota sigma m_p n_p z d kk S")
+        k, n, iota, sigma, mp, np_, z, d, kk, S = symbols
+        x = k*iota + n
+        outputs = {
+            "a": sp.I*x,
+            "gauge_weight": sp.I*x/(x**2 + sigma**2),
+            "torque": -(mp*iota + np_)*x/(x**2 + sigma**2),
+            "u": (2 - z)*(-d - kk),
+            "v": -z*d + (2 - 3*z)*kk,
+            "w": 2*(1 - z)*S,
+        }
+        source = fortsym.emit_kernel("kernel", symbols, outputs, target="python",
+                                     generator="test_fortsym_python")
+        self.assertIn("def kernel(k, n, iota, sigma, m_p, n_p, z, d, kk, S):", source)
+        self.assertIn("1j", source)
+        namespace = {}
+        exec(compile(source, "kernel.py", "exec"), namespace)
+        kernel = namespace["kernel"]
+        points = [
+            [Fraction(3, 7), Fraction(-5, 3), Fraction(2, 9), Fraction(1, 4),
+             Fraction(4), Fraction(-7, 5), Fraction(5, 2), Fraction(1, 3),
+             Fraction(-2, 11), Fraction(9, 8)],
+            [Fraction(-1, 2), Fraction(7, 3), Fraction(-3, 5), Fraction(2),
+             Fraction(1, 9), Fraction(5, 4), Fraction(-4, 3), Fraction(6, 7),
+             Fraction(3, 10), Fraction(-5, 6)],
+        ]
+
+        def exact(expression, point):
+            values = {symbol: sp.Rational(value.numerator, value.denominator)
+                      for symbol, value in zip(symbols, point)}
+            value = sp.subs(expression, values)
+            parts = [Fraction(sp.simplify(part(value)).exact_text)
+                     for part in (sp.re, sp.im)]
+            return complex(*parts)
+
+        return kernel, outputs, points, exact
+
+    def test_emit_kernel_python_matches_exact_complex_value(self):
+        kernel, outputs, points, exact = self._python_kernel_case()
+        for point in points:
+            got = kernel(*[float(value) for value in point])
+            self.assertEqual(len(got), len(outputs))
+            for (name, expression), value in zip(outputs.items(), got):
+                want = exact(expression, point)
+                self.assertLessEqual(abs(complex(value) - want), 1e-14*abs(want),
+                                     name)
+        self.assertIsInstance(got[1], complex)
+
+    def test_emit_kernel_python_broadcasts_numpy_arrays(self):
+        try:
+            import numpy
+        except ModuleNotFoundError:
+            self.skipTest("NumPy is not installed")
+        kernel, outputs, points, exact = self._python_kernel_case()
+        columns = numpy.array([[float(value) for value in point]
+                               for point in points]).T
+        got = kernel(*columns)
+        for (name, expression), value in zip(outputs.items(), got):
+            want = numpy.array([exact(expression, point) for point in points])
+            self.assertEqual(numpy.shape(value), (len(points),), name)
+            self.assertTrue(numpy.allclose(value, want, rtol=1e-14, atol=0.0), name)
+        scalars = [float(value) for value in points[0]]
+        single = kernel(*scalars[:6], numpy.linspace(-1.0, 1.0, 5), *scalars[7:])
+        self.assertEqual(numpy.shape(single[4]), (5,))
+
     def test_emit_kernel_refusals(self):
         with fortsym.Arena() as arena:
             x = arena.symbol("x")
@@ -289,10 +357,17 @@ class NativePackageTest(unittest.TestCase):
             with self.assertRaisesRegex(fortsym.FortSymError,
                                         "not an input argument: x"):
                 fortsym.emit_kernel("missing", [], {"out": x + 1})
-            for target in ("python", "c"):
-                with self.assertRaisesRegex(fortsym.FortSymError,
-                                            "not provided by FortGen"):
-                    fortsym.emit_kernel("f", ["x"], {"out": x}, target=target)
+            with self.assertRaisesRegex(fortsym.FortSymError,
+                                        "unsupported CUDA constant"):
+                fortsym.emit_kernel("c", ["x"], {"out": imaginary}, target="cuda")
+            with self.assertRaisesRegex(fortsym.FortSymError,
+                                        "not provided by FortGen"):
+                fortsym.emit_kernel("f", ["x"], {"out": x}, target="c")
+            with self.assertRaisesRegex(fortsym.FortSymError,
+                                        "reserved in Python: lambda"):
+                fortsym.emit_kernel("f", ["lambda"],
+                                    {"out": arena.symbol("lambda")},
+                                    target="python")
             with self.assertRaises(ValueError):
                 fortsym.emit_kernel("f", ["x"], {})
 
