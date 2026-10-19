@@ -1,6 +1,6 @@
 # C ABI
 
-`src/capi/fortsym.h` is the public C contract (ABI version 102). It exposes opaque arena and
+`src/capi/fortsym.h` is the public C contract (ABI version 103). It exposes opaque arena and
 expression handles, exact scalar constructors, function application, arithmetic,
 inspection, substitution, differentiation, and the first fixed-three-dimensional
 chart, tensor, connection, and differential-form views. Chart calls include
@@ -35,6 +35,11 @@ and three-valued Hermitian predicate `fortsym_matrix_is_hermitian`, elementwise
 matrix conjugation `fortsym_matrix_conjugate`, and conjugate transpose
 `fortsym_matrix_adjoint`, and equal-shaped elementwise multiplication
 `fortsym_matrix_multiply_elementwise`;
+`fortsym_emit_kernel` emits one named scalar kernel for a list of named
+outputs and ordered real inputs through the FortGen IR backend, as a Fortran
+subroutine (`FORTSYM_KERNEL_FORTRAN`) or a CUDA device function
+(`FORTSYM_KERNEL_CUDA`); complex constants and free symbols that are not inputs
+are refused;
 unsupported options, unverified antiderivatives, and limits or series outside
 their theorem fragments return `FORTSYM_UNSUPPORTED` with a diagnostic.
 `fortsym_solve` returns a caller-owned array of distinct verified roots for one

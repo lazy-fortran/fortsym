@@ -17,6 +17,25 @@ kept alive by that cache and remain valid while the expression is alive.
 The native `Expr.factor()` method and top-level `factor()` function expose
 bounded polynomial factorisation; factorizations that would discard a domain
 condition are refused by the C ABI.
+`fortsym.emit_kernel(name, inputs, outputs, target="fortran", *,
+generator=None, regenerate_command=None)` emits one named scalar kernel
+through the native FortGen IR backend and returns its source text. `inputs`
+lists real scalar arguments (symbols or names) in order; `outputs` maps output
+names to expressions of one arena. `target="fortran"` gives a `real(real64)`
+subroutine and `target="cuda"` a device function. FortGen has no Python or C
+target, and the imaginary unit, unbound functions and free symbols that are
+not inputs are refused with `FortSymError`. Generated source is not a proof:
+check it against the expression, as `test/python/test_fortsym_python.py` does
+by compiling it and comparing with exact rational evaluation.
+
+```python
+import fortsym
+import fortsym.sympy as sp
+
+x, y = sp.symbols("x y")
+source = fortsym.emit_kernel("leaf", [x, y], {"f": x*y/(x**2 + 1)})
+```
+
 `Expr.series(variable, point, order)` and `series(...)` expose bounded native
 Taylor polynomials through the requested highest degree; `series_coeff(...)`
 returns one exact coefficient. The native result omits SymPy's `O(...)` term

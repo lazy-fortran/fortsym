@@ -163,6 +163,11 @@ module fortsym_public_capi
         complex_im_part => im_part, complex_conjugate => conjugate, &
         complex_arg_of => arg_of, complex_abs_of => abs_of, &
         complex_expand_expr => complex_expand
+    use fortsym_kernel_ir, only: kernel_ir_t, lower_kernel_ir
+    use fortsym_kernel_emit, only: kernel_emit_spec_t, emit_fortran_kernel_ir, &
+        emit_cuda_device_ir, KERNEL_TARGET_FORTRAN_CPU => TARGET_FORTRAN_CPU, &
+        KERNEL_TARGET_CUDA => TARGET_CUDA
+    use fortsym_string, only: kernel_str => str
     implicit none
     private
 
@@ -174,6 +179,9 @@ module fortsym_public_capi
     integer(c_int), parameter, public :: FORTSYM_UNSUPPORTED = 5_c_int
     integer(c_int), parameter, public :: FORTSYM_RESOURCE_LIMIT = 6_c_int
     integer(c_int), parameter, public :: FORTSYM_CONFLICT = 7_c_int
+    integer(c_int), parameter, public :: FORTSYM_KERNEL_FORTRAN = 1_c_int
+    integer(c_int), parameter, public :: FORTSYM_KERNEL_CUDA = 2_c_int
+    integer, parameter :: MAX_KERNEL_NAME = 4096
     integer, parameter :: MAX_COMPONENTS = DIM**MAX_RANK
     integer, parameter :: SPACETIME_TENSOR_COMPONENTS = &
         SPACETIME_DIM**SPACETIME_TENSOR_MAX_RANK
@@ -331,7 +339,7 @@ module fortsym_public_capi
     public :: fortsym_expr_kind, fortsym_expr_arity, fortsym_expr_argument
     public :: fortsym_expr_equal, fortsym_expr_node_count, &
         fortsym_expr_operation_count, fortsym_expr_free_symbols, &
-        fortsym_expr_text
+        fortsym_expr_text, fortsym_emit_kernel
     public :: fortsym_expr_name, fortsym_expr_exact_text
     public :: fortsym_expr_int_value, fortsym_expr_real_value
     public :: fortsym_expr_is_number, fortsym_expr_is_algebraic
@@ -340,7 +348,7 @@ contains
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
-        v = 102_c_int
+        v = 103_c_int
     end function fortsym_abi_version
 
     function fortsym_arena_new(out, message, capacity) &
@@ -7677,6 +7685,126 @@ contains
         call put_text(print_expr(e), buffer, capacity, required, status, &
             message, message_capacity)
     end function fortsym_expr_text
+
+    !> Emit one scalar kernel through the FortGen IR backend. Each output is
+    !> named; every free symbol must be one of the named real inputs. The
+    !> returned source is not a proof: consumers read it back or test it.
+    function fortsym_emit_kernel(name, target, input_names, input_count, &
+            output_names, outputs, output_count, generator, regenerate_command, &
+            buffer, capacity, required, message, message_capacity) &
+            bind(c, name="fortsym_emit_kernel") result(status)
+        character(kind=c_char), intent(in) :: name(*)
+        integer(c_int), value :: target
+        type(c_ptr), value :: generator, regenerate_command
+        type(c_ptr), intent(in) :: input_names(*), output_names(*), outputs(*)
+        integer(c_size_t), value :: input_count, output_count
+        character(kind=c_char), intent(out) :: buffer(*)
+        integer(c_size_t), value :: capacity
+        integer(c_size_t), intent(out) :: required
+        character(kind=c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: message_capacity
+        integer(c_int) :: status
+        type(expr_owner_t), pointer :: p, first
+        type(expr_t), allocatable :: roots(:)
+        type(kernel_emit_spec_t) :: spec
+        type(kernel_ir_t) :: ir
+        type(str_t) :: source
+        character(:), allocatable :: text, diagnostic
+        logical :: ok
+        integer :: k, n_inputs, n_outputs
+
+        required = 0_c_size_t
+        call put_error(message, message_capacity, FORTSYM_OK)
+        status = FORTSYM_OK
+        if (output_count == 0_c_size_t .or. &
+            output_count > int(huge(0), c_size_t) .or. &
+            input_count > int(huge(0), c_size_t)) then
+            call fail(status, message, message_capacity, FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        if (target /= FORTSYM_KERNEL_FORTRAN .and. target /= FORTSYM_KERNEL_CUDA) then
+            call fail_reason(status, message, message_capacity, &
+                FORTSYM_UNSUPPORTED, "kernel target is not provided by FortGen")
+            return
+        end if
+        n_inputs = int(input_count)
+        n_outputs = int(output_count)
+        spec%name = kernel_str(from_c_string(name))
+        allocate (spec%args(n_inputs), spec%outputs(n_outputs), roots(n_outputs))
+        do k = 1, n_inputs
+            call c_name(input_names(k), text, ok)
+            if (.not. ok) then
+                call fail(status, message, message_capacity, FORTSYM_INVALID_ARGUMENT)
+                return
+            end if
+            spec%args(k) = kernel_str(text)
+        end do
+        nullify(first)
+        do k = 1, n_outputs
+            call c_name(output_names(k), text, ok)
+            if (.not. ok) then
+                call fail(status, message, message_capacity, FORTSYM_INVALID_ARGUMENT)
+                return
+            end if
+            spec%outputs(k) = kernel_str(text)
+            call get_expr(outputs(k), p, roots(k), status, message, &
+                message_capacity)
+            if (status /= FORTSYM_OK) return
+            if (k == 1) first => p
+            if (.not. associated(p%arena, first%arena)) then
+                call fail(status, message, message_capacity, FORTSYM_FOREIGN_ARENA)
+                return
+            end if
+        end do
+        spec%generator = kernel_str("fortsym_emit_kernel")
+        call c_name(generator, text, ok)
+        if (ok) spec%generator = kernel_str(text)
+        spec%regenerate_command = kernel_str("rerun the generating script")
+        call c_name(regenerate_command, text, ok)
+        if (ok) spec%regenerate_command = kernel_str(text)
+        if (target == FORTSYM_KERNEL_CUDA) then
+            spec%target = KERNEL_TARGET_CUDA
+        else
+            spec%target = KERNEL_TARGET_FORTRAN_CPU
+        end if
+        call lower_kernel_ir(roots, ir, ok, diagnostic)
+        if (ok) then
+            if (target == FORTSYM_KERNEL_CUDA) then
+                source = emit_cuda_device_ir(ir, spec, ok, diagnostic)
+            else
+                source = emit_fortran_kernel_ir(ir, spec, ok, diagnostic)
+            end if
+        end if
+        if (.not. ok) then
+            call fail_reason(status, message, message_capacity, &
+                FORTSYM_UNSUPPORTED, diagnostic)
+            return
+        end if
+        call put_text(source, buffer, capacity, required, status, message, &
+            message_capacity)
+    end function fortsym_emit_kernel
+
+    !> Read one NUL-terminated name of bounded length from a C string array.
+    subroutine c_name(raw, text, ok)
+        type(c_ptr), value :: raw
+        character(:), allocatable, intent(out) :: text
+        logical, intent(out) :: ok
+        character(kind=c_char), pointer :: source(:)
+        integer :: n
+
+        ok = .false.
+        text = ""
+        if (.not. c_associated(raw)) return
+        call c_f_pointer(raw, source, [MAX_KERNEL_NAME])
+        n = 0
+        do while (n < MAX_KERNEL_NAME)
+            if (source(n + 1) == c_null_char) exit
+            n = n + 1
+        end do
+        if (n == 0 .or. n == MAX_KERNEL_NAME) return
+        text = transfer(source(1:n), repeat(" ", n))
+        ok = .true.
+    end subroutine c_name
 
     function fortsym_expr_name(raw, buffer, capacity, required, message, &
             message_capacity) bind(c, name="fortsym_expr_name") result(status)

@@ -20,6 +20,76 @@ static void expect_text(const fortsym_expr *expression, const char *expected)
     assert(strcmp(buffer, expected) == 0);
 }
 
+static void check_emit_kernel(void)
+{
+    fortsym_arena *arena = NULL;
+    fortsym_expr *x = NULL, *y = NULL, *product = NULL, *imaginary = NULL;
+    const char *inputs[2] = {"x", "y"};
+    const char *names[1] = {"out"};
+    const fortsym_expr *outputs[1];
+    char message[128];
+    char source[1024];
+    char tiny[8];
+    size_t required = 0;
+    int status;
+
+    status = fortsym_arena_new(&arena, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_symbol(arena, "x", &x, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_symbol(arena, "y", &y, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    status = fortsym_multiply(arena, x, y, &product, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    outputs[0] = product;
+    status = fortsym_emit_kernel("leaf", FORTSYM_KERNEL_FORTRAN, inputs, 2,
+                                 names, outputs, 1, "test_fortsym_capi", NULL,
+                                 source, sizeof source, &required, message,
+                                 sizeof message);
+    assert(status == FORTSYM_OK);
+    assert(required == strlen(source) + 1);
+    assert(strstr(source, "subroutine leaf(x, y, out)") != NULL);
+    assert(strstr(source, "Generator: test_fortsym_capi") != NULL);
+    status = fortsym_emit_kernel("leaf", FORTSYM_KERNEL_CUDA, inputs, 2, names,
+                                 outputs, 1, NULL, NULL, source, sizeof source,
+                                 &required, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    assert(strstr(source, "__device__") != NULL);
+    status = fortsym_emit_kernel("leaf", FORTSYM_KERNEL_FORTRAN, inputs, 2,
+                                 names, outputs, 1, NULL, NULL, tiny,
+                                 sizeof tiny, &required, message,
+                                 sizeof message);
+    assert(status == FORTSYM_RESOURCE_LIMIT && required > sizeof tiny);
+    status = fortsym_emit_kernel("leaf", 99, inputs, 2, names, outputs, 1, NULL,
+                                 NULL, source, sizeof source, &required,
+                                 message, sizeof message);
+    assert(status == FORTSYM_UNSUPPORTED);
+    status = fortsym_emit_kernel("leaf", FORTSYM_KERNEL_FORTRAN, inputs, 1,
+                                 names, outputs, 1, NULL, NULL, source,
+                                 sizeof source, &required, message,
+                                 sizeof message);
+    assert(status == FORTSYM_UNSUPPORTED);
+    assert(strstr(message, "not an input argument: y") != NULL);
+    status = fortsym_constant(arena, "I", &imaginary, message, sizeof message);
+    assert(status == FORTSYM_OK);
+    outputs[0] = imaginary;
+    status = fortsym_emit_kernel("leaf", FORTSYM_KERNEL_FORTRAN, inputs, 2,
+                                 names, outputs, 1, NULL, NULL, source,
+                                 sizeof source, &required, message,
+                                 sizeof message);
+    assert(status == FORTSYM_UNSUPPORTED);
+    status = fortsym_emit_kernel("leaf", FORTSYM_KERNEL_FORTRAN, inputs, 2,
+                                 names, outputs, 0, NULL, NULL, source,
+                                 sizeof source, &required, message,
+                                 sizeof message);
+    assert(status == FORTSYM_INVALID_ARGUMENT);
+    fortsym_expr_free(imaginary);
+    fortsym_expr_free(product);
+    fortsym_expr_free(y);
+    fortsym_expr_free(x);
+    fortsym_arena_free(arena);
+}
+
 int main(void)
 {
     char message[128];
@@ -123,7 +193,8 @@ int main(void)
     const fortsym_expr *special_arguments[2];
     const fortsym_expr *legendre_arguments[3];
 
-    assert(fortsym_abi_version() == 102);
+    assert(fortsym_abi_version() == 103);
+    check_emit_kernel();
     status = fortsym_arena_new(&arena, message, sizeof message);
     assert(status == FORTSYM_OK && arena != NULL);
     status = fortsym_symbol(arena, "x", &x, message, sizeof message);
