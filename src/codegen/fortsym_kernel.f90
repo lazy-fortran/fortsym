@@ -526,7 +526,13 @@ contains
         ! Recurse only the first time. Hash-consing means the subtree below a
         ! shared node is identical on every visit, so descending again would
         ! inflate the counts of everything beneath it.
-        if (refs(id) > 1) return
+        if (refs(id) > 1) then
+            ! A reciprocal power is never named: every use prints as a
+            ! division by its base, so a shared reciprocal shares its base.
+            if (is_reciprocal_power(a, id)) &
+                refs(a%arg_of(id, 1)) = refs(a%arg_of(id, 1)) + 1
+            return
+        end if
         if (binding_omits_arguments(a, id, bindings)) return
         do k = 1, a%nargs_of(id)
             call count_refs(a, a%arg_of(id, k), refs, bindings)

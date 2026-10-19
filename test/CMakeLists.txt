@@ -371,3 +371,4 @@ fortsym_add_test(test_fortsym_lie calculus/test_fortsym_lie.f90)
 
 fortsym_add_test(test_fortsym_cse_dag codegen/test_fortsym_cse_dag.f90)
 set_tests_properties(test_fortsym_cse_dag PROPERTIES TIMEOUT 30)
+fortsym_add_test(test_fortsym_cse_reciprocal codegen/test_fortsym_cse_reciprocal.f90)
