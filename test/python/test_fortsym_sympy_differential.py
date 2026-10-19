@@ -371,6 +371,41 @@ class SympyDifferentialTest(unittest.TestCase):
                 oracle.integrate(oracle.sin(oracle_x), (oracle_x, 0, 1)),
                 native.integrate(native.sin(native_x), (native_x, 0, 1)),
             ),
+            (
+                "sin2 cos2 on [0, pi/2]",
+                oracle.integrate(
+                    oracle.sin(oracle_x)**2 * oracle.cos(oracle_x)**2,
+                    (oracle_x, 0, oracle.pi / 2),
+                ),
+                native.integrate(
+                    native.sin(native_x)**2 * native.cos(native_x)**2,
+                    (native_x, 0, native.pi / 2),
+                ),
+            ),
+            (
+                "sin cos2 + 3 sin2 on [0, pi]",
+                oracle.integrate(
+                    oracle.sin(oracle_x) * oracle.cos(oracle_x)**2
+                    + 3 * oracle.sin(oracle_x)**2,
+                    (oracle_x, 0, oracle.pi),
+                ),
+                native.integrate(
+                    native.sin(native_x) * native.cos(native_x)**2
+                    + 3 * native.sin(native_x)**2,
+                    (native_x, 0, native.pi),
+                ),
+            ),
+            (
+                "sin2 cos4 on [-pi, pi]",
+                oracle.integrate(
+                    oracle.sin(oracle_x)**2 * oracle.cos(oracle_x)**4,
+                    (oracle_x, -oracle.pi, oracle.pi),
+                ),
+                native.integrate(
+                    native.sin(native_x)**2 * native.cos(native_x)**4,
+                    (native_x, -native.pi, native.pi),
+                ),
+            ),
         ]
         for label, expected, actual in cases:
             with self.subTest(label=label):

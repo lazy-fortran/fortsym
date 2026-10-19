@@ -39,11 +39,12 @@ module fortsym_defint
     ! evaluation), symbolic endpoints, and any head with no continuity rule.
     ! The refusals are wide. They are also the reason the answers can be
     ! trusted.
-    use, intrinsic :: iso_fortran_env, only: real64
+    use, intrinsic :: iso_fortran_env, only: real64, int64
     use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
-    use fortsym_expr, only: expr_t, num, is_valid, operator(-)
+    use fortsym_expr, only: expr_t, num, rat, pi_expr, is_valid, &
+        operator(+), operator(-), operator(*)
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
     use fortsym_eval, only: binding_t, eval_expr, collect_free_symbols
@@ -57,6 +58,13 @@ module fortsym_defint
     public :: definite_integral
 
     integer, parameter :: dp = real64
+
+    ! Bounds for the exact sin/cos power rule. Anything larger is declined,
+    ! not approximated: the Wallis factorials must stay inside int64.
+    integer(int64), parameter :: MAX_TRIG_POWER = 24
+    integer(int64), parameter :: MAX_TRIG_TOTAL = 30
+    integer(int64), parameter :: MAX_PART = 1000000
+    integer(int64), parameter :: MAX_QUARTERS = 4000
 
     real(dp), parameter :: PI_VALUE = &
         3.141592653589793238462643383279502884_dp
@@ -175,6 +183,17 @@ contains
 
         eng = make_native_engine(a)
 
+        ! Whole powers of sin and cos over an interval whose ends are
+        ! multiples of pi/2 have an exact value that needs no antiderivative.
+        call trig_power_rule(a, e, var, lo, hi, whole, endpoint_ok)
+        if (endpoint_ok) then
+            res = eng%simplify(whole)
+            if (res%ok) whole = res%value
+            f = whole
+            ok = .true.
+            return
+        end if
+
         if (formal_interval) then
             if (.not. entire_in(e, var)) then
                 why = "a symbolic endpoint needs an integrand that is entire "// &
@@ -226,6 +245,442 @@ contains
         f = whole
         ok = .true.
     end subroutine definite_integral
+
+    !> Exact int_lo^hi sum_j k_j sin(c_j v)**a_j cos(c_j v)**b_j dv.
+    !>
+    !> Every term must be a factor free of `v` times whole powers (a, b >= 0)
+    !> of sin and cos of one common rational multiple c of `v`, and both limits
+    !> must be exact rational multiples of pi with c*lo and c*hi integer
+    !> multiples of pi/2. Substituting u = c v gives (1/c) int_{c lo}^{c hi}.
+    !> On the quarter period [k pi/2, (k+1) pi/2], writing u = k pi/2 + t,
+    !> the integrand becomes
+    !>   k=0: sin^a cos^b               k=1: cos^a (-sin)^b
+    !>   k=2: (-sin)^a (-cos)^b         k=3: (-cos)^a sin^b   (k mod 4)
+    !> and int_0^{pi/2} sin^a cos^b = int_0^{pi/2} cos^a sin^b = W is the
+    !> Wallis integral, so each quarter contributes s_k W with s = 1,
+    !> (-1)^b, (-1)^(a+b), (-1)^a. W = (a-1)!!(b-1)!!/(a+b)!! times pi/2 if
+    !> a and b are both even, else times 1. `handled` is false whenever any
+    !> part of the pattern fails, and the caller then proceeds as before.
+    subroutine trig_power_rule(a, e, var, lo, hi, f, handled)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t),          intent(in)    :: e, var, lo, hi
+        type(expr_t),          intent(out)   :: f
+        logical,               intent(out)   :: handled
+        integer(int64) :: lp, lq, hp, hq, cp, cq, pa, pb, tn, td, m0, m1
+        integer(int64) :: n, wn, wd, num_u, den_u
+        integer :: j, nterms, deg_l, deg_h
+        logical :: ok_l, ok_h, ok_t, both_even
+        type(expr_t) :: coeff, term
+
+        handled = .false.
+        f = num(a, 0)
+
+        call pi_multiple(lo, lp, lq, deg_l, ok_l)
+        if (.not. ok_l) return
+        call pi_multiple(hi, hp, hq, deg_h, ok_h)
+        if (.not. ok_h) return
+        if (lp /= 0 .and. deg_l /= 1) return
+        if (hp /= 0 .and. deg_h /= 1) return
+
+        if (e%kind() == NK_ADD) then
+            nterms = e%nargs()
+        else
+            nterms = 1
+        end if
+
+        do j = 1, nterms
+            if (e%kind() == NK_ADD) then
+                call parse_trig_term(a, e%arg(j), var, pa, pb, cp, cq, &
+                                     coeff, ok_t)
+            else
+                call parse_trig_term(a, e, var, pa, pb, cp, cq, coeff, ok_t)
+            end if
+            if (.not. ok_t) return
+
+            ! u-limits in units of pi/2: 2 c lo / pi = 2 cp lp / (cq lq).
+            num_u = 2_int64*cp*lp
+            den_u = cq*lq
+            if (modulo(num_u, den_u) /= 0) return
+            m0 = num_u/den_u
+            num_u = 2_int64*cp*hp
+            den_u = cq*hq
+            if (modulo(num_u, den_u) /= 0) return
+            m1 = num_u/den_u
+            if (abs(m0) > MAX_QUARTERS .or. abs(m1) > MAX_QUARTERS) return
+
+            call quarter_signed_count(m0, m1, pa, pb, n)
+            call wallis_ratio(pa, pb, wn, wd, both_even)
+            ! (1/c) n W with 1/c = cq/cp; pi/2 contributes a factor 2 to wd.
+            if (both_even) wd = 2_int64*wd
+            if (.not. product_fits(n, wn, cq)) return
+            if (.not. product_fits(wd, cp, 1_int64)) return
+            tn = n*wn*cq
+            td = wd*cp
+            if (td < 0) then
+                tn = -tn
+                td = -td
+            end if
+            term = coeff*rat(a, tn, td)
+            if (both_even) term = term*pi_expr(a)
+
+            if (j == 1) then
+                f = term
+            else
+                f = f + term
+            end if
+        end do
+        handled = .true.
+    end subroutine trig_power_rule
+
+    !> Sum of the quarter-period signs for the quarters m0..m1-1, negated
+    !> when the limits are reversed.
+    subroutine quarter_signed_count(m0, m1, pa, pb, n)
+        integer(int64), intent(in)  :: m0, m1, pa, pb
+        integer(int64), intent(out) :: n
+        integer(int64) :: k, lo_k, hi_k, sgn
+        integer :: r
+
+        lo_k = min(m0, m1)
+        hi_k = max(m0, m1)
+        n = 0
+        do k = lo_k, hi_k - 1
+            r = int(modulo(k, 4_int64))
+            select case (r)
+            case (0)
+                sgn = 1
+            case (1)
+                sgn = odd_sign(pb)
+            case (2)
+                sgn = odd_sign(pa + pb)
+            case default
+                sgn = odd_sign(pa)
+            end select
+            n = n + sgn
+        end do
+        if (m1 < m0) n = -n
+    end subroutine quarter_signed_count
+
+    !> True when x*y*z cannot overflow a checked 64-bit integer.
+    pure function product_fits(x, y, z) result(fits)
+        integer(int64), intent(in) :: x, y, z
+        logical                    :: fits
+        integer(int64) :: xy
+
+        fits = .true.
+        if (x == 0 .or. y == 0 .or. z == 0) return
+        fits = abs(x) <= huge(x)/abs(y)
+        if (.not. fits) return
+        xy = abs(x)*abs(y)
+        fits = xy <= huge(x)/abs(z)
+    end function product_fits
+
+    pure function odd_sign(k) result(s)
+        integer(int64), intent(in) :: k
+        integer(int64)             :: s
+        if (modulo(k, 2_int64) == 0) then
+            s = 1
+        else
+            s = -1
+        end if
+    end function odd_sign
+
+    !> W / (pi/2 if both even) = (a-1)!!(b-1)!!/(a+b)!!, as wn/wd.
+    subroutine wallis_ratio(pa, pb, wn, wd, both_even)
+        integer(int64), intent(in)  :: pa, pb
+        integer(int64), intent(out) :: wn, wd
+        logical,        intent(out) :: both_even
+        integer(int64) :: g
+
+        wn = double_factorial(pa - 1)*double_factorial(pb - 1)
+        wd = double_factorial(pa + pb)
+        g = gcd64(wn, wd)
+        wn = wn/g
+        wd = wd/g
+        both_even = modulo(pa, 2_int64) == 0 .and. modulo(pb, 2_int64) == 0
+    end subroutine wallis_ratio
+
+    pure function double_factorial(n) result(r)
+        integer(int64), intent(in) :: n
+        integer(int64)             :: r
+        integer(int64) :: k
+
+        r = 1
+        k = n
+        do while (k > 1)
+            r = r*k
+            k = k - 2
+        end do
+    end function double_factorial
+
+    pure function gcd64(x, y) result(g)
+        integer(int64), intent(in) :: x, y
+        integer(int64)             :: g
+        integer(int64) :: u, w, t
+
+        u = abs(x)
+        w = abs(y)
+        do while (w /= 0)
+            t = modulo(u, w)
+            u = w
+            w = t
+        end do
+        g = max(u, 1_int64)
+    end function gcd64
+
+    !> One term: coeff * sin(c v)**pa * cos(c v)**pb with c = cp/cq, coeff
+    !> free of v. Needs at least one sin or cos factor.
+    subroutine parse_trig_term(a, term, var, pa, pb, cp, cq, coeff, ok)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t),          intent(in)    :: term, var
+        integer(int64),        intent(out)   :: pa, pb, cp, cq
+        type(expr_t),          intent(out)   :: coeff
+        logical,               intent(out)   :: ok
+        integer :: k, nf
+        logical :: have_c, ok_f, found
+
+        ok = .false.
+        pa = 0
+        pb = 0
+        cp = 1
+        cq = 1
+        have_c = .false.
+        found = .false.
+        coeff = num(a, 1)
+
+        if (term%kind() == NK_MUL) then
+            nf = term%nargs()
+        else
+            nf = 1
+        end if
+
+        do k = 1, nf
+            if (term%kind() == NK_MUL) then
+                call absorb_factor(a, term%arg(k), var, pa, pb, cp, cq, &
+                                   have_c, coeff, found, ok_f)
+            else
+                call absorb_factor(a, term, var, pa, pb, cp, cq, &
+                                   have_c, coeff, found, ok_f)
+            end if
+            if (.not. ok_f) return
+        end do
+
+        ! A term free of sin and cos is the a = b = 0 case: its integral is
+        ! the coefficient times the length of the interval.
+        if (.not. found) then
+            cp = 1
+            cq = 1
+        end if
+        if (pa > MAX_TRIG_POWER .or. pb > MAX_TRIG_POWER) return
+        if (pa + pb > MAX_TRIG_TOTAL) return
+        ok = .true.
+    end subroutine parse_trig_term
+
+    subroutine absorb_factor(a, fac, var, pa, pb, cp, cq, have_c, coeff, &
+                             found, ok)
+        type(arena_t), target, intent(inout) :: a
+        type(expr_t),          intent(in)    :: fac, var
+        integer(int64),        intent(inout) :: pa, pb, cp, cq
+        logical,               intent(inout) :: have_c, found
+        type(expr_t),          intent(inout) :: coeff
+        logical,               intent(out)   :: ok
+        type(expr_t) :: base, expo
+        integer(int64) :: power, p1, q1
+        logical :: ok_c
+
+        ok = .false.
+
+        if (.not. depends_on(fac, var)) then
+            coeff = coeff*fac
+            ok = .true.
+            return
+        end if
+
+        power = 1
+        base = fac
+        if (fac%kind() == NK_POW) then
+            expo = fac%arg(2)
+            if (expo%kind() /= NK_INT) return
+            power = expo%int_value()
+            if (power < 0 .or. power > MAX_TRIG_POWER) return
+            base = fac%arg(1)
+        end if
+        if (base%kind() /= NK_FUNC) return
+        if (base%nargs() /= 1) return
+
+        call linear_scale(base%arg(1), var, p1, q1, ok_c)
+        if (.not. ok_c) return
+        if (have_c) then
+            if (p1*cq /= cp*q1) return
+        else
+            cp = p1
+            cq = q1
+            have_c = .true.
+        end if
+
+        select case (chars(base%name()))
+        case ("sin")
+            pa = pa + power
+        case ("cos")
+            pb = pb + power
+        case default
+            return
+        end select
+        found = .true.
+        ok = .true.
+    end subroutine absorb_factor
+
+    !> arg == (p/q) var with a nonzero rational p/q; q > 0.
+    subroutine linear_scale(arg, var, p, q, ok)
+        type(expr_t),   intent(in)  :: arg, var
+        integer(int64), intent(out) :: p, q
+        logical,        intent(out) :: ok
+        type(expr_t) :: s, other
+        integer(int64) :: g
+
+        ok = .false.
+        p = 1
+        q = 1
+        if (arg%kind() == NK_SYM) then
+            if (chars(arg%name()) /= chars(var%name())) return
+            ok = .true.
+            return
+        end if
+        if (arg%kind() /= NK_MUL) return
+        if (arg%nargs() /= 2) return
+        s = arg%arg(1)
+        other = arg%arg(2)
+        if (other%kind() /= NK_SYM) then
+            s = arg%arg(2)
+            other = arg%arg(1)
+        end if
+        if (other%kind() /= NK_SYM) return
+        if (chars(other%name()) /= chars(var%name())) return
+        call exact_rational(s, p, q, ok)
+        if (.not. ok) return
+        if (p == 0) ok = .false.
+        if (.not. ok) return
+        g = gcd64(p, q)
+        p = p/g
+        q = q/g
+    end subroutine linear_scale
+
+    !> The value of an integer or rational literal, with small parts only.
+    subroutine exact_rational(e, p, q, ok)
+        type(expr_t),   intent(in)  :: e
+        integer(int64), intent(out) :: p, q
+        logical,        intent(out) :: ok
+
+        p = 0
+        q = 1
+        ok = .false.
+        select case (e%kind())
+        case (NK_INT)
+            p = e%int_value()
+        case (NK_RAT)
+            p = e%int_value()
+            q = e%den_value()
+        case default
+            return
+        end select
+        if (q <= 0) return
+        if (abs(p) > MAX_PART .or. q > MAX_PART) return
+        ok = .true.
+    end subroutine exact_rational
+
+    !> e = (p/q) pi^deg exactly, with deg 0 or 1, built from rational
+    !> literals, pi, sums and products. Floats and symbols are refused.
+    recursive subroutine pi_multiple(e, p, q, deg, ok)
+        type(expr_t),   intent(in)  :: e
+        integer(int64), intent(out) :: p, q
+        integer,        intent(out) :: deg
+        logical,        intent(out) :: ok
+        integer(int64) :: p1, q1, g, n
+        integer :: k, d1
+        logical :: ok1
+        type(expr_t) :: base, expo
+
+        p = 0
+        q = 1
+        deg = 0
+        ok = .false.
+
+        select case (e%kind())
+        case (NK_INT, NK_RAT)
+            call exact_rational(e, p, q, ok)
+        case (NK_CONST)
+            if (chars(e%name()) /= "pi") return
+            p = 1
+            deg = 1
+            ok = .true.
+        case (NK_MUL)
+            p = 1
+            do k = 1, e%nargs()
+                call pi_multiple(e%arg(k), p1, q1, d1, ok1)
+                if (.not. ok1) then
+                    ok = .false.
+                    return
+                end if
+                deg = deg + d1
+                if (deg > 1) return
+                p = p*p1
+                q = q*q1
+                if (abs(p) > MAX_PART .or. q > MAX_PART) return
+                g = gcd64(p, q)
+                p = p/g
+                q = q/g
+            end do
+            ok = .true.
+        case (NK_POW)
+            ! A whole power of a nonzero rational literal, such as 2**(-1).
+            base = e%arg(1)
+            expo = e%arg(2)
+            if (expo%kind() /= NK_INT) return
+            n = expo%int_value()
+            if (abs(n) > 12) return
+            call exact_rational(base, p1, q1, ok1)
+            if (.not. ok1) return
+            if (p1 == 0) return
+            if (n < 0) then
+                g = p1
+                p1 = q1
+                q1 = g
+                n = -n
+            end if
+            if (q1 < 0) then
+                p1 = -p1
+                q1 = -q1
+            end if
+            p = 1
+            q = 1
+            do k = 1, int(n)
+                p = p*p1
+                q = q*q1
+                if (abs(p) > MAX_PART .or. abs(q) > MAX_PART) return
+            end do
+            ok = .true.
+        case (NK_ADD)
+            do k = 1, e%nargs()
+                call pi_multiple(e%arg(k), p1, q1, d1, ok1)
+                if (.not. ok1) then
+                    ok = .false.
+                    return
+                end if
+                if (p1 == 0) cycle
+                if (p == 0) then
+                    deg = d1
+                else if (d1 /= deg) then
+                    return
+                end if
+                p = p*q1 + p1*q
+                q = q*q1
+                if (abs(p) > MAX_PART .or. q > MAX_PART) return
+                g = gcd64(p, q)
+                p = p/g
+                q = q/g
+            end do
+            ok = .true.
+        end select
+    end subroutine pi_multiple
 
     !> A conservative syntax check for a finite formal endpoint. Unknown
     !> functions and directed infinities are not accepted, but arithmetic in

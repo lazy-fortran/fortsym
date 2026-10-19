@@ -22,8 +22,8 @@ program test_fortsym_defint
     ! produced -- -2 for int_{-1}^{1} x^{-2}, a negative area under a positive
     ! integrand -- is asserted never to come back.
     use, intrinsic :: iso_fortran_env, only: real64, int64
-    use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, num, &
+    use fortsym_arena, only: arena_t, NK_REAL
+    use fortsym_expr, only: expr_t, sym, num, rat, &
         operator(+), operator(-), operator(*), &
         operator(/), operator(**), &
         sin, cos, exp, log, sqrt, tan, pi_expr
@@ -51,6 +51,7 @@ program test_fortsym_defint
     call test_domain_refusals()
     call test_parameter_refusal()
     call test_symbolic_endpoint()
+    call test_trig_powers()
 
     if (nfail /= 0) then
         print *, "test_fortsym_defint: ", nfail, " check(s) FAILED"
@@ -105,6 +106,152 @@ contains
                 "quadrature")
         end if
     end subroutine test_orientation_and_degenerate
+
+
+    !> int sin(c x)**a cos(c x)**b over multiples of pi/2. Expected values are
+    !> exact (checked offline with SymPy), the Simpson oracle is independent
+    !> of the Wallis rule, and the answer must contain no floating literal.
+    subroutine test_trig_powers()
+        type(expr_t) :: s, c, third
+        real(dp), parameter :: PI = 3.141592653589793238462643383279_dp
+
+        s = sin(x)
+        c = cos(x)
+        third = rat(arena, 1_int64, 3_int64)
+
+        ! Issue 85: int_0^{pi/2} sin**2 cos**2 = pi/16.
+        call trig_check("sin2 cos2 [0,pi/2]", s**2*c**2, 0, 1, 1, 2, PI/16)
+        call trig_check("sin [0,pi]", s, 0, 1, 1, 1, 2.0_dp)
+        call trig_check("sin2 [0,pi]", s**2, 0, 1, 1, 1, PI/2)
+        call trig_check("sin cos [0,pi]", s*c, 0, 1, 1, 1, 0.0_dp)
+        call trig_check("sin cos2 [0,pi]", s*c**2, 0, 1, 1, 1, 2.0_dp/3)
+        call trig_check("sin2 cos [0,pi]", s**2*c, 0, 1, 1, 1, 0.0_dp)
+        call trig_check("sin5 cos2 [0,pi]", s**5*c**2, 0, 1, 1, 1, &
+            16.0_dp/105)
+        call trig_check("sin3 cos2 [0,2pi]", s**3*c**2, 0, 1, 2, 1, 0.0_dp)
+        call trig_check("sin2 cos2 [0,2pi]", s**2*c**2, 0, 1, 2, 1, PI/4)
+        call trig_check("sin cos [0,2pi]", s*c, 0, 1, 2, 1, 0.0_dp)
+        call trig_check("sin3 [0,2pi]", s**3, 0, 1, 2, 1, 0.0_dp)
+        call trig_check("sin2 cos4 [-pi,pi]", s**2*c**4, -1, 1, 1, 1, PI/8)
+        call trig_check("sin cos2 [-pi,pi]", s*c**2, -1, 1, 1, 1, 0.0_dp)
+        call trig_check("cos4 [-pi,pi]", c**4, -1, 1, 1, 1, 3*PI/4)
+        call trig_check("sin3 cos3 [0,pi/2]", s**3*c**3, 0, 1, 1, 2, &
+            1.0_dp/12)
+        call trig_check("cos2 [0,pi/2]", c**2, 0, 1, 1, 2, PI/4)
+        call trig_check("cos3 [0,pi]", c**3, 0, 1, 1, 1, 0.0_dp)
+        call trig_check("sin cos3 [pi/2,pi]", s*c**3, 1, 2, 1, 1, -0.25_dp)
+        call trig_check("sin5 cos2 [0,pi/2]", s**5*c**2, 0, 1, 1, 2, &
+            8.0_dp/105)
+        call trig_check("sin2 cos [-pi/2,pi/2]", s**2*c, -1, 2, 1, 2, &
+            2.0_dp/3)
+        call trig_check("sin3 cos2 [0,3pi/2]", s**3*c**2, 0, 1, 3, 2, &
+            2.0_dp/15)
+        ! Reversed limits negate.
+        call trig_check("sin2 cos2 [pi,0]", s**2*c**2, 1, 1, 0, 1, -PI/8)
+        ! Constant factor and sums by linearity: 2/3 + 3 pi/2.
+        call trig_check("3 sin2 + sin cos2 [0,pi]", 3*s**2 + s*c**2, 0, 1, &
+            1, 1, 2.0_dp/3 + 1.5_dp*PI)
+        call trig_check("1/3 sin2 [0,pi]", third*s**2, 0, 1, 1, 1, PI/6)
+        ! A term free of sin and cos contributes coefficient times length.
+        call trig_check("1 + sin2 [0,pi]", 1 + s**2, 0, 1, 1, 1, 3*PI/2)
+        call trig_check("2 - cos2 [0,2pi]", 2 - c**2, 0, 1, 2, 1, 3*PI)
+        ! Scaled argument: (1/2) int_0^pi sin**2 cos**2 = pi/16.
+        call trig_check("sin(2x)2 cos(2x)2 [0,pi/2]", &
+            sin(2*x)**2*cos(2*x)**2, 0, 1, 1, 2, PI/16)
+        call trig_check("sin(x/2)2 [0,2pi]", sin(rat(arena, 1_int64, 2_int64)*x)**2, &
+            0, 1, 2, 1, PI)
+
+        ! Outside the rule the old behaviour stands: never a wrong answer.
+        call correct_or_refused("sin2 cos2 [0,pi/4]", s**2*c**2, 0, 1, 1, 4, .true.)
+        call correct_or_refused("sin2 cos2 [0,1]", s**2*c**2, 0, 1, 1, 1, &
+            .false.)
+        call correct_or_refused("sin(x)**(3/2) [0,pi/2]", &
+            s**rat(arena, 3_int64, 2_int64), 0, 1, 1, 2, .true.)
+        call correct_or_refused("cos2/sin [pi/3,pi/2]", c**2/s, 1, 3, 1, 2, &
+            .true.)
+        call correct_or_refused("sin cos(2x) [0,pi]", s*cos(2*x), 0, 1, 1, 1, &
+            .true.)
+        ! The exact rational would overflow 64-bit integers: refuse or agree.
+        call correct_or_refused("sin(x/1e8)24 cos(x/1e8)6 [0,1e8 pi/2]", &
+            sin(rat(arena, 1_int64, 100000000_int64)*x)**24* &
+            cos(rat(arena, 1_int64, 100000000_int64)*x)**6, 0, 1, 100000000, 2, &
+            .true.)
+    end subroutine test_trig_powers
+
+    !> Limits are (n/d) pi. The result must match `want`, the Simpson
+    !> oracle, and contain no floating literal.
+    subroutine trig_check(label, f, lo_n, lo_d, hi_n, hi_d, want)
+        character(*), intent(in) :: label
+        type(expr_t), intent(in) :: f
+        integer,      intent(in) :: lo_n, lo_d, hi_n, hi_d
+        real(dp),     intent(in) :: want
+        type(expr_t) :: res
+        type(binding_t) :: empty
+        character(:), allocatable :: why
+        real(dp), parameter :: PI = 3.141592653589793238462643383279_dp
+        real(dp) :: got, quad
+        logical :: ok
+
+        call definite_integral(arena, f, x, pi_limit(lo_n, lo_d), &
+            pi_limit(hi_n, hi_d), res, ok, why)
+        if (.not. ok) then
+            call fail(label//": refused: "//why)
+            return
+        end if
+        allocate (empty%names(0))
+        allocate (empty%values(0))
+        empty%n = 0
+        got = eval_expr(res, empty, ok)
+        if (.not. ok) then
+            call fail(label//": result is not numeric")
+            return
+        end if
+        if (abs(got - want) > 1.0e-13_dp*max(1.0_dp, abs(want))) then
+            call fail(label//": differs from the exact value")
+            print *, "      got ", got, " want ", want
+        end if
+        quad = simpson(f, PI*lo_n/lo_d, PI*hi_n/hi_d)
+        if (abs(got - quad) > TOL*max(1.0_dp, abs(quad))) then
+            call fail(label//": disagrees with quadrature")
+        end if
+        if (has_real(res)) call fail(label//": result holds a float")
+    end subroutine trig_check
+
+    !> Either refuses, or agrees with quadrature.
+    subroutine correct_or_refused(label, f, lo_n, lo_d, hi_n, hi_d, in_pi)
+        character(*), intent(in) :: label
+        type(expr_t), intent(in) :: f
+        integer,      intent(in) :: lo_n, lo_d, hi_n, hi_d
+        logical,      intent(in) :: in_pi
+        type(expr_t) :: res, lo_e, hi_e
+        type(binding_t) :: empty
+        character(:), allocatable :: why
+        real(dp), parameter :: PI = 3.141592653589793238462643383279_dp
+        real(dp) :: got, a0, b0
+        logical :: ok
+
+        if (in_pi) then
+            lo_e = pi_limit(lo_n, lo_d)
+            hi_e = pi_limit(hi_n, hi_d)
+            a0 = PI*lo_n/lo_d
+            b0 = PI*hi_n/hi_d
+        else
+            lo_e = rat(arena, int(lo_n, int64), int(lo_d, int64))
+            hi_e = rat(arena, int(hi_n, int64), int(hi_d, int64))
+            a0 = real(lo_n, dp)/lo_d
+            b0 = real(hi_n, dp)/hi_d
+        end if
+        call definite_integral(arena, f, x, lo_e, hi_e, res, ok, why)
+        if (.not. ok) return
+        allocate (empty%names(0))
+        allocate (empty%values(0))
+        empty%n = 0
+        got = eval_expr(res, empty, ok)
+        if (.not. ok) return
+        if (abs(got - simpson(f, a0, b0)) > 1.0e-6_dp) then
+            call fail(label//": answered, and the answer is wrong")
+        end if
+    end subroutine correct_or_refused
 
     !> The heart of the module: an interior pole must stop the fundamental
     !> theorem, and the test proves the pole is real rather than assuming it.
@@ -436,6 +583,27 @@ contains
         end do
         area = area*h/3.0_dp
     end function simpson_with
+
+    function pi_limit(n, d) result(e)
+        integer, intent(in) :: n, d
+        type(expr_t)        :: e
+        e = rat(arena, int(n, int64), int(d, int64))*pi_expr(arena)
+    end function pi_limit
+
+    recursive function has_real(e) result(yes)
+        type(expr_t), intent(in) :: e
+        logical                  :: yes
+        integer :: k
+
+        yes = e%kind() == NK_REAL
+        if (yes) return
+        do k = 1, e%nargs()
+            if (has_real(e%arg(k))) then
+                yes = .true.
+                return
+            end if
+        end do
+    end function has_real
 
     function real_of(t) result(e)
         real(dp), intent(in) :: t
