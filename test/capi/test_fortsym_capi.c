@@ -70,7 +70,7 @@ static void check_emit_kernel(void)
                                  sizeof message);
     assert(status == FORTSYM_UNSUPPORTED);
     assert(strstr(message, "not an input argument: y") != NULL);
-    status = fortsym_constant(arena, "I", &imaginary, message, sizeof message);
+    status = fortsym_constant(arena, "i", &imaginary, message, sizeof message);
     assert(status == FORTSYM_OK);
     outputs[0] = imaginary;
     status = fortsym_emit_kernel("leaf", FORTSYM_KERNEL_FORTRAN, inputs, 2,
