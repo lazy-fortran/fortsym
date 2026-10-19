@@ -7,16 +7,17 @@ subroutine fortsym_demo_kernel(x, y, f, dfdx, dfdy)
     implicit none
     real(dp), intent(in) :: x, y
     real(dp), intent(out) :: f, dfdx, dfdy
-    real(dp) :: t1, t2, t3, t4, t5
+    real(dp) :: t1, t2, t3, t4, t5, t6
 
     t1 = x*y
     t2 = sin(t1)
     t3 = exp(t1)
     t4 = cos(t1)
     t5 = t4 + 1
+    t6 = t5**2
     f = t2**2 + t3/t5
-    dfdx = y*t4*t2*2 + y*t3*t2/t5**2 + y*t3/t5
-    dfdy = x*t4*t2*2 + x*t3*t2/t5**2 + x*t3/t5
+    dfdx = y*t4*t2*2 + y*t3*t2/t6 + y*t3/t5
+    dfdy = x*t4*t2*2 + x*t3*t2/t6 + x*t3/t5
 
 end subroutine fortsym_demo_kernel
 
