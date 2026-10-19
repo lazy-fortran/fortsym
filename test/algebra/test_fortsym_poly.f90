@@ -24,7 +24,7 @@ program test_fortsym_poly
     !     rational root, and a floating-point coefficient anywhere.
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: chars
-    use fortsym_arena, only: arena_t
+    use fortsym_arena, only: arena_t, NK_INT
     use fortsym_expr, only: expr_t, sym, num, rat, real_expr, sin, &
                             operator(+), operator(-), operator(*), &
                             operator(/), operator(**)
@@ -56,6 +56,7 @@ program test_fortsym_poly
     call test_division()
     call test_numerator_denominator()
     call test_float_refused()
+    call test_many_variables()
 
     if (nfail /= 0) then
         print *, "test_fortsym_poly: ", nfail, " check(s) FAILED"
@@ -382,5 +383,61 @@ contains
         if (ok) call fail("Together accepted a floating-point coefficient as "// &
                           "though it were exact")
     end subroutine test_float_refused
+
+    !> Thirty generators: the number of indeterminates is not a refusal
+    !> reason. Each result is checked against a fact independent of the
+    !> engine: a square minus its expanded double sum is identically zero,
+    !> and a common factor linear in all thirty symbols must cancel to the
+    !> remaining symbol.
+    subroutine test_many_variables()
+        integer, parameter :: NV = 30
+        type(expr_t) :: x(NV), lin, y, square, pairs, r
+        logical :: ok
+        character(:), allocatable :: why
+        character(len=8) :: name
+        integer :: i, j
+
+        do i = 1, NV
+            write (name, '("v", i0)') i
+            x(i) = sym(arena, trim(name))
+        end do
+        lin = x(1)
+        do i = 2, NV
+            lin = lin + num(arena, i)*x(i)
+        end do
+        pairs = num(arena, 0)
+        do i = 1, NV
+            do j = 1, NV
+                pairs = pairs + num(arena, i*j)*x(i)*x(j)
+            end do
+        end do
+        square = lin**2 - pairs
+        call poly_together(arena, square, r, ok, why)
+        if (.not. ok) then
+            call fail("Together refused a 30-variable polynomial: "//why)
+        else if (r%kind() /= NK_INT) then
+            call fail("Together left a nonzero residual for a 30-variable "// &
+                      "polynomial identity")
+        else if (r%int_value() /= 0) then
+            call fail("Together returned a nonzero constant for a 30-variable "// &
+                      "polynomial identity")
+        end if
+
+        y = sym(arena, "w")
+        call poly_cancel(arena, (lin*y + lin*x(NV))/(lin*x(1)), r, ok, why)
+        if (.not. ok) then
+            call fail("Cancel refused a 30-variable fraction: "//why)
+        else
+            ! Together, not Cancel: Cancel threads over the sum.
+            call poly_together(arena, r - (y + x(NV))/x(1), r, ok, why)
+            if (.not. ok) then
+                call fail("Together refused the 30-variable difference: "//why)
+            else if (r%kind() /= NK_INT) then
+                call fail("Cancel did not remove a common factor in 30 variables")
+            else if (r%int_value() /= 0) then
+                call fail("Cancel changed the value of a 30-variable fraction")
+            end if
+        end if
+    end subroutine test_many_variables
 
 end program test_fortsym_poly
