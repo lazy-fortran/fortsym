@@ -52,6 +52,7 @@ program test_fortsym_poly
     call test_factor_multiplies_back()
     call test_factor_refuses_quartic()
     call test_coefficients_reconstruct()
+    call test_zero_polynomial()
     call test_collect_and_exponent()
     call test_division()
     call test_numerator_denominator()
@@ -313,6 +314,53 @@ contains
         end do
         call same_value("CoefficientList", e, acc, x, y)
     end subroutine test_coefficients_reconstruct
+
+    subroutine test_zero_polynomial()
+        type(expr_t) :: x, y, e, c, zeros(2)
+        type(expr_t), allocatable :: list(:)
+        logical :: ok
+        character(:), allocatable :: why
+        integer :: i, k
+
+        x = sym(arena, "x")
+        y = sym(arena, "y")
+        zeros(1) = num(arena, 0)
+        ! A zero discovered by polynomial arithmetic with several generators.
+        zeros(2) = ((x + y)**2 - x**2 - num(arena, 2)*x*y - y**2)/y
+        do i = 1, size(zeros)
+            e = zeros(i)
+            do k = 0, 2
+                call poly_coefficient(arena, e, x, k, c, ok, why)
+                call expect_ok("zero Coefficient", ok, why)
+                if (.not. ok) return
+                if (c%kind() /= NK_INT) then
+                    call fail("zero Coefficient: expected an exact integer")
+                    return
+                end if
+                if (c%int_value() /= 0) call fail("zero Coefficient: expected 0")
+            end do
+            call poly_coefficient_list(arena, e, x, list, ok, why)
+            call expect_ok("zero CoefficientList", ok, why)
+            if (.not. ok) return
+            if (size(list) /= 1) then
+                call fail("zero CoefficientList: expected one coefficient")
+                return
+            end if
+            if (list(1)%kind() /= NK_INT) then
+                call fail("zero CoefficientList: expected an exact integer")
+                return
+            end if
+            if (list(1)%int_value() /= 0) call fail("zero CoefficientList: expected 0")
+            call poly_collect(arena, e, x, c, ok, why)
+            call expect_ok("zero Collect", ok, why)
+            if (.not. ok) return
+            if (c%kind() /= NK_INT) then
+                call fail("zero Collect: expected an exact integer")
+                return
+            end if
+            if (c%int_value() /= 0) call fail("zero Collect: expected 0")
+        end do
+    end subroutine test_zero_polynomial
 
     subroutine test_collect_and_exponent()
         type(expr_t) :: x, y, e, r
