@@ -89,6 +89,13 @@ identities are all decided. Expressions outside its decision domain remain expli
 are correctly *not* reported as identities, and expressions outside the decidable
 fragment (gamma, Bessel, zeta) return `UNKNOWN` rather than a confident guess.
 
+Unresolved radical identities also use bounded polynomial reduction by the
+principal roots' defining relations. Rational powers of the same base share a
+root; multivariate, nested and rational bases are supported within the existing
+checked coefficient, term and degree bounds. Only a zero remainder adds a
+proof. A nonzero remainder or resource refusal remains `UNKNOWN`, and this
+does not assume `sqrt(x**2) = x` or distribute roots over products.
+
 **Generate kernels.** Common subexpression elimination, then Fortran source with
 kind-suffixed literals, integer exponents kept integer, correct `atan2` argument
 order, precedence-driven parenthesisation and 132-column continuations.
