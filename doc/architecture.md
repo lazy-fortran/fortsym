@@ -322,6 +322,8 @@ lexicographically recursive children with arity as the final tie-break. Node
 and name-table indices are excluded because they depend on construction
 history. This makes printing, CSE traversal, and generated Fortran
 byte-identical for identical expression trees constructed in different arenas.
+Addition also drops exact integer zero summands, so `x + 0`, `0 - x` and `-x`
+intern as one node; inexact `0.0` stays a summand and `x - x` stays a sum.
 The order is deliberately not inherited from a backend: GiNaC 1.8.10, for
 example, documents that its internal canonical order is not a stable
 user-visible serialization order.
