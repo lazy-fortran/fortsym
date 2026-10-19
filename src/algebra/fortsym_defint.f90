@@ -312,6 +312,8 @@ contains
             call wallis_ratio(pa, pb, wn, wd, both_even)
             ! (1/c) n W with 1/c = cq/cp; pi/2 contributes a factor 2 to wd.
             if (both_even) wd = 2_int64*wd
+            if (.not. product_fits(n, wn, cq)) return
+            if (.not. product_fits(wd, cp, 1_int64)) return
             tn = n*wn*cq
             td = wd*cp
             if (td < 0) then
@@ -357,6 +359,20 @@ contains
         end do
         if (m1 < m0) n = -n
     end subroutine quarter_signed_count
+
+    !> True when x*y*z cannot overflow a checked 64-bit integer.
+    pure function product_fits(x, y, z) result(fits)
+        integer(int64), intent(in) :: x, y, z
+        logical                    :: fits
+        integer(int64) :: xy
+
+        fits = .true.
+        if (x == 0 .or. y == 0 .or. z == 0) return
+        fits = abs(x) <= huge(x)/abs(y)
+        if (.not. fits) return
+        xy = abs(x)*abs(y)
+        fits = xy <= huge(x)/abs(z)
+    end function product_fits
 
     pure function odd_sign(k) result(s)
         integer(int64), intent(in) :: k
@@ -448,7 +464,12 @@ contains
             if (.not. ok_f) return
         end do
 
-        if (.not. found) return
+        ! A term free of sin and cos is the a = b = 0 case: its integral is
+        ! the coefficient times the length of the interval.
+        if (.not. found) then
+            cp = 1
+            cq = 1
+        end if
         if (pa > MAX_TRIG_POWER .or. pb > MAX_TRIG_POWER) return
         if (pa + pb > MAX_TRIG_TOTAL) return
         ok = .true.

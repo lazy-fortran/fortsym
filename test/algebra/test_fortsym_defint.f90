@@ -152,6 +152,9 @@ contains
         call trig_check("3 sin2 + sin cos2 [0,pi]", 3*s**2 + s*c**2, 0, 1, &
             1, 1, 2.0_dp/3 + 1.5_dp*PI)
         call trig_check("1/3 sin2 [0,pi]", third*s**2, 0, 1, 1, 1, PI/6)
+        ! A term free of sin and cos contributes coefficient times length.
+        call trig_check("1 + sin2 [0,pi]", 1 + s**2, 0, 1, 1, 1, 3*PI/2)
+        call trig_check("2 - cos2 [0,2pi]", 2 - c**2, 0, 1, 2, 1, 3*PI)
         ! Scaled argument: (1/2) int_0^pi sin**2 cos**2 = pi/16.
         call trig_check("sin(2x)2 cos(2x)2 [0,pi/2]", &
             sin(2*x)**2*cos(2*x)**2, 0, 1, 1, 2, PI/16)
@@ -167,6 +170,11 @@ contains
         call correct_or_refused("cos2/sin [pi/3,pi/2]", c**2/s, 1, 3, 1, 2, &
             .true.)
         call correct_or_refused("sin cos(2x) [0,pi]", s*cos(2*x), 0, 1, 1, 1, &
+            .true.)
+        ! The exact rational would overflow 64-bit integers: refuse or agree.
+        call correct_or_refused("sin(x/1e8)24 cos(x/1e8)6 [0,1e8 pi/2]", &
+            sin(rat(arena, 1_int64, 100000000_int64)*x)**24* &
+            cos(rat(arena, 1_int64, 100000000_int64)*x)**6, 0, 1, 100000000, 2, &
             .true.)
     end subroutine test_trig_powers
 
