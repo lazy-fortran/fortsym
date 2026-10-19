@@ -19,6 +19,7 @@ documentation.
 |---|---|---|---|
 | Bessel `J` derivative | NIST DLMF 10.6.1, citing Watson and Olver | none | recurrence in `fortsym_diff` |
 | Zero-decision limitation | Richardson, *Journal of Symbolic Logic* 33(4), 1968, DOI 10.2307/2271358 | none | scope source requiring `UNKNOWN` outside proved fragments, not an algorithm source |
+| Principal-radical zero proofs | elementary identity `(b**(1/q))**q = b` and polynomial remainder congruence; original local composition | none | shared same-base roots and outer-to-inner (pseudo-)remainder reduction in `fortsym_poly`; proof-only fallback, with no branch selection or nonzero inference |
 | Exponential-rational zero normal form | standard rational-function normalization; original local composition | SymEngine 0.14.0 `rewrite.cpp`, `functions.cpp`, `expand.cpp`, and `polys/basic_conversions.cpp`, MIT | local fragment guard plus rewrite, normalization, denominator folding, and expanded-numerator decision in `fsym_shim.cpp` |
 | Hash-consed expression DAG | standard structural hashing | SymEngine public headers, MIT | original Fortran arena implementation |
 | Stable expression order | bytewise lexical and recursive structural total ordering | GiNaC 1.8.10 documentation used only to identify its internal order as unsuitable for stable serialization | original Fortran merge sort and comparator; node and name-table indices excluded |
