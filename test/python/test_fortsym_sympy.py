@@ -2981,5 +2981,37 @@ class SympySubsetTest(unittest.TestCase):
             sp.Symbol("contradictory_symbol", positive=True, negative=True)
 
 
+    def test_zero_test_decides_identity_with_many_indeterminates(self):
+        # b.curl(xi x B) = -|B|(div xi + kappa.xi) - xi.grad|B| for
+        # xi = B x a, with arbitrary fields B and a: about thirty generators
+        # (components, first and second derivatives, and |B|).
+        x, y, z = X = sp.symbols("x y z")
+        B = [sp.Function(f"B_{i}")(x, y, z) for i in range(3)]
+        a = [sp.Function(f"a_{i}")(x, y, z) for i in range(3)]
+
+        def cross(u, v):
+            return [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2],
+                    u[0] * v[1] - u[1] * v[0]]
+
+        def dot(u, v):
+            return u[0] * v[0] + u[1] * v[1] + u[2] * v[2]
+
+        def curl(v):
+            return [v[2].diff(y) - v[1].diff(z), v[0].diff(z) - v[2].diff(x),
+                    v[1].diff(x) - v[0].diff(y)]
+
+        Bm = sp.sqrt(dot(B, B))
+        b = [c / Bm for c in B]
+        kappa = [sum(b[j] * c.diff(X[j]) for j in range(3)) for c in b]
+        xi = cross(B, a)
+        div_xi = sum(xi[i].diff(X[i]) for i in range(3))
+        xi_grad_Bm = sum(xi[j] * Bm.diff(X[j]) for j in range(3))
+        dB = dot(b, curl(cross(xi, B)))
+        identity = dB + Bm * (div_xi + dot(kappa, xi)) + xi_grad_Bm
+        self.assertIs(identity.is_zero, True)
+        self.assertEqual(sp.cancel(sp.together(identity)), 0)
+        wrong = dB + Bm * (div_xi + 2 * dot(kappa, xi)) + xi_grad_Bm
+        self.assertIsNot(wrong.is_zero, True)
+
 if __name__ == "__main__":
     unittest.main()

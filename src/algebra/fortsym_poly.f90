@@ -69,8 +69,10 @@ module fortsym_poly
     ! Work bounds. Each is a refusal when exceeded, never a truncation: a
     ! silently dropped term is a different polynomial.
     integer, parameter :: MAX_TERMS = 2000
-    integer, parameter :: MAX_VARS = 12
     integer, parameter :: MAX_DEGREE = 64
+    ! Recursive gcd steps one top-level gcd may take. The number of generators
+    ! is not itself bounded; the work the content/PRS recursion does is.
+    integer, parameter :: MAX_GCD_STEPS = 20000
 
     ! Above this the divisor enumeration behind the Rational Root Theorem is
     ! not worth running; Factor refuses instead of missing a root and then
@@ -717,11 +719,6 @@ contains
             if (ctx%atom(k) == id) iv = k
         end do
         if (iv == 0) then
-            if (size(ctx%atom) >= MAX_VARS) then
-                why = "the expression has more indeterminates than the "// &
-                      "polynomial engine handles"
-                return
-            end if
             allocate (bigger(size(ctx%atom) + 1))
             if (size(ctx%atom) > 0) bigger(1:size(ctx%atom)) = ctx%atom
             bigger(size(ctx%atom) + 1) = id
@@ -1423,12 +1420,15 @@ contains
     end subroutine p_monic
 
     !> The content of p with respect to iv: the gcd of its coefficients.
-    recursive subroutine p_content_v(p, iv, c, ok, why)
-        type(poly_t),              intent(in)  :: p
-        integer,                   intent(in)  :: iv
-        type(poly_t),              intent(out) :: c
-        logical,                   intent(out) :: ok
-        character(:), allocatable, intent(out) :: why
+    !> A unit content ends the scan early: no further coefficient can make
+    !> the gcd of a set that already contains a unit anything but 1.
+    recursive subroutine p_content_v(p, iv, c, budget, ok, why)
+        type(poly_t),              intent(in)    :: p
+        integer,                   intent(in)    :: iv
+        type(poly_t),              intent(out)   :: c
+        integer,                   intent(inout) :: budget
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
         type(poly_t) :: coeff, g
         integer :: k, d
 
@@ -1439,30 +1439,21 @@ contains
         do k = 0, d
             call p_coeff_v(p, iv, k, coeff)
             if (p_is_zero(coeff)) cycle
-            call p_gcd(c, coeff, g, ok, why)
+            call gcd_rec(c, coeff, g, budget, ok, why)
             if (.not. ok) return
             c = g
+            if (p_is_const(c)) exit
         end do
     end subroutine p_content_v
 
-    !> The primitive part of p with respect to iv.
-    recursive subroutine p_prim_v(p, iv, pp, ok, why)
-        type(poly_t),              intent(in)  :: p
-        integer,                   intent(in)  :: iv
+    !> The primitive part of p with respect to iv, given its content c.
+    subroutine p_divide_content(p, c, pp, ok, why)
+        type(poly_t),              intent(in)  :: p, c
         type(poly_t),              intent(out) :: pp
         logical,                   intent(out) :: ok
         character(:), allocatable, intent(out) :: why
-        type(poly_t) :: c
         logical :: exact
 
-        pp = p
-        if (p_is_zero(p)) then
-            ok = .true.
-            why = ""
-            return
-        end if
-        call p_content_v(p, iv, c, ok, why)
-        if (.not. ok) return
         call p_divide(p, c, pp, exact, ok, why)
         if (.not. ok) return
         if (.not. exact) then
@@ -1470,22 +1461,53 @@ contains
             why = "internal check failed: the content does not divide the "// &
                   "polynomial exactly"
         end if
+    end subroutine p_divide_content
+
+    !> The primitive part of p with respect to iv.
+    recursive subroutine p_prim_v(p, iv, pp, budget, ok, why)
+        type(poly_t),              intent(in)    :: p
+        integer,                   intent(in)    :: iv
+        type(poly_t),              intent(out)   :: pp
+        integer,                   intent(inout) :: budget
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(poly_t) :: c
+
+        pp = p
+        if (p_is_zero(p)) then
+            ok = .true.
+            why = ""
+            return
+        end if
+        call p_content_v(p, iv, c, budget, ok, why)
+        if (.not. ok) return
+        call p_divide_content(p, c, pp, ok, why)
     end subroutine p_prim_v
 
-    !> Monic gcd, by the primitive polynomial remainder sequence.
-    !>
-    !> Geddes/Czapor/Labahn, "Algorithms for Computer Algebra" (1992), Alg 7.2.
-    !> Removing the content before the PRS and re-primitivising every
-    !> pseudo-remainder is what keeps the coefficients from exploding; the
-    !> modular alternatives (Brown 1971, Zippel 1979) are faster but this one
-    !> answers the same question with far less machinery to get wrong.
-    recursive subroutine p_gcd(x, y, g, ok, why)
+    !> Greatest common divisor over Q, monic. The recursive content/PRS
+    !> algorithm costs grow with the number of generators, so one top-level
+    !> gcd carries a budget of recursive gcd steps and refuses when it runs
+    !> out instead of running unboundedly.
+    subroutine p_gcd(x, y, g, ok, why)
         type(poly_t),              intent(in)  :: x, y
         type(poly_t),              intent(out) :: g
         logical,                   intent(out) :: ok
         character(:), allocatable, intent(out) :: why
+        integer :: budget
+
+        budget = MAX_GCD_STEPS
+        call gcd_rec(x, y, g, budget, ok, why)
+    end subroutine p_gcd
+
+    recursive subroutine gcd_rec(x, y, g, budget, ok, why)
+        type(poly_t),              intent(in)    :: x, y
+        type(poly_t),              intent(out)   :: g
+        integer,                   intent(inout) :: budget
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
         type(poly_t) :: cx, cy, px, py, cg, r, aa, bb, prod
         integer :: iv, k, guard
+        logical :: in_x, in_y
 
         ok = .true.
         why = ""
@@ -1499,33 +1521,50 @@ contains
             call p_monic(g, ok, why)
             return
         end if
+        ! A nonzero constant is a unit over a field.
+        if (p_is_const(x)) then
+            call p_const(rat_of(1_int64), x%nv, g)
+            return
+        end if
+        if (p_is_const(y)) then
+            call p_const(rat_of(1_int64), x%nv, g)
+            return
+        end if
+        budget = budget - 1
+        if (budget < 0) then
+            ok = .false.
+            why = "the multivariate gcd exceeded its work budget"
+            return
+        end if
 
+        ! A common divisor is a polynomial in the generators shared by both
+        ! operands only, so the main variable is chosen among those; with
+        ! none shared the gcd is a unit.
         iv = 0
         do k = 1, x%nv
-            if (p_deg_v(x, k) > 0) then
-                iv = k
-                exit
-            end if
-            if (p_deg_v(y, k) > 0) then
-                iv = k
-                exit
+            in_x = p_deg_v(x, k) > 0
+            in_y = p_deg_v(y, k) > 0
+            if (in_x) then
+                if (in_y) then
+                    iv = k
+                    exit
+                end if
             end if
         end do
         if (iv == 0) then
-            ! Two nonzero constants: over a field their gcd is a unit.
             call p_const(rat_of(1_int64), x%nv, g)
             return
         end if
 
-        call p_content_v(x, iv, cx, ok, why)
+        call p_content_v(x, iv, cx, budget, ok, why)
         if (.not. ok) return
-        call p_content_v(y, iv, cy, ok, why)
+        call p_content_v(y, iv, cy, budget, ok, why)
         if (.not. ok) return
-        call p_prim_v(x, iv, px, ok, why)
+        call p_divide_content(x, cx, px, ok, why)
         if (.not. ok) return
-        call p_prim_v(y, iv, py, ok, why)
+        call p_divide_content(y, cy, py, ok, why)
         if (.not. ok) return
-        call p_gcd(cx, cy, cg, ok, why)
+        call gcd_rec(cx, cy, cg, budget, ok, why)
         if (.not. ok) return
 
         aa = px
@@ -1556,7 +1595,7 @@ contains
             if (p_is_zero(r)) then
                 call p_zero(x%nv, bb)
             else
-                call p_prim_v(r, iv, bb, ok, why)
+                call p_prim_v(r, iv, bb, budget, ok, why)
                 if (.not. ok) return
             end if
         end do
@@ -1565,7 +1604,7 @@ contains
         if (.not. ok) return
         g = prod
         call p_monic(g, ok, why)
-    end subroutine p_gcd
+    end subroutine gcd_rec
 
     ! =====================================================================
     ! Univariate work over Q: coefficient vectors, ascending
