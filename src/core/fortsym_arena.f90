@@ -666,7 +666,9 @@ contains
     end function arena_const
 
     !> Sum. Nested sums are flattened and operands sorted, so that x+(y+z),
-    !> (x+y)+z and z+y+x all reach the same node.
+    !> (x+y)+z and z+y+x all reach the same node. Exact integer zero is the
+    !> additive identity and is dropped, so x+0, 0-x and -x reach the same
+    !> node as x and -x. Inexact 0.0 is kept: it carries a floating meaning.
     function arena_add(self, operands) result(idx)
         class(arena_t), intent(inout) :: self
         integer,        intent(in)    :: operands(:)
@@ -680,6 +682,14 @@ contains
         if (size(operands) == 2) then
             if (self%nodes(operands(1))%kind /= NK_ADD .and. &
                 self%nodes(operands(2))%kind /= NK_ADD) then
+                if (is_exact_zero(self, operands(1))) then
+                    idx = operands(2)
+                    return
+                end if
+                if (is_exact_zero(self, operands(2))) then
+                    idx = operands(1)
+                    return
+                end if
                 pair = operands
                 call sort_pair(self, pair)
                 idx = intern(self, NK_ADD, 0_int64, 1_int64, 0.0_dp, 0, pair)
@@ -688,6 +698,11 @@ contains
         end if
 
         call flatten(self, operands, NK_ADD, flat)
+        call drop_exact_zeros(self, flat)
+        if (size(flat) == 0) then
+            idx = arena_int(self, 0_int64)
+            return
+        end if
         if (size(flat) == 1) then
             idx = flat(1)
             return
@@ -721,6 +736,29 @@ contains
         call sort_semantic(self, flat)
         idx = intern(self, NK_MUL, 0_int64, 1_int64, 0.0_dp, 0, flat)
     end function arena_mul
+
+    pure logical function is_exact_zero(self, id)
+        class(arena_t), intent(in) :: self
+        integer, intent(in) :: id
+
+        is_exact_zero = .false.
+        if (self%nodes(id)%kind /= NK_INT) return
+        is_exact_zero = self%nodes(id)%num == 0_int64
+    end function is_exact_zero
+
+    !> Remove exact integer zero addends from a flattened sum operand list.
+    subroutine drop_exact_zeros(self, flat)
+        class(arena_t), intent(in) :: self
+        integer, allocatable, intent(inout) :: flat(:)
+        integer :: i, n
+
+        n = 0
+        do i = 1, size(flat)
+            if (.not. is_exact_zero(self, flat(i))) n = n + 1
+        end do
+        if (n == size(flat)) return
+        flat = pack(flat, [(.not. is_exact_zero(self, flat(i)), i = 1, size(flat))])
+    end subroutine drop_exact_zeros
 
     !> Splice any operand that is itself an `outer` node into the operand list,
     !> so associativity never produces two shapes for one expression.

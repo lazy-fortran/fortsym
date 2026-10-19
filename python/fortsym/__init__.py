@@ -1686,6 +1686,13 @@ def _configure(lib):
                 [_CVOID, _CHAR_PTR, _SIZE, ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
             ),
         )
+    lib.emit_kernel = declare(
+        "fortsym_emit_kernel", ctypes.c_int,
+        [ctypes.c_char_p, ctypes.c_int, ctypes.POINTER(ctypes.c_char_p), _SIZE,
+         ctypes.POINTER(ctypes.c_char_p), ctypes.POINTER(_CVOID), _SIZE,
+         ctypes.c_char_p, ctypes.c_char_p,
+         _CHAR_PTR, _SIZE, ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
+    )
     lib.expr_int_value = declare(
         "fortsym_expr_int_value", ctypes.c_int,
         [_CVOID, ctypes.POINTER(_I64), _CHAR_PTR, _SIZE],
@@ -1740,6 +1747,65 @@ def _pretty_expanded(text):
             factors.insert(0, first)
         rendered.append("*".join(factors))
     return " + ".join(rendered)
+
+
+_KERNEL_TARGETS = {"fortran": 1, "cuda": 2, "python": 3}
+
+
+def emit_kernel(name, inputs, outputs, target="fortran", *, generator=None,
+                regenerate_command=None):
+    """Emit a named scalar kernel through the native FortGen IR backend.
+
+    ``inputs`` lists the real scalar arguments in order, as symbols or names.
+    ``outputs`` maps output names to expressions of one arena (a mapping or a
+    sequence of ``(name, expression)`` pairs). ``target`` is ``"fortran"``
+    (a subroutine with ``real(dp)`` arguments), ``"cuda"`` (a device
+    function) or ``"python"`` (``def name(inputs)`` returning one value or a
+    tuple in output order; arithmetic broadcasts over NumPy arrays, functions
+    and ``pi``/``E`` need NumPy, and ``I`` is emitted as ``1j``). Fortran and
+    CUDA refuse ``I``; FortGen has no C target. Refusals raise
+    ``FortSymError`` instead of emitting approximate code. ``generator`` and
+    ``regenerate_command`` fill the provenance banner. The source is
+    generated, not proved equivalent.
+    """
+    if target not in _KERNEL_TARGETS:
+        raise FortSymError(
+            5, f"kernel target {target!r} is not provided by FortGen; "
+            f"available: {', '.join(sorted(_KERNEL_TARGETS))}", "emit_kernel")
+    pairs = list(outputs.items() if hasattr(outputs, "items") else outputs)
+    if not pairs:
+        raise ValueError("emit_kernel requires at least one output")
+    input_names = [value if isinstance(value, str) else value.name
+                   for value in inputs]
+    expressions = [expression for _, expression in pairs]
+    if not all(isinstance(expression, Expr) for expression in expressions):
+        raise TypeError("kernel outputs must be expressions")
+    arena = expressions[0]._arena
+    handles = (_CVOID * len(pairs))(
+        *[arena._check(expression)._require() for expression in expressions])
+    input_array = (ctypes.c_char_p * max(len(input_names), 1))(
+        *[value.encode() for value in input_names])
+    output_array = (ctypes.c_char_p * len(pairs))(
+        *[str(output_name).encode() for output_name, _ in pairs])
+    lib = arena._lib
+    size = 4096
+    while True:
+        buffer = ctypes.create_string_buffer(size)
+        required = _SIZE()
+        message = _message()
+        status = lib.emit_kernel(
+            name.encode(), _KERNEL_TARGETS[target], input_array,
+            len(input_names), output_array, handles, len(pairs),
+            None if generator is None else generator.encode(),
+            None if regenerate_command is None else regenerate_command.encode(),
+            buffer, size,
+            ctypes.byref(required), message, len(message))
+        if status == 6 and required.value > size:
+            size = required.value
+            continue
+        if status:
+            raise FortSymError(status, _decode(message), "emit_kernel")
+        return buffer.value.decode("utf-8")
 
 
 class Arena:
@@ -8380,5 +8446,5 @@ __all__ = [
     "SPACETIME_DIM", "SPACETIME_TENSOR_MAX_RANK", "CONNECTION_STANDARD", "CONNECTION_OPPOSITE",
     "SYMMETRY_NONE", "SYMMETRIC", "ANTISYMMETRIC",
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "coefficient", "exponent", "polynomial_gcd", "polynomial_quotient", "polynomial_remainder", "integrate", "definite_integral", "sum_closed_form", "product_closed_form", "limit", "series", "series_coeff", "solve", "solve_ode", "solve_univariate_inequality", "det", "minor", "rank", "inv", "transpose", "matrix_conjugate", "matrix_adjoint", "matrix_multiply_elementwise", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
-    "free_symbols",
+    "free_symbols", "emit_kernel",
 ]

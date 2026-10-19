@@ -309,7 +309,7 @@ add_test(
 set_tests_properties(
     test_fortsym_python
     PROPERTIES
-        ENVIRONMENT "PYTHONPATH=${PROJECT_SOURCE_DIR}/python;FORTSYM_LIBRARY=$<TARGET_FILE:fortsym>")
+        ENVIRONMENT "PYTHONPATH=${PROJECT_SOURCE_DIR}/python;FORTSYM_LIBRARY=$<TARGET_FILE:fortsym>;FORTSYM_TEST_FC=${CMAKE_Fortran_COMPILER};FORTSYM_TEST_WORK=${CMAKE_CURRENT_BINARY_DIR}")
 add_test(
     NAME test_fortsym_sympy
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/python/test_fortsym_sympy.py)
