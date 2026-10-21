@@ -518,7 +518,8 @@ contains
             if (ok) then
                 allocate (selectors(lhs%nargs() - 1))
                 do k = 1, size(selectors)
-                    selectors(k) = apply_bindings(s, lhs%arg(k + 1))
+                    selectors(k) = auto_evaluate(s, &
+                        apply_bindings(s, lhs%arg(k + 1)))
                 end do
                 updated = replace_list_part(s, base, selectors, 1, value, &
                     ok, message)
