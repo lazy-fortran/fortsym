@@ -4,6 +4,7 @@ module fortsym_public_capi
     use, intrinsic :: iso_c_binding, only: c_associated, c_char, c_double, &
         c_int, c_int64_t, c_null_char, c_null_ptr, c_ptr, c_size_t, c_loc, &
         c_f_pointer
+    use fortsym_assumption_export, only: exportable_assumptions
     use fortsym_derivation, only: derivation_t
     use fortsym_string, only: str_t, str
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, &
@@ -368,8 +369,17 @@ contains
                 'derivation session already active or invalid budget')
             return
         end if
+        if (associated(a%assumptions)) then
+            if (.not. exportable_assumptions(a%assumptions,a%value)) then
+                call fail_reason(status,message,capacity,FORTSYM_UNSUPPORTED, &
+                    'derivation: unsupported initial assumption context')
+                return
+            end if
+        end if
         allocate(a%derivation)
         call a%derivation%init(a%value,from_c_string(hash),int(budget))
+        if (associated(a%assumptions)) &
+            call clone_assumption_context(a%derivation%context,a%assumptions)
         if (len(a%derivation%failure)>0) call fail_reason(status,message, &
             capacity,FORTSYM_INVALID_ARGUMENT,a%derivation%failure)
     end function

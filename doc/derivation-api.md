@@ -22,7 +22,9 @@ source = record%export_sympy(ok, why)
 
 The C ABI provides arena-owned begin/observe/assume/directive/export/end calls.
 It copies expression identities into the record; the arena must outlive export.
-Python uses the same owner and records supported constructor, arithmetic and
+Supported initial arena symbol facts are snapshotted into declarations; composite
+or foreign initial contexts are refused. Python uses the same owner and records
+supported constructor, arithmetic and
 expression-method calls through the scalar result boundary:
 
 ```python

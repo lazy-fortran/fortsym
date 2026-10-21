@@ -161,6 +161,12 @@ contains
         self%steps(self%n)%label=''
         self%steps(self%n)%inputs=ids
         self%steps(self%n)%value=value
+        if (operation=='symbol') then
+            do k=1,self%context%n
+                if (self%context%ids(k)==value%id) &
+                    self%steps(self%n)%facts=self%context%facts(k)
+            end do
+        end if
         ok=.true.
         why=''
     end subroutine

@@ -22,6 +22,37 @@ with tempfile.TemporaryDirectory() as tmp:
         path.write_text(record.source)
         subprocess.run([sys.executable, '-S', str(path)], env=env, check=True,
                        capture_output=True, timeout=30)
+    # Initial arena facts are configuration, not invented operation history.
+    with Arena() as arena:
+        x = arena.symbol('initial_x')
+        arena.assume(x, 2)
+        with Derivation(digest, arena=arena) as record:
+            x = arena.symbol('initial_x')
+            root = arena.function('sqrt', [x*x]).simplify()
+            record.name('positive_root', root)
+        path.write_text(record.source)
+        subprocess.run([sys.executable, '-S', str(path)], env=env, check=True,
+                       capture_output=True, timeout=30)
+        try:
+            import sympy
+        except ImportError:
+            sympy = None
+        if sympy is not None and sympy.__version__ == '1.14.0':
+            ordinary = dict(os.environ, FORTSYM_REPLAY_BACKEND='sympy')
+            ordinary.pop('FORTSYM_LIBRARY', None)
+            ordinary.pop('PYTHONPATH', None)
+            subprocess.run([sys.executable, str(path)], env=ordinary, check=True,
+                           capture_output=True, timeout=30)
+    with Arena() as arena:
+        x = arena.symbol('composite_x')
+        arena.assume(x + 1, 2)
+        try:
+            with Derivation(digest, arena=arena):
+                pass
+        except FortSymError as error:
+            assert 'initial assumption context' in str(error)
+        else:
+            raise AssertionError('unsupported initial condition was dropped')
     for mode in ('budget', 'foreign', 'unsupported', 'late', 'unrecorded', 'redefinition', 'nul', 'label'):
         with Arena() as arena, Arena() as foreign:
             existing = arena.symbol('existing')
