@@ -22,7 +22,7 @@ Nothing else. If this table grows, the licence review in `COMPATIBILITY.md` §6
 applies.
 
 The corpus parity repairs in `fortsym_print`, `fortsym_wl`, and
-`fortsym_series_guard` are original corrections to expression precedence,
+`src/algebra/fortsym_series_guard.f90` are original corrections to expression precedence,
 exact iterator typing, and the existing Taylor validity boundary. Rational
 `Table` iteration reuses `fortsym_wl_num`'s arithmetic progression, with its
 own expansion budget; no external implementation or tests were adapted.
