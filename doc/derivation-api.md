@@ -60,6 +60,10 @@ recorded obligations, not assertions that an arbitrary parameter satisfies them.
 proof. Observed intermediate equality is replay evidence; independent residual
 and domain witnesses remain necessary.
 
+The audited native function heads are unary sin, cos, tan, exp, log, sqrt, abs,
+sign and conjugate; other heads/arity are explicitly refused. Native uninterpreted
+functions need a distinct semantic owner before they can be exported safely.
+
 The v1 supported scope is exact scalar operations with one declaration per
 symbol name in one scope, NUL-free ASCII names/labels, and
 positive facts from the native vocabulary. Contradictory facts, changed facts

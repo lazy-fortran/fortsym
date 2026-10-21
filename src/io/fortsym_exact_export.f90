@@ -7,8 +7,18 @@ module fortsym_exact_export
     use fortsym_string, only: chars
     implicit none
     private
-    public :: exact_expr_ir, exact_python, exportable_text
+    public :: exact_expr_ir, exact_python, exportable_text, exact_function_supported
 contains
+    logical function exact_function_supported(name,arity) result(ok)
+        character(*), intent(in) :: name
+        integer, intent(in) :: arity
+        ok=.false.
+        select case(name)
+        case('sin','cos','tan','exp','log','sqrt','abs','sign','conjugate')
+            ok=arity==1
+        end select
+    end function
+
     logical function exportable_text(text) result(ok)
         character(*), intent(in) :: text
         integer :: k
@@ -97,6 +107,11 @@ contains
         case(NK_MUL); tag='mul'
         case(NK_POW); tag='pow'
         case(NK_FUNC)
+            if (.not. exact_function_supported(chars(e%name()),e%nargs())) then
+                ok=.false.
+                why='exact export: unsupported function head/arity '//chars(e%name())
+                return
+            end if
             tag='function'
             text=chars(e%name())
             if (text == 'abs') text='Abs'
