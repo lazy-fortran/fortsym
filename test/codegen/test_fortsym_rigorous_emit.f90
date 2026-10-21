@@ -157,7 +157,7 @@ contains
         end if
         inquire (file=rtdir//"/fortsym_ball_runtime.f90", exist=there)
         call check("reference runtimes found", there)
-        workdir = "/tmp/fortsym_rigorous_emit"
+        workdir = "./fortsym_rigorous_emit"
         call execute_command_line("mkdir -p "//workdir, exitstat=stat)
     end subroutine locate_dirs
 

@@ -96,7 +96,7 @@ contains
         integer :: unit, stat
 
         call a%init()
-        open (newunit=unit, file="/tmp/fortsym_kind_alias.f90", &
+        open (newunit=unit, file="./fortsym_kind_alias.f90", &
             status="replace", action="write")
 
         ! Names are legal, including collisions with successive fallback
@@ -152,11 +152,11 @@ contains
         write (unit, "(a)") "end program drive_kind_alias"
         close (unit)
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_kind_alias /tmp/fortsym_kind_alias.f90 "// &
-            "> /tmp/fortsym_kind_alias.log 2>&1", wait=.true., exitstat=stat)
+            "gfortran -o ./fortsym_kind_alias ./fortsym_kind_alias.f90 "// &
+            "> ./fortsym_kind_alias.log 2>&1", wait=.true., exitstat=stat)
         call ok("colliding real64 kind names compile", stat == 0)
         if (stat /= 0) return
-        call execute_command_line("/tmp/fortsym_kind_alias", &
+        call execute_command_line("./fortsym_kind_alias", &
             wait=.true., exitstat=stat)
         call ok("colliding real64 kind names match independent values", stat == 0)
     end subroutine test_real64_kind_alias_hygiene
@@ -202,7 +202,7 @@ contains
         symbolic_code = chars(emit_kernel(symbolic, spec, good))
         call ok("symbolic exponent derivative emits", good)
         if (.not. good) return
-        open (newunit=unit, file="/tmp/fortsym_polynomial_derivatives.f90", &
+        open (newunit=unit, file="./fortsym_polynomial_derivatives.f90", &
             status="replace", action="write")
         write (unit, '(a)') code
         write (unit, '(a)') symbolic_code
@@ -233,14 +233,14 @@ contains
         write (unit, '(a)') "end program drive_polynomial_derivatives"
         close (unit)
         call execute_command_line("gfortran -O2 -fno-fast-math "// &
-            "-ffp-contract=off -o /tmp/fortsym_polynomial_derivatives "// &
-            "/tmp/fortsym_polynomial_derivatives.f90 "// &
-            "> /tmp/fortsym_polynomial_derivatives.log 2>&1", &
+            "-ffp-contract=off -o ./fortsym_polynomial_derivatives "// &
+            "./fortsym_polynomial_derivatives.f90 "// &
+            "> ./fortsym_polynomial_derivatives.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("repeated polynomial derivatives compile", stat == 0)
         if (stat /= 0) return
-        call execute_command_line("/tmp/fortsym_polynomial_derivatives "// &
-            ">> /tmp/fortsym_polynomial_derivatives.log 2>&1", &
+        call execute_command_line("./fortsym_polynomial_derivatives "// &
+            ">> ./fortsym_polynomial_derivatives.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("literal-exponent derivatives retain real domains and exact values", &
             stat == 0)
@@ -288,7 +288,7 @@ contains
                 code = chars(emit_kernel(roots, spec, good))
                 call ok("constant quotient kernel emits", good)
                 if (.not. good) cycle
-                open (newunit=unit, file="/tmp/fortsym_exact_quotients.f90", &
+                open (newunit=unit, file="./fortsym_exact_quotients.f90", &
                     status="replace", action="write")
                 write (unit, '(a)') code
                 write (unit, '(a)') "program drive_exact_quotients"
@@ -310,14 +310,14 @@ contains
                     command = "gfortran "
                     if (flags == 2) command = command// &
                         "-O2 -fno-fast-math -ffp-contract=off "
-                    command = command//"-o /tmp/fortsym_exact_quotients "// &
-                        "/tmp/fortsym_exact_quotients.f90 "// &
-                        "> /tmp/fortsym_exact_quotients.log 2>&1"
+                    command = command//"-o ./fortsym_exact_quotients "// &
+                        "./fortsym_exact_quotients.f90 "// &
+                        "> ./fortsym_exact_quotients.log 2>&1"
                     call execute_command_line(command, wait=.true., exitstat=stat)
                     call ok("constant quotient kernel compiles", stat == 0)
                     if (stat /= 0) cycle
-                    call execute_command_line("/tmp/fortsym_exact_quotients "// &
-                        ">> /tmp/fortsym_exact_quotients.log 2>&1", &
+                    call execute_command_line("./fortsym_exact_quotients "// &
+                        ">> ./fortsym_exact_quotients.log 2>&1", &
                         wait=.true., exitstat=stat)
                     call ok("constant quotients match independent rational oracle", &
                         stat == 0)
@@ -452,7 +452,7 @@ contains
         none_code = chars(emit_kernel(roots, spec))
         call ok("CSE-none emits no temporaries", index(none_code, "real(dp) :: t") == 0)
 
-        open (newunit=unit, file="/tmp/fortsym_cse_policies.f90", &
+        open (newunit=unit, file="./fortsym_cse_policies.f90", &
             status="replace", action="write", iostat=ios)
         call ok("CSE policy fixture opens", ios == 0)
         if (ios /= 0) return
@@ -473,11 +473,11 @@ contains
         write (unit, "(a)") "end program drive_cse_policies"
         close (unit)
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_cse_policies /tmp/fortsym_cse_policies.f90 "// &
-            "> /tmp/fortsym_cse_policies.log 2>&1", wait=.true., exitstat=stat)
+            "gfortran -o ./fortsym_cse_policies ./fortsym_cse_policies.f90 "// &
+            "> ./fortsym_cse_policies.log 2>&1", wait=.true., exitstat=stat)
         call ok("CSE policy variants compile", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_cse_policies", wait=.true., &
+            call execute_command_line("./fortsym_cse_policies", wait=.true., &
                 exitstat=stat)
             call ok("CSE policy variants match independent oracle", stat == 0)
         end if
@@ -627,7 +627,7 @@ contains
         call ok("real algebraic kernel has source", good .and. len(code) > 0)
         if (.not. good) return
 
-        open (newunit=unit, file="/tmp/fortsym_real_algebraic.f90", &
+        open (newunit=unit, file="./fortsym_real_algebraic.f90", &
             status="replace", action="write", iostat=ios)
         call ok("real algebraic fixture opens", ios == 0)
         if (ios /= 0) return
@@ -641,12 +641,12 @@ contains
         write (unit, "(a)") "end program drive_real_algebraic"
         close (unit)
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_real_algebraic "// &
-            "/tmp/fortsym_real_algebraic.f90 > /tmp/fortsym_real_algebraic.log 2>&1", &
+            "gfortran -o ./fortsym_real_algebraic "// &
+            "./fortsym_real_algebraic.f90 > ./fortsym_real_algebraic.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("real algebraic kernel compiles", stat == 0)
         if (stat /= 0) return
-        call execute_command_line("/tmp/fortsym_real_algebraic", wait=.true., &
+        call execute_command_line("./fortsym_real_algebraic", wait=.true., &
             exitstat=stat)
         call ok("real algebraic kernel matches independent sqrt(2) oracle", &
             stat == 0)
@@ -699,7 +699,7 @@ contains
         call ok("real32 does not use the double kind", &
             index(code, "real(dp)") == 0)
 
-        open (newunit=unit, file="/tmp/fortsym_gen_real32.f90", &
+        open (newunit=unit, file="./fortsym_gen_real32.f90", &
             status="replace", action="write", iostat=ios)
         call ok("real32 fixture opens", ios == 0)
         if (ios /= 0) return
@@ -715,12 +715,12 @@ contains
         write (unit, "(a)") "end program drive_real32"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o /tmp/fortsym_gen_real32 "// &
-            "/tmp/fortsym_gen_real32.f90 > /tmp/fortsym_gen_real32.log 2>&1", &
+            "gfortran -J /tmp -o ./fortsym_gen_real32 "// &
+            "./fortsym_gen_real32.f90 > ./fortsym_gen_real32.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("real32 generated kernel compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_gen_real32", wait=.true., &
+            call execute_command_line("./fortsym_gen_real32", wait=.true., &
                 exitstat=stat)
             call ok("real32 generated kernel runs", stat == 0)
         end if
@@ -732,7 +732,7 @@ contains
             index(code, "real(real64), intent(out) :: r") > 0 .and. &
             index(code, "_real32") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_gen_mixed.f90", &
+        open (newunit=unit, file="./fortsym_gen_mixed.f90", &
             status="replace", action="write", iostat=ios)
         call ok("mixed fixture opens", ios == 0)
         if (ios /= 0) return
@@ -749,12 +749,12 @@ contains
         write (unit, "(a)") "end program drive_mixed"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o /tmp/fortsym_gen_mixed "// &
-            "/tmp/fortsym_gen_mixed.f90 > /tmp/fortsym_gen_mixed.log 2>&1", &
+            "gfortran -J /tmp -o ./fortsym_gen_mixed "// &
+            "./fortsym_gen_mixed.f90 > ./fortsym_gen_mixed.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("mixed generated kernel compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_gen_mixed", wait=.true., &
+            call execute_command_line("./fortsym_gen_mixed", wait=.true., &
                 exitstat=stat)
             call ok("mixed generated kernel runs", stat == 0)
         end if
@@ -855,7 +855,7 @@ contains
         call ok("module wrapper closes", &
             index(code, "end module generated_k") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_gen_module.f90", &
+        open (newunit=unit, file="./fortsym_gen_module.f90", &
             status="replace", action="write", iostat=ios)
         if (ios /= 0) then
             call ok("module wrapper fixture opens", .false.)
@@ -872,12 +872,12 @@ contains
         write (unit, "(a)") "end program drive_module"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o /tmp/fortsym_gen_module "// &
-            "/tmp/fortsym_gen_module.f90 > /tmp/fortsym_gen_module.log 2>&1", &
+            "gfortran -J /tmp -o ./fortsym_gen_module "// &
+            "./fortsym_gen_module.f90 > ./fortsym_gen_module.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("module-wrapped kernel compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_gen_module", wait=.true., &
+            call execute_command_line("./fortsym_gen_module", wait=.true., &
                 exitstat=stat)
             call ok("module-wrapped kernel runs", stat == 0)
         end if
@@ -896,7 +896,7 @@ contains
         spec%module_name = str("generated_clamp_zero")
         code = chars(emit_kernel(roots, spec))
 
-        open (newunit=unit, file="/tmp/fortsym_gen_intrinsic.f90", &
+        open (newunit=unit, file="./fortsym_gen_intrinsic.f90", &
             status="replace", action="write", iostat=ios)
         if (ios /= 0) then
             call ok("intrinsic fixture opens", .false.)
@@ -915,13 +915,13 @@ contains
         write (unit, "(a)") "end program drive_intrinsic"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o /tmp/fortsym_gen_intrinsic "// &
-            "/tmp/fortsym_gen_intrinsic.f90 "// &
-            "> /tmp/fortsym_gen_intrinsic.log 2>&1", &
+            "gfortran -J /tmp -o ./fortsym_gen_intrinsic "// &
+            "./fortsym_gen_intrinsic.f90 "// &
+            "> ./fortsym_gen_intrinsic.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("real intrinsic literal kernel compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_gen_intrinsic", &
+            call execute_command_line("./fortsym_gen_intrinsic", &
                 wait=.true., exitstat=stat)
             call ok("real intrinsic literal kernel runs", stat == 0)
         end if
@@ -952,7 +952,7 @@ contains
             index(code, "x(1.0") == 0)
         call ok("subscript is emitted as an integer", index(code, "x(1)") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_gen_subscript.f90", &
+        open (newunit=unit, file="./fortsym_gen_subscript.f90", &
             status="replace", action="write", iostat=ios)
         if (ios /= 0) then
             call ok("subscript fixture opens", .false.)
@@ -969,13 +969,13 @@ contains
         write (unit, "(a)") "end program drive_subscript"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o /tmp/fortsym_gen_subscript "// &
-            "/tmp/fortsym_gen_subscript.f90 "// &
-            "> /tmp/fortsym_gen_subscript.log 2>&1", &
+            "gfortran -J /tmp -o ./fortsym_gen_subscript "// &
+            "./fortsym_gen_subscript.f90 "// &
+            "> ./fortsym_gen_subscript.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("indexed kernel compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_gen_subscript", &
+            call execute_command_line("./fortsym_gen_subscript", &
                 wait=.true., exitstat=stat)
             call ok("indexed kernel runs", stat == 0)
         end if
@@ -999,7 +999,7 @@ contains
         call ok("complex outputs are declared", &
             index(code, "complex(dp), intent(out) :: value") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_gen_complex.f90", &
+        open (newunit=unit, file="./fortsym_gen_complex.f90", &
             status="replace", action="write", iostat=ios)
         if (ios /= 0) then
             call ok("complex kernel fixture opens", .false.)
@@ -1018,12 +1018,12 @@ contains
         write (unit, "(a)") "end program drive_complex"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o /tmp/fortsym_gen_complex "// &
-            "/tmp/fortsym_gen_complex.f90 > /tmp/fortsym_gen_complex.log 2>&1", &
+            "gfortran -J /tmp -o ./fortsym_gen_complex "// &
+            "./fortsym_gen_complex.f90 > ./fortsym_gen_complex.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("complex generated kernel compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_gen_complex", wait=.true., &
+            call execute_command_line("./fortsym_gen_complex", wait=.true., &
                 exitstat=stat)
             call ok("complex generated kernel runs", stat == 0)
         end if
@@ -1050,7 +1050,7 @@ contains
         call ok("mixed real input is declared", &
             index(code, "real(dp), intent(in) :: r") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_gen_mixed.f90", &
+        open (newunit=unit, file="./fortsym_gen_mixed.f90", &
             status="replace", action="write", iostat=ios)
         if (ios /= 0) then
             call ok("mixed kernel fixture opens", .false.)
@@ -1067,12 +1067,12 @@ contains
         write (unit, "(a)") "end program drive_mixed"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o /tmp/fortsym_gen_mixed "// &
-            "/tmp/fortsym_gen_mixed.f90 > /tmp/fortsym_gen_mixed.log 2>&1", &
+            "gfortran -J /tmp -o ./fortsym_gen_mixed "// &
+            "./fortsym_gen_mixed.f90 > ./fortsym_gen_mixed.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("mixed generated kernel compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_gen_mixed", wait=.true., &
+            call execute_command_line("./fortsym_gen_mixed", wait=.true., &
                 exitstat=stat)
             call ok("mixed kernel preserves intrinsic quotient", stat == 0)
         end if
@@ -1103,7 +1103,7 @@ contains
         call ok("array output reference", &
             index(code, "jvp(1) = v(1)*x(1)") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_gen_array.f90", &
+        open (newunit=unit, file="./fortsym_gen_array.f90", &
             status="replace", action="write", iostat=ios)
         if (ios /= 0) then
             call ok("array kernel fixture opens", .false.)
@@ -1121,12 +1121,12 @@ contains
         write (unit, "(a)") "end program drive_array"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o /tmp/fortsym_gen_array "// &
-            "/tmp/fortsym_gen_array.f90 > /tmp/fortsym_gen_array.log 2>&1", &
+            "gfortran -J /tmp -o ./fortsym_gen_array "// &
+            "./fortsym_gen_array.f90 > ./fortsym_gen_array.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("array-shaped generated kernel compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_gen_array", wait=.true., &
+            call execute_command_line("./fortsym_gen_array", wait=.true., &
                 exitstat=stat)
             call ok("array-shaped generated kernel runs", stat == 0)
         end if
@@ -1161,7 +1161,7 @@ contains
         call ok("rank-two output declaration", &
             index(code, "intent(out) :: jvp(2,2)") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_gen_matrix.f90", &
+        open (newunit=unit, file="./fortsym_gen_matrix.f90", &
             status="replace", action="write", iostat=ios)
         if (ios /= 0) then
             call ok("rank-two kernel fixture opens", .false.)
@@ -1180,12 +1180,12 @@ contains
         write (unit, "(a)") "end program drive_matrix"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o /tmp/fortsym_gen_matrix "// &
-            "/tmp/fortsym_gen_matrix.f90 > /tmp/fortsym_gen_matrix.log 2>&1", &
+            "gfortran -J /tmp -o ./fortsym_gen_matrix "// &
+            "./fortsym_gen_matrix.f90 > ./fortsym_gen_matrix.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("rank-two generated kernel compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_gen_matrix", wait=.true., &
+            call execute_command_line("./fortsym_gen_matrix", wait=.true., &
                 exitstat=stat)
             call ok("rank-two generated kernel runs", stat == 0)
         end if
@@ -1215,7 +1215,7 @@ contains
         call ok("second array element assigned", &
             index(code, "y(2) = x*2") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_gen_array_fill.f90", &
+        open (newunit=unit, file="./fortsym_gen_array_fill.f90", &
             status="replace", action="write", iostat=ios)
         if (ios /= 0) then
             call ok("multi-element array fixture opens", .false.)
@@ -1232,14 +1232,14 @@ contains
         write (unit, "(a)") "end program drive_array_fill"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o /tmp/fortsym_gen_array_fill "// &
-            "/tmp/fortsym_gen_array_fill.f90 "// &
-            "> /tmp/fortsym_gen_array_fill.log 2>&1", &
+            "gfortran -J /tmp -o ./fortsym_gen_array_fill "// &
+            "./fortsym_gen_array_fill.f90 "// &
+            "> ./fortsym_gen_array_fill.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("multi-element array kernel compiles", stat == 0)
         if (stat == 0) then
             call execute_command_line( &
-                "/tmp/fortsym_gen_array_fill", wait=.true., exitstat=stat)
+                "./fortsym_gen_array_fill", wait=.true., exitstat=stat)
             call ok("multi-element array kernel runs", stat == 0)
         end if
     end subroutine test_multi_element_array_output
@@ -1261,7 +1261,7 @@ contains
         call ok("pure elemental declaration", &
             index(code, "pure elemental subroutine elemental_product") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_gen_elemental.f90", &
+        open (newunit=unit, file="./fortsym_gen_elemental.f90", &
             status="replace", action="write", iostat=ios)
         if (ios /= 0) then
             call ok("elemental kernel fixture opens", .false.)
@@ -1279,13 +1279,13 @@ contains
         write (unit, "(a)") "end program drive_elemental"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o /tmp/fortsym_gen_elemental "// &
-            "/tmp/fortsym_gen_elemental.f90 "// &
-            "> /tmp/fortsym_gen_elemental.log 2>&1", wait=.true., &
+            "gfortran -J /tmp -o ./fortsym_gen_elemental "// &
+            "./fortsym_gen_elemental.f90 "// &
+            "> ./fortsym_gen_elemental.log 2>&1", wait=.true., &
             exitstat=stat)
         call ok("pure elemental generated kernel compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_gen_elemental", &
+            call execute_command_line("./fortsym_gen_elemental", &
                 wait=.true., exitstat=stat)
             call ok("pure elemental generated kernel maps arrays", stat == 0)
         end if
@@ -1347,7 +1347,7 @@ contains
             index(code, "!$omp declare target") > 0 .and. &
             index(code, "!$acc routine seq") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_gen_device_leaf.f90", &
+        open (newunit=unit, file="./fortsym_gen_device_leaf.f90", &
             status="replace", action="write", iostat=ios)
         if (ios /= 0) then
             call ok("device leaf fixture opens", .false.)
@@ -1356,9 +1356,9 @@ contains
         write (unit, "(a)") code
         close (unit)
         call execute_command_line( &
-            "gfortran -fopenmp -c -J /tmp -o /tmp/fortsym_gen_device_leaf.o "// &
-            "/tmp/fortsym_gen_device_leaf.f90 "// &
-            "> /tmp/fortsym_gen_device_leaf.log 2>&1", &
+            "gfortran -fopenmp -c -J /tmp -o ./fortsym_gen_device_leaf.o "// &
+            "./fortsym_gen_device_leaf.f90 "// &
+            "> ./fortsym_gen_device_leaf.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("OpenMP-annotated generated leaf compiles", stat == 0)
     end subroutine test_device_leaf_annotations
@@ -1515,7 +1515,7 @@ contains
         repeat_code = chars(emit_kernel(roots, spec, message=message))
         call ok("case collision emission is deterministic", code == repeat_code)
 
-        open (newunit=unit, file="/tmp/fortsym_case_collision.f90", &
+        open (newunit=unit, file="./fortsym_case_collision.f90", &
             status="replace", action="write", iostat=ios)
         call ok("case collision fixture opens", ios == 0)
         if (ios /= 0) return
@@ -1529,11 +1529,11 @@ contains
         write (unit, "(a)") "end program drive_case_collision"
         close (unit)
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_case_collision /tmp/fortsym_case_collision.f90 "// &
-            "> /tmp/fortsym_case_collision.log 2>&1", wait=.true., exitstat=stat)
+            "gfortran -o ./fortsym_case_collision ./fortsym_case_collision.f90 "// &
+            "> ./fortsym_case_collision.log 2>&1", wait=.true., exitstat=stat)
         call ok("case-collision Fortran compiles", stat == 0)
         if (stat /= 0) return
-        call execute_command_line("/tmp/fortsym_case_collision", wait=.true., &
+        call execute_command_line("./fortsym_case_collision", wait=.true., &
             exitstat=stat)
         call ok("case-collision kernel preserves distinct values", stat == 0)
     end subroutine test_fortran_symbol_name_boundary
@@ -1781,7 +1781,7 @@ contains
             real_expr(a, 2.0_dp**(-64))
         code = chars(emit_kernel(roots, spec_for("k", XY_ARGS, R_OUT)))
 
-        open (newunit=unit, file="/tmp/fortsym_gen_kernel.f90", &
+        open (newunit=unit, file="./fortsym_gen_kernel.f90", &
             status="replace", action="write", iostat=ios)
         if (ios /= 0) then
             nfail = nfail + 1
@@ -1806,21 +1806,21 @@ contains
         close (unit)
 
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_gen_kernel /tmp/fortsym_gen_kernel.f90"// &
-            " > /tmp/fortsym_gen_kernel.log 2>&1", wait=.true., exitstat=stat)
+            "gfortran -o ./fortsym_gen_kernel ./fortsym_gen_kernel.f90"// &
+            " > ./fortsym_gen_kernel.log 2>&1", wait=.true., exitstat=stat)
         call ok("generated kernel compiles", stat == 0)
         if (stat /= 0) then
-            print *, "   see /tmp/fortsym_gen_kernel.log"
+            print *, "   see ./fortsym_gen_kernel.log"
             return
         end if
 
         call execute_command_line( &
-            "/tmp/fortsym_gen_kernel > /tmp/fortsym_gen_kernel.out 2>&1", &
+            "./fortsym_gen_kernel > ./fortsym_gen_kernel.out 2>&1", &
             wait=.true., exitstat=stat)
         call ok("generated kernel runs", stat == 0)
         if (stat /= 0) return
 
-        open (newunit=unit, file="/tmp/fortsym_gen_kernel.out", &
+        open (newunit=unit, file="./fortsym_gen_kernel.out", &
             status="old", action="read", iostat=ios)
         if (ios /= 0) then
             nfail = nfail + 1
@@ -1919,7 +1919,7 @@ contains
         source = emit_kernel(roots, spec, good)
         call ok("applied bindings remain usable after refusal", good)
 
-        open (newunit=unit, file="/tmp/fortsym_applied_bindings.f90", &
+        open (newunit=unit, file="./fortsym_applied_bindings.f90", &
             status="replace", action="write", iostat=ios)
         call ok("applied binding fixture opens", ios == 0)
         if (ios /= 0) return
@@ -1953,12 +1953,12 @@ contains
         close (unit)
 
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_applied_bindings "// &
-            "/tmp/fortsym_applied_bindings.f90 > /tmp/fortsym_applied_bindings.log 2>&1", &
+            "gfortran -o ./fortsym_applied_bindings "// &
+            "./fortsym_applied_bindings.f90 > ./fortsym_applied_bindings.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("bound applied-function snippet compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_applied_bindings", &
+            call execute_command_line("./fortsym_applied_bindings", &
                 wait=.true., exitstat=stat)
             call ok("bound applied-function snippet matches finite differences", stat == 0)
         end if
@@ -2109,7 +2109,7 @@ contains
         roots(1) = piecewise
         code = chars(emit_kernel(roots, spec, good))
 
-        open (newunit=unit, file="/tmp/fortsym_piecewise_kernel.f90", &
+        open (newunit=unit, file="./fortsym_piecewise_kernel.f90", &
             status="replace", action="write", iostat=ios)
         call ok("piecewise fixture opens", ios == 0)
         if (ios /= 0) return
@@ -2130,12 +2130,12 @@ contains
         close (unit)
 
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_piecewise_kernel "// &
-            "/tmp/fortsym_piecewise_kernel.f90 > /tmp/fortsym_piecewise_kernel.log 2>&1", &
+            "gfortran -o ./fortsym_piecewise_kernel "// &
+            "./fortsym_piecewise_kernel.f90 > ./fortsym_piecewise_kernel.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("piecewise kernel compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_piecewise_kernel", &
+            call execute_command_line("./fortsym_piecewise_kernel", &
                 wait=.true., exitstat=stat)
             call ok("piecewise kernel matches direct branch oracle", stat == 0)
         end if

@@ -100,7 +100,7 @@ contains
         call ok("BesselJ maps to bessel_jn with integer order", &
             index(chars(source), "bessel_jn(0,") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_special_fortran.f90", &
+        open (newunit=unit, file="./fortsym_special_fortran.f90", &
             status="replace", action="write", iostat=ios)
         call ok("special-function fixture opens", ios == 0)
         if (ios /= 0) return
@@ -114,12 +114,12 @@ contains
         write (unit, "(a)") "end program drive_fortsym_special"
         close (unit)
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_special_fortran "// &
-            "/tmp/fortsym_special_fortran.f90 > /tmp/fortsym_special_fortran.log 2>&1", &
+            "gfortran -o ./fortsym_special_fortran "// &
+            "./fortsym_special_fortran.f90 > ./fortsym_special_fortran.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("standard special kernel compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_special_fortran", wait=.true., &
+            call execute_command_line("./fortsym_special_fortran", wait=.true., &
                 exitstat=stat)
             call ok("standard special kernel matches exact-value oracle", stat == 0)
         end if
@@ -198,7 +198,7 @@ contains
         call ok("Fortran emitter writes both roots", &
             index(chars(fortran_source), "s = t3") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_ir_fortran.f90", &
+        open (newunit=unit, file="./fortsym_ir_fortran.f90", &
             status="replace", action="write", iostat=ios)
         call ok("Fortran fixture opens", ios == 0)
         if (ios /= 0) return
@@ -216,11 +216,11 @@ contains
         write (unit, "(a)") "end program drive_fortsym_ir"
         close (unit)
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_ir_fortran /tmp/fortsym_ir_fortran.f90 "// &
-            "> /tmp/fortsym_ir_fortran.log 2>&1", wait=.true., exitstat=stat)
+            "gfortran -o ./fortsym_ir_fortran ./fortsym_ir_fortran.f90 "// &
+            "> ./fortsym_ir_fortran.log 2>&1", wait=.true., exitstat=stat)
         call ok("generated Fortran compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_ir_fortran", wait=.true., &
+            call execute_command_line("./fortsym_ir_fortran", wait=.true., &
                 exitstat=stat)
             call ok("generated Fortran agrees with independent oracle", stat == 0)
         end if
@@ -280,7 +280,7 @@ contains
             return
         end if
 
-        open (newunit=unit, file="/tmp/fortsym_ir_cuda.cu", &
+        open (newunit=unit, file="./fortsym_ir_cuda.cu", &
             status="replace", action="write", iostat=ios)
         call ok("CUDA fixture opens", ios == 0)
         if (ios /= 0) return
@@ -306,16 +306,16 @@ contains
             "nvcc_dir=$(dirname ""$nvcc_path"") && "// &
             "env -i PATH=""$nvcc_dir:/usr/bin:/bin"" HOME=/tmp "// &
             """$nvcc_path"" -arch="//trim(cuda_arch)// &
-            " -O2 -std=c++17 -o /tmp/fortsym_ir_cuda "// &
-            "/tmp/fortsym_ir_cuda.cu "// &
-            "> /tmp/fortsym_ir_cuda.log 2>&1", wait=.true., exitstat=stat)
+            " -O2 -std=c++17 -o ./fortsym_ir_cuda "// &
+            "./fortsym_ir_cuda.cu "// &
+            "> ./fortsym_ir_cuda.log 2>&1", wait=.true., exitstat=stat)
         call ok("generated CUDA compiles", stat == 0)
         if (stat == 0) then
             call execute_command_line( &
                 "nvcc_path=$(command -v nvcc) && "// &
                 "nvcc_dir=$(dirname ""$nvcc_path"") && "// &
                 "env -i PATH=""$nvcc_dir:/usr/bin:/bin"" HOME=/tmp "// &
-                "/tmp/fortsym_ir_cuda", wait=.true., &
+                "./fortsym_ir_cuda", wait=.true., &
                 exitstat=stat)
             call ok("generated CUDA agrees with independent oracle", stat == 0)
         end if
@@ -367,7 +367,7 @@ contains
         call ok("default policy shapes a one-use product", &
             index(default_source, " + (x * y)") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_policy.f90", status="replace", &
+        open (newunit=unit, file="./fortsym_policy.f90", status="replace", &
             action="write", iostat=ios)
         call ok("policy fixture opens", ios == 0)
         if (ios == 0) then
@@ -384,11 +384,11 @@ contains
             write (unit, "(a)") "end program drive_fortsym_policy"
             close (unit)
             call execute_command_line( &
-                "gfortran -o /tmp/fortsym_policy /tmp/fortsym_policy.f90 "// &
-                "> /tmp/fortsym_policy.log 2>&1", wait=.true., exitstat=stat)
+                "gfortran -o ./fortsym_policy ./fortsym_policy.f90 "// &
+                "> ./fortsym_policy.log 2>&1", wait=.true., exitstat=stat)
             call ok("policy-generated Fortran compiles", stat == 0)
             if (stat == 0) then
-                call execute_command_line("/tmp/fortsym_policy", wait=.true., &
+                call execute_command_line("./fortsym_policy", wait=.true., &
                     exitstat=stat)
                 call ok("policy-generated Fortran matches independent oracle", &
                     stat == 0)
@@ -533,7 +533,7 @@ contains
         call ok("table emitter avoids narrow overflow fields", &
             index(chars(source), "****") == 0)
 
-        open (newunit=unit, file="/tmp/fortsym_table.f90", status="replace", &
+        open (newunit=unit, file="./fortsym_table.f90", status="replace", &
             action="write", iostat=ios)
         call ok("table fixture opens", ios == 0)
         if (ios /= 0) return
@@ -548,15 +548,15 @@ contains
         write (unit, "(a)") "end program drive_fortsym_table"
         close (unit)
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_table /tmp/fortsym_table.f90 > /tmp/fortsym_table.log 2>&1", &
+            "gfortran -o ./fortsym_table ./fortsym_table.f90 > ./fortsym_table.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("generated rank-one table compiles", stat == 0)
         if (stat == 0) then
-            call execute_command_line("/tmp/fortsym_table", wait=.true., exitstat=stat)
+            call execute_command_line("./fortsym_table", wait=.true., exitstat=stat)
             call ok("generated rank-one table matches independent values", stat == 0)
         end if
 
-        call parse_fortran_array(arena, "/tmp/fortsym_table.f90", "values", &
+        call parse_fortran_array(arena, "./fortsym_table.f90", "values", &
             parsed, n, good, message)
         call ok("emitted table reads back through fparse", good .and. n == 4)
         if (good) then
@@ -576,7 +576,7 @@ contains
 
         matrix_source = emit_table("matrix", matrix, "real(dp)", ok=good, &
             message=message)
-        open (newunit=unit, file="/tmp/fortsym_matrix.f90", status="replace", &
+        open (newunit=unit, file="./fortsym_matrix.f90", status="replace", &
             action="write", iostat=ios)
         call ok("rank-two fixture opens", ios == 0)
         if (ios == 0) then
@@ -589,11 +589,11 @@ contains
             write (unit, "(a)") "end program drive_fortsym_matrix"
             close (unit)
             call execute_command_line( &
-                "gfortran -o /tmp/fortsym_matrix /tmp/fortsym_matrix.f90 > /tmp/fortsym_matrix.log 2>&1", &
+                "gfortran -o ./fortsym_matrix ./fortsym_matrix.f90 > ./fortsym_matrix.log 2>&1", &
                 wait=.true., exitstat=stat)
             call ok("generated rank-two table compiles", stat == 0)
             if (stat == 0) then
-                call execute_command_line("/tmp/fortsym_matrix", wait=.true., exitstat=stat)
+                call execute_command_line("./fortsym_matrix", wait=.true., exitstat=stat)
                 call ok("generated rank-two table matches independent values", stat == 0)
             end if
         end if
@@ -605,7 +605,7 @@ contains
         call ok("quadratic table emitter accepts exact values", good)
         call ok("quadratic table preserves radicals", &
             index(chars(quadratic_source), "sqrt(6.0d0)") > 0)
-        open (newunit=unit, file="/tmp/fortsym_quadratic_table.f90", status="replace", &
+        open (newunit=unit, file="./fortsym_quadratic_table.f90", status="replace", &
             action="write", iostat=ios)
         call ok("quadratic fixture opens", ios == 0)
         if (ios == 0) then
@@ -618,13 +618,13 @@ contains
             write (unit, "(a)") "end program drive_fortsym_quadratic"
             close (unit)
             call execute_command_line( &
-                "gfortran -o /tmp/fortsym_quadratic_table "// &
-                "/tmp/fortsym_quadratic_table.f90 > "// &
-                "/tmp/fortsym_quadratic_table.log 2>&1", &
+                "gfortran -o ./fortsym_quadratic_table "// &
+                "./fortsym_quadratic_table.f90 > "// &
+                "./fortsym_quadratic_table.log 2>&1", &
                 wait=.true., exitstat=stat)
             call ok("generated quadratic table compiles", stat == 0)
             if (stat == 0) then
-                call execute_command_line("/tmp/fortsym_quadratic_table", wait=.true., exitstat=stat)
+                call execute_command_line("./fortsym_quadratic_table", wait=.true., exitstat=stat)
                 call ok("generated quadratic table matches independent values", stat == 0)
             end if
         end if
