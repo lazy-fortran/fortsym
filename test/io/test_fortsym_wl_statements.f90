@@ -26,6 +26,7 @@ program test_fortsym_wl_statements
     call test_explicit_trig_simplify()
     call test_recursive_function()
     call test_scope_refusal()
+    call test_part_assignment()
     call test_piecewise_evaluation()
     call test_boole_evaluation()
     call test_which_evaluation()
@@ -290,6 +291,21 @@ contains
             "value = D[f, x]"//char(10), &
             "failed binding f: Sum needs bounded integer iterators")
     end subroutine test_scope_refusal
+
+    subroutine test_part_assignment()
+        call expect("row assignment changes exact matrix rank", &
+            "a = {{1, 2}, {3, 4}}; g = a; g[[2]] = g[[1]]; "// &
+            "value = MatrixRank[g]", "value", "1")
+        call expect("row assignment preserves the original matrix", &
+            "a = {{1, 2}, {3, 4}}; g = a; g[[2]] = g[[1]]; "// &
+            "value = Det[a]", "value", "-2")
+        call expect("nested negative Part assignment", &
+            "a = {{1, 2}, {3, 4}}; a[[-1, 1]] = 7; "// &
+            "value = Det[a]", "value", "-10")
+        call expect_refusal("invalid assignment cannot preserve stale values", &
+            "a = {1, 2}; a[[3]] = 7; value = D[a, x]", &
+            "failed binding a: Part assignment index is out of range")
+    end subroutine test_part_assignment
 
     !> Piecewise branch selection is checked against direct numeric cases.
     !> The expected values are independent of the evaluator implementation.
