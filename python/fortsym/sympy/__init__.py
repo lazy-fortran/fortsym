@@ -1594,7 +1594,12 @@ class Function(Expr, metaclass=_KindMeta):
                 _default().function(str(name), arguments), args
             )
 
+        if _default()._derivation is not None:
+            _default()._derivation.refuse('uninterpreted function recording is unsupported')
+
         def applied(*arguments):
+            if _default()._derivation is not None:
+                _default()._derivation.refuse('uninterpreted function recording is unsupported')
             values = [_coerce(arg) for arg in arguments]
             return _attach_pattern(
                 _default().function(str(name), values), arguments

@@ -53,7 +53,7 @@ with tempfile.TemporaryDirectory() as tmp:
             assert 'initial assumption context' in str(error)
         else:
             raise AssertionError('unsupported initial condition was dropped')
-    for mode in ('budget', 'foreign', 'unsupported', 'late', 'unrecorded', 'redefinition', 'nul', 'label'):
+    for mode in ('budget', 'foreign', 'unsupported', 'late', 'unrecorded', 'redefinition', 'nul', 'label', 'function', 'arity'):
         with Arena() as arena, Arena() as foreign:
             existing = arena.symbol('existing')
             try:
@@ -71,6 +71,10 @@ with tempfile.TemporaryDirectory() as tmp:
                         arena.symbol('a\x00b')
                     elif mode == 'label':
                         record.name('a\x00b', x)
+                    elif mode == 'function':
+                        arena.function('atan2', [x, x])
+                    elif mode == 'arity':
+                        arena.function('sin', [x, x])
                     elif mode == 'late':
                         result = x + arena.integer(1)
                         arena.assume(x, 2)
@@ -80,4 +84,17 @@ with tempfile.TemporaryDirectory() as tmp:
                 assert 'derivation' in str(error) or 'record' in str(error)
             else:
                 raise AssertionError('unsupported recording succeeded: '+mode)
+import fortsym.sympy as sp
+undefined_sine = sp.Function('sin')
+for construct in (False, True):
+    try:
+        with Derivation(digest):
+            if construct:
+                sp.Function('sin')
+            else:
+                undefined_sine(sp.Symbol('shadowed_sine'))
+    except FortSymError as error:
+        assert 'uninterpreted function' in str(error)
+    else:
+        raise AssertionError('undefined function silently became a builtin')
 print('native-only standalone export and refusal cases PASS')
