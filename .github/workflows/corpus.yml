@@ -30,7 +30,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: lazy-fortran/fortsym-bench
-          ref: b823a5c6678a1df6571c52940008a54ccd07f905
+          ref: 2f14462ad3e03b43338409f64006b1a8765f8a42
           path: bench
 
       - uses: cachix/install-nix-action@v31
@@ -89,7 +89,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: lazy-fortran/fortsym-bench
-          ref: b823a5c6678a1df6571c52940008a54ccd07f905
+          ref: 2f14462ad3e03b43338409f64006b1a8765f8a42
           path: bench
       - uses: actions/setup-python@v5
         with:
