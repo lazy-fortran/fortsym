@@ -38,9 +38,12 @@ module fortsym_kernel_emit
     use fortgen_kernel_target, only: fg_target_from_name => target_from_name
     use fortgen_precision, only: fg_precision_from_name => precision_from_name
     use fortgen_string, only: fg_str_t => str_t, fg_str => str, fg_chars => chars
+    use fortgen_precision_emit, only: fg_emit_family => emit_cpu_precision_variants
+    use fortsym_kernel_ir, only: lower_kernel_ir
     implicit none
     private
 
+    public :: emit_cpu_precision_kernels
     public :: kernel_emission_policy_t, kernel_emit_spec_t
     public :: emit_fortran_kernel_ir, emit_cuda_device_ir, emit_python_kernel_ir
     public :: emit_fortran_batch_ir
@@ -142,6 +145,30 @@ module fortsym_kernel_emit
     end type kernel_emit_spec_t
 
 contains
+
+    function emit_cpu_precision_kernels(roots, spec, ok, message, compute) result(source)
+        !! Lower the mathematical definition once; FortGen owns format emission.
+        type(expr_t), intent(in) :: roots(:)
+        type(kernel_emit_spec_t), intent(in) :: spec
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        integer, intent(in), optional :: compute
+        type(str_t) :: source
+        type(kernel_ir_t) :: ir
+        type(fg_kernel_ir_t) :: fg_ir
+        type(fg_kernel_emit_spec_t) :: fg_spec
+        type(fg_str_t) :: emitted
+        source = str('')
+        call lower_kernel_ir(roots, ir, ok, message)
+        if (.not. ok) return
+        call to_fortgen_kernel_ir(ir, fg_ir, ok, message)
+        if (.not. ok) return
+        call map_fortgen_spec(spec, fg_spec, ok, message)
+        if (.not. ok) return
+        emitted = fg_emit_family(fg_ir, fg_spec, ok, message, compute)
+        if (ok) source = str(fg_chars(emitted))
+    end function emit_cpu_precision_kernels
+
 
     !> Emit a typed rank-one constant table. Every value goes through the same
     !> Fortran renderer used by kernel emission; comments are placed after the
