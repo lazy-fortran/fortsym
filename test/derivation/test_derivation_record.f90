@@ -74,6 +74,9 @@ program test_derivation_record
     call require(ok,why)
     call negative%assume(x,FACT_POSITIVE,ok,why)
     if (ok) error stop 'late assumption accepted'
+    call negative%init(arena,trim(hash))
+    value=negative%apply('symbol',[expr_t::],'a'//achar(0)//'b',ok,why)
+    if (ok .or. index(why,'NUL-free')==0) error stop 'NUL name accepted'
     print *, 'native ordered recording/export PASS'
 contains
     subroutine require(condition,message)

@@ -7,8 +7,19 @@ module fortsym_exact_export
     use fortsym_string, only: chars
     implicit none
     private
-    public :: exact_expr_ir, exact_python
+    public :: exact_expr_ir, exact_python, exportable_text
 contains
+    logical function exportable_text(text) result(ok)
+        character(*), intent(in) :: text
+        integer :: k
+        ok=.false.
+        if (len(text)>65536 .or. index(text,achar(0))>0) return
+        do k=1,len(text)
+            if (iachar(text(k:k))>127) return
+        end do
+        ok=.true.
+    end function
+
     function exact_python(e, context, ok, why) result(text)
         type(expr_t), intent(in) :: e
         type(assumption_context_t), intent(in) :: context
@@ -93,6 +104,11 @@ contains
             why='exact export: unsupported expression kind (no floating lowering)'
             return
         end select
+        if (.not. exportable_text(text)) then
+            ok=.false.
+            why='exact export: names require NUL-free ASCII text'
+            return
+        end if
         id=ir%add(tag,text,args,ok,why,facts,'')
     end function
 end module
