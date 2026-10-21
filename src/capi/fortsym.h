@@ -92,6 +92,20 @@ enum {
     FORTSYM_FORM_MAX_DEGREE = 4
 };
 
+/* Bounded scalar transcripts; all strings are UTF-8, names in v1 are ASCII. */
+int fortsym_derivation_begin(void *arena, const char *source_sha256, int budget,
+                            char *message, size_t capacity);
+int fortsym_derivation_end(void *arena, char *message, size_t capacity);
+int fortsym_derivation_observe(void *arena, const char *operation,
+    void *const *inputs, const int *input_steps, size_t count, void *observed,
+    const char *literal, int *output_step, char *message, size_t capacity);
+int fortsym_derivation_assume(void *arena, void *expression, int step, int facts,
+                             char *message, size_t capacity);
+int fortsym_derivation_directive(void *arena, const char *operation,
+    void *expression, int step, const char *label, char *message, size_t capacity);
+int fortsym_derivation_export(void *arena, char *buffer, size_t capacity,
+    size_t *required, char *message, size_t message_capacity);
+
 int fortsym_abi_version(void);
 
 int fortsym_arena_new(fortsym_arena **out, char *message, size_t capacity);

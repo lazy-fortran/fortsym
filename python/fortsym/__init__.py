@@ -367,6 +367,19 @@ def _configure(lib):
         function.argtypes = arguments
         return function
 
+    for name, args in {
+        'begin': [_CVOID, ctypes.c_char_p, ctypes.c_int, _CHAR_PTR, _SIZE],
+        'end': [_CVOID, _CHAR_PTR, _SIZE],
+        'observe': [_CVOID, ctypes.c_char_p, ctypes.POINTER(_CVOID),
+                    ctypes.POINTER(ctypes.c_int), _SIZE, _CVOID, ctypes.c_char_p,
+                    ctypes.POINTER(ctypes.c_int), _CHAR_PTR, _SIZE],
+        'assume': [_CVOID, _CVOID, ctypes.c_int, ctypes.c_int, _CHAR_PTR, _SIZE],
+        'directive': [_CVOID, ctypes.c_char_p, _CVOID, ctypes.c_int, ctypes.c_char_p,
+                      _CHAR_PTR, _SIZE],
+        'export': [_CVOID, _CHAR_PTR, _SIZE, ctypes.POINTER(_SIZE), _CHAR_PTR, _SIZE],
+    }.items():
+        setattr(lib, 'derivation_' + name,
+                declare('fortsym_derivation_' + name, ctypes.c_int, args))
     lib.abi_version = declare("fortsym_abi_version", ctypes.c_int, [])
     lib.arena_new = declare("fortsym_arena_new", ctypes.c_int,
                             [ctypes.POINTER(_CVOID), _CHAR_PTR, _SIZE])
@@ -1815,6 +1828,7 @@ class Arena:
         self._lib = _load_library()
         self._handle = _CVOID()
         self._integer_cache = {}
+        self._derivation = None
         self._result_message = _message()
         self._assumption_epoch = 0
         self._algebraic_cache = weakref.WeakSet()
@@ -1861,9 +1875,14 @@ class Arena:
         if status:
             operation = function.__name__.removeprefix("fortsym_")
             raise FortSymError(status, _decode(message), operation)
-        return Expr(self, output)
+        result = Expr(self, output)
+        if self._derivation is not None:
+            self._derivation.result(function, arguments, result)
+        return result
 
     def _verdict(self, function, *arguments):
+        if self._derivation is not None:
+            self._derivation.refuse('use explicit check_zero/check_unknown witnesses')
         verdict = ctypes.c_int()
         message = self._result_message
         status = function(*arguments, ctypes.byref(verdict), message, len(message))
@@ -1927,9 +1946,13 @@ class Arena:
                                   int(fact), message, len(message))
         if status:
             raise FortSymError(status, _decode(message), "assume")
+        if self._derivation is not None:
+            self._derivation.assume(expression, fact)
         self._assumption_changed()
 
     def assume_relation(self, relation: "Expr"):
+        if self._derivation is not None:
+            self._derivation.refuse('relation assumptions are not recorded in scalar v1')
         relation = self._check(relation)
         message = _message()
         status = self._lib.assume_relation(
@@ -1940,6 +1963,8 @@ class Arena:
         self._assumption_changed()
 
     def _assumption_push(self):
+        if self._derivation is not None:
+            self._derivation.refuse('scoped assumptions are not recorded in scalar v1')
         message = _message()
         status = self._lib.assumption_push(
             self._require(), message, len(message)
@@ -1970,7 +1995,10 @@ class Arena:
                                     ctypes.byref(output), message, len(message))
         if status:
             raise FortSymError(status, _decode(message), "function")
-        return Expr(self, output)
+        result = Expr(self, output)
+        if self._derivation is not None:
+            self._derivation.observe('function', [v._handle for v in values], result, name)
+        return result
 
     def _chart_sqrtg(self, coordinates, position):
         coordinate_handles, position_handles = self._chart_inputs(
@@ -4398,6 +4426,9 @@ class Arena:
                 if expression is None:
                     expression = self.integer(value)
                     self._integer_cache[value] = expression
+                elif self._derivation is not None:
+                    if getattr(expression._handle, '_record_owner', None) is not self._derivation:
+                        self._derivation.observe('integer', [], expression, str(value))
                 return expression, None
             expression = self.integer(value)
             return expression, expression
@@ -7425,6 +7456,9 @@ class Expr:
         key = variable.exact_text
         cached = self._diff_results.get(key)
         if cached is not None and cached._handle is not None:
+            if self._arena._derivation is not None:
+                self._arena._derivation.observe(
+                    'differentiate', [self._require(), variable._handle], cached)
             return cached
         raw = self.diff(variable)
         try:
@@ -7439,6 +7473,8 @@ class Expr:
         cached = self._expanded_result
         if (cached is not None and cached._handle is not None and
                 self._expanded_epoch == self._arena._assumption_epoch):
+            if self._arena._derivation is not None:
+                self._arena._derivation.observe('expand', [self._require()], cached)
             return cached
         self._expanded_result = None
         result = self._arena._result(self._lib.expand, self._arena._require(),
@@ -7453,6 +7489,8 @@ class Expr:
         cached = self._simplified_result
         if (cached is not None and cached._handle is not None and
                 self._simplified_epoch == self._arena._assumption_epoch):
+            if self._arena._derivation is not None:
+                self._arena._derivation.observe('simplify', [self._require()], cached)
             return cached
         self._simplified_result = None
         result = self._arena._result(
@@ -8440,6 +8478,7 @@ def trace(expression, first=None, second=None):
 
 
 __all__ = [
+    "Derivation",
     "Arena", "Chart", "ChartMap", "FluxSurface", "FluxCoordinates", "MagneticChart", "MagneticField", "FourierWeakForm", "FourierSource", "FourierLoad", "Metric", "Connection", "SpacetimeMetric", "SpacetimeForm", "SpacetimeTensor", "Tensor", "IndexType", "Index", "Form", "Expr", "FortSymError", "Orientation", "Signature", "Symbol", "symbols", "Integer",
     "FOURIER_INVALID", "FOURIER_LONGITUDINAL", "FOURIER_TRANSVERSE", "SPACE_NONE", "SPACE_NODAL", "SPACE_EDGE", "TRACE_NONE", "TRACE_NORMAL", "TRACE_TANGENTIAL", "FLUX_GENERIC", "FLUX_CLEBSCH", "FLUX_STRAIGHT_FIELD_LINE", "FLUX_BOOZER", "FLUX_HAMADA", "CLEBSCH_RESIDUAL_COUNT", "BOOZER_RESIDUAL_COUNT", "HAMADA_RESIDUAL_COUNT",
     "INDEX_TANGENT", "INDEX_COTANGENT", "INDEX_SPACETIME", "INDEX_INTERNAL", "INDEX_USER",
@@ -8448,3 +8487,5 @@ __all__ = [
     "Rational", "Float", "Function", "diff", "subs", "subs_many", "factor", "together", "cancel", "apart", "collect", "coefficient", "exponent", "polynomial_gcd", "polynomial_quotient", "polynomial_remainder", "integrate", "definite_integral", "sum_closed_form", "product_closed_form", "limit", "series", "series_coeff", "solve", "solve_ode", "solve_univariate_inequality", "det", "minor", "rank", "inv", "transpose", "matrix_conjugate", "matrix_adjoint", "matrix_multiply_elementwise", "nullspace", "rref", "matrix_multiply", "matrix_add", "matrix_subtract", "matrix_negate", "matrix_divide", "linsolve", "linsolve_parametric", "operation_count", "tensor_product", "contract", "trace",
     "free_symbols", "emit_kernel",
 ]
+
+from .derivation import Derivation

@@ -401,3 +401,22 @@ add_executable(test_precision_family codegen/test_precision_family.f90
     ${CMAKE_CURRENT_BINARY_DIR}/symbolic_precision_family.f90)
 target_link_libraries(test_precision_family PRIVATE fortsym fortgen)
 add_test(NAME test_precision_family COMMAND test_precision_family)
+
+add_executable(test_external_assumptions engine/test_external_assumptions.f90)
+target_link_libraries(test_external_assumptions PRIVATE fortsym)
+add_test(NAME test_external_assumptions COMMAND test_external_assumptions)
+set_tests_properties(test_external_assumptions PROPERTIES SKIP_RETURN_CODE 77)
+
+add_executable(test_derivation_record derivation/test_derivation_record.f90)
+target_link_libraries(test_derivation_record PRIVATE fortsym)
+file(SHA256 ${CMAKE_CURRENT_SOURCE_DIR}/derivation/test_derivation_record.f90
+    FORTSYM_DERIVATION_TEST_HASH)
+add_test(NAME test_derivation_record COMMAND test_derivation_record
+    ${CMAKE_CURRENT_BINARY_DIR}/native_derivation.py ${FORTSYM_DERIVATION_TEST_HASH})
+add_test(NAME test_sympy_export COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/python/test_sympy_export.py $<TARGET_FILE:test_derivation_record>)
+add_test(NAME test_sympy_export_roundtrip COMMAND ${Python3_EXECUTABLE}
+    ${CMAKE_CURRENT_SOURCE_DIR}/python/test_derivation_replay.py)
+set_tests_properties(test_sympy_export test_sympy_export_roundtrip PROPERTIES
+    ENVIRONMENT "PYTHONPATH=${PROJECT_SOURCE_DIR}/python;FORTSYM_LIBRARY=$<TARGET_FILE:fortsym>")
+set_tests_properties(test_sympy_export_roundtrip PROPERTIES SKIP_RETURN_CODE 77)

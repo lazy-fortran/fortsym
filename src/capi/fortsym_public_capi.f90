@@ -4,7 +4,9 @@ module fortsym_public_capi
     use, intrinsic :: iso_c_binding, only: c_associated, c_char, c_double, &
         c_int, c_int64_t, c_null_char, c_null_ptr, c_ptr, c_size_t, c_loc, &
         c_f_pointer
-    use fortsym_string, only: str_t
+    use fortsym_assumption_export, only: exportable_assumptions
+    use fortsym_derivation, only: derivation_t
+    use fortsym_string, only: str_t, str
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
         NK_BIG_REAL
@@ -198,6 +200,7 @@ module fortsym_public_capi
 
     type :: arena_owner_t
         type(arena_t) :: value
+        type(derivation_t), allocatable :: derivation
         type(assumption_context_t), pointer :: assumptions => null()
         type(assumption_frame_t), pointer :: assumption_stack => null()
         type(native_engine_t) :: engine
@@ -209,6 +212,8 @@ module fortsym_public_capi
         integer                       :: id = 0
     end type expr_owner_t
 
+    public :: c_derivation_begin, c_derivation_observe, c_derivation_assume, &
+        c_derivation_directive, c_derivation_export, c_derivation_end
     public :: fortsym_abi_version, fortsym_arena_new, fortsym_arena_free
     public :: fortsym_int, fortsym_rational, fortsym_real, fortsym_exact
     public :: fortsym_symbol, c_fortsym_assume, fortsym_assume_relation, &
@@ -347,6 +352,181 @@ module fortsym_public_capi
     public :: fortsym_expr_is_number, fortsym_expr_is_algebraic
 
 contains
+
+    function c_derivation_begin(raw, hash, budget, message, capacity) &
+            bind(c,name="fortsym_derivation_begin") result(status)
+        type(c_ptr), value :: raw
+        character(c_char), intent(in) :: hash(*)
+        integer(c_int), value :: budget
+        character(c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        call get_arena(raw,a,status,message,capacity)
+        if (status/=FORTSYM_OK) return
+        if (allocated(a%derivation) .or. budget<0 .or. budget>100000) then
+            call fail_reason(status,message,capacity,FORTSYM_INVALID_ARGUMENT, &
+                'derivation session already active or invalid budget')
+            return
+        end if
+        if (associated(a%assumptions)) then
+            if (.not. exportable_assumptions(a%assumptions,a%value)) then
+                call fail_reason(status,message,capacity,FORTSYM_UNSUPPORTED, &
+                    'derivation: unsupported initial assumption context')
+                return
+            end if
+        end if
+        allocate(a%derivation)
+        call a%derivation%init(a%value,from_c_string(hash),int(budget))
+        if (associated(a%assumptions)) &
+            call clone_assumption_context(a%derivation%context,a%assumptions)
+        if (len(a%derivation%failure)>0) call fail_reason(status,message, &
+            capacity,FORTSYM_INVALID_ARGUMENT,a%derivation%failure)
+    end function
+
+    function c_derivation_end(raw,message,capacity) &
+            bind(c,name="fortsym_derivation_end") result(status)
+        type(c_ptr), value :: raw
+        character(c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        call get_arena(raw,a,status,message,capacity)
+        if (status/=FORTSYM_OK) return
+        if (allocated(a%derivation)) deallocate(a%derivation)
+    end function
+
+    function c_derivation_observe(raw,operation,inputs,input_steps,count,observed,literal, &
+            output_step,message,capacity) bind(c,name="fortsym_derivation_observe") result(status)
+        type(c_ptr), value :: raw, observed
+        type(c_ptr), intent(in) :: inputs(*)
+        integer(c_int), intent(in) :: input_steps(*)
+        integer(c_int), intent(out) :: output_step
+        integer(c_size_t), value :: count
+        character(c_char), intent(in) :: operation(*),literal(*)
+        character(c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(expr_t), allocatable :: values(:)
+        type(expr_t) :: value
+        logical :: ok
+        integer :: k
+        character(:), allocatable :: why
+        output_step=0_c_int
+        call get_arena(raw,a,status,message,capacity)
+        if (status/=FORTSYM_OK) return
+        if (.not. allocated(a%derivation) .or. count>64_c_size_t) then
+            call fail(status,message,capacity,FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        allocate(values(int(count)))
+        do k=1,int(count)
+            call get_expr(inputs(k),owner,values(k),status,message,capacity)
+            if (status/=FORTSYM_OK) return
+        end do
+        call get_expr(observed,owner,value,status,message,capacity)
+        if (status/=FORTSYM_OK) return
+        call a%derivation%observe(from_c_string(operation),values,value, &
+            from_c_string(literal),ok,why,int(input_steps(:int(count))))
+        if (.not. ok) call fail_reason(status,message,capacity, &
+            FORTSYM_UNSUPPORTED,why)
+        if (ok) output_step=int(a%derivation%n,c_int)
+    end function
+
+    function c_derivation_assume(raw,expression,step,facts,message,capacity) &
+            bind(c,name="fortsym_derivation_assume") result(status)
+        type(c_ptr), value :: raw, expression
+        integer(c_int), value :: facts,step
+        character(c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(expr_t) :: value
+        logical :: ok
+        character(:), allocatable :: why
+        call get_arena(raw,a,status,message,capacity)
+        if (status/=FORTSYM_OK) return
+        if (.not. allocated(a%derivation)) then
+            call fail(status,message,capacity,FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        call get_expr(expression,owner,value,status,message,capacity)
+        if (status/=FORTSYM_OK) return
+        call a%derivation%assume(value,int(facts),ok,why,int(step))
+        if (.not. ok) call fail_reason(status,message,capacity,FORTSYM_UNSUPPORTED,why)
+    end function
+
+    function c_derivation_directive(raw,operation,expression,step,label,message,capacity) &
+            bind(c,name="fortsym_derivation_directive") result(status)
+        type(c_ptr), value :: raw, expression
+        integer(c_int), value :: step
+        character(c_char), intent(in) :: operation(*),label(*)
+        character(c_char), intent(out) :: message(*)
+        integer(c_size_t), value :: capacity
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        type(expr_owner_t), pointer :: owner
+        type(expr_t) :: value
+        logical :: ok
+        character(:), allocatable :: why, op
+        call get_arena(raw,a,status,message,capacity)
+        if (status/=FORTSYM_OK) return
+        if (.not. allocated(a%derivation)) then
+            call fail(status,message,capacity,FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        op=from_c_string(operation)
+        if (op=='refuse') then
+            call a%derivation%refuse(from_c_string(label))
+            call fail_reason(status,message,capacity,FORTSYM_UNSUPPORTED, &
+                a%derivation%failure)
+            return
+        end if
+        call get_expr(expression,owner,value,status,message,capacity)
+        if (status/=FORTSYM_OK) return
+        select case(op)
+        case('name')
+            call a%derivation%name(value,from_c_string(label),ok,why,int(step))
+        case('condition_nonzero')
+            call a%derivation%condition(value,from_c_string(label),ok,why,int(step))
+        case('zero','unknown')
+            call a%derivation%check(value,op,from_c_string(label),ok,why,int(step))
+        case default
+            call a%derivation%refuse('unsupported directive: '//op)
+            ok=.false.
+            why=a%derivation%failure
+        end select
+        if (.not. ok) call fail_reason(status,message,capacity,FORTSYM_UNSUPPORTED,why)
+    end function
+
+    function c_derivation_export(raw,buffer,capacity,required,message,message_capacity) &
+            bind(c,name="fortsym_derivation_export") result(status)
+        type(c_ptr), value :: raw
+        character(c_char), intent(out) :: buffer(*),message(*)
+        integer(c_size_t), value :: capacity,message_capacity
+        integer(c_size_t), intent(out) :: required
+        integer(c_int) :: status
+        type(arena_owner_t), pointer :: a
+        character(:), allocatable :: source,why
+        logical :: ok
+        required=0_c_size_t
+        call get_arena(raw,a,status,message,message_capacity)
+        if (status/=FORTSYM_OK) return
+        if (.not. allocated(a%derivation)) then
+            call fail(status,message,message_capacity,FORTSYM_INVALID_ARGUMENT)
+            return
+        end if
+        source=a%derivation%export_sympy(ok,why)
+        if (.not. ok) then
+            call fail_reason(status,message,message_capacity,FORTSYM_UNSUPPORTED,why)
+            return
+        end if
+        call put_text(str(source),buffer,capacity,required,status,message,message_capacity)
+    end function
+
 
     function fortsym_abi_version() bind(c, name="fortsym_abi_version") result(v)
         integer(c_int) :: v
