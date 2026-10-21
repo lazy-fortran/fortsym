@@ -10,6 +10,9 @@ import ctypes
 class Derivation:
     def __init__(self, source_sha256, *, arena=None, max_steps=10000):
         from . import _default
+        if (not isinstance(source_sha256, str) or len(source_sha256) != 64 or
+                any(c not in '0123456789abcdef' for c in source_sha256)):
+            raise ValueError('source SHA256 requires 64 lowercase hex digits')
         self.arena = arena if arena is not None else _default()
         self.source_sha256 = source_sha256
         self.max_steps = max_steps
@@ -51,6 +54,8 @@ class Derivation:
 
     def observe(self, operation, inputs, output, literal=''):
         from . import _CVOID, _message
+        if not literal.isascii() or '\x00' in literal or len(literal) > 65536:
+            self.refuse('literal requires bounded NUL-free ASCII text')
         message = _message()
         handles = (_CVOID * len(inputs))(*inputs)
         steps = (ctypes.c_int * len(inputs))(*(self._step(h) for h in inputs))
@@ -95,6 +100,9 @@ class Derivation:
 
     def _directive(self, operation, expression, label):
         from . import _message
+        if not label.isascii() or '\x00' in label or len(label) > 65536:
+            operation, expression = 'refuse', None
+            label = 'label requires bounded NUL-free ASCII text'
         message = _message()
         handle = expression._require() if expression is not None else None
         step = self._step(handle) if handle is not None else 0

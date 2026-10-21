@@ -59,7 +59,7 @@ proof. Observed intermediate equality is replay evidence; independent residual
 and domain witnesses remain necessary.
 
 The v1 supported scope is exact scalar operations with one declaration per
-symbol name in one scope, with
+symbol name in one scope, NUL-free ASCII names/labels, and
 positive facts from the native vocabulary. Contradictory facts, changed facts
 after use, foreign/unrecorded inputs, unsupported operations/options, float
 lowering and exhausted budgets refuse export with a step diagnostic. Default

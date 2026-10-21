@@ -22,7 +22,7 @@ with tempfile.TemporaryDirectory() as tmp:
         path.write_text(record.source)
         subprocess.run([sys.executable, '-S', str(path)], env=env, check=True,
                        capture_output=True, timeout=30)
-    for mode in ('budget', 'foreign', 'unsupported', 'late', 'unrecorded', 'redefinition'):
+    for mode in ('budget', 'foreign', 'unsupported', 'late', 'unrecorded', 'redefinition', 'nul', 'label'):
         with Arena() as arena, Arena() as foreign:
             existing = arena.symbol('existing')
             try:
@@ -36,6 +36,10 @@ with tempfile.TemporaryDirectory() as tmp:
                         record.name('old', existing)
                     elif mode == 'redefinition':
                         arena.symbol('x')
+                    elif mode == 'nul':
+                        arena.symbol('a\x00b')
+                    elif mode == 'label':
+                        record.name('a\x00b', x)
                     elif mode == 'late':
                         result = x + arena.integer(1)
                         arena.assume(x, 2)

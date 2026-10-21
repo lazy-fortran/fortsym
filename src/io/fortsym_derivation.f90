@@ -11,7 +11,7 @@ module fortsym_derivation
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_poly, only: poly_cancel
     use fortsym_subs, only: subs
-    use fortsym_exact_export, only: exact_python
+    use fortsym_exact_export, only: exact_python, exportable_text
     use fortsym_assumption_export, only: sympy_assumption_keywords
     implicit none
     private
@@ -110,6 +110,8 @@ contains
             why=self%failure
             return
         end if
+        if (.not. exportable_text(literal)) &
+            call self%refuse('literal requires NUL-free ASCII text')
         arity=-1
         select case(operation)
         case('integer','exact','rational','symbol','constant'); arity=0
@@ -183,6 +185,8 @@ contains
             why=self%failure
             return
         end if
+        if (.not. exportable_text(literal)) &
+            call self%refuse('literal requires NUL-free ASCII text')
         arity=-1
         select case(operation)
         case('integer','exact','symbol','constant'); arity=0
@@ -292,6 +296,7 @@ contains
         character(:), allocatable, intent(out) :: why
         integer :: id,k
         id=self%find(value,step)
+        if (.not. exportable_text(label)) call self%refuse('label requires NUL-free ASCII text')
         if (id==0 .or. len(label)==0) call self%refuse('invalid named intermediate')
         do k=1,self%n
             if (self%steps(k)%label==label) call self%refuse('duplicate intermediate name')
@@ -309,6 +314,7 @@ contains
         character(:), allocatable, intent(out) :: why
         integer, optional, intent(in) :: step
         integer :: id
+        if (.not. exportable_text(label)) call self%refuse('label requires NUL-free ASCII text')
         id=self%find(value,step)
         if (id==0) call self%refuse('directive needs recorded input')
         if (self%n>=self%max_steps) call self%refuse('recording budget exhausted')
