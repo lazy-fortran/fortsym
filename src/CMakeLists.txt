@@ -26,6 +26,9 @@ target_sources(fortsym PRIVATE
     core/fortsym_subs.f90
 
     # surface syntax
+    io/fortsym_assumption_export.f90
+    io/fortsym_exact_export.f90
+    io/fortsym_derivation.f90
     io/fortsym_dialect.f90
     io/fortsym_parse.f90
     io/fortsym_print.f90

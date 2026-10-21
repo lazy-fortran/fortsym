@@ -17,13 +17,17 @@ SymPy-compatible surface and completion rules. Export design is in
 
 ## Current boundary
 
-- `DIA_SYMPY` prints expressions; it does not export complete derivations.
+- `DIA_SYMPY` remains an expression printer; the new bounded scalar transcript
+  owner exports ordered operations separately. See [API and limits](doc/derivation-api.md).
 - The bounded Python drop-in owns no separate algebra and imports no SymPy.
-- The optional external SymPy adapter simplifies/tests zeros; its symbol
-  declarations currently omit assumption facts. See [#81](https://github.com/lazy-fortran/fortsym/issues/81).
+- The optional external SymPy adapter now transports an explicit supported
+  symbol-assumption context and retains result conditions; unsupported contexts
+  are refused. See [#81](https://github.com/lazy-fortran/fortsym/issues/81).
 - Scalar Kernel IR lowers exact atoms to floating literals. It cannot serve
   as an exact mathematical interchange or derivation history.
-- No fresh whole-course replay or complete exporter validation is claimed.
+- The bounded exact scalar source/export replay is gated independently.
+  Whole-course replay, broader native facade hooks and scoped/matrix/units/
+  integration/limit recording remain open under #78–#80.
 
 ## Work order
 

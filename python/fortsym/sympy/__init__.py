@@ -981,6 +981,10 @@ def _apply_assumptions(expression, assumptions):
             expression, _ASSUMPTION_FACTS[name], name
         ))
     if pending:
+        # This temporary scope validates the constructor transaction; only the
+        # committed facts below belong to the authored derivation.
+        recording = _default()._derivation
+        _default()._derivation = None
         try:
             with _default().assuming(*pending):
                 pass
@@ -988,6 +992,8 @@ def _apply_assumptions(expression, assumptions):
             if error.status == _CONFLICT:
                 raise InconsistentAssumptions(str(error)) from error
             raise
+        finally:
+            _default()._derivation = recording
         for fact in pending:
             _default().assume(fact.expression, fact.fact)
             fact.expression._known_facts |= fact.fact
