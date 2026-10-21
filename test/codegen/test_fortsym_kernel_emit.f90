@@ -614,7 +614,9 @@ contains
             write (unit, "(a)") "end program drive_fortsym_quadratic"
             close (unit)
             call execute_command_line( &
-                "gfortran -o /tmp/fortsym_quadratic_table /tmp/fortsym_quadratic_table.f90 > /tmp/fortsym_quadratic_table.log 2>&1", &
+                "gfortran -o /tmp/fortsym_quadratic_table "// &
+                "/tmp/fortsym_quadratic_table.f90 > "// &
+                "/tmp/fortsym_quadratic_table.log 2>&1", &
                 wait=.true., exitstat=stat)
             call ok("generated quadratic table compiles", stat == 0)
             if (stat == 0) then

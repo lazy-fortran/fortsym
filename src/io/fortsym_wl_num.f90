@@ -909,22 +909,25 @@ contains
     !> opaque application. That is the same boundary as the rest of the
     !> Wolfram frontend: an unevaluated valid construct is safer than a
     !> plausible list made from an arbitrary substitution.
-    function wl_range(a, e, ok, why) result(r)
+    function wl_range(a, e, ok, why, max_items) result(r)
         type(arena_t), target,     intent(inout) :: a
         type(expr_t),              intent(in)    :: e
         logical,                   intent(out)   :: ok
         character(:), allocatable, intent(out)   :: why
+        integer, optional, intent(in) :: max_items
         type(expr_t)                             :: r
         type(fraction_t) :: lo, hi, step, current
         type(expr_t), allocatable :: items(:)
         real(dp) :: xlo, xhi, xstep
-        integer :: narg, n, k
+        integer :: narg, n, k, item_limit
         logical :: exact_form, machine_form, good, valid
         type(expr_t) :: item
 
         r = e
         ok = .false.
         why = ""
+        item_limit = MAX_RANGE_ITEMS
+        if (present(max_items)) item_limit = max_items
         narg = e%nargs()
         if (narg < 1 .or. narg > 3) then
             why = "Range takes one to three arguments"
@@ -962,7 +965,7 @@ contains
             call normalize_fraction(lo)
             call normalize_fraction(hi)
             call normalize_fraction(step)
-            call build_exact_range(a, e, lo, hi, step, r, ok, why)
+            call build_exact_range(a, e, lo, hi, step, r, ok, why, item_limit)
             return
         end if
 
@@ -987,7 +990,7 @@ contains
             ok = .true.
             return
         end if
-        call build_real_range(a, e, xlo, xhi, xstep, r, ok, why)
+        call build_real_range(a, e, xlo, xhi, xstep, r, ok, why, item_limit)
     end function wl_range
 
     !> DiagonalMatrix[v] as a square nested List. Entries remain arbitrary
@@ -1083,13 +1086,14 @@ contains
         ok = .true.
     end function wl_diagonal
 
-    subroutine build_exact_range(a, source, lo, hi, step, r, ok, why)
+    subroutine build_exact_range(a, source, lo, hi, step, r, ok, why, item_limit)
         type(arena_t), target,     intent(inout) :: a
         type(expr_t),              intent(in)    :: source
         type(fraction_t),          intent(in)    :: lo, hi, step
         type(expr_t),              intent(out)   :: r
         logical,                   intent(out)   :: ok
         character(:), allocatable, intent(out)   :: why
+        integer, intent(in) :: item_limit
         type(fraction_t) :: current, next
         type(expr_t), allocatable :: items(:)
         integer :: n, cmp, good
@@ -1101,7 +1105,7 @@ contains
             why = "Range has a zero step"
             return
         end if
-        allocate (items(MAX_RANGE_ITEMS))
+        allocate (items(item_limit))
         current = lo
         n = 0
         do
@@ -1112,7 +1116,7 @@ contains
             end if
             if ((step%n > 0_int64 .and. cmp > 0) .or. &
                     (step%n < 0_int64 .and. cmp < 0)) exit
-            if (n == MAX_RANGE_ITEMS) then
+            if (n == item_limit) then
                 r = source
                 ok = .true.
                 return
@@ -1136,13 +1140,14 @@ contains
         ok = .true.
     end subroutine build_exact_range
 
-    subroutine build_real_range(a, source, lo, hi, step, r, ok, why)
+    subroutine build_real_range(a, source, lo, hi, step, r, ok, why, item_limit)
         type(arena_t), target,     intent(inout) :: a
         type(expr_t),              intent(in)    :: source
         real(dp),                 intent(in)     :: lo, hi, step
         type(expr_t),              intent(out)   :: r
         logical,                   intent(out)   :: ok
         character(:), allocatable, intent(out)   :: why
+        integer, intent(in) :: item_limit
         type(expr_t), allocatable :: items(:)
         real(dp) :: span, estimate, value
         integer :: n, k
@@ -1162,7 +1167,7 @@ contains
         end if
         span = (hi - lo)/step
         estimate = floor(span + 1.0e-12_dp) + 1.0_dp
-        if (estimate < 0.0_dp .or. estimate > real(MAX_RANGE_ITEMS, dp)) then
+        if (estimate < 0.0_dp .or. estimate > real(item_limit, dp)) then
             r = source
             ok = .true.
             return
