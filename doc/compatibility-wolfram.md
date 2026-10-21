@@ -23,6 +23,10 @@ bounded layer in `fortsym_wl`.
 | slots `#`, `#n`, `##`, pure-function `&`, patterns, spans, and named characters `\[Name]` | structural heads where the bounded session has a documented consumer use; unsupported matching is refused by name |
 | comments `(* ... *)`, including nesting | discarded lexically; whitespace and newlines are insignificant outside literals |
 
+Exact Gaussian-rational algebraic atoms print as rational real and imaginary
+components in Wolfram syntax. Higher-degree algebraic atoms retain the native
+`qqbar1` encoding and require an algebraic interchange adapter.
+
 The printer emits a stable spelling in the same dialect. The Wolfram test
 constructs expected nodes directly and also parses the printer output back into
 the same arena; hash-consed node identity is the structural oracle. Exact
@@ -37,7 +41,8 @@ Malformed or unsupported text returns `ok = .false.` and a diagnostic naming
 the first failure together with its one-based source position. The parser never
 evaluates commands while constructing the expression graph.
 
-`fortsym_wl` adds only explicitly bounded command semantics. Its current
+`fortsym_wl` adds only explicitly bounded command semantics. The session refuses `ConjugateTranspose` before it can be mistaken for a scalar
+inside a matrix product. Ordinary `Transpose` remains supported. Current
 coverage is measured against the real corrugation-resistance derivation in
 [`wolfram-coverage-39.md`](wolfram-coverage-39.md); the report records every
 evaluated binding and every named refusal. Mathics is used as a separate

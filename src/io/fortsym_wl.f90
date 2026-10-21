@@ -1500,6 +1500,12 @@ contains
             call refuse(ok, message, "Legended: legends are not rendered")
             return
 
+        case ("ConjugateTranspose")
+            ! An unevaluated matrix-valued head must not reach Dot's scalar
+            ! scaling path. Keep this outside the bounded transpose slice.
+            call refuse(ok, message, "ConjugateTranspose is not implemented")
+            return
+
         case ("Transpose")
             if (is_matrix(r%arg(1))) then
                 r = matrix_transpose(s%a, r%arg(1), ok)

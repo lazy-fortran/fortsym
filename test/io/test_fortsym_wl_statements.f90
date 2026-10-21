@@ -392,6 +392,10 @@ contains
     !> Dot with a scalar scales every matrix entry. The expected matrix is the
     !> hand calculation of diag(2, 3) * 5 and its reverse-order counterpart.
     subroutine test_scalar_matrix_dot()
+        call expect_refusal("opaque matrix head is not a scalar factor", &
+            "value = {{1, 0}, {0, 1}} . "// &
+            "ConjugateTranspose[{{1, 2}, {3, 4}}]", &
+            "ConjugateTranspose is not implemented")
         call expect("matrix dot scalar", &
             "value = {{2, 0}, {0, 3}} . 5"//char(10), "value", &
             "List(List(10, 0), List(0, 15))")

@@ -305,6 +305,12 @@ add_test(NAME test_fortsym_header_cpp COMMAND test_fortsym_header_cpp)
 
 # --- privacy-safe consumer evidence tooling ---
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
+if(TARGET fortsym_wl_run)
+    add_test(NAME test_fortsym_wl_run_protocol
+        COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/io/test_wl_run_protocol.py
+            $<TARGET_FILE:fortsym_wl_run>)
+endif()
 add_test(NAME test_fortsym_radical_zero_differential
     COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_SOURCE_DIR}/python/test_fortsym_radical_zero.py)

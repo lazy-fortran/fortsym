@@ -33,8 +33,9 @@ program fortsym_wl_run
     character(:), allocatable :: path, source
     type(arena_t), target :: a
     type(wl_session_t) :: session
-    type(wl_binding_t) :: b
-    integer :: k, n, produced, refused
+    type(wl_binding_t) :: b, later
+    integer :: k, j, n, produced, refused
+    logical :: superseded
     real(kind(1.0d0)) :: t0, elapsed
     character :: tab
 
@@ -61,6 +62,16 @@ program fortsym_wl_run
 
     do k = 1, n
         b = wl_binding_at(session, k)
+        ! The protocol reports final session values. A later refusal masks an
+        ! earlier success just as it does during expression evaluation.
+        superseded = .false.
+        do j = k + 1, n
+            later = wl_binding_at(session, j)
+            if (chars(later%name) /= chars(b%name)) cycle
+            superseded = .true.
+            exit
+        end do
+        if (superseded) cycle
         if (b%ok) then
             if (b%value%kind() == NK_FUNC .and. &
                 chars(b%value%name()) == "Association") then
