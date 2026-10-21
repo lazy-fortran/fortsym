@@ -16,7 +16,7 @@ program test_fortsym_products
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, num, func, operator(+), operator(-), &
-        operator(*), operator(/), operator(**), sin, cos, exp, log
+        operator(*), operator(/), operator(**), sin, cos, exp, log, abs
     use fortsym_diff, only: diff
     use fortsym_subs, only: subs
     use fortsym_check, only: suite_t, suite_begin, suite_end, check_zero
@@ -40,6 +40,7 @@ program test_fortsym_products
 
     call suite_begin(s, "derivative products")
 
+    call test_real_abs_products()
     call test_inactive_shared_jvp()
     call test_jvp_matches_jacobian()
     call test_vjp_matches_jacobian()
@@ -59,6 +60,24 @@ program test_fortsym_products
     print *, "test_fortsym_products: all checks passed"
 
 contains
+
+    subroutine test_real_abs_products()
+        ! Independent branch oracle for |x^2-1|, away from x=+/-1.
+        type(expr_t) :: x, roots(1), forward(1), reverse(1), one(1)
+        x = sym(arena, 'abs_x')
+        roots(1) = abs(x**2-1)
+        one(1) = num(arena, 1)
+        forward = jvp(roots, [x], one)
+        reverse = vjp(roots, [x], one)
+        call check_zero(s, eng, 'abs JVP positive argument', &
+            subs(forward(1), x, num(arena, 2))-4)
+        call check_zero(s, eng, 'abs JVP negative argument', &
+            subs(forward(1), x, num(arena, 1)/2)+1)
+        call check_zero(s, eng, 'abs VJP positive argument', &
+            subs(reverse(1), x, num(arena, -2))+4)
+        call check_zero(s, eng, 'abs VJP negative argument', &
+            subs(reverse(1), x, -num(arena, 1)/2)-1)
+    end subroutine test_real_abs_products
 
     subroutine test_inactive_shared_jvp()
         type(expr_t) :: x, y, inactive, roots(3), tangent(3), again(3)
