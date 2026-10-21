@@ -1,5 +1,6 @@
 module fortsym_enzyme
-    use fortsym_string, only: str_t, strbuf_t, chars
+    use fortsym_string, only: str_t, strbuf_t, str, chars
+    use fortgen_layout, only: wrap_fortran_source
     implicit none
     private
 
@@ -121,7 +122,7 @@ contains
         call append_line(buffer, "    end subroutine "//prefix//"_jvp")
         call buffer%newline()
         call append_line(buffer, "end module "//module_name)
-        source = buffer%to_str()
+        source = str(wrap_fortran_source(chars(buffer%to_str())))
     end function emit_enzyme_fixed_array_map_wrapper
 
     subroutine validate_fixed_array_map_spec(spec)
@@ -269,7 +270,7 @@ contains
         end if
         call buffer%newline()
         call append_line(buffer, "end module "//module_name)
-        source = buffer%to_str()
+        source = str(wrap_fortran_source(chars(buffer%to_str())))
     end function emit_enzyme_fixed_array_wrapper
 
     subroutine validate_fixed_array_spec(spec)
@@ -485,7 +486,7 @@ contains
         call append_line(buffer, "    end subroutine "//prefix//"_vjp")
         call buffer%newline()
         call append_line(buffer, "end module "//module_name)
-        source = buffer%to_str()
+        source = str(wrap_fortran_source(chars(buffer%to_str())))
     end function emit_enzyme_scalar_vector_wrapper
 
     subroutine validate_scalar_vector_spec(spec)
@@ -590,7 +591,7 @@ contains
         call buffer%append("end module ")
         call buffer%append(chars(spec%module_name))
         call buffer%newline()
-        source = buffer%to_str()
+        source = str(wrap_fortran_source(chars(buffer%to_str())))
     end function emit_enzyme_scalar_wrapper
 
     subroutine validate_spec(spec)
