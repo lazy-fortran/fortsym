@@ -21,8 +21,8 @@ module fortsym_print
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
         NK_BIG_REAL, NK_ALGEBRAIC
     use fortsym_expr, only: expr_t
-    use fortsym_algebraic, only: algebraic_to_real
-    use fortsym_exact, only: exact_to_real
+    use fortsym_algebraic, only: algebraic_to_real, algebraic_re, algebraic_im
+    use fortsym_exact, only: exact_to_real, exact_sub, exact_div
     use fortsym_names, only: valid_fortran_symbol, same_fortran_name
     use fortsym_dialect, only: dialect_t, dialect, fn_spelling, const_spelling, &
         DIA_NATIVE, DIA_FORTRAN, DIA_WOLFRAM, fortran_function_supported, &
@@ -801,6 +801,25 @@ contains
         integer, intent(in) :: context
         real(dp) :: value
         logical :: ok, wrap
+        type(str_t) :: real_part, imag_part
+        character(:), allocatable :: re_text, im_text
+
+        if (d%id == DIA_WOLFRAM) then
+            real_part = algebraic_re(chars(a%algebraic_text_of(id)), ok)
+            if (ok) then
+                re_text = algebraic_rational_text(chars(real_part), ok)
+                if (ok) then
+                    imag_part = algebraic_im(chars(a%algebraic_text_of(id)), ok)
+                    if (ok) then
+                        im_text = algebraic_rational_text(chars(imag_part), ok)
+                        if (ok) then
+                            call b%append("("//re_text//" + I*("//im_text//"))")
+                            return
+                        end if
+                    end if
+                end if
+            end if
+        end if
 
         if (d%id /= DIA_FORTRAN) then
             call b%append(chars(a%algebraic_text_of(id)))
@@ -818,6 +837,28 @@ contains
         call b%append(chars(d%real_suffix))
         if (wrap) call b%append(")")
     end subroutine emit_algebraic
+
+    ! A canonical linear minimal polynomial c0+c1*x proves x=-c0/c1.
+    ! Higher-degree components stay outside this Gaussian-rational slice.
+    function algebraic_rational_text(payload, ok) result(text)
+        character(*), intent(in) :: payload
+        logical, intent(out) :: ok
+        character(:), allocatable :: text
+        type(str_t) :: numerator, quotient
+        integer :: comma
+
+        text = ""
+        ok = .false.
+        if (len(payload) < 12) return
+        if (payload(:9) /= "qqbar1:0:") return
+        comma = index(payload(10:), ",") + 9
+        if (comma < 11 .or. comma >= len(payload)) return
+        if (index(payload(comma + 1:), ",") /= 0) return
+        numerator = exact_sub("0", payload(10:comma - 1), ok)
+        if (.not. ok) return
+        quotient = exact_div(chars(numerator), payload(comma + 1:), ok)
+        if (ok) text = chars(quotient)
+    end function algebraic_rational_text
 
     ! ------------------------------------------------------------- atoms --
 

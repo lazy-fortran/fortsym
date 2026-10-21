@@ -36,6 +36,14 @@ Refused bindings remain refusals when consumed by later operations, including
 differentiation; reassignment can replace a failed binding with a valid value.
 GNU 12 checks also exercise invalid descriptor returns and assumption diagnostics.
 
+The Gaussian-rational Wolfram serialization is an original composition of the
+existing FLINT component bridge and exact rational arithmetic: a linear minimal
+polynomial `c0 + c1*x` proves `x = -c0/c1`. No approximate root or foreign root
+ordering is used. The runner protocol tests use independently authored state
+transitions and verify that the latest assignment, including a refusal, wins.
+Unsupported conjugate-transpose evaluation refuses before Dot can treat the
+matrix-valued application as a scalar factor.
+
 ## Reproducible research snapshots
 
 `scripts/collect_provenance.py` downloads pinned upstream documentation into

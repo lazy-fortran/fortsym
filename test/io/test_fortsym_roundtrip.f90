@@ -29,6 +29,7 @@ program test_fortsym_roundtrip
     call test_construction_history_independence()
     call test_roundtrip_all_dialects()
     call test_algebraic_roundtrip()
+    call test_gaussian_wolfram_spelling()
     call test_dialect_spellings()
     call test_infinity_sentinel()
     call test_signed_zero()
@@ -43,6 +44,29 @@ program test_fortsym_roundtrip
     end if
 
 contains
+
+    subroutine test_gaussian_wolfram_spelling()
+        type(arena_t), target :: a
+        type(expr_t) :: value, back, expected
+        character(:), allocatable :: payload, text, message
+        logical :: valid
+
+        call a%init()
+        payload = chars(algebraic_from_re_im("1/2", "-2/3", valid))
+        call ok("Gaussian rational construction succeeds", valid)
+        if (.not. valid) return
+        value = algebraic_expr(a, payload, valid)
+        call ok("Gaussian rational enters arena", valid)
+        if (.not. valid) return
+        text = chars(print_expr_in(value, dialect(DIA_WOLFRAM), valid))
+        call eq_text("Wolfram Gaussian rational uses exact arithmetic", &
+            text, "(1/2 + I*(-2/3))")
+        back = parse_expr_in(a, text, dialect(DIA_WOLFRAM), valid, message)
+        call ok("Wolfram Gaussian rational parses", valid)
+        expected = exact(a, "1/2") + i_expr(a)*exact(a, "-2/3")
+        if (valid) call ok("Wolfram Gaussian rational preserves both components", &
+            back == expected)
+    end subroutine test_gaussian_wolfram_spelling
 
     subroutine ok(label, cond)
         character(*), intent(in) :: label
