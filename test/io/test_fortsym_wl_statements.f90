@@ -25,6 +25,7 @@ program test_fortsym_wl_statements
     call test_empty_script()
     call test_explicit_trig_simplify()
     call test_recursive_function()
+    call test_scope_refusal()
     call test_piecewise_evaluation()
     call test_boole_evaluation()
     call test_which_evaluation()
@@ -272,6 +273,23 @@ contains
             "f = x^2"//char(10)//"value = D[f, x]"//char(10), &
             "value", "x*2")
     end subroutine test_recursive_function
+
+    !> A refused local scope must not execute its initialisers in the caller.
+    !> The old evaluator returned 3 and changed outer from 7 to 1.
+    subroutine test_scope_refusal()
+        call expect_refusal("scope is refused before evaluating children", &
+            "value = Module[{outer = 1}, outer + 2]"//char(10), &
+            "scoped evaluation is not implemented")
+        call expect("refused scope preserves outer binding", &
+            "outer = 7"//char(10)// &
+            "bad = Module[{outer = 1}, outer + 2]"//char(10)// &
+            "value = outer"//char(10), "value", "7")
+        call expect_refusal("failed reassignment masks an older value", &
+            "f = 1"//char(10)// &
+            "f = Sum[x^k, {k, 1, Infinity}]"//char(10)// &
+            "value = D[f, x]"//char(10), &
+            "failed binding f: Sum needs bounded integer iterators")
+    end subroutine test_scope_refusal
 
     !> Piecewise branch selection is checked against direct numeric cases.
     !> The expected values are independent of the evaluator implementation.

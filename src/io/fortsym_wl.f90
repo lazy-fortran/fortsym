@@ -887,10 +887,18 @@ contains
         type(wl_session_t), intent(in) :: s
         type(expr_t),       intent(in) :: e
         type(expr_t)                   :: r
-        integer :: k
+        integer :: k, j
+        logical :: superseded
 
         r = e
         do k = s%n, 1, -1
+            superseded = .false.
+            do j = k + 1, s%n
+                if (chars(s%bindings(j)%name) /= chars(s%bindings(k)%name)) cycle
+                superseded = .true.
+                exit
+            end do
+            if (superseded) cycle
             if (.not. s%bindings(k)%ok) cycle
             r = subs(r, sym(s%a, chars(s%bindings(k)%name)), s%bindings(k)%value)
         end do
@@ -984,6 +992,14 @@ contains
         ! i. The lowering routine is deliberately bounded: a verification
         ! frontend must decline a huge expansion rather than turn one source
         ! line into an accidental memory/time bomb.
+        ! Scoping constructs hold their locals and body. The generic child
+        ! walk would execute local Set nodes in the outer session before the
+        ! scope handler sees them. Refuse until lexical evaluation is owned.
+        if (head == "Module" .or. head == "Block" .or. head == "With") then
+            call refuse(ok, message, "scoped evaluation is not implemented")
+            return
+        end if
+
         if (head == "Table") then
             r = lower_table(s, e, ok, message)
             return
@@ -1160,14 +1176,6 @@ contains
                 if (.not. ok) return
                 r = inner
             end if
-
-        case ("Module", "Block", "With")
-            if (r%nargs() < 2) then
-                call refuse(ok, message, head//" needs locals and a body")
-                return
-            end if
-            r = scoped_body(s, r, ok, message)
-            if (.not. ok) return
 
         case ("Simplify", "FullSimplify")
             res = s%engine%simplify(r%arg(1), s%engine_limit)
@@ -6123,44 +6131,6 @@ contains
         yes = (is_matrix(x) .and. .not. is_list(y)) .or. &
               (is_matrix(y) .and. .not. is_list(x))
     end function scalar_matrix_dottable
-
-    !> Substitute a scoping construct's local initialisers into its body.
-    !>
-    !> Returning the body untouched would be a wrong answer, not a refusal:
-    !> Module[{ok = 1}, ok + 2] would report "ok + 2" as though that were the
-    !> value. An uninitialised local is refused instead, because it names a
-    !> fresh variable in a scope fortsym does not model, and treating it as the
-    !> outer symbol of the same name silently resolves a shadow the wrong way.
-    function scoped_body(s, e, ok, message) result(r)
-        type(wl_session_t), intent(inout) :: s
-        type(expr_t),       intent(in)    :: e
-        logical,            intent(out)   :: ok
-        type(str_t),        intent(out)   :: message
-        type(expr_t)                      :: r
-        type(expr_t) :: locals, item
-        integer :: k
-
-        ok = .true.
-        message = str("")
-        r = e%arg(e%nargs())
-        locals = e%arg(1)
-
-        if (locals%kind() /= NK_FUNC) return
-        if (chars(locals%name()) /= "List") return
-
-        do k = 1, locals%nargs()
-            item = locals%arg(k)
-            if (item%kind() == NK_FUNC) then
-                if (chars(item%name()) == "Set") then
-                    r = subs(r, item%arg(1), item%arg(2))
-                    cycle
-                end if
-            end if
-            call refuse(ok, message, &
-                "scoping construct with an uninitialised local")
-            return
-        end do
-    end function scoped_body
 
     !> Rebuild an arithmetic node from evaluated children.
     !>
