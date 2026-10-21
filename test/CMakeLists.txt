@@ -387,3 +387,17 @@ fortsym_add_test(test_fortsym_lie calculus/test_fortsym_lie.f90)
 fortsym_add_test(test_fortsym_cse_dag codegen/test_fortsym_cse_dag.f90)
 set_tests_properties(test_fortsym_cse_dag PROPERTIES TIMEOUT 30)
 fortsym_add_test(test_fortsym_cse_reciprocal codegen/test_fortsym_cse_reciprocal.f90)
+
+add_executable(generate_precision_family codegen/generate_precision_family.f90)
+target_link_libraries(generate_precision_family PRIVATE fortsym)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/symbolic_precision_family.f90
+    COMMAND generate_precision_family
+        ${CMAKE_CURRENT_BINARY_DIR}/symbolic_precision_family.f90
+    COMMAND ${CMAKE_COMMAND} -E compare_files
+        ${CMAKE_CURRENT_BINARY_DIR}/symbolic_precision_family.f90
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/symbolic_precision_family.f90
+    DEPENDS generate_precision_family codegen/symbolic_precision_family.f90 VERBATIM)
+add_executable(test_precision_family codegen/test_precision_family.f90
+    ${CMAKE_CURRENT_BINARY_DIR}/symbolic_precision_family.f90)
+target_link_libraries(test_precision_family PRIVATE fortsym fortgen)
+add_test(NAME test_precision_family COMMAND test_precision_family)
