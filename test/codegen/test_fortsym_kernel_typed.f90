@@ -73,7 +73,7 @@ contains
         call ok("typed kernel calls sqrt by its canonical name", &
             index(chars(source), "sqrt(") > 0)
 
-        open (newunit=unit, file="/tmp/fortsym_dual_demo.f90", &
+        open (newunit=unit, file="./fortsym_dual_demo.f90", &
             status="replace", action="write", iostat=ios)
         call ok("typed kernel fixture opens", ios == 0)
         if (ios /= 0) return
@@ -106,19 +106,19 @@ contains
         close (unit)
 
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_dual_demo /tmp/fortsym_dual_demo.f90 "// &
-            "> /tmp/fortsym_dual_demo.log 2>&1", wait=.true., exitstat=stat)
+            "gfortran -o ./fortsym_dual_demo ./fortsym_dual_demo.f90 "// &
+            "> ./fortsym_dual_demo.log 2>&1", wait=.true., exitstat=stat)
         call ok("typed dual kernel compiles", stat == 0)
         if (stat /= 0) return
 
         block
             integer :: run_unit
             call execute_command_line( &
-                "/tmp/fortsym_dual_demo > /tmp/fortsym_dual_demo.out", &
+                "./fortsym_dual_demo > ./fortsym_dual_demo.out", &
                 wait=.true., exitstat=stat)
             call ok("typed dual kernel runs", stat == 0)
             if (stat /= 0) return
-            open (newunit=run_unit, file="/tmp/fortsym_dual_demo.out", &
+            open (newunit=run_unit, file="./fortsym_dual_demo.out", &
                 status="old", action="read", iostat=ios)
             call ok("typed dual kernel output opens", ios == 0)
             if (ios /= 0) return

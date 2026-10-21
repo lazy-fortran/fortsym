@@ -84,7 +84,7 @@ contains
         call extract_params(header, params)
         params = params(2:size(params))
 
-        open (newunit=unit, file="/tmp/fortsym_taylor_dual.f90", &
+        open (newunit=unit, file="./fortsym_taylor_dual.f90", &
             status="replace", action="write", iostat=ios)
         call ok("dual taylor step fixture opens", ios == 0)
         if (ios /= 0) return
@@ -120,13 +120,13 @@ contains
         close (unit)
 
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_taylor_dual /tmp/fortsym_taylor_dual.f90 "// &
-            "> /tmp/fortsym_taylor_dual.log 2>&1", wait=.true., exitstat=stat)
+            "gfortran -o ./fortsym_taylor_dual ./fortsym_taylor_dual.f90 "// &
+            "> ./fortsym_taylor_dual.log 2>&1", wait=.true., exitstat=stat)
         call ok("dual taylor step fixture compiles", stat == 0)
         if (stat /= 0) return
 
         call execute_command_line( &
-            "/tmp/fortsym_taylor_dual > /tmp/fortsym_taylor_dual.out", &
+            "./fortsym_taylor_dual > ./fortsym_taylor_dual.out", &
             wait=.true., exitstat=stat)
         call ok("dual taylor step fixture runs", stat == 0)
         if (stat /= 0) return
@@ -146,7 +146,7 @@ contains
         real(dp) :: exp_f1v, exp_f1d, exp_f2v, exp_f2d
         real(dp) :: sign_k, powk, powkm1
 
-        open (newunit=run_unit, file="/tmp/fortsym_taylor_dual.out", &
+        open (newunit=run_unit, file="./fortsym_taylor_dual.out", &
             status="old", action="read", iostat=ios)
         call ok("dual taylor step output opens", ios == 0)
         if (ios /= 0) return
