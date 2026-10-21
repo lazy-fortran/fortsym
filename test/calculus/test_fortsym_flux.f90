@@ -101,6 +101,10 @@ program test_fortsym_flux
         residuals(2) - 1)
     residuals = hamada_residuals(boozer, b_up)
     if (is_valid(residuals(1))) error stop "Boozer descriptor accepted Hamada residuals"
+    residuals = boozer_residuals(hamada, b_cov)
+    if (is_valid(residuals(1))) error stop "Hamada descriptor accepted Boozer residuals"
+    clebsch_values = clebsch_residuals(boozer, b_up, psi, theta)
+    if (is_valid(clebsch_values(1))) error stop "Boozer descriptor accepted Clebsch residuals"
 
     b_up(2) = iota
     b_up(3) = num(arena, 1)

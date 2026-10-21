@@ -109,6 +109,13 @@ contains
         ! Exponentiation is right-associative, so no parentheses are needed and
         ! adding them would change nothing but adding them on the left would.
         call eq_check("right assoc power", print_text(x**y**x), "x**y**x")
+        ! Division by (x**y)**2 is not division by x**(y**2):
+        ! x=2, y=3 gives 1/64 and 1/512 respectively.
+        call eq_check("nested reciprocal power keeps its base", &
+            print_text(x*(x**y)**(-2)), "x/(x**y)**2")
+        call eq_text("Wolfram reciprocal power keeps its base", &
+            chars(print_expr_in(x*(x**y)**(-3), dialect(DIA_WOLFRAM))), &
+            "x/(x^y)^3")
 
         call eq_check("function", print_text(sin(x)), "sin(x)")
         call eq_check("two-arg function", print_text(atan2(y, x)), "atan2(y, x)")

@@ -27,7 +27,7 @@ module fortsym_wl
     use fortsym_dialect, only: dialect, DIA_WOLFRAM
     use fortsym_parse, only: parse_expr_in
     use fortsym_assume, only: assumption_context_t
-    use fortsym_subs, only: subs
+    use fortsym_subs, only: subs, subs_many
     use fortsym_diff, only: diff
     use fortsym_eval, only: collect_free_symbols
     use fortsym_engine, only: engine_result_t, resource_limit_t, &
@@ -76,6 +76,7 @@ module fortsym_wl
     integer, parameter :: MAX_BINDINGS = 512
     integer, parameter :: MAX_FUNCTIONS = 256
     integer, parameter :: MAX_FUNCTION_ARGS = 16
+    integer, parameter :: MAX_FUNCTION_DEPTH = 64
     integer, parameter :: MAX_TABLE_ITEMS = 10000
     integer, parameter :: MAX_MAP_LEVEL = 4
     integer, parameter :: MAX_MAP_NODES = 20000
@@ -146,6 +147,7 @@ module fortsym_wl
         type(plot_record_t)    :: plots(MAX_PLOTS)
         integer                :: n = 0
         integer                :: nfunctions = 0
+        integer                :: function_depth = 0
         integer                :: n_plots = 0
         !> Wall-clock budget for the whole script, in seconds. A script that
         !> exceeds it stops and says so. Hanging is the one outcome a
@@ -169,6 +171,7 @@ contains
         s%engine = make_native_engine(a)
         s%n = 0
         s%nfunctions = 0
+        s%function_depth = 0
         s%functions(:)%defined = .false.
         s%n_plots = 0
         s%engine_limit = new_resource_limit(MAX_ENGINE_NODES)
@@ -3224,6 +3227,7 @@ contains
         logical,            intent(out)   :: ok
         type(str_t),        intent(out)   :: message
         type(expr_t)                      :: r, body
+        type(expr_t) :: parameters(MAX_FUNCTION_ARGS), actuals(MAX_FUNCTION_ARGS)
         integer :: slot, k
 
         ok = .false.
@@ -3242,13 +3246,20 @@ contains
             return
         end if
 
-        body = s%functions(slot)%body
+        if (s%function_depth >= MAX_FUNCTION_DEPTH) then
+            call refuse(ok, message, "user function recursion exceeds its bound")
+            return
+        end if
         do k = 1, e%nargs()
-            body = subs(body, sym(s%a, chars(s%functions(slot)%params(k))), &
-                e%arg(k))
+            parameters(k) = sym(s%a, chars(s%functions(slot)%params(k)))
+            actuals(k) = e%arg(k)
         end do
+        body = subs_many(s%functions(slot)%body, parameters(:e%nargs()), &
+            actuals(:e%nargs()))
         body = apply_bindings(s, body)
+        s%function_depth = s%function_depth + 1
         r = wl_eval(s, body, ok, message)
+        s%function_depth = s%function_depth - 1
         if (ok) r = auto_evaluate(s, r)
     end function lower_user_function
 
@@ -3741,9 +3752,10 @@ contains
 
         type(expr_t) :: explicit_values, item
         type(expr_t) :: bound
+        type(expr_t) :: range_args(3), progression
         integer(int64) :: lo, hi, step, count64, k64
         real(dp) :: lo_real, hi_real, step_real, count_real
-        logical :: real_range
+        logical :: real_range, exact_range
         integer :: k
         type(str_t) :: why
         character(:), allocatable :: numeric_why
@@ -3767,6 +3779,7 @@ contains
             return
         end if
         real_range = .false.
+        step = 1_int64
 
         ! The explicit-value form, {i, {a, b, c}}, is common in generated
         ! scripts and costs no symbolic inference: evaluate each supplied
@@ -3807,6 +3820,37 @@ contains
                 real_range = .true.
             end if
         else
+            range_args(1) = apply_bindings(s, spec%arg(2))
+            range_args(2) = apply_bindings(s, spec%arg(3))
+            range_args(3) = num(s%a, 1)
+            if (spec%nargs() == 4) &
+                range_args(3) = apply_bindings(s, spec%arg(4))
+            exact_range = .true.
+            do k = 1, 3
+                select case (range_args(k)%kind())
+                case (NK_INT, NK_RAT)
+                    continue
+                case default
+                    exact_range = .false.
+                end select
+            end do
+            if (exact_range) then
+                progression = wl_range(s%a, func("Range", range_args), ok, &
+                    numeric_why, max_items=MAX_TABLE_ITEMS)
+                if (.not. ok) then
+                    call refuse(ok, message, "Table: "//numeric_why)
+                    return
+                end if
+                if (.not. is_list(progression)) then
+                    call refuse(ok, message, "Table expansion exceeds its bound")
+                    return
+                end if
+                allocate (values(progression%nargs()))
+                do k = 1, size(values)
+                    values(k) = progression%arg(k)
+                end do
+                return
+            end if
             bound = apply_bindings(s, spec%arg(2))
             if (exact_integer(bound, lo)) then
                 lo_real = real(lo, dp)
@@ -3912,6 +3956,10 @@ contains
             good = .true.
             return
         end if
+        ! List-directed integer input treats '/' as a record terminator:
+        ! reading the rational text '1/100' succeeds with the integer 1.
+        ! Only a promoted integer is eligible for integer readback.
+        if (e%kind() /= NK_BIG_INT) return
         text = chars(e%exact_text())
         if (len_trim(text) == 0) return
         read (text, *, iostat=ios) value

@@ -1386,7 +1386,10 @@ contains
                     call emit_divisor(b, a, base, d, ids, names, bindings)
                 else
                     ! A higher reciprocal power: print base**|expo|.
-                    call emit_divisor(b, a, base, d, ids, names, bindings)
+                    ! The divisor is itself the base of a power. Equal
+                    ! precedence would render (x**y)**2 as x**y**2.
+                    call emit_divisor(b, a, base, d, ids, names, bindings, &
+                        power_base=.true.)
                     call b%append(chars(d%power))
                     call b%append(chars(str(-expo)))
                 end if
@@ -1401,15 +1404,21 @@ contains
     !> Quotient operands must use real arithmetic even when their exact DAG
     !> contains only integers. Keep integer spelling elsewhere: exponents,
     !> function orders and array subscripts require it.
-    recursive subroutine emit_divisor(b, a, id, d, ids, names, bindings)
+    recursive subroutine emit_divisor(b, a, id, d, ids, names, bindings, power_base)
         type(strbuf_t), intent(inout) :: b
         type(arena_t), intent(in) :: a
         integer, intent(in) :: id, ids(:)
         type(dialect_t), intent(in) :: d
         type(str_t), intent(in) :: names(:)
         type(kernel_binding_t), intent(in), optional :: bindings(:)
+        logical, intent(in), optional :: power_base
         logical :: promote
+        integer :: context
 
+        context = PREC_POW
+        if (present(power_base)) then
+            if (power_base) context = PREC_POW + 1
+        end if
         promote = .false.
         if (d%id == DIA_FORTRAN) promote = integer_rendering(a, id, ids)
         if (promote) then
@@ -1417,7 +1426,7 @@ contains
             call emit(b, a, id, d, PREC_ADD, ids, names, bindings)
             call b%append(", kind=kind(0"//chars(d%int_real_suffix)//"))")
         else
-            call emit(b, a, id, d, PREC_POW, ids, names, bindings)
+            call emit(b, a, id, d, context, ids, names, bindings)
         end if
     end subroutine emit_divisor
 

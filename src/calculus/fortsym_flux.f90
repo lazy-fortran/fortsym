@@ -173,6 +173,7 @@ contains
         type(expr_t) :: beta_one, beta_two, beta_three, jac
         integer :: i
 
+        residual = expr_t()
         if (.not. flux_coordinate_valid(owner)) return
         if (owner%kind /= FLUX_CLEBSCH) return
         do i = 1, DIM
@@ -211,6 +212,7 @@ contains
         type(expr_t) :: residual(BOOZER_RESIDUAL_COUNT)
         integer :: i
 
+        residual = expr_t()
         if (.not. flux_coordinate_valid(owner)) return
         if (owner%kind /= FLUX_BOOZER) return
         do i = 1, DIM
@@ -239,6 +241,9 @@ contains
         type(expr_t) :: residual(HAMADA_RESIDUAL_COUNT)
         integer :: i
 
+        ! Explicitly initialise array results on refusal as well as success;
+        ! GNU 12 does not reliably apply component defaults on early return.
+        residual = expr_t()
         if (.not. flux_coordinate_valid(owner)) return
         if (owner%kind /= FLUX_HAMADA) return
         do i = 1, DIM
