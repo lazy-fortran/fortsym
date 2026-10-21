@@ -6,6 +6,7 @@ module fortsym_assume_api
     use fortsym_assume, only: assumption_context_t, &
         init_impl => init_assumption_context, record_impl => record_assumption, &
         relation_impl => record_relation, &
+        clone_impl => clone_assumption_context, &
         has_impl => assumption_has, &
         FACT_REAL, FACT_ZERO, FACT_NEGATIVE, FACT_NONPOSITIVE, &
         FACT_POSITIVE, FACT_NONNEGATIVE, FACT_NONZERO, FACT_INTEGER, &
@@ -35,8 +36,12 @@ contains
         integer,                     intent(in)    :: facts
         logical,                     intent(out), optional :: ok
         character(:), allocatable,   intent(out), optional :: why
+        character(:), allocatable :: diagnostic
+        logical :: accepted
 
-        call record_impl(context, expression, facts, ok, why)
+        call record_impl(context, expression, facts, accepted, diagnostic)
+        if (present(ok)) ok = accepted
+        if (present(why)) why = diagnostic
     end subroutine record_assumption
 
     subroutine record_relation(context, relation, ok, why)
@@ -52,7 +57,7 @@ contains
         type(assumption_context_t), intent(inout) :: child
         type(assumption_context_t), intent(in)    :: parent
 
-        child = parent
+        call clone_impl(child, parent)
     end subroutine clone_assumption_context
 
     subroutine assumption_has(context, expression, fact, known)

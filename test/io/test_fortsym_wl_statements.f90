@@ -196,6 +196,18 @@ contains
             "values = Table[i, {i, 0., 1., .5}]"//char(10), &
             "values", "List(0.0000000000000000E+000, "// &
             "5.0000000000000000E-001, 1.0000000000000000E+000)")
+        call expect("rational table step is not its numerator", &
+            "values = Table[i, {i, 0, 1, 1/4}]"//char(10), &
+            "values", "List(0, 1/4, 1/2, 3/4, 1)")
+        call expect("rational descending table", &
+            "values = Table[i, {i, 1/2, -1/2, -1/4}]"//char(10), &
+            "values", "List(1/2, 1/4, 0, -1/4, -1/2)")
+        call expect("table default step", &
+            "values = Table[i, {i, 2, 4}]"//char(10), &
+            "values", "List(2, 3, 4)")
+        call expect("rational table exceeds ordinary Range budget", &
+            "values = Length[Table[i, {i, 0, 1, 1/100}]]"//char(10), &
+            "values", "101")
     end subroutine test_table_evaluation
 
     !> Do's side effect is checked by an independent finite sum: the squares
@@ -244,6 +256,21 @@ contains
         call expect("recursive function", &
             "f[n_] := If[n <= 0, 1, n*f[n - 1]]"//char(10)// &
             "value = f[4]"//char(10), "value", "24")
+        call expect_refusal("unbounded recursion is refused", &
+            "f[n_] := f[n - 1]"//char(10)//"value = f[4]"//char(10), &
+            "user function recursion exceeds its bound")
+        call expect("function arguments substitute simultaneously", &
+            "f[x_, y_] := x + 2*y"//char(10)// &
+            "value = f[y, x] /. {x -> 3, y -> 5}"//char(10), &
+            "value", "11")
+        call expect_refusal("refused input is not differentiated as a constant", &
+            "f = Sum[x^k, {k, 1, Infinity}]"//char(10)// &
+            "value = D[f, x]"//char(10), &
+            "failed binding f: Sum needs bounded integer iterators")
+        call expect("a successful reassignment clears a refusal", &
+            "f = Sum[x^k, {k, 1, Infinity}]"//char(10)// &
+            "f = x^2"//char(10)//"value = D[f, x]"//char(10), &
+            "value", "x*2")
     end subroutine test_recursive_function
 
     !> Piecewise branch selection is checked against direct numeric cases.

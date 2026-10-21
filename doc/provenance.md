@@ -21,6 +21,21 @@ exists to prevent:
 Nothing else. If this table grows, the licence review in `COMPATIBILITY.md` §6
 applies.
 
+The corpus parity repairs in `fortsym_print`, `fortsym_wl`, and
+`src/algebra/fortsym_series_guard.f90` are original corrections to expression precedence,
+exact iterator typing, and the existing Taylor validity boundary. Rational
+`Table` iteration reuses `fortsym_wl_num`'s arithmetic progression, with its
+own expansion budget; no external implementation or tests were adapted.
+The independent regression oracles are parse/print tree reconstruction,
+hand-enumerated rational grids, and the absence of a Taylor series for `1/x`
+at zero. Singular or branch-dependent Taylor requests are refused when the
+native derivative-at-center method cannot produce finite coefficients.
+User-function arguments use the existing simultaneous substitution owner; a
+per-session depth bound refuses nonterminating definitions before stack overflow.
+Refused bindings remain refusals when consumed by later operations, including
+differentiation; reassignment can replace a failed binding with a valid value.
+GNU 12 checks also exercise invalid descriptor returns and assumption diagnostics.
+
 ## Reproducible research snapshots
 
 `scripts/collect_provenance.py` downloads pinned upstream documentation into

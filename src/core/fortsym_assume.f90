@@ -128,10 +128,16 @@ contains
         logical,                     intent(out), optional :: ok
         character(:), allocatable,   intent(out), optional :: why
         type(assumption_t) :: fact
+        logical :: accepted
+        character(:), allocatable :: diagnostic
 
         fact%expression = expression
         fact%facts = facts
-        call assume(context, fact, ok, why)
+        ! Do not forward an unallocated optional deferred-length character
+        ! through another optional dummy: GNU 12 can lose its presence.
+        call assume(context, fact, accepted, diagnostic)
+        if (present(ok)) ok = accepted
+        if (present(why)) why = diagnostic
     end subroutine record_assumption
 
     !> Record the bounded relation/domain fragment used by Assuming and
