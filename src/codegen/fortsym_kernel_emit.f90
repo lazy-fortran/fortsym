@@ -125,8 +125,8 @@ module fortsym_kernel_emit
         logical :: batch_inline = .false.
         !> Batch driver only: smallest batch size run on a thread team.
         integer :: batch_parallel_min = 2048
-        !> Batch driver only. When true (default), the leaf is called as a
-        !> scalar procedure from a width-one OpenMP SIMD loop,
+        !> Batch driver only. When true, the leaf is called as a
+        !> scalar procedure through a volatile callback in a `parallel do` loop,
         !> so every element is bitwise the scalar leaf for any thread count
         !> and the vectoriser cannot substitute libmvec for libm. When false,
         !> the leaf carries `declare simd` and the loop is `parallel do simd`;
@@ -788,6 +788,28 @@ contains
             end if
         end do
 
+        if (spec%batch_deterministic) then
+            if (callback_name_reserved(name)) then
+                message = "kernel emitter: name is reserved by "// &
+                        "deterministic batch driver"
+                return
+            end if
+            do k = 1, size(spec%args)
+                if (callback_name_reserved(chars(spec%args(k)))) then
+                    message = "kernel emitter: argument is reserved by "// &
+                        "deterministic batch driver"
+                    return
+                end if
+            end do
+            do k = 1, size(spec%outputs)
+                if (callback_name_reserved(chars(spec%outputs(k)))) then
+                    message = "kernel emitter: output is reserved by "// &
+                        "deterministic batch driver"
+                    return
+                end if
+            end do
+        end if
+
         leaf_spec = spec
         if (spec%batch_deterministic) then
             leaf_spec%target = TARGET_FORTRAN_CPU
@@ -863,14 +885,27 @@ contains
         end do
         call b%append("        integer :: batch_i")
         call b%newline()
+        if (spec%batch_deterministic) then
+            ! VOLATILE on the callback record keeps the indirect call visible
+            ! in each iteration. A direct call can inline and use vector libm;
+            ! GCC 12 rejects the newer GCC noinline attribute.
+            call b%append("        type :: fs_batch_callback_t")
+            call b%newline()
+            call b%append("            procedure("//name// &
+                "), pointer, nopass :: invoke")
+            call b%newline()
+            call b%append("        end type fs_batch_callback_t")
+            call b%newline()
+            call b%append( &
+                "        type(fs_batch_callback_t), volatile :: fs_batch_callback")
+            call b%newline()
+            call b%append("        fs_batch_callback%invoke => "//name)
+            call b%newline()
+        end if
         call b%newline()
         if (spec%batch_threaded) then
             if (spec%batch_deterministic) then
-                ! safelen(1) prevents concurrent SIMD iterations without a
-                ! compiler-specific noinline attribute (unsupported by GCC 12).
-                ! https://www.openmp.org/spec-html/5.1/openmpsu49.html
-                call b%append( &
-                    "        !$omp parallel do simd safelen(1) schedule(static) &")
+                call b%append("        !$omp parallel do schedule(static) &")
             else
                 call b%append("        !$omp parallel do simd schedule(static) &")
             end if
@@ -878,17 +913,17 @@ contains
             call b%append("        !$omp& if(parallel: batch_n >= " // &
                 chars(str(spec%batch_parallel_min)) // ")")
             call b%newline()
-        else
-            if (spec%batch_deterministic) then
-                call b%append("        !$omp simd safelen(1)")
-            else
-                call b%append("        !$omp simd")
-            end if
+        else if (.not. spec%batch_deterministic) then
+            call b%append("        !$omp simd")
             call b%newline()
         end if
         call b%append("        do batch_i = 1, batch_n")
         call b%newline()
-        call b%append("            call " // name // "(")
+        if (spec%batch_deterministic) then
+            call b%append("            call fs_batch_callback%invoke(")
+        else
+            call b%append("            call " // name // "(")
+        end if
         do k = 1, size(spec%args)
             if (k > 1) call b%append(", ")
             call b%append(chars(spec%args(k)))
@@ -904,7 +939,11 @@ contains
         call b%append("        end do")
         call b%newline()
         if (spec%batch_threaded) then
-            call b%append("        !$omp end parallel do simd")
+            if (spec%batch_deterministic) then
+                call b%append("        !$omp end parallel do")
+            else
+                call b%append("        !$omp end parallel do simd")
+            end if
             call b%newline()
         end if
         call b%append("    end subroutine " // name // "_batch")
@@ -915,6 +954,12 @@ contains
         source = str(wrap_fortran_source(chars(b%to_str())))
         ok = .true.
     end function emit_fortran_batch_ir
+
+    logical function callback_name_reserved(name) result(reserved)
+        character(*), intent(in) :: name
+        reserved = same_fortran_name(name, "fs_batch_callback") .or. &
+            same_fortran_name(name, "fs_batch_callback_t")
+    end function callback_name_reserved
 
     logical function is_uniform_name(spec, arg) result(found)
         type(kernel_emit_spec_t), intent(in) :: spec
