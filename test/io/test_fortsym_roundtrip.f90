@@ -187,7 +187,7 @@ contains
         integer, intent(in) :: dia
         type(arena_t), target :: a
         type(dialect_t) :: d
-        type(expr_t) :: x, y, z, cases(33)
+        type(expr_t) :: x, y, z, cases(36)
         integer :: k, n
 
         call a%init()
@@ -241,6 +241,11 @@ contains
         n = n + 1; cases(n) = exact(a, "-18446744073709551617")*&
             exact(a, "18446744073709551616")
 
+        ! Sign removal must retain the CAS exponent spelling, including the
+        ! negative real coefficient path through emit_negated.
+        n = n + 1; cases(n) = x + real_expr(a, -3.95_dp)
+        n = n + 1; cases(n) = x + real_expr(a, -1.0e-9_dp)
+        n = n + 1; cases(n) = x*real_expr(a, -3.95_dp)
         do k = 1, n
             call check_roundtrip(a, d, cases(k), k)
         end do

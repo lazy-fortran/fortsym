@@ -544,6 +544,7 @@ contains
         type(expr_t) :: r
         type(expr_t), allocatable :: entries(:)
         integer :: index, k
+        integer(int64) :: exact_index
 
         ok = .true.
         message = str("")
@@ -556,10 +557,17 @@ contains
             call refuse(ok, message, "Part assignment needs a bound List")
             return
         end if
-        if (.not. exact_small_int(selectors(level), index)) then
+        if (selectors(level)%kind() /= NK_INT) then
             call refuse(ok, message, "Part assignment needs integer selectors")
             return
         end if
+        exact_index = selectors(level)%int_value()
+        if (exact_index < -int(base%nargs(), int64) .or. &
+                exact_index > int(base%nargs(), int64)) then
+            call refuse(ok, message, "Part assignment index is out of range")
+            return
+        end if
+        index = int(exact_index)
         if (index < 0) index = base%nargs() + index + 1
         if (index < 1 .or. index > base%nargs()) then
             call refuse(ok, message, "Part assignment index is out of range")
@@ -1725,7 +1733,15 @@ contains
             end if
 
         case ("Range")
-            r = wl_range(s%a, r, ok, why)
+            ! Literal quotients and unary negatives are arithmetic trees until
+            ! simplified. Preserve their exact rational values before Range
+            ! decides whether it has a concrete or symbolic progression.
+            if (allocated(args)) deallocate (args)
+            allocate (args(r%nargs()))
+            do k = 1, r%nargs()
+                args(k) = auto_evaluate(s, r%arg(k))
+            end do
+            r = wl_range(s%a, func("Range", args), ok, why)
             if (.not. ok) then
                 call refuse(ok, message, "Range: "//why)
                 return
