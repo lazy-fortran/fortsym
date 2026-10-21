@@ -120,7 +120,7 @@ jobs:
       - name: Run native checks in the build container
         if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || format('{0}^', github.sha) }}
           SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
         run: |-
           ci/run.sh ci-provenance
