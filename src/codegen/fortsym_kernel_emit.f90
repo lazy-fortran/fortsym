@@ -35,6 +35,7 @@ module fortsym_kernel_emit
         fg_emit_fortran_kernel_ir => emit_fortran_kernel_ir, &
         fg_emit_cuda_device_ir => emit_cuda_device_ir, &
         fg_emit_python_kernel_ir => emit_python_kernel_ir
+    use fortgen_layout, only: wrap_fortran_source
     use fortgen_kernel_target, only: fg_target_from_name => target_from_name
     use fortgen_precision, only: fg_precision_from_name => precision_from_name
     use fortgen_string, only: fg_str_t => str_t, fg_str => str, fg_chars => chars
@@ -124,8 +125,8 @@ module fortsym_kernel_emit
         logical :: batch_inline = .false.
         !> Batch driver only: smallest batch size run on a thread team.
         integer :: batch_parallel_min = 2048
-        !> Batch driver only. When true (default), the leaf is called as a
-        !> scalar, non-inlined, non-SIMD procedure from a `parallel do` loop,
+        !> Batch driver only. When true, the leaf is called as a
+        !> scalar procedure through a volatile callback in a `parallel do` loop,
         !> so every element is bitwise the scalar leaf for any thread count
         !> and the vectoriser cannot substitute libmvec for libm. When false,
         !> the leaf carries `declare simd` and the loop is `parallel do simd`;
@@ -604,7 +605,8 @@ contains
         end if
         source = str(fg_chars(fg_source))
         if (spec%target == TARGET_FORTRAN_OPENMP_SIMD) then
-            source = str(add_declare_simd(fg_chars(fg_source), spec, ok, message))
+            source = str(wrap_fortran_source( &
+                add_declare_simd(fg_chars(fg_source), spec, ok, message)))
             if (.not. ok) source = str("")
         end if
     end function emit_fortran_kernel_ir
@@ -747,7 +749,7 @@ contains
         type(kernel_emit_spec_t) :: leaf_spec
         type(strbuf_t) :: b
         character(:), allocatable :: name, leaf, in_kind, out_kind
-        integer :: k, pos
+        integer :: k
         logical :: uniform_arg, need32, need64
 
         source = str("")
@@ -786,6 +788,28 @@ contains
             end if
         end do
 
+        if (spec%batch_deterministic) then
+            if (callback_name_reserved(name)) then
+                message = "kernel emitter: name is reserved by "// &
+                        "deterministic batch driver"
+                return
+            end if
+            do k = 1, size(spec%args)
+                if (callback_name_reserved(chars(spec%args(k)))) then
+                    message = "kernel emitter: argument is reserved by "// &
+                        "deterministic batch driver"
+                    return
+                end if
+            end do
+            do k = 1, size(spec%outputs)
+                if (callback_name_reserved(chars(spec%outputs(k)))) then
+                    message = "kernel emitter: output is reserved by "// &
+                        "deterministic batch driver"
+                    return
+                end if
+            end do
+        end if
+
         leaf_spec = spec
         if (spec%batch_deterministic) then
             leaf_spec%target = TARGET_FORTRAN_CPU
@@ -794,17 +818,6 @@ contains
         end if
         leaf = chars(emit_fortran_kernel_ir(ir, leaf_spec, ok, message))
         if (.not. ok) return
-        if (spec%batch_deterministic) then
-            ! GCC attribute directives must follow the use statements.
-            pos = index(leaf, "    implicit none" // new_line("a"))
-            if (pos == 0) then
-                message = "kernel emitter: leaf has no implicit none statement"
-                return
-            end if
-            pos = pos + len("    implicit none")
-            leaf = leaf(1:pos) // "    !GCC$ ATTRIBUTES noinline :: " // name // &
-                new_line("a") // leaf(pos + 1:)
-        end if
         ok = .false.
 
         need32 = spec%precision /= PRECISION_REAL64
@@ -872,6 +885,23 @@ contains
         end do
         call b%append("        integer :: batch_i")
         call b%newline()
+        if (spec%batch_deterministic) then
+            ! VOLATILE on the callback record keeps the indirect call visible
+            ! in each iteration. A direct call can inline and use vector libm;
+            ! GCC 12 rejects the newer GCC noinline attribute.
+            call b%append("        type :: fs_batch_callback_t")
+            call b%newline()
+            call b%append("            procedure("//name// &
+                "), pointer, nopass :: invoke")
+            call b%newline()
+            call b%append("        end type fs_batch_callback_t")
+            call b%newline()
+            call b%append( &
+                "        type(fs_batch_callback_t), volatile :: fs_batch_callback")
+            call b%newline()
+            call b%append("        fs_batch_callback%invoke => "//name)
+            call b%newline()
+        end if
         call b%newline()
         if (spec%batch_threaded) then
             if (spec%batch_deterministic) then
@@ -889,7 +919,11 @@ contains
         end if
         call b%append("        do batch_i = 1, batch_n")
         call b%newline()
-        call b%append("            call " // name // "(")
+        if (spec%batch_deterministic) then
+            call b%append("            call fs_batch_callback%invoke(")
+        else
+            call b%append("            call " // name // "(")
+        end if
         do k = 1, size(spec%args)
             if (k > 1) call b%append(", ")
             call b%append(chars(spec%args(k)))
@@ -917,9 +951,15 @@ contains
         call b%newline()
         call b%append("end module " // name // "_batch_mod")
         call b%newline()
-        source = b%to_str()
+        source = str(wrap_fortran_source(chars(b%to_str())))
         ok = .true.
     end function emit_fortran_batch_ir
+
+    logical function callback_name_reserved(name) result(reserved)
+        character(*), intent(in) :: name
+        reserved = same_fortran_name(name, "fs_batch_callback") .or. &
+            same_fortran_name(name, "fs_batch_callback_t")
+    end function callback_name_reserved
 
     logical function is_uniform_name(spec, arg) result(found)
         type(kernel_emit_spec_t), intent(in) :: spec
