@@ -41,7 +41,7 @@ env:
 jobs:
   python-package:
     name: Python wheel + clean virtualenv
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
+    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - uses: actions/checkout@v5
 
@@ -65,7 +65,7 @@ jobs:
         run: |
           nix develop --command cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DFORTSYM_BUILD_TESTING=OFF
-          nix develop --command cmake --build build -j
+          nix develop --command cmake --build build -j "${SCI_CPUS:-8}"
 
         if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Build and install the wheel in a clean environment
@@ -110,7 +110,7 @@ jobs:
     name: compatibility provenance
     if: >-
       github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
+    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -139,7 +139,7 @@ jobs:
         if: ${{ github.event.pull_request.head.repo.fork }}
   cmake:
     name: cmake + ctest (Tier 1 only)
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
+    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - uses: actions/checkout@v5
 
@@ -187,7 +187,7 @@ jobs:
 
         if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Build
-        run: nix develop --command cmake --build build -j
+        run: nix develop --command cmake --build build -j "${SCI_CPUS:-8}"
 
         if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Test
@@ -213,7 +213,7 @@ jobs:
       github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   multi-engine:
     name: cmake + ctest (with Tier 2 engines)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, itp-ubuntu24]
     continue-on-error: true
     steps:
       - uses: actions/checkout@v5
@@ -248,7 +248,7 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
-        run: nix develop .#tier2 --command cmake --build build -j
+        run: nix develop .#tier2 --command cmake --build build -j "${SCI_CPUS:-8}"
 
       - name: Test
         run: nix develop .#tier2 --command ctest --test-dir build --output-on-failure
@@ -266,7 +266,7 @@ jobs:
       github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   generated-up-to-date:
     name: generated sources are current
-    runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
+    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - uses: actions/checkout@v5
 
@@ -311,7 +311,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          nix develop --command cmake --build build -j
+          nix develop --command cmake --build build -j "${SCI_CPUS:-8}"
 
       # Each committed file names the program that produced it in its header, so
       # the gate is driven by the files themselves. A glob over build/bin/gen_*
