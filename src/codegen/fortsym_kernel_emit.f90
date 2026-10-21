@@ -126,7 +126,7 @@ module fortsym_kernel_emit
         !> Batch driver only: smallest batch size run on a thread team.
         integer :: batch_parallel_min = 2048
         !> Batch driver only. When true (default), the leaf is called as a
-        !> scalar, non-inlined, non-SIMD procedure from a `parallel do` loop,
+        !> scalar procedure from a width-one OpenMP SIMD loop,
         !> so every element is bitwise the scalar leaf for any thread count
         !> and the vectoriser cannot substitute libmvec for libm. When false,
         !> the leaf carries `declare simd` and the loop is `parallel do simd`;
@@ -749,7 +749,7 @@ contains
         type(kernel_emit_spec_t) :: leaf_spec
         type(strbuf_t) :: b
         character(:), allocatable :: name, leaf, in_kind, out_kind
-        integer :: k, pos
+        integer :: k
         logical :: uniform_arg, need32, need64
 
         source = str("")
@@ -796,17 +796,6 @@ contains
         end if
         leaf = chars(emit_fortran_kernel_ir(ir, leaf_spec, ok, message))
         if (.not. ok) return
-        if (spec%batch_deterministic) then
-            ! GCC attribute directives must follow the use statements.
-            pos = index(leaf, "    implicit none" // new_line("a"))
-            if (pos == 0) then
-                message = "kernel emitter: leaf has no implicit none statement"
-                return
-            end if
-            pos = pos + len("    implicit none")
-            leaf = leaf(1:pos) // "    !GCC$ ATTRIBUTES noinline :: " // name // &
-                new_line("a") // leaf(pos + 1:)
-        end if
         ok = .false.
 
         need32 = spec%precision /= PRECISION_REAL64
@@ -877,7 +866,11 @@ contains
         call b%newline()
         if (spec%batch_threaded) then
             if (spec%batch_deterministic) then
-                call b%append("        !$omp parallel do schedule(static) &")
+                ! safelen(1) prevents concurrent SIMD iterations without a
+                ! compiler-specific noinline attribute (unsupported by GCC 12).
+                ! https://www.openmp.org/spec-html/5.1/openmpsu49.html
+                call b%append( &
+                    "        !$omp parallel do simd safelen(1) schedule(static) &")
             else
                 call b%append("        !$omp parallel do simd schedule(static) &")
             end if
@@ -885,8 +878,12 @@ contains
             call b%append("        !$omp& if(parallel: batch_n >= " // &
                 chars(str(spec%batch_parallel_min)) // ")")
             call b%newline()
-        else if (.not. spec%batch_deterministic) then
-            call b%append("        !$omp simd")
+        else
+            if (spec%batch_deterministic) then
+                call b%append("        !$omp simd safelen(1)")
+            else
+                call b%append("        !$omp simd")
+            end if
             call b%newline()
         end if
         call b%append("        do batch_i = 1, batch_n")
@@ -907,11 +904,7 @@ contains
         call b%append("        end do")
         call b%newline()
         if (spec%batch_threaded) then
-            if (spec%batch_deterministic) then
-                call b%append("        !$omp end parallel do")
-            else
-                call b%append("        !$omp end parallel do simd")
-            end if
+            call b%append("        !$omp end parallel do simd")
             call b%newline()
         end if
         call b%append("    end subroutine " // name // "_batch")

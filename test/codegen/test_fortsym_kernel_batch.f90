@@ -229,8 +229,8 @@ contains
             index(src, "module rej_batch_mod") > 0 .and. &
             index(src, "subroutine rej_batch(batch_n, x, y, a, r)") > 0 .and. &
             index(src, "real(real64), intent(in) :: a" // new_line("a")) > 0 .and. &
-            index(src, "!$omp parallel do schedule(static)") > 0 .and. &
-            index(src, "!GCC$ ATTRIBUTES noinline :: rej") > 0 .and. &
+            index(src, "!$omp parallel do simd safelen(1) schedule(static)") > 0 .and. &
+            index(src, "!GCC$") == 0 .and. &
             index(src, "declare simd") == 0)
         spec%batch_deterministic = .false.
         src = chars(emit_fortran_batch_ir(ir, spec, good, message))
@@ -244,8 +244,9 @@ contains
             index(src, "!$omp simd") > 0 .and. index(src, "parallel") == 0)
         spec%batch_deterministic = .true.
         src = chars(emit_fortran_batch_ir(ir, spec, good, message))
-        call ok("unthreaded deterministic batch has no OpenMP loop directive", good .and. &
-            index(src, "!$omp simd") == 0 .and. index(src, "parallel") == 0)
+        call ok("unthreaded deterministic batch restricts SIMD to width one", &
+            good .and. index(src, "!$omp simd safelen(1)") > 0 .and. &
+            index(src, "parallel") == 0)
     end subroutine test_batch_rejections
 
     subroutine write_text(unit, text)
