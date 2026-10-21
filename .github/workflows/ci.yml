@@ -11,9 +11,10 @@ on:
 permissions:
   contents: read
 
+# Only PR runs share a group; pending push and merge-group runs stay independent.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.ref, github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # The toolchain comes from flake.nix, not from the runner image. fortsym pins
 # FLINT and MPFR to exact versions and needs SymEngine, and no distribution
