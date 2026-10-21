@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   oracle-audit:
     name: Corpus shard ${{ matrix.shard }}
@@ -26,7 +30,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: lazy-fortran/fortsym-bench
-          ref: 16985bcb6e1afcdc9f7dfdf568b536198532749e
+          ref: b823a5c6678a1df6571c52940008a54ccd07f905
           path: bench
 
       - uses: cachix/install-nix-action@v31
@@ -85,7 +89,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           repository: lazy-fortran/fortsym-bench
-          ref: 16985bcb6e1afcdc9f7dfdf568b536198532749e
+          ref: b823a5c6678a1df6571c52940008a54ccd07f905
           path: bench
       - uses: actions/setup-python@v5
         with:

@@ -442,7 +442,8 @@ contains
 
         integer :: comma, eq, lhs_end
         character(:), allocatable :: name, rhs, function_name
-        type(expr_t) :: value
+        type(expr_t) :: value, lhs
+        character(:), allocatable :: why
         logical :: ok, function_lhs_ok
         type(str_t) :: message
 
@@ -472,6 +473,15 @@ contains
         rhs = text(eq + assignment_width(text, eq):)
 
         if (.not. is_plain_name(name)) then
+            lhs = parse_expr_in(s%a, name, dialect(DIA_WOLFRAM), ok, why)
+            if (ok) then
+                if (lhs%kind() == NK_FUNC) then
+                    if (chars(lhs%name()) == "Part") then
+                        call assign_part(s, lhs, rhs)
+                        return
+                    end if
+                end if
+            end if
             function_lhs_ok = function_lhs_name(name, function_name)
             if (.not. function_lhs_ok) return
             call define_function(s, name, rhs, ok, message)
@@ -487,6 +497,90 @@ contains
         s%bindings(s%n)%ok = ok
         s%bindings(s%n)%message = message
     end subroutine wl_run_statement
+
+    !> Update a bound list by value; earlier aliases retain their old value.
+    subroutine assign_part(s, lhs, rhs)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t), intent(in) :: lhs
+        character(*), intent(in) :: rhs
+        type(expr_t) :: variable, value, base, updated
+        type(expr_t), allocatable :: selectors(:)
+        type(str_t) :: message
+        logical :: ok
+        integer :: k
+
+        if (lhs%nargs() < 2) return
+        variable = lhs%arg(1)
+        if (variable%kind() /= NK_SYM) return
+        call wl_eval_text(s, rhs, value, ok, message)
+        if (ok) then
+            base = wl_eval(s, apply_bindings(s, variable), ok, message)
+            if (ok) then
+                allocate (selectors(lhs%nargs() - 1))
+                do k = 1, size(selectors)
+                    selectors(k) = auto_evaluate(s, &
+                        apply_bindings(s, lhs%arg(k + 1)))
+                end do
+                updated = replace_list_part(s, base, selectors, 1, value, &
+                    ok, message)
+                value = updated
+            end if
+        end if
+        if (s%n >= MAX_BINDINGS) return
+        s%n = s%n + 1
+        s%bindings(s%n)%name = variable%name()
+        s%bindings(s%n)%value = value
+        s%bindings(s%n)%ok = ok
+        s%bindings(s%n)%message = message
+    end subroutine assign_part
+
+    recursive function replace_list_part(s, base, selectors, level, value, &
+            ok, message) result(r)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t), intent(in) :: base, selectors(:), value
+        integer, intent(in) :: level
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: message
+        type(expr_t) :: r
+        type(expr_t), allocatable :: entries(:)
+        integer :: index, k
+        integer(int64) :: exact_index
+
+        ok = .true.
+        message = str("")
+        r = base
+        if (level > size(selectors)) then
+            r = value
+            return
+        end if
+        if (.not. is_list(base)) then
+            call refuse(ok, message, "Part assignment needs a bound List")
+            return
+        end if
+        if (selectors(level)%kind() /= NK_INT) then
+            call refuse(ok, message, "Part assignment needs integer selectors")
+            return
+        end if
+        exact_index = selectors(level)%int_value()
+        if (exact_index < -int(base%nargs(), int64) .or. &
+                exact_index > int(base%nargs(), int64)) then
+            call refuse(ok, message, "Part assignment index is out of range")
+            return
+        end if
+        index = int(exact_index)
+        if (index < 0) index = base%nargs() + index + 1
+        if (index < 1 .or. index > base%nargs()) then
+            call refuse(ok, message, "Part assignment index is out of range")
+            return
+        end if
+        allocate (entries(base%nargs()))
+        do k = 1, size(entries)
+            entries(k) = base%arg(k)
+        end do
+        entries(index) = replace_list_part(s, base%arg(index), selectors, &
+            level + 1, value, ok, message)
+        if (ok) r = make_list(s, entries)
+    end function replace_list_part
 
     !> Run the small set of bare commands with session-level side effects.
     subroutine wl_run_command(s, text)
@@ -887,10 +981,18 @@ contains
         type(wl_session_t), intent(in) :: s
         type(expr_t),       intent(in) :: e
         type(expr_t)                   :: r
-        integer :: k
+        integer :: k, j
+        logical :: superseded
 
         r = e
         do k = s%n, 1, -1
+            superseded = .false.
+            do j = k + 1, s%n
+                if (chars(s%bindings(j)%name) /= chars(s%bindings(k)%name)) cycle
+                superseded = .true.
+                exit
+            end do
+            if (superseded) cycle
             if (.not. s%bindings(k)%ok) cycle
             r = subs(r, sym(s%a, chars(s%bindings(k)%name)), s%bindings(k)%value)
         end do
@@ -984,6 +1086,14 @@ contains
         ! i. The lowering routine is deliberately bounded: a verification
         ! frontend must decline a huge expansion rather than turn one source
         ! line into an accidental memory/time bomb.
+        ! Scoping constructs hold their locals and body. The generic child
+        ! walk would execute local Set nodes in the outer session before the
+        ! scope handler sees them. Refuse until lexical evaluation is owned.
+        if (head == "Module" .or. head == "Block" .or. head == "With") then
+            call refuse(ok, message, "scoped evaluation is not implemented")
+            return
+        end if
+
         if (head == "Table") then
             r = lower_table(s, e, ok, message)
             return
@@ -1160,14 +1270,6 @@ contains
                 if (.not. ok) return
                 r = inner
             end if
-
-        case ("Module", "Block", "With")
-            if (r%nargs() < 2) then
-                call refuse(ok, message, head//" needs locals and a body")
-                return
-            end if
-            r = scoped_body(s, r, ok, message)
-            if (.not. ok) return
 
         case ("Simplify", "FullSimplify")
             res = s%engine%simplify(r%arg(1), s%engine_limit)
@@ -6123,44 +6225,6 @@ contains
         yes = (is_matrix(x) .and. .not. is_list(y)) .or. &
               (is_matrix(y) .and. .not. is_list(x))
     end function scalar_matrix_dottable
-
-    !> Substitute a scoping construct's local initialisers into its body.
-    !>
-    !> Returning the body untouched would be a wrong answer, not a refusal:
-    !> Module[{ok = 1}, ok + 2] would report "ok + 2" as though that were the
-    !> value. An uninitialised local is refused instead, because it names a
-    !> fresh variable in a scope fortsym does not model, and treating it as the
-    !> outer symbol of the same name silently resolves a shadow the wrong way.
-    function scoped_body(s, e, ok, message) result(r)
-        type(wl_session_t), intent(inout) :: s
-        type(expr_t),       intent(in)    :: e
-        logical,            intent(out)   :: ok
-        type(str_t),        intent(out)   :: message
-        type(expr_t)                      :: r
-        type(expr_t) :: locals, item
-        integer :: k
-
-        ok = .true.
-        message = str("")
-        r = e%arg(e%nargs())
-        locals = e%arg(1)
-
-        if (locals%kind() /= NK_FUNC) return
-        if (chars(locals%name()) /= "List") return
-
-        do k = 1, locals%nargs()
-            item = locals%arg(k)
-            if (item%kind() == NK_FUNC) then
-                if (chars(item%name()) == "Set") then
-                    r = subs(r, item%arg(1), item%arg(2))
-                    cycle
-                end if
-            end if
-            call refuse(ok, message, &
-                "scoping construct with an uninitialised local")
-            return
-        end do
-    end function scoped_body
 
     !> Rebuild an arithmetic node from evaluated children.
     !>

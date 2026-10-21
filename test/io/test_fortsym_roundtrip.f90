@@ -397,6 +397,14 @@ contains
             "pi")
         call eq_text("yacas pi", &
             chars(print_expr_in(pi_expr(a), dialect(DIA_YACAS))), "Pi")
+        ! The native parser accepts Fortran E notation as an extension, so a
+        ! native roundtrip cannot reject that invalid Wolfram spelling.
+        call eq_text("wolfram negative real coefficient", &
+            chars(print_expr_in(x + real_expr(a, -3.95_dp), &
+            dialect(DIA_WOLFRAM))), "x - 3.95")
+        call eq_text("wolfram negative scientific coefficient", &
+            chars(print_expr_in(x + real_expr(a, -1.0e-9_dp), &
+            dialect(DIA_WOLFRAM))), "x - 1.0*^-9")
         call eq_text("wolfram positive infinity", &
             chars(print_expr_in(oo_expr(a), dialect(DIA_WOLFRAM))), "Infinity")
         call eq_text("wolfram complex infinity", &

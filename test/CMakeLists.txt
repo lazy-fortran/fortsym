@@ -70,6 +70,7 @@ add_executable(test_typed_intrinsic_compiled
 add_test(NAME test_typed_intrinsic_compiled COMMAND test_typed_intrinsic_compiled)
 fortsym_add_test(test_fortsym_latex io/test_fortsym_latex.f90)
 fortsym_add_test(test_fortsym_wolfram io/test_fortsym_wolfram.f90)
+fortsym_add_test(test_fortsym_wl_statements io/test_fortsym_wl_statements.f90)
 fortsym_add_test(test_fortsym_plotfamily io/test_fortsym_plotfamily.f90)
 
 # Shared scalar emitter: compile actual CUDA spelling as ordinary host C++.

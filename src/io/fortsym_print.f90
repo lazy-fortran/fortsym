@@ -1200,7 +1200,11 @@ contains
         case (NK_BIG_REAL)
             call emit_big_real(b, a, id, d, context, magnitude_only=.true.)
         case (NK_REAL)
-            call b%append(chars(str(-a%real_of(id))))
+            if (d%compact_reals) then
+                call b%append(compact_real(-a%real_of(id)))
+            else
+                call b%append(chars(str(-a%real_of(id))))
+            end if
             call b%append(chars(d%real_suffix))
         case (NK_MUL)
             ! Rebuild the factor list with the negative coefficient flipped. A
