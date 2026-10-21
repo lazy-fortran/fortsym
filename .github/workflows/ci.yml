@@ -218,6 +218,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Install Nix cache prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends sqlite3
+          # cache-nix-action hardcodes runner:runner for its database ownership.
+          # Portable runners run as root and do not provide that account.
+          if ! getent passwd runner > /dev/null; then
+            sudo useradd --user-group --no-create-home --shell /usr/sbin/nologin runner
+          fi
+
       - uses: cachix/install-nix-action@v31
         with:
           extra_nix_config: |
