@@ -210,6 +210,15 @@ contains
         logical :: good
 
         call make_ir(1, ir, good)
+        call fill_spec(spec, "FS_BATCH_CALLBACK")
+        spec%batch_deterministic = .true.
+        src = chars(emit_fortran_batch_ir(ir, spec, good, message))
+        call ok("deterministic batch refuses a callback-name collision", .not. good)
+        call fill_spec(spec, "rej")
+        spec%batch_deterministic = .true.
+        spec%outputs(1) = str("fs_batch_callback_t")
+        src = chars(emit_fortran_batch_ir(ir, spec, good, message))
+        call ok("deterministic batch refuses a callback-type collision", .not. good)
         call fill_spec(spec, "rej")
         spec%target = TARGET_CUDA
         src = chars(emit_fortran_batch_ir(ir, spec, good, message))
@@ -229,7 +238,7 @@ contains
             index(src, "module rej_batch_mod") > 0 .and. &
             index(src, "subroutine rej_batch(batch_n, x, y, a, r)") > 0 .and. &
             index(src, "real(real64), intent(in) :: a" // new_line("a")) > 0 .and. &
-            index(src, "!$omp parallel do simd safelen(1) schedule(static)") > 0 .and. &
+            index(src, "!$omp parallel do schedule(static)") > 0 .and. &
             index(src, "!GCC$") == 0 .and. &
             index(src, "declare simd") == 0)
         spec%batch_deterministic = .false.
@@ -244,9 +253,9 @@ contains
             index(src, "!$omp simd") > 0 .and. index(src, "parallel") == 0)
         spec%batch_deterministic = .true.
         src = chars(emit_fortran_batch_ir(ir, spec, good, message))
-        call ok("unthreaded deterministic batch restricts SIMD to width one", &
-            good .and. index(src, "!$omp simd safelen(1)") > 0 .and. &
-            index(src, "parallel") == 0)
+        call ok("unthreaded deterministic batch uses a scalar callback", &
+            good .and. index(src, "call fs_batch_callback%invoke(") > 0 .and. &
+            index(src, "!$omp simd") == 0 .and. index(src, "parallel") == 0)
     end subroutine test_batch_rejections
 
     subroutine write_text(unit, text)
