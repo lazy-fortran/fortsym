@@ -18,7 +18,10 @@ module fortsym_engine_ext
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str_t, strbuf_t, str, chars
     use fortsym_arena, only: arena_t, NK_SYM, NK_CONST, NK_FUNC
-    use fortsym_expr, only: expr_t
+    use fortsym_assume, only: assumption_context_t
+    use fortsym_assumption_export, only: sympy_assumption_keywords, &
+        exportable_assumptions
+    use fortsym_expr, only: expr_t, is_valid
     use fortsym_dialect, only: dialect, DIA_MAXIMA, DIA_SYMPY
     use fortsym_print, only: print_expr_in
     use fortsym_parse, only: parse_expr_in
@@ -44,6 +47,7 @@ module fortsym_engine_ext
 
     type, extends(engine_t) :: sympy_engine_t
         type(arena_t), pointer :: home => null()
+        type(assumption_context_t), pointer :: assumptions => null()
     contains
         procedure :: zero_test => sp_zero_test
         procedure :: simplify => sp_simplify
@@ -137,10 +141,12 @@ contains
 
     ! -------------------------------------------------------------- SymPy --
 
-    function make_sympy_engine(home) result(eng)
+    function make_sympy_engine(home, assumptions) result(eng)
         type(arena_t), target, intent(inout) :: home
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
         type(sympy_engine_t)                 :: eng
 
+        if (present(assumptions)) eng%assumptions => assumptions
         eng%name = str("sympy")
         eng%in_process = .false.
         eng%home => home
@@ -168,8 +174,9 @@ contains
     !> identifier becomes a symbol rather than resolving to a Python builtin --
     !> without that, an expression containing `E` or `I` would silently pick up
     !> whatever those names mean in the interpreter.
-    function sympy_script(e, expr_text, call_text) result(s)
+    function sympy_script(e, expr_text, call_text, assumptions) result(s)
         type(expr_t),  intent(in)  :: e
+        type(assumption_context_t), pointer, intent(in) :: assumptions
         character(*), intent(in)  :: expr_text, call_text
         character(:), allocatable :: s
         type(strbuf_t) :: b
@@ -178,7 +185,7 @@ contains
         call b%newline()
         call b%append("local_dict = {}")
         call b%newline()
-        call append_sympy_symbols(b, e)
+        call append_sympy_symbols(b, e, assumptions)
         call b%append("e = sympy.sympify('"//expr_text//"', locals=local_dict)")
         call b%newline()
         call b%append("print('"//MARK_BEGIN//"')")
@@ -197,11 +204,26 @@ contains
         type(engine_result_t)                :: r
         type(str_t), allocatable :: lines(:)
         character(:), allocatable :: text, message
-        integer :: n
+        integer :: n, k
+        character(:), allocatable :: conditions
         logical :: ok
         real(dp) :: t0
 
         r%value = e
+        if (.not. is_valid(e)) then
+            r%message = str("sympy: invalid expression")
+            return
+        end if
+        if (.not. associated(e%a, self%home)) then
+            r%message = str("sympy: foreign arena")
+            return
+        end if
+        if (associated(self%assumptions)) then
+            if (.not. exportable_assumptions(self%assumptions, self%home)) then
+                r%message = str("sympy: unsupported or foreign assumption context")
+                return
+            end if
+        end if
         if (.not. external_expression_safe(e)) then
             r%message = str("sympy: unsafe or unsupported expression")
             return
@@ -214,7 +236,7 @@ contains
         t0 = wall_seconds()
         text = chars(print_expr_in(e, dialect(DIA_SYMPY)))
         call proc_run("python3", &
-            sympy_script(e, text, "sympy.simplify(e)"), lines, n, ok)
+            sympy_script(e, text, "sympy.simplify(e)", self%assumptions), lines, n, ok)
         r%seconds = wall_seconds() - t0
 
         if (.not. ok .or. n < 1) then
@@ -226,6 +248,16 @@ contains
             dialect(DIA_SYMPY), ok, message)
         r%ok = ok
         if (.not. ok) r%message = str("sympy: unreadable answer: "//message)
+        if (ok .and. associated(self%assumptions)) then
+            conditions=''
+            do k=1,self%assumptions%n
+                if (k>1) conditions=conditions//'; '
+                conditions=conditions//chars(self%home%name_of(self%assumptions%ids(k)))// &
+                    ':'//sympy_assumption_keywords(self%assumptions%facts(k))
+            end do
+            r%conditional=self%assumptions%n>0
+            r%condition=str(conditions)
+        end if
     end function sp_simplify
 
     function sp_zero_test(self, e) result(r)
@@ -316,21 +348,29 @@ contains
         end select
     end function safe_function
 
-    recursive subroutine append_sympy_symbols(b, e)
+    recursive subroutine append_sympy_symbols(b, e, assumptions)
         type(strbuf_t), intent(inout) :: b
         type(expr_t),   intent(in)    :: e
-        character(:), allocatable :: name
-        integer :: k
+        type(assumption_context_t), pointer, intent(in) :: assumptions
+        character(:), allocatable :: name, keywords
+        integer :: k, facts
 
         if (e%kind() == NK_SYM) then
             name = chars(e%name())
+            facts = 0
+            if (associated(assumptions)) then
+                do k = 1, assumptions%n
+                    if (assumptions%ids(k) == e%id) facts = assumptions%facts(k)
+                end do
+            end if
+            keywords = sympy_assumption_keywords(facts)
             call b%append("local_dict['"//name//"'] = sympy.Symbol('"// &
-                name//"')")
+                name//"'"//keywords//")")
             call b%newline()
             return
         end if
         do k = 1, e%nargs()
-            call append_sympy_symbols(b, e%arg(k))
+            call append_sympy_symbols(b, e%arg(k), assumptions)
         end do
     end subroutine append_sympy_symbols
 

@@ -194,3 +194,15 @@ Versions, licences and linking rules are in `LEGAL.md` §3 and
   not a symbolic algebra oracle or a participant in CAS decisions.
 - FortGen's ordinary-SymPy frontend enters the same backend independently of
   FortSym, while mathematical derivation history stays with FortSym.
+
+### Scalar derivation transcripts and exact export
+
+`src/io/fortsym_derivation.f90`, `src/io/fortsym_exact_export.f90`,
+`src/io/fortsym_assumption_export.f90` and `python/fortsym/derivation.py` are
+original local implementations of bounded operation recording, exact scalar
+construction and explicit assumption transport. The native arena, algebra and
+assumption owners are reused. No third-party implementation or fixture was
+copied. The independently authored scalar replay fixture uses ordinary SymPy
+1.14.0 as an external oracle plus exact polynomial coefficients, rational
+arithmetic and a pole witness. CRC64-ECMA uses polynomial 0x42F0E1EBA9EA3693;
+its independent check value for ASCII `123456789` is 0x6C40DF5F0B497347.

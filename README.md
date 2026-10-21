@@ -40,8 +40,9 @@ Python callers use the installed `fortsym` package through the stable C ABI.
 which provides simplification and zero-test checks. It does not interpret an
 arbitrary SymPy script or export a complete derivation. The supported Python
 path is host-language composition through the package API. The
-[implementation plan](PLAN.md) adds recorded derivations, standalone SymPy
-script export and replay through ordinary SymPy and the native drop-in.
+[bounded scalar recorder](doc/derivation-api.md) exports ordered native and
+Python operations for replay through ordinary SymPy and the native drop-in.
+The [implementation plan](PLAN.md) retains the broader API and corpus scope.
 The Wolfram session remains a separate compatibility surface because the
 repository has an existing `.wl` derivation corpus to read.
 

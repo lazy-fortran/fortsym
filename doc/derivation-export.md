@@ -1,5 +1,18 @@
 # Executable derivation export
 
+## Implemented scalar slice
+
+[V] The native owner, C ABI, Python hooks and standalone scalar exporter are
+available; see [API and limits](derivation-api.md). Registered native recording,
+export and optional four-stage replay gates cover exact scalar constructors,
+differentiation/substitution, positive square roots, rational cancellation,
+pole exclusions and explicit UNKNOWN. This is a bounded initial slice of
+issues #78–#80, not completion of their broader API/corpus scope.
+
+[V] The optional external SymPy engine accepts an explicit native assumption
+context, transports supported symbol facts, retains its result conditions and
+refuses composite/foreign contexts. Python remains optional.
+
 ## Contract
 
 - Input: a recorded supported derivation from native Fortran or the Python
