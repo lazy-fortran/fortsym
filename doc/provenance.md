@@ -30,6 +30,9 @@ The independent regression oracles are parse/print tree reconstruction,
 hand-enumerated rational grids, and the absence of a Taylor series for `1/x`
 at zero. Singular or branch-dependent Taylor requests are refused when the
 native derivative-at-center method cannot produce finite coefficients.
+User-function arguments use the existing simultaneous substitution owner; a
+per-session depth bound refuses nonterminating definitions before stack overflow.
+GNU 12 checks also exercise invalid descriptor returns and assumption diagnostics.
 
 ## Reproducible research snapshots
 
