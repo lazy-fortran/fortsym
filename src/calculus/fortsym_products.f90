@@ -20,7 +20,7 @@ module fortsym_products
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
     use fortsym_expr, only: expr_t, num, func, is_valid, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
-        operator(==), sin, cos, tan, exp, log, sqrt, sinh, cosh, tanh
+        operator(==), sin, cos, tan, exp, log, sqrt, abs, sinh, cosh, tanh
     use fortsym_diff, only: diff
     implicit none
     private
@@ -257,6 +257,8 @@ contains
         case ("exp");   tangent = exp(x)*dx
         case ("log");   tangent = dx/x
         case ("sqrt");  tangent = dx/(2*sqrt(x))
+        ! Real branch only, x /= 0; the cusp has no derivative.
+        case ("abs");   tangent = x/abs(x)*dx
         case ("erf")
             tangent = 2*exp(-x**2)*dx/sqrt(pi_of(x%a))
         case ("erfc")

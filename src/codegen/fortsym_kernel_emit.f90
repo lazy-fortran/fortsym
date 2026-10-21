@@ -34,6 +34,7 @@ module fortsym_kernel_emit
     use fortgen_kernel_emit, only: fg_kernel_emit_spec_t => kernel_emit_spec_t, &
         fg_emit_fortran_kernel_ir => emit_fortran_kernel_ir, &
         fg_emit_cuda_device_ir => emit_cuda_device_ir, &
+        fg_emit_cuda_batch_ir => emit_cuda_batch_ir, &
         fg_emit_python_kernel_ir => emit_python_kernel_ir
     use fortgen_layout, only: wrap_fortran_source
     use fortgen_kernel_target, only: fg_target_from_name => target_from_name
@@ -47,6 +48,7 @@ module fortsym_kernel_emit
     public :: emit_cpu_precision_kernels
     public :: kernel_emission_policy_t, kernel_emit_spec_t
     public :: emit_fortran_kernel_ir, emit_cuda_device_ir, emit_python_kernel_ir
+    public :: emit_cuda_batch_ir
     public :: emit_fortran_batch_ir
     public :: emit_table
     public :: TARGET_DEFAULT, TARGET_FORTRAN_CPU
@@ -1000,6 +1002,34 @@ contains
         end if
         source = str(fg_chars(fg_source))
     end function emit_cuda_device_ir
+
+    function emit_cuda_batch_ir(ir, spec, ok, message) result(source)
+        type(kernel_ir_t), intent(in) :: ir
+        type(kernel_emit_spec_t), intent(in) :: spec
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(str_t) :: source
+        type(fg_kernel_ir_t) :: fg_ir
+        type(fg_kernel_emit_spec_t) :: fg_spec
+        type(fg_str_t) :: fg_source
+
+        call to_fortgen_kernel_ir(ir, fg_ir, ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        call map_fortgen_spec(spec, fg_spec, ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        fg_source = fg_emit_cuda_batch_ir(fg_ir, fg_spec, ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        source = str(fg_chars(fg_source))
+    end function emit_cuda_batch_ir
 
     subroutine prepare_fortran_ir(ir, spec, mapped_ir, mapped_spec, original_names, &
             emitted_names, changed_names, ok, message)

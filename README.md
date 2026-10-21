@@ -576,3 +576,13 @@ locally without copying engine source. Exact translation, rotation, and
 invariant-polynomial oracles are registered in `test_fortsym_lie`.
 
 CPU precision/storage support is described in [precision APIs](docs/precision.md).
+
+CUDA batching uses `emit_cuda_batch_ir(ir, spec, ok, message)`. It emits
+the scalar device leaf plus `NAME_batch(n, inputs, outputs)`, a CUDA global
+entry point with packed structure-of-arrays storage: field `j` begins at
+`j*n` (zero-based). FP64, FP32 and FP32-compute/FP64-output use the same IR.
+Callers own launch dimensions, streams, allocations, reductions and precision
+admission. A zero-length batch performs no loads or stores. Inputs and outputs
+must not overlap. CUDA remains opt-in; device tests require an explicit
+`CMAKE_CUDA_ARCHITECTURES` list. Half formats remain CPU storage codecs; this
+entry point does not silently convert BF16/FP16 or certify roundoff.
