@@ -217,9 +217,11 @@ contains
         write (unit, '(a)') "call repeated_polynomial_derivatives(x,r(1),r(2),"// &
             "r(3),r(4),r(5),r(6),r(7),r(8))"
         write (unit, '(a)') "if (.not. all(ieee_is_finite(r))) error stop 1"
-        write (unit, '(a)') "if (maxval(abs(r - "// &
+        write (unit, '(a)') "if (maxval(abs(r - &"
+        write (unit, '(a)') &
             "[2.0_real64,0.0_real64,24.0_real64,0.0_real64,8.0_real64,"// &
-            "0.0_real64,1.0_real64,6.0_real64])) > 1.0e-13_real64) error stop 2"
+            "0.0_real64,1.0_real64,6.0_real64])) &"
+        write (unit, '(a)') "> 1.0e-13_real64) error stop 2"
         write (unit, '(a)') "end do"
         write (unit, '(a)') "do k=1,4"
         write (unit, '(a)') "x=0.5_real64*real(k,real64)"
@@ -296,9 +298,11 @@ contains
                 write (unit, '(a)') "real("//output_kind//") :: r(6)"
                 write (unit, '(a)') "call exact_constant_quotients(0.5_"// &
                     input_kind//", r(1), r(2), r(3), r(4), r(5), r(6))"
-                write (unit, '(a)') "if (maxval(abs(real(r,real64) - "// &
+                write (unit, '(a)') "if (maxval(abs(real(r,real64) - &"
+                write (unit, '(a)') &
                     "[1.0_real64/3.0_real64, 1.0_real64, 0.5_real64, "// &
-                    "1.0_real64/3.0_real64, -0.25_real64, "// &
+                    "1.0_real64/3.0_real64, -0.25_real64, &"
+                write (unit, '(a)') &
                     "2.0_real64/3.0_real64])) > "//tolerance//") error stop 1"
                 write (unit, '(a)') "end program drive_exact_quotients"
                 close (unit)
