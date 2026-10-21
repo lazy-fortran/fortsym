@@ -17,7 +17,7 @@ program test_fortsym_rigorous_raw_products
     character(4096) :: runtime
     character(:), allocatable :: why, text, command
     character, parameter :: nl = new_line('a')
-    character(*), parameter :: work = '/tmp/fortsym_rigorous_raw_products'
+    character(*), parameter :: work = './fortsym_rigorous_raw_products'
     logical :: ok
     integer :: status, unit, length
 

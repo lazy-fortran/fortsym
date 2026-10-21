@@ -39,9 +39,9 @@ contains
         character(:), allocatable :: message
         logical :: ok
         integer :: unit, ios, status
-        character(*), parameter :: generated = "/tmp/fortsym_wl_f90_generated.f90"
-        character(*), parameter :: driver = "/tmp/fortsym_wl_f90_driver.f90"
-        character(*), parameter :: executable = "/tmp/fortsym_wl_f90_driver"
+        character(*), parameter :: generated = "./fortsym_wl_f90_generated.f90"
+        character(*), parameter :: driver = "./fortsym_wl_f90_driver.f90"
+        character(*), parameter :: executable = "./fortsym_wl_f90_driver"
 
         code = translate_wl_assignments( &
             "a = 2*x + Sin[x]"//new_line("a")// &
@@ -100,11 +100,11 @@ contains
         logical :: ok
         integer :: unit, ios, status
         character(*), parameter :: generated = &
-            "/tmp/fortsym_wl_f90_comment_preamble.f90"
+            "./fortsym_wl_f90_comment_preamble.f90"
         character(*), parameter :: driver = &
-            "/tmp/fortsym_wl_f90_comment_preamble_driver.f90"
+            "./fortsym_wl_f90_comment_preamble_driver.f90"
         character(*), parameter :: executable = &
-            "/tmp/fortsym_wl_f90_comment_preamble_driver"
+            "./fortsym_wl_f90_comment_preamble_driver"
 
         code = translate_wl_assignments( &
             "(* generated preamble: no executable semantics *)"//new_line("a")// &
@@ -155,11 +155,11 @@ contains
         logical :: ok
         integer :: unit, ios, status
         character(*), parameter :: generated = &
-            "/tmp/fortsym_wl_f90_reassignment.f90"
+            "./fortsym_wl_f90_reassignment.f90"
         character(*), parameter :: driver = &
-            "/tmp/fortsym_wl_f90_reassignment_driver.f90"
+            "./fortsym_wl_f90_reassignment_driver.f90"
         character(*), parameter :: executable = &
-            "/tmp/fortsym_wl_f90_reassignment_driver"
+            "./fortsym_wl_f90_reassignment_driver"
 
         code = translate_wl_assignments( &
             "result = x + 2"//new_line("a")// &
@@ -212,11 +212,11 @@ contains
         logical :: ok
         integer :: unit, ios, status
         character(*), parameter :: generated = &
-            "/tmp/fortsym_wl_f90_safe_setup.f90"
+            "./fortsym_wl_f90_safe_setup.f90"
         character(*), parameter :: driver = &
-            "/tmp/fortsym_wl_f90_safe_setup_driver.f90"
+            "./fortsym_wl_f90_safe_setup_driver.f90"
         character(*), parameter :: executable = &
-            "/tmp/fortsym_wl_f90_safe_setup_driver"
+            "./fortsym_wl_f90_safe_setup_driver"
 
         code = translate_wl_assignments( &
             "(* notebook setup *)"//new_line("a")// &
@@ -269,9 +269,9 @@ contains
         character(:), allocatable :: message
         logical :: ok
         integer :: unit, ios, status
-        character(*), parameter :: generated = "/tmp/fortsym_wl_f90_minmax.f90"
-        character(*), parameter :: driver = "/tmp/fortsym_wl_f90_minmax_driver.f90"
-        character(*), parameter :: executable = "/tmp/fortsym_wl_f90_minmax_driver"
+        character(*), parameter :: generated = "./fortsym_wl_f90_minmax.f90"
+        character(*), parameter :: driver = "./fortsym_wl_f90_minmax_driver.f90"
+        character(*), parameter :: executable = "./fortsym_wl_f90_minmax_driver"
 
         code = translate_wl_assignments( &
             "lo = Min[x, y, z]"//new_line("a")// &
@@ -324,9 +324,9 @@ contains
         character(:), allocatable :: message
         logical :: ok
         integer :: unit, ios, status
-        character(*), parameter :: generated = "/tmp/fortsym_wl_f90_if.f90"
-        character(*), parameter :: driver = "/tmp/fortsym_wl_f90_if_driver.f90"
-        character(*), parameter :: executable = "/tmp/fortsym_wl_f90_if_driver"
+        character(*), parameter :: generated = "./fortsym_wl_f90_if.f90"
+        character(*), parameter :: driver = "./fortsym_wl_f90_if_driver.f90"
+        character(*), parameter :: executable = "./fortsym_wl_f90_if_driver"
 
         code = translate_wl_assignments( &
             "If[True, result = x + 1, result = x - 1]", ok, message)
@@ -375,9 +375,9 @@ contains
         character(:), allocatable :: message
         logical :: ok
         integer :: unit, ios, status
-        character(*), parameter :: generated = "/tmp/fortsym_wl_f90_dynamic_if.f90"
-        character(*), parameter :: driver = "/tmp/fortsym_wl_f90_dynamic_if_driver.f90"
-        character(*), parameter :: executable = "/tmp/fortsym_wl_f90_dynamic_if_driver"
+        character(*), parameter :: generated = "./fortsym_wl_f90_dynamic_if.f90"
+        character(*), parameter :: driver = "./fortsym_wl_f90_dynamic_if_driver.f90"
+        character(*), parameter :: executable = "./fortsym_wl_f90_dynamic_if_driver"
 
         code = translate_wl_assignments( &
             "If[x > 0, result = x + 1, result = -x - 1]", ok, message)
@@ -429,9 +429,9 @@ contains
         character(:), allocatable :: message
         logical :: ok
         integer :: unit, ios, status
-        character(*), parameter :: generated = "/tmp/fortsym_wl_f90_while.f90"
-        character(*), parameter :: driver = "/tmp/fortsym_wl_f90_while_driver.f90"
-        character(*), parameter :: executable = "/tmp/fortsym_wl_f90_while_driver"
+        character(*), parameter :: generated = "./fortsym_wl_f90_while.f90"
+        character(*), parameter :: driver = "./fortsym_wl_f90_while_driver.f90"
+        character(*), parameter :: executable = "./fortsym_wl_f90_while_driver"
 
         code = translate_wl_assignments( &
             "While[x != y, x = y]", ok, message)
@@ -483,9 +483,9 @@ contains
         character(:), allocatable :: message
         logical :: ok
         integer :: unit, ios, status
-        character(*), parameter :: generated = "/tmp/fortsym_wl_f90_while_step.f90"
-        character(*), parameter :: driver = "/tmp/fortsym_wl_f90_while_step_driver.f90"
-        character(*), parameter :: executable = "/tmp/fortsym_wl_f90_while_step_driver"
+        character(*), parameter :: generated = "./fortsym_wl_f90_while_step.f90"
+        character(*), parameter :: driver = "./fortsym_wl_f90_while_step_driver.f90"
+        character(*), parameter :: executable = "./fortsym_wl_f90_while_step_driver"
 
         code = translate_wl_assignments( &
             "While[i < 4, i++]", ok, message)
@@ -577,9 +577,9 @@ contains
         character(:), allocatable :: message
         logical :: ok
         integer :: unit, ios, status
-        character(*), parameter :: generated = "/tmp/fortsym_wl_f90_do.f90"
-        character(*), parameter :: driver = "/tmp/fortsym_wl_f90_do_driver.f90"
-        character(*), parameter :: executable = "/tmp/fortsym_wl_f90_do_driver"
+        character(*), parameter :: generated = "./fortsym_wl_f90_do.f90"
+        character(*), parameter :: driver = "./fortsym_wl_f90_do_driver.f90"
+        character(*), parameter :: executable = "./fortsym_wl_f90_do_driver"
 
         code = translate_wl_assignments( &
             "Do[result = x + i, {i, 1, 3}]", ok, message)
@@ -628,9 +628,9 @@ contains
         character(:), allocatable :: message
         logical :: ok
         integer :: unit, ios, status
-        character(*), parameter :: generated = "/tmp/fortsym_wl_f90_for.f90"
-        character(*), parameter :: driver = "/tmp/fortsym_wl_f90_for_driver.f90"
-        character(*), parameter :: executable = "/tmp/fortsym_wl_f90_for_driver"
+        character(*), parameter :: generated = "./fortsym_wl_f90_for.f90"
+        character(*), parameter :: driver = "./fortsym_wl_f90_for_driver.f90"
+        character(*), parameter :: executable = "./fortsym_wl_f90_for_driver"
 
         code = translate_wl_assignments( &
             "For[i = 1, i <= 4, i++, result = x + 2*i]", ok, message)
@@ -680,11 +680,11 @@ contains
         logical :: ok
         integer :: unit, ios, status
         character(*), parameter :: generated = &
-            "/tmp/fortsym_wl_f90_for_strict.f90"
+            "./fortsym_wl_f90_for_strict.f90"
         character(*), parameter :: driver = &
-            "/tmp/fortsym_wl_f90_for_strict_driver.f90"
+            "./fortsym_wl_f90_for_strict_driver.f90"
         character(*), parameter :: executable = &
-            "/tmp/fortsym_wl_f90_for_strict_driver"
+            "./fortsym_wl_f90_for_strict_driver"
 
         code = translate_wl_assignments( &
             "For[i = 1, i < 4, i++, result = x + 2*i]", ok, message)
