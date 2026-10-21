@@ -7,6 +7,7 @@ program test_fortsym_kernel_batch
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym, only: arena_t, expr_t, sym, num, sin, exp, diff, engine_result_t, &
         operator(+), operator(-), operator(*), operator(/), operator(**)
+    use fortsym_proc, only: proc_available
     use fortsym_string, only: str_t, str, chars
     use fortsym_kernel_ir, only: kernel_ir_t, lower_kernel_ir
     use fortsym_kernel_emit, only: kernel_emit_spec_t, emit_fortran_kernel_ir, &
@@ -39,6 +40,7 @@ program test_fortsym_kernel_batch
     call test_batch_rejections()
     call test_long_batch()
     call test_compiled_batches()
+    call test_private_compiler()
 
     if (nfail == 0) then
         print *, "test_fortsym_kernel_batch: all checks passed"
@@ -48,6 +50,44 @@ program test_fortsym_kernel_batch
     end if
 
 contains
+
+    subroutine test_private_compiler()
+        type(kernel_ir_t) :: ir
+        type(kernel_emit_spec_t) :: spec
+        logical :: good
+        character(:), allocatable :: src, message
+        integer :: unit, status
+        if (.not. proc_available('flang-new')) return
+        call make_ir(1, ir, good)
+        call fill_spec(spec, 'private_poly')
+        spec%batch_inline = .true.
+        src = chars(emit_fortran_batch_ir(ir, spec, good, message))
+        call ok('private compiler fixture emits', good)
+        if (.not. good) return
+        open(newunit=unit, file='/tmp/fortsym_private_batch.f90', status='replace')
+        call write_text(unit, src)
+        call write_text(unit, 'program private_oracle')
+        call write_text(unit, 'use private_poly_batch_mod')
+        call write_text(unit, 'use iso_fortran_env, only: real64')
+        call write_text(unit, 'implicit none')
+        call write_text(unit, 'real(real64) :: x(257), y(257), r(257), expected(257)')
+        call write_text(unit, 'integer :: i')
+        call write_text(unit, 'x=[(real(i,real64)/257, i=1,257)]; y=0.125_real64')
+        call write_text(unit, 'call private_poly_batch(257,x,y,0.5_real64,r)')
+        call write_text(unit, &
+            'expected=x**3-2*x*y**2+0.5_real64*y+1')
+        call write_text(unit, 'if(maxval(abs(r-expected))>2e-14_real64) stop 1')
+        call write_text(unit, 'end program private_oracle')
+        close(unit)
+        call execute_command_line('flang-new -fopenmp -O2 '// &
+            '/tmp/fortsym_private_batch.f90 -o /tmp/fortsym_private_batch '// &
+            '> /tmp/fortsym_private_batch.log 2>&1', exitstat=status)
+        call ok('private batch compiles with Flang OpenMP', status == 0)
+        if (status /= 0) return
+        call execute_command_line('OMP_NUM_THREADS=2 /tmp/fortsym_private_batch', &
+            exitstat=status)
+        call ok('Flang private batch agrees with independent polynomial', status == 0)
+    end subroutine test_private_compiler
 
     subroutine ok(label, condition)
         character(*), intent(in) :: label
