@@ -45,8 +45,8 @@ jobs:
       - name: Run native checks in the build container
         if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
         run: |-
           ci/run.sh ci-python-package
       - uses: cachix/install-nix-action@v31
@@ -98,9 +98,12 @@ jobs:
           PY
 
         if: ${{ github.event.pull_request.head.repo.fork }}
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   provenance:
     name: compatibility provenance
-    if: github.event_name == 'pull_request'
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - uses: actions/checkout@v5
@@ -111,8 +114,8 @@ jobs:
       - name: Run native checks in the build container
         if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
         run: |-
           ci/run.sh ci-provenance
       - name: Check new compatibility sources
@@ -140,8 +143,8 @@ jobs:
       - name: Run native checks in the build container
         if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
         run: |-
           ci/run.sh ci-cmake
       - uses: cachix/install-nix-action@v31
@@ -200,6 +203,8 @@ jobs:
   # voters and the cross-engine oracle is exercised. Not required: a Tier 2
   # engine changing its output must not break the build for everyone.
         if: ${{ github.event.pull_request.head.repo.fork }}
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   multi-engine:
     name: cmake + ctest (with Tier 2 engines)
     runs-on: ubuntu-latest
@@ -251,6 +256,8 @@ jobs:
   # consumers need no CAS to build. This job regenerates them and fails on any
   # difference, which is what makes "generated code, lost generator" structurally
   # impossible rather than merely discouraged.
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
   generated-up-to-date:
     name: generated sources are current
     runs-on: ${{ github.event.pull_request.head.repo.fork && 'ubuntu-latest' || fromJSON('["self-hosted","itp-build"]') }}
@@ -263,8 +270,8 @@ jobs:
       - name: Run native checks in the build container
         if: ${{ !github.event.pull_request.head.repo.fork }}
         env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
         run: |-
           ci/run.sh ci-generated-up-to-date
       - uses: cachix/install-nix-action@v31
@@ -330,3 +337,5 @@ jobs:
           done
           git diff --exit-code -- src/generated
         if: ${{ github.event.pull_request.head.repo.fork }}
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'full-ci'))
