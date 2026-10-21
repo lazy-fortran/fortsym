@@ -167,6 +167,7 @@ contains
         logical :: good
         character(:), allocatable :: message
         integer :: unit, ios, stat
+        character(32) :: cuda_arch
 
         call arena%init()
         x = sym(arena, "x")
@@ -254,8 +255,20 @@ contains
         spec%outputs(2) = str("s")
         spec%args(1) = str("x")
         spec%args(2) = str("y")
-        cuda_source = emit_cuda_device_ir(ir, spec, good, message)
-        call ok("CUDA emitter restores the valid specification", good)
+        cuda_source = emit_cuda_batch_ir(ir, spec, good, message)
+        call ok("CUDA batch emitter restores the valid specification", good)
+        spec%name = str(repeat('x', 58))
+        fortran_source = emit_cuda_batch_ir(ir, spec, good, message)
+        call ok("CUDA batch refuses an overlong entry point", .not. good)
+        spec%name = str("fortsym_ir_leaf")
+        call get_environment_variable('FORTSYM_TEST_CUDA_ARCH', cuda_arch)
+        if (len_trim(cuda_arch) == 0) then
+            print *, 'CUDA execution opt-in: set FORTSYM_TEST_CUDA_ARCH (e.g. sm_120)'
+            return
+        end if
+        call ok('CUDA architecture is explicit', &
+            verify(trim(cuda_arch), 'sm_compute0123456789_') == 0)
+        if (verify(trim(cuda_arch), 'sm_compute0123456789_') /= 0) return
 
         ! proc_available rather than a hand-rolled probe: `command -v` on a
         ! missing program exits 1 under bash but 127 under dash, and libgfortran
@@ -274,35 +287,26 @@ contains
         write (unit, "(a)") chars(cuda_source)
         write (unit, "(a)") "#include <cuda_runtime.h>"
         write (unit, "(a)") "#include <cmath>"
-        write (unit, "(a)") "__global__ void invoke(const double* x, const double* y, "// &
-            "double* r, double* s) {"
-        write (unit, "(a)") "  int i = blockIdx.x * blockDim.x + threadIdx.x;"
-        write (unit, "(a)") "  if (i == 0) fortsym_ir_leaf(x[0], y[0], &r[0], &s[0]);"
-        write (unit, "(a)") "}"
         write (unit, "(a)") "int main() {"
-        write (unit, "(a)") "  double hx[1] = {0.37}, hy[1] = {-0.81};"
-        write (unit, "(a)") "  double hr[1] = {0.0}, hs[1] = {0.0};"
-        write (unit, "(a)") "  double *dx, *dy, *dr, *ds;"
-        write (unit, "(a)") "  int device_count = 0;"
-        write (unit, "(a)") "  if (cudaGetDeviceCount(&device_count) != cudaSuccess || device_count == 0) return 0;"
-        write (unit, "(a)") "  if (cudaMalloc(&dx, sizeof(hx)) || cudaMalloc(&dy, sizeof(hy)) || "// &
-            "cudaMalloc(&dr, sizeof(hr)) || cudaMalloc(&ds, sizeof(hs))) return 10;"
-        write (unit, "(a)") "  cudaMemcpy(dx, hx, sizeof(hx), cudaMemcpyHostToDevice);"
-        write (unit, "(a)") "  cudaMemcpy(dy, hy, sizeof(hy), cudaMemcpyHostToDevice);"
-        write (unit, "(a)") "  invoke<<<1, 1>>>(dx, dy, dr, ds);"
-        write (unit, "(a)") "  if (cudaDeviceSynchronize() != cudaSuccess) return 11;"
-        write (unit, "(a)") "  cudaMemcpy(hr, dr, sizeof(hr), cudaMemcpyDeviceToHost);"
-        write (unit, "(a)") "  cudaMemcpy(hs, ds, sizeof(hs), cudaMemcpyDeviceToHost);"
-        write (unit, "(a)") "  double expected = sin(hx[0]*hy[0]) + exp(hx[0])/(1.0 + hy[0]*hy[0]) + pow(hx[0] + 1.0, 2.0);"
-        write (unit, "(a)") "  cudaFree(dx); cudaFree(dy); cudaFree(dr); cudaFree(ds);"
-        write (unit, "(a)") "  return fabs(hr[0] - expected) > 1e-13 || fabs(hs[0] - hx[0]*hy[0]) > 1e-13;"
+        write (unit, "(a)") "  double hx[2] = {0.37, -0.81}, hy[2] = {0., 0.};"
+        write (unit, "(a)") "  double *dx, *dy; int device_count = 0;"
+        write (unit, "(a)") "  if (cudaGetDeviceCount(&device_count) != cudaSuccess || device_count == 0) return 77;"
+        write (unit, "(a)") "  if (cudaMalloc(&dx, sizeof(hx)) || cudaMalloc(&dy, sizeof(hy))) return 10;"
+        write (unit, "(a)") "  if (cudaMemcpy(dx, hx, sizeof(hx), cudaMemcpyHostToDevice)) return 11;"
+        write (unit, "(a)") "  fortsym_ir_leaf_batch<<<1, 32>>>(1, dx, dy);"
+        write (unit, "(a)") "  if (cudaDeviceSynchronize() != cudaSuccess) return 12;"
+        write (unit, "(a)") "  if (cudaMemcpy(hy, dy, sizeof(hy), cudaMemcpyDeviceToHost)) return 13;"
+        write (unit, "(a)") "  double expected = sin(hx[0]*hx[1]) + exp(hx[0])/(1.0 + hx[1]*hx[1]) + pow(hx[0] + 1.0, 2.0);"
+        write (unit, "(a)") "  cudaFree(dx); cudaFree(dy);"
+        write (unit, "(a)") "  return fabs(hy[0] - expected) > 1e-13 || fabs(hy[1] - hx[0]*hx[1]) > 1e-13;"
         write (unit, "(a)") "}"
         close (unit)
         call execute_command_line( &
             "nvcc_path=$(command -v nvcc) && "// &
             "nvcc_dir=$(dirname ""$nvcc_path"") && "// &
             "env -i PATH=""$nvcc_dir:/usr/bin:/bin"" HOME=/tmp "// &
-            """$nvcc_path"" -O2 -std=c++17 -o /tmp/fortsym_ir_cuda "// &
+            """$nvcc_path"" -arch="//trim(cuda_arch)// &
+            " -O2 -std=c++17 -o /tmp/fortsym_ir_cuda "// &
             "/tmp/fortsym_ir_cuda.cu "// &
             "> /tmp/fortsym_ir_cuda.log 2>&1", wait=.true., exitstat=stat)
         call ok("generated CUDA compiles", stat == 0)
