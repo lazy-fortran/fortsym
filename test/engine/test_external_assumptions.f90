@@ -1,6 +1,6 @@
 program test_external_assumptions
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, num, sqrt, abs, operator(**), &
+    use fortsym_expr, only: expr_t, sym, sqrt, abs, operator(**), &
         operator(-), operator(+)
     use fortsym_assume, only: assumption_context_t, assume, positive, &
         nonnegative, nonzero, real_valued

@@ -2,9 +2,9 @@ module fortsym_derivation
     ! Bounded execution transcript. Observations are never reconstructed from a DAG.
     use, intrinsic :: iso_fortran_env, only: int64
     use fortgen_expr_ir, only: python_string
-    use fortsym_arena, only: arena_t, NK_SYM
+    use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, is_valid, sym, exact, const, func, func_in, &
-        num, operator(+), operator(-), operator(*), operator(/), operator(**)
+        operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_string, only: chars
     use fortsym_assume, only: assumption_context_t, record_assumption
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE, VERDICT_UNKNOWN
@@ -317,7 +317,8 @@ contains
             self%steps(self%n)%operation=operation
             self%steps(self%n)%literal=label
             self%steps(self%n)%label=''
-            self%steps(self%n)%inputs=[id]
+            allocate(self%steps(self%n)%inputs(1))
+            self%steps(self%n)%inputs(1)=id
         end if
         ok=len(self%failure)==0
         why=self%failure

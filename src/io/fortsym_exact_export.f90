@@ -32,7 +32,7 @@ contains
         integer, optional, intent(in) :: level
         integer :: depth
         integer, allocatable :: args(:)
-        integer :: k, facts, slash, left, right
+        integer :: k, facts, slash, left, right, empty(0), pair(2)
         character(:), allocatable :: tag, text
         id=0
         ok=.false.
@@ -63,11 +63,13 @@ contains
                 why='exact export: malformed rational'
                 return
             end if
-            left=ir%add('integer',text(:slash-1),[integer::],ok,why)
+            left=ir%add('integer',text(:slash-1),empty,ok,why)
             if (.not. ok) return
-            right=ir%add('integer',text(slash+1:),[integer::],ok,why)
+            right=ir%add('integer',text(slash+1:),empty,ok,why)
             if (.not. ok) return
-            id=ir%add('rational','',[left,right],ok,why)
+            pair(1)=left
+            pair(2)=right
+            id=ir%add('rational','',pair,ok,why)
             return
         case(NK_SYM)
             tag='symbol'
