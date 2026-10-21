@@ -32,6 +32,8 @@ at zero. Singular or branch-dependent Taylor requests are refused when the
 native derivative-at-center method cannot produce finite coefficients.
 User-function arguments use the existing simultaneous substitution owner; a
 per-session depth bound refuses nonterminating definitions before stack overflow.
+Refused bindings remain refusals when consumed by later operations, including
+differentiation; reassignment can replace a failed binding with a valid value.
 GNU 12 checks also exercise invalid descriptor returns and assumption diagnostics.
 
 ## Reproducible research snapshots

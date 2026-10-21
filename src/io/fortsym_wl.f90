@@ -932,6 +932,20 @@ contains
         ! Times at the top, so Dot was never examined and its unevaluated form
         ! was reported as though it were the answer.
         select case (e%kind())
+        case (NK_SYM)
+            ! A refused assignment is not an independent mathematical symbol.
+            ! In particular D[failed_sum, x] must not become the constant zero.
+            do k = s%n, 1, -1
+                if (s%bindings(k)%ok) cycle
+                if (chars(s%bindings(k)%name) /= chars(e%name())) cycle
+                do j = s%n, k + 1, -1
+                    if (chars(s%bindings(j)%name) == chars(e%name())) return
+                end do
+                call refuse(ok, message, "failed binding "//chars(e%name())// &
+                    ": "//chars(s%bindings(k)%message))
+                return
+            end do
+            return
         case (NK_ADD, NK_MUL, NK_POW)
             r = eval_children(s, e, ok, message)
             return
