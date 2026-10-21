@@ -813,7 +813,9 @@ contains
         end if
 
         leaf_spec = spec
-        if (spec%batch_deterministic) then
+        ! A private leaf is inlined into the SIMD loop; it needs no separate
+        ! vector-call ABI. Flang 22 cannot lower DECLARE SIMD.
+        if (spec%batch_deterministic .or. spec%batch_inline) then
             leaf_spec%target = TARGET_FORTRAN_CPU
         else
             leaf_spec%target = TARGET_FORTRAN_OPENMP_SIMD
