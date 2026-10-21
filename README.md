@@ -573,3 +573,5 @@ homological solve, angle average, or physical normal form is implied.
 The definition is the ordinary finite exponential of a derivation, implemented
 locally without copying engine source. Exact translation, rotation, and
 invariant-polynomial oracles are registered in `test_fortsym_lie`.
+
+CPU precision/storage support is described in [precision APIs](docs/precision.md).
