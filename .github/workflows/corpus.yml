@@ -4,19 +4,23 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   release:
     types: [published]
 
 permissions:
   contents: read
 
+# Only PR runs share a group; pending push and merge-group runs stay independent.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.ref, github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   oracle-audit:
     name: Corpus shard ${{ matrix.shard }}
+    # The full corpus is opt-in on PRs and always runs on main and releases.
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-ci')
     strategy:
       fail-fast: false
       matrix:
