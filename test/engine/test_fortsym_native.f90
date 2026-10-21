@@ -676,7 +676,9 @@ contains
         r = engine%simplify(func("factorial", factorial_args))
         call check("factorial(100) remains exact", &
             chars(r%value%exact_text()) == &
-            "93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000000")
+            "933262154439441526816992388562667004907159682643816214685929638952"// &
+            "175999932299156089414639761565182862536979208272237582511852109168"// &
+            "64000000000000000000000000")
         factorial_args(1) = num(arena, 1001_int64)
         r = engine%simplify(func("factorial", factorial_args))
         call check("factorial(1001) remains bounded", &
@@ -778,6 +780,15 @@ contains
         if (r%value /= num(arena, 24)) then
             print *, "  got coefficient: ", chars(print_expr(r%value))
         end if
+
+        ! A pole has no Taylor coefficient at zero. The native entry point
+        ! must enforce the same refusal as the Python/C adapter.
+        r = engine%series_coeff(1/x, x, num(arena, 0), 0)
+        call check("Taylor coefficient at a pole is refused", .not. r%ok)
+        call check("Taylor pole refusal names a non-finite coefficient", &
+            index(chars(r%message), "non-finite coefficient") > 0)
+        r = engine%series(1/x, x, num(arena, 0), 2)
+        call check("Taylor series does not succeed with infinity", .not. r%ok)
 
         call test_axis_series_case()
 

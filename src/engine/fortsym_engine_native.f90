@@ -25,6 +25,8 @@ module fortsym_engine_native
     use fortsym_poly, only: poly_together, poly_cancel, poly_factor, &
         poly_numerator, poly_denominator, poly_radical_zero
     use fortsym_trigrewrite, only: trig_to_exp
+    use fortsym_series_guard, only: contains_nonfinite, contains_singular_power, &
+        contains_opaque_derivative, series_refusal
     use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
         resource_exceeded, resource_visit, resource_failure, wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, CAP_ZERO_TEST, &
@@ -813,6 +815,11 @@ contains
             r%seconds = wall_seconds() - started
             return
         end if
+        if (contains_nonfinite(e%a, point%id)) then
+            r%message = str("native: Taylor expansion point must be finite")
+            r%seconds = wall_seconds() - started
+            return
+        end if
         if (order < 0) then
             r%message = str("native: series order must be nonnegative")
             r%seconds = wall_seconds() - started
@@ -847,6 +854,14 @@ contains
         end do
         at_point = subs(derivative, v, point)
         r = self%simplify(at_point/num(e%a, factorial), limit)
+        if (r%ok) then
+            if (contains_nonfinite(e%a, r%value%id) .or. &
+                contains_singular_power(e%a, r%value%id) .or. &
+                contains_opaque_derivative(e%a, r%value%id)) then
+                r%ok = .false.
+                r%message = str(series_refusal(e%a, r%value%id))
+            end if
+        end if
         r%seconds = wall_seconds() - started
     end function native_series_coeff
 
