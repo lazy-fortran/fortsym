@@ -263,6 +263,14 @@ contains
             "f[x_, y_] := x + 2*y"//char(10)// &
             "value = f[y, x] /. {x -> 3, y -> 5}"//char(10), &
             "value", "11")
+        call expect_refusal("refused input is not differentiated as a constant", &
+            "f = Sum[x^k, {k, 1, Infinity}]"//char(10)// &
+            "value = D[f, x]"//char(10), &
+            "failed binding f: Sum needs bounded integer iterators")
+        call expect("a successful reassignment clears a refusal", &
+            "f = Sum[x^k, {k, 1, Infinity}]"//char(10)// &
+            "f = x^2"//char(10)//"value = D[f, x]"//char(10), &
+            "value", "x*2")
     end subroutine test_recursive_function
 
     !> Piecewise branch selection is checked against direct numeric cases.
