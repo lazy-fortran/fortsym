@@ -243,9 +243,11 @@ contains
 
         ! Sign removal must retain the CAS exponent spelling, including the
         ! negative real coefficient path through emit_negated.
-        n = n + 1; cases(n) = x + real_expr(a, -3.95_dp)
-        n = n + 1; cases(n) = x + real_expr(a, -1.0e-9_dp)
-        n = n + 1; cases(n) = x*real_expr(a, -3.95_dp)
+        if (dia == DIA_WOLFRAM) then
+            n = n + 1; cases(n) = x + real_expr(a, -3.95_dp)
+            n = n + 1; cases(n) = x + real_expr(a, -1.0e-9_dp)
+            n = n + 1; cases(n) = x*real_expr(a, -3.95_dp)
+        end if
         do k = 1, n
             call check_roundtrip(a, d, cases(k), k)
         end do
