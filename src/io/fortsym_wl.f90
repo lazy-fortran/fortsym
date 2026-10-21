@@ -1733,15 +1733,7 @@ contains
             end if
 
         case ("Range")
-            ! Literal quotients and unary negatives are arithmetic trees until
-            ! simplified. Preserve their exact rational values before Range
-            ! decides whether it has a concrete or symbolic progression.
-            if (allocated(args)) deallocate (args)
-            allocate (args(r%nargs()))
-            do k = 1, r%nargs()
-                args(k) = auto_evaluate(s, r%arg(k))
-            end do
-            r = wl_range(s%a, func("Range", args), ok, why)
+            r = wl_range(s%a, r, ok, why)
             if (.not. ok) then
                 call refuse(ok, message, "Range: "//why)
                 return

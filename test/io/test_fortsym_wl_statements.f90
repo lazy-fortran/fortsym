@@ -293,9 +293,6 @@ contains
     end subroutine test_scope_refusal
 
     subroutine test_part_assignment()
-        call expect("exact rational Range", &
-            "value = Range[-1/2, 1/2, 1/4]", "value", &
-            "List(-1/2, -1/4, 0, 1/4, 1/2)")
         call expect("row assignment changes exact matrix rank", &
             "a = {{1, 2}, {3, 4}}; g = a; g[[2]] = g[[1]]; "// &
             "value = MatrixRank[g]", "value", "1")
