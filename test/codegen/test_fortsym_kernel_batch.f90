@@ -37,6 +37,7 @@ program test_fortsym_kernel_batch
 
     call test_leaf_directive()
     call test_batch_rejections()
+    call test_long_batch()
     call test_compiled_batches()
 
     if (nfail == 0) then
@@ -138,6 +139,69 @@ contains
             good .and. p > 2 .and. index(src, " &"//new_line("a")) > 0 .and. &
             src(max(1, p - 6):max(1, p - 1)) == ")"//new_line("a")//"    ")
     end subroutine test_leaf_directive
+
+    subroutine test_long_batch()
+        type(arena_t), target :: arena
+        type(expr_t) :: x, y, a
+        type(kernel_ir_t) :: ir
+        type(kernel_emit_spec_t) :: spec
+        character(:), allocatable :: src, message
+        character(*), parameter :: xn = "argument_x_"//repeat("x", 35)
+        character(*), parameter :: yn = "argument_y_"//repeat("y", 35)
+        character(*), parameter :: an = "uniform_a_"//repeat("a", 35)
+        logical :: good
+        integer :: unit, mode, first, last, stat
+
+        call arena%init()
+        x = sym(arena, xn)
+        y = sym(arena, yn)
+        a = sym(arena, an)
+        call lower_kernel_ir([x + num(arena, 2)*y + a], ir, good, message)
+        call ok("wide batch lowers", good)
+        spec%name = str("wide_sum")
+        spec%args = [str(xn), str(yn), str(an)]
+        spec%outputs = [str("r")]
+        spec%uniform = [str(an)]
+        spec%batch_threaded = .false.
+        do mode = 1, 2
+            spec%batch_deterministic = mode == 2
+            src = chars(emit_fortran_batch_ir(ir, spec, good, message))
+            call ok("wide batch emits "//message, good)
+            if (.not. good) cycle
+            first = 1
+            do while (first <= len(src))
+                last = index(src(first:), new_line("a"))
+                if (last == 0) last = len(src) - first + 2
+                call ok("every wide batch line fits 88 columns", last - 1 <= 88)
+                first = first + last
+            end do
+            open (newunit=unit, file="wide_batch.f90", status="replace")
+            call write_text(unit, src)
+            call write_text(unit, "program wide_batch_test")
+            call write_text(unit, "use wide_sum_batch_mod")
+            call write_text(unit, "use iso_fortran_env, only: real64, int64")
+            call write_text(unit, "implicit none")
+            call write_text(unit, "real(real64) :: r(2), reference")
+            call write_text(unit, "call wide_sum_batch(2, [1.0_real64, 2.0_real64], &")
+            call write_text(unit, "    [3.0_real64, 4.0_real64], 5.0_real64, r)")
+            call write_text(unit, "call wide_sum(1.0_real64, 3.0_real64, &")
+            call write_text(unit, "    5.0_real64, reference)")
+            call write_text(unit, "if (transfer(r(1), 0_int64) /= &")
+            call write_text(unit, "    transfer(reference, 0_int64)) error stop 1")
+            call write_text(unit, "if (any(abs(r - [12.0_real64, 15.0_real64]) > &")
+            call write_text(unit, "    0.0_real64)) error stop 2")
+            call write_text(unit, "end program wide_batch_test")
+            close(unit)
+            call execute_command_line("gfortran -std=f2018 -fopenmp "// &
+                "-ffree-line-length-132 -Werror=line-truncation "// &
+                "wide_batch.f90 -o wide_batch_run > wide_batch_build.log 2>&1", &
+                exitstat=stat)
+            call ok("wide batch compiles at standard line length", stat == 0)
+            if (stat /= 0) cycle
+            call execute_command_line("./wide_batch_run", exitstat=stat)
+            call ok("wide scalar/batch and independent affine oracle agree", stat == 0)
+        end do
+    end subroutine test_long_batch
 
     subroutine test_batch_rejections()
         type(kernel_ir_t) :: ir

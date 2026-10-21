@@ -35,6 +35,7 @@ module fortsym_kernel_emit
         fg_emit_fortran_kernel_ir => emit_fortran_kernel_ir, &
         fg_emit_cuda_device_ir => emit_cuda_device_ir, &
         fg_emit_python_kernel_ir => emit_python_kernel_ir
+    use fortgen_layout, only: wrap_fortran_source
     use fortgen_kernel_target, only: fg_target_from_name => target_from_name
     use fortgen_precision, only: fg_precision_from_name => precision_from_name
     use fortgen_string, only: fg_str_t => str_t, fg_str => str, fg_chars => chars
@@ -604,7 +605,8 @@ contains
         end if
         source = str(fg_chars(fg_source))
         if (spec%target == TARGET_FORTRAN_OPENMP_SIMD) then
-            source = str(add_declare_simd(fg_chars(fg_source), spec, ok, message))
+            source = str(wrap_fortran_source( &
+                add_declare_simd(fg_chars(fg_source), spec, ok, message)))
             if (.not. ok) source = str("")
         end if
     end function emit_fortran_kernel_ir
@@ -917,7 +919,7 @@ contains
         call b%newline()
         call b%append("end module " // name // "_batch_mod")
         call b%newline()
-        source = b%to_str()
+        source = str(wrap_fortran_source(chars(b%to_str())))
         ok = .true.
     end function emit_fortran_batch_ir
 
