@@ -7,6 +7,12 @@ on:
     branches:
       - main
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - labeled
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -35,21 +41,33 @@ env:
 jobs:
   python-package:
     name: Python wheel + clean virtualenv
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - uses: actions/checkout@v5
 
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run native checks in the build container
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        env:
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+        run: |-
+          ci/run.sh ci-python-package
       - uses: cachix/install-nix-action@v31
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Build the native shared library
         run: |
           nix develop --command cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release -DFORTSYM_BUILD_TESTING=OFF
-          nix develop --command cmake --build build -j
+          nix develop --command cmake --build build -j "${SCI_CPUS:-8}"
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Build and install the wheel in a clean environment
         run: |
           # shellcheck disable=SC2016
@@ -85,15 +103,27 @@ jobs:
           assert sp.simplify(sp.diff(sp.exp(sx), sx)) == sp.exp(sx)
           PY
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]')
   provenance:
     name: compatibility provenance
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]')
+    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
+          persist-credentials: false
+      - name: Run native checks in the build container
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        env:
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || format('{0}^', github.sha) }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+        run: |-
+          ci/run.sh ci-provenance
       - name: Check new compatibility sources
         run: |
           git diff --name-only --diff-filter=A \
@@ -106,17 +136,29 @@ jobs:
   # Tier 1 only: the configuration every contributor and every consumer must be
   # able to build. No optional engine is installed here on purpose, so a change
   # that quietly starts depending on Maxima or SymPy fails this job.
+        if: ${{ github.event.pull_request.head.repo.fork }}
   cmake:
     name: cmake + ctest (Tier 1 only)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - uses: actions/checkout@v5
 
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run native checks in the build container
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        env:
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+        run: |-
+          ci/run.sh ci-cmake
       - uses: cachix/install-nix-action@v31
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - uses: nix-community/cache-nix-action@v7
         with:
           primary-key: nix-tier1-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix') }}
@@ -126,6 +168,7 @@ jobs:
           purge-prefixes: nix-tier1-${{ runner.os }}-
           purge-created: 604800
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - uses: actions/cache@v4
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -134,6 +177,7 @@ jobs:
             ccache-tier1-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-
             ccache-tier1-${{ runner.os }}-
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Configure
         run: |
           nix develop --command cmake -S . -B build -G Ninja \
@@ -141,9 +185,11 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Build
-        run: nix develop --command cmake --build build -j
+        run: nix develop --command cmake --build build -j "${SCI_CPUS:-8}"
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Test
         run: |
           # shellcheck disable=SC2016
@@ -162,12 +208,25 @@ jobs:
   # With the optional engines present, so the council actually has several
   # voters and the cross-engine oracle is exercised. Not required: a Tier 2
   # engine changing its output must not break the build for everyone.
+        if: ${{ github.event.pull_request.head.repo.fork }}
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]')
   multi-engine:
     name: cmake + ctest (with Tier 2 engines)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, itp-ubuntu24]
     continue-on-error: true
     steps:
       - uses: actions/checkout@v5
+
+      - name: Install Nix cache prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends sqlite3
+          # cache-nix-action hardcodes runner:runner for its database ownership.
+          # Portable runners run as root and do not provide that account.
+          if ! getent passwd runner > /dev/null; then
+            sudo useradd --user-group --no-create-home --shell /usr/sbin/nologin runner
+          fi
 
       - uses: cachix/install-nix-action@v31
         with:
@@ -199,7 +258,7 @@ jobs:
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
-        run: nix develop .#tier2 --command cmake --build build -j
+        run: nix develop .#tier2 --command cmake --build build -j "${SCI_CPUS:-8}"
 
       - name: Test
         run: nix develop .#tier2 --command ctest --test-dir build --output-on-failure
@@ -213,17 +272,30 @@ jobs:
   # consumers need no CAS to build. This job regenerates them and fails on any
   # difference, which is what makes "generated code, lost generator" structurally
   # impossible rather than merely discouraged.
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]')
   generated-up-to-date:
     name: generated sources are current
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
     steps:
       - uses: actions/checkout@v5
 
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Run native checks in the build container
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        env:
+          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
+          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
+        run: |-
+          ci/run.sh ci-generated-up-to-date
       - uses: cachix/install-nix-action@v31
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - uses: nix-community/cache-nix-action@v7
         with:
           primary-key: nix-generated-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix') }}
@@ -233,6 +305,7 @@ jobs:
           purge-prefixes: nix-generated-${{ runner.os }}-
           purge-created: 604800
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - uses: actions/cache@v4
         with:
           path: ${{ env.CCACHE_DIR }}
@@ -241,19 +314,21 @@ jobs:
             ccache-generated-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-
             ccache-generated-${{ runner.os }}-
 
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Configure and build generators
         run: |
           nix develop --command cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          nix develop --command cmake --build build -j
+          nix develop --command cmake --build build -j "${SCI_CPUS:-8}"
 
       # Each committed file names the program that produced it in its header, so
       # the gate is driven by the files themselves. A glob over build/bin/gen_*
       # would be wrong: most generators write into a consumer's tree and take the
       # output path as an argument, and running those here only proves that they
       # reject an empty command line.
+        if: ${{ github.event.pull_request.head.repo.fork }}
       - name: Regenerate and diff
         run: |
           set -euo pipefail
@@ -277,3 +352,6 @@ jobs:
             "build/bin/$gen"
           done
           git diff --exit-code -- src/generated
+        if: ${{ github.event.pull_request.head.repo.fork }}
+    if: >-
+      github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]')

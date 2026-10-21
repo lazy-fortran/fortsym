@@ -80,7 +80,7 @@ contains
         call extract_params(header, params)
         params = params(2:size(params))
 
-        open (newunit=unit, file="/tmp/fortsym_taylor_demo.f90", &
+        open (newunit=unit, file="./fortsym_taylor_demo.f90", &
             status="replace", action="write", iostat=ios)
         call ok("taylor step fixture opens", ios == 0)
         if (ios /= 0) return
@@ -117,13 +117,13 @@ contains
         close (unit)
 
         call execute_command_line( &
-            "gfortran -o /tmp/fortsym_taylor_demo /tmp/fortsym_taylor_demo.f90 "// &
-            "> /tmp/fortsym_taylor_demo.log 2>&1", wait=.true., exitstat=stat)
+            "gfortran -o ./fortsym_taylor_demo ./fortsym_taylor_demo.f90 "// &
+            "> ./fortsym_taylor_demo.log 2>&1", wait=.true., exitstat=stat)
         call ok("taylor step fixture compiles", stat == 0)
         if (stat /= 0) return
 
         call execute_command_line( &
-            "/tmp/fortsym_taylor_demo > /tmp/fortsym_taylor_demo.out", &
+            "./fortsym_taylor_demo > ./fortsym_taylor_demo.out", &
             wait=.true., exitstat=stat)
         call ok("taylor step fixture runs", stat == 0)
         if (stat /= 0) return
@@ -138,7 +138,7 @@ contains
         integer :: run_unit, ios, k
         real(dp) :: f1k, f2k, f3k, expected1, expected2, expected3, fact
 
-        open (newunit=run_unit, file="/tmp/fortsym_taylor_demo.out", &
+        open (newunit=run_unit, file="./fortsym_taylor_demo.out", &
             status="old", action="read", iostat=ios)
         call ok("taylor step output opens", ios == 0)
         if (ios /= 0) return
