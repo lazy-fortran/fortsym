@@ -9,6 +9,7 @@ on:
   release:
     types: [published]
   merge_group:
+  workflow_dispatch:
 
 permissions:
   contents: read
