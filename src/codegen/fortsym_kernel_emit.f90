@@ -36,6 +36,8 @@ module fortsym_kernel_emit
         fg_emit_cuda_device_ir => emit_cuda_device_ir, &
         fg_emit_cuda_batch_ir => emit_cuda_batch_ir, &
         fg_emit_python_kernel_ir => emit_python_kernel_ir
+    use fortgen_tensor_emit, only: fg_tensor_spec_t => tensor_kernel_spec_t, &
+        fg_tensor_fortran => emit_tensor_fortran, fg_tensor_cuda => emit_tensor_cuda
     use fortgen_layout, only: wrap_fortran_source
     use fortgen_kernel_target, only: fg_target_from_name => target_from_name
     use fortgen_precision, only: fg_precision_from_name => precision_from_name
@@ -45,6 +47,7 @@ module fortsym_kernel_emit
     implicit none
     private
 
+    public :: tensor_kernel_spec_t, emit_tensor_fortran, emit_tensor_cuda
     public :: emit_cpu_precision_kernels
     public :: kernel_emission_policy_t, kernel_emit_spec_t
     public :: emit_fortran_kernel_ir, emit_cuda_device_ir, emit_python_kernel_ir
@@ -94,6 +97,19 @@ module fortsym_kernel_emit
     integer, parameter :: dp = real64
     integer, parameter :: BACKEND_FORTRAN = 1
     integer, parameter :: BACKEND_CUDA = 2
+
+    !> Tensor schedule parameters. The caller owns basis tables and the leaf's
+    !> symbolic mathematics. Cells are the leftmost SIMD index on the CPU.
+    type :: tensor_kernel_spec_t
+        type(str_t) :: name
+        integer :: dimension = 2
+        integer :: nloc = 2
+        integer :: nq = 2
+        integer :: batch = 8
+        integer :: ncoeff = 0
+        integer :: precision = PRECISION_REAL64
+        logical :: cell_tables = .false.
+    end type tensor_kernel_spec_t
 
     type :: kernel_emit_spec_t
         type(str_t) :: name
@@ -148,6 +164,62 @@ module fortsym_kernel_emit
     end type kernel_emit_spec_t
 
 contains
+
+    function emit_tensor_fortran(roots, leaf, tensor, ok, message) result(source)
+        type(expr_t), intent(in) :: roots(:)
+        type(kernel_emit_spec_t), intent(in) :: leaf
+        type(tensor_kernel_spec_t), intent(in) :: tensor
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(str_t) :: source
+        source = emit_tensor_kernel(roots, leaf, tensor, .false., ok, message)
+    end function emit_tensor_fortran
+
+    function emit_tensor_cuda(roots, leaf, tensor, ok, message) result(source)
+        type(expr_t), intent(in) :: roots(:)
+        type(kernel_emit_spec_t), intent(in) :: leaf
+        type(tensor_kernel_spec_t), intent(in) :: tensor
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(str_t) :: source
+        source = emit_tensor_kernel(roots, leaf, tensor, .true., ok, message)
+    end function emit_tensor_cuda
+
+    function emit_tensor_kernel(roots, leaf, tensor, cuda, ok, message) result(source)
+        type(expr_t), intent(in) :: roots(:)
+        type(kernel_emit_spec_t), intent(in) :: leaf
+        type(tensor_kernel_spec_t), intent(in) :: tensor
+        logical, intent(in) :: cuda
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(str_t) :: source
+        type(kernel_ir_t) :: ir
+        type(fg_kernel_ir_t) :: fg_ir
+        type(fg_kernel_emit_spec_t) :: fg_leaf
+        type(fg_tensor_spec_t) :: fg_tensor
+        type(fg_str_t) :: emitted
+        source = str('')
+        call lower_kernel_ir(roots, ir, ok, message)
+        if (.not. ok) return
+        call to_fortgen_kernel_ir(ir, fg_ir, ok, message)
+        if (.not. ok) return
+        call map_fortgen_spec(leaf, fg_leaf, ok, message)
+        if (.not. ok) return
+        fg_tensor%name = fg_str(chars(tensor%name))
+        fg_tensor%dimension = tensor%dimension
+        fg_tensor%nloc = tensor%nloc
+        fg_tensor%nq = tensor%nq
+        fg_tensor%batch = tensor%batch
+        fg_tensor%ncoeff = tensor%ncoeff
+        fg_tensor%cell_tables = tensor%cell_tables
+        fg_tensor%precision = fg_precision_from_name(precision_name(tensor%precision))
+        if (cuda) then
+            emitted = fg_tensor_cuda(fg_ir, fg_leaf, fg_tensor, ok, message)
+        else
+            emitted = fg_tensor_fortran(fg_ir, fg_leaf, fg_tensor, ok, message)
+        end if
+        if (ok) source = str(fg_chars(emitted))
+    end function emit_tensor_kernel
 
     function emit_cpu_precision_kernels(roots, spec, ok, message, compute) result(source)
         !! Lower the mathematical definition once; FortGen owns format emission.

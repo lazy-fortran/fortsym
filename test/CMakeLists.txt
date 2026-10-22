@@ -436,3 +436,13 @@ add_test(NAME test_sympy_export_roundtrip COMMAND ${Python3_EXECUTABLE}
 set_tests_properties(test_sympy_export test_sympy_export_roundtrip PROPERTIES
     ENVIRONMENT "PYTHONPATH=${PROJECT_SOURCE_DIR}/python;FORTSYM_LIBRARY=$<TARGET_FILE:fortsym>")
 set_tests_properties(test_sympy_export_roundtrip PROPERTIES SKIP_RETURN_CODE 77)
+
+# Compile and execute a tensor schedule emitted from FortSym expressions.
+find_package(OpenMP REQUIRED COMPONENTS Fortran)
+set(tensor_product ${CMAKE_CURRENT_BINARY_DIR}/tensor_apply.f90)
+add_custom_command(OUTPUT ${tensor_product}
+    COMMAND gen_tensor_apply fortran ${tensor_product} 2 1 0 0 64
+    DEPENDS gen_tensor_apply VERBATIM)
+add_executable(test_tensor_apply codegen/test_tensor_apply.f90 ${tensor_product})
+target_link_libraries(test_tensor_apply PRIVATE OpenMP::OpenMP_Fortran)
+add_test(NAME test_tensor_apply COMMAND test_tensor_apply)
