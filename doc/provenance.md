@@ -213,6 +213,12 @@ Versions, licences and linking rules are in `LEGAL.md` §3 and
   `fpm.toml` and `CMakeLists.txt`.
 - `src/codegen/fortsym_fortgen_adapter.f90` is original field-mapping code;
   it contains no adapted third-party algorithm.
+- `app/gen_tensor_apply.f90` is an original command-line driver for the
+  tensor-product emitter, which schedules FortGen (lazy-fortran/fortgen #27).
+  The method is standard sum factorisation, as in Orszag, *Spectral methods
+  for problems in complex geometries*, J. Comput. Phys. 37, 1980, and Deville,
+  Fischer & Mund, *High-Order Methods for Incompressible Fluid Flow*, CUP 2002.
+  No source was reused.
 - FortGen receives lowered numerical computation and emission policy. It is
   not a symbolic algebra oracle or a participant in CAS decisions.
 - FortGen's ordinary-SymPy frontend enters the same backend independently of

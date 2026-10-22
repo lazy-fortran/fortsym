@@ -103,3 +103,6 @@ target_link_libraries(connection_native PRIVATE fortsym)
 add_executable(bench_qqbar_direct
     ${CMAKE_CURRENT_SOURCE_DIR}/../benchmark/harnesses/bench_qqbar_direct.cpp)
 target_link_libraries(bench_qqbar_direct PRIVATE fortsym::flint)
+
+add_executable(gen_tensor_apply gen_tensor_apply.f90)
+target_link_libraries(gen_tensor_apply PRIVATE fortsym)
