@@ -1,5 +1,5 @@
 module fortsym_linalg
-    use fortsym_arena, only: NK_INT, NK_RAT
+    use fortsym_arena, only: NK_BIG_INT, NK_BIG_RAT, NK_INT, NK_RAT
     use fortsym_engine, only: engine_result_t, engine_t
     use fortsym_expr, only: &
         expr_t, is_valid, num, operator(+), operator(-), operator(*), &
@@ -311,8 +311,10 @@ contains
         simplified = engine%simplify(input)
         exact = .false.
         if (.not. simplified%ok) return
+        ! Arbitrary-precision values are exact too: elimination of moderately
+        ! sized systems leaves the int64 range long before it loses exactness.
         select case (simplified%value%kind())
-        case (NK_INT, NK_RAT)
+        case (NK_INT, NK_RAT, NK_BIG_INT, NK_BIG_RAT)
             output = simplified%value
             exact = .true.
         end select
@@ -409,6 +411,10 @@ contains
         type(expr_t), intent(in) :: expression
         logical :: zero
 
+        ! Canonical exact zero is the machine integer 0; int_value() of an
+        ! arbitrary-precision value is not its value.
+        zero = expression%kind() == NK_INT
+        if (.not. zero) return
         zero = expression%int_value() == 0
     end function is_exact_zero
 
