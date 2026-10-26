@@ -4,6 +4,7 @@ program test_fortsym_linalg
     use fortsym_engine_native, only: make_native_engine, native_engine_t
     use fortsym_expr, only: &
         expr_t, num, operator(/=), operator(==), rat, sym
+    use fortsym_string, only: chars
     use fortsym_linalg, only: &
         exact_linear_system_result_t, solve_exact_linear_system
     implicit none
@@ -22,6 +23,7 @@ program test_fortsym_linalg
     call test_rational_system()
     call test_row_permutation()
     call test_polynomial_moment_change_of_basis()
+    call test_hilbert_beyond_int64()
     call test_invalid_systems()
 
     print '(a,i0,a,i0)', "linalg: ", passed, " passed, ", failed, " failed"
@@ -182,6 +184,39 @@ contains
             end do
         end do
     end subroutine test_polynomial_moment_change_of_basis
+
+    subroutine test_hilbert_beyond_int64()
+        ! The inverse of the 16 x 16 Hilbert matrix has entries near 1e22,
+        ! beyond int64, so elimination must stay in arbitrary precision.
+        ! Known entries: (H^-1)(1,1) = n**2 and
+        ! (H^-1)(n,1) = (-1)**(n+1) n binomial(2n-1, n-1).
+        integer, parameter :: n = 16
+        type(exact_linear_system_result_t) :: result
+        type(expr_t) :: matrix(n, n), identity(n, n)
+        integer :: i, j
+        logical :: large
+
+        do j = 1, n
+            do i = 1, n
+                matrix(i, j) = rat(arena, 1_int64, int(i + j - 1, int64))
+                identity(i, j) = num(arena, merge(1, 0, i == j))
+            end do
+        end do
+        result = solve_exact_linear_system(engine, matrix, identity)
+        call check(result%ok, "16 x 16 Hilbert inverse solves exactly")
+        if (.not. result%ok) return
+        call check(result%values(1, 1) == num(arena, n*n), &
+            "Hilbert inverse corner entry is n**2")
+        call check(result%values(n, 1) == num(arena, -4808643120_int64), &
+            "Hilbert inverse entry (n,1) is -n binomial(2n-1,n-1)")
+        large = .false.
+        do j = 1, n
+            do i = 1, n
+                large = large .or. len(chars(result%values(i, j)%exact_text())) > 19
+            end do
+        end do
+        call check(large, "Hilbert inverse has entries beyond int64")
+    end subroutine test_hilbert_beyond_int64
 
     subroutine test_invalid_systems()
         type(exact_linear_system_result_t) :: result
