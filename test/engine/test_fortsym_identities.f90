@@ -19,7 +19,7 @@ program test_fortsym_identities
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t
+    use fortsym_expr, only: expr_t, operator(-)
     use fortsym_parse, only: parse_expr
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE, verdict_name
@@ -107,6 +107,8 @@ program test_fortsym_identities
     call check("f(x) - f(x)", MUST_ZERO)
 
     print *, ""
+    call check_simplify_reciprocals()
+
     print *, "checks:", nrun, " failed:", nfail
     write (*, '(a,f8.4,a)') " total engine time: ", total_seconds, " s"
 
@@ -114,6 +116,40 @@ program test_fortsym_identities
     print *, "test_fortsym_identities: all checks passed"
 
 contains
+
+    subroutine check_simplify_reciprocals()
+        character(len=64), parameter :: expressions(*) = [character(len=64) :: &
+            "1/gain", "-1/gain", "1/gain**2", "cos(theta)/2", &
+            "1/sin(theta)", "(x**2 - 1)/(x - 1)"]
+        character(len=64), parameter :: expected(*) = [character(len=64) :: &
+            "1/gain", "-1/gain", "1/gain**2", "cos(theta)/2", &
+            "1/sin(theta)", "x + 1"]
+        type(expr_t) :: e, oracle
+        type(engine_result_t) :: simplified, equality
+        logical :: good
+        character(:), allocatable :: message
+        integer :: i
+
+        do i = 1, size(expressions)
+            nrun = nrun + 1
+            e = parse_expr(arena, trim(expressions(i)), good, message)
+            if (.not. good) error stop "simplification input"
+            oracle = parse_expr(arena, trim(expected(i)), good, message)
+            if (.not. good) error stop "simplification oracle"
+            simplified = eng%simplify(e)
+            if (.not. simplified%ok) then
+                nfail = nfail + 1
+                cycle
+            end if
+            equality = eng%zero_test(simplified%value - oracle)
+            if (.not. equality%ok) then
+                nfail = nfail + 1
+            else if (equality%verdict /= VERDICT_TRUE) then
+                nfail = nfail + 1
+                print *, "  SIMPLIFY-FAIL ", trim(expressions(i))
+            end if
+        end do
+    end subroutine check_simplify_reciprocals
 
     subroutine check(text, expectation)
         character(*), intent(in) :: text
