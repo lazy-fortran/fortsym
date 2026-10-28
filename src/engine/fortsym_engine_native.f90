@@ -2693,6 +2693,7 @@ contains
         integer(int64), intent(out) :: num, den
         logical,       intent(out) :: yes
         logical :: exact
+        integer(int64) :: doubled
 
         yes = .false.
         base = id
@@ -2715,7 +2716,9 @@ contains
         yes = .true.
         ! sqrt(x)**(p/q) = x**(p/(2q))
         if (is_sqrt_node(a, base)) then
-            call checked_mul(den, 2_int64, den, exact)
+            ! checked_mul zeroes its result before reading its inputs, so
+            ! den cannot be passed as both.
+            call checked_mul(den, 2_int64, doubled, exact)
             if (.not. exact) then
                 base = id
                 num = 1_int64
@@ -2723,6 +2726,7 @@ contains
                 yes = .false.
                 return
             end if
+            den = doubled
             base = a%arg_of(base, 1)
             exact = .true.
             if (mod(num, 2_int64) == 0_int64) then
