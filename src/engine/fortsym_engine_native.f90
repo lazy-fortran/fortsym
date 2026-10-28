@@ -1734,7 +1734,7 @@ contains
         memo(id) = out
     end function normalise_exp_id
 
-    function normalise_exp_product(a, id, memo, done, saw_exponential, &
+    recursive function normalise_exp_product(a, id, memo, done, saw_exponential, &
             decidable, formal_exponential) result(out)
         type(arena_t), target, intent(inout) :: a
         integer, intent(in)                  :: id
