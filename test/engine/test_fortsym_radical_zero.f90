@@ -55,9 +55,12 @@ program test_fortsym_radical_zero
     call expect('degree bound', x**rat(a, 1_int64, 67_int64) - g, VERDICT_UNKNOWN)
     call expect('vanishing denominator', (g**3 - x*g)/(g**4 - x**2), &
                 VERDICT_UNKNOWN)
-    call expect('common root degree bound', x**rat(a, 1_int64, 8_int64)* &
+    ! Same-base powers merge exactly (z**p*z**q = z**(p+q) for principal
+    ! powers), so this identity no longer needs the common-root search whose
+    ! degree bound is exercised by 'degree bound' above.
+    call expect('merged common root', x**rat(a, 1_int64, 8_int64)* &
                 x**rat(a, 1_int64, 9_int64) - x**rat(a, 17_int64, 72_int64), &
-                VERDICT_UNKNOWN)
+                VERDICT_TRUE)
     if (failures /= 0) error stop 'radical zero regression failed'
     print *, 'PASS radical zero checks:', checks
 contains

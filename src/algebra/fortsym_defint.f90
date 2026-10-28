@@ -129,6 +129,11 @@ contains
             return
         end if
 
+        if (infinite_sign(lo) /= 0 .or. infinite_sign(hi) /= 0) then
+            call improper_integral(a, e, var, lo, hi, f, ok, why)
+            return
+        end if
+
         ! Numeric limits support the interval continuity proof below. A finite
         ! symbolic limit is also safe when the integrand is entire in the
         ! integration variable: the result is then a formal endpoint
@@ -245,6 +250,218 @@ contains
         f = whole
         ok = .true.
     end subroutine definite_integral
+
+    !> +1 for oo, -1 for -oo, 0 otherwise.
+    integer function infinite_sign(e) result(sgn)
+        type(expr_t), intent(in) :: e
+        type(expr_t) :: factor
+        integer :: k
+
+        sgn = 0
+        if (is_infinity(e)) then
+            sgn = 1
+            return
+        end if
+        if (e%kind() /= NK_MUL .or. e%nargs() /= 2) return
+        do k = 1, 2
+            factor = e%arg(3 - k)
+            if (is_infinity(e%arg(k)) .and. factor%kind() == NK_INT) then
+                if (factor%int_value() == -1) sgn = -1
+            end if
+        end do
+    end function infinite_sign
+
+    logical function is_infinity(e) result(yes)
+        type(expr_t), intent(in) :: e
+
+        yes = .false.
+        if (e%kind() == NK_CONST) yes = chars(e%name()) == "oo"
+    end function is_infinity
+
+    !> An integral with an infinite endpoint, for an integrand entire in the
+    !> variable. The antiderivative's value at the infinite end is the limit
+    !> of its terms, each a polynomial times exp(b*v + c); a term decays only
+    !> when the number b has the opposite sign of the endpoint, and every
+    !> other varying term refuses.
+    subroutine improper_integral(a, e, var, lo, hi, f, ok, why)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e, var, lo, hi
+        type(expr_t),              intent(out)   :: f
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(native_engine_t) :: eng
+        type(engine_result_t) :: res
+        type(expr_t) :: antideriv, upper, lower
+        character(:), allocatable :: reason
+        logical :: endpoint_ok
+
+        ok = .false.
+        why = ""
+        f = num(a, 0)
+        if (infinite_sign(lo) == 0) then
+            call finite_symbolic_endpoint(lo, endpoint_ok)
+            if (.not. endpoint_ok) then
+                why = "the lower limit is neither finite nor +-Infinity"
+                return
+            end if
+        end if
+        if (infinite_sign(hi) == 0) then
+            call finite_symbolic_endpoint(hi, endpoint_ok)
+            if (.not. endpoint_ok) then
+                why = "the upper limit is neither finite nor +-Infinity"
+                return
+            end if
+        end if
+        if (.not. entire_in(e, var)) then
+            why = "an infinite endpoint needs an integrand that is entire "// &
+                "in the integration variable"
+            return
+        end if
+        antideriv = integrate(a, e, var, ok, reason)
+        if (.not. ok) then
+            why = reason
+            return
+        end if
+        if (.not. entire_in(antideriv, var)) then
+            ok = .false.
+            why = "the antiderivative is not entire in the variable"
+            return
+        end if
+        eng = make_native_engine(a)
+        call endpoint_value(eng, antideriv, var, hi, upper, ok, why)
+        if (.not. ok) return
+        call endpoint_value(eng, antideriv, var, lo, lower, ok, why)
+        if (.not. ok) return
+        f = upper - lower
+        res = eng%simplify(f)
+        if (res%ok) f = res%value
+    end subroutine improper_integral
+
+    subroutine endpoint_value(eng, antideriv, var, x, value, ok, why)
+        type(native_engine_t),     intent(inout) :: eng
+        type(expr_t),              intent(in)    :: antideriv, var, x
+        type(expr_t),              intent(out)   :: value
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(engine_result_t) :: res
+        type(expr_t) :: expanded, term
+        integer :: k, sgn
+
+        ok = .true.
+        why = ""
+        sgn = infinite_sign(x)
+        if (sgn == 0) then
+            value = subs(antideriv, var, x)
+            return
+        end if
+        res = eng%expand(antideriv)
+        expanded = antideriv
+        if (res%ok) expanded = res%value
+        value = num(var%a, 0)
+        if (expanded%kind() == NK_ADD) then
+            do k = 1, expanded%nargs()
+                term = expanded%arg(k)
+                call add_limit_term(eng, term, var, sgn, value, ok, why)
+                if (.not. ok) return
+            end do
+        else
+            call add_limit_term(eng, expanded, var, sgn, value, ok, why)
+        end if
+    end subroutine endpoint_value
+
+    !> Add lim_{v -> sgn*oo} of one product term to `value`.
+    subroutine add_limit_term(eng, term, var, sgn, value, ok, why)
+        type(native_engine_t),     intent(inout) :: eng
+        type(expr_t),              intent(in)    :: term, var
+        integer,                   intent(in)    :: sgn
+        type(expr_t),              intent(inout) :: value
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(expr_t) :: polynomial, exponent, slope
+        type(engine_result_t) :: res
+        real(dp) :: slope_value
+        integer :: n_exponential, k
+        logical :: numeric
+
+        ok = .false.
+        why = "the antiderivative does not decay at the infinite endpoint"
+        if (.not. depends_on_var(term, var)) then
+            value = value + term
+            ok = .true.
+            why = ""
+            return
+        end if
+        polynomial = num(var%a, 1)
+        exponent = num(var%a, 0)
+        n_exponential = 0
+        call split_term(term, var, polynomial, exponent, n_exponential)
+        if (n_exponential == 0) return
+        res = eng%simplify(diff(exponent, var))
+        if (.not. res%ok) return
+        slope = res%value
+        call number_of(slope, slope_value, numeric)
+        if (.not. numeric) return
+        if (slope_value*real(sgn, dp) >= 0.0_dp) return
+        res = eng%simplify(diff(slope, var))
+        if (.not. res%ok) return
+        if (depends_on_var(res%value, var)) return
+        ! The remaining factor must be a polynomial: it differentiates to 0.
+        do k = 0, 32
+            res = eng%simplify(polynomial)
+            if (.not. res%ok) return
+            polynomial = res%value
+            if (polynomial%kind() == NK_INT) then
+                if (polynomial%int_value() == 0) then
+                    ok = .true.
+                    why = ""
+                    return
+                end if
+            end if
+            polynomial = diff(polynomial, var)
+        end do
+    end subroutine add_limit_term
+
+    recursive subroutine split_term(factor, var, polynomial, exponent, &
+            n_exponential)
+        type(expr_t), intent(in) :: factor, var
+        type(expr_t), intent(inout) :: polynomial, exponent
+        integer, intent(inout) :: n_exponential
+        integer :: k
+
+        if (factor%kind() == NK_MUL) then
+            do k = 1, factor%nargs()
+                call split_term(factor%arg(k), var, polynomial, exponent, &
+                    n_exponential)
+            end do
+            return
+        end if
+        if (.not. depends_on_var(factor, var)) return
+        if (factor%kind() == NK_FUNC) then
+            if (chars(factor%name()) == "exp" .and. factor%nargs() == 1) then
+                exponent = exponent + factor%arg(1)
+                n_exponential = n_exponential + 1
+                return
+            end if
+        end if
+        polynomial = polynomial*factor
+    end subroutine split_term
+
+    recursive logical function depends_on_var(e, var) result(yes)
+        type(expr_t), intent(in) :: e, var
+        integer :: k
+
+        yes = .false.
+        if (e%kind() == NK_SYM) then
+            yes = e%id == var%id
+            return
+        end if
+        do k = 1, e%nargs()
+            if (depends_on_var(e%arg(k), var)) then
+                yes = .true.
+                return
+            end if
+        end do
+    end function depends_on_var
 
     !> Exact int_lo^hi sum_j k_j sin(c_j v)**a_j cos(c_j v)**b_j dv.
     !>
@@ -700,6 +917,7 @@ contains
             ok = .true.
         case (NK_CONST)
             name = chars(e%name())
+            if (name == "oo" .or. name == "zoo" .or. name == "nan") return
             if (name == "Infinity") return
             if (name == "ComplexInfinity") return
             if (name == "Indeterminate") return

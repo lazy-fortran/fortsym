@@ -23,9 +23,17 @@ generated code against the symbolic definition in the same test binary.
 
 The native Fortran backend provides arbitrary-precision integer and rational
 arithmetic (with a checked 64-bit fast path), collection of like terms and
-integer powers, bounded polynomial expansion, differentiation, Taylor
-coefficients and series, scalar linear solving, requested-precision numerical
-evaluation (17 to 512 decimal digits) and conservative zero decisions.
+of same-base powers with exact rational exponents (`z**p*z**q = z**(p+q)`,
+`(z**p)**n = z**(p*n)` for integer `n`, `sqrt(z)` counted as `z**(1/2)`),
+bounded polynomial expansion, differentiation, Taylor coefficients and series,
+scalar linear solving, requested-precision numerical evaluation (17 to 512
+decimal digits) and conservative zero decisions. Series are built by composing
+truncated power series, so removable singularities such as
+`(u - asinh(u))/u**3` at `u = 0` expand correctly; uncancelled poles and
+undecidable cancellations are refused. Zero tests return `UNKNOWN`, never zero,
+when a denominator simplifies to zero. Definite integrals accept an infinite
+endpoint when the antiderivative is a polynomial times a decaying exponential,
+and polynomial times `exp(b*x + c)` integrates by parts for numeric `b`.
 
 Simplifications that need domain facts take an explicit `assumption_context_t`.
 Positive, nonnegative, nonzero and real-valued facts are attached to

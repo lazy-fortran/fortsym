@@ -27,6 +27,7 @@ module fortsym_engine_native
     use fortsym_trigrewrite, only: trig_to_exp
     use fortsym_series_guard, only: contains_nonfinite, contains_singular_power, &
         contains_opaque_derivative, series_refusal
+    use fortsym_series_compose, only: compose_series
     use fortsym_engine, only: engine_t, engine_result_t, resource_limit_t, &
         resource_exceeded, resource_visit, resource_failure, wall_seconds, &
         VERDICT_UNKNOWN, VERDICT_TRUE, VERDICT_FALSE, CAP_ZERO_TEST, &
@@ -371,6 +372,19 @@ contains
         class(native_engine_t), intent(inout) :: self
         type(expr_t),           intent(in)    :: e
         type(engine_result_t)                 :: r
+
+        r = native_zero_test_core(self, e)
+        ! A numerator that cancels to zero over a denominator that is itself
+        ! identically zero is 0/0: undecided, never zero.
+        if (r%verdict == VERDICT_TRUE) then
+            if (has_vanishing_denominator(self, e)) r%verdict = VERDICT_UNKNOWN
+        end if
+    end function native_zero_test
+
+    function native_zero_test_core(self, e) result(r)
+        class(native_engine_t), intent(inout) :: self
+        type(expr_t),           intent(in)    :: e
+        type(engine_result_t)                 :: r
         type(engine_result_t) :: simplified
         type(engine_result_t) :: expanded
         type(expr_t) :: normalised, exp_input, trig_normalised, together, cancelled
@@ -492,7 +506,40 @@ contains
                 r%value = num(e%a, 0_int64)
             end if
         end if
-    end function native_zero_test
+    end function native_zero_test_core
+
+    !> Does e contain base**(-p), p > 0, with a base that simplifies to 0?
+    recursive logical function has_vanishing_denominator(self, e) result(yes)
+        class(native_engine_t), intent(inout) :: self
+        type(expr_t),           intent(in)    :: e
+        type(engine_result_t) :: base
+        type(expr_t) :: exponent
+        integer :: k
+
+        yes = .false.
+        if (e%kind() == NK_POW) then
+            exponent = e%arg(2)
+            if (exponent%kind() == NK_INT .or. exponent%kind() == NK_RAT) then
+                if (exponent%int_value() < 0_int64) then
+                    base = self%simplify(e%arg(1))
+                    if (base%ok) then
+                        if (base%value%kind() == NK_INT) then
+                            if (base%value%int_value() == 0_int64) then
+                                yes = .true.
+                                return
+                            end if
+                        end if
+                    end if
+                end if
+            end if
+        end if
+        do k = 1, e%nargs()
+            if (has_vanishing_denominator(self, e%arg(k))) then
+                yes = .true.
+                return
+            end if
+        end do
+    end function has_vanishing_denominator
 
     function native_diff(self, e, v) result(r)
         class(native_engine_t), intent(inout) :: self
@@ -804,8 +851,9 @@ contains
         real(dp) :: started
         logical :: factorial_ok
         integer :: k
-        logical :: refused
-        character(:), allocatable :: reason
+        logical :: refused, composed
+        character(:), allocatable :: reason, why
+        type(expr_t), allocatable :: coefficients(:)
 
         started = wall_seconds()
         r%value = e
@@ -829,6 +877,16 @@ contains
         call factorial_i64(order, factorial, factorial_ok)
         if (.not. factorial_ok) then
             r%message = str("native: series factorial exceeds int64")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+
+        ! Composition first; see native_series.
+        call compose_series(self, e, v, point, order, at_point, composed, &
+            why, coefficients)
+        if (composed) then
+            r%ok = .true.
+            r%value = coefficients(order + 1)
             r%seconds = wall_seconds() - started
             return
         end if
@@ -862,6 +920,7 @@ contains
                 r%message = str(series_refusal(e%a, r%value%id))
             end if
         end if
+
         r%seconds = wall_seconds() - started
     end function native_series_coeff
 
@@ -875,8 +934,8 @@ contains
         type(expr_t) :: polynomial, term
         integer :: k
         real(dp) :: started
-        logical :: refused
-        character(:), allocatable :: reason
+        logical :: refused, composed
+        character(:), allocatable :: reason, why
 
         started = wall_seconds()
         r%value = e
@@ -892,6 +951,17 @@ contains
             return
         end if
 
+        ! Composition handles removable forms such as (u - asinh(u))/u**3,
+        ! where every derivative is a 0/0 form at the point and substitution
+        ! can silently cancel a singular factor. The derivative route remains
+        ! for heads composition refuses.
+        call compose_series(self, e, v, point, order, polynomial, composed, why)
+        if (composed) then
+            r%ok = .true.
+            r%value = polynomial
+            r%seconds = wall_seconds() - started
+            return
+        end if
         polynomial = point - point
         do k = 0, order
             coefficient = self%series_coeff(e, v, point, k, limit)
@@ -1132,6 +1202,43 @@ contains
             value = next
         end do
     end subroutine factorial_i64
+
+    !> Gamma(order/2) for odd order: sqrt(pi) times the exact rational
+    !> (2m)!/(4**m m!) at m + 1/2, and (-4)**k k!/(2k)! at 1/2 - k. Left
+    !> unevaluated when the rational would leave int64.
+    subroutine half_integer_gamma(a, order, out)
+        type(arena_t), intent(inout) :: a
+        integer(int64), intent(in)   :: order
+        integer,        intent(inout) :: out
+        integer(int64) :: m, k, numer, denom
+        integer :: one_arg(1), factors(2)
+
+        m = (order - 1_int64)/2_int64
+        if (abs(m) > 10_int64) return
+        numer = 1_int64
+        denom = 1_int64
+        if (m >= 0_int64) then
+            ! (2m)!/(4**m m!) = prod_{k=1..m} (2k - 1)/2
+            do k = 1_int64, m
+                numer = numer*(2_int64*k - 1_int64)
+                denom = denom*2_int64
+            end do
+        else
+            ! Gamma(1/2 - j) = (-2)**j / prod_{k=1..j} (2k - 1)
+            do k = 1_int64, -m
+                numer = -2_int64*numer
+                denom = denom*(2_int64*k - 1_int64)
+            end do
+        end if
+        one_arg(1) = a%const("pi")
+        factors(2) = a%func("sqrt", one_arg)
+        if (numer == denom) then
+            out = factors(2)
+        else
+            factors(1) = a%rat(numer, denom)
+            out = a%mul(factors)
+        end if
+    end subroutine half_integer_gamma
 
     subroutine exact_factorial_value(a, id, out, ok)
         type(arena_t), intent(inout) :: a
@@ -2381,10 +2488,12 @@ contains
         type(arena_t), intent(inout) :: a
         integer,       intent(in)    :: operands(:)
         integer                      :: out
-        integer, allocatable :: factors(:), bases(:), result(:)
-        integer(int64), allocatable :: exponents(:)
+        integer, allocatable :: factors(:), bases(:), result(:), originals(:)
+        logical, allocatable :: merged(:)
+        integer(int64), allocatable :: exponents(:), denominators(:)
         type(exact_coefficient_t) :: numeric_product, factor_coefficient, product
         integer(int64) :: exponent, sum_exp, combined_exp
+        integer(int64) :: den1, den2, den_sum
         integer :: flat, i, j, count, base, base2
         integer :: pair(2)
         logical :: exact, product_ok, combined, power_factor
@@ -2469,18 +2578,17 @@ contains
                     end if
                     return
                 end if
-                call integer_power_factor(a, a%arg_of(flat, 1), base, exponent, &
-                    power_factor)
-                call integer_power_factor(a, a%arg_of(flat, 2), base2, sum_exp, &
-                    combined)
-                if (combined .and. base == base2) then
-                    call checked_add(exponent, sum_exp, combined_exp, exact)
+                call rational_power_factor(a, a%arg_of(flat, 1), base, exponent, &
+                    den1, power_factor)
+                call rational_power_factor(a, a%arg_of(flat, 2), base2, sum_exp, &
+                    den2, combined)
+                if (base == base2) then
+                    ! z**p * z**q = z**(p + q) for principal powers.
+                    call rational_add(exponent, den1, sum_exp, den2, &
+                        combined_exp, den_sum, exact)
                     if (exact) then
-                        if (combined_exp == 0_int64) then
-                            out = a%int(1_int64)
-                        else
-                            out = a%pow(base, a%int(combined_exp))
-                        end if
+                        out = merged_node(a, flat, base, combined_exp, den_sum, &
+                            .true.)
                         return
                     end if
                 end if
@@ -2503,7 +2611,9 @@ contains
         do i = 1, size(factors)
             factors(i) = a%arg_of(flat, i)
         end do
-        allocate (bases(size(factors)), exponents(size(factors)))
+        allocate (bases(size(factors)), exponents(size(factors)), &
+            denominators(size(factors)), originals(size(factors)), &
+            merged(size(factors)))
 
         numeric_product = coefficient_one()
         count = 0
@@ -2525,18 +2635,18 @@ contains
                 cycle
             end if
 
-            call integer_power_factor(a, factors(i), base, exponent, power_factor)
-            if (.not. power_factor) then
-                base = factors(i)
-                exponent = 1_int64
-            end if
+            call rational_power_factor(a, factors(i), base, exponent, den1, &
+                power_factor)
 
             combined = .false.
             do j = 1, count
                 if (bases(j) /= base) cycle
-                call checked_add(exponents(j), exponent, sum_exp, exact)
+                call rational_add(exponents(j), denominators(j), exponent, den1, &
+                    sum_exp, den_sum, exact)
                 if (.not. exact) cycle
                 exponents(j) = sum_exp
+                denominators(j) = den_sum
+                merged(j) = .true.
                 combined = .true.
                 exit
             end do
@@ -2545,6 +2655,9 @@ contains
             count = count + 1
             bases(count) = base
             exponents(count) = exponent
+            denominators(count) = den1
+            originals(count) = factors(i)
+            merged(count) = .false.
         end do
 
         if (coefficient_is_zero(numeric_product)) then
@@ -2561,11 +2674,8 @@ contains
         do i = 1, count
             if (exponents(i) == 0_int64) cycle
             j = j + 1
-            if (exponents(i) == 1_int64) then
-                result(j) = bases(i)
-            else
-                result(j) = a%pow(bases(i), a%int(exponents(i)))
-            end if
+            result(j) = merged_node(a, originals(i), bases(i), exponents(i), &
+                denominators(i), merged(i))
         end do
 
         if (j == 0) then
@@ -2574,6 +2684,135 @@ contains
             out = a%mul(result(1:j))
         end if
     end function simplify_mul
+
+    !> base**(num/den) for a power with an exact exponent, else id**1.
+    subroutine rational_power_factor(a, id, base, num, den, yes)
+        type(arena_t), intent(in)  :: a
+        integer,       intent(in)  :: id
+        integer,       intent(out) :: base
+        integer(int64), intent(out) :: num, den
+        logical,       intent(out) :: yes
+        logical :: exact
+
+        yes = .false.
+        base = id
+        num = 1_int64
+        den = 1_int64
+        if (is_sqrt_node(a, id)) then
+            base = a%arg_of(id, 1)
+            den = 2_int64
+            yes = .true.
+            return
+        end if
+        if (a%kind_of(id) /= NK_POW) return
+        call exact_value(a, a%arg_of(id, 2), num, den, exact)
+        if (.not. exact .or. den <= 0_int64) then
+            num = 1_int64
+            den = 1_int64
+            return
+        end if
+        base = a%arg_of(id, 1)
+        yes = .true.
+        ! sqrt(x)**(p/q) = x**(p/(2q))
+        if (is_sqrt_node(a, base)) then
+            call checked_mul(den, 2_int64, den, exact)
+            if (.not. exact) then
+                base = id
+                num = 1_int64
+                den = 1_int64
+                yes = .false.
+                return
+            end if
+            base = a%arg_of(base, 1)
+            exact = .true.
+            if (mod(num, 2_int64) == 0_int64) then
+                num = num/2_int64
+                den = den/2_int64
+            end if
+        end if
+    end subroutine rational_power_factor
+
+    logical function is_sqrt_node(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+
+        yes = .false.
+        if (a%kind_of(id) /= NK_FUNC) return
+        if (a%nargs_of(id) /= 1) return
+        yes = chars(a%name_of(id)) == "sqrt"
+    end function is_sqrt_node
+
+    !> n1/d1 + n2/d2 in lowest terms, refusing int64 overflow.
+    subroutine rational_add(n1, d1, n2, d2, n, d, exact)
+        integer(int64), intent(in)  :: n1, d1, n2, d2
+        integer(int64), intent(out) :: n, d
+        logical,        intent(out) :: exact
+        integer(int64) :: t1, t2, g
+
+        n = 0_int64
+        d = 1_int64
+        call checked_mul(n1, d2, t1, exact)
+        if (.not. exact) return
+        call checked_mul(n2, d1, t2, exact)
+        if (.not. exact) return
+        call checked_add(t1, t2, n, exact)
+        if (.not. exact) return
+        call checked_mul(d1, d2, d, exact)
+        if (.not. exact) return
+        g = gcd_i64(abs(n), d)
+        if (g > 1_int64) then
+            n = n/g
+            d = d/g
+        end if
+    end subroutine rational_add
+
+    pure recursive function gcd_i64(x, y) result(g)
+        integer(int64), intent(in) :: x, y
+        integer(int64) :: g
+        if (y == 0_int64) then
+            g = x
+        else
+            g = gcd_i64(y, mod(x, y))
+        end if
+    end function gcd_i64
+
+    !> base**(num/den), with the trivial exponents 0 and 1 removed.
+    function power_node(a, base, num, den) result(out)
+        type(arena_t), intent(inout) :: a
+        integer,        intent(in)   :: base
+        integer(int64), intent(in)   :: num, den
+        integer :: out
+
+        if (num == 0_int64) then
+            out = a%int(1_int64)
+        else if (den == 1_int64 .and. num == 1_int64) then
+            out = base
+        else if (den == 1_int64) then
+            out = a%pow(base, a%int(num))
+        else
+            out = a%pow(base, a%rat(num, den))
+        end if
+    end function power_node
+
+    !> The merged power, or the original factor when nothing was combined,
+    !> so that sqrt(x) and x**(1/2) keep their own spelling.
+    function merged_node(a, original, base, num, den, combined) result(out)
+        type(arena_t), intent(inout) :: a
+        integer,        intent(in)   :: original, base
+        integer(int64), intent(in)   :: num, den
+        logical,        intent(in)   :: combined
+        integer :: out
+        integer :: one_arg(1)
+
+        if (.not. combined) then
+            out = original
+        else if (num == 1_int64 .and. den == 2_int64) then
+            one_arg(1) = base
+            out = a%func("sqrt", one_arg)
+        else
+            out = power_node(a, base, num, den)
+        end if
+    end function merged_node
 
     subroutine integer_power_factor(a, id, base, exponent, yes)
         type(arena_t), intent(in)  :: a
@@ -2600,7 +2839,7 @@ contains
         integer,       intent(in)    :: base, exponent_id
         integer                      :: out
         integer, allocatable :: factors(:)
-        integer(int64) :: exponent, den, nested, combined
+        integer(int64) :: exponent, den, nested, combined, nested_den, nested_g
         integer :: k, normalized_base, pair(2)
         logical :: exact, power_ok, nested_ok
 
@@ -2708,11 +2947,18 @@ contains
             return
         end if
 
-        call integer_power_factor(a, base, out, nested, nested_ok)
+        ! (z**(p/q))**n = z**(p*n/q) for integer n. An odd power of sqrt(z)
+        ! keeps its spelling.
+        call rational_power_factor(a, base, out, nested, nested_den, nested_ok)
+        if (nested_ok .and. is_sqrt_node(a, base)) then
+            nested_ok = mod(exponent, 2_int64) == 0_int64
+        end if
         if (nested_ok) then
             call checked_mul(nested, exponent, combined, exact)
             if (exact) then
-                out = a%pow(out, a%int(combined))
+                nested_g = gcd_i64(abs(combined), nested_den)
+                out = merged_node(a, base, out, combined/nested_g, &
+                    nested_den/nested_g, .true.)
                 return
             end if
         end if
@@ -2892,9 +3138,8 @@ contains
                     call factorial_i64(int(order - 1_int64), factorial, &
                         factorial_ok)
                     if (factorial_ok) out = a%int(factorial)
-                else if (order == 1_int64 .and. den == 2_int64) then
-                    one_arg(1) = a%const("pi")
-                    out = a%func("sqrt", one_arg)
+                else if (den == 2_int64) then
+                    call half_integer_gamma(a, order, out)
                 end if
             end if
         case ("factorial")

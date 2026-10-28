@@ -29,3 +29,14 @@ result, rows = run("x={1,2}; x[[3]]=4; y=5;")
 assert result.returncode == 0, result.stderr
 assert rows == [["R", "y", "5"]], rows
 assert "UNSUPPORTED: x: Part assignment index is out of range" in result.stderr
+
+# A malformed statement is reported, not silently dropped: here a comment
+# closed early by "q*)" leaves unparseable text that swallows y.
+result, rows = run("x=1;\n(* note q*)^2 *)\ny=2;")
+assert rows == [["R", "x", "1"]], rows
+assert "UNSUPPORTED: <statement 2>: parse:" in result.stderr, result.stderr
+
+# Comment-only statements remain silent.
+result, rows = run("(* only (* nested *) comments *)\nx=1;\n(* tail *)")
+assert result.returncode == 0, result.stderr
+assert rows == [["R", "x", "1"]], rows

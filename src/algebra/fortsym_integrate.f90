@@ -288,6 +288,8 @@ contains
 
         if (n_active > 1) then
             if (.not. all_exponential) then
+                f = polynomial_times_exponential(eng, e, v, found)
+                if (found) return
                 why = "product of "//itoa(n_active)// &
                     " factors that all depend on the variable: "// &
                     "no rule for parts or substitution"
@@ -305,6 +307,81 @@ contains
         f = coefficient*inner
         found = .true.
     end function integrate_product
+
+    !> Repeated integration by parts for P(v)*exp(b*v + c) with P a
+    !> polynomial and b a nonzero number:
+    !>   exp(b*v + c) * sum_k (-1)**k P^(k)(v) / b**(k+1).
+    !> The polynomial is recognised by differentiating it to zero within a
+    !> bounded degree; the verifier still checks the candidate.
+    function polynomial_times_exponential(eng, e, v, found) result(f)
+        type(native_engine_t), intent(inout) :: eng
+        type(expr_t),          intent(in)    :: e, v
+        logical,               intent(out)   :: found
+        type(expr_t)                         :: f
+        integer, parameter :: MAX_DEGREE = 32
+        type(expr_t) :: coefficient, polynomial, exponent, slope, offset
+        type(expr_t) :: derivative, total, power
+        type(engine_result_t) :: verdict
+        integer :: k, n_exponential
+        logical :: linear
+
+        found = .false.
+        f = num(e%a, 0)
+        coefficient = num(e%a, 1)
+        polynomial = num(e%a, 1)
+        exponent = num(e%a, 0)
+        n_exponential = 0
+        call split_exponential(e, v, coefficient, polynomial, exponent, &
+            n_exponential)
+        if (n_exponential == 0) return
+        call linear_in(eng, simplified(eng, exponent), v, slope, offset, linear)
+        if (.not. linear) return
+
+        derivative = simplified(eng, polynomial)
+        total = num(e%a, 0)
+        power = num(e%a, 1)/slope
+        do k = 0, MAX_DEGREE
+            verdict = eng%zero_test(derivative)
+            if (verdict%verdict == VERDICT_TRUE) then
+                f = coefficient*exp(simplified(eng, exponent))*total
+                found = .true.
+                return
+            end if
+            total = total + power*derivative
+            power = -power/slope
+            derivative = simplified(eng, diff(derivative, v))
+        end do
+    end function polynomial_times_exponential
+
+    !> Split a product into a variable-free coefficient, the summed
+    !> arguments of its exponential factors and the remaining factors.
+    recursive subroutine split_exponential(factor, v, coefficient, &
+            polynomial, exponent, n_exponential)
+        type(expr_t), intent(in) :: factor, v
+        type(expr_t), intent(inout) :: coefficient, polynomial, exponent
+        integer, intent(inout) :: n_exponential
+        integer :: k
+
+        if (factor%kind() == NK_MUL) then
+            do k = 1, factor%nargs()
+                call split_exponential(factor%arg(k), v, coefficient, &
+                    polynomial, exponent, n_exponential)
+            end do
+            return
+        end if
+        if (.not. has_var(factor, v)) then
+            coefficient = coefficient*factor
+            return
+        end if
+        if (factor%kind() == NK_FUNC) then
+            if (chars(factor%name()) == "exp" .and. factor%nargs() == 1) then
+                exponent = exponent + factor%arg(1)
+                n_exponential = n_exponential + 1
+                return
+            end if
+        end if
+        polynomial = polynomial*factor
+    end subroutine split_exponential
 
     recursive subroutine collect_product_factor( &
             factor, v, coefficient, exponent, active, n_active, all_exponential)

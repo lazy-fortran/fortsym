@@ -483,7 +483,11 @@ contains
                 end if
             end if
             function_lhs_ok = function_lhs_name(name, function_name)
-            if (.not. function_lhs_ok) return
+            if (.not. function_lhs_ok) then
+                call refuse_statement(s, text, "assignment target is not a "// &
+                    "name, a Part or a function definition")
+                return
+            end if
             call define_function(s, name, rhs, ok, message)
             return
         end if
@@ -592,7 +596,10 @@ contains
         type(str_t) :: message
 
         parsed = parse_expr_in(s%a, text, dialect(DIA_WOLFRAM), ok, why)
-        if (.not. ok) return
+        if (.not. ok) then
+            call refuse_statement(s, text, "parse: "//why)
+            return
+        end if
         if (parsed%kind() /= NK_FUNC) return
 
         select case (chars(parsed%name()))
@@ -605,6 +612,56 @@ contains
             ! assignments are part of the benchmark output protocol.
         end select
     end subroutine wl_run_command
+
+    !> A statement that cannot be run is reported as a refused pseudo-binding,
+    !> so that a malformed line (for example one left behind by a comment
+    !> closed early) never disappears from the output.
+    subroutine refuse_statement(s, text, why)
+        type(wl_session_t), intent(inout) :: s
+        character(*),       intent(in)    :: text, why
+        character(32) :: label
+        character(:), allocatable :: excerpt
+        integer :: k
+
+        if (only_comments(text)) return
+        if (s%n >= MAX_BINDINGS) return
+        s%n = s%n + 1
+        write (label, "(a,i0,a)") "<statement ", s%n, ">"
+        excerpt = trim(adjustl(text(1:min(len_trim(text), 60))))
+        do k = 1, len(excerpt)
+            if (iachar(excerpt(k:k)) < 32) excerpt(k:k) = " "
+        end do
+        s%bindings(s%n)%name = str(trim(label))
+        s%bindings(s%n)%ok = .false.
+        s%bindings(s%n)%message = str(why//" in '"//excerpt//"'")
+    end subroutine refuse_statement
+
+    !> True when text holds nothing but whitespace and (nested) comments.
+    logical function only_comments(text) result(empty)
+        character(*), intent(in) :: text
+        integer :: k, depth
+
+        empty = .false.
+        depth = 0
+        k = 1
+        do while (k <= len(text))
+            if (k < len(text)) then
+                if (text(k:k + 1) == "(*") then
+                    depth = depth + 1
+                    k = k + 2
+                    cycle
+                end if
+                if (text(k:k + 1) == "*)" .and. depth > 0) then
+                    depth = depth - 1
+                    k = k + 2
+                    cycle
+                end if
+            end if
+            if (depth == 0 .and. iachar(text(k:k)) > 32) return
+            k = k + 1
+        end do
+        empty = .true.
+    end function only_comments
 
     !> Remove value and positional-function definitions for each named symbol.
     subroutine clear_names(s, command)

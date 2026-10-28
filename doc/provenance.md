@@ -36,6 +36,17 @@ Refused bindings remain refusals when consumed by later operations, including
 differentiation; reassignment can replace a failed binding with a valid value.
 GNU 12 checks also exercise invalid descriptor returns and assumption diagnostics.
 
+`src/algebra/fortsym_series_compose.f90` is an original implementation of
+truncated power-series arithmetic (sum, Cauchy product, binomial series for
+constant powers, and Taylor composition `f(s0 + w)` with engine derivatives),
+the classical method of Knuth, *The Art of Computer Programming* Vol. 2, §4.7;
+no external implementation or tests were adapted. Its independent oracles are
+hand-derived expansions of `sin(x)/x`, `(x - asinh(x))/x**3` and
+`1/x - 1/sin(x)` checked numerically, and the continued refusal of
+uncancelled poles. The improper-integral and integration-by-parts rules in
+`fortsym_defint` and `fortsym_integrate` are original, checked against exact
+Gamma-function values and quadrature.
+
 The Gaussian-rational Wolfram serialization is an original composition of the
 existing FLINT component bridge and exact rational arithmetic: a linear minimal
 polynomial `c0 + c1*x` proves `x = -c0/c1`. No approximate root or foreign root
