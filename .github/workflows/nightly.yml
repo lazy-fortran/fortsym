@@ -1,0 +1,132 @@
+name: nightly
+
+# The full corpus once a night on main. When shards fail, the triage job
+# bisects those shards between the last green run and this commit and files
+# or updates one issue labelled nightly-failure; the next green run closes it.
+run-name: >-
+  ${{ inputs.shards && format('nightly corpus: shards {0}', inputs.shards) || 'nightly corpus: all shards' }}
+
+on:
+  schedule:
+    - cron: "17 1 * * *"
+  workflow_dispatch:
+    inputs:
+      shards:
+        description: Comma-separated shards to run, for example 3,5 (empty runs all 16)
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Plan shards
+    runs-on: [self-hosted, itp-ubuntu24]
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+      all: ${{ steps.plan.outputs.all }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: plan
+        env:
+          SHARDS: ${{ inputs.shards }}
+        run: python3 scripts/nightly_triage.py plan --shards "$SHARDS"
+
+  corpus:
+    name: Corpus shard ${{ matrix.shard }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    runs-on: [self-hosted, itp-ubuntu24, itp-corpus]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/corpus-setup
+      - name: Run corpus shard against both independent oracles
+        env:
+          CORPUS_SHARD: ${{ matrix.shard }}
+        run: |
+          mkdir -p artifacts
+          nix develop --command env PATH="$GITHUB_WORKSPACE/build/bin:$PATH" \
+            python scripts/corpus_shards.py run --shard "$CORPUS_SHARD" \
+            --report "artifacts/fortsym-corpus-$CORPUS_SHARD.json"
+      - name: Publish the shard report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-shard-${{ matrix.shard }}-${{ github.sha }}
+          path: artifacts/fortsym-corpus-${{ matrix.shard }}.json
+          if-no-files-found: error
+
+  coverage:
+    name: Complete corpus coverage report
+    needs: [plan, corpus]
+    if: needs.plan.outputs.all == 'true'
+    runs-on: [self-hosted, itp-ubuntu24, itp-corpus]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/corpus-setup
+        with:
+          build: "false"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nightly-shard-*-${{ github.sha }}
+          path: artifacts
+          merge-multiple: true
+      - name: Verify and combine every corpus script exactly once
+        run: python scripts/corpus_shards.py merge --report artifacts/fortsym-corpus.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nightly-corpus-${{ github.sha }}
+          path: artifacts/fortsym-corpus.json
+          if-no-files-found: error
+
+  triage:
+    name: Bisect failing shards and report
+    needs: [plan, corpus]
+    if: failure() && needs.corpus.result == 'failure'
+    runs-on: [self-hosted, itp-ubuntu24, itp-corpus]
+    timeout-minutes: 360
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/corpus-setup
+        with:
+          build: "false"
+      - name: Bisect and file or update the nightly-failure issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/nightly_triage.py failure
+
+  close:
+    name: Close the nightly-failure issue
+    needs: [plan, corpus, coverage]
+    if: >-
+      always() && needs.corpus.result == 'success'
+      && (needs.coverage.result == 'success' || needs.coverage.result == 'skipped')
+    runs-on: [self-hosted, itp-ubuntu24]
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Close the issue once its shards pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHARDS: ${{ inputs.shards }}
+        run: python3 scripts/nightly_triage.py success --shards "$SHARDS"
