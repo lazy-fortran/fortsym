@@ -844,6 +844,18 @@ try_cancel(const SymEngine::RCP<const SymEngine::Basic> &e)
             return RCP<const Basic>();
         }
 
+        // SymEngine's cancel dereferences both generator sets even when only
+        // one has an entry. Constants such as the numerator of 1/x then fault.
+        // Require the same single polynomial generator before calling it.
+        const auto numer_gens = _find_gens_poly(numer);
+        const auto denom_gens = _find_gens_poly(denom);
+        if (numer_gens.size() != 1 || denom_gens.size() != 1) {
+            return RCP<const Basic>();
+        }
+        if (!eq(*numer_gens.begin()->first, *denom_gens.begin()->first)) {
+            return RCP<const Basic>();
+        }
+
         RCP<const UIntPolyFlint> rn, rd, common;
         cancel<UIntPolyFlint>(numer, denom, outArg(rn), outArg(rd),
                               outArg(common));
