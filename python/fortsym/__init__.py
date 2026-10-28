@@ -7453,20 +7453,26 @@ class Expr:
 
     def _diff_simplified(self, variable):
         variable = self._arena._check(variable)
-        key = variable.exact_text
+        # exact_text is empty for every non-numeric node, so it cannot tell
+        # symbols apart; key by the variable object as the other caches do.
+        key = id(variable)
         cached = self._diff_results.get(key)
-        if cached is not None and cached._handle is not None:
+        if (cached is not None and cached[0] is variable and
+                cached[1]._handle is not None):
             if self._arena._derivation is not None:
                 self._arena._derivation.observe(
-                    'differentiate', [self._require(), variable._handle], cached)
-            return cached
+                    'differentiate', [self._require(), variable._handle],
+                    cached[1])
+            return cached[1]
         raw = self.diff(variable)
         try:
             result = raw.simplify()
         finally:
             raw.close()
-        self._diff_results[key] = result
+        self._diff_results[key] = (variable, result)
         self._cleanup_needed = True
+        if len(self._diff_results) > 8:
+            self._diff_results.pop(next(iter(self._diff_results)))
         return result
 
     def expand(self):

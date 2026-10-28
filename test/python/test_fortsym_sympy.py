@@ -41,6 +41,18 @@ class SympySubsetTest(unittest.TestCase):
         self.assertEqual(z + 0, z)
         self.assertEqual(sp.Integer(0) + 0, 0)
 
+    def test_diff_cache_respects_variable(self):
+        # Issue #111: the derivative cache ignored the variable, so a second
+        # diff of the same expression returned the first derivative.
+        l, v = sp.symbols("l v")
+        for expression, d_v, d_l in (
+                (sp.exp(l*v + 1), l*sp.exp(l*v + 1), v*sp.exp(l*v + 1)),
+                (sp.sin(l*v), l*sp.cos(l*v), v*sp.cos(l*v))):
+            self.assertEqual(sp.diff(expression, v), d_v)
+            self.assertEqual(sp.diff(expression, l), d_l)
+            self.assertEqual(sp.diff(expression, v), d_v)
+            self.assertEqual(sp.diff(expression, sp.Symbol("l")), d_l)
+
     def test_native_subset_and_kind_classes(self):
         x, y = sp.symbols("x y")
         self.assertIsInstance(x, sp.Symbol)
