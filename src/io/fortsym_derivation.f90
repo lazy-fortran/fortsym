@@ -378,11 +378,9 @@ contains
         do i=1,len(text)
             crc=ieor(crc,shiftl(int(iachar(text(i:i)),int64),56))
             do k=1,8
-                if (btest(crc,63)) then
-                    crc=ieor(shiftl(crc,1),int(z'42F0E1EBA9EA3693',int64))
-                else
-                    crc=shiftl(crc,1)
-                end if
+                ! Select the GF(2) reduction without a conditional CRC loop.
+                crc=ieor(shiftl(crc,1),iand(-ibits(crc,63,1), &
+                    int(z'42F0E1EBA9EA3693',int64)))
             end do
         end do
         write(digest,'(z16.16)') crc
