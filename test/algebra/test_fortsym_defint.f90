@@ -26,7 +26,8 @@ program test_fortsym_defint
     use fortsym_expr, only: expr_t, sym, num, rat, &
         operator(+), operator(-), operator(*), &
         operator(/), operator(**), &
-        sin, cos, exp, log, sqrt, tan, pi_expr
+        sin, cos, exp, log, sqrt, tan, pi_expr, oo_expr, &
+        operator(/=)
     use fortsym_eval, only: binding_t, eval_expr
     use fortsym_defint, only: definite_integral
     implicit none
@@ -52,6 +53,7 @@ program test_fortsym_defint
     call test_parameter_refusal()
     call test_symbolic_endpoint()
     call test_trig_powers()
+    call test_infinite_endpoints()
 
     if (nfail /= 0) then
         print *, "test_fortsym_defint: ", nfail, " check(s) FAILED"
@@ -345,6 +347,46 @@ contains
             call fail("symbolic Pi endpoint formula disagrees with quadrature")
         end if
     end subroutine test_symbolic_endpoint
+
+    !> Polynomial times a decaying exponential over a half line: exact
+    !> values n!/b**(n+1), and refusals where nothing decays.
+    subroutine test_infinite_endpoints()
+        type(expr_t) :: formula, inf
+        logical :: ok
+        character(:), allocatable :: why
+
+        inf = oo_expr(arena)
+        call definite_integral(arena, x**3*exp(-2*x), x, num(arena, 0), inf, &
+            formula, ok, why)
+        call exact_result("int_0^oo x**3 exp(-2x) = 3/8", formula, ok, &
+            rat(arena, 3_int64, 8_int64))
+        call definite_integral(arena, x**2*exp(x), x, -inf, num(arena, 0), &
+            formula, ok, why)
+        call exact_result("int_-oo^0 x**2 exp(x) = 2", formula, ok, &
+            num(arena, 2))
+        call definite_integral(arena, exp(x), x, num(arena, 0), inf, &
+            formula, ok, why)
+        if (ok) call fail("int_0^oo exp(x) diverges but was evaluated")
+        call definite_integral(arena, x, x, num(arena, 0), inf, &
+            formula, ok, why)
+        if (ok) call fail("int_0^oo x diverges but was evaluated")
+        call definite_integral(arena, 1/(1 + x**2), x, num(arena, 0), inf, &
+            formula, ok, why)
+        if (ok) call fail("a non-entire integrand on a half line was "// &
+            "evaluated by endpoint substitution")
+    end subroutine test_infinite_endpoints
+
+    subroutine exact_result(label, formula, ok, want)
+        character(*), intent(in) :: label
+        type(expr_t), intent(in) :: formula, want
+        logical,      intent(in) :: ok
+
+        if (.not. ok) then
+            call fail(label//": refused")
+        else if (formula /= want) then
+            call fail(label//": wrong value")
+        end if
+    end subroutine exact_result
 
     !> Integrate symbolically in `x` with `p` left free, then instantiate `p`
     !> at several values and check each against quadrature of the original

@@ -598,6 +598,7 @@ contains
 
     subroutine test_special_function_identities()
         type(engine_result_t) :: r
+        type(engine_result_t) :: expected
         type(expr_t) :: args(2)
         type(expr_t) :: loggamma_args(1)
         type(expr_t) :: factorial_args(1)
@@ -617,6 +618,16 @@ contains
         r = engine%simplify(gamma(rat(arena, 1_int64, 2_int64)))
         call check("Gamma(1/2) simplifies to sqrt(pi)", &
             r%value == sqrt(pi_expr(arena)))
+        r = engine%simplify(gamma(rat(arena, 5_int64, 2_int64)))
+        expected = engine%simplify(rat(arena, 3_int64, 4_int64)* &
+            sqrt(pi_expr(arena)))
+        call check("Gamma(5/2) simplifies to 3*sqrt(pi)/4", &
+            r%value == expected%value)
+        r = engine%simplify(gamma(rat(arena, -3_int64, 2_int64)))
+        expected = engine%simplify(rat(arena, 4_int64, 3_int64)* &
+            sqrt(pi_expr(arena)))
+        call check("Gamma(-3/2) simplifies to 4*sqrt(pi)/3", &
+            r%value == expected%value)
         r = engine%simplify(gamma(num(arena, 0_int64)))
         call check("Gamma(0) is the complex-infinity pole", &
             r%value == zoo_expr(arena))
@@ -791,6 +802,29 @@ contains
         call check("Taylor series does not succeed with infinity", .not. r%ok)
 
         call test_axis_series_case()
+
+        ! Removable singularities: every derivative is a 0/0 form at the
+        ! point, so these go through composition of truncated series.
+        r = engine%series(sin(x)/x, x, num(arena, 0), 4)
+        expected = 1 - x**2/6 + x**4/120
+        call check("removable sin(x)/x series succeeds", r%ok)
+        if (r%ok) call check_values("sin(x)/x keeps its constant term", &
+            r%value, expected, 0.25_dp, 1.0e-13_dp)
+        r = engine%series_coeff(sin(x)/x, x, num(arena, 0), 0)
+        call check("sin(x)/x constant coefficient is one", &
+            r%ok .and. r%value == num(arena, 1))
+        r = engine%series((x - asinh(x))/x**3, x, num(arena, 0), 4)
+        expected = rat(arena, 1_int64, 6_int64) - 3*x**2/40 + 5*x**4/112
+        call check("removable (x - asinh x)/x^3 series succeeds", r%ok)
+        if (r%ok) call check_values("(x - asinh x)/x^3 coefficients", &
+            r%value, expected, 0.25_dp, 1.0e-13_dp)
+        r = engine%series(1/x - 1/sin(x), x, num(arena, 0), 3)
+        expected = -x/6 - 7*x**3/360
+        call check("cancelling poles 1/x - 1/sin(x) series succeeds", r%ok)
+        if (r%ok) call check_values("1/x - 1/sin(x) coefficients", &
+            r%value, expected, 0.25_dp, 1.0e-13_dp)
+        r = engine%series(sqrt(1 + x**(-2)) - 1/x, x, num(arena, 0), 3)
+        call check("an uncancelled pole stays refused", .not. r%ok)
 
         r = engine%laurent_series(exp(x)/x, x, num(arena, 0), -1, 2)
         laurent_expected = 1/x + 1 + x/2 + x**2/6
