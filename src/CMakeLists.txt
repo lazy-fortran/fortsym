@@ -160,3 +160,8 @@ endif()
 # The C++ shim pulls in the C++ runtime; a Fortran-driven link needs it named
 # explicitly because the linker is invoked by gfortran, not g++.
 target_link_libraries(fortsym PUBLIC stdc++)
+
+# Debug builds trap recursion into a procedure not declared recursive: Fortran
+# 2008 forbids it, and gfortran may then keep the procedure locals static.
+target_compile_options(fortsym PRIVATE
+    "$<$<AND:$<CONFIG:Debug>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fcheck=recursion>")
