@@ -1,0 +1,40 @@
+name: Corpus setup
+description: >-
+  Check out the pinned benchmark corpus, install Nix and the open-source
+  oracles, and optionally build the native Wolfram runner.
+inputs:
+  build:
+    description: Build fortsym_wl_run into build/bin.
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - name: Check out the benchmark corpus and harness
+      uses: actions/checkout@v5
+      with:
+        repository: lazy-fortran/fortsym-bench
+        ref: 2f14462ad3e03b43338409f64006b1a8765f8a42
+        path: bench
+
+    - uses: cachix/install-nix-action@v31
+      with:
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+
+    - name: Build the native Wolfram runner
+      if: inputs.build == 'true'
+      shell: bash
+      run: |
+        nix develop --command cmake -S . -B build -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release -DFORTSYM_BUILD_TESTING=OFF
+        nix develop --command cmake --build build --target fortsym_wl_run -j "${SCI_CPUS:-8}"
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: pip
+        cache-dependency-path: bench/pyproject.toml
+
+    - name: Install the corpus harness and open-source oracles
+      shell: bash
+      run: python -m pip install --quiet "./bench[dev,mathics]"
