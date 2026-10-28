@@ -48,6 +48,10 @@ program test_derivation_record
     source=record%export_sympy(ok,why)
     call require(ok,why)
     if (content_hash('123456789')/='6C40DF5F0B497347') error stop 'CRC64 oracle'
+    if (content_hash('')/='0000000000000000') error stop 'CRC64 empty oracle'
+    ! Independent Boost.CRC crc_optimal<64,0x42F0E1EBA9EA3693,0,0,false,false>.
+    if (content_hash(achar(0)//achar(1)//achar(127)//achar(128)//achar(255)) &
+        /='9FD83EE853CEF2AF') error stop 'CRC64 byte oracle'
     if (command_argument_count()>0) then
         call get_command_argument(1,path)
         open(newunit=unit,file=trim(path),status='replace', &
