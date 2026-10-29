@@ -190,6 +190,11 @@ contains
             return
         end if
 
+        if (e%nargs() == 0) then
+            d = num(a, 0)
+            return
+        end if
+
         ! Piecewise differentiation is branchwise. Conditions are preserved,
         ! while the derivative at a branch boundary remains the caller's
         ! responsibility because the ordinary derivative need not exist there.

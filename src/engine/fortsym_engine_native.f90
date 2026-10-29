@@ -2484,7 +2484,7 @@ contains
         exact = .true.
     end subroutine split_coefficient
 
-    function simplify_mul(a, operands) result(out)
+    recursive function simplify_mul(a, operands) result(out)
         type(arena_t), intent(inout) :: a
         integer,       intent(in)    :: operands(:)
         integer                      :: out
@@ -2815,6 +2815,11 @@ contains
             out = a%func("sqrt", one_arg)
         else
             out = power_node(a, base, num, den)
+            if (den == 1_int64 .and. a%kind_of(base) == NK_CONST) then
+                if (chars(a%name_of(base)) == "i") then
+                    out = simplify_power(a, base, a%int(num))
+                end if
+            end if
         end if
     end function merged_node
 
