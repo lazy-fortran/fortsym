@@ -194,6 +194,13 @@ contains
             ref(idx)%has_array = .true.
             return
         case (IR_LITERAL, IR_CONSTANT)
+            if (op == IR_CONSTANT) then
+                if (chars(ir%nodes(idx)%name) == "i") then
+                    ok = .false.
+                    message = "emit_taylor_step: unsupported complex constant i"
+                    return
+                end if
+            end if
             ref(idx)%scalar = merge_text(ir%nodes(idx)%value, spec)
             ref(idx)%has_array = .false.
             ref(idx)%is_literal = .true.

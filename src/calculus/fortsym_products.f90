@@ -192,6 +192,12 @@ contains
                     dexpo*log(base) + expo*dbase/base)
             end if
         case (NK_FUNC)
+            if (e%nargs() == 0) then
+                tangent = num(e%a, 0)
+                cache(e%id) = tangent
+                known(e%id) = .true.
+                return
+            end if
             name = chars(e%name())
             child = e%arg(1)
             dbase = tangent_node( &
@@ -329,6 +335,7 @@ contains
                 call add_bar(bars(other%id), contribution)
             end if
         case (NK_FUNC)
+            if (e%nargs() == 0) return
             name = chars(e%name())
             child = e%arg(1)
             if (name == "atan2") then
