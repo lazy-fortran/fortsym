@@ -19,6 +19,22 @@ endfunction()
 # --- utilities ---
 fortsym_add_test(test_fortsym_string util/test_fortsym_string.f90)
 
+# Compile the actual application outputs so a generator failure blocks its consumer.
+set(_gp_fixtures)
+foreach(_generator IN ITEMS rbf_derivatives matern12_hvp matern32_hvp matern52_hvp)
+    set(_fixture ${CMAKE_CURRENT_BINARY_DIR}/${_generator}_fixture.f90)
+    add_custom_command(OUTPUT ${_fixture}
+        COMMAND $<TARGET_FILE:gen_${_generator}> ${_fixture} test
+        DEPENDS gen_${_generator}
+        VERBATIM)
+    list(APPEND _gp_fixtures ${_fixture})
+endforeach()
+configure_file(codegen/test_gp_generators.f90.in
+    ${CMAKE_CURRENT_BINARY_DIR}/test_gp_generators.f90 COPYONLY)
+add_executable(test_gp_generators
+    ${CMAKE_CURRENT_BINARY_DIR}/test_gp_generators.f90 ${_gp_fixtures})
+add_test(NAME test_gp_generators COMMAND test_gp_generators)
+
 # A separate consumer must use the installed package without discovering the
 # implementation's C/C++ development packages or retaining the original prefix.
 configure_file(install/test_installed_package.cmake.in

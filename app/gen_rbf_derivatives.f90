@@ -61,6 +61,7 @@ program gen_rbf_derivatives
         error stop 1
     end if
     spec%name = str('fortml_generated_rbf_leaf_derivatives')
+    allocate (spec%args(3), spec%outputs(4))
     spec%args(1) = str('variance')
     spec%args(2) = str('distance')
     spec%args(3) = str('lengthscale')
