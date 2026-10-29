@@ -225,6 +225,13 @@ contains
             end if
             return
         case (IR_LITERAL, IR_CONSTANT)
+            if (op == IR_CONSTANT) then
+                if (chars(ir%nodes(k)%name) == "i") then
+                    ok = .false.
+                    message = "emit_typed_kernel: unsupported complex constant i"
+                    return
+                end if
+            end if
             ref(k) = literal_text(ir%nodes(k)%value, spec)
             return
         end select

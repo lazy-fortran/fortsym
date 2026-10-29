@@ -177,10 +177,12 @@ contains
         end if
     end function fortran_representable
 
-    function fortran_roots_representable(roots, array_names, bindings) result(ok)
+    function fortran_roots_representable(roots, array_names, bindings, &
+            complex_values) result(ok)
         type(expr_t), intent(in) :: roots(:)
         type(str_t), intent(in), optional :: array_names(:)
         type(kernel_binding_t), intent(in), optional :: bindings(:)
+        logical, intent(in), optional :: complex_values
         logical                  :: ok
         logical, allocatable :: visited(:)
         integer :: k
@@ -191,15 +193,16 @@ contains
         do k = 1, size(roots)
             if (present(array_names) .and. present(bindings)) then
                 ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited, &
-                    array_names, bindings)
+                    array_names, bindings, complex_values=complex_values)
             else if (present(array_names)) then
                 ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited, &
-                    array_names)
+                    array_names, complex_values=complex_values)
             else if (present(bindings)) then
                 ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited, &
-                    bindings=bindings)
+                    bindings=bindings, complex_values=complex_values)
             else
-                ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited)
+                ok = fortran_node_representable(roots(k)%a, roots(k)%id, visited, &
+                    complex_values=complex_values)
             end if
             if (.not. ok) return
         end do
@@ -238,12 +241,14 @@ contains
         end do
     end function fortran_roots_representable_kind
 
-    recursive function fortran_node_representable(a, id, visited, array_names, bindings) result(ok)
+    recursive function fortran_node_representable(a, id, visited, &
+            array_names, bindings, complex_values) result(ok)
         type(arena_t), intent(in) :: a
         integer,       intent(in) :: id
         logical,       intent(inout) :: visited(:)
         type(str_t), intent(in), optional :: array_names(:)
         type(kernel_binding_t), intent(in), optional :: bindings(:)
+        logical, intent(in), optional :: complex_values
         logical                  :: ok
         real(dp) :: projected
         integer :: k
@@ -257,11 +262,11 @@ contains
             ok = valid_fortran_symbol(chars(a%name_of(id)))
             return
         case (NK_CONST)
-            ! Only finite real constants have a scalar real64 Fortran meaning.
-            ! In particular, `i` is complex and `oo` is a domain sentinel, not
-            ! a representable real literal.
             ok = chars(a%name_of(id)) == "pi" .or. &
                 chars(a%name_of(id)) == "e"
+            if (present(complex_values)) then
+                if (complex_values) ok = ok .or. chars(a%name_of(id)) == "i"
+            end if
             return
         case (NK_BIG_INT, NK_BIG_RAT)
             projected = exact_to_real(chars(a%exact_text_of(id)), ok)
@@ -283,15 +288,16 @@ contains
             if (chars(a%name_of(id)) == "Piecewise") then
                 if (present(array_names) .and. present(bindings)) then
                     ok = fortran_piecewise_node_representable(a, id, visited, &
-                        array_names, bindings)
+                        array_names, bindings, complex_values=complex_values)
                 else if (present(array_names)) then
                     ok = fortran_piecewise_node_representable(a, id, visited, &
-                        array_names=array_names)
+                        array_names=array_names, complex_values=complex_values)
                 else if (present(bindings)) then
                     ok = fortran_piecewise_node_representable(a, id, visited, &
-                        bindings=bindings)
+                        bindings=bindings, complex_values=complex_values)
                 else
-                    ok = fortran_piecewise_node_representable(a, id, visited)
+                    ok = fortran_piecewise_node_representable(a, id, visited, &
+                        complex_values=complex_values)
                 end if
                 return
             end if
@@ -311,15 +317,16 @@ contains
         do k = 1, a%nargs_of(id)
             if (present(array_names) .and. present(bindings)) then
                 ok = fortran_node_representable(a, a%arg_of(id, k), visited, &
-                    array_names, bindings)
+                    array_names, bindings, complex_values=complex_values)
             else if (present(array_names)) then
                 ok = fortran_node_representable(a, a%arg_of(id, k), visited, &
-                    array_names)
+                    array_names, complex_values=complex_values)
             else if (present(bindings)) then
                 ok = fortran_node_representable(a, a%arg_of(id, k), visited, &
-                    bindings=bindings)
+                    bindings=bindings, complex_values=complex_values)
             else
-                ok = fortran_node_representable(a, a%arg_of(id, k), visited)
+                ok = fortran_node_representable(a, a%arg_of(id, k), visited, &
+                    complex_values=complex_values)
             end if
             if (.not. ok) return
         end do
@@ -450,12 +457,13 @@ contains
     end function fortran_node_representable_kind
 
     recursive logical function fortran_piecewise_node_representable(a, id, &
-            visited, array_names, bindings) result(ok)
+            visited, array_names, bindings, complex_values) result(ok)
         type(arena_t), intent(in) :: a
         integer, intent(in) :: id
         logical, intent(inout) :: visited(:)
         type(str_t), intent(in), optional :: array_names(:)
         type(kernel_binding_t), intent(in), optional :: bindings(:)
+        logical, intent(in), optional :: complex_values
         integer :: k, branches_id, pair_id
 
         ok = .false.
@@ -470,39 +478,48 @@ contains
                 a%nargs_of(pair_id) /= 2) return
             if (present(array_names) .and. present(bindings)) then
                 if (.not. fortran_node_representable(a, a%arg_of(pair_id, 1), &
-                    visited, array_names, bindings)) return
+                    visited, array_names, bindings, &
+                    complex_values=complex_values)) return
                 if (.not. fortran_node_representable(a, a%arg_of(pair_id, 2), &
-                    visited, array_names, bindings)) return
+                    visited, array_names, bindings, &
+                    complex_values=complex_values)) return
             else if (present(array_names)) then
                 if (.not. fortran_node_representable(a, a%arg_of(pair_id, 1), &
-                    visited, array_names)) return
+                    visited, array_names, &
+                    complex_values=complex_values)) return
                 if (.not. fortran_node_representable(a, a%arg_of(pair_id, 2), &
-                    visited, array_names)) return
+                    visited, array_names, &
+                    complex_values=complex_values)) return
             else if (present(bindings)) then
                 if (.not. fortran_node_representable(a, a%arg_of(pair_id, 1), &
-                    visited, bindings=bindings)) return
+                    visited, bindings=bindings, &
+                    complex_values=complex_values)) return
                 if (.not. fortran_node_representable(a, a%arg_of(pair_id, 2), &
-                    visited, bindings=bindings)) return
+                    visited, bindings=bindings, &
+                    complex_values=complex_values)) return
             else
                 if (.not. fortran_node_representable(a, a%arg_of(pair_id, 1), &
-                    visited)) return
+                    visited, &
+                    complex_values=complex_values)) return
                 if (.not. fortran_node_representable(a, a%arg_of(pair_id, 2), &
-                    visited)) return
+                    visited, &
+                    complex_values=complex_values)) return
             end if
         end do
         if (a%nargs_of(id) < 2) then
             ok = .true.
         else if (present(array_names) .and. present(bindings)) then
             ok = fortran_node_representable(a, a%arg_of(id, 2), visited, &
-                array_names, bindings)
+                array_names, bindings, complex_values=complex_values)
         else if (present(array_names)) then
             ok = fortran_node_representable(a, a%arg_of(id, 2), visited, &
-                array_names)
+                array_names, complex_values=complex_values)
         else if (present(bindings)) then
             ok = fortran_node_representable(a, a%arg_of(id, 2), visited, &
-                bindings=bindings)
+                bindings=bindings, complex_values=complex_values)
         else
-            ok = fortran_node_representable(a, a%arg_of(id, 2), visited)
+            ok = fortran_node_representable(a, a%arg_of(id, 2), visited, &
+                complex_values=complex_values)
         end if
     end function fortran_piecewise_node_representable
 
@@ -1139,6 +1156,9 @@ contains
             case ("e")
                 call b%append(chars(str(E_VALUE)))
                 call b%append(chars(d%real_suffix))
+            case ("i")
+                call b%append("(0"//chars(d%int_real_suffix)// &
+                    ", 1"//chars(d%int_real_suffix)//")")
             case default
                 call b%append(name)
             end select

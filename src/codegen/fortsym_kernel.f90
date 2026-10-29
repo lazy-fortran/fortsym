@@ -699,7 +699,8 @@ contains
         if (present(prechecked)) then
             valid = prechecked
         else
-            valid = fortran_roots_representable(roots, spec%args, spec%bindings)
+            valid = fortran_roots_representable(roots, spec%args, spec%bindings, &
+                complex_values=complex_scalar_type(spec))
         end if
         if (present(ok)) ok = valid
         if (.not. valid) then
@@ -1088,7 +1089,7 @@ contains
         end if
         call kernel_check_names(mapped_spec, check_names)
         if (.not. fortran_roots_representable(mapped_roots, check_names, &
-            mapped_spec%bindings)) then
+            mapped_spec%bindings, complex_values=complex_scalar_type(mapped_spec))) then
             ok = .false.
             message = "kernel emitter: expression contains a value not representable in Fortran"
             return
@@ -1412,6 +1413,17 @@ contains
             attempt = attempt + 1
         end do
     end function real64_kind_alias
+
+    logical function complex_scalar_type(spec) result(is_complex)
+        type(kernel_spec_t), intent(in) :: spec
+        character(:), allocatable :: declaration
+        integer :: paren
+
+        declaration = trim(adjustl(chars(spec%scalar_type)))
+        paren = index(declaration, "(")
+        if (paren > 0) declaration = trim(declaration(:paren - 1))
+        is_complex = same_fortran_name(declaration, "complex")
+    end function complex_scalar_type
 
     ! Explicit real(dp)/complex(dp) declaration policies refer to the same
     ! kind as default declarations. Replace whole identifiers, ignoring case.

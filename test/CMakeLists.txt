@@ -107,6 +107,7 @@ if(TARGET bench_emitted_kernels)
     add_test(NAME test_fortsym_emitted_audit COMMAND bench_emitted_kernels --validate-only)
 endif()
 fortsym_add_test(test_fortsym_enzyme codegen/test_fortsym_enzyme.f90)
+fortsym_add_test(test_fortsym_complex_i codegen/test_fortsym_complex_i.f90)
 fortsym_add_test(test_fortsym_kernel_emit codegen/test_fortsym_kernel_emit.f90)
 fortsym_add_test(test_fortsym_kernel_batch codegen/test_fortsym_kernel_batch.f90)
 fortsym_add_test(test_fortsym_kernel_typed codegen/test_fortsym_kernel_typed.f90)
@@ -167,6 +168,7 @@ endif()
 fortsym_add_test(test_fortsym_wl_f90 codegen/test_fortsym_wl_f90.f90)
 # Compiler probes execute generated kernels; /tmp may be mounted noexec.
 foreach(_name IN ITEMS test_fortsym_kernel test_fortsym_kernel_emit
+        test_fortsym_complex_i
         test_fortsym_rigorous_emit test_fortsym_kernel_typed
         test_fortsym_kernel_taylor test_fortsym_kernel_taylor_typed
         test_fortsym_wl_f90)
@@ -208,6 +210,7 @@ fortsym_add_test(test_fortsym_magnetic_weak calculus/test_fortsym_magnetic_weak.
 fortsym_add_test(test_fortsym_tensor calculus/test_fortsym_tensor.f90)
 fortsym_add_test(test_fortsym_connection calculus/test_fortsym_connection.f90)
 fortsym_add_test(test_fortsym_products calculus/test_fortsym_products.f90)
+fortsym_add_test(test_fortsym_nullary calculus/test_fortsym_nullary.f90)
 fortsym_add_test(test_fortsym_registry calculus/test_fortsym_registry.f90)
 fortsym_add_test(test_fortsym_relativity calculus/test_fortsym_relativity.f90)
 fortsym_add_test(test_fortsym_spacetime_form calculus/test_fortsym_spacetime_form.f90)
