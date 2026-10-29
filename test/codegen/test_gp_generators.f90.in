@@ -1,0 +1,109 @@
+program test_gp_generators
+    use, intrinsic :: iso_fortran_env, only: dp => real64, qp => real128
+    use fortml_generated_matern12_products, only: fortml_generated_matern12_hvp_core
+    use fortml_generated_matern32_products, only: fortml_generated_matern32_hvp_core
+    use fortml_generated_matern52_products, only: fortml_generated_matern52_hvp_core
+    implicit none
+
+    abstract interface
+        subroutine matern_leaf(r, rd, lv, lvd, ll, lld, seed, y, yd, &
+                               rb, rbd, lvb, lvbd, llb, llbd)
+            import dp
+            real(dp), intent(in) :: r, rd, lv, lvd, ll, lld, seed
+            real(dp), intent(out) :: y, yd, rb, rbd, lvb, lvbd, llb, llbd
+        end subroutine matern_leaf
+    end interface
+    interface
+        subroutine fortml_generated_rbf_leaf_derivatives(v, r2, ell, y, dv, dr2, dl)
+            import dp
+            real(dp), intent(in) :: v, r2, ell
+            real(dp), intent(out) :: y, dv, dr2, dl
+        end subroutine fortml_generated_rbf_leaf_derivatives
+    end interface
+
+    real(dp) :: out(8), expected(8), x(3), direction(3), seed, v, r2, ell
+    real(qp) :: xx(3), w(3), ei(3), h, f, gradient(3), hv(3)
+    integer :: sample, family, j
+
+    direction = [0.3_dp, -0.4_dp, 0.2_dp]
+    seed = -0.7_dp
+    h = 1.0e-5_qp
+    do sample = 1, 4
+        v = 0.5_dp*sample
+        r2 = 0.3_dp*(sample - 1)
+        ell = 0.7_dp + 0.2_dp*sample
+        call fortml_generated_rbf_leaf_derivatives(v, r2, ell, &
+                                                   out(1), out(2), out(3), out(4))
+        f = real(v, qp)*exp(-real(r2, qp)/(2*real(ell, qp)**2))
+        expected(1:4) = real([f, f/real(v, qp), -f/(2*real(ell, qp)**2), &
+                              f*real(r2, qp)/real(ell, qp)**3], dp)
+        call check('RBF value and derivatives', out(1:4), expected(1:4))
+
+        x = [0.4_dp*(sample - 1), 0.2_dp*sample, -0.1_dp*sample]
+        xx = real(x, qp)
+        w = real(direction, qp)
+        do family = 1, 3
+            select case (family)
+            case (1)
+                call evaluate(fortml_generated_matern12_hvp_core)
+            case (2)
+                call evaluate(fortml_generated_matern32_hvp_core)
+            case (3)
+                call evaluate(fortml_generated_matern52_hvp_core)
+            end select
+            f = reference(family, xx)
+            do j = 1, 3
+                ei = 0.0_qp
+                ei(j) = h
+                gradient(j) = (reference(family, xx + ei) - &
+                               reference(family, xx - ei))/(2*h)
+                hv(j) = (reference(family, xx + ei + h*w) - &
+                         reference(family, xx + ei - h*w) - &
+                         reference(family, xx - ei + h*w) + &
+                         reference(family, xx - ei - h*w))/(4*h*h)
+            end do
+            expected(1) = real(f, dp)
+            expected(2) = real(dot_product(gradient, w), dp)
+            expected(3:7:2) = seed*real(gradient, dp)
+            expected(4:8:2) = seed*real(hv, dp)
+            call check('Matern value/JVP/VJP/HVP', out, expected)
+        end do
+    end do
+    print '(a)', 'PASS: four generated GP leaves, values and derivative products'
+
+contains
+
+    subroutine evaluate(leaf)
+        procedure(matern_leaf) :: leaf
+        call leaf(x(1), direction(1), x(2), direction(2), x(3), direction(3), &
+                  seed, out(1), out(2), out(3), out(4), out(5), out(6), out(7), out(8))
+    end subroutine evaluate
+
+    function reference(kind, point) result(value)
+        integer, intent(in) :: kind
+        real(qp), intent(in) :: point(3)
+        real(qp) :: value, z
+        z = point(1)/exp(point(3))
+        select case (kind)
+        case (1)
+            value = exp(point(2) - z)
+        case (2)
+            z = sqrt(3.0_qp)*z
+            value = exp(point(2) - z)*(1 + z)
+        case (3)
+            z = sqrt(5.0_qp)*z
+            value = exp(point(2) - z)*(1 + z + z*z/3)
+        end select
+    end function reference
+
+    subroutine check(label, actual, wanted)
+        character(*), intent(in) :: label
+        real(dp), intent(in) :: actual(:), wanted(:)
+        if (all(abs(actual - wanted) <= 1.0e-7_dp*(1 + abs(wanted)))) return
+        print '(a)', label
+        print *, 'actual: ', actual
+        print *, 'expected: ', wanted
+        error stop 1
+    end subroutine check
+
+end program test_gp_generators

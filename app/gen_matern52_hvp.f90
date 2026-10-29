@@ -69,6 +69,7 @@ program gen_matern52_hvp
     call lower_kernel_ir(roots, ir, good, message)
     if (.not. good) error stop 1
     spec%name = str('fortml_generated_matern52_hvp_core')
+    allocate (spec%args(7), spec%outputs(8))
     spec%args(1) = str('distance')
     spec%args(2) = str('distance_d')
     spec%args(3) = str('lv')

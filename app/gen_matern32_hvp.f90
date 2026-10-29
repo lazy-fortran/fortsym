@@ -84,6 +84,7 @@ program gen_matern32_hvp
         error stop 1
     end if
     spec%name = str('fortml_generated_matern32_hvp_core')
+    allocate (spec%args(7), spec%outputs(8))
     spec%args(1) = str('distance')
     spec%args(2) = str('distance_d')
     spec%args(3) = str('lv')
