@@ -1,0 +1,10 @@
+{
+  "image_url": "https://box.sloppy.at/c6fa0.png",
+  "image_url_expires_after_days": 3,
+  "image_sha256": "32e5ee34f34a5fc3d693fbea595eb87deb919f98c09e5771c2954213977b115a",
+  "fortsym_revision": "6451bfe8779e219aaf4894942f8f64a4df6b592e",
+  "fortplot_repository": "https://github.com/lazy-fortran/fortplot",
+  "fortplot_revision": "2ebc0058ea8b6af12bb633425977b42b286068c9",
+  "render_command": "render input.csv symbol-roundtrip-temperature.png",
+  "image_pixels": [940, 470]
+}
