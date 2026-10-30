@@ -359,6 +359,29 @@ contains
         e = parse_expr_in(a, text, dialect(DIA_SYMENGINE), ok, message)
     end function from_symengine
 
+    recursive function ambiguous_free_symbol(a, id) result(found)
+        type(arena_t), intent(in) :: a
+        integer, intent(in) :: id
+        logical :: found
+        integer :: k
+
+        found = .false.
+        if (a%kind_of(id) == NK_SYM) then
+            ! The text reply cannot distinguish these symbols from constants.
+            select case (chars(a%name_of(id)))
+            case ("pi", "E", "I", "oo", "zoo", "nan")
+                found = .true.
+            end select
+            return
+        end if
+        do k = 1, a%nargs_of(id)
+            if (ambiguous_free_symbol(a, a%arg_of(id, k))) then
+                found = .true.
+                return
+            end if
+        end do
+    end function ambiguous_free_symbol
+
     !> SymEngine's own printed form, fetched through the shim's render/fetch
     !> pair so no malloc'd pointer has to be freed on a Fortran error path.
     function render(h) result(text)
@@ -554,6 +577,13 @@ contains
         logical :: good
 
         t0 = wall_seconds()
+        if (ambiguous_free_symbol(e%a, e%id)) then
+            r%ok = .false.
+            r%value = e
+            r%message = str("symengine: ambiguous free symbol in text read-back")
+            r%seconds = wall_seconds() - t0
+            return
+        end if
         if (contains_unsupported_algebraic_node(e%a, e%id)) then
             r%ok = .false.
             r%value = e
@@ -593,6 +623,13 @@ contains
         logical :: good
 
         t0 = wall_seconds()
+        if (ambiguous_free_symbol(e%a, e%id)) then
+            r%ok = .false.
+            r%value = e
+            r%message = str("symengine: ambiguous free symbol in text read-back")
+            r%seconds = wall_seconds() - t0
+            return
+        end if
         if (contains_unsupported_algebraic_node(e%a, e%id) .or. &
             contains_unsupported_algebraic_node(v%a, v%id)) then
             r%ok = .false.
@@ -642,6 +679,13 @@ contains
         logical :: good
 
         t0 = wall_seconds()
+        if (ambiguous_free_symbol(e%a, e%id)) then
+            r%ok = .false.
+            r%value = e
+            r%message = str("symengine: ambiguous free symbol in text read-back")
+            r%seconds = wall_seconds() - t0
+            return
+        end if
         if (contains_unsupported_algebraic_node(e%a, e%id)) then
             r%ok = .false.
             r%value = e
