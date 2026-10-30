@@ -28,6 +28,7 @@ program test_fortsym_roundtrip
     call test_printing_shape()
     call test_construction_history_independence()
     call test_roundtrip_all_dialects()
+    call test_symengine_symbol_spelling()
     call test_algebraic_roundtrip()
     call test_gaussian_wolfram_spelling()
     call test_dialect_spellings()
@@ -44,6 +45,42 @@ program test_fortsym_roundtrip
     end if
 
 contains
+
+    subroutine test_symengine_symbol_spelling()
+        type(arena_t), target :: a
+        type(expr_t) :: original, back
+        character(:), allocatable :: text, message
+        logical :: valid
+        integer :: k
+        character(len=2), parameter :: free_names(*) = &
+            [character(len=2) :: "e", "i"]
+        character(len=2), parameter :: constants(*) = &
+            [character(len=2) :: "e", "i", "pi"]
+
+        call a%init()
+        do k = 1, size(free_names)
+            original = sym(a, trim(free_names(k)))
+            text = chars(print_expr_in(original, dialect(DIA_SYMENGINE), valid))
+            call ok("SymEngine free-symbol printing succeeds", valid)
+            back = parse_expr_in(a, text, dialect(DIA_SYMENGINE), valid, message)
+            call ok("SymEngine free-symbol parsing succeeds", valid)
+            if (valid) call ok("SymEngine preserves lowercase free symbol", &
+                back == original)
+        end do
+        do k = 1, size(constants)
+            original = const(a, trim(constants(k)))
+            text = chars(print_expr_in(original, dialect(DIA_SYMENGINE), valid))
+            call ok("SymEngine constant printing succeeds", valid)
+            back = parse_expr_in(a, text, dialect(DIA_SYMENGINE), valid, message)
+            call ok("SymEngine constant parsing succeeds", valid)
+            if (valid) call ok("SymEngine preserves named constant", &
+                back == original)
+        end do
+        back = parse_expr_in(a, "e + i + pi", dialect(DIA_NATIVE), valid, message)
+        original = const(a, "e") + const(a, "i") + const(a, "pi")
+        call ok("native named constants still parse", valid)
+        if (valid) call ok("native constant aliases remain unchanged", back == original)
+    end subroutine test_symengine_symbol_spelling
 
     subroutine test_gaussian_wolfram_spelling()
         type(arena_t), target :: a

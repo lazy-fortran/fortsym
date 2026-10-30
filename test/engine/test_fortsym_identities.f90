@@ -17,9 +17,11 @@ program test_fortsym_identities
     ! reads like the mathematics it checks and exercises the parser at the same
     ! time.
     use, intrinsic :: iso_fortran_env, only: real64
-    use fortsym_string, only: chars
+    use fortsym_string, only: chars, str
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, operator(-)
+    use fortsym_expr, only: expr_t, sym, const, num, operator(+), &
+        operator(-), operator(*), operator(**)
+    use fortsym_eval, only: binding_t, eval_expr
     use fortsym_parse, only: parse_expr
     use fortsym_engine, only: engine_result_t, VERDICT_UNKNOWN, VERDICT_TRUE, &
         VERDICT_FALSE, verdict_name
@@ -108,6 +110,7 @@ program test_fortsym_identities
 
     print *, ""
     call check_simplify_reciprocals()
+    call check_symbol_readback()
 
     print *, "checks:", nrun, " failed:", nfail
     write (*, '(a,f8.4,a)') " total engine time: ", total_seconds, " s"
@@ -116,6 +119,105 @@ program test_fortsym_identities
     print *, "test_fortsym_identities: all checks passed"
 
 contains
+
+    subroutine check_symbol_readback()
+        character(len=3), parameter :: free_names(*) = &
+            [character(len=3) :: "e", "i"]
+        character(len=3), parameter :: reserved(*) = &
+            [character(len=3) :: "E", "I", "pi", "oo", "zoo", "nan"]
+        type(expr_t) :: variable, x, original, expected
+        type(engine_result_t) :: result
+        type(binding_t) :: bindings
+        real(dp) :: temperature
+        logical :: defined
+        integer :: j
+
+        x = sym(arena, "x")
+        do j = 1, size(free_names)
+            variable = sym(arena, trim(free_names(j)))
+            original = variable*x + const(arena, "e")
+            result = eng%simplify(original)
+            call same_expression("simplify preserves free "//trim(free_names(j)), &
+                result, original)
+            result = eng%diff(variable*x**2, x)
+            expected = 2*variable*x
+            call same_expression("diff preserves free "//trim(free_names(j)), &
+                result, expected)
+            original = variable*(x + 1)
+            result = eng%expand(original)
+            expected = variable*x + variable
+            call same_expression("expand preserves free "//trim(free_names(j)), &
+                result, expected)
+        end do
+
+        do j = 1, size(reserved)
+            variable = sym(arena, trim(reserved(j)))
+            original = variable*x + 1
+            result = eng%simplify(original)
+            call refused_symbol("simplify", result, original)
+            result = eng%diff(original, x)
+            call refused_symbol("diff", result, original)
+            result = eng%expand(original)
+            call refused_symbol("expand", result, original)
+        end do
+
+        original = const(arena, "e") + const(arena, "pi") + &
+            const(arena, "i")*x
+        result = eng%simplify(original)
+        call same_expression("true constants survive read-back", result, original)
+
+        ! A thermal endpoint must depend on its supplied decay coefficient.
+        variable = sym(arena, "e")
+        original = 20 + variable*(num(arena, 60) - 20) + 2
+        result = eng%simplify(original)
+        nrun = nrun + 1
+        if (.not. result%ok) then
+            nfail = nfail + 1
+        else
+            bindings%n = 1
+            bindings%names = [str("e")]
+            bindings%values = [0.75_dp]
+            temperature = eval_expr(result%value, bindings, defined)
+            if (.not. defined) then
+                nfail = nfail + 1
+            else if (abs(temperature - 52.0_dp) > 1.0e-12_dp) then
+                nfail = nfail + 1
+                print *, "FAIL thermal endpoint: ", temperature
+            end if
+        end if
+    end subroutine check_symbol_readback
+
+    subroutine same_expression(label, result, expected)
+        character(*), intent(in) :: label
+        type(engine_result_t), intent(in) :: result
+        type(expr_t), intent(in) :: expected
+        type(engine_result_t) :: equality
+
+        nrun = nrun + 1
+        if (.not. result%ok) then
+            nfail = nfail + 1
+            print *, "FAIL ", label
+            return
+        end if
+        equality = eng%zero_test(result%value - expected)
+        if (.not. equality%ok .or. equality%verdict /= VERDICT_TRUE) then
+            nfail = nfail + 1
+            print *, "FAIL ", label
+        end if
+    end subroutine same_expression
+
+    subroutine refused_symbol(operation, result, original)
+        character(*), intent(in) :: operation
+        type(engine_result_t), intent(in) :: result
+        type(expr_t), intent(in) :: original
+
+        nrun = nrun + 1
+        if (result%ok .or. result%value%id /= original%id .or. &
+            index(chars(result%message), "ambiguous free symbol") == 0) then
+            nfail = nfail + 1
+            print *, "FAIL ", operation, " ambiguous symbol"
+        end if
+    end subroutine refused_symbol
 
     subroutine check_simplify_reciprocals()
         character(len=64), parameter :: expressions(*) = [character(len=64) :: &
