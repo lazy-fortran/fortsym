@@ -20,6 +20,7 @@ module fortsym_kernel_typed
     use fortsym_expr, only: expr_t
     use fortsym_kernel_ir, only: kernel_ir_t, lower_kernel_ir, &
         IR_LITERAL, IR_SYMBOL, IR_CONSTANT, IR_ADD, IR_MUL, IR_POW, IR_FUNCTION
+    use fortsym_kernel_emit, only: fortran_constant_text
     implicit none
     private
 
@@ -224,15 +225,24 @@ contains
                     chars(ir%nodes(k)%name)
             end if
             return
-        case (IR_LITERAL, IR_CONSTANT)
-            if (op == IR_CONSTANT) then
-                if (chars(ir%nodes(k)%name) == "i") then
-                    ok = .false.
-                    message = "emit_typed_kernel: unsupported complex constant i"
-                    return
-                end if
-            end if
+        case (IR_LITERAL)
             ref(k) = literal_text(ir%nodes(k)%value, spec)
+            return
+        case (IR_CONSTANT)
+            if (chars(ir%nodes(k)%name) == "i") then
+                ok = .false.
+                message = "emit_typed_kernel: unsupported complex constant i"
+                return
+            end if
+            ref(k) = fortran_constant_text(chars(ir%nodes(k)%name), "dp", ok)
+            if (.not. ok) then
+                message = "emit_typed_kernel: unsupported real constant "// &
+                    chars(ir%nodes(k)%name)
+                return
+            end if
+            if (.not. spec%literal_constructor%is_empty()) then
+                ref(k) = spec%literal_constructor//str("(")//ref(k)//str(")")
+            end if
             return
         end select
 

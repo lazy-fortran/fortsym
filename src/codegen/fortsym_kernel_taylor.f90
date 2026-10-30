@@ -31,6 +31,7 @@ module fortsym_kernel_taylor
     use fortsym_expr, only: expr_t
     use fortsym_kernel_ir, only: kernel_ir_t, lower_kernel_ir, &
         IR_LITERAL, IR_SYMBOL, IR_CONSTANT, IR_ADD, IR_MUL, IR_POW, IR_FUNCTION
+    use fortsym_kernel_emit, only: fortran_constant_text
     implicit none
     private
 
@@ -193,18 +194,33 @@ contains
             ref(idx)%scalar = spec%args(j)//str("(k)")
             ref(idx)%has_array = .true.
             return
-        case (IR_LITERAL, IR_CONSTANT)
-            if (op == IR_CONSTANT) then
-                if (chars(ir%nodes(idx)%name) == "i") then
-                    ok = .false.
-                    message = "emit_taylor_step: unsupported complex constant i"
-                    return
-                end if
-            end if
+        case (IR_LITERAL)
             ref(idx)%scalar = merge_text(ir%nodes(idx)%value, spec)
             ref(idx)%has_array = .false.
             ref(idx)%is_literal = .true.
             ref(idx)%literal_raw = raw_text(ir%nodes(idx)%value, spec)
+            return
+        case (IR_CONSTANT)
+            if (chars(ir%nodes(idx)%name) == "i") then
+                ok = .false.
+                message = "emit_taylor_step: unsupported complex constant i"
+                return
+            end if
+            ref(idx)%literal_raw = &
+                fortran_constant_text(chars(ir%nodes(idx)%name), "dp", ok)
+            if (.not. ok) then
+                message = "emit_taylor_step: unsupported real constant "// &
+                    chars(ir%nodes(idx)%name)
+                return
+            end if
+            if (.not. spec%literal_constructor%is_empty()) then
+                ref(idx)%literal_raw = spec%literal_constructor//str("(")// &
+                    ref(idx)%literal_raw//str(")")
+            end if
+            ref(idx)%scalar = str("merge(")//ref(idx)%literal_raw//str(", ")// &
+                zero_text(spec)//str(", k == 0)")
+            ref(idx)%has_array = .false.
+            ref(idx)%is_literal = .true.
             return
         end select
 
