@@ -54,6 +54,7 @@ module fortsym_kernel_emit
     public :: emit_cuda_batch_ir
     public :: emit_fortran_batch_ir
     public :: emit_table
+    public :: fortran_constant_text
     public :: TARGET_DEFAULT, TARGET_FORTRAN_CPU
     public :: TARGET_FORTRAN_OPENMP_TARGET, TARGET_FORTRAN_OPENACC
     public :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, TARGET_CUDA
@@ -2075,17 +2076,37 @@ contains
         if (value < 0.0_dp) text = "("//text//")"
     end function literal_text
 
-    function constant_pi(backend, precision) result(text)
+    function fortran_constant_text(name, kind_name, ok) result(text)
+        ! Preserve the caller's precision instead of rounding through real64.
+        character(*), intent(in) :: name, kind_name
+        logical, intent(out) :: ok
+        type(str_t) :: text
+
+        ok = .true.
+        select case (name)
+        case ("pi")
+            text = str(constant_pi(BACKEND_FORTRAN, PRECISION_REAL64, kind_name))
+        case ("e")
+            text = str(constant_e(BACKEND_FORTRAN, PRECISION_REAL64, kind_name))
+        case default
+            text = str("")
+            ok = .false.
+        end select
+    end function fortran_constant_text
+
+    function constant_pi(backend, precision, fortran_kind) result(text)
         integer, intent(in) :: backend
         integer, intent(in) :: precision
-        character(:), allocatable :: text
+        character(*), intent(in), optional :: fortran_kind
+        character(:), allocatable :: text, kind_name
 
         if (backend == BACKEND_FORTRAN) then
+            kind_name = "real64"
             if (precision == PRECISION_REAL32 .or. precision == PRECISION_MIXED) then
-                text = "acos(-1.0_real32)"
-            else
-                text = "acos(-1.0_real64)"
+                kind_name = "real32"
             end if
+            if (present(fortran_kind)) kind_name = fortran_kind
+            text = "acos(-1.0_"//kind_name//")"
         else if (precision == PRECISION_REAL32 .or. precision == PRECISION_MIXED) then
             text = "acosf(-1.0f)"
         else
@@ -2093,17 +2114,19 @@ contains
         end if
     end function constant_pi
 
-    function constant_e(backend, precision) result(text)
+    function constant_e(backend, precision, fortran_kind) result(text)
         integer, intent(in) :: backend
         integer, intent(in) :: precision
-        character(:), allocatable :: text
+        character(*), intent(in), optional :: fortran_kind
+        character(:), allocatable :: text, kind_name
 
         if (backend == BACKEND_FORTRAN) then
+            kind_name = "real64"
             if (precision == PRECISION_REAL32 .or. precision == PRECISION_MIXED) then
-                text = "exp(1.0_real32)"
-            else
-                text = "exp(1.0_real64)"
+                kind_name = "real32"
             end if
+            if (present(fortran_kind)) kind_name = fortran_kind
+            text = "exp(1.0_"//kind_name//")"
         else if (precision == PRECISION_REAL32 .or. precision == PRECISION_MIXED) then
             text = "expf(1.0f)"
         else
