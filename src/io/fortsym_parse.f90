@@ -24,7 +24,7 @@ module fortsym_parse
         operator(+), operator(-), operator(*), operator(/), operator(**)
     use fortsym_exact, only: exact_sub, exact_div
     use fortsym_dialect, only: dialect_t, dialect, fn_canonical, DIA_WOLFRAM, &
-        DIA_FORTRAN, DIA_LATEX, const_canonical, DIA_NATIVE
+        DIA_FORTRAN, DIA_LATEX, const_canonical, DIA_NATIVE, DIA_SYMENGINE
     implicit none
     private
 
@@ -1566,12 +1566,20 @@ contains
                 ! turn that ordinary symbol into I before evaluation.
                 if (d%id == DIA_WOLFRAM) then
                     if (name == "Pi" .or. name == "E" .or. name == "I" .or. &
-                            name == "Infinity" .or. name == "ComplexInfinity" .or. &
-                            name == "Indeterminate") then
+                        name == "Infinity" .or. name == "ComplexInfinity" .or. &
+                        name == "Indeterminate") then
                         e = const(a, canon)
                     else
                         e = sym(a, name)
                     end if
+                else if (d%id == DIA_SYMENGINE) then
+                    ! Lowercase e/i are symbols; SymEngine prints E/I constants.
+                    select case (name)
+                    case ("pi", "E", "I", "oo", "zoo", "nan")
+                        e = const(a, canon)
+                    case default
+                        e = sym(a, name)
+                    end select
                 else if (canon == "pi" .or. canon == "e" .or. canon == "i" .or. &
                         canon == "oo" .or. canon == "zoo" .or. canon == "nan") then
                     e = const(a, canon)
