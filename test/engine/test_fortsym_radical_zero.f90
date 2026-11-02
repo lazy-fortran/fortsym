@@ -1,8 +1,10 @@
 program test_fortsym_radical_zero
     use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, rat, func, operator(+), operator(-), &
+    use fortsym_expr, only: expr_t, sym, rat, func, exp, operator(+), operator(-), &
                             operator(*), operator(/), operator(**)
+    use fortsym_diff, only: diff
+    use fortsym_subs, only: subs
     use fortsym_engine, only: engine_result_t, VERDICT_TRUE, VERDICT_UNKNOWN
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     implicit none
@@ -61,9 +63,28 @@ program test_fortsym_radical_zero
     call expect('merged common root', x**rat(a, 1_int64, 8_int64)* &
                 x**rat(a, 1_int64, 9_int64) - x**rat(a, 17_int64, 72_int64), &
                 VERDICT_TRUE)
+    call expect_raw_coefficient()
     if (failures /= 0) error stop 'radical zero regression failed'
     print *, 'PASS radical zero checks:', checks
 contains
+    subroutine expect_raw_coefficient()
+        ! Raw derivative of the Maxwellian Laplacian residual with respect to
+        ! the erf atom. The simplified coefficient is radical-provable; the raw
+        ! derivative used to stay UNKNOWN.
+        type(expr_t) :: x1, x2, x3, s2, r2, ee, xx, potential, res, coeff
+        x1 = sym(a, 'x1'); x2 = sym(a, 'x2'); x3 = sym(a, 'x3')
+        ee = sym(a, 'E'); xx = sym(a, 'X')
+        s2 = x1*x1 + x2*x2 + x3*x3
+        r2 = func('sqrt', [s2])
+        potential = (r2 + rat(a, 1_int64, 2_int64)/r2)*func('erf', [r2]) + exp(-s2)
+        res = diff(diff(potential, x1), x1) + diff(diff(potential, x2), x2)
+        res = res + diff(diff(potential, x3), x3)
+        res = subs(res - 2*func('erf', [r2])/r2, func('erf', [r2]), ee)
+        res = subs(res, exp(-s2), xx)
+        coeff = diff(res, ee)
+        call expect('raw erf coefficient of Maxwellian Laplacian', coeff, VERDICT_TRUE)
+    end subroutine expect_raw_coefficient
+
     subroutine expect(label, expression, verdict)
         character(*), intent(in) :: label
         type(expr_t), intent(in) :: expression
