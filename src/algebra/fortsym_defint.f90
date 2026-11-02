@@ -43,14 +43,15 @@ module fortsym_defint
     use fortsym_string, only: str_t, chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
-    use fortsym_expr, only: expr_t, num, rat, pi_expr, is_valid, &
-        operator(+), operator(-), operator(*)
+    use fortsym_expr, only: expr_t, num, rat, pi_expr, is_valid, exp, sqrt, &
+        operator(+), operator(-), operator(*), operator(/), operator(**), &
+        operator(/=)
     use fortsym_subs, only: subs
     use fortsym_diff, only: diff
     use fortsym_eval, only: binding_t, eval_expr, collect_free_symbols
     use fortsym_integrate, only: integrate
     use fortsym_polysolve, only: solve_polynomial
-    use fortsym_engine, only: engine_result_t
+    use fortsym_engine, only: engine_result_t, VERDICT_TRUE
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     implicit none
     private
@@ -317,6 +318,9 @@ contains
                 "in the integration variable"
             return
         end if
+        eng = make_native_engine(a)
+        call gaussian_moment_rule(eng, e, var, lo, hi, f, ok)
+        if (ok) return
         antideriv = integrate(a, e, var, ok, reason)
         if (.not. ok) then
             why = reason
@@ -327,7 +331,6 @@ contains
             why = "the antiderivative is not entire in the variable"
             return
         end if
-        eng = make_native_engine(a)
         call endpoint_value(eng, antideriv, var, hi, upper, ok, why)
         if (.not. ok) return
         call endpoint_value(eng, antideriv, var, lo, lower, ok, why)
@@ -336,6 +339,133 @@ contains
         res = eng%simplify(f)
         if (res%ok) f = res%value
     end subroutine improper_integral
+
+    !> int_0^oo or int_-oo^oo of sum_j c_j v**n_j exp(e_j(v)), where every
+    !> e_j(v) = e_j(0) - alpha_j v**2 with alpha_j a positive rational. Such a
+    !> Gaussian moment has no elementary antiderivative, so the endpoint rule
+    !> cannot reach it; its value is
+    !>   int_0^oo v**n exp(-alpha v**2) dv = Gamma((n+1)/2)/(2 alpha**((n+1)/2)),
+    !> twice that over the whole line for even n and zero for odd n.
+    !> `handled` is false whenever a term does not have this form.
+    subroutine gaussian_moment_rule(eng, e, var, lo, hi, f, handled)
+        type(native_engine_t), intent(inout) :: eng
+        type(expr_t),          intent(in)    :: e, var, lo, hi
+        type(expr_t),          intent(out)   :: f
+        logical,               intent(out)   :: handled
+        type(engine_result_t) :: res
+        type(expr_t) :: expanded, term, moment
+        logical :: whole_line, ok
+        integer :: k, nterms
+
+        handled = .false.
+        f = num(var%a, 0)
+        if (infinite_sign(hi) /= 1) return
+        whole_line = infinite_sign(lo) == -1
+        if (.not. whole_line) then
+            if (lo%kind() /= NK_INT) return
+            if (lo%int_value() /= 0_int64) return
+        end if
+        res = eng%expand(e)
+        if (.not. res%ok) return
+        expanded = res%value
+        nterms = 1
+        if (expanded%kind() == NK_ADD) nterms = expanded%nargs()
+        do k = 1, nterms
+            term = expanded
+            if (expanded%kind() == NK_ADD) term = expanded%arg(k)
+            call gaussian_term(eng, term, var, whole_line, moment, ok)
+            if (.not. ok) return
+            f = f + moment
+        end do
+        res = eng%simplify(f)
+        if (res%ok) f = res%value
+        handled = .true.
+    end subroutine gaussian_moment_rule
+
+    !> One term c v**n exp(e(v)) of `gaussian_moment_rule`.
+    subroutine gaussian_term(eng, term, var, whole_line, moment, ok)
+        type(native_engine_t), intent(inout) :: eng
+        type(expr_t),          intent(in)    :: term, var
+        logical,               intent(in)    :: whole_line
+        type(expr_t),          intent(out)   :: moment
+        logical,               intent(out)   :: ok
+        type(expr_t) :: coefficient, exponent, factor, power, zero, second, alpha
+        type(engine_result_t) :: res
+        integer(int64) :: n, half, j, ratio_n, ratio_d
+        integer :: k, nfactors, n_exponential
+
+        ok = .false.
+        zero = num(var%a, 0)
+        moment = zero
+        coefficient = num(var%a, 1)
+        exponent = zero
+        n = 0
+        n_exponential = 0
+        nfactors = 1
+        if (term%kind() == NK_MUL) nfactors = term%nargs()
+        do k = 1, nfactors
+            factor = term
+            if (term%kind() == NK_MUL) factor = term%arg(k)
+            if (.not. depends_on_var(factor, var)) then
+                coefficient = coefficient*factor
+            else if (factor%id == var%id) then
+                n = n + 1
+            else if (factor%kind() == NK_POW) then
+                if (factor%arg(1) /= var) return
+                power = factor%arg(2)
+                if (power%kind() /= NK_INT) return
+                if (power%int_value() < 0_int64) return
+                n = n + power%int_value()
+            else if (factor%kind() == NK_FUNC) then
+                if (chars(factor%name()) /= "exp" .or. factor%nargs() /= 1) return
+                exponent = exponent + factor%arg(1)
+                n_exponential = n_exponential + 1
+            else
+                return
+            end if
+        end do
+        if (n_exponential == 0) return
+        ! Bounded so that the double factorial below stays inside int64.
+        if (n > 40_int64) return
+
+        ! The exponent must be e(0) - alpha v**2 with a positive rational alpha:
+        ! e'' a negative rational constant and e'(0) = 0.
+        res = eng%simplify(diff(diff(exponent, var), var))
+        if (.not. res%ok) return
+        second = res%value
+        if (second%kind() /= NK_INT .and. second%kind() /= NK_RAT) return
+        if (second%int_value() >= 0_int64) return
+        res = eng%zero_test(subs(diff(exponent, var), var, zero))
+        if (res%verdict /= VERDICT_TRUE) return
+        alpha = rat(var%a, -second%int_value(), 2_int64*second%den_value())
+        coefficient = coefficient*exp(subs(exponent, var, zero))
+
+        half = n/2_int64
+        if (mod(n, 2_int64) == 1_int64) then
+            if (whole_line) then
+                ok = .true.
+                return
+            end if
+            ! half!/(2 alpha**(half+1))
+            ratio_n = 1_int64
+            do j = 2_int64, half
+                ratio_n = ratio_n*j
+            end do
+            moment = coefficient*rat(var%a, ratio_n, 2_int64) &
+                /alpha**num(var%a, half + 1_int64)
+        else
+            ! (2 half - 1)!! sqrt(pi)/(2**(half+1) alpha**(half+1/2))
+            ratio_n = 1_int64
+            do j = 1_int64, 2_int64*half - 1_int64, 2_int64
+                ratio_n = ratio_n*j
+            end do
+            ratio_d = 2_int64**(half + 1_int64)
+            if (whole_line) ratio_d = ratio_d/2_int64
+            moment = coefficient*rat(var%a, ratio_n, ratio_d) &
+                *sqrt(pi_expr(var%a)/alpha)/alpha**num(var%a, half)
+        end if
+        ok = .true.
+    end subroutine gaussian_term
 
     subroutine endpoint_value(eng, antideriv, var, x, value, ok, why)
         type(native_engine_t),     intent(inout) :: eng
