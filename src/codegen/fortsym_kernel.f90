@@ -15,8 +15,8 @@ module fortsym_kernel
     use fortsym_string, only: str_t, strbuf_t, str, chars, compare_str, &
         operator(==)
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_ADD, NK_MUL, NK_POW, &
-        NK_FUNC, NK_SYM
-    use fortsym_expr, only: expr_t
+        NK_FUNC, NK_SYM, NK_REAL, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
+    use fortsym_expr, only: expr_t, operator(**)
     use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
     use fortsym_print, only: kernel_binding_t, print_expr_sub, &
         fortran_roots_representable, fortran_roots_representable_kind, &
@@ -157,6 +157,11 @@ module fortsym_kernel
         !> Emit an elemental subroutine. Elemental dummy arguments must remain
         !> scalar; use arg_shapes/output_shapes for explicit array kernels.
         logical                  :: elemental_procedure = .false.
+        !> Name 1/b once when reciprocal powers of a base b occur more than
+        !> once, and multiply by that temporary and its integer powers instead
+        !> of dividing at every use. Opt-in: products then round differently
+        !> from the divisions of the default output.
+        logical                  :: reciprocal_temporaries = .false.
     end type kernel_spec_t
 
     !> Which nodes became temporaries, and in what order they must be assigned.
@@ -473,23 +478,31 @@ contains
     !>
     !> With `bindings`, the call arguments of a node bound to a replacement
     !> without `%args%` are not printed, so they are neither counted nor named.
-    function cse_analyse(roots, prefix, cse_level, remat_threshold, bindings) &
-            result(res)
+    !>
+    !> With `reciprocals`, every reciprocal power b**(-n) refers to b**(-1),
+    !> which is added to the arena when absent and named once it has more
+    !> than one use.
+    function cse_analyse(roots, prefix, cse_level, remat_threshold, bindings, &
+            reciprocals) result(res)
         type(expr_t), intent(in) :: roots(:)
         character(*), intent(in) :: prefix
         integer, intent(in), optional :: cse_level, remat_threshold
         type(kernel_binding_t), intent(in), optional :: bindings(:)
+        logical, intent(in), optional :: reciprocals
         type(cse_result_t)       :: res
 
-        integer, allocatable :: refs(:)
+        integer, allocatable :: refs(:), recip_of(:)
         logical, allocatable :: emitted(:)
         type(arena_t), pointer :: a
         integer :: k, capacity, level, threshold
+        logical :: hoist
 
         level = CSE_FULL
         threshold = 0
+        hoist = .false.
         if (present(cse_level)) level = cse_level
         if (present(remat_threshold)) threshold = remat_threshold
+        if (present(reciprocals)) hoist = reciprocals .and. level /= CSE_NONE
 
         res%n = 0
         if (size(roots) == 0) then
@@ -498,49 +511,197 @@ contains
         end if
 
         a => roots(1)%a
+        if (hoist) call intern_reciprocals(roots, recip_of)
         capacity = a%size()
+        if (.not. hoist) allocate (recip_of(capacity), source=0)
         allocate (refs(capacity), source=0)
         allocate (emitted(capacity), source=.false.)
         allocate (res%ids(capacity), res%names(capacity))
 
         ! Count parents. Each root counts once even when two roots share it.
         do k = 1, size(roots)
-            call count_refs(a, roots(k)%id, refs, bindings)
+            call count_refs(a, roots(k)%id, refs, bindings, recip_of)
         end do
 
         ! Post-order, so a temporary's own dependencies are assigned first.
         do k = 1, size(roots)
             call collect(a, roots(k)%id, refs, emitted, res, prefix, level, &
-                threshold, bindings)
+                threshold, bindings, recip_of, hoist)
         end do
     end function cse_analyse
 
-    recursive subroutine count_refs(a, id, refs, bindings)
+    !> recip_of(b) is the node b**(-1) for every base b of a reciprocal power
+    !> reachable from the roots, and zero elsewhere.
+    subroutine intern_reciprocals(roots, recip_of)
+        type(expr_t), intent(in) :: roots(:)
+        integer, allocatable, intent(out) :: recip_of(:)
+        type(arena_t), pointer :: a
+        logical, allocatable :: visited(:)
+        integer, allocatable :: bases(:)
+        type(expr_t) :: base, reciprocal
+        integer :: k, n
+
+        a => roots(1)%a
+        allocate (visited(a%size()), source=.false.)
+        allocate (bases(a%size()))
+        n = 0
+        do k = 1, size(roots)
+            call find_bases(roots(k)%id)
+        end do
+        ! Interning grows the arena, so the map is sized afterwards. A repeated
+        ! base interns the same node again.
+        base = roots(1)
+        do k = 1, n
+            base%id = bases(k)
+            reciprocal = base**(-1)
+            bases(k) = 0
+            if (a%kind_of(reciprocal%id) /= NK_POW) cycle
+            if (a%arg_of(reciprocal%id, 1) /= base%id) cycle
+            bases(k) = reciprocal%id
+        end do
+        allocate (recip_of(a%size()), source=0)
+        do k = 1, n
+            if (bases(k) /= 0) recip_of(a%arg_of(bases(k), 1)) = bases(k)
+        end do
+    contains
+        recursive subroutine find_bases(id)
+            integer, intent(in) :: id
+            integer :: j
+
+            if (visited(id)) return
+            visited(id) = .true.
+            ! A numeric reciprocal is folded by the compiler and needs no name.
+            if (a%kind_of(id) == NK_POW) then
+                if (is_reciprocal_power(a, id) .and. &
+                    .not. is_number_node(a, reciprocal_base(a, id))) then
+                    n = n + 1
+                    bases(n) = reciprocal_base(a, id)
+                end if
+            end if
+            do j = 1, a%nargs_of(id)
+                call find_bases(a%arg_of(id, j))
+            end do
+        end subroutine find_bases
+    end subroutine intern_reciprocals
+
+    recursive subroutine count_refs(a, id, refs, bindings, recip_of)
         type(arena_t), intent(in)    :: a
         integer,       intent(in)    :: id
         integer,       intent(inout) :: refs(:)
         type(kernel_binding_t), intent(in), optional :: bindings(:)
-        integer :: k
+        integer,       intent(in)    :: recip_of(:)
+        integer :: k, reciprocal
 
+        reciprocal = hoisted_reciprocal(a, id, recip_of)
+        if (reciprocal > 0) then
+            ! b**(-n) prints as r**n with r = b**(-1), so every use is a use
+            ! of r and none of b.
+            refs(id) = refs(id) + 1
+            call count_refs(a, reciprocal, refs, bindings, recip_of)
+            return
+        end if
         refs(id) = refs(id) + 1
         ! Recurse only the first time. Hash-consing means the subtree below a
         ! shared node is identical on every visit, so descending again would
         ! inflate the counts of everything beneath it.
         if (refs(id) > 1) then
-            ! A reciprocal power is never named: every use prints as a
-            ! division by its base, so a shared reciprocal shares its base.
-            if (is_reciprocal_power(a, id)) &
-                refs(a%arg_of(id, 1)) = refs(a%arg_of(id, 1)) + 1
+            ! Unless hoisted, a reciprocal power is never named: every use
+            ! prints as a division by its base, so a shared reciprocal shares
+            ! its base.
+            if (is_reciprocal_power(a, id)) then
+                if (recip_of(a%arg_of(id, 1)) /= id) &
+                    refs(a%arg_of(id, 1)) = refs(a%arg_of(id, 1)) + 1
+            end if
             return
         end if
         if (binding_omits_arguments(a, id, bindings)) return
         do k = 1, a%nargs_of(id)
-            call count_refs(a, a%arg_of(id, k), refs, bindings)
+            call count_refs(a, a%arg_of(id, k), refs, bindings, recip_of)
         end do
     end subroutine count_refs
 
+    !> The node b**(-1) standing for the reciprocal power `id` = b**(-n),
+    !> n > 1, or zero.
+    pure function hoisted_reciprocal(a, id, recip_of) result(reciprocal)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id, recip_of(:)
+        integer                   :: reciprocal
+
+        reciprocal = 0
+        if (a%kind_of(id) /= NK_POW) return
+        if (.not. is_reciprocal_power(a, id)) return
+        reciprocal = recip_of(reciprocal_base(a, id))
+        if (reciprocal == id) reciprocal = 0
+    end function hoisted_reciprocal
+
+    !> A product of unit factors and one hoisted reciprocal power prints as
+    !> that reciprocal's temporary alone, so naming it would only copy it.
+    pure function unit_times_hoisted(a, id, recip_of) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id, recip_of(:)
+        logical                   :: yes
+        integer :: k, child, hoisted
+
+        yes = .false.
+        if (a%kind_of(id) /= NK_MUL) return
+        hoisted = 0
+        do k = 1, a%nargs_of(id)
+            child = a%arg_of(id, k)
+            if (a%kind_of(child) == NK_INT) then
+                if (a%num_of(child) == 1_int64) cycle
+            end if
+            if (a%kind_of(child) /= NK_POW) return
+            if (.not. is_reciprocal_power(a, child)) return
+            if (recip_of(reciprocal_base(a, child)) == 0) return
+            hoisted = hoisted + 1
+        end do
+        yes = hoisted == 1
+    end function unit_times_hoisted
+
+    !> A reciprocal power whose base has no hoisted reciprocal prints as a
+    !> division, as without hoisting, so a temporary for it would be dead.
+    pure function unhoisted_reciprocal(a, id, recip_of) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id, recip_of(:)
+        logical                   :: yes
+
+        yes = .false.
+        if (a%kind_of(id) /= NK_POW) return
+        if (.not. is_reciprocal_power(a, id)) return
+        yes = recip_of(reciprocal_base(a, id)) == 0
+    end function unhoisted_reciprocal
+
+    pure logical function is_number_node(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+
+        select case (a%kind_of(id))
+        case (NK_INT, NK_RAT, NK_REAL, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL)
+            yes = .true.
+        case default
+            yes = .false.
+        end select
+    end function is_number_node
+
+    !> The base b of the reciprocal power `id` = b**(-n), also when written
+    !> (b**m)**(-k); the printer applies the same rule.
+    pure function reciprocal_base(a, id) result(base)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        integer                   :: base
+        integer :: e_id
+
+        base = a%arg_of(id, 1)
+        if (a%kind_of(base) /= NK_POW) return
+        e_id = a%arg_of(base, 2)
+        if (a%kind_of(e_id) /= NK_INT) return
+        if (a%num_of(e_id) <= 0_int64 .or. a%num_of(e_id) > 1024_int64) return
+        if (-a%num_of(a%arg_of(id, 2)) > 1024_int64) return
+        base = a%arg_of(base, 1)
+    end function reciprocal_base
+
     recursive subroutine collect(a, id, refs, emitted, res, prefix, level, threshold, &
-            bindings)
+            bindings, recip_of, hoist)
         type(arena_t),      intent(in)    :: a
         integer,            intent(in)    :: id
         integer,            intent(in)    :: refs(:)
@@ -549,19 +710,27 @@ contains
         character(*),       intent(in)    :: prefix
         integer,            intent(in)    :: level, threshold
         type(kernel_binding_t), intent(in), optional :: bindings(:)
-        integer :: k
+        integer,            intent(in)    :: recip_of(:)
+        logical,            intent(in)    :: hoist
+        integer :: k, reciprocal
 
         if (emitted(id)) return
         emitted(id) = .true.
 
-        if (.not. binding_omits_arguments(a, id, bindings)) then
+        reciprocal = hoisted_reciprocal(a, id, recip_of)
+        if (reciprocal > 0) then
+            call collect(a, reciprocal, refs, emitted, res, prefix, level, &
+                threshold, bindings, recip_of, hoist)
+        else if (.not. binding_omits_arguments(a, id, bindings)) then
             do k = 1, a%nargs_of(id)
                 call collect(a, a%arg_of(id, k), refs, emitted, res, prefix, level, &
-                    threshold, bindings)
+                    threshold, bindings, recip_of, hoist)
             end do
         end if
 
-        if (refs(id) > 1 .and. worth_naming(a, id, level, threshold)) then
+        if (refs(id) > 1 .and. worth_naming(a, id, level, threshold, hoist) .and. &
+            .not. unit_times_hoisted(a, id, recip_of) .and. &
+            .not. unhoisted_reciprocal(a, id, recip_of)) then
             res%n = res%n + 1
             res%ids(res%n) = id
             res%names(res%n) = str(prefix//chars(str(res%n)))
@@ -574,17 +743,20 @@ contains
     !> Reciprocal powers are excluded too. The printer renders x**(-1) as a
     !> division rather than as a power, so a temporary holding one is never
     !> referenced and becomes a dead store -- computed, declared, and unused.
-    pure function worth_naming(a, id, level, threshold) result(yes)
+    !> With `hoist`, the printer reuses a named reciprocal power, so it is
+    !> worth naming like any other power.
+    pure function worth_naming(a, id, level, threshold, hoist) result(yes)
         type(arena_t), intent(in) :: a
         integer,       intent(in) :: id
         integer,       intent(in) :: level, threshold
+        logical,       intent(in) :: hoist
         logical                   :: yes
         integer :: k
         yes = .false.
         if (level == CSE_NONE) return
         k = a%kind_of(id)
         yes = k == NK_ADD .or. k == NK_MUL .or. k == NK_POW .or. k == NK_FUNC
-        if (k == NK_POW) yes = .not. is_reciprocal_power(a, id)
+        if (k == NK_POW .and. .not. hoist) yes = .not. is_reciprocal_power(a, id)
         if (.not. yes) return
         if (level == CSE_THRESHOLDED) then
             if (rematerialization_cost(a, id) < threshold) yes = .false.
@@ -718,7 +890,7 @@ contains
                 chars(print_expr_sub(tmp, d, &
                 res%ids(1:k - 1), &
                 res%names(1:k - 1), prechecked=.true., &
-                bindings=spec%bindings)))
+                bindings=spec%bindings, quotient=.true.)))
         end do
 
         do k = 1, size(roots)
@@ -914,10 +1086,11 @@ contains
         if (len(chars(mapped_spec%temp_prefix)) > 0) then
             res = cse_analyse(mapped_roots, chars(mapped_spec%temp_prefix), &
                 mapped_spec%cse_level, mapped_spec%remat_threshold, &
-                mapped_spec%bindings)
+                mapped_spec%bindings, mapped_spec%reciprocal_temporaries)
         else
             res = cse_analyse(mapped_roots, "t", mapped_spec%cse_level, &
-                mapped_spec%remat_threshold, mapped_spec%bindings)
+                mapped_spec%remat_threshold, mapped_spec%bindings, &
+                mapped_spec%reciprocal_temporaries)
         end if
 
         if (mapped_spec%array_temporaries .and. res%n > 0) then

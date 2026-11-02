@@ -100,7 +100,12 @@ contains
     !> name instead of being expanded again. Keeping it here rather than in a
     !> second printer means generated kernels inherit every parenthesisation and
     !> literal-formatting rule automatically.
-    function print_expr_sub(e, d, ids, names, ok, prechecked, bindings) result(s)
+    !>
+    !> A reciprocal power b**(-n) among `ids` is reused for every reciprocal
+    !> power of the same base: b**(-1) named r prints b**(-3) as r**3. With
+    !> `quotient`, a root that is itself a reciprocal power prints as 1/b**n.
+    function print_expr_sub(e, d, ids, names, ok, prechecked, bindings, &
+            quotient) result(s)
         type(expr_t),    intent(in) :: e
         type(dialect_t), intent(in) :: d
         integer,         intent(in) :: ids(:)
@@ -108,9 +113,11 @@ contains
         logical, intent(out), optional :: ok
         logical, intent(in), optional :: prechecked
         type(kernel_binding_t), intent(in), optional :: bindings(:)
+        logical, intent(in), optional :: quotient
         type(str_t)                 :: s
         type(strbuf_t) :: b
         logical :: valid
+        integer :: base, expo
         valid = .true.
         if (d%id == DIA_FORTRAN) then
             if (present(prechecked)) then
@@ -123,6 +130,14 @@ contains
         if (.not. valid) then
             s = str("")
             return
+        end if
+        if (present(quotient)) then
+            if (quotient .and. is_reciprocal(e%a, e%id, base, expo)) then
+                call emit_product_factors(b, e%a, [e%id], d, PREC_ADD, ids, &
+                    names, negate=.false., bindings=bindings)
+                s = b%to_str()
+                return
+            end if
         end if
         call emit(b, e%a, e%id, d, PREC_ADD, ids, names, bindings)
         s = b%to_str()
@@ -1368,16 +1383,29 @@ contains
         type(str_t),     intent(in)    :: names(:)
         logical,         intent(in)    :: negate
         type(kernel_binding_t), intent(in), optional :: bindings(:)
-        integer :: k, nnum, nden, base, expo
+        integer :: k, nnum, nden, base, expo, hoisted
         logical :: wrap, first, negative, structural_sign, preserve_signs
         integer, allocatable :: numer(:), denom(:)
 
         allocate (numer(size(factors)), denom(size(factors)))
         nnum = 0
         nden = 0
+        hoisted = 0
 
         do k = 1, size(factors)
             if (is_reciprocal(a, factors(k), base, expo)) then
+                if (subst_slot(factors(k), ids) > 0 .or. &
+                    named_reciprocal_slot(a, factors(k), ids) > 0) &
+                    hoisted = hoisted + 1
+            end if
+        end do
+        do k = 1, size(factors)
+            ! A named reciprocal is a multiplication, and a unit factor beside
+            ! it would print as one.
+            if (hoisted > 0 .and. is_one(a, factors(k))) cycle
+            if (is_reciprocal(a, factors(k), base, expo) .and. &
+                subst_slot(factors(k), ids) == 0 .and. &
+                named_reciprocal_slot(a, factors(k), ids) == 0) then
                 nden = nden + 1
                 denom(nden) = factors(k)
             else
@@ -1385,6 +1413,15 @@ contains
                 numer(nnum) = factors(k)
             end if
         end do
+
+        ! A lone reciprocal temporary, or a power of it, prints as itself.
+        if (hoisted > 0 .and. nnum == 1 .and. nden == 0 .and. .not. negate) then
+            if (.not. product_is_negative(a, factors)) then
+                call emit(b, a, numer(1), d, context, ids, names, bindings)
+                deallocate (numer, denom)
+                return
+            end if
+        end if
 
         wrap = context > PREC_MUL
         if (wrap) call b%append("(")
@@ -1627,6 +1664,49 @@ contains
 
     !> True when the node is a power with a negative integer exponent, in which
     !> case it belongs in a denominator. Returns the base and the exponent.
+    !> For the reciprocal power `id`, the slot of a named b**(-1) with the
+    !> same base b among ids, or zero.
+    function named_reciprocal_slot(a, id, ids) result(slot)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id, ids(:)
+        integer                   :: slot
+        integer :: k, base, n, b, e
+
+        slot = 0
+        if (size(ids) == 0) return
+        if (.not. is_reciprocal(a, id, b, e)) return
+        call reciprocal_parts(a, id, base, n)
+        do k = 1, size(ids)
+            if (.not. is_reciprocal(a, ids(k), b, e)) cycle
+            if (b == base .and. e == -1) then
+                slot = k
+                return
+            end if
+        end do
+    end function named_reciprocal_slot
+
+    !> The reciprocal power `id` as b**(-n), n > 0, also when written
+    !> (b**m)**(-k) with a positive integer m.
+    subroutine reciprocal_parts(a, id, base, n)
+        type(arena_t), intent(in)  :: a
+        integer,       intent(in)  :: id
+        integer,       intent(out) :: base, n
+        integer :: expo, e_id
+
+        if (.not. is_reciprocal(a, id, base, expo)) then
+            n = 0
+            return
+        end if
+        n = -expo
+        if (a%kind_of(base) /= NK_POW) return
+        e_id = a%arg_of(base, 2)
+        if (a%kind_of(e_id) /= NK_INT) return
+        if (a%num_of(e_id) <= 0_int64 .or. a%num_of(e_id) > 1024_int64) return
+        if (n > 1024) return
+        n = n*int(a%num_of(e_id))
+        base = a%arg_of(base, 1)
+    end subroutine reciprocal_parts
+
     function is_reciprocal(a, id, base, expo) result(yes)
         type(arena_t), intent(in)  :: a
         integer,       intent(in)  :: id
@@ -1703,6 +1783,14 @@ contains
         if (a%kind_of(id) == NK_INT) yes = a%num_of(id) == -1_int64
     end function is_minus_one
 
+    function is_one(a, id) result(yes)
+        type(arena_t), intent(in) :: a
+        integer,       intent(in) :: id
+        logical                   :: yes
+        yes = .false.
+        if (a%kind_of(id) == NK_INT) yes = a%num_of(id) == 1_int64
+    end function is_one
+
     !> Power. Exponentiation is right-associative, so the base is printed at a
     !> higher precedence than the exponent: a**b**c must not become (a**b)**c.
     recursive subroutine emit_power(b, a, id, d, context, ids, names, bindings)
@@ -1715,8 +1803,23 @@ contains
         type(str_t),     intent(in)    :: names(:)
         type(kernel_binding_t), intent(in), optional :: bindings(:)
         logical :: wrap
+        integer :: base, expo, slot
 
         wrap = context > PREC_POW
+        slot = named_reciprocal_slot(a, id, ids)
+        if (slot > 0) then
+            call reciprocal_parts(a, id, base, expo)
+            if (expo == 1) then
+                call b%append(chars(names(slot)))
+            else
+                if (wrap) call b%append("(")
+                call b%append(chars(names(slot)))
+                call b%append(chars(d%power))
+                call b%append(chars(str(expo)))
+                if (wrap) call b%append(")")
+            end if
+            return
+        end if
         if (wrap) call b%append("(")
         call emit(b, a, a%arg_of(id, 1), d, PREC_POW + 1, ids, names, bindings)
         call b%append(chars(d%power))
