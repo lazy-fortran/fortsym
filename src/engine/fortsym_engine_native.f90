@@ -501,6 +501,12 @@ contains
         ! No previously decided verdict changes.
         if (r%verdict == VERDICT_UNKNOWN .and. branch_sensitive) then
             call poly_radical_zero(e%a, e, radical_zero)
+            ! The raw derivative of a radical expression can be UNKNOWN while its
+            ! simplified form is provable; the same relations apply to both.
+            if (.not. radical_zero .and. simplified%value%id /= e%id) then
+                call poly_radical_zero(simplified%value%a, simplified%value, &
+                    radical_zero)
+            end if
             if (radical_zero) then
                 r%verdict = VERDICT_TRUE
                 r%value = num(e%a, 0_int64)
