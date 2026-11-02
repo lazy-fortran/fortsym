@@ -852,11 +852,10 @@ contains
         type(resource_limit_t), intent(in), optional :: limit
         type(engine_result_t)                 :: r
         type(engine_result_t) :: prepared, differentiated
-        type(expr_t) :: derivative, at_point
-        integer(int64) :: factorial
+        type(expr_t) :: derivative, at_point, factorial
         real(dp) :: started
         logical :: factorial_ok
-        integer :: k
+        integer :: k, factorial_id
         logical :: refused, composed
         character(:), allocatable :: reason, why
         type(expr_t), allocatable :: coefficients(:)
@@ -880,14 +879,7 @@ contains
             return
         end if
 
-        call factorial_i64(order, factorial, factorial_ok)
-        if (.not. factorial_ok) then
-            r%message = str("native: series factorial exceeds int64")
-            r%seconds = wall_seconds() - started
-            return
-        end if
-
-        ! Composition first; see native_series.
+        ! Composition first; see native_series. It needs no factorial.
         call compose_series(self, e, v, point, order, at_point, composed, &
             why, coefficients)
         if (composed) then
@@ -917,7 +909,17 @@ contains
             derivative = differentiated%value
         end do
         at_point = subs(derivative, v, point)
-        r = self%simplify(at_point/num(e%a, factorial), limit)
+        factorial = num(e%a, order)
+        call exact_factorial_value(e%a, factorial%id, factorial_id, &
+            factorial_ok)
+        factorial%id = factorial_id
+        if (.not. factorial_ok) then
+            r%message = str("native: series order exceeds the exact "// &
+                "factorial bound")
+            r%seconds = wall_seconds() - started
+            return
+        end if
+        r = self%simplify(at_point/factorial, limit)
         if (r%ok) then
             if (contains_nonfinite(e%a, r%value%id) .or. &
                 contains_singular_power(e%a, r%value%id) .or. &

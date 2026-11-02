@@ -802,6 +802,7 @@ contains
         call check("Taylor series does not succeed with infinity", .not. r%ok)
 
         call test_axis_series_case()
+        call test_high_order_series_coeff()
 
         ! Removable singularities: every derivative is a 0/0 form at the
         ! point, so these go through composition of truncated series.
@@ -837,6 +838,47 @@ contains
         call check("Laurent refusal names the singular order", &
             index(chars(r%message), "integer power") > 0)
     end subroutine test_series
+
+    !> Coefficients beyond 20! (the int64 factorial range) from the Maclaurin
+    !> series exp(-x^2) = sum (-1)^m x^(2m)/m! and
+    !> erf(x)/x = 2/sqrt(pi) sum (-1)^m x^(2m)/(m! (2m + 1)).
+    subroutine test_high_order_series_coeff()
+        integer, parameter :: orders(2) = [30, 40]
+        type(engine_result_t) :: r, z
+        type(expr_t) :: expected, sign
+        integer(int64) :: m_factorial
+        integer :: i, m, k
+        character(2) :: label
+
+        do i = 1, size(orders)
+            m = orders(i)/2
+            write (label, '(i2)') orders(i)
+            m_factorial = 1_int64
+            do k = 2, m
+                m_factorial = m_factorial*k
+            end do
+            sign = num(arena, (-1_int64)**m)
+
+            r = engine%series_coeff(exp(-x**2), x, num(arena, 0), orders(i))
+            expected = sign/num(arena, m_factorial)
+            call check("exp(-x^2) coefficient of x^"//label//" succeeds", r%ok)
+            z = engine%zero_test(r%value - expected)
+            call check("exp(-x^2) coefficient of x^"//label//" is (-1)^m/m!", &
+                r%ok .and. z%verdict == VERDICT_TRUE)
+
+            r = engine%series_coeff(erf(x)/x, x, num(arena, 0), orders(i))
+            expected = 2*sign/(sqrt(pi_expr(arena))*num(arena, m_factorial)* &
+                num(arena, int(2*m + 1, int64)))
+            call check("erf(x)/x coefficient of x^"//label//" succeeds", r%ok)
+            z = engine%zero_test(r%value - expected)
+            call check("erf(x)/x coefficient of x^"//label// &
+                " is 2(-1)^m/(sqrt(pi) m! (2m+1))", &
+                r%ok .and. z%verdict == VERDICT_TRUE)
+        end do
+        r = engine%series_coeff(exp(-x**2), x, num(arena, 0), 41)
+        call check("exp(-x^2) odd coefficient of x^41 is zero", &
+            r%ok .and. r%value == num(arena, 0))
+    end subroutine test_high_order_series_coeff
 
     subroutine test_axis_series_case()
         type(engine_result_t) :: derivative, coefficient, solution
