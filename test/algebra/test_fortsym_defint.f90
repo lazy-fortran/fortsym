@@ -54,6 +54,7 @@ program test_fortsym_defint
     call test_symbolic_endpoint()
     call test_trig_powers()
     call test_infinite_endpoints()
+    call test_gaussian_moments()
 
     if (nfail /= 0) then
         print *, "test_fortsym_defint: ", nfail, " check(s) FAILED"
@@ -375,6 +376,60 @@ contains
         if (ok) call fail("a non-entire integrand on a half line was "// &
             "evaluated by endpoint substitution")
     end subroutine test_infinite_endpoints
+
+    !> Polynomials times exp(c - alpha x**2) over a half line or the whole
+    !> line, checked against Simpson on [-12, 12] or [0, 12], where the
+    !> Gaussian tail is below exp(-72); and a growing Gaussian refused.
+    subroutine test_gaussian_moments()
+        type(expr_t) :: inf, g
+        logical :: ok
+        character(:), allocatable :: why
+
+        inf = oo_expr(arena)
+        call gaussian_agrees("int_0^oo x**4 exp(-x**2)", x**4*exp(-(x*x)), &
+            num(arena, 0), 0.0_dp)
+        call gaussian_agrees("int_0^oo x**3 exp(-2x**2)", &
+            x**3*exp(-2*x*x), num(arena, 0), 0.0_dp)
+        g = (1 + 3*x + x**2/2)*exp(1 - x*x/2)
+        call gaussian_agrees("int_-oo^oo (1 + 3x + x**2/2) exp(1 - x**2/2)", &
+            g, -inf, -12.0_dp)
+        call gaussian_agrees("int_-oo^oo x**5 exp(-x**2/3)", &
+            x**5*exp(-(x*x)/3), -inf, -12.0_dp)
+        call definite_integral(arena, x**2*exp(x*x), x, num(arena, 0), inf, &
+            g, ok, why)
+        if (ok) call fail("int_0^oo x**2 exp(x**2) diverges but was evaluated")
+        call definite_integral(arena, exp(-(x*x) + x), x, num(arena, 0), inf, &
+            g, ok, why)
+        if (ok) call fail("a shifted half-line Gaussian is not a moment "// &
+            "but was evaluated")
+    end subroutine test_gaussian_moments
+
+    subroutine gaussian_agrees(label, f, lo, lo_value)
+        character(*), intent(in) :: label
+        type(expr_t), intent(in) :: f, lo
+        real(dp),     intent(in) :: lo_value
+        type(expr_t) :: formula
+        type(binding_t) :: empty
+        character(:), allocatable :: why
+        real(dp) :: got, want
+        logical :: ok
+
+        call definite_integral(arena, f, x, lo, oo_expr(arena), formula, ok, why)
+        if (.not. ok) then
+            call fail(label//": refused: "//why)
+            return
+        end if
+        allocate (empty%names(0))
+        allocate (empty%values(0))
+        empty%n = 0
+        got = eval_expr(formula, empty, ok)
+        want = simpson(f, lo_value, 12.0_dp)
+        if (.not. ok .or. abs(got - want) > TOL*max(1.0_dp, abs(want))) then
+            call fail(label//": disagrees with quadrature")
+            print *, "      symbolic  ", got
+            print *, "      quadrature", want
+        end if
+    end subroutine gaussian_agrees
 
     subroutine exact_result(label, formula, ok, want)
         character(*), intent(in) :: label
