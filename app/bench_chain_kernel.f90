@@ -9,7 +9,8 @@ program bench_chain_kernel
     !   v = (p - A/c)/h, H = v**2/2 + mu*B + Phi, p_theta = g*v + T/c,
     !   with A, h, B, Phi, g, T opaque functions of (r, theta, phi).
     ! rates: guiding-centre rates of Boozer fields, B(r, theta, phi) and
-    !   profiles of r, with v/B = (p - a/c)/b_phi as the intermediate.
+    !   profiles of r, with v/B = (p - a/c)/b_phi as the intermediate. Both
+    !   variants of the rates are folded with fold_numbers.
     use fortsym_arena, only: arena_t
     use fortsym_expr, only: expr_t, sym, func, operator(+), operator(-), &
         operator(*), operator(/), operator(**)
@@ -117,11 +118,9 @@ contains
         out(2) = hp
         out(3) = (vpar - hp*hth)/hph
         out(4) = -(dh(3) - hp*dpth(3))
-        if (use_chain) then
-            do k = 1, 4
-                out(k) = fold_numbers(out(k))
-            end do
-        end if
+        do k = 1, 4
+            out(k) = fold_numbers(out(k))
+        end do
     end function gc_rates
 
     subroutine report(kernel, variant, roots)

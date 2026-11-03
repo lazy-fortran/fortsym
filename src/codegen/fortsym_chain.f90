@@ -400,10 +400,12 @@ contains
         end do
     end function derivative_name
 
-    !> Fold exact small integers and rationals: products and sums of numbers,
-    !> unit factors, zero terms, and exponents zero and one. Nothing else is
-    !> rewritten, so the operations that remain are those of the input and no
-    !> new cancellation can appear.
+    !> Exact rewrites that remove work without expanding a sum: numbers are
+    !> folded, integer powers of one base merged (x/x cancels), like terms
+    !> merged, common factors taken out of a sum, a factor distributed into a
+    !> sum when that removes a division, and 1/(b/c) written as c/b. Products
+    !> have no cancellation and a power of a sum is never expanded, so no
+    !> rewrite can introduce a difference that cancels.
     function fold_numbers(e) result(r)
         type(expr_t), intent(in) :: e
         type(expr_t) :: r

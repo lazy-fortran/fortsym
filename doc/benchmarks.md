@@ -711,7 +711,8 @@ v = (p - A/c)/h, and the guiding-centre rates of a Boozer field. Each kernel
 is generated once by direct differentiation of the expanded expressions and
 once through `fortsym_chain`, which keeps named intermediates opaque and
 propagates their derivatives. On 2026-11-03 the counts were 729 against 220
-FLOPs for the Hessian and 111 against 39 FLOPs for the rates. Counts compare
+FLOPs for the Hessian and 78 against 39 FLOPs for the rates, both folded
+with `fold_numbers`. Counts compare
 generated variants; runtime belongs to the consumer's benchmark.
 
 `fo exec bench_native` writes CSV rows for warm, batched end-to-end native and
