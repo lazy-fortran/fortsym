@@ -93,6 +93,16 @@ module fortsym_kernel
         !> intrinsic arithmetic such as complex/real without changing the
         !> symbolic expression or declaring every input complex.
         type(str_t), allocatable :: arg_types(:)
+        !> Optional per-argument intents, "in" (the default) or "inout". An
+        !> output reference may then assign a component of an inout argument,
+        !> such as "f%dH(1)", so a kernel updates a derived type in place.
+        type(str_t), allocatable :: arg_intents(:)
+        !> Local scalar intermediates. A root whose output reference names a
+        !> local assigns it, and later roots may read it as a symbol. The
+        !> emitter keeps a local's definition intact instead of merging it
+        !> into the expressions that read it, and assigns each CSE temporary
+        !> just before the first root that needs it.
+        type(str_t), allocatable :: locals(:)
         !> Declared output arguments. Several expressions may target elements
         !> of one declared array through output_references.
         type(str_t), allocatable :: outputs(:)
@@ -169,6 +179,8 @@ module fortsym_kernel
         integer,     allocatable :: ids(:)
         type(str_t), allocatable :: names(:)
         integer                  :: n = 0
+        !> Temporaries 1..root_end(k) are all those the roots 1..k need.
+        integer,     allocatable :: root_end(:)
     end type cse_result_t
 
     !> Arithmetic work represented by an emitted expression DAG. Counts are
@@ -505,6 +517,7 @@ contains
         if (present(reciprocals)) hoist = reciprocals .and. level /= CSE_NONE
 
         res%n = 0
+        allocate (res%root_end(size(roots)), source=0)
         if (size(roots) == 0) then
             allocate (res%ids(0), res%names(0))
             return
@@ -527,6 +540,7 @@ contains
         do k = 1, size(roots)
             call collect(a, roots(k)%id, refs, emitted, res, prefix, level, &
                 threshold, bindings, recip_of, hoist)
+            res%root_end(k) = res%n
         end do
     end function cse_analyse
 
@@ -820,9 +834,10 @@ contains
         type(expr_t), allocatable :: mapped_roots(:)
         type(kernel_spec_t) :: mapped_spec
         type(str_t), allocatable :: original_names(:), emitted_names(:)
+        type(str_t), allocatable :: check_names(:)
         logical, allocatable :: changed_names(:)
         character(:), allocatable :: message
-        integer :: k
+        integer :: k, j, first_temporary
         logical :: valid, needs_check
 
         if (spec%ordered_output_dependencies) then
@@ -871,7 +886,8 @@ contains
         if (present(prechecked)) then
             valid = prechecked
         else
-            valid = fortran_roots_representable(roots, spec%args, spec%bindings, &
+            call kernel_check_names(spec, check_names)
+            valid = fortran_roots_representable(roots, check_names, spec%bindings, &
                 complex_values=complex_scalar_type(spec))
         end if
         if (present(ok)) ok = valid
@@ -880,17 +896,25 @@ contains
             return
         end if
 
+        if (has_locals(spec)) then
+            ! A temporary may read a local, so it follows the local's root.
+            first_temporary = 1
+            do k = 1, size(roots)
+                do j = first_temporary, res%root_end(k)
+                    call append_temporary(j)
+                end do
+                first_temporary = res%root_end(k) + 1
+                call append_assignment(b, chars(spec%output_references(k)), &
+                    chars(print_expr_sub(roots(k), d, &
+                    res%ids(1:res%n), res%names(1:res%n), &
+                    prechecked=.true., bindings=spec%bindings)))
+            end do
+            s = b%to_str()
+            return
+        end if
+
         do k = 1, res%n
-            tmp%a => roots(1)%a
-            tmp%id = res%ids(k)
-            tmp%generation = roots(1)%generation
-            ! Each temporary may refer to earlier temporaries but not to itself,
-            ! so the substitution table is truncated to what precedes it.
-            call append_assignment(b, chars(res%names(k)), &
-                chars(print_expr_sub(tmp, d, &
-                res%ids(1:k - 1), &
-                res%names(1:k - 1), prechecked=.true., &
-                bindings=spec%bindings, quotient=.true.)))
+            call append_temporary(k)
         end do
 
         do k = 1, size(roots)
@@ -908,7 +932,32 @@ contains
         end do
 
         s = b%to_str()
+
+    contains
+
+        subroutine append_temporary(k)
+            integer, intent(in) :: k
+
+            tmp%a => roots(1)%a
+            tmp%id = res%ids(k)
+            tmp%generation = roots(1)%generation
+            ! Each temporary may refer to earlier temporaries but not to itself,
+            ! so the substitution table is truncated to what precedes it.
+            call append_assignment(b, chars(res%names(k)), &
+                chars(print_expr_sub(tmp, d, &
+                res%ids(1:k - 1), &
+                res%names(1:k - 1), prechecked=.true., &
+                bindings=spec%bindings, quotient=.true.)))
+        end subroutine append_temporary
     end function emit_statements
+
+    pure function has_locals(spec) result(yes)
+        type(kernel_spec_t), intent(in) :: spec
+        logical :: yes
+
+        yes = .false.
+        if (allocated(spec%locals)) yes = size(spec%locals) > 0
+    end function has_locals
 
     !> One assignment, wrapped to the line limit.
     subroutine append_assignment(b, lhs, rhs)
@@ -1006,7 +1055,7 @@ contains
         logical, allocatable :: changed_names(:)
         logical :: valid, emit_openmp, emit_openacc
         character(:), allocatable :: diagnostic, array_name
-        integer :: k
+        integer :: k, j
 
         call prepare_fortran_kernel(roots, spec, mapped_arena, mapped_roots, &
             mapped_spec, original_names, emitted_names, changed_names, valid, &
@@ -1064,6 +1113,17 @@ contains
                 end if
             end do
         end if
+        if (allocated(mapped_spec%arg_intents)) then
+            if (size(mapped_spec%arg_intents) /= size(mapped_spec%args)) then
+                error stop "arg_intents must match args"
+            end if
+            do k = 1, size(mapped_spec%arg_intents)
+                if (chars(mapped_spec%arg_intents(k)) /= "in" .and. &
+                    chars(mapped_spec%arg_intents(k)) /= "inout") then
+                    error stop "arg_intents entries must be in or inout"
+                end if
+            end do
+        end if
         if (allocated(mapped_spec%output_shapes)) then
             if (size(mapped_spec%output_shapes) /= size(mapped_spec%outputs)) then
                 error stop "output_shapes must match outputs"
@@ -1091,6 +1151,20 @@ contains
             res = cse_analyse(mapped_roots, "t", mapped_spec%cse_level, &
                 mapped_spec%remat_threshold, mapped_spec%bindings, &
                 mapped_spec%reciprocal_temporaries)
+        end if
+
+        if (has_locals(mapped_spec)) then
+            do k = 1, res%n
+                if (any([(same_fortran_name(chars(res%names(k)), &
+                    chars(mapped_spec%locals(j))), j=1, size(mapped_spec%locals))])) then
+                    if (present(ok)) ok = .false.
+                    if (present(message)) message = &
+                        "kernel emitter: local collides with a temporary: "// &
+                        chars(res%names(k))
+                    s = str("")
+                    return
+                end if
+            end do
         end if
 
         if (mapped_spec%array_temporaries .and. res%n > 0) then
@@ -1247,6 +1321,20 @@ contains
                 mapped_roots(k)%a => mapped_arena
             end do
             allocate (visited(mapped_arena%n_nodes), source=.false.)
+            if (has_locals(spec)) then
+                call map_local_roots(roots, spec, mapped_spec, mapped_arena, &
+                    ok, message)
+                if (.not. ok) return
+                call kernel_check_names(mapped_spec, check_names)
+                if (.not. fortran_roots_representable(mapped_roots, check_names, &
+                    mapped_spec%bindings, &
+                    complex_values=complex_scalar_type(mapped_spec))) then
+                    ok = .false.
+                    message = "kernel emitter: expression contains a value not "// &
+                        "representable in Fortran"
+                end if
+                return
+            end if
             do k = 1, size(roots)
                 if (spec%ordered_output_dependencies) then
                     call map_fortran_kernel_node(mapped_arena, roots(1)%a, &
@@ -1270,6 +1358,84 @@ contains
         ok = .true.
     end subroutine prepare_fortran_kernel
 
+    !> Map the symbols of kernels with locals. Root k sees the arguments and
+    !> the locals assigned by roots 1..k-1; every symbol is visited afresh per
+    !> root, so a local read before its assignment is refused.
+    subroutine map_local_roots(roots, spec, mapped_spec, mapped_arena, ok, message)
+        type(expr_t), intent(in) :: roots(:)
+        type(kernel_spec_t), intent(in) :: spec
+        type(kernel_spec_t), intent(inout) :: mapped_spec
+        type(arena_t), intent(inout) :: mapped_arena
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(str_t), allocatable :: visible(:), mapped_visible(:)
+        logical, allocatable :: visited(:)
+        integer :: k, j, assigned
+
+        ok = .false.
+        message = ""
+        if (spec%ordered_output_dependencies) then
+            message = "kernel emitter: locals cannot be combined with "// &
+                "ordered_output_dependencies"
+            return
+        end if
+        if (.not. allocated(spec%output_references)) then
+            message = "kernel emitter: locals require output_references"
+            return
+        end if
+        if (size(spec%output_references) /= size(roots)) then
+            message = "kernel emitter: output_references must match expressions"
+            return
+        end if
+        do j = 1, size(spec%locals)
+            if (.not. valid_fortran_name(chars(spec%locals(j)))) then
+                message = "kernel emitter: local is not a valid Fortran identifier: "// &
+                    chars(spec%locals(j))
+                return
+            end if
+            do k = 1, size(mapped_spec%args)
+                if (same_fortran_name(chars(spec%locals(j)), &
+                    chars(mapped_spec%args(k)))) then
+                    message = "kernel emitter: local collides with an argument: "// &
+                        chars(spec%locals(j))
+                    return
+                end if
+            end do
+            do k = 1, size(mapped_spec%outputs)
+                if (same_fortran_name(chars(spec%locals(j)), &
+                    chars(mapped_spec%outputs(k)))) then
+                    message = "kernel emitter: local collides with an output: "// &
+                        chars(spec%locals(j))
+                    return
+                end if
+            end do
+            assigned = count([(same_fortran_name(chars(spec%locals(j)), &
+                chars(spec%output_references(k))), k=1, size(roots))])
+            if (assigned /= 1) then
+                message = "kernel emitter: a local must be assigned by exactly "// &
+                    "one root: "//chars(spec%locals(j))
+                return
+            end if
+        end do
+
+        allocate (visible(0), mapped_visible(0))
+        do k = 1, size(roots)
+            allocate (visited(mapped_arena%n_nodes), source=.false.)
+            call map_fortran_kernel_node(mapped_arena, roots(1)%a, roots(k)%id, &
+                [spec%args, visible], [mapped_spec%args, mapped_visible], visited, &
+                ok, message, bindings=spec%bindings)
+            deallocate (visited)
+            if (.not. ok) return
+            do j = 1, size(spec%locals)
+                if (.not. same_fortran_name(chars(spec%locals(j)), &
+                    chars(spec%output_references(k)))) cycle
+                visible = [visible, spec%locals(j)]
+                mapped_visible = [mapped_visible, spec%locals(j)]
+            end do
+        end do
+        ok = .true.
+    end subroutine map_local_roots
+
     subroutine kernel_check_names(spec, names)
         type(kernel_spec_t), intent(in) :: spec
         type(str_t), allocatable, intent(out) :: names(:)
@@ -1281,6 +1447,7 @@ contains
         allocate (names(n_args + n_outputs))
         names(:n_args) = spec%args
         if (n_outputs > 0) names(n_args + 1:) = spec%outputs
+        if (has_locals(spec)) names = [names, spec%locals]
     end subroutine kernel_check_names
 
     subroutine prepare_ordered_output_targets(spec, mapped_spec, n_roots, targets, &
@@ -1834,7 +2001,7 @@ contains
         type(strbuf_t) :: header
         character(:), allocatable :: scalar_type, input_type, output_type
         character(:), allocatable :: temporary_type
-        character(:), allocatable :: kind_alias, argument_type
+        character(:), allocatable :: kind_alias, argument_type, intent
         integer :: k
         type(str_t) :: array_names(1), array_shapes(1)
 
@@ -1903,14 +2070,19 @@ contains
         call b%append("    implicit none")
         call b%newline()
 
-        if (allocated(spec%arg_types)) then
+        if (allocated(spec%arg_types) .or. allocated(spec%arg_intents)) then
             do k = 1, size(spec%args)
-                argument_type = aliased_kind_type(chars(spec%arg_types(k)), kind_alias)
+                argument_type = input_type
+                if (allocated(spec%arg_types)) &
+                    argument_type = aliased_kind_type(chars(spec%arg_types(k)), kind_alias)
+                intent = "intent(in)"
+                if (allocated(spec%arg_intents)) &
+                    intent = "intent("//chars(spec%arg_intents(k))//")"
                 if (allocated(spec%arg_shapes)) then
-                    call declare(b, argument_type, "intent(in)", &
+                    call declare(b, argument_type, intent, &
                         spec%args(k:k), spec%arg_shapes(k:k))
                 else
-                    call declare(b, argument_type, "intent(in)", &
+                    call declare(b, argument_type, intent, &
                         spec%args(k:k))
                 end if
             end do
@@ -1926,6 +2098,12 @@ contains
             call declare(b, output_type, "intent(out)", spec%outputs)
         end if
 
+        if (has_locals(spec)) then
+            do k = 1, size(spec%locals), 256
+                call declare(b, temporary_type, "", &
+                    spec%locals(k:min(k + 255, size(spec%locals))))
+            end do
+        end if
         if (res%n > 0) then
             ! Temporaries are declared explicitly, never left to an implicit
             ! typing rule.

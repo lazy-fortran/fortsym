@@ -63,17 +63,23 @@ contains
         self%n_operands = 0
     end subroutine kernel_ir_clear
 
-    subroutine lower_kernel_ir(roots, ir, ok, message)
+    !> Lower `roots` into IR. Optional `locals` are symbols standing for
+    !> `values`, in evaluation order: each value may read earlier locals.
+    !> A local lowers to the IR node of its value, so its definition is
+    !> computed once and kept as written instead of being merged into the
+    !> expressions that read it, as an arena substitution would.
+    subroutine lower_kernel_ir(roots, ir, ok, message, locals, values)
         type(expr_t), intent(in) :: roots(:)
         type(kernel_ir_t), intent(inout) :: ir
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: message
+        type(expr_t), intent(in), optional :: locals(:), values(:)
 
         type(arena_t), pointer :: arena
-        logical, allocatable :: seen(:)
+        logical, allocatable :: seen(:), is_local(:)
         integer, allocatable :: mapping(:)
         integer :: node_count, operand_count, node_cursor, operand_cursor
-        integer :: k, output_node
+        integer :: k, output_node, n_locals
 
         call ir%clear()
         ok = .false.
@@ -103,9 +109,44 @@ contains
             end if
         end do
 
+        n_locals = 0
+        if (present(locals) .neqv. present(values)) then
+            message = "kernel IR: locals and values must be given together"
+            return
+        end if
+        if (present(locals)) n_locals = size(locals)
+        if (n_locals > 0) then
+            if (size(values) /= n_locals) then
+                message = "kernel IR: locals and values differ in size"
+                return
+            end if
+            do k = 1, n_locals
+                if (.not. associated(locals(k)%a, arena) .or. &
+                    .not. associated(values(k)%a, arena)) then
+                    message = "kernel IR: locals belong to a different arena"
+                    return
+                end if
+                if (arena%kind_of(locals(k)%id) /= NK_SYM) then
+                    message = "kernel IR: a local must be a symbol"
+                    return
+                end if
+            end do
+        end if
+
         allocate(seen(arena%size()), source=.false.)
         node_count = 0
         operand_count = 0
+        ! A local symbol is never an IR node of its own.
+        allocate(is_local(arena%size()), source=.false.)
+        do k = 1, n_locals
+            seen(locals(k)%id) = .true.
+            is_local(locals(k)%id) = .true.
+        end do
+        do k = 1, n_locals
+            call count_reachable(arena, values(k)%id, seen, node_count, &
+                operand_count, ok, message)
+            if (.not. ok) return
+        end do
         do k = 1, size(roots)
             call count_reachable(arena, roots(k)%id, seen, node_count, &
                 operand_count, ok, message)
@@ -118,9 +159,20 @@ contains
         node_cursor = 0
         operand_cursor = 0
         ok = .true.
+        do k = 1, n_locals
+            if (mapping(locals(k)%id) > 0) then
+                message = "kernel IR: a local is read before its value or declared twice"
+                ok = .false.
+                return
+            end if
+            call lower_node(arena, values(k)%id, mapping, ir, node_cursor, &
+                operand_cursor, output_node, ok, message, is_local)
+            if (.not. ok) return
+            mapping(locals(k)%id) = output_node
+        end do
         do k = 1, size(roots)
             call lower_node(arena, roots(k)%id, mapping, ir, node_cursor, &
-                operand_cursor, output_node, ok, message)
+                operand_cursor, output_node, ok, message, is_local)
             if (.not. ok) return
             ir%outputs(k) = output_node
         end do
@@ -161,7 +213,7 @@ contains
     end subroutine count_reachable
 
     recursive subroutine lower_node(arena, id, mapping, ir, node_cursor, &
-            operand_cursor, node_index, ok, message)
+            operand_cursor, node_index, ok, message, is_local)
         type(arena_t), intent(in) :: arena
         integer, intent(in) :: id
         integer, intent(inout) :: mapping(:)
@@ -170,6 +222,7 @@ contains
         integer, intent(out) :: node_index
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: message
+        logical, intent(in) :: is_local(:)
 
         integer :: k, child, child_index, kind
 
@@ -185,11 +238,16 @@ contains
             ok = .true.
             return
         end if
+        if (is_local(id)) then
+            message = "kernel IR: a local is read before its value: "// &
+                chars(arena%name_of(id))
+            return
+        end if
 
         do k = 1, arena%nargs_of(id)
             child = arena%arg_of(id, k)
             call lower_node(arena, child, mapping, ir, node_cursor, &
-                operand_cursor, child_index, ok, message)
+                operand_cursor, child_index, ok, message, is_local)
             if (.not. ok) return
         end do
 
