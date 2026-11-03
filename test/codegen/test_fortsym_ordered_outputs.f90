@@ -358,6 +358,8 @@ contains
         spec%locals = [str("v"), str("dv"), str("p")]
         source = emit_kernel(roots, spec, good, message=message)
         call check("a local named like an argument is refused", .not. good)
+        call check("argument collision diagnostic", &
+            index(message, "collides with an argument") > 0)
     end subroutine test_local_refusals
 
     function binding(head, indices, replacement) result(b)
