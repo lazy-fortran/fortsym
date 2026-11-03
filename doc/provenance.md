@@ -246,3 +246,14 @@ copied. The independently authored scalar replay fixture uses ordinary SymPy
 1.14.0 as an external oracle plus exact polynomial coefficients, rational
 arithmetic and a pole witness. CRC64-ECMA uses polynomial 0x42F0E1EBA9EA3693;
 its independent check value for ASCII `123456789` is 0x6C40DF5F0B497347.
+
+### Derivative propagation through named intermediates
+
+`src/codegen/fortsym_chain.f90` and `app/bench_chain_kernel.f90` are original
+local implementations. The chain rule over named intermediates is standard
+forward-mode differentiation (Griewank & Walther, *Evaluating Derivatives*,
+SIAM 2008, chapter 3), and the quotient form (D n - v D b)/b is the usual
+forward rule for division. The exact folding rewrites (number folding, power
+merging, common factors) are elementary algebra. Native `diff`, `subs` and
+the native simplifier are reused. No third-party implementation or fixture
+was copied.

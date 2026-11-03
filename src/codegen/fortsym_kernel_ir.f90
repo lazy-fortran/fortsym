@@ -68,12 +68,18 @@ contains
     !> A local lowers to the IR node of its value, so its definition is
     !> computed once and kept as written instead of being merged into the
     !> expressions that read it, as an arena substitution would.
-    subroutine lower_kernel_ir(roots, ir, ok, message, locals, values)
+    !> With `share_products`, a product whose factors include all factors of
+    !> an earlier product reads that product instead of multiplying them
+    !> again. The arena flattens nested products, so this sharing is only
+    !> visible after lowering. It reassociates products, which changes
+    !> rounding, and is opt-in.
+    subroutine lower_kernel_ir(roots, ir, ok, message, locals, values, share_products)
         type(expr_t), intent(in) :: roots(:)
         type(kernel_ir_t), intent(inout) :: ir
         logical, intent(out) :: ok
         character(:), allocatable, intent(out) :: message
         type(expr_t), intent(in), optional :: locals(:), values(:)
+        logical, intent(in), optional :: share_products
 
         type(arena_t), pointer :: arena
         logical, allocatable :: seen(:), is_local(:)
@@ -178,7 +184,70 @@ contains
         end do
         ir%n_nodes = node_cursor
         ir%n_operands = operand_cursor
+        if (present(share_products)) then
+            if (share_products) call reuse_subproducts(ir)
+        end if
     end subroutine lower_kernel_ir
+
+    !> Replace the factors of an earlier product inside a later product by a
+    !> reference to it, the largest earlier product first. Operands only
+    !> shrink and point to earlier nodes, so the IR stays topological.
+    subroutine reuse_subproducts(ir)
+        type(kernel_ir_t), intent(inout) :: ir
+        integer :: k, j, best, best_size, first, n
+        integer, allocatable :: factors(:), inner(:)
+        logical, allocatable :: used(:)
+
+        do k = 1, ir%n_nodes
+            if (ir%nodes(k)%operation /= IR_MUL) cycle
+            do
+                n = ir%nodes(k)%n_operands
+                if (n < 3) exit
+                first = ir%nodes(k)%first_operand
+                factors = ir%operands(first:first + n - 1)
+                best = 0
+                best_size = 1
+                do j = 1, k - 1
+                    if (ir%nodes(j)%operation /= IR_MUL) cycle
+                    if (ir%nodes(j)%n_operands <= best_size) cycle
+                    if (ir%nodes(j)%n_operands >= n) cycle
+                    inner = ir%operands(ir%nodes(j)%first_operand: &
+                        ir%nodes(j)%first_operand + ir%nodes(j)%n_operands - 1)
+                    if (.not. contains_multiset(factors, inner)) cycle
+                    best = j
+                    best_size = size(inner)
+                end do
+                if (best == 0) exit
+                inner = ir%operands(ir%nodes(best)%first_operand: &
+                    ir%nodes(best)%first_operand + ir%nodes(best)%n_operands - 1)
+                allocate (used(n), source=.false.)
+                do j = 1, size(inner)
+                    used(findloc(factors .eq. inner(j) .and. .not. used, .true., 1)) = .true.
+                end do
+                factors = [best, pack(factors, .not. used)]
+                deallocate (used)
+                ! The rewritten list is shorter, so it fits in the old slots.
+                ir%operands(first:first + size(factors) - 1) = factors
+                ir%nodes(k)%n_operands = size(factors)
+            end do
+        end do
+    end subroutine reuse_subproducts
+
+    pure function contains_multiset(outer, inner) result(yes)
+        integer, intent(in) :: outer(:), inner(:)
+        logical :: yes
+        logical :: used(size(outer))
+        integer :: j, slot
+
+        used = .false.
+        yes = .false.
+        do j = 1, size(inner)
+            slot = findloc(outer .eq. inner(j) .and. .not. used, .true., 1)
+            if (slot == 0) return
+            used(slot) = .true.
+        end do
+        yes = .true.
+    end function contains_multiset
 
     recursive subroutine count_reachable(arena, id, seen, node_count, &
             operand_count, ok, message)
