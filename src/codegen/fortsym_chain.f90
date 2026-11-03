@@ -450,22 +450,25 @@ contains
                     end if
                 end if
                 if (.not. exact) then
-                    if (kind == NK_MUL .and. a%kind_of(child) == NK_MUL) then
+                    if (a%kind_of(child) == kind) then
                         kept = [kept, (a%arg_of(child, j), j=1, a%nargs_of(child))]
                     else
                         kept = [kept, child]
                     end if
                 end if
             end do
-            if (kind == NK_MUL) then
-                ! A spliced product may carry its own number factor.
-                do j = 1, size(kept)
-                    call small_number(a, kept(j), n, d, exact)
-                    if (exact) call rational_mul(cn, cd, n, d, exact)
-                    if (exact) kept(j) = -1
-                end do
-                kept = pack(kept, kept > 0)
-            end if
+            ! A spliced product or sum may carry its own number.
+            do j = 1, size(kept)
+                call small_number(a, kept(j), n, d, exact)
+                if (.not. exact) cycle
+                if (kind == NK_MUL) then
+                    call rational_mul(cn, cd, n, d, exact)
+                else
+                    call rational_add(cn, cd, n, d, exact)
+                end if
+                if (exact) kept(j) = -1
+            end do
+            kept = pack(kept, kept > 0)
             if (kind == NK_ADD) call merge_like_terms(a, kept)
             if (kind == NK_MUL) then
                 call merge_powers(a, kept)
@@ -543,6 +546,7 @@ contains
         integer, intent(in) :: terms(:)
         integer :: out
         integer, allocatable :: bases(:), powers(:), tb(:), tp(:), inner(:), common(:)
+        integer, allocatable :: spliced(:)
         integer :: i, j, k, slot, b, p
 
         ! Candidate common factors from the first term.
@@ -604,7 +608,24 @@ contains
                 common = [common, a%pow(b, a%int(int(p, int64)))]
             end if
         end do
-        out = a%mul([common, a%add(inner)])
+        ! The cofactors may repeat a term of a nested sum.
+        allocate (spliced(0))
+        do i = 1, size(inner)
+            if (a%kind_of(inner(i)) == NK_ADD) then
+                spliced = [spliced, (a%arg_of(inner(i), j), j=1, a%nargs_of(inner(i)))]
+            else
+                spliced = [spliced, inner(i)]
+            end if
+        end do
+        call merge_like_terms(a, spliced)
+        select case (size(spliced))
+        case (0)
+            out = a%int(0_int64)
+        case (1)
+            out = a%mul([common, spliced(1)])
+        case default
+            out = a%mul([common, a%add(spliced)])
+        end select
     end function factored_sum
 
     !> a*x + b*x + c -> x*(a + b) + c when the sum a + b is already a node:
