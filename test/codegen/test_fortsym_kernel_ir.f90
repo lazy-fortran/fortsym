@@ -19,6 +19,7 @@ program test_fortsym_kernel_ir
     call test_empty_roots()
     call test_mixed_arenas_are_rejected()
     call test_locals_lower_to_their_values()
+    call test_products_share_earlier_products()
 
     if (nfail == 0) then
         print *, "test_fortsym_kernel_ir: all checks passed"
@@ -199,6 +200,40 @@ contains
         call ok("read-before-value diagnostic names the problem", &
             index(message, "before its value") > 0)
     end subroutine test_locals_lower_to_their_values
+
+    subroutine test_products_share_earlier_products()
+        ! x*y is a root; x*y*sin(x)*y must read it and keep its value.
+        type(arena_t), target :: arena
+        type(expr_t) :: x, y, roots(2)
+        type(kernel_ir_t) :: ir
+        logical :: good
+        character(:), allocatable :: message
+        real(dp) :: x_value, y_value
+        real(dp), allocatable :: node_values(:)
+        integer :: k, first
+
+        call arena%init()
+        x = sym(arena, "x")
+        y = sym(arena, "y")
+        roots(1) = x*y
+        roots(2) = x*y*sin_expr(x)*y
+        call lower_kernel_ir(roots, ir, good, message, share_products=.true.)
+        call ok("shared products lower", good)
+        if (.not. good) return
+        first = ir%nodes(ir%outputs(2))%first_operand
+        call ok("the later product reads the earlier one", any(ir%operands(first: &
+            first + ir%nodes(ir%outputs(2))%n_operands - 1) == ir%outputs(1)))
+        call ok("the later product has three factors", &
+            ir%nodes(ir%outputs(2))%n_operands == 3)
+        x_value = 0.7_dp
+        y_value = -1.3_dp
+        allocate(node_values(ir%n_nodes), source=0.0_dp)
+        do k = 1, ir%n_nodes
+            node_values(k) = evaluate_node(ir, k, node_values, x_value, y_value)
+        end do
+        call ok("shared product keeps its value", abs(node_values(ir%outputs(2)) - &
+            x_value*y_value**2*sin(x_value)) < 1.0e-14_dp)
+    end subroutine test_products_share_earlier_products
 
     function evaluate_node(ir, index, values, x_value, y_value) result(value)
         type(kernel_ir_t), intent(in) :: ir
