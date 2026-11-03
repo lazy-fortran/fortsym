@@ -82,6 +82,7 @@ target_sources(fortsym PRIVATE
     codegen/fortsym_rigorous_emit.f90
     codegen/fortsym_kernel_typed.f90
     codegen/fortsym_kernel_taylor.f90
+    codegen/fortsym_chain.f90
     codegen/fortsym_kernel.f90
     codegen/fortsym_backend.f90
     codegen/fortsym_wl_f90.f90

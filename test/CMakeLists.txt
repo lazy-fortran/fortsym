@@ -185,13 +185,18 @@ if(TEST test_fortsym_ordered_outputs)
         "FORTSYM_TEST_COMPILER=${CMAKE_Fortran_COMPILER}")
 endif()
 fortsym_add_test(test_fortsym_wl_f90 codegen/test_fortsym_wl_f90.f90)
+fortsym_add_test(test_fortsym_chain codegen/test_fortsym_chain.f90)
+if(TEST test_fortsym_chain)
+    set_property(TEST test_fortsym_chain APPEND PROPERTY ENVIRONMENT
+        "FORTSYM_TEST_COMPILER=${CMAKE_Fortran_COMPILER}")
+endif()
 # Compiler probes execute generated kernels; /tmp may be mounted noexec.
 foreach(_name IN ITEMS test_fortsym_kernel test_fortsym_kernel_emit
         test_fortsym_named_constants
         test_fortsym_complex_i
         test_fortsym_rigorous_emit test_fortsym_kernel_typed
         test_fortsym_kernel_taylor test_fortsym_kernel_taylor_typed
-        test_fortsym_wl_f90)
+        test_fortsym_wl_f90 test_fortsym_chain)
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/work/${_name}")
     set_tests_properties(${_name} PROPERTIES
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/work/${_name}")
