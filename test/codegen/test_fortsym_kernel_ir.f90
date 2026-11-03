@@ -18,6 +18,7 @@ program test_fortsym_kernel_ir
     call test_real_algebraic_literal()
     call test_empty_roots()
     call test_mixed_arenas_are_rejected()
+    call test_locals_lower_to_their_values()
 
     if (nfail == 0) then
         print *, "test_fortsym_kernel_ir: all checks passed"
@@ -149,6 +150,55 @@ contains
         call ok("mixed arena diagnostic is useful", &
             index(message, "different arenas") > 0)
     end subroutine test_mixed_arenas_are_rejected
+
+    subroutine test_locals_lower_to_their_values()
+        ! v = x/(1 + y) is read twice; w = v*v reads v. The roots must see the
+        ! values, no IR symbol may stand for a local, and a local read before
+        ! its value is refused.
+        type(arena_t), target :: arena
+        type(expr_t) :: x, y, v, w, roots(2), locals(2), values(2)
+        type(kernel_ir_t) :: ir
+        logical :: good
+        character(:), allocatable :: message
+        real(dp) :: x_value, y_value, v_value
+        real(dp), allocatable :: node_values(:)
+        integer :: k
+
+        call arena%init()
+        x = sym(arena, "x")
+        y = sym(arena, "y")
+        v = sym(arena, "v")
+        w = sym(arena, "w")
+        locals = [v, w]
+        values = [x/(1 + y), v*v]
+        roots(1) = w + v
+        roots(2) = sin_expr(v)*y
+
+        call lower_kernel_ir(roots, ir, good, message, locals, values)
+        call ok("locals lower", good)
+        if (.not. good) return
+        do k = 1, ir%n_nodes
+            if (ir%nodes(k)%operation /= IR_SYMBOL) cycle
+            call ok("no IR symbol names a local", &
+                chars(ir%nodes(k)%name) /= "v" .and. chars(ir%nodes(k)%name) /= "w")
+        end do
+        x_value = 0.43_dp
+        y_value = 0.29_dp
+        v_value = x_value/(1.0_dp + y_value)
+        allocate(node_values(ir%n_nodes), source=0.0_dp)
+        do k = 1, ir%n_nodes
+            node_values(k) = evaluate_node(ir, k, node_values, x_value, y_value)
+        end do
+        call ok("root reading two locals", &
+            abs(node_values(ir%outputs(1)) - (v_value**2 + v_value)) < 1.0e-14_dp)
+        call ok("root reading a local in a function", &
+            abs(node_values(ir%outputs(2)) - sin(v_value)*y_value) < 1.0e-14_dp)
+
+        call lower_kernel_ir(roots, ir, good, message, [w, v], [v*v, x/(1 + y)])
+        call ok("a local read before its value is refused", .not. good)
+        call ok("read-before-value diagnostic names the problem", &
+            index(message, "before its value") > 0)
+    end subroutine test_locals_lower_to_their_values
 
     function evaluate_node(ir, index, values, x_value, y_value) result(value)
         type(kernel_ir_t), intent(in) :: ir

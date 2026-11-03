@@ -3,11 +3,12 @@ program test_fortsym_ordered_outputs
     ! emitted procedures and check their values against independent formulas.
     use fortsym_string, only: str, str_t, chars
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, sym, num, operator(+), operator(-), &
+    use fortsym_expr, only: expr_t, sym, num, func, operator(+), operator(-), &
         operator(*), operator(/), operator(**)
+    use fortsym_diff, only: partial_derivative
     use fortsym_products, only: jvp, vjp
     use fortsym_kernel, only: kernel_spec_t, cse_result_t, emit_kernel, &
-        emit_statements, CSE_NONE, CSE_THRESHOLDED, CSE_FULL
+        emit_statements, kernel_binding_t, CSE_NONE, CSE_THRESHOLDED, CSE_FULL
     implicit none
 
     integer :: nfail = 0, unit, stat
@@ -15,6 +16,7 @@ program test_fortsym_ordered_outputs
 
     call test_refusals()
     call test_statement_refusals()
+    call test_local_refusals()
     open (newunit=unit, file="ordered_fixture.f90", status="replace")
     call write_staged_fixture(unit)
     call write_scalar_fixture(unit)
@@ -22,6 +24,7 @@ program test_fortsym_ordered_outputs
     call write_rank_two_fixture(unit)
     call write_lower_bound_fixture(unit)
     call write_statements_fixture(unit)
+    call write_locals_fixture(unit)
     call write_driver(unit)
     close (unit)
     call fixture_compiler(compiler)
@@ -269,6 +272,106 @@ contains
             "end module ordered_statements_module"
     end subroutine write_statements_fixture
 
+    !> v = (p - A)/h and dv = -(dA + v*dh)/h are locals; the outputs are
+    !> members of an inout derived type. v*dh is a CSE temporary that reads a
+    !> local, so it must follow the local's assignment.
+    subroutine write_locals_fixture(unit)
+        integer, intent(in) :: unit
+        type(kernel_spec_t) :: spec
+        type(expr_t), allocatable :: roots(:)
+        type(str_t) :: source
+        character(:), allocatable :: message
+        logical :: good
+
+        call locals_spec(spec, roots)
+        source = emit_kernel(roots, spec, good, message=message)
+        call check("emit kernel with locals", good)
+        if (.not. good) print *, message
+        if (.not. good) return
+        call check("inout argument declared", &
+            index(chars(source), "type(field_t), intent(inout) :: s") > 0)
+        call check("locals declared", index(chars(source), "real(dp) :: v, dv") > 0)
+        write (unit, '(a)') &
+            "module ordered_locals_module", &
+            "use, intrinsic :: iso_fortran_env, only: dp => real64", &
+            "implicit none", &
+            "type :: field_t", &
+            "real(dp) :: A, dA, h, dh, v, dv, e, de", &
+            "end type field_t", &
+            "contains", &
+            chars(source), &
+            "end module ordered_locals_module"
+    end subroutine write_locals_fixture
+
+    subroutine locals_spec(spec, roots)
+        type(kernel_spec_t), intent(out) :: spec
+        type(expr_t), allocatable, intent(out) :: roots(:)
+        type(arena_t), pointer :: arena
+        type(expr_t) :: r, p, a, h, v, dv
+        type(kernel_binding_t) :: bindings(4)
+
+        allocate (arena)
+        call arena%init()
+        r = sym(arena, "r")
+        p = sym(arena, "p")
+        a = func("A", [r])
+        h = func("h", [r])
+        v = sym(arena, "v")
+        dv = sym(arena, "dv")
+        roots = [(p - a)/h, -(partial_derivative(a, 1) + v*partial_derivative(h, 1))/h, &
+            v, dv, v*v/2, v*dv + v*partial_derivative(h, 1)]
+        bindings(1) = binding("A", [integer ::], "s%A")
+        bindings(2) = binding("A", [1], "s%dA")
+        bindings(3) = binding("h", [integer ::], "s%h")
+        bindings(4) = binding("h", [1], "s%dh")
+        spec%name = str("ordered_locals")
+        spec%args = [str("p"), str("s")]
+        spec%arg_types = [str("real(dp)"), str("type(field_t)")]
+        spec%arg_intents = [str("in"), str("inout")]
+        allocate (spec%outputs(0))
+        spec%locals = [str("v"), str("dv")]
+        spec%output_references = [str("v"), str("dv"), str("s%v"), str("s%dv"), &
+            str("s%e"), str("s%de")]
+        spec%bindings = bindings
+    end subroutine locals_spec
+
+    subroutine test_local_refusals()
+        type(kernel_spec_t) :: spec
+        type(expr_t), allocatable :: roots(:)
+        type(str_t) :: source
+        character(:), allocatable :: message
+        logical :: good
+
+        call locals_spec(spec, roots)
+        spec%output_references = [str("dv"), str("v"), str("s%v"), str("s%dv"), &
+            str("s%e"), str("s%de")]
+        source = emit_kernel([roots(2), roots(1), roots(3:)], spec, good, message=message)
+        call check("a local read before assignment is refused", .not. good)
+
+        call locals_spec(spec, roots)
+        spec%output_references(2) = str("s%dv")
+        source = emit_kernel(roots, spec, good, message=message)
+        call check("an unassigned local is refused", .not. good)
+        call check("unassigned local diagnostic", index(message, "exactly one root") > 0)
+
+        call locals_spec(spec, roots)
+        spec%locals = [str("v"), str("dv"), str("p")]
+        source = emit_kernel(roots, spec, good, message=message)
+        call check("a local named like an argument is refused", .not. good)
+        call check("argument collision diagnostic", &
+            index(message, "collides with an argument") > 0)
+    end subroutine test_local_refusals
+
+    function binding(head, indices, replacement) result(b)
+        character(*), intent(in) :: head, replacement
+        integer, intent(in) :: indices(:)
+        type(kernel_binding_t) :: b
+
+        b%head = str(head)
+        if (size(indices) > 0) b%derivative_indices = indices
+        b%replacement = str(replacement)
+    end function binding
+
     subroutine emit_fixture(unit, roots, spec)
         integer, intent(in) :: unit
         type(expr_t), intent(in) :: roots(:)
@@ -297,7 +400,10 @@ contains
             "use ordered_rank_two_module", &
             "use ordered_lower_bound_module", &
             "use ordered_statements_module", &
+            "use ordered_locals_module", &
             "implicit none", &
+            "type(field_t) :: s", &
+            "real(dp) :: v, dv", &
             "real(dp) :: x,y,dx,dy,w,r(10),p(3),a,b,c,g(2,2),f,gx,gy,fd,h", &
             "real(dp) :: range(3:5), direct(2)", &
             "integer :: i", &
@@ -342,6 +448,11 @@ contains
             "if (range(3)/=2.0_dp .or. range(5)/=4.0_dp) error stop 33", &
             "call ordered_statements(2.0_dp,direct)", &
             "if (maxval(abs(direct-[3.0_dp,9.0_dp]))>1.e-13_dp) error stop 34", &
+            "s%A=0.3_dp; s%dA=-1.2_dp; s%h=1.6_dp; s%dh=0.4_dp", &
+            "call ordered_locals(0.7_dp,s)", &
+            "v=(0.7_dp-s%A)/s%h; dv=-(s%dA+v*s%dh)/s%h", &
+            "if (maxval(abs([s%v,s%dv,s%e,s%de]-[v,dv,v*v/2,v*dv+v*s%dh])) &", &
+            ">1.e-14_dp) error stop 35", &
             "end program oracle"
     end subroutine write_driver
 
