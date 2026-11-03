@@ -704,6 +704,16 @@ native was about 785x faster cold and 12x faster warm. These rows are
 diagnostic rather than a release baseline; broader complex-domain workloads
 and a pinned machine record remain open.
 
+`fo exec bench_chain_kernel` writes CSV rows of structural operation counts,
+after global CSE, for two chain-rule-heavy kernels: the value, gradient and
+Hessian of three field quantities that share the intermediate
+v = (p - A/c)/h, and the guiding-centre rates of a Boozer field. Each kernel
+is generated once by direct differentiation of the expanded expressions and
+once through `fortsym_chain`, which keeps named intermediates opaque and
+propagates their derivatives. On 2026-11-03 the counts were 729 against 220
+FLOPs for the Hessian and 111 against 39 FLOPs for the rates. Counts compare
+generated variants; runtime belongs to the consumer's benchmark.
+
 `fo exec bench_native` writes CSV rows for warm, batched end-to-end native and
 SymEngine simplify, differentiation, and expansion calls. It also includes a
 `simplify_flat_like_terms` cold row with 64 repeated terms over a fresh symbol,

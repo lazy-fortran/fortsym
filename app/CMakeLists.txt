@@ -42,6 +42,9 @@ target_link_libraries(bench_algebraic PRIVATE fortsym)
 add_executable(bench_complexdom bench_complexdom.f90)
 target_link_libraries(bench_complexdom PRIVATE fortsym)
 
+add_executable(bench_chain_kernel bench_chain_kernel.f90)
+target_link_libraries(bench_chain_kernel PRIVATE fortsym)
+
 # Emitted runtime measurements are optional; correctness has its own short gate.
 add_executable(gen_emitted_kernel_audit gen_emitted_kernel_audit.f90)
 target_link_libraries(gen_emitted_kernel_audit PRIVATE fortsym)
