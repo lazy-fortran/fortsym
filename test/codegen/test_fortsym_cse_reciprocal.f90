@@ -113,12 +113,13 @@ contains
         write (unit, '(a)') 'program drive'
         write (unit, '(a)') '    use, intrinsic :: iso_fortran_env, only: dp => real64'
         write (unit, '(a)') '    implicit none'
-        write (unit, '(a)') '    real(dp) :: r'
+        write (unit, '(a)') '    real(dp) :: r, x, y, z'
         write (unit, '(a)') '    integer :: k'
         write (unit, '(a)') '    do k = 1, 9'
-        write (unit, '(a)') '        call shared_reciprocal(0.3_dp*k - 1.6_dp, 0.7_dp*k, &'
-        write (unit, '(a)') '            1.1_dp - 0.2_dp*k, r)'
-        write (unit, '(a)') "        write (*, '(es25.17)') r"
+        write (unit, '(a)') '        x = 0.3_dp*k - 1.6_dp; y = 0.7_dp*k'
+        write (unit, '(a)') '        z = 1.1_dp - 0.2_dp*k'
+        write (unit, '(a)') '        call shared_reciprocal(x, y, z, r)'
+        write (unit, '(a)') "        write (*, '(4es25.17)') r, x, y, z"
         write (unit, '(a)') '    end do'
         write (unit, '(a)') 'end program drive'
         close (unit)
@@ -129,10 +130,8 @@ contains
         open (newunit=unit, file='./fortsym_shared_reciprocal.out', &
             status='old', action='read')
         do k = 1, 9
-            read (unit, *) got
-            xv = 0.3_dp*k - 1.6_dp
-            yv = 0.7_dp*k
-            zv = 1.1_dp - 0.2_dp*k
+            ! Different optimization levels can contract the input expressions differently.
+            read (unit, *) got, xv, yv, zv
             want = yv/xv + zv/xv**2 + yv*zv/xv**3
             if (abs(got - want) > 8*epsilon(1.0_dp)*(abs(yv/xv) + &
                 abs(zv/xv**2) + abs(yv*zv/xv**3))) then
