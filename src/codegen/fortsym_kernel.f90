@@ -30,6 +30,7 @@ module fortsym_kernel
         TARGET_DUAL_VALUE => TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, &
         TARGET_CUDA_VALUE => TARGET_CUDA, &
         TARGET_SIMD_VALUE => TARGET_FORTRAN_OPENMP_SIMD, &
+        TARGET_METAL_VALUE => TARGET_METAL, &
         target_directives, target_is_valid, target_name
     use fortsym_precision, only: PRECISION_REAL64, PRECISION_REAL32, &
         PRECISION_MIXED, precision_is_valid, precision_name
@@ -1057,6 +1058,13 @@ contains
         character(:), allocatable :: diagnostic, array_name
         integer :: k, j
 
+        if (spec%target == TARGET_METAL_VALUE) then
+            s = str("")
+            if (present(ok)) ok = .false.
+            if (present(message)) message = "kernel emitter: Metal target requires Metal emitter"
+            if (present(cost_record)) cost_record = str("")
+            return
+        end if
         call prepare_fortran_kernel(roots, spec, mapped_arena, mapped_roots, &
             mapped_spec, original_names, emitted_names, changed_names, valid, &
             diagnostic)
