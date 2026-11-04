@@ -1,0 +1,36 @@
+program test_real_stages_compiled
+    use, intrinsic :: iso_fortran_env, only: real32, real64
+    implicit none
+    real(real32) :: bulk
+    real(real64) :: residual, corrected, x, y, exact, expected_residual
+    integer :: i, distinguished, rejected_widened, rejected_cse
+    distinguished = 0
+    rejected_widened = 0; rejected_cse = 0
+    do i = 1, 15
+        x = 1.0_real64 + real(i,real64)*2.0_real64**(-13)
+        y = 1.0_real64 - real(i,real64)*2.0_real64**(-13)
+        exact = 1.0_real64 - real(i*i,real64)*2.0_real64**(-26)
+        call staged_product(x,y,bulk,residual,corrected)
+        expected_residual = exact-real(bulk,real64)
+        if (corrected /= exact .or. residual /= expected_residual) error stop 'staged arithmetic'
+        if (expected_residual == 0.0_real64) cycle
+        distinguished = distinguished + 1
+        if (real(bulk,real64) == exact) error stop 'widening control did not fail'
+        if (residual == 0.0_real64) error stop 'symbolic CSE control did not fail'
+        call staged_product_widened(x,y,bulk,residual,corrected)
+        if (corrected /= exact) rejected_widened = rejected_widened + 1
+        call staged_product_cse(x,y,bulk,residual,corrected)
+        if (residual /= expected_residual .and. corrected /= exact) rejected_cse = rejected_cse + 1
+    end do
+    if (distinguished /= 8) error stop 'adversarial rounding cases'
+    if (rejected_widened /= 8 .or. rejected_cse /= 8) error stop 'negative controls accepted'
+    x = 1.0_real64 + 2.0_real64**(-25)
+    exact = 1.0_real64 + 2.0_real64**(-24) + 2.0_real64**(-50)
+    call staged_product(x,x,bulk,residual,corrected)
+    if (bulk /= 1.0_real32 .or. corrected /= exact) error stop 'input rounding boundary'
+    expected_residual = exact - 1.0_real64
+    if (residual /= expected_residual) error stop 'input rounding residual'
+    call staged_product_late_cast(x,x,bulk,residual,corrected)
+    if (bulk == 1.0_real32 .or. residual == expected_residual) error stop 'late cast control accepted'
+    print *, '15 dyadic products, eight nonzero residual controls passed'
+end program test_real_stages_compiled
