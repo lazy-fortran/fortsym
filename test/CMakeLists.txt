@@ -475,3 +475,31 @@ add_custom_command(OUTPUT ${tensor_product}
 add_executable(test_tensor_apply codegen/test_tensor_apply.f90 ${tensor_product})
 target_link_libraries(test_tensor_apply PRIVATE OpenMP::OpenMP_Fortran)
 add_test(NAME test_tensor_apply COMMAND test_tensor_apply)
+
+fortsym_add_test(test_fortsym_real_stages codegen/test_fortsym_real_stages.f90)
+target_link_libraries(test_fortsym_real_stages PRIVATE fortgen)
+configure_file(codegen/test_real_stages_compiled.f90.in
+    ${CMAKE_CURRENT_BINARY_DIR}/test_real_stages_compiled.f90 COPYONLY)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/real_stages_fixture.f90
+    ${CMAKE_CURRENT_BINARY_DIR}/real_stages_fixture.cuh
+    COMMAND $<TARGET_FILE:test_fortsym_real_stages>
+        ${CMAKE_CURRENT_BINARY_DIR}/real_stages_fixture.f90
+        ${CMAKE_CURRENT_BINARY_DIR}/real_stages_fixture.cuh
+    DEPENDS test_fortsym_real_stages VERBATIM)
+add_executable(test_real_stages_compiled
+    ${CMAKE_CURRENT_BINARY_DIR}/test_real_stages_compiled.f90
+    ${CMAKE_CURRENT_BINARY_DIR}/real_stages_fixture.f90)
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(test_real_stages_compiled PRIVATE -fno-fast-math -ffp-contract=off)
+endif()
+add_test(NAME test_real_stages_compiled COMMAND test_real_stages_compiled)
+
+configure_file(codegen/test_real_stages_host.cpp.in
+    ${CMAKE_CURRENT_BINARY_DIR}/test_real_stages_host.cpp COPYONLY)
+add_executable(test_real_stages_host ${CMAKE_CURRENT_BINARY_DIR}/test_real_stages_host.cpp
+    ${CMAKE_CURRENT_BINARY_DIR}/real_stages_fixture.cuh)
+target_include_directories(test_real_stages_host PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(test_real_stages_host PRIVATE -fno-fast-math -ffp-contract=off)
+endif()
+add_test(NAME test_real_stages_host COMMAND test_real_stages_host)

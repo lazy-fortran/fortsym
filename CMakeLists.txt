@@ -58,7 +58,7 @@ include(FetchContent)
 set(FORTGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(fortgen
     GIT_REPOSITORY https://github.com/lazy-fortran/fortgen.git
-    GIT_TAG cdcfcde0c4ac50c60b3c147e2d931caaeec97347
+    GIT_TAG 62760450a030ea1aeecf73de8d360dab9577e1bc
     GIT_SHALLOW FALSE
 )
 FetchContent_MakeAvailable(fortgen)

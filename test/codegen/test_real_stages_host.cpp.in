@@ -1,0 +1,33 @@
+#include <cmath>
+#include <cstdio>
+#define __device__
+#define __forceinline__ inline
+#include "real_stages_fixture.cuh"
+int main() {
+    int rejected_widened = 0, rejected_cse = 0;
+    for (int i = 1; i <= 15; ++i) {
+        const double x = 1.0 + std::ldexp(double(i), -13);
+        const double y = 1.0 - std::ldexp(double(i), -13);
+        const double exact = 1.0 - std::ldexp(double(i*i), -26);
+        float bulk;
+        double residual, corrected;
+        staged_product(x, y, &bulk, &residual, &corrected);
+        const double expected_residual = exact-double(bulk);
+        if (corrected != exact || residual != expected_residual) return 1;
+        if (expected_residual == 0.0) continue;
+        staged_product_widened(x, y, &bulk, &residual, &corrected);
+        rejected_widened += corrected != exact;
+        staged_product_cse(x, y, &bulk, &residual, &corrected);
+        rejected_cse += residual != expected_residual && corrected != exact;
+    }
+    if (rejected_widened != 8 || rejected_cse != 8) return 2;
+    const double x = 1.0 + std::ldexp(1.0, -25);
+    const double exact = 1.0 + std::ldexp(1.0, -24) + std::ldexp(1.0, -50);
+    float bulk;
+    double residual, corrected;
+    staged_product(x, x, &bulk, &residual, &corrected);
+    if (bulk != 1.0f || residual != exact-1.0 || corrected != exact) return 3;
+    staged_product_late_cast(x, x, &bulk, &residual, &corrected);
+    if (bulk == 1.0f || residual == exact-1.0) return 4;
+    std::puts("15 dyadic products; widened and CSE negative controls rejected at eight inputs");
+}

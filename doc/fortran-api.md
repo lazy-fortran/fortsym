@@ -981,3 +981,41 @@ result independently decides it. An unfinished normal form is not evidence
 that the residual is nonzero.
 `fortsym_check` contains the assertion helpers and numeric probe. They are test
 utilities, not additional symbolic predicates.
+
+## Explicit real arithmetic stages
+
+`fortsym_fortgen_adapter::append_real_stage(roots, scalar_type, bindings, target,
+outputs, ok, message)` appends one uniform real32 or real64 arithmetic stage to
+FortGen's typed kernel graph. `roots` are FortSym expressions; `scalar_type` is
+FortGen's `TYPE_REAL32` or `TYPE_REAL64`. Each `real_stage_binding_t` contains a
+FortSym string `name` and a destination graph `node` index. Every free symbol
+must bind a previously computed node of the stage's type. The consumer creates
+input nodes and explicit `IR_CAST` nodes with FortGen, and supplies separate
+formal symbols for rounded results. It must not substitute their exact formulas
+into later stages: that would remove the intended rounding boundary.
+
+Success returns the appended root indices in `outputs` and makes them the
+graph's outputs. Earlier root indices remain usable as bindings or final
+outputs. Failure returns a diagnostic and leaves `target` unchanged. An empty,
+unallocated graph is accepted for a stage containing only literals. Existing
+destination nodes must be typed real32 or real64. Bindings use nonempty names
+starting with an ASCII letter, followed by letters, digits or underscores.
+
+This bounded interface supports literals, symbols, sums and products. It reuses
+`lower_kernel_ir`, including exact semantic sharing within a stage, and reduces
+n-ary operations by a binary left fold in that lowered operand order. It does
+not promise the author's parenthesization after exact symbolic normalization.
+Literals retain the existing lowering's real64 approximation; real32 literals
+then round to the destination type. Out-of-range real32 literals, unsupported
+functions, named constants, powers, missing bindings and type mismatches are
+refused. This is not an arbitrary-precision literal interface.
+
+Emit the resulting graph with FortGen's existing Fortran or CUDA emitter and
+explicit argument/output types. Set all four strict-policy controls explicitly:
+`fold_exact_constants`, `eliminate_constant_divisions` and `shape_fma` are false,
+and `small_power_limit` is zero. Unsupported types, policies and backend names
+are validated by FortGen before source is returned or a file is replaced.
+Metal refuses native real64 graphs; software pairs are a separate representation.
+This interface adds no printer or file-writing path. CMake consumers using the
+FortGen graph API also link FortGen. The compiled example is
+`test/codegen/test_fortsym_real_stages.f90`.
