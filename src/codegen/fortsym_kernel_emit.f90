@@ -24,6 +24,7 @@ module fortsym_kernel_emit
         TARGET_DUAL_VALUE => TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, &
         TARGET_CUDA_VALUE => TARGET_CUDA, &
         TARGET_SIMD_VALUE => TARGET_FORTRAN_OPENMP_SIMD, &
+        TARGET_METAL_VALUE => TARGET_METAL, &
         target_directives, target_is_valid, target_name
     use fortsym_precision, only: PRECISION_REAL64, PRECISION_REAL32, &
         PRECISION_MIXED, precision_is_valid, precision_name
@@ -34,6 +35,7 @@ module fortsym_kernel_emit
     use fortgen_kernel_emit, only: fg_kernel_emit_spec_t => kernel_emit_spec_t, &
         fg_emit_fortran_kernel_ir => emit_fortran_kernel_ir, &
         fg_emit_cuda_device_ir => emit_cuda_device_ir, &
+        fg_emit_metal_device_ir => emit_metal_device_ir, &
         fg_emit_cuda_batch_ir => emit_cuda_batch_ir, &
         fg_emit_python_kernel_ir => emit_python_kernel_ir
     use fortgen_tensor_emit, only: fg_tensor_spec_t => tensor_kernel_spec_t, &
@@ -51,14 +53,14 @@ module fortsym_kernel_emit
     public :: emit_cpu_precision_kernels
     public :: kernel_emission_policy_t, kernel_emit_spec_t
     public :: emit_fortran_kernel_ir, emit_cuda_device_ir, emit_python_kernel_ir
-    public :: emit_cuda_batch_ir
+    public :: emit_metal_device_ir, emit_cuda_batch_ir
     public :: emit_fortran_batch_ir
     public :: emit_table
     public :: fortran_constant_text
     public :: TARGET_DEFAULT, TARGET_FORTRAN_CPU
     public :: TARGET_FORTRAN_OPENMP_TARGET, TARGET_FORTRAN_OPENACC
     public :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC, TARGET_CUDA
-    public :: TARGET_FORTRAN_OPENMP_SIMD
+    public :: TARGET_FORTRAN_OPENMP_SIMD, TARGET_METAL
     public :: target_name
     public :: PRECISION_REAL64, PRECISION_REAL32, PRECISION_MIXED
     public :: precision_name
@@ -71,6 +73,7 @@ module fortsym_kernel_emit
     integer, parameter :: TARGET_FORTRAN_OPENMP_TARGET_AND_OPENACC = TARGET_DUAL_VALUE
     integer, parameter :: TARGET_CUDA = TARGET_CUDA_VALUE
     integer, parameter :: TARGET_FORTRAN_OPENMP_SIMD = TARGET_SIMD_VALUE
+    integer, parameter :: TARGET_METAL = TARGET_METAL_VALUE
 
     !> Named, unconditional source-emission policies. These are structural
     !> choices made from the exact expression before a compiler sees floats;
@@ -1078,6 +1081,34 @@ contains
         source = str(fg_chars(fg_source))
     end function emit_cuda_device_ir
 
+    function emit_metal_device_ir(ir, spec, ok, message) result(source)
+        type(kernel_ir_t), intent(in) :: ir
+        type(kernel_emit_spec_t), intent(in) :: spec
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(str_t) :: source
+        type(fg_kernel_ir_t) :: fg_ir
+        type(fg_kernel_emit_spec_t) :: fg_spec
+        type(fg_str_t) :: fg_source
+
+        call to_fortgen_kernel_ir(ir, fg_ir, ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        call map_fortgen_spec(spec, fg_spec, ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        fg_source = fg_emit_metal_device_ir(fg_ir, fg_spec, ok, message)
+        if (.not. ok) then
+            source = str("")
+            return
+        end if
+        source = str(fg_chars(fg_source))
+    end function emit_metal_device_ir
+
     function emit_cuda_batch_ir(ir, spec, ok, message) result(source)
         type(kernel_ir_t), intent(in) :: ir
         type(kernel_emit_spec_t), intent(in) :: spec
@@ -1666,6 +1697,10 @@ contains
         end if
         if (.not. target_is_valid(spec%target)) then
             message = "kernel emitter: target identity is invalid"
+            return
+        end if
+        if (backend == BACKEND_FORTRAN .and. spec%target == TARGET_METAL) then
+            message = "kernel emitter: Metal target requires Metal emitter"
             return
         end if
         if (backend == BACKEND_FORTRAN .and. spec%target == TARGET_CUDA) then
