@@ -140,7 +140,7 @@ target_include_directories(fortsym
         $<INSTALL_INTERFACE:include>
     PRIVATE ${PROJECT_SOURCE_DIR}/src/capi)
 
-target_link_libraries(fortsym PRIVATE
+target_link_libraries(fortsym PUBLIC
     fortgen::fortgen)
 
 target_link_libraries(fortsym PUBLIC
