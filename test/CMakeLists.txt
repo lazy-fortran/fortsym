@@ -186,6 +186,7 @@ if(TEST test_fortsym_ordered_outputs)
         "FORTSYM_TEST_COMPILER=${CMAKE_Fortran_COMPILER}")
 endif()
 fortsym_add_test(test_fortsym_wl_f90 codegen/test_fortsym_wl_f90.f90)
+fortsym_add_test(test_fortsym_wl_f90_null codegen/test_fortsym_wl_f90_null.f90)
 fortsym_add_test(test_fortsym_chain codegen/test_fortsym_chain.f90)
 if(TEST test_fortsym_chain)
     set_property(TEST test_fortsym_chain APPEND PROPERTY ENVIRONMENT
@@ -197,7 +198,8 @@ foreach(_name IN ITEMS test_fortsym_kernel test_fortsym_kernel_emit
         test_fortsym_complex_i
         test_fortsym_rigorous_emit test_fortsym_kernel_typed
         test_fortsym_kernel_taylor test_fortsym_kernel_taylor_typed
-        test_fortsym_wl_f90 test_fortsym_chain)
+        test_fortsym_wl_f90 test_fortsym_wl_f90_null test_fortsym_chain
+        test_fortsym_kernel_batch test_fortsym_enzyme)
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/work/${_name}")
     set_tests_properties(${_name} PROPERTIES
         WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/work/${_name}")
@@ -432,6 +434,11 @@ fortsym_add_test(test_fortsym_lie calculus/test_fortsym_lie.f90)
 fortsym_add_test(test_fortsym_cse_dag codegen/test_fortsym_cse_dag.f90)
 set_tests_properties(test_fortsym_cse_dag PROPERTIES TIMEOUT 30)
 fortsym_add_test(test_fortsym_cse_reciprocal codegen/test_fortsym_cse_reciprocal.f90)
+foreach(_name IN ITEMS test_fortsym_cse_dag test_fortsym_cse_reciprocal)
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/work/${_name}")
+    set_tests_properties(${_name} PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/work/${_name}")
+endforeach()
 
 add_executable(generate_precision_family codegen/generate_precision_family.f90)
 target_link_libraries(generate_precision_family PRIVATE fortsym)
