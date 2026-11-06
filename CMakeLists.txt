@@ -66,7 +66,7 @@ FetchContent_MakeAvailable(fortgen)
 set(FORTPLOT_BUILD_FORTARRAY_ADAPTER OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(fortplot
     GIT_REPOSITORY https://github.com/lazy-fortran/fortplot.git
-    GIT_TAG 18e6b4442a6f9e083b8965ccf1a8847a6e32b3d9
+    GIT_TAG 1645fa41c11b5786c71bc27e5b41dae7c7bbba23
     GIT_SHALLOW FALSE
 )
 FetchContent_MakeAvailable(fortplot)
