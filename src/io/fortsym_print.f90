@@ -27,28 +27,18 @@ module fortsym_print
     use fortsym_dialect, only: dialect_t, dialect, fn_spelling, const_spelling, &
         DIA_NATIVE, DIA_FORTRAN, DIA_WOLFRAM, fortran_function_supported, &
         fortran_function_arity_ok
+    use fortsym_context, only: kernel_binding_t
     implicit none
     private
 
     public :: print_expr, print_expr_in, print_expr_sub, print_expr_latex
     public :: fortran_representable
     public :: fortran_roots_representable, fortran_roots_representable_kind
-    public :: binding_omits_arguments
+    public :: binding_omits_arguments, binding_matches
     public :: kernel_binding_t
 
     integer, parameter :: dp = real64
 
-    !> Replacement for an applied function in generated Fortran.  An empty
-    !> derivative_indices list binds the ordinary applied function; a nonempty
-    !> list binds the canonical DerivativeN node produced by partial_derivative.
-    !> The optional `%args%` marker in replacement is expanded to the original
-    !> call arguments, which permits both component expressions and procedure
-    !> calls to share one binding table.
-    type :: kernel_binding_t
-        type(str_t)              :: head
-        integer, allocatable     :: derivative_indices(:)
-        type(str_t)              :: replacement
-    end type kernel_binding_t
 
     ! Binding powers. A child is parenthesised when its own precedence is lower
     ! than the context it appears in.

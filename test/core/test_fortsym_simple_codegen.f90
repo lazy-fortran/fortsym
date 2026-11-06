@@ -14,7 +14,6 @@ program test_fortsym_simple_codegen
     integer :: failures
 
     failures = 0
-    call reset()
     call symbols("x y", x, y, ok=ok)
     call check("symbols creates both generator inputs", ok, failures)
 

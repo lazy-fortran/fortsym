@@ -17,7 +17,6 @@ program bench_chart_geometry
     type(expr_t) :: last_jacobian, last_sqrtg
     type(chart_t) :: chart_value
 
-    call reset()
     arena => default_arena()
     radius = "bench_r"
     phi = "bench_phi"

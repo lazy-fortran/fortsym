@@ -6,9 +6,10 @@ module fortsym_expr
     ! returned from functions without any ownership question.
     !
     ! The arena travels with the expression rather than living in a module
-    ! variable. That costs one pointer per handle and buys two things: several
-    ! independent problems can be under construction at once, and there is no
-    ! global mutable state to reset between tests.
+    ! variable. That costs one pointer per handle and lets several independent
+    ! problems be under construction at once. Only the arena-free constructors
+    ! such as sym('x') read the current context (fortsym_context) to choose
+    ! the arena of a new leaf.
     !
     ! Operators are not pure. Building an expression interns nodes, which
     ! mutates the arena through the pointer, and Fortran rightly forbids that in
@@ -22,6 +23,8 @@ module fortsym_expr
     use fortsym_string, only: str_t
     use fortsym_arena, only: arena_t, &
                              NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC
+    use fortsym_context, only: current_arena
+    use fortsym_string, only: indexed
     implicit none
     private
 
@@ -61,10 +64,38 @@ module fortsym_expr
         procedure :: operation_count => expr_operation_count
     end type expr_t
 
+    ! Each constructor exists with an explicit arena and without one; the
+    ! arena-free form interns into the current context (fortsym_context).
+    interface sym
+        module procedure sym_in, sym_here, sym_element, sym_element2
+    end interface sym
+
     interface num
         module procedure num_from_int32
         module procedure num_from_int64
+        module procedure num_here_int32
+        module procedure num_here_int64
     end interface num
+
+    interface rat
+        module procedure rat_in, rat_here_int32, rat_here_int64
+    end interface rat
+
+    interface real_expr
+        module procedure real_in, real_here
+    end interface real_expr
+
+    interface pi_expr
+        module procedure pi_in, pi_here
+    end interface pi_expr
+
+    interface i_expr
+        module procedure i_in, i_here
+    end interface i_expr
+
+    interface func
+        module procedure func_args, func_here
+    end interface func
 
     interface operator(+)
         module procedure add_ee, add_ei, add_ie, add_er, add_re, plus_e
@@ -141,14 +172,36 @@ contains
 
     ! ------------------------------------------------------ constructors --
 
-    function sym(a, name) result(e)
+    function sym_in(a, name) result(e)
         type(arena_t), target, intent(inout) :: a
         character(*), intent(in)    :: name
         type(expr_t)                         :: e
         e%a => a
         e%id = a%sym(name)
         e%generation = a%generation_value()
-    end function sym
+    end function sym_in
+
+    function sym_here(name) result(e)
+        character(*), intent(in) :: name
+        type(expr_t)             :: e
+        e = sym_in(current_arena(), name)
+    end function sym_here
+
+    !> The array element name(i) as a symbol, such as x(2).
+    function sym_element(name, i) result(e)
+        character(*), intent(in) :: name
+        integer, intent(in)      :: i
+        type(expr_t)             :: e
+        e = sym_in(current_arena(), indexed(name, i))
+    end function sym_element
+
+    !> The array element name(i, j) as a symbol, such as a(1, 2).
+    function sym_element2(name, i, j) result(e)
+        character(*), intent(in) :: name
+        integer, intent(in)      :: i, j
+        type(expr_t)             :: e
+        e = sym_in(current_arena(), indexed(name, i, j))
+    end function sym_element2
 
     function num_from_int32(a, value) result(e)
         type(arena_t), target, intent(inout) :: a
@@ -168,17 +221,41 @@ contains
         e%generation = a%generation_value()
     end function num_from_int64
 
+    function num_here_int32(value) result(e)
+        integer(int32), intent(in) :: value
+        type(expr_t)               :: e
+        e = num_from_int32(current_arena(), value)
+    end function num_here_int32
+
+    function num_here_int64(value) result(e)
+        integer(int64), intent(in) :: value
+        type(expr_t)               :: e
+        e = num_from_int64(current_arena(), value)
+    end function num_here_int64
+
     !> An exact rational. Kept exact rather than converted to a real, because a
     !> generated kernel must emit 1/3 as a division of typed literals, not as a
     !> rounded decimal.
-    function rat(a, numer, denom) result(e)
+    function rat_in(a, numer, denom) result(e)
         type(arena_t), target, intent(inout) :: a
         integer(int64), intent(in)    :: numer, denom
         type(expr_t)                         :: e
         e%a => a
         e%id = a%rat(numer, denom)
         e%generation = a%generation_value()
-    end function rat
+    end function rat_in
+
+    function rat_here_int32(numer, denom) result(e)
+        integer(int32), intent(in) :: numer, denom
+        type(expr_t)               :: e
+        e = rat_in(current_arena(), int(numer, int64), int(denom, int64))
+    end function rat_here_int32
+
+    function rat_here_int64(numer, denom) result(e)
+        integer(int64), intent(in) :: numer, denom
+        type(expr_t)               :: e
+        e = rat_in(current_arena(), numer, denom)
+    end function rat_here_int64
 
     !> Arbitrary-precision exact integer or rational. The
     !> canonical FLINT value is interned; invalid input returns
@@ -199,14 +276,20 @@ contains
         e%generation = a%generation_value()
     end function exact
 
-    function real_expr(a, value) result(e)
+    function real_in(a, value) result(e)
         type(arena_t), target, intent(inout) :: a
         real(dp), intent(in)    :: value
         type(expr_t)                         :: e
         e%a => a
         e%id = a%real(value)
         e%generation = a%generation_value()
-    end function real_expr
+    end function real_in
+
+    function real_here(value) result(e)
+        real(dp), intent(in) :: value
+        type(expr_t)         :: e
+        e = real_in(current_arena(), value)
+    end function real_here
 
     function real_text_expr(a, value, ok) result(e)
         type(arena_t), target, intent(inout) :: a
@@ -242,11 +325,16 @@ contains
         e%generation = a%generation_value()
     end function const
 
-    function pi_expr(a) result(e)
+    function pi_in(a) result(e)
         type(arena_t), target, intent(inout) :: a
         type(expr_t)                         :: e
         e = const(a, "pi")
-    end function pi_expr
+    end function pi_in
+
+    function pi_here() result(e)
+        type(expr_t) :: e
+        e = const(current_arena(), "pi")
+    end function pi_here
 
     function e_expr(a) result(e)
         type(arena_t), target, intent(inout) :: a
@@ -254,11 +342,16 @@ contains
         e = const(a, "e")
     end function e_expr
 
-    function i_expr(a) result(e)
+    function i_in(a) result(e)
         type(arena_t), target, intent(inout) :: a
         type(expr_t)                         :: e
         e = const(a, "i")
-    end function i_expr
+    end function i_in
+
+    function i_here() result(e)
+        type(expr_t) :: e
+        e = const(current_arena(), "i")
+    end function i_here
 
     !> Positive infinity as a structural sentinel. It is deliberately not a
     !> real literal: finite numeric evaluation, arithmetic, and real-kernel
@@ -290,13 +383,17 @@ contains
     !> Application of a named function to a list of arguments. The general form
     !> behind every elementary function below, and the way a caller reaches a
     !> function fortsym has no named wrapper for.
-    function func(name, fargs) result(e)
+    function func_args(name, fargs) result(e)
         character(*), intent(in) :: name
         type(expr_t), intent(in) :: fargs(:)
         type(expr_t)             :: e
         integer, allocatable :: ids(:)
         integer :: k
 
+        if (size(fargs) == 0) then
+            e = func_in(current_arena(), name)
+            return
+        end if
         allocate (ids(size(fargs)))
         do k = 1, size(fargs)
             ids(k) = fargs(k)%id
@@ -304,7 +401,15 @@ contains
         e%a => fargs(1)%a
         e%id = fargs(1)%a%func(name, ids)
         e%generation = fargs(1)%generation
-    end function func
+    end function func_args
+
+    !> A function of no arguments in the current context, such as a
+    !> kernel input mu that is bound to a member.
+    function func_here(name) result(e)
+        character(*), intent(in) :: name
+        type(expr_t)             :: e
+        e = func_in(current_arena(), name)
+    end function func_here
 
     !> Application with no arguments, such as the empty list {}.
     !>

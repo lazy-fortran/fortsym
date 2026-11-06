@@ -18,7 +18,6 @@ program example_gps_newtonian_limit
     type(engine_result_t) :: derivative, checked
     integer :: signature(SPACETIME_DIM)
 
-    call reset()
     arena => default_arena()
     coordinates(1) = "t"
     coordinates(2) = "r"

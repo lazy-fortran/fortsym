@@ -19,7 +19,6 @@ program test_fortsym_easy_geometry
     type(metric_t) :: chart_metric, explicit_metric, supplied_metric
     integer :: i, j
 
-    call reset()
     arena => default_arena()
     engine = make_symengine_engine(arena)
     call suite_begin(suite, "concise geometry facade")

@@ -18,7 +18,8 @@ module fortsym_kernel
         NK_FUNC, NK_SYM, NK_REAL, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
     use fortsym_expr, only: expr_t, operator(**)
     use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
-    use fortsym_print, only: kernel_binding_t, print_expr_sub, &
+    use fortsym_context, only: kernel_binding_t, active_bindings
+    use fortsym_print, only: print_expr_sub, &
         fortran_roots_representable, fortran_roots_representable_kind, &
         binding_omits_arguments
     use fortsym_names, only: valid_fortran_name, same_fortran_name, &
@@ -37,7 +38,7 @@ module fortsym_kernel
     implicit none
     private
 
-    public :: kernel_spec_t, kernel_binding_t, cse_result_t, operation_count_t
+    public :: kernel_spec_t, cse_result_t, operation_count_t
     public :: operation_cost_record_t
     public :: cse_analyse, count_operations, operation_cost
     public :: emit_cost_record, emit_kernel, emit_statements
@@ -117,9 +118,10 @@ module fortsym_kernel
         !> assignments they depend on. Array targets use fixed positive integer
         !> subscripts; self, forward and unassigned-element reads are refused.
         logical                  :: ordered_output_dependencies = .false.
-        !> Consumer-owned replacements for opaque applied functions and their
-        !> canonical symbolic partial derivatives. Unbound heads are refused.
-        type(kernel_binding_t), allocatable :: bindings(:)
+        !> Replacements for opaque applied functions and their canonical
+        !> partial derivatives, taken from the current context (bind in
+        !> fortsym_jet). Unbound heads are refused.
+        type(kernel_binding_t), allocatable, private :: bindings(:)
         !> Prefix for generated temporaries.
         type(str_t)              :: temp_prefix
         !> Store CSE temporaries in one array, avoiding tens of thousands of
@@ -819,9 +821,9 @@ contains
     end function is_reciprocal_power
 
     !> The assignment statements: every temporary, then every output.
-    recursive function emit_statements(roots, spec, res, ok, prechecked, real64_alias) result(s)
+    recursive function emit_statements(roots, spec_in, res, ok, prechecked, real64_alias) result(s)
         type(expr_t),       intent(in) :: roots(:)
-        type(kernel_spec_t), intent(in) :: spec
+        type(kernel_spec_t), intent(in) :: spec_in
         type(cse_result_t), intent(in) :: res
         logical, intent(out), optional :: ok
         logical, intent(in), optional :: prechecked
@@ -840,7 +842,10 @@ contains
         character(:), allocatable :: message
         integer :: k, j, first_temporary
         logical :: valid, needs_check
+        type(kernel_spec_t) :: spec
 
+        spec = spec_in
+        if (.not. allocated(spec%bindings)) call active_bindings(spec%bindings)
         if (spec%ordered_output_dependencies) then
             if (spec%cse_level /= CSE_NONE .or. res%n /= 0) then
                 if (present(ok)) ok = .false.
@@ -1039,9 +1044,9 @@ contains
     end function is_exponent_sign
 
     !> A complete kernel: banner, subroutine header, declarations, body.
-    function emit_kernel(roots, spec, ok, cost_record, message) result(s)
+    function emit_kernel(roots, spec_in, ok, cost_record, message) result(s)
         type(expr_t),        intent(in) :: roots(:)
-        type(kernel_spec_t), intent(in) :: spec
+        type(kernel_spec_t), intent(in) :: spec_in
         logical, intent(out), optional :: ok
         type(str_t), intent(out), optional :: cost_record
         character(:), allocatable, intent(out), optional :: message
@@ -1057,7 +1062,10 @@ contains
         logical :: valid, emit_openmp, emit_openacc
         character(:), allocatable :: diagnostic, array_name
         integer :: k, j
+        type(kernel_spec_t) :: spec
 
+        spec = spec_in
+        if (.not. allocated(spec%bindings)) call active_bindings(spec%bindings)
         if (spec%target == TARGET_METAL_VALUE) then
             s = str("")
             if (present(ok)) ok = .false.

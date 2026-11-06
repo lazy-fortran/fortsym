@@ -17,7 +17,6 @@ program example_killing_vectors
     type(engine_result_t) :: checked
     integer :: i, j, indices(2)
 
-    call reset()
     arena => default_arena()
     coordinates(1) = "x"
     coordinates(2) = "y"

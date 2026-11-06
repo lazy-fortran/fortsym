@@ -25,7 +25,6 @@ program example_spacetime_tensor_calculus
     integer :: signature(SPACETIME_DIM), empty(0), single_index(1), &
         derivative_indices(2), i
 
-    call reset()
     arena => default_arena()
     do i = 1, SPACETIME_DIM
         coordinates(i) = sym(arena, "q_"//chars(str(i)))

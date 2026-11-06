@@ -1,10 +1,12 @@
 module fortsym
     ! The short public Fortran surface. Explicit arenas and the lower-level
     ! modules remain available for callers that need independent state.
+    use, intrinsic :: iso_fortran_env, only: int64
     use fortsym_arena, only: arena_t, node_kind_name, &
         NK_INT, NK_RAT, NK_REAL, NK_SYM, NK_CONST, NK_ADD, NK_MUL, NK_POW, &
         NK_FUNC, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL, NK_ALGEBRAIC
-    use fortsym_string, only: str_t, str, chars
+    use fortsym_string, only: str_t, str, chars, itoa, indexed, words
+    use fortsym_context, only: context_t, current_arena
     use fortsym_expr, only: expr_t, sym, num, rat, exact, real_expr, &
         real_text_expr, algebraic_expr, const, func, func_in, partial, pi_expr, e_expr, &
         i_expr, oo_expr, zoo_expr, nan_expr, sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, &
@@ -265,7 +267,8 @@ module fortsym
     public :: assumption_context_t, make_assumption_context, with_assumption, &
         zero, negative, nonpositive, positive, nonnegative, nonzero, real_valued, &
         rational_valued, integer_valued, positive_integer, algebraic_valued
-    public :: str, chars
+    public :: str, chars, itoa, indexed, words
+    public :: context_t, current_arena
     public :: subs, subs_many, diff, simplify, refine, expand, factor, &
         series, series_coeff, solve, linsolve, det, minor, rank, inv, matrix_transpose, &
         nullspace, rref, matrix_multiply, matrix_add, matrix_subtract, &
@@ -421,12 +424,14 @@ module fortsym
     public :: sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, tanh, &
         asinh, acosh, atanh, exp, log, sqrt, abs, erf, erfc, gamma, &
         besselj, besseli, besselk, legendrep, legendreq, elliptic_k, elliptic_e
-    public :: default_arena, reset, symbols
+    public :: default_arena, symbols
     public :: assignment(=)
 
-    type(arena_t), target, save :: default_store
+    ! Native engine cached for the current context's arena; rebuilt when the
+    ! context or its generation changes.
     type(native_engine_t), save :: default_engine
-    logical, save :: default_ready = .false.
+    type(arena_t), pointer, save :: engine_arena => null()
+    integer(int64), save :: engine_generation = -1_int64
 
     interface assignment(=)
         module procedure assign_character
@@ -442,22 +447,13 @@ contains
         c = chart_create(default_arena(), u, position)
     end function chart_default
 
-    !> Return the process-local arena used by character assignment and symbols.
-    !> It is single-threaded state. Callers that need concurrency should create
-    !> an arena_t and use the explicit constructors from the same module.
+    !> The arena of the current context (fortsym_context), used by character
+    !> assignment and symbols. It is single-threaded state. Callers that need
+    !> concurrency should create an arena_t and use the explicit constructors.
     function default_arena() result(a)
         type(arena_t), pointer :: a
-        call ensure_default()
-        a => default_store
+        a => current_arena()
     end function default_arena
-
-    !> Clear the convenience arena. Handles made before this call become stale,
-    !> including handles whose node index is reused after the next construction.
-    subroutine reset()
-        call default_store%clear()
-        default_engine = make_native_engine(default_store)
-        default_ready = .false.
-    end subroutine reset
 
     !> Replace one expression structurally.
     function subs(expression, old, new) result(result)
@@ -1292,8 +1288,7 @@ contains
     subroutine assign_character(lhs, rhs)
         type(expr_t), intent(out) :: lhs
         character(*), intent(in)   :: rhs
-        call ensure_default()
-        lhs = sym(default_store, trim(rhs))
+        lhs = sym(current_arena(), trim(rhs))
     end subroutine assign_character
 
     subroutine report_failure(result, message)
@@ -1322,8 +1317,14 @@ contains
 
         use_it = .false.
         if (present(assumptions)) return
-        if (.not. default_ready) return
-        use_it = associated(expression%a, default_store)
+        if (.not. associated(expression%a, current_arena())) return
+        if (.not. associated(engine_arena, expression%a) .or. &
+            engine_generation /= expression%a%generation_value()) then
+            default_engine = make_native_engine(expression%a)
+            engine_arena => expression%a
+            engine_generation = expression%a%generation_value()
+        end if
+        use_it = .true.
     end function use_default_engine
 
     !> Read up to eight whitespace- or comma-separated symbol names into scalar
@@ -1348,7 +1349,6 @@ contains
         if (present(seventh)) seventh = expr_t()
         if (present(eighth)) eighth = expr_t()
 
-        call ensure_default()
         position = 1
         good = .true.
         call read_symbol(names, position, first, good)
@@ -1363,13 +1363,6 @@ contains
         if (position <= len_trim(names)) good = .false.
         if (present(ok)) ok = good
     end subroutine symbols
-
-    subroutine ensure_default()
-        if (default_ready) return
-        call default_store%init()
-        default_engine = make_native_engine(default_store)
-        default_ready = .true.
-    end subroutine ensure_default
 
     subroutine read_symbol(names, position, target, good)
         character(*), intent(in) :: names
@@ -1389,7 +1382,7 @@ contains
             position = position + 1
         end do
         finish = position - 1
-        target = sym(default_store, names(start:finish))
+        target = sym(current_arena(), names(start:finish))
     end subroutine read_symbol
 
     subroutine skip_separators(names, position)

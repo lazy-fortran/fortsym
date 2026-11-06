@@ -8,6 +8,7 @@ module fortsym_engine_native
     ! forms remain expressions and zero_test returns UNKNOWN.
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use fortsym_string, only: str_t, str, chars
+    use fortsym_context, only: current_arena
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_SYM, NK_BIG_INT, NK_BIG_RAT, &
         NK_ALGEBRAIC
@@ -36,6 +37,12 @@ module fortsym_engine_native
     private
 
     public :: native_engine_t, make_native_engine
+
+    !> make_native_engine(arena[, assumptions]), or without an arena for the
+    !> current context (fortsym_context).
+    interface make_native_engine
+        module procedure make_native_engine_in, make_native_engine_here
+    end interface make_native_engine
 
     integer, parameter :: dp = real64
     integer(int64), parameter :: MAX_I64 = huge(0_int64)
@@ -93,7 +100,7 @@ module fortsym_engine_native
 
 contains
 
-    function make_native_engine(home, assumptions) result(eng)
+    function make_native_engine_in(home, assumptions) result(eng)
         type(arena_t), target, intent(inout) :: home
         type(assumption_context_t), optional, target, intent(in) :: assumptions
         type(native_engine_t)                :: eng
@@ -105,7 +112,14 @@ contains
             CAP_EXPAND + CAP_SERIES + CAP_SOLVE
         eng%home => home
         if (present(assumptions)) eng%assumptions => assumptions
-    end function make_native_engine
+    end function make_native_engine_in
+
+    function make_native_engine_here(assumptions) result(eng)
+        type(assumption_context_t), optional, target, intent(in) :: assumptions
+        type(native_engine_t) :: eng
+
+        eng = make_native_engine_in(current_arena(), assumptions)
+    end function make_native_engine_here
 
     function native_simplify(self, e, limit) result(r)
         class(native_engine_t), intent(inout) :: self

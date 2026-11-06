@@ -20,7 +20,6 @@ program example_pseudo_riemannian
     type(engine_result_t) :: checked
     integer :: signature(SPACETIME_DIM), i, j, k, ell
 
-    call reset()
     arena => default_arena()
     coordinates(1) = "t"
     coordinates(2) = "x"

@@ -15,7 +15,6 @@ program example_cylindrical_fourier
     type(expr_t) :: expected(DIM)
     type(engine_result_t) :: checked, displayed
 
-    call reset()
     arena => default_arena()
     z = "Z"
     radius = "R"

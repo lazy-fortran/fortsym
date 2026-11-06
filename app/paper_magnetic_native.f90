@@ -30,7 +30,6 @@ program paper_magnetic_native
     logical :: context_ok
     integer :: i, j
 
-    call reset()
     arena => default_arena()
 
     z = "Z"

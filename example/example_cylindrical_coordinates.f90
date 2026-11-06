@@ -25,7 +25,6 @@ program example_cylindrical_coordinates
     type(engine_result_t) :: checked
     integer :: i, j, k, indices(3)
 
-    call reset()
     arena => default_arena()
     rho = "rho"
     theta = "theta"

@@ -42,7 +42,7 @@ kernel contains both `Gamma` and `gamma` (or `B` and `b`), only the colliding
 Fortran spellings are deterministically renamed and the generated source
 records the mapping in a comment.
 
-## Default arena
+## Contexts and arena-free constructors
 
 Assigning character data to an `expr_t` creates one symbol. The right-hand side
 is treated as a name, so `x = "x+y"` creates a symbol named `x+y` and does not
@@ -57,14 +57,69 @@ sigma = "sigma"
 e = (mu + 1) / sigma
 ```
 
-The module owns one saved default arena for the process lifetime. It is a
-single-threaded convenience state. `default_arena()` returns the same arena
-when an explicit constructor needs to share that state. `reset()` is safe
-before first use and can be called more than once. It clears the node store and
-invalidates every expression made before the reset, including handles whose
-node index is reused later. The arena pointer remains usable after reset.
-Discard pre-reset expressions at every reset boundary. Use explicit arenas for
-concurrency, isolation, and library code that outlives one problem.
+Character assignment and the arena-free constructors `sym(name)`,
+`sym(name, i)` and `sym(name, i, j)` (the elements `name(i)` and
+`name(i, j)`), `num(n)`, `rat(p, q)`, `real_expr(x)`, `pi_expr()`, `i_expr()`,
+`func(name)` (no arguments), `parse_expr(text, ok, message)`,
+`make_native_engine()` and `make_symengine_engine()` use the current context
+from `fortsym_context`. Without an open context that is one base arena for the
+process. `call ctx%open()` on a `context_t` starts a fresh arena with empty
+kernel bindings, and `call ctx%close()` clears it and returns to the enclosing
+context; contexts nest and are closed in reverse order. Closing invalidates
+every expression made in that context, including handles whose node index is
+reused later. `default_arena()` and `current_arena()` return the current
+arena when an explicit constructor needs to share it. The context is
+single-threaded state. Use explicit arenas for concurrency, isolation, and
+library code that outlives one problem.
+
+`fortsym_string` adds `itoa(i)`, `indexed(name, i[, j])` (the text
+`name(i, j)`) and `words('a b c')` (a `str_t` list) for building generated
+names.
+
+## Generator programs: jets, bindings and emission
+
+`fortsym_jet` describes which partial derivatives a kernel needs and how they
+are named. A `derivative_set_t` (from FortGen, shared with the Horner emitter)
+holds multi-indices in canonical order: total order, then descending
+lexicographic, the order of a packed symmetric Hessian. `partials(d, k)` holds
+all partials up to order `k`, `radial_mixed(d)` the value, the gradient and the
+second derivatives along variable 1, and `multi_indices(orders)` an explicit
+list; `of_order(m)`, `touching(axes)` and `without(alpha)` narrow a set.
+
+A `jet_names_t` spells the value and partials of one quantity:
+`members(value, gradient, hessian[, packing])` gives `value`, `gradient(i)`
+and `hessian(packing(i, j))` (default: the upper triangle by rows),
+`suffixed(value, axes[, separator])` gives `r`, `r_r`, `r_rt` and so on, and
+`listed(names)` lists names in canonical order, an empty name leaving a
+partial unnamed. `bind(q, names[, set])` declares, in the current context,
+that the applied function `q` and its partials (default: up to second order)
+are kernel inputs with those names; `emit_kernel` reads the context's bindings,
+so a kernel spec no longer carries them. A name containing `%args%` is
+expanded to the call arguments. `jet(q, set, x)` or `jet(q, set, chain=c)`
+returns the partials of `q`, differentiating `d_j(d_i q)` for `i <= j`.
+
+```fortran
+type(context_t) :: ctx
+type(kernel_t) :: k
+call ctx%open()
+x = [sym('r'), sym('th'), sym('ph')]
+B = func('Bmod', x)
+call bind(B, members('f%Bmod', 'f%dBmod', 'f%d2Bmod'))
+call k%jet([sqrt(B)], [members('f%s', 'f%ds', 'f%d2s')], partials(3, 2), x)
+source = emit(k, spec)
+call ctx%close()
+```
+
+`fortsym_emit` collects output references and expressions in a `kernel_t`
+(`assign(ref, e)`, `jet(q(:), names(:), set, x | chain)`, which groups outputs
+by order, then quantity, then set order, and `substitute(old, new)` for values
+already known to the kernel). `emit(k, spec[, chain])` with a `kernel_spec_t`
+emits one Fortran leaf through `emit_kernel`; with a chain its needed
+intermediates become named locals. `emit(k, spec, targets[, chain,
+share_products])` with a `kernel_emit_spec_t` lowers the kernel once and
+returns one source per target (Fortran targets, `TARGET_CUDA`,
+`TARGET_METAL`); on this path a bound function or partial is read as the scalar
+argument of its name. Without `ok`, a failed emission stops with its diagnostic.
 
 ## Coordinate charts and magnetic views
 

@@ -21,6 +21,7 @@ module fortsym_engine_symengine
         c_null_char, c_null_ptr, c_associated, c_size_t
     use, intrinsic :: iso_fortran_env, only: real64
     use fortsym_string, only: str, chars
+    use fortsym_context, only: current_arena
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT, &
         NK_BIG_REAL, NK_ALGEBRAIC
@@ -36,6 +37,12 @@ module fortsym_engine_symengine
     private
 
     public :: symengine_engine_t, make_symengine_engine, symengine_evalf_text
+
+    !> make_symengine_engine(arena), or without an arena for the current
+    !> context (fortsym_context).
+    interface make_symengine_engine
+        module procedure make_symengine_engine_in, make_symengine_engine_here
+    end interface make_symengine_engine
 
     integer, parameter :: dp = real64
     integer, parameter :: MAX_EVALF_DIGITS = 512
@@ -109,7 +116,7 @@ contains
 
     !> Build the backend. SymEngine is linked, so it is always available; the
     !> flag exists to keep every engine uniform to the council.
-    function make_symengine_engine(home) result(eng)
+    function make_symengine_engine_in(home) result(eng)
         type(arena_t), target, intent(inout) :: home
         type(symengine_engine_t)             :: eng
 
@@ -118,7 +125,13 @@ contains
         eng%in_process = .true.
         eng%caps = CAP_ZERO_TEST + CAP_SIMPLIFY + CAP_DIFF + CAP_EXPAND + CAP_EVAL
         eng%home => home
-    end function make_symengine_engine
+    end function make_symengine_engine_in
+
+    function make_symengine_engine_here() result(eng)
+        type(symengine_engine_t) :: eng
+
+        eng = make_symengine_engine_in(current_arena())
+    end function make_symengine_engine_here
 
     ! ------------------------------------------------- fortsym -> SymEngine --
 

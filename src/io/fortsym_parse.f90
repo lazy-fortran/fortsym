@@ -25,10 +25,17 @@ module fortsym_parse
     use fortsym_exact, only: exact_sub, exact_div
     use fortsym_dialect, only: dialect_t, dialect, fn_canonical, DIA_WOLFRAM, &
         DIA_FORTRAN, DIA_LATEX, const_canonical, DIA_NATIVE, DIA_SYMENGINE
+    use fortsym_context, only: current_arena
     implicit none
     private
 
     public :: parse_expr, parse_expr_in
+
+    !> parse_expr(arena, text, ok, message), or without an arena for the
+    !> current context (fortsym_context).
+    interface parse_expr
+        module procedure parse_in_arena, parse_here
+    end interface parse_expr
 
     integer, parameter :: dp = real64
 
@@ -82,14 +89,22 @@ module fortsym_parse
 contains
 
     !> Parse in fortsym's own notation.
-    function parse_expr(a, text, ok, message) result(e)
+    function parse_in_arena(a, text, ok, message) result(e)
         type(arena_t), target,     intent(inout) :: a
         character(*),              intent(in)    :: text
         logical,                   intent(out)   :: ok
         character(:), allocatable, intent(out)   :: message
         type(expr_t)                             :: e
         e = parse_expr_in(a, text, dialect(DIA_NATIVE), ok, message)
-    end function parse_expr
+    end function parse_in_arena
+
+    function parse_here(text, ok, message) result(e)
+        character(*),              intent(in)  :: text
+        logical,                   intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        type(expr_t)                           :: e
+        e = parse_expr_in(current_arena(), text, dialect(DIA_NATIVE), ok, message)
+    end function parse_here
 
     !> Parse in a given dialect.
     function parse_expr_in(a, text, d, ok, message) result(e)

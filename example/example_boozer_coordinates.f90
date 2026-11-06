@@ -30,7 +30,6 @@ program example_boozer_coordinates
     type(engine_result_t) :: checked
     integer :: indices(1)
 
-    call reset()
     arena => default_arena()
     psi = "psi"
     theta = "theta"

@@ -14,7 +14,6 @@ program connection_native
     type(engine_result_t) :: simplified, checked
     integer :: indices(3)
 
-    call reset()
     arena => default_arena()
     u(1) = "u"
     u(2) = "v"

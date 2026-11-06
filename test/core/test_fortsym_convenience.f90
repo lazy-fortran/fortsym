@@ -37,6 +37,7 @@ program test_fortsym_convenience
     type(expr_t) :: sum_row, sum_entry
     type(str_t), allocatable :: free_names(:)
     type(expr_t) :: stale
+    type(context_t) :: ctx
     type(engine_result_t) :: result, zero_result
     logical :: good, exact_good, context_ok
     character(:), allocatable :: why
@@ -54,7 +55,7 @@ program test_fortsym_convenience
     call check("explicit arenas remain independent", &
         .not. same_arena(explicit_mu, concurrent_mu), failures)
 
-    call reset()
+    call ctx%open()
     x = "x"
     mu = "mu"
     sigma = "sigma"
@@ -406,14 +407,15 @@ program test_fortsym_convenience
         failures)
 
     stale = mu
-    call reset()
-    call reset()
-    call check("reset invalidates old handles", &
+    call ctx%close()
+    call ctx%close()
+    call check("closing the context invalidates old handles", &
         .not. is_valid(mixed) .and. .not. is_valid(stale), failures)
+    call ctx%open()
     mu = "mu"
-    call check("the default arena can be reused after reset", &
+    call check("a reopened context starts afresh", &
         is_valid(mu) .and. .not. is_valid(stale), failures)
-    call check("the default arena pointer remains usable after reset", &
+    call check("the context arena pointer remains usable after reopening", &
         associated(default_storage) .and. &
         same_arena(mu, sym(default_storage, "mu")), failures)
 
