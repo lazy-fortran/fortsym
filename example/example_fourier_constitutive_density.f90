@@ -14,7 +14,6 @@ program example_fourier_constitutive_density
     type(fourier_constitutive_t) :: material
     type(engine_result_t) :: checked
 
-    call reset()
     arena => default_arena()
     z = "Z"
     radius = "R"

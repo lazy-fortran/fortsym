@@ -1,6 +1,6 @@
 program installed_consumer
     use, intrinsic :: iso_fortran_env, only: dp => real64
-    use fortsym, only: expr_t, engine_result_t, kernel_spec_t, reset, &
+    use fortsym, only: expr_t, engine_result_t, kernel_spec_t, &
         symbols, diff, str, chars, emit_kernel, KERNEL_SUBROUTINE, &
         operator(+), operator(*)
     use fortsym_eval, only: binding_t, eval_expr
@@ -15,7 +15,6 @@ program installed_consumer
     logical :: ok
     integer :: i
 
-    call reset()
     call symbols("x", x, ok=ok)
     if (.not. ok) error stop "symbol construction failed"
     roots(1) = x*x + 3*x

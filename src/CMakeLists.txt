@@ -17,6 +17,7 @@ target_sources(fortsym PRIVATE
     core/fortsym_cache.f90
     core/fortsym_exact.f90
     core/fortsym_arena.f90
+    core/fortsym_context.f90
     core/fortsym_expr.f90
     core/fortsym.f90
     core/fortsym_assume.f90
@@ -84,6 +85,8 @@ target_sources(fortsym PRIVATE
     codegen/fortsym_kernel_taylor.f90
     codegen/fortsym_chain.f90
     codegen/fortsym_kernel.f90
+    codegen/fortsym_jet.f90
+    codegen/fortsym_emit.f90
     codegen/fortsym_backend.f90
     codegen/fortsym_wl_f90.f90
     codegen/fortsym_stability.f90

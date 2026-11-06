@@ -28,7 +28,6 @@ program example_spherical_coordinates
     type(engine_result_t) :: checked
     integer :: i, j, k, indices(3)
 
-    call reset()
     arena => default_arena()
     radius = "r"
     theta = "theta"

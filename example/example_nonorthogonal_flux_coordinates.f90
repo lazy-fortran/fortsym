@@ -22,7 +22,6 @@ program example_nonorthogonal_flux_coordinates
     type(form_t) :: volume_value, flux_form, flux_from_b, closed_form
     type(engine_result_t) :: checked
 
-    call reset()
     arena => default_arena()
     psi = "psi"
     theta = "theta"

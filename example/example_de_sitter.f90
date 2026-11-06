@@ -18,7 +18,6 @@ program example_de_sitter
     type(engine_result_t) :: checked, wave_checked
     integer :: signature(SPACETIME_DIM), i, j
 
-    call reset()
     arena => default_arena()
     coordinates(1) = "t"
     coordinates(2) = "x"

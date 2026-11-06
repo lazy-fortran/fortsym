@@ -25,6 +25,7 @@ module fortsym_string
 
     public :: str_t, strbuf_t
     public :: str, chars, len_str, compare_str
+    public :: itoa, indexed, words
     public :: operator(//), operator(==), operator(/=)
     public :: assignment(=)
 
@@ -77,6 +78,11 @@ module fortsym_string
         module procedure str_chars_fn
     end interface chars
 
+    !> Generated Fortran names: indexed('jac', 1, 2) is 'jac(1, 2)'.
+    interface indexed
+        module procedure indexed1, indexed2
+    end interface indexed
+
     interface len_str
         module procedure str_len_fn
     end interface len_str
@@ -104,6 +110,50 @@ module fortsym_string
     end interface operator(/=)
 
 contains
+
+    !> Decimal text of an integer, for building names such as 'x'//itoa(2).
+    pure function itoa(i) result(text)
+        integer, intent(in) :: i
+        character(:), allocatable :: text
+        character(16) :: buffer
+
+        write (buffer, '(i0)') i
+        text = trim(buffer)
+    end function itoa
+
+    pure function indexed1(name, i) result(text)
+        character(*), intent(in) :: name
+        integer, intent(in) :: i
+        character(:), allocatable :: text
+
+        text = name//'('//itoa(i)//')'
+    end function indexed1
+
+    pure function indexed2(name, i, j) result(text)
+        character(*), intent(in) :: name
+        integer, intent(in) :: i, j
+        character(:), allocatable :: text
+
+        text = name//'('//itoa(i)//', '//itoa(j)//')'
+    end function indexed2
+
+    !> Blank-separated words as strings: words('r th ph') is
+    !> [str('r'), str('th'), str('ph')].
+    function words(text) result(list)
+        character(*), intent(in) :: text
+        type(str_t), allocatable :: list(:)
+        integer :: first, last
+
+        allocate (list(0))
+        last = 0
+        do
+            first = verify(text(last + 1:), ' ')
+            if (first == 0) exit
+            first = last + first
+            last = index(text(first:)//' ', ' ') + first - 2
+            list = [list, str(text(first:last))]
+        end do
+    end function words
 
     ! ------------------------------------------------------------- str_t --
 

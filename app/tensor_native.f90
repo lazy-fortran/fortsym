@@ -11,7 +11,6 @@ program tensor_native
     type(engine_result_t) :: checked
     integer :: indices(1), empty(0), i
 
-    call reset()
     arena => default_arena()
     u(1) = "u1"
     u(2) = "u2"

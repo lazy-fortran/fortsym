@@ -24,7 +24,6 @@ program example_magnetic_flux_coordinates
     type(engine_result_t) :: checked
     integer :: mask
 
-    call reset()
     arena => default_arena()
     psi = "psi"
     theta = "theta"

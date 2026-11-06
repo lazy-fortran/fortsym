@@ -18,6 +18,8 @@ program test_fortsym_kernel
     use fortsym_subs, only: subs
     use fortsym_products, only: jvp, vjp
     use fortsym_kernel
+    use fortsym_context, only: context_t
+    use fortsym_jet, only: bind, members, listed
     use fortsym_engine, only: engine_result_t
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
@@ -1856,11 +1858,12 @@ contains
         type(expr_t) :: r, theta, phi, call_args(3), aph
         type(expr_t) :: roots(4), d1, d12, d21
         type(kernel_spec_t) :: spec
-        type(kernel_binding_t) :: bindings(3)
+        type(context_t) :: ctx, unbound
         type(str_t) :: source
         integer :: unit, ios, stat
         logical :: good
 
+        call ctx%open()
         call a%init()
         r = sym(a, "r")
         theta = sym(a, "th")
@@ -1877,21 +1880,12 @@ contains
         roots(3) = d12
         roots(4) = d21
 
-        bindings(1)%head = str("Aph")
-        bindings(1)%replacement = str("consumer_Aph(%args%)")
-        allocate (bindings(2)%derivative_indices(1))
-        bindings(2)%head = str("Aph")
-        bindings(2)%derivative_indices = [1]
-        bindings(2)%replacement = str("f%dAph(1)")
-        allocate (bindings(3)%derivative_indices(2))
-        bindings(3)%head = str("Aph")
-        bindings(3)%derivative_indices = [1, 2]
-        bindings(3)%replacement = str("f%d2Aph(2)")
+        call bind(aph, members("consumer_Aph(%args%)", "f%dAph", "f%d2Aph"))
 
         spec%name = str("bound_applied_function")
         spec%mode = KERNEL_SNIPPET
         spec%cse_level = CSE_NONE
-        allocate (spec%args(3), spec%outputs(4), spec%bindings(3))
+        allocate (spec%args(3), spec%outputs(4))
         spec%args(1) = str("r")
         spec%args(2) = str("th")
         spec%args(3) = str("ph")
@@ -1899,7 +1893,6 @@ contains
         spec%outputs(2) = str("out2")
         spec%outputs(3) = str("out12")
         spec%outputs(4) = str("out21")
-        spec%bindings = bindings
         source = emit_kernel(roots, spec, good)
         call ok("applied function expressions are representable", good)
         call ok("applied function bindings emit", len(chars(source)) > 0)
@@ -1911,11 +1904,10 @@ contains
             index(chars(source), "f%d2Aph(2)") > 0 .and. &
             count_substring(chars(source), "f%d2Aph(2)") == 2)
 
-        deallocate (spec%bindings)
+        call unbound%open()
         source = emit_kernel(roots, spec, good)
         call ok("unbound applied function is refused", .not. good .and. len(chars(source)) == 0)
-        allocate (spec%bindings(3))
-        spec%bindings = bindings
+        call unbound%close()
         source = emit_kernel(roots, spec, good)
         call ok("applied bindings remain usable after refusal", good)
 
@@ -1962,6 +1954,7 @@ contains
                 wait=.true., exitstat=stat)
             call ok("bound applied-function snippet matches finite differences", stat == 0)
         end if
+        call ctx%close()
     end subroutine test_applied_function_bindings
 
     !> A binding without `%args%` prints no call arguments, so symbols and
@@ -1973,10 +1966,12 @@ contains
         type(expr_t) :: rho, theta, phi, call_args(3), radius, potential, rho2
         type(expr_t) :: roots(2)
         type(kernel_spec_t) :: spec
+        type(context_t) :: ctx
         type(str_t) :: source
         logical :: good
         character(:), allocatable :: message
 
+        call ctx%open()
         call a%init()
         rho = sym(a, "rho")
         theta = sym(a, "theta")
@@ -1992,20 +1987,12 @@ contains
 
         spec%name = str("bound_without_arguments")
         spec%temp_prefix = str("tmp_")
-        allocate (spec%args(1), spec%outputs(2), spec%bindings(4))
+        allocate (spec%args(1), spec%outputs(2))
         spec%args(1) = str("rho")
         spec%outputs(1) = str("out_r")
         spec%outputs(2) = str("out_a")
-        spec%bindings(1)%head = str("R")
-        spec%bindings(1)%replacement = str("r_val")
-        spec%bindings(2)%head = str("R")
-        spec%bindings(2)%derivative_indices = [2]
-        spec%bindings(2)%replacement = str("r_t")
-        spec%bindings(3)%head = str("AP")
-        spec%bindings(3)%replacement = str("ap")
-        spec%bindings(4)%head = str("AP")
-        spec%bindings(4)%derivative_indices = [1]
-        spec%bindings(4)%replacement = str("ap_p")
+        call bind(radius, listed([character(5) :: "r_val", "", "r_t"]))
+        call bind(potential, listed([character(4) :: "ap", "ap_p"]))
         source = emit_kernel(roots, spec, good, message=message)
         call ok("binding without %args% ignores undeclared call arguments", good)
         call ok("binding without %args% emits replacements", &
@@ -2016,11 +2003,12 @@ contains
         call ok("subexpression only inside unprinted arguments gets no temporary", &
             index(chars(source), "tmp_") == 0 .and. index(chars(source), "rho**2") == 0)
 
-        spec%bindings(1)%replacement = str("r_fn(%args%)")
+        call bind(radius, listed(["r_fn(%args%)"]))
         source = emit_kernel(roots, spec, good, message=message)
         call ok("%args% binding with undeclared argument is refused", &
             .not. good .and. len(chars(source)) == 0 .and. &
             index(message, "theta") > 0)
+        call ctx%close()
     end subroutine test_bound_function_arguments_omitted
 
     !> Piecewise emission is checked at both sides of every branch boundary

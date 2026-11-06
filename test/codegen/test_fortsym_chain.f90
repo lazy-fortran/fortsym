@@ -11,8 +11,9 @@ program test_fortsym_chain
     use fortsym_diff, only: diff, partial_derivative
     use fortsym_eval, only: binding_t, eval_expr
     use fortsym_chain, only: chain_t, fold_numbers
-    use fortsym_kernel, only: kernel_spec_t, kernel_binding_t, emit_kernel, &
+    use fortsym_kernel, only: kernel_spec_t, emit_kernel, &
         count_operations, operation_count_t
+    use fortsym_jet, only: bind, listed
     implicit none
 
     integer, parameter :: dp = real64
@@ -230,7 +231,6 @@ contains
         type(chain_t) :: c
         type(expr_t) :: r, p, v, hamiltonian, roots(4)
         type(kernel_spec_t) :: spec
-        type(kernel_binding_t) :: bindings(6)
         type(str_t) :: source, refused
         integer, allocatable :: needed(:)
         character(:), allocatable :: message
@@ -245,12 +245,8 @@ contains
         v = c%let("v", (p - func("A", [r]))/func("h", [r]))
         hamiltonian = v**2/2
         roots = [v, c%d(v, 1), c%d(hamiltonian, 1), c%d(c%d(hamiltonian, 1), 1)]
-        bindings(1) = binding("A", [integer ::], "s%A")
-        bindings(2) = binding("A", [1], "s%dA")
-        bindings(3) = binding("A", [1, 1], "s%d2A")
-        bindings(4) = binding("h", [integer ::], "s%h")
-        bindings(5) = binding("h", [1], "s%dh")
-        bindings(6) = binding("h", [1, 1], "s%d2h")
+        call bind(func("A", [r]), listed([character(5) :: "s%A", "s%dA", "s%d2A"]))
+        call bind(func("h", [r]), listed([character(5) :: "s%h", "s%dh", "s%d2h"]))
         needed = c%needed(roots)
 
         spec%name = str("field_update")
@@ -261,7 +257,6 @@ contains
         spec%locals = [(c%names(needed(k))%name(), k=1, size(needed))]
         spec%output_references = [spec%locals, str("s%v"), str("s%dv"), &
             str("s%dE"), str("s%d2E")]
-        spec%bindings = bindings
         spec%temp_prefix = str("t")
         source = emit_kernel([c%defs(needed), roots], spec, good, message=message)
         call check("kernel with locals emits", good)
@@ -320,16 +315,6 @@ contains
         swapped = spec
         swapped%output_references = [str("s%dv"), spec%locals]
     end function reorder
-
-    function binding(head, indices, replacement) result(b)
-        character(*), intent(in) :: head, replacement
-        integer, intent(in) :: indices(:)
-        type(kernel_binding_t) :: b
-
-        b%head = str(head)
-        if (size(indices) > 0) b%derivative_indices = indices
-        b%replacement = str(replacement)
-    end function binding
 
     recursive logical function reads(node, s) result(found)
         type(expr_t), intent(in) :: node, s

@@ -8,7 +8,8 @@ program test_fortsym_ordered_outputs
     use fortsym_diff, only: partial_derivative
     use fortsym_products, only: jvp, vjp
     use fortsym_kernel, only: kernel_spec_t, cse_result_t, emit_kernel, &
-        emit_statements, kernel_binding_t, CSE_NONE, CSE_THRESHOLDED, CSE_FULL
+        emit_statements, CSE_NONE, CSE_THRESHOLDED, CSE_FULL
+    use fortsym_jet, only: bind, listed
     implicit none
 
     integer :: nfail = 0, unit, stat
@@ -308,7 +309,6 @@ contains
         type(expr_t), allocatable, intent(out) :: roots(:)
         type(arena_t), pointer :: arena
         type(expr_t) :: r, p, a, h, v, dv
-        type(kernel_binding_t) :: bindings(4)
 
         allocate (arena)
         call arena%init()
@@ -320,10 +320,8 @@ contains
         dv = sym(arena, "dv")
         roots = [(p - a)/h, -(partial_derivative(a, 1) + v*partial_derivative(h, 1))/h, &
             v, dv, v*v/2, v*dv + v*partial_derivative(h, 1)]
-        bindings(1) = binding("A", [integer ::], "s%A")
-        bindings(2) = binding("A", [1], "s%dA")
-        bindings(3) = binding("h", [integer ::], "s%h")
-        bindings(4) = binding("h", [1], "s%dh")
+        call bind(a, listed([character(4) :: "s%A", "s%dA"]))
+        call bind(h, listed([character(4) :: "s%h", "s%dh"]))
         spec%name = str("ordered_locals")
         spec%args = [str("p"), str("s")]
         spec%arg_types = [str("real(dp)"), str("type(field_t)")]
@@ -332,7 +330,6 @@ contains
         spec%locals = [str("v"), str("dv")]
         spec%output_references = [str("v"), str("dv"), str("s%v"), str("s%dv"), &
             str("s%e"), str("s%de")]
-        spec%bindings = bindings
     end subroutine locals_spec
 
     subroutine test_local_refusals()
@@ -361,16 +358,6 @@ contains
         call check("argument collision diagnostic", &
             index(message, "collides with an argument") > 0)
     end subroutine test_local_refusals
-
-    function binding(head, indices, replacement) result(b)
-        character(*), intent(in) :: head, replacement
-        integer, intent(in) :: indices(:)
-        type(kernel_binding_t) :: b
-
-        b%head = str(head)
-        if (size(indices) > 0) b%derivative_indices = indices
-        b%replacement = str(replacement)
-    end function binding
 
     subroutine emit_fixture(unit, roots, spec)
         integer, intent(in) :: unit

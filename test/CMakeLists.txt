@@ -187,6 +187,7 @@ if(TEST test_fortsym_ordered_outputs)
 endif()
 fortsym_add_test(test_fortsym_wl_f90 codegen/test_fortsym_wl_f90.f90)
 fortsym_add_test(test_fortsym_wl_f90_null codegen/test_fortsym_wl_f90_null.f90)
+fortsym_add_test(test_fortsym_generator_api codegen/test_fortsym_generator_api.f90)
 fortsym_add_test(test_fortsym_chain codegen/test_fortsym_chain.f90)
 if(TEST test_fortsym_chain)
     set_property(TEST test_fortsym_chain APPEND PROPERTY ENVIRONMENT

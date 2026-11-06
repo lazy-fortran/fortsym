@@ -24,7 +24,6 @@ program example_fourier_weak_form
     type(fourier_weak_form_t) :: longitudinal, transverse
     type(engine_result_t) :: checked
 
-    call reset()
     arena => default_arena()
     z = "Z"
     radius = "R"

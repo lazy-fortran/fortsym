@@ -14,7 +14,6 @@ program forms_native
     type(engine_result_t) :: checked
     integer :: mask
 
-    call reset()
     arena => default_arena()
     u(1) = "Z"
     u(2) = "R"
