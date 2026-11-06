@@ -29,11 +29,11 @@ contains
         logical :: ok
         integer :: unit, ios, status
         character(*), parameter :: generated = &
-            "/tmp/fortsym_wl_f90_null_generated.f90"
+            "./fortsym_wl_f90_null_generated.f90"
         character(*), parameter :: driver = &
-            "/tmp/fortsym_wl_f90_null_driver.f90"
+            "./fortsym_wl_f90_null_driver.f90"
         character(*), parameter :: executable = &
-            "/tmp/fortsym_wl_f90_null_driver"
+            "./fortsym_wl_f90_null_driver"
 
         code = translate_wl_assignments( &
             "Null; result = x + 1; Null; squared = result^2; Null", ok, message)

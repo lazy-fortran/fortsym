@@ -64,7 +64,7 @@ contains
         src = chars(emit_fortran_batch_ir(ir, spec, good, message))
         call ok('private compiler fixture emits', good)
         if (.not. good) return
-        open(newunit=unit, file='/tmp/fortsym_private_batch.f90', status='replace')
+        open(newunit=unit, file='./fortsym_private_batch.f90', status='replace')
         call write_text(unit, src)
         call write_text(unit, 'program private_oracle')
         call write_text(unit, 'use private_poly_batch_mod')
@@ -80,11 +80,11 @@ contains
         call write_text(unit, 'end program private_oracle')
         close(unit)
         call execute_command_line('flang-new -fopenmp -O2 '// &
-            '/tmp/fortsym_private_batch.f90 -o /tmp/fortsym_private_batch '// &
-            '> /tmp/fortsym_private_batch.log 2>&1', exitstat=status)
+            './fortsym_private_batch.f90 -o ./fortsym_private_batch '// &
+            '> ./fortsym_private_batch.log 2>&1', exitstat=status)
         call ok('private batch compiles with Flang OpenMP', status == 0)
         if (status /= 0) return
-        call execute_command_line('OMP_NUM_THREADS=2 /tmp/fortsym_private_batch', &
+        call execute_command_line('OMP_NUM_THREADS=2 ./fortsym_private_batch', &
             exitstat=status)
         call ok('Flang private batch agrees with independent polynomial', status == 0)
     end subroutine test_private_compiler

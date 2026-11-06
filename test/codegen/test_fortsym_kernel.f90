@@ -715,7 +715,7 @@ contains
         write (unit, "(a)") "end program drive_real32"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o ./fortsym_gen_real32 "// &
+            "gfortran -J . -o ./fortsym_gen_real32 "// &
             "./fortsym_gen_real32.f90 > ./fortsym_gen_real32.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("real32 generated kernel compiles", stat == 0)
@@ -749,7 +749,7 @@ contains
         write (unit, "(a)") "end program drive_mixed"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o ./fortsym_gen_mixed "// &
+            "gfortran -J . -o ./fortsym_gen_mixed "// &
             "./fortsym_gen_mixed.f90 > ./fortsym_gen_mixed.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("mixed generated kernel compiles", stat == 0)
@@ -872,7 +872,7 @@ contains
         write (unit, "(a)") "end program drive_module"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o ./fortsym_gen_module "// &
+            "gfortran -J . -o ./fortsym_gen_module "// &
             "./fortsym_gen_module.f90 > ./fortsym_gen_module.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("module-wrapped kernel compiles", stat == 0)
@@ -915,7 +915,7 @@ contains
         write (unit, "(a)") "end program drive_intrinsic"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o ./fortsym_gen_intrinsic "// &
+            "gfortran -J . -o ./fortsym_gen_intrinsic "// &
             "./fortsym_gen_intrinsic.f90 "// &
             "> ./fortsym_gen_intrinsic.log 2>&1", &
             wait=.true., exitstat=stat)
@@ -969,7 +969,7 @@ contains
         write (unit, "(a)") "end program drive_subscript"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o ./fortsym_gen_subscript "// &
+            "gfortran -J . -o ./fortsym_gen_subscript "// &
             "./fortsym_gen_subscript.f90 "// &
             "> ./fortsym_gen_subscript.log 2>&1", &
             wait=.true., exitstat=stat)
@@ -1018,7 +1018,7 @@ contains
         write (unit, "(a)") "end program drive_complex"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o ./fortsym_gen_complex "// &
+            "gfortran -J . -o ./fortsym_gen_complex "// &
             "./fortsym_gen_complex.f90 > ./fortsym_gen_complex.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("complex generated kernel compiles", stat == 0)
@@ -1067,7 +1067,7 @@ contains
         write (unit, "(a)") "end program drive_mixed"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o ./fortsym_gen_mixed "// &
+            "gfortran -J . -o ./fortsym_gen_mixed "// &
             "./fortsym_gen_mixed.f90 > ./fortsym_gen_mixed.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("mixed generated kernel compiles", stat == 0)
@@ -1121,7 +1121,7 @@ contains
         write (unit, "(a)") "end program drive_array"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o ./fortsym_gen_array "// &
+            "gfortran -J . -o ./fortsym_gen_array "// &
             "./fortsym_gen_array.f90 > ./fortsym_gen_array.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("array-shaped generated kernel compiles", stat == 0)
@@ -1180,7 +1180,7 @@ contains
         write (unit, "(a)") "end program drive_matrix"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o ./fortsym_gen_matrix "// &
+            "gfortran -J . -o ./fortsym_gen_matrix "// &
             "./fortsym_gen_matrix.f90 > ./fortsym_gen_matrix.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("rank-two generated kernel compiles", stat == 0)
@@ -1232,7 +1232,7 @@ contains
         write (unit, "(a)") "end program drive_array_fill"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o ./fortsym_gen_array_fill "// &
+            "gfortran -J . -o ./fortsym_gen_array_fill "// &
             "./fortsym_gen_array_fill.f90 "// &
             "> ./fortsym_gen_array_fill.log 2>&1", &
             wait=.true., exitstat=stat)
@@ -1279,7 +1279,7 @@ contains
         write (unit, "(a)") "end program drive_elemental"
         close (unit)
         call execute_command_line( &
-            "gfortran -J /tmp -o ./fortsym_gen_elemental "// &
+            "gfortran -J . -o ./fortsym_gen_elemental "// &
             "./fortsym_gen_elemental.f90 "// &
             "> ./fortsym_gen_elemental.log 2>&1", wait=.true., &
             exitstat=stat)

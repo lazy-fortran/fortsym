@@ -191,7 +191,7 @@ contains
         character(:), allocatable :: command, path
         integer :: unit, ios, status
 
-        path = "/tmp/fortsym_enzyme_"//label//".f90"
+        path = "./fortsym_enzyme_"//label//".f90"
         open (newunit=unit, file=path, status="replace", action="write", &
             iostat=ios)
         if (ios /= 0) then
@@ -200,8 +200,8 @@ contains
         end if
         write (unit, "(a)") code
         close (unit)
-        command = "gfortran -c -J /tmp -o /tmp/fortsym_enzyme_"//label// &
-            ".o "//path//" > /tmp/fortsym_enzyme_"//label//".log 2>&1"
+        command = "gfortran -c -o ./fortsym_enzyme_"//label// &
+            ".o "//path//" > ./fortsym_enzyme_"//label//".log 2>&1"
         call execute_command_line(command, wait=.true., exitstat=status)
         call check(status == 0, label//" generated wrapper compiles")
     end subroutine compile_source
