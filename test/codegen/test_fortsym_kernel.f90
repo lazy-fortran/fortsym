@@ -42,6 +42,7 @@ program test_fortsym_kernel
 
     call test_repeated_polynomial_derivatives()
     call test_exact_constant_quotients()
+    call test_wide_integer_literals()
     call test_cse_finds_sharing()
     call test_cse_skips_atoms()
     call test_cse_policies()
@@ -90,6 +91,47 @@ program test_fortsym_kernel
     end if
 
 contains
+
+    subroutine test_wide_integer_literals()
+        type(arena_t), target :: a
+        type(expr_t) :: x, c, roots(4)
+        type(kernel_spec_t) :: spec
+        type(native_engine_t) :: engine
+        type(engine_result_t) :: simplified
+        integer :: unit, stat
+
+        call a%init()
+        x = sym(a, 'x')
+        c = num(a, 29979245800_int64)
+        roots = [c*x, x - c*x, x/c, x**(-num(a, 2147483649_int64))]
+        engine = make_native_engine(a)
+        simplified = engine%simplify(roots(2))
+        if (.not. simplified%ok) error stop 'wide integer simplification failed'
+        roots(2) = simplified%value
+        spec = spec_for('wide_integer_leaf', X_ARGS, &
+            [character(2) :: 'r1', 'r2', 'r3', 'r4'])
+        spec%openmp_declare_target = .false.
+        spec%openacc_routine_seq = .false.
+        open (newunit=unit, file='./fortsym_wide_integer.f90', status='replace')
+        write (unit, '(a)') chars(emit_kernel(roots, spec))
+        write (unit, '(a)') 'program drive_wide_integer'
+        write (unit, '(a)') 'use iso_fortran_env, only: real64'
+        write (unit, '(a)') 'implicit none'
+        write (unit, '(a)') 'real(real64) :: r(4)'
+        write (unit, '(a)') 'call wide_integer_leaf(-1.0_real64,r(1),r(2),r(3),r(4))'
+        write (unit, '(a)') 'if (r(1) /= -29979245800.0_real64) error stop 1'
+        write (unit, '(a)') 'if (r(2) /= 29979245799.0_real64) error stop 2'
+        write (unit, '(a)') 'if (abs(r(3)*29979245800.0_real64+1)>1.e-14_real64) error stop 3'
+        write (unit, '(a)') 'if (r(4) /= -1.0_real64) error stop 4'
+        write (unit, '(a)') 'end program drive_wide_integer'
+        close (unit)
+        call execute_command_line('gfortran -O2 -o ./fortsym_wide_integer '// &
+            './fortsym_wide_integer.f90 > ./fortsym_wide_integer.log 2>&1', exitstat=stat)
+        call ok('wide integer kernel compiles', stat == 0)
+        if (stat /= 0) return
+        call execute_command_line('./fortsym_wide_integer', exitstat=stat)
+        call ok('wide coefficient, quotient and odd integer power agree', stat == 0)
+    end subroutine test_wide_integer_literals
 
     subroutine test_real64_kind_alias_hygiene()
         type(arena_t), target :: a
