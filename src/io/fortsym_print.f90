@@ -901,9 +901,25 @@ contains
         ! Fortran compiler accepts: two arithmetic operators cannot be adjacent.
         wrap = v < 0_int64 .and. context >= PREC_MUL
         if (wrap) call b%append("(")
-        call b%append(chars(str(v)))
+        call append_integer_literal(b, v, d)
         if (wrap) call b%append(")")
     end subroutine emit_integer
+
+    subroutine append_integer_literal(b, v, d)
+        type(strbuf_t), intent(inout) :: b
+        integer(int64), intent(in) :: v
+        type(dialect_t), intent(in) :: d
+        character(16) :: bits
+
+        ! BOZ conversion selects a wide integer without requiring an imported
+        ! kind name, and keeps integer exponents and subscripts integer-valued.
+        if (d%id == DIA_FORTRAN .and. (v > 2147483647_int64 .or. v < -2147483647_int64)) then
+            write (bits, '(z16.16)') v
+            call b%append("int(z'"//bits//"',kind=selected_int_kind(18))")
+        else
+            call b%append(chars(str(v)))
+        end if
+    end subroutine append_integer_literal
 
     !> An exact rational. Where the dialect allows it this is a/b; in Fortran it
     !> must become a quotient of typed reals, because 1/3 in Fortran is integer
@@ -1309,7 +1325,14 @@ contains
         wrap = slash > 0 .and. context > PREC_MUL
         if (wrap) call b%append("(")
         if (slash == 0) then
-            call b%append(text(first:))
+            if (d%id /= DIA_FORTRAN) then
+                call b%append(text(first:))
+            else if (a%num_of(id) < -huge(0_int64)) then
+                ! The positive magnitude of the least int64 is 2**63.
+                call b%append(text(first:)//chars(d%int_real_suffix))
+            else
+                call append_integer_literal(b, abs(a%num_of(id)), d)
+            end if
         else
             call b%append(text(first:slash - 1))
             if (d%id == DIA_FORTRAN) &
