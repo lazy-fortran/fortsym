@@ -18,10 +18,11 @@ module fortsym_products
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_REAL, NK_SYM, &
         NK_CONST, NK_ADD, NK_MUL, NK_POW, NK_FUNC, NK_BIG_INT, NK_BIG_RAT
-    use fortsym_expr, only: expr_t, num, func, is_valid, &
+    use fortsym_expr, only: expr_t, sym, num, func, is_valid, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), sin, cos, tan, exp, log, sqrt, abs, sinh, cosh, tanh
     use fortsym_diff, only: diff
+    use fortsym_subs, only: subs_many
     implicit none
     private
 
@@ -107,7 +108,7 @@ contains
         do i = node_count, 1, -1
             if (.not. reachable(i)) cycle
             if (is_zero_expr(bars(i))) cycle
-            call propagate_bar(a, i, bars(i), bars)
+            call propagate_bar(a, i, bars(i), bars, v)
         end do
         do j = 1, size(v)
             r(j) = bars(v(j)%id)
@@ -123,9 +124,11 @@ contains
         logical, intent(inout) :: known(:)
         type(expr_t) :: tangent
         type(expr_t) :: child, base, expo, dbase, dexpo, term
+        type(expr_t), allocatable :: slot_tangents(:), slot_partials(:)
         integer :: i, j, count
         integer, allocatable :: terms(:)
         character(:), allocatable :: name
+        logical :: active
 
         if (known(e%id)) then
             tangent = cache(e%id)
@@ -199,6 +202,17 @@ contains
                 return
             end if
             name = chars(e%name())
+            if (.not. scalar_slots(name)) then
+                tangent = num(e%a, 0)
+                do i = 1, size(variables)
+                    term = diff(e, variables(i))
+                    if (is_zero_expr(term)) cycle
+                    call add_bar(tangent, term*directions(i))
+                end do
+                cache(e%id) = tangent
+                known(e%id) = .true.
+                return
+            end if
             child = e%arg(1)
             dbase = tangent_node( &
                 child, variables, directions, cache, known)
@@ -210,10 +224,28 @@ contains
                 if (.not. is_zero_expr(dbase) .or. .not. is_zero_expr(dexpo)) then
                     tangent = (dbase*expo - child*dexpo)/(child**2 + expo**2)
                 end if
-            else
+            else if (tabulated_unary(name) .and. e%nargs() == 1) then
                 tangent = num(e%a, 0)
                 if (.not. is_zero_expr(dbase)) then
                     tangent = function_tangent(name, child, dbase)
+                end if
+            else
+                allocate(slot_tangents(e%nargs()))
+                slot_tangents(1) = dbase
+                active = .not. is_zero_expr(dbase)
+                do i = 2, e%nargs()
+                    slot_tangents(i) = tangent_node( &
+                        e%arg(i), variables, directions, cache, known)
+                    if (.not. is_zero_expr(slot_tangents(i))) active = .true.
+                end do
+                tangent = num(e%a, 0)
+                if (active) then
+                    slot_partials = argument_partials(e)
+                    do i = 1, e%nargs()
+                        if (is_zero_expr(slot_tangents(i))) cycle
+                        if (is_zero_expr(slot_partials(i))) cycle
+                        call add_bar(tangent, slot_partials(i)*slot_tangents(i))
+                    end do
                 end if
             end if
         case default
@@ -241,6 +273,7 @@ contains
         type(expr_t) :: tangent
         type(expr_t) :: one_arg(1), two_args(2)
 
+        tangent = num(x%a, 0)
         select case (name)
         case ("sin");   tangent = cos(x)*dx
         case ("cos");   tangent = -sin(x)*dx
@@ -279,11 +312,77 @@ contains
             two_args(1) = zero_of(x%a)
             two_args(2) = x
             tangent = func("polygamma", two_args)*dx
-        case default
-            one_arg(1) = x
-            tangent = func("Derivative_"//name, one_arg)*dx
         end select
     end function function_tangent
+
+    !> Unary heads whose derivative `function_tangent` writes directly.
+    pure logical function tabulated_unary(name) result(yes)
+        character(*), intent(in) :: name
+
+        select case (name)
+        case ("sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", &
+                "tanh", "csc", "sec", "cot", "csch", "sech", "coth", "asinh", &
+                "acosh", "atanh", "exp", "log", "sqrt", "abs", "erf", "erfc", &
+                "gamma", "loggamma")
+            yes = .true.
+        case default
+            yes = .false.
+        end select
+    end function tabulated_unary
+
+    !> False for heads whose arguments are containers, conditions or
+    !> operator operands instead of scalar slots of a chain rule. Their
+    !> products are contracted from `diff` itself.
+    pure logical function scalar_slots(name) result(yes)
+        character(*), intent(in) :: name
+
+        yes = name /= "List" .and. name /= "Piecewise" .and. name /= "If" &
+            .and. name /= "partial"
+    end function scalar_slots
+
+    !> Partial derivatives of the application `e` with respect to each of its
+    !> arguments. They come from `diff` applied to the head on placeholder
+    !> arguments, so every head follows the rule `diff` uses for it: special
+    !> functions, and opaque heads as `DerivativeN(head, indices, arguments)`.
+    function argument_partials(e) result(partials)
+        type(expr_t), intent(in) :: e
+        type(expr_t), allocatable :: partials(:)
+        type(expr_t), allocatable :: slots(:), arguments(:), placed(:)
+        type(expr_t) :: applied
+        character(:), allocatable :: name
+        character(16) :: label
+        integer :: k, n, first, order, ios
+
+        n = e%nargs()
+        name = chars(e%name())
+        ! DerivativeN(head, i1, ..., iN, arguments) differentiates only its
+        ! trailing arguments.
+        first = 1
+        if (len(name) > 10) then
+            if (name(1:10) == "Derivative") then
+                read (name(11:), *, iostat=ios) order
+                if (ios == 0 .and. order >= 1) first = min(order + 2, n + 1)
+            end if
+        end if
+        allocate (partials(n), arguments(n), placed(n))
+        allocate (slots(n - first + 1))
+        do k = 1, n
+            arguments(k) = e%arg(k)
+            placed(k) = arguments(k)
+            partials(k) = num(e%a, 0)
+            if (k < first) cycle
+            write (label, '(i0)') k
+            slots(k - first + 1) = sym(e%a, "fortsym_argument_slot_"//trim(label))
+            placed(k) = slots(k - first + 1)
+        end do
+        applied = func(name, placed)
+        do k = first, n
+            ! Replacements are not revisited, so an argument that is itself
+            ! named like a placeholder stays intact.
+            partials(k) = subs_many(diff(applied, slots(k - first + 1)), &
+                slots, arguments(first:))
+        end do
+    end function argument_partials
 
     recursive subroutine mark_reachable(a, id, reachable)
         type(arena_t), intent(in) :: a
@@ -298,12 +397,14 @@ contains
         end do
     end subroutine mark_reachable
 
-    subroutine propagate_bar(a, id, bar, bars)
+    subroutine propagate_bar(a, id, bar, bars, variables)
         type(arena_t), intent(in) :: a
         integer, intent(in) :: id
         type(expr_t), intent(in) :: bar
         type(expr_t), intent(inout) :: bars(:)
+        type(expr_t), intent(in) :: variables(:)
         type(expr_t) :: e, child, other, contribution
+        type(expr_t), allocatable :: slot_partials(:)
         integer :: i, j
         character(:), allocatable :: name
 
@@ -337,6 +438,16 @@ contains
         case (NK_FUNC)
             if (e%nargs() == 0) return
             name = chars(e%name())
+            if (.not. scalar_slots(name)) then
+                ! The whole application is contracted here; its arguments
+                ! receive no cotangent from it.
+                do i = 1, size(variables)
+                    contribution = diff(e, variables(i))
+                    if (is_zero_expr(contribution)) cycle
+                    call add_bar(bars(variables(i)%id), bar*contribution)
+                end do
+                return
+            end if
             child = e%arg(1)
             if (name == "atan2") then
                 other = e%arg(2)
@@ -344,10 +455,17 @@ contains
                 call add_bar(bars(child%id), contribution)
                 contribution = -bar*child/(child**2 + other**2)
                 call add_bar(bars(other%id), contribution)
-            else
+            else if (tabulated_unary(name) .and. e%nargs() == 1) then
                 contribution = bar*function_tangent( &
                     name, child, num(bar%a, 1))
                 call add_bar(bars(child%id), contribution)
+            else
+                slot_partials = argument_partials(e)
+                do i = 1, e%nargs()
+                    if (is_zero_expr(slot_partials(i))) cycle
+                    child = e%arg(i)
+                    call add_bar(bars(child%id), bar*slot_partials(i))
+                end do
             end if
         end select
     end subroutine propagate_bar
