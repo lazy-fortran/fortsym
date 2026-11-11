@@ -126,7 +126,10 @@ the derivative.
 as `x/abs(x)` away from zero, an opaque `func("psi", [r, u])` contributes one
 `DerivativeN` partial per argument, and Bessel, Legendre and elliptic
 functions use their recurrences. `Piecewise`, `If` and `List` are contracted
-from `diff` directly, without sharing work between variables.
+from `diff` directly, without sharing work between variables. The derivative
+of `Piecewise(List(List(value, condition), ...), default)` has the same shape
+with differentiated values and unchanged conditions, so it can be
+differentiated again; the derivative on a branch boundary is not represented.
 
 ## Output certificates
 
