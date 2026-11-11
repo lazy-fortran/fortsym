@@ -397,6 +397,7 @@ contains
         type(expr_t) :: d
         type(expr_t), allocatable :: output(:)
         type(expr_t) :: pair_args(2), pair, branches, default_value, first
+        type(expr_t) :: piecewise_args(2)
         integer :: k, nbranches
 
         if (e%nargs() < 1) then
@@ -414,7 +415,7 @@ contains
         end if
         branches = first
         nbranches = branches%nargs()
-        allocate (output(nbranches + 1))
+        allocate (output(nbranches))
         do k = 1, nbranches
             pair = branches%arg(k)
             if (pair%kind() /= NK_FUNC) then
@@ -433,13 +434,16 @@ contains
             pair_args(2) = pair%arg(2)
             output(k) = func("List", pair_args)
         end do
+        ! The result keeps the {branch list, default} shape of the input, so
+        ! it can be differentiated, simplified and lowered again.
+        piecewise_args(1) = func("List", output)
         if (e%nargs() >= 2) then
             default_value = e%arg(2)
-            output(nbranches + 1) = diff(default_value, v)
+            piecewise_args(2) = diff(default_value, v)
         else
-            output(nbranches + 1) = num(e%a, 0)
+            piecewise_args(2) = num(e%a, 0)
         end if
-        d = func("Piecewise", output)
+        d = func("Piecewise", piecewise_args)
     end function diff_piecewise
 
     !> Symbolic partial derivative of an applied function.

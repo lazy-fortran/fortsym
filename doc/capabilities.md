@@ -122,6 +122,15 @@ implicit-function builders emit the actions of the residual derivatives `R_y`
 and `R_p` directly, so the iteration that found the solution does not enter
 the derivative.
 
+`jvp` and `vjp` use the rules of `diff` for every head. `abs` differentiates
+as `x/abs(x)` away from zero, an opaque `func("psi", [r, u])` contributes one
+`DerivativeN` partial per argument, and Bessel, Legendre and elliptic
+functions use their recurrences. `Piecewise`, `If` and `List` are contracted
+from `diff` directly, without sharing work between variables. The derivative
+of `Piecewise(List(List(value, condition), ...), default)` has the same shape
+with differentiated values and unchanged conditions, so it can be
+differentiated again; the derivative on a branch boundary is not represented.
+
 ## Output certificates
 
 `fortsym_certificate` derives, from a symmetric/skew split `K = S + A`, the

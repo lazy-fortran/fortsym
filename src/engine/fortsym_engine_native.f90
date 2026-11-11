@@ -3295,9 +3295,9 @@ contains
         else
             default_id = a%int(0_int64)
         end if
-        allocate (output(nkept + 1))
-        if (nkept > 0) output(1:nkept) = kept(1:nkept)
-        output(nkept + 1) = default_id
+        allocate (output(2))
+        output(1) = a%func("List", kept(1:nkept))
+        output(2) = default_id
         out = a%func("Piecewise", output)
     end function simplify_piecewise
 
