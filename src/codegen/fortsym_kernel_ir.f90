@@ -15,7 +15,7 @@ module fortsym_kernel_ir
     use fortsym_exact, only: exact_to_real
     use fortsym_algebraic, only: algebraic_to_real
     use fortsym_expr, only: expr_t
-    use fortsym_string, only: chars, str_t
+    use fortsym_string, only: chars, str, str_t
     implicit none
     private
 
@@ -184,6 +184,10 @@ contains
         end do
         ir%n_nodes = node_cursor
         ir%n_operands = operand_cursor
+        ! Selections emit a different number of nodes than the arena holds.
+        if (size(ir%nodes) /= node_cursor) ir%nodes = ir%nodes(:node_cursor)
+        if (size(ir%operands) /= operand_cursor) &
+            ir%operands = ir%operands(:operand_cursor)
         if (present(share_products)) then
             if (share_products) call reuse_subproducts(ir)
         end if
@@ -312,6 +316,15 @@ contains
                 chars(arena%name_of(id))
             return
         end if
+        if (arena%kind_of(id) == NK_FUNC) then
+            if (chars(arena%name_of(id)) == "Piecewise" .or. &
+                chars(arena%name_of(id)) == "If") then
+                call lower_selection(arena, id, mapping, ir, node_cursor, &
+                    operand_cursor, node_index, ok, message, is_local)
+                if (ok) mapping(id) = node_index
+                return
+            end if
+        end if
 
         do k = 1, arena%nargs_of(id)
             child = arena%arg_of(id, k)
@@ -320,6 +333,7 @@ contains
             if (.not. ok) return
         end do
 
+        call reserve(ir, node_cursor + 1, operand_cursor + arena%nargs_of(id))
         node_cursor = node_cursor + 1
         node_index = node_cursor
         mapping(id) = node_index
@@ -361,6 +375,205 @@ contains
         end select
         ok = .true.
     end subroutine lower_node
+
+    !> Lower `Piecewise(List(List(value, condition), ...), default)` and
+    !> `If(condition, value, otherwise)` to FortGen's relational selections
+    !> `select_<relation>(l, r, value, otherwise)`. Every branch value is an
+    !> ordinary earlier node, so a selection chooses a value and does not
+    !> guard the evaluation of the branch it rejects.
+    recursive subroutine lower_selection(arena, id, mapping, ir, node_cursor, &
+            operand_cursor, node_index, ok, message, is_local)
+        type(arena_t), intent(in) :: arena
+        integer, intent(in) :: id
+        integer, intent(inout) :: mapping(:)
+        type(kernel_ir_t), intent(inout) :: ir
+        integer, intent(inout) :: node_cursor, operand_cursor
+        integer, intent(out) :: node_index
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        logical, intent(in) :: is_local(:)
+        integer :: k, branches, pair, value, otherwise, chosen
+
+        ok = .false.
+        node_index = 0
+        if (chars(arena%name_of(id)) == "If") then
+            message = "kernel IR: If needs a condition and two values"
+            if (arena%nargs_of(id) /= 3) return
+            call lower_node(arena, arena%arg_of(id, 2), mapping, ir, node_cursor, &
+                operand_cursor, value, ok, message, is_local)
+            if (.not. ok) return
+            call lower_node(arena, arena%arg_of(id, 3), mapping, ir, node_cursor, &
+                operand_cursor, otherwise, ok, message, is_local)
+            if (.not. ok) return
+            call lower_condition(arena, arena%arg_of(id, 1), value, otherwise, &
+                mapping, ir, node_cursor, operand_cursor, node_index, ok, &
+                message, is_local)
+            return
+        end if
+
+        message = "kernel IR: Piecewise needs a List of {value, condition} pairs"
+        if (arena%nargs_of(id) < 1 .or. arena%nargs_of(id) > 2) return
+        branches = arena%arg_of(id, 1)
+        if (.not. is_list(arena, branches)) return
+        do k = 1, arena%nargs_of(branches)
+            pair = arena%arg_of(branches, k)
+            if (.not. is_list(arena, pair)) return
+            if (arena%nargs_of(pair) /= 2) return
+        end do
+        if (arena%nargs_of(id) == 2) then
+            call lower_node(arena, arena%arg_of(id, 2), mapping, ir, node_cursor, &
+                operand_cursor, otherwise, ok, message, is_local)
+            if (.not. ok) return
+        else
+            call reserve(ir, node_cursor + 1, operand_cursor)
+            node_cursor = node_cursor + 1
+            otherwise = node_cursor
+            ir%nodes(otherwise)%operation = IR_LITERAL
+            ir%nodes(otherwise)%first_operand = operand_cursor + 1
+        end if
+        ! The first branch whose condition holds wins: build from the last.
+        do k = arena%nargs_of(branches), 1, -1
+            pair = arena%arg_of(branches, k)
+            call lower_node(arena, arena%arg_of(pair, 1), mapping, ir, &
+                node_cursor, operand_cursor, value, ok, message, is_local)
+            if (.not. ok) return
+            call lower_condition(arena, arena%arg_of(pair, 2), value, otherwise, &
+                mapping, ir, node_cursor, operand_cursor, chosen, ok, &
+                message, is_local)
+            if (.not. ok) return
+            otherwise = chosen
+        end do
+        node_index = otherwise
+        ok = .true.
+        message = ""
+    end subroutine lower_selection
+
+    !> The node holding `value` where `condition` holds and `otherwise`
+    !> elsewhere. Logical connectives nest selections; they add no node.
+    recursive subroutine lower_condition(arena, condition, value, otherwise, &
+            mapping, ir, node_cursor, operand_cursor, node_index, ok, message, &
+            is_local)
+        type(arena_t), intent(in) :: arena
+        integer, intent(in) :: condition, value, otherwise
+        integer, intent(inout) :: mapping(:)
+        type(kernel_ir_t), intent(inout) :: ir
+        integer, intent(inout) :: node_cursor, operand_cursor
+        integer, intent(out) :: node_index
+        logical, intent(out) :: ok
+        character(:), allocatable, intent(out) :: message
+        logical, intent(in) :: is_local(:)
+        character(:), allocatable :: name, relation
+        integer :: k, left, right, held
+        logical :: swapped, constant
+
+        ok = .false.
+        node_index = 0
+        name = ""
+        ! Truth values occur both as symbols (native simplification) and as
+        ! named constants (inequality solving).
+        constant = arena%kind_of(condition) == NK_SYM .or. &
+            arena%kind_of(condition) == NK_CONST
+        if (constant .or. arena%kind_of(condition) == NK_FUNC) then
+            name = chars(arena%name_of(condition))
+        else
+            name = "(a number or an arithmetic node)"
+        end if
+        message = "kernel IR: unsupported selection condition "//name
+        if (constant) then
+            if (name == "True") node_index = value
+            if (name == "False") node_index = otherwise
+            ok = node_index > 0
+            if (ok) message = ""
+            return
+        end if
+        if (arena%kind_of(condition) /= NK_FUNC) return
+        swapped = .false.
+        select case (name)
+        case ("Not")
+            if (arena%nargs_of(condition) /= 1) return
+            call lower_condition(arena, arena%arg_of(condition, 1), otherwise, &
+                value, mapping, ir, node_cursor, operand_cursor, node_index, ok, &
+                message, is_local)
+            return
+        case ("And", "Or")
+            if (arena%nargs_of(condition) < 1) return
+            held = value
+            if (name == "Or") held = otherwise
+            do k = arena%nargs_of(condition), 1, -1
+                if (name == "And") then
+                    call lower_condition(arena, arena%arg_of(condition, k), held, &
+                        otherwise, mapping, ir, node_cursor, operand_cursor, &
+                        node_index, ok, message, is_local)
+                else
+                    call lower_condition(arena, arena%arg_of(condition, k), value, &
+                        held, mapping, ir, node_cursor, operand_cursor, &
+                        node_index, ok, message, is_local)
+                end if
+                if (.not. ok) return
+                held = node_index
+            end do
+            return
+        case ("Less");         relation = "select_lt"
+        case ("LessEqual");    relation = "select_le"
+        case ("Equal");        relation = "select_eq"
+        case ("Unequal");      relation = "select_ne"
+        case ("Greater");      relation = "select_lt"; swapped = .true.
+        case ("GreaterEqual"); relation = "select_le"; swapped = .true.
+        case default
+            return
+        end select
+        if (arena%nargs_of(condition) /= 2) return
+        call lower_node(arena, arena%arg_of(condition, 1), mapping, ir, &
+            node_cursor, operand_cursor, left, ok, message, is_local)
+        if (.not. ok) return
+        call lower_node(arena, arena%arg_of(condition, 2), mapping, ir, &
+            node_cursor, operand_cursor, right, ok, message, is_local)
+        if (.not. ok) return
+        ! l > r is r < l, also for an unordered operand.
+        if (swapped) then
+            k = left
+            left = right
+            right = k
+        end if
+        call reserve(ir, node_cursor + 1, operand_cursor + 4)
+        node_cursor = node_cursor + 1
+        node_index = node_cursor
+        ir%nodes(node_index)%operation = IR_FUNCTION
+        ir%nodes(node_index)%name = str(relation)
+        ir%nodes(node_index)%first_operand = operand_cursor + 1
+        ir%nodes(node_index)%n_operands = 4
+        ir%operands(operand_cursor + 1:operand_cursor + 4) = &
+            [left, right, value, otherwise]
+        operand_cursor = operand_cursor + 4
+    end subroutine lower_condition
+
+    logical function is_list(arena, id) result(yes)
+        type(arena_t), intent(in) :: arena
+        integer, intent(in) :: id
+
+        yes = .false.
+        if (arena%kind_of(id) /= NK_FUNC) return
+        yes = chars(arena%name_of(id)) == "List"
+    end function is_list
+
+    !> Grow the node and operand storage to hold at least the given counts.
+    subroutine reserve(ir, n_nodes, n_operands)
+        type(kernel_ir_t), intent(inout) :: ir
+        integer, intent(in) :: n_nodes, n_operands
+        type(kernel_ir_node_t), allocatable :: nodes(:)
+        integer, allocatable :: operands(:)
+
+        if (n_nodes > size(ir%nodes)) then
+            allocate (nodes(max(n_nodes, 2*size(ir%nodes))))
+            nodes(:size(ir%nodes)) = ir%nodes
+            call move_alloc(nodes, ir%nodes)
+        end if
+        if (n_operands > size(ir%operands)) then
+            allocate (operands(max(n_operands, 2*size(ir%operands))))
+            operands(:size(ir%operands)) = ir%operands
+            call move_alloc(operands, ir%operands)
+        end if
+    end subroutine reserve
 
     subroutine literal_value(arena, id, value, ok, message)
         type(arena_t), intent(in) :: arena
