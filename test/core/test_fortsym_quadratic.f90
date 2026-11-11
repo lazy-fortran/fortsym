@@ -6,7 +6,7 @@ program test_fortsym_quadratic
     ! for every element of a quadratic field. Where a numeric check appears it
     ! is against an independently known decimal, never against a value this
     ! module produced earlier in the same test.
-    use, intrinsic :: iso_fortran_env, only: dp => real64
+    use, intrinsic :: iso_fortran_env, only: dp => real64, int64
     use fortsym_string, only: str_t, chars
     use fortsym_quadratic
     implicit none
@@ -23,6 +23,7 @@ program test_fortsym_quadratic
     call test_conjugate_and_norm()
     call test_no_division_by_zero()
     call test_dop853_node()
+    call test_correctly_rounded()
 
     write (*, "(a,i0,a,i0,a)") "test_fortsym_quadratic: ", n_pass, &
         " passed, ", n_fail, " failed"
@@ -166,5 +167,23 @@ contains
                                     quad_root(6, s(3)), s(4)), &
                            quad_rational("6", 6, s(1))))
     end subroutine test_dop853_node
+
+    ! The doubles nearest these field elements, as IEEE bit patterns from an
+    ! independent 50-digit evaluation (mpmath) checked against both
+    ! neighbouring doubles.
+    subroutine test_correctly_rounded()
+        type(quadratic_t) :: x
+        logical :: s
+
+        x = quad("77/500", "107/3000", 6, s)
+        call ok("77/500 + 107/3000 sqrt(6) is correctly rounded", &
+                s .and. transfer(quad_to_real(x, s), 0_int64) == 4597864115716614650_int64)
+        x = quad("1/2", "1/2", 5, s)
+        call ok("(1 + sqrt(5))/2 is correctly rounded", &
+                s .and. transfer(quad_to_real(x, s), 0_int64) == 4609965796441453736_int64)
+        x = quad("-201/500", "-197/1000", 6, s)
+        call ok("-201/500 - 197/1000 sqrt(6) is correctly rounded", &
+                s .and. transfer(quad_to_real(x, s), 0_int64) == -4617229503898512121_int64)
+    end subroutine test_correctly_rounded
 
 end program test_fortsym_quadratic

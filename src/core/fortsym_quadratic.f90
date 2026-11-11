@@ -18,9 +18,10 @@ module fortsym_quadratic
     !> zero: there is no cancellation to guard against and no conditioning to
     !> reason about, which is the whole reason for carrying the field rather
     !> than a float.
+    use, intrinsic :: iso_fortran_env, only: qp => real128
     use fortsym_string, only: str_t, str, chars
     use fortsym_exact, only: exact_add, exact_sub, exact_mul, exact_div, &
-        exact_normalize, exact_to_real
+        exact_normalize
     implicit none
     private
 
@@ -236,18 +237,46 @@ contains
 
     !> Nearest double. For comparison against published decimals only; nothing
     !> in the derivation goes through this.
+    !> The double nearest a + b*sqrt(d). a, b and sqrt(d) are formed in quad
+    !> precision and rounded to double once. In double arithmetic the three
+    !> roundings, and whether a compiler contracts b*sqrt(d) + a into one
+    !> fused operation, change the last bit from one platform to another.
     function quad_to_real(x, ok) result(value)
         type(quadratic_t), intent(in) :: x
         logical, intent(out) :: ok
         double precision :: value
-        double precision :: a, b
+        real(qp) :: a, b
         logical :: a_ok, b_ok
 
-        a = exact_to_real(chars(x%a), a_ok)
-        b = exact_to_real(chars(x%b), b_ok)
+        a = rational_to_qp(chars(x%a), a_ok)
+        b = rational_to_qp(chars(x%b), b_ok)
         ok = a_ok .and. b_ok
-        value = a + b*sqrt(dble(x%radicand))
+        value = 0.0d0
+        if (ok) value = real(a + b*sqrt(real(x%radicand, qp)), kind(value))
     end function quad_to_real
+
+    !> Canonical rational text "p" or "p/q" in quad precision.
+    function rational_to_qp(text, ok) result(value)
+        character(*), intent(in) :: text
+        logical, intent(out) :: ok
+        real(qp) :: value
+        real(qp) :: num, den
+        integer :: slash, ios
+
+        value = 0.0_qp
+        den = 1.0_qp
+        slash = index(text, "/")
+        if (slash == 0) then
+            read (text, *, iostat=ios) num
+        else
+            read (text(:slash - 1), *, iostat=ios) num
+            if (ios == 0) read (text(slash + 1:), *, iostat=ios) den
+        end if
+        ok = ios == 0
+        if (.not. ok) return
+        ok = den /= 0.0_qp
+        if (ok) value = num/den
+    end function rational_to_qp
 
     function quad_text(x) result(text)
         type(quadratic_t), intent(in) :: x
