@@ -60,6 +60,7 @@ module fortsym_poly
 
     public :: poly_together, poly_cancel, poly_apart, poly_factor
     public :: poly_coefficient, poly_coefficient_list, poly_collect
+    public :: poly_coefficient_rules
     public :: poly_exponent, poly_gcd_expr, poly_divide
     public :: poly_numerator, poly_denominator, poly_radical_zero
 
@@ -476,6 +477,84 @@ contains
         end do
         ok = .true.
     end subroutine poly_coefficient_list
+
+    !> CoefficientRules[e, vars]: the terms of e as a polynomial in vars.
+    !> Term k is coef(k)*product(vars(i)**ex(i, k)). Each coef(k) is free of
+    !> vars and may contain any other generator, so the list is exact for
+    !> every expression that is polynomial in vars. Exponent vectors are
+    !> distinct and listed in descending lex order of the generator ring.
+    subroutine poly_coefficient_rules(a, e, vars, ex, coef, ok, why)
+        type(arena_t), target,     intent(inout) :: a
+        type(expr_t),              intent(in)    :: e
+        type(expr_t),              intent(in)    :: vars(:)
+        integer,      allocatable, intent(out)   :: ex(:, :)
+        type(expr_t), allocatable, intent(out)   :: coef(:)
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        type(ctx_t)  :: ctx
+        type(ratf_t) :: f
+        type(poly_t) :: c
+        type(expr_t) :: seed
+        integer, allocatable :: iv(:), key(:, :), grown(:, :)
+        integer :: j, k, nk, nv
+        logical :: seen
+
+        nv = size(vars)
+        allocate (ex(nv, 0), coef(0), iv(nv))
+        ok = .false.
+        why = ""
+        if (nv == 0) then
+            why = "CoefficientRules needs at least one variable"
+            return
+        end if
+        seed = e
+        do k = 1, nv
+            seed = seed + vars(k)
+        end do
+        call read_ratf(a, seed, ctx, f, ok, why)
+        if (.not. ok) return
+        call read_in_ctx(a, e, ctx, f, ok, why)
+        if (.not. ok) return
+        do k = 1, nv
+            call var_index(a, ctx, vars(k), iv(k), ok, why)
+            if (.not. ok) return
+        end do
+        call ratf_reduce(f, ok, why)
+        if (.not. ok) return
+        do k = 1, nv
+            if (p_deg_v(f%d, iv(k)) > 0) then
+                ok = .false.
+                why = "the expression is not a polynomial in the given "// &
+                      "variables: one survives only as a denominator"
+                return
+            end if
+        end do
+        allocate (key(nv, 0))
+        do j = 1, size(f%n%c)
+            seen = .false.
+            do k = 1, size(key, 2)
+                if (all(key(:, k) == f%n%ex(iv, j))) then
+                    seen = .true.
+                    exit
+                end if
+            end do
+            if (seen) cycle
+            allocate (grown(nv, size(key, 2) + 1))
+            grown(:, 1:size(key, 2)) = key
+            grown(:, size(key, 2) + 1) = f%n%ex(iv, j)
+            call move_alloc(grown, key)
+        end do
+        nk = size(key, 2)
+        deallocate (ex, coef)
+        allocate (ex(nv, nk), coef(nk))
+        do k = 1, nk
+            call p_coeff_vec(f%n, iv, key(:, k), c)
+            call ratf_expr(a, ctx, ratf_t(c, f%d), coef(k), ok, why)
+            if (.not. ok) return
+            ex(:, k) = key(:, k)
+        end do
+        ok = .true.
+    end subroutine poly_coefficient_rules
 
     !> Collect[e, var]: the polynomial written by powers of var.
     subroutine poly_collect(a, e, var, out, ok, why)
@@ -1453,6 +1532,33 @@ contains
             c%c(at) = p%c(j)
         end do
     end subroutine p_coeff_v
+
+    !> The coefficient of product(var(iv(i))**k(i)) as a polynomial in the
+    !> remaining generators. Within one exponent vector of the selected
+    !> generators the descending lex order of the other positions is kept, so
+    !> the result stays canonical.
+    subroutine p_coeff_vec(p, iv, k, c)
+        type(poly_t), intent(in)  :: p
+        integer,      intent(in)  :: iv(:), k(:)
+        type(poly_t), intent(out) :: c
+        integer :: j, at, n
+
+        n = 0
+        do j = 1, size(p%c)
+            if (all(p%ex(iv, j) == k)) n = n + 1
+        end do
+        c%nv = p%nv
+        allocate (c%ex(c%nv, n))
+        allocate (c%c(n))
+        at = 0
+        do j = 1, size(p%c)
+            if (.not. all(p%ex(iv, j) == k)) cycle
+            at = at + 1
+            c%ex(:, at) = p%ex(:, j)
+            c%ex(iv, at) = 0
+            c%c(at) = p%c(j)
+        end do
+    end subroutine p_coeff_vec
 
     !> Multiply by var(iv)**k.
     subroutine p_shift_v(p, iv, k, z, ok, why)
