@@ -1,7 +1,14 @@
 program test_fortsym_zero_soundness
-    ! Exact zeros that consumers once saw refuted. A zero test may leave them
-    ! undecided, but it must never return NONZERO, and it must never return
-    ! ZERO for the same residual shifted by one.
+    ! Exact zeros of the kind consumers once saw refuted. A zero test may leave
+    ! them undecided, but it must never return NONZERO, and it must never
+    ! return ZERO for the same residual shifted by one. The verdict is printed
+    ! so that a change between ZERO and UNKNOWN shows in the test log.
+    !
+    ! Four checks failed before the repairs bdeb96e0 and 8a418e2e: SymEngine
+    ! on the product rule with symbolic power, with the exponential of the
+    ! logarithm and with the mode-dependent power, and the native engine on
+    ! the screw-pinch minimum. The other expressions are neighbouring forms
+    ! that never failed.
     !
     ! Weighted product rule: with w = s**(-alpha) on s > 0, or its real
     ! definition exp(-alpha*log(s)), d(w*N)/ds = w*(N_s - alpha*N/s).
@@ -15,11 +22,13 @@ program test_fortsym_zero_soundness
     use fortsym_assume, only: assumption_context_t, assume, positive, nonzero, &
         real_valued
     use fortsym_diff, only: diff
-    use fortsym_engine, only: engine_result_t, VERDICT_TRUE, VERDICT_FALSE
+    use fortsym_engine, only: engine_result_t, VERDICT_TRUE, VERDICT_FALSE, &
+        verdict_name
     use fortsym_engine_native, only: native_engine_t, make_native_engine
     use fortsym_engine_symengine, only: symengine_engine_t, make_symengine_engine
     use fortsym_expr, only: expr_t, sym, rat, exp, log, operator(+), operator(-), &
         operator(*), operator(/), operator(**)
+    use fortsym_string, only: chars
     use fortsym_subs, only: subs_many
     implicit none
 
@@ -74,15 +83,15 @@ contains
     end subroutine weighted_product_rule
 
     subroutine screw_pinch_minimum()
-        type(expr_t) :: r, t, tp, z, zp, m, k, gammap, f, fp, g, h, d, tangent
+        type(expr_t) :: r, t, tp, z, zp, m, k, gammap, f, fp, g, h, tangent
         type(expr_t) :: mr, k2, ff, gg, jj, qr, qt, qz, divergence, lorentz, raw
-        type(expr_t) :: e, center, qmin, old(4), new(4)
+        type(expr_t) :: e, center, qmin, old(3), new(3)
 
         r = real_symbol('r'); t = real_symbol('Btheta'); tp = real_symbol('Btheta_r')
         z = real_symbol('Bz'); zp = real_symbol('Bz_r'); m = real_symbol('m')
         k = real_symbol('k'); gammap = real_symbol('gamma_p'); f = real_symbol('f')
         fp = real_symbol('f_r'); g = real_symbol('g'); h = real_symbol('h')
-        d = real_symbol('D'); tangent = real_symbol('Ctan')
+        tangent = real_symbol('Ctan')
         call assume(assumptions, positive(r))
         call assume(assumptions, positive(z))
         call assume(assumptions, positive(gammap))
@@ -107,13 +116,13 @@ contains
         center = (gg*fp + jj*f/r)/k2
         qmin = ff**2/k2*fp**2 + 2*(k**2*z**2 - mr**2*t**2)/(r*k2)*f*fp &
             + (ff**2 + (z**2 - t**2)/r**2 - 2*t*tp/r - jj**2/(r**2*k2))*f**2
-        ! Eliminate g and h for Ctan = Bz*g - Btheta*h and D, then minimize.
+        ! Eliminate g and h for Ctan = Bz*g - Btheta*h at zero divergence, then
+        ! minimize.
         e = fp + f/r
-        old = [g, h, tangent, d]
+        old = [g, h, tangent]
         new(1) = (t*e + k*center)/ff
         new(2) = (z*e - mr*center)/ff
         new(3) = center
-        new(4) = 0*d
         call sound('screw-pinch energy at its minimum', &
             subs_many(raw, old, new) - qmin)
     end subroutine screw_pinch_minimum
@@ -157,11 +166,22 @@ contains
         integer, intent(in) :: forbidden
 
         if (result%ok .and. result%verdict /= forbidden) then
-            print *, 'PASS ', label
+            print *, 'PASS ', label, ': ', verdict_word(result)
         else
-            print *, 'FAIL ', label
+            print *, 'FAIL ', label, ': ', verdict_word(result)
             failures = failures + 1
         end if
     end subroutine check
+
+    function verdict_word(result) result(word)
+        type(engine_result_t), intent(in) :: result
+        character(:), allocatable :: word
+
+        if (result%ok) then
+            word = chars(verdict_name(result%verdict))
+        else
+            word = 'ERROR'
+        end if
+    end function verdict_word
 
 end program test_fortsym_zero_soundness
