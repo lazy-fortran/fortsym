@@ -6,11 +6,13 @@ program test_fortsym_kernel_ir
     use fortsym_string, only: chars, str, str_t
     use fortsym_algebraic, only: algebraic_from_re_im, algebraic_sqrt
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, algebraic_expr, sym, num, func, &
+    use fortsym_expr, only: expr_t, algebraic_expr, sym, num, func, const, &
         sin_expr => sin, exp_expr => exp, operator(+), operator(-), &
         operator(*), operator(/), operator(**)
     use fortsym_relation, only: less, less_equal, greater, greater_equal, &
         equal, unequal
+    use fortsym_diff, only: diff
+    use fortsym_products, only: jvp, vjp, hvp
     use fortsym_kernel_ir
     use fortsym_kernel_emit, only: kernel_emit_spec_t, emit_fortran_kernel_ir, &
         emit_cuda_device_ir, TARGET_CUDA
@@ -411,6 +413,109 @@ contains
         call lower_kernel_ir(bad, ir, good, message)
         call ok("unknown condition is refused", .not. good .and. &
             index(message, "unsupported selection condition Undecided") > 0)
+        bad(1) = func("If", [x + y, x, y])
+        call lower_kernel_ir(bad, ir, good, message)
+        call ok("arithmetic condition is refused by name", .not. good .and. &
+            index(message, "unsupported selection condition (a number") > 0)
+        call test_truth_values_pick_a_branch(arena, x, y)
+        call test_differentiated_guards_lower(arena, x)
     end subroutine test_guards_lower_to_selections
+
+    !> True and False, as symbols and as named constants, select a branch
+    !> without adding a selection node.
+    subroutine test_truth_values_pick_a_branch(arena, x, y)
+        type(arena_t), target, intent(inout) :: arena
+        type(expr_t), intent(in) :: x, y
+        type(expr_t) :: truth(2), untruth(2), roots(8), pair
+        type(kernel_ir_t) :: ir
+        logical :: good
+        character(:), allocatable :: message
+        real(dp), allocatable :: values(:)
+        real(dp), parameter :: xv = 0.75_dp, yv = -1.5_dp
+        integer :: k
+
+        truth = [sym(arena, "True"), const(arena, "True")]
+        untruth = [sym(arena, "False"), const(arena, "False")]
+        do k = 1, 2
+            roots(k) = func("If", [truth(k), x, y])
+            roots(2 + k) = func("If", [untruth(k), x, y])
+            ! An open first guard, then a closing truth value.
+            pair = func("List", [x*y, less(x, y)])
+            roots(4 + k) = func("Piecewise", [func("List", [pair, &
+                func("List", [x, truth(k)])]), y])
+            roots(6 + k) = func("Piecewise", [func("List", [pair, &
+                func("List", [x, untruth(k)])]), y])
+        end do
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("truth values lower: "//message, good)
+        if (.not. good) return
+        allocate (values(ir%n_nodes))
+        do k = 1, ir%n_nodes
+            values(k) = evaluate_node(ir, k, values, xv, yv)
+        end do
+        do k = 1, 2
+            call ok("true condition picks the value", &
+                values(ir%outputs(k)) == xv)
+            call ok("false condition picks the alternative", &
+                values(ir%outputs(2 + k)) == yv)
+            call ok("true closes a Piecewise", values(ir%outputs(4 + k)) == xv)
+            call ok("false skips a Piecewise branch", &
+                values(ir%outputs(6 + k)) == yv)
+        end do
+    end subroutine test_truth_values_pick_a_branch
+
+    !> First and second derivatives of a guarded expression reach the IR
+    !> with the branch derivatives written out by hand.
+    subroutine test_differentiated_guards_lower(arena, x)
+        type(arena_t), target, intent(inout) :: arena
+        type(expr_t), intent(in) :: x
+        type(expr_t) :: f(1), one(1), roots(5), first(1), second(1)
+        type(kernel_ir_t) :: ir
+        logical :: good
+        character(:), allocatable :: message
+        real(dp), allocatable :: values(:)
+        real(dp) :: xv, d1, d2
+        integer :: i, k
+
+        one = [num(arena, 1)]
+        f(1) = func("Piecewise", [func("List", [func("List", &
+            [x**3, less(x, num(arena, 0))])]), x**2])
+        roots(1) = diff(f(1), x)
+        first = jvp(f, [x], one)
+        roots(2) = first(1)
+        second = jvp(first, [x], one)
+        roots(3) = second(1)
+        first = vjp(f, [x], one)
+        roots(4) = first(1)
+        second = hvp(f(1), [x], one)
+        roots(5) = second(1)
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("differentiated guards lower: "//message, good)
+        if (.not. good) return
+        allocate (values(ir%n_nodes))
+        do i = -4, 4
+            xv = 0.5_dp*i
+            do k = 1, ir%n_nodes
+                values(k) = evaluate_node(ir, k, values, xv, 0.0_dp)
+            end do
+            if (xv < 0.0_dp) then
+                d1 = 3*xv**2
+                d2 = 6*xv
+            else
+                d1 = 2*xv
+                d2 = 2.0_dp
+            end if
+            call ok("diff of a guard agrees with the branch derivative", &
+                abs(values(ir%outputs(1)) - d1) <= 1.0e-14_dp)
+            call ok("JVP of a guard agrees with the branch derivative", &
+                abs(values(ir%outputs(2)) - d1) <= 1.0e-14_dp)
+            call ok("second JVP of a guard agrees with the branch", &
+                abs(values(ir%outputs(3)) - d2) <= 1.0e-14_dp)
+            call ok("VJP of a guard agrees with the branch derivative", &
+                abs(values(ir%outputs(4)) - d1) <= 1.0e-14_dp)
+            call ok("HVP of a guard agrees with the branch", &
+                abs(values(ir%outputs(5)) - d2) <= 1.0e-14_dp)
+        end do
+    end subroutine test_differentiated_guards_lower
 
 end program test_fortsym_kernel_ir

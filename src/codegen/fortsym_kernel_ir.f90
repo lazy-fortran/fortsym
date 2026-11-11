@@ -464,15 +464,22 @@ contains
         logical, intent(in) :: is_local(:)
         character(:), allocatable :: name, relation
         integer :: k, left, right, held
-        logical :: swapped
+        logical :: swapped, constant
 
         ok = .false.
         node_index = 0
         name = ""
-        if (arena%kind_of(condition) == NK_FUNC .or. &
-            arena%kind_of(condition) == NK_SYM) name = chars(arena%name_of(condition))
+        ! Truth values occur both as symbols (native simplification) and as
+        ! named constants (inequality solving).
+        constant = arena%kind_of(condition) == NK_SYM .or. &
+            arena%kind_of(condition) == NK_CONST
+        if (constant .or. arena%kind_of(condition) == NK_FUNC) then
+            name = chars(arena%name_of(condition))
+        else
+            name = "(a number or an arithmetic node)"
+        end if
         message = "kernel IR: unsupported selection condition "//name
-        if (arena%kind_of(condition) == NK_SYM) then
+        if (constant) then
             if (name == "True") node_index = value
             if (name == "False") node_index = otherwise
             ok = node_index > 0
