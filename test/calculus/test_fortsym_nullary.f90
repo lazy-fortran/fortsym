@@ -47,7 +47,7 @@ program test_fortsym_nullary
         forward = jvp([c*x], [x], one)
         call check("JVP c()*x", forward(1) == one(1)*c)
         forward = jvp([func("c", [x])], [x], one)
-        value = func("Derivative_c", [x])*one(1)
+        value = func("Derivative1", [sym(arena, "c"), num(arena, 1), x])*one(1)
         call check("JVP preserves unknown unary derivative", forward(1) == value)
     end if
     if (mode == "" .or. mode == "vjp") then
@@ -56,7 +56,7 @@ program test_fortsym_nullary
         reverse = vjp([c*x], [x], one)
         call check("VJP c()*x", reverse(1) == one(1)*c)
         reverse = vjp([func("c", [x])], [x], one)
-        value = one(1)*(func("Derivative_c", [x])*one(1))
+        value = one(1)*func("Derivative1", [sym(arena, "c"), num(arena, 1), x])
         call check("VJP preserves unknown unary derivative", reverse(1) == value)
     end if
     print *, "nullary checks:", ncheck - nfail, "passed;", nfail, "failed"
