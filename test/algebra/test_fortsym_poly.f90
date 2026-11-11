@@ -22,7 +22,7 @@ program test_fortsym_poly
     !   * refusals are checked too, because the whole point of the module is
     !     that it declines instead of guessing: Factor on a quartic with no
     !     rational root, and a floating-point coefficient anywhere.
-    use, intrinsic :: iso_fortran_env, only: real64
+    use, intrinsic :: iso_fortran_env, only: real64, int64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_INT
     use fortsym_expr, only: expr_t, sym, num, rat, real_expr, sin, &
@@ -34,7 +34,8 @@ program test_fortsym_poly
                             poly_factor, poly_coefficient, &
                             poly_coefficient_list, poly_collect, &
                             poly_exponent, poly_gcd_expr, poly_divide, &
-                            poly_numerator, poly_denominator
+                            poly_numerator, poly_denominator, &
+                            poly_coefficient_rules
     implicit none
 
     integer, parameter :: dp = real64
@@ -52,6 +53,7 @@ program test_fortsym_poly
     call test_factor_multiplies_back()
     call test_factor_refuses_quartic()
     call test_coefficients_reconstruct()
+    call test_coefficient_rules()
     call test_zero_polynomial()
     call test_collect_and_exponent()
     call test_division()
@@ -314,6 +316,63 @@ contains
         end do
         call same_value("CoefficientList", e, acc, x, y)
     end subroutine test_coefficients_reconstruct
+
+    subroutine test_coefficient_rules()
+        type(expr_t) :: x, y, e, acc, term
+        type(expr_t) :: vx(1), vxy(2)
+        type(expr_t), allocatable :: coef(:)
+        integer, allocatable :: ex(:, :)
+        logical :: ok
+        character(:), allocatable :: why
+        integer :: k, j
+
+        x = sym(arena, "x")
+        y = sym(arena, "y")
+        e = rat(arena, 3_int64, 2_int64)*x**2*y - num(arena, 7)*x*y**3 + (x + y)**2 &
+            - num(arena, 12)
+
+        ! Both symbols as variables: every coefficient is a number.
+        vxy = [x, y]
+        call poly_coefficient_rules(arena, e, vxy, ex, coef, ok, why)
+        call expect_ok("CoefficientRules", ok, why)
+        if (.not. ok) return
+        ! 3/2 x^2 y, -7 x y^3, x^2, 2 x y, y^2, -12: six distinct terms.
+        if (size(coef) /= 6) then
+            call fail("CoefficientRules: wrong number of terms")
+            return
+        end if
+        do k = 1, size(coef)
+            do j = k + 1, size(coef)
+                if (all(ex(:, k) == ex(:, j))) &
+                    call fail("CoefficientRules: repeated exponent vector")
+            end do
+        end do
+        acc = num(arena, 0)
+        do k = 1, size(coef)
+            term = coef(k)*(x**ex(1, k))*(y**ex(2, k))
+            acc = acc + term
+        end do
+        call same_value("CoefficientRules", e, acc, x, y)
+
+        ! Only x as a variable: coefficients are polynomials in y.
+        vx = [x]
+        call poly_coefficient_rules(arena, e, vx, ex, coef, ok, why)
+        call expect_ok("CoefficientRules in x", ok, why)
+        if (.not. ok) return
+        if (size(coef) /= 3) then
+            call fail("CoefficientRules in x: expected powers 2, 1, 0")
+            return
+        end if
+        acc = num(arena, 0)
+        do k = 1, size(coef)
+            acc = acc + coef(k)*(x**ex(1, k))
+        end do
+        call same_value("CoefficientRules in x", e, acc, x, y)
+
+        ! Not a polynomial in x.
+        call poly_coefficient_rules(arena, e/x, vx, ex, coef, ok, why)
+        if (ok) call fail("CoefficientRules: accepted a negative power of x")
+    end subroutine test_coefficient_rules
 
     subroutine test_zero_polynomial()
         type(expr_t) :: x, y, e, c, zeros(2)
