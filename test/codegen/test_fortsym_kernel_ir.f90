@@ -3,12 +3,19 @@ program test_fortsym_kernel_ir
     ! deliberately does not compare serialized IR or source text: a changed
     ! numbering is harmless, a changed value is not.
     use, intrinsic :: iso_fortran_env, only: real64
-    use fortsym_string, only: chars, str_t
+    use fortsym_string, only: chars, str, str_t
     use fortsym_algebraic, only: algebraic_from_re_im, algebraic_sqrt
     use fortsym_arena, only: arena_t
-    use fortsym_expr, only: expr_t, algebraic_expr, sym, sin_expr => sin, &
-        exp_expr => exp, operator(+), operator(*), operator(/), operator(**)
+    use fortsym_expr, only: expr_t, algebraic_expr, sym, num, func, const, &
+        sin_expr => sin, exp_expr => exp, operator(+), operator(-), &
+        operator(*), operator(/), operator(**)
+    use fortsym_relation, only: less, less_equal, greater, greater_equal, &
+        equal, unequal
+    use fortsym_diff, only: diff
+    use fortsym_products, only: jvp, vjp, hvp
     use fortsym_kernel_ir
+    use fortsym_kernel_emit, only: kernel_emit_spec_t, emit_fortran_kernel_ir, &
+        emit_cuda_device_ir, TARGET_CUDA
     implicit none
 
     integer, parameter :: dp = real64
@@ -20,6 +27,7 @@ program test_fortsym_kernel_ir
     call test_mixed_arenas_are_rejected()
     call test_locals_lower_to_their_values()
     call test_products_share_earlier_products()
+    call test_guards_lower_to_selections()
 
     if (nfail == 0) then
         print *, "test_fortsym_kernel_ir: all checks passed"
@@ -287,6 +295,9 @@ contains
                 value = sin(values(operand))
             case ("exp")
                 value = exp(values(operand))
+            case ("select_lt", "select_le", "select_eq", "select_ne")
+                value = selected(name, values(ir%operands( &
+                    ir%nodes(index)%first_operand:ir%nodes(index)%first_operand + 3)))
             case default
                 value = 0.0_dp
             end select
@@ -294,5 +305,217 @@ contains
             value = 0.0_dp
         end select
     end function evaluate_node
+
+    pure function selected(name, operands) result(value)
+        character(*), intent(in) :: name
+        real(dp), intent(in) :: operands(4)
+        real(dp) :: value
+        logical :: holds
+
+        select case (name)
+        case ("select_lt"); holds = operands(1) < operands(2)
+        case ("select_le"); holds = operands(1) <= operands(2)
+        case ("select_eq"); holds = operands(1) == operands(2)
+        case default;       holds = operands(1) /= operands(2)
+        end select
+        value = merge(operands(3), operands(4), holds)
+    end function selected
+
+    !> Guarded expressions against the same guards written as Fortran
+    !> branches, at points that include every boundary of a condition.
+    subroutine test_guards_lower_to_selections()
+        type(arena_t), target :: arena
+        type(expr_t) :: x, y, zero, roots(4), ordered(2), bad(1)
+        type(kernel_ir_t) :: ir
+        type(kernel_emit_spec_t) :: spec
+        type(str_t) :: source
+        logical :: good
+        character(:), allocatable :: message
+        real(dp) :: xv, yv, expected(4)
+        real(dp), allocatable :: values(:)
+        integer :: i, j, k
+
+        call arena%init()
+        x = sym(arena, "x")
+        y = sym(arena, "y")
+        zero = num(arena, 0)
+        ! Removable point: the rejected quotient is evaluated but not chosen.
+        roots(1) = func("Piecewise", [func("List", &
+            [func("List", [sin_expr(x)/x, unequal(x, zero)])]), num(arena, 1)])
+        ! Ordered branches, a conjunction, a negation and the implicit zero.
+        ordered(1) = func("List", [x*y, &
+            func("And", [less(x, y), greater(y, zero)])])
+        ordered(2) = func("List", [x - y, &
+            func("Not", [less_equal(x, 2*y)])])
+        roots(2) = func("Piecewise", [func("List", ordered)])
+        roots(3) = func("If", [greater_equal(x, y), x, y])
+        roots(4) = func("If", [func("Or", [equal(x, y), less(x, zero)]), &
+            x + 1, y*y])
+
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("guarded expressions lower", good)
+        if (.not. good) return
+        call ok("selection storage is trimmed", size(ir%nodes) == ir%n_nodes &
+            .and. size(ir%operands) == ir%n_operands)
+        do k = 1, ir%n_nodes
+            do j = ir%nodes(k)%first_operand, &
+                    ir%nodes(k)%first_operand + ir%nodes(k)%n_operands - 1
+                call ok("selection IR is topological", ir%operands(j) < k &
+                    .and. ir%operands(j) >= 1)
+            end do
+            if (ir%nodes(k)%operation /= IR_FUNCTION) cycle
+            call ok("no container or relation head reaches the IR", &
+                index("List Piecewise If And Or Not Less LessEqual Greater "// &
+                "GreaterEqual Equal Unequal", chars(ir%nodes(k)%name)) == 0)
+        end do
+
+        allocate (values(ir%n_nodes))
+        do i = -4, 4
+            do j = -4, 4
+                xv = 0.5_dp*i
+                yv = 0.25_dp*j
+                do k = 1, ir%n_nodes
+                    values(k) = evaluate_node(ir, k, values, xv, yv)
+                end do
+                expected(1) = 1.0_dp
+                if (xv /= 0.0_dp) expected(1) = sin(xv)/xv
+                expected(2) = 0.0_dp
+                if (xv < yv .and. yv > 0.0_dp) then
+                    expected(2) = xv*yv
+                else if (.not. xv <= 2*yv) then
+                    expected(2) = xv - yv
+                end if
+                expected(3) = max(xv, yv)
+                expected(4) = yv*yv
+                if (xv == yv .or. xv < 0.0_dp) expected(4) = xv + 1
+                do k = 1, 4
+                    call ok("guarded value agrees with the branch", &
+                        abs(values(ir%outputs(k)) - expected(k)) <= 1.0e-15_dp)
+                end do
+            end do
+        end do
+
+        spec%name = str("guarded_leaf")
+        allocate (spec%args(2), spec%outputs(4))
+        spec%args = [str("x"), str("y")]
+        spec%outputs = [str("a"), str("b"), str("c"), str("d")]
+        source = emit_fortran_kernel_ir(ir, spec, good, message)
+        call ok("guarded Fortran leaf emits", good)
+        call ok("guarded Fortran leaf selects by merge", &
+            index(chars(source), "merge(") > 0)
+        spec%target = TARGET_CUDA
+        source = emit_cuda_device_ir(ir, spec, good, message)
+        call ok("guarded CUDA leaf emits", good)
+        call ok("guarded CUDA leaf selects by a conditional expression", &
+            index(chars(source), " ? ") > 0)
+
+        bad(1) = func("If", [func("Undecided", [x]), x, y])
+        call lower_kernel_ir(bad, ir, good, message)
+        call ok("unknown condition is refused", .not. good .and. &
+            index(message, "unsupported selection condition Undecided") > 0)
+        bad(1) = func("If", [x + y, x, y])
+        call lower_kernel_ir(bad, ir, good, message)
+        call ok("arithmetic condition is refused by name", .not. good .and. &
+            index(message, "unsupported selection condition (a number") > 0)
+        call test_truth_values_pick_a_branch(arena, x, y)
+        call test_differentiated_guards_lower(arena, x)
+    end subroutine test_guards_lower_to_selections
+
+    !> True and False, as symbols and as named constants, select a branch
+    !> without adding a selection node.
+    subroutine test_truth_values_pick_a_branch(arena, x, y)
+        type(arena_t), target, intent(inout) :: arena
+        type(expr_t), intent(in) :: x, y
+        type(expr_t) :: truth(2), untruth(2), roots(8), pair
+        type(kernel_ir_t) :: ir
+        logical :: good
+        character(:), allocatable :: message
+        real(dp), allocatable :: values(:)
+        real(dp), parameter :: xv = 0.75_dp, yv = -1.5_dp
+        integer :: k
+
+        truth = [sym(arena, "True"), const(arena, "True")]
+        untruth = [sym(arena, "False"), const(arena, "False")]
+        do k = 1, 2
+            roots(k) = func("If", [truth(k), x, y])
+            roots(2 + k) = func("If", [untruth(k), x, y])
+            ! An open first guard, then a closing truth value.
+            pair = func("List", [x*y, less(x, y)])
+            roots(4 + k) = func("Piecewise", [func("List", [pair, &
+                func("List", [x, truth(k)])]), y])
+            roots(6 + k) = func("Piecewise", [func("List", [pair, &
+                func("List", [x, untruth(k)])]), y])
+        end do
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("truth values lower: "//message, good)
+        if (.not. good) return
+        allocate (values(ir%n_nodes))
+        do k = 1, ir%n_nodes
+            values(k) = evaluate_node(ir, k, values, xv, yv)
+        end do
+        do k = 1, 2
+            call ok("true condition picks the value", &
+                values(ir%outputs(k)) == xv)
+            call ok("false condition picks the alternative", &
+                values(ir%outputs(2 + k)) == yv)
+            call ok("true closes a Piecewise", values(ir%outputs(4 + k)) == xv)
+            call ok("false skips a Piecewise branch", &
+                values(ir%outputs(6 + k)) == yv)
+        end do
+    end subroutine test_truth_values_pick_a_branch
+
+    !> First and second derivatives of a guarded expression reach the IR
+    !> with the branch derivatives written out by hand.
+    subroutine test_differentiated_guards_lower(arena, x)
+        type(arena_t), target, intent(inout) :: arena
+        type(expr_t), intent(in) :: x
+        type(expr_t) :: f(1), one(1), roots(5), first(1), second(1)
+        type(kernel_ir_t) :: ir
+        logical :: good
+        character(:), allocatable :: message
+        real(dp), allocatable :: values(:)
+        real(dp) :: xv, d1, d2
+        integer :: i, k
+
+        one = [num(arena, 1)]
+        f(1) = func("Piecewise", [func("List", [func("List", &
+            [x**3, less(x, num(arena, 0))])]), x**2])
+        roots(1) = diff(f(1), x)
+        first = jvp(f, [x], one)
+        roots(2) = first(1)
+        second = jvp(first, [x], one)
+        roots(3) = second(1)
+        first = vjp(f, [x], one)
+        roots(4) = first(1)
+        second = hvp(f(1), [x], one)
+        roots(5) = second(1)
+        call lower_kernel_ir(roots, ir, good, message)
+        call ok("differentiated guards lower: "//message, good)
+        if (.not. good) return
+        allocate (values(ir%n_nodes))
+        do i = -4, 4
+            xv = 0.5_dp*i
+            do k = 1, ir%n_nodes
+                values(k) = evaluate_node(ir, k, values, xv, 0.0_dp)
+            end do
+            if (xv < 0.0_dp) then
+                d1 = 3*xv**2
+                d2 = 6*xv
+            else
+                d1 = 2*xv
+                d2 = 2.0_dp
+            end if
+            call ok("diff of a guard agrees with the branch derivative", &
+                abs(values(ir%outputs(1)) - d1) <= 1.0e-14_dp)
+            call ok("JVP of a guard agrees with the branch derivative", &
+                abs(values(ir%outputs(2)) - d1) <= 1.0e-14_dp)
+            call ok("second JVP of a guard agrees with the branch", &
+                abs(values(ir%outputs(3)) - d2) <= 1.0e-14_dp)
+            call ok("VJP of a guard agrees with the branch derivative", &
+                abs(values(ir%outputs(4)) - d1) <= 1.0e-14_dp)
+            call ok("HVP of a guard agrees with the branch", &
+                abs(values(ir%outputs(5)) - d2) <= 1.0e-14_dp)
+        end do
+    end subroutine test_differentiated_guards_lower
 
 end program test_fortsym_kernel_ir

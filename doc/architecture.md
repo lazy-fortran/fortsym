@@ -355,6 +355,13 @@ branchwise, and the Fortran scalar emitter uses typed nested `merge` calls.
 Predicates outside the supported relational/logical vocabulary are refused;
 the derivative at a branch boundary is not asserted by the library.
 
+The scalar kernel IR lowers `Piecewise` and `If` to FortGen's relational
+selections `select_lt`, `select_le`, `select_eq` and `select_ne`, so guarded
+kernels also reach the CUDA and Python backends. `And`, `Or` and `Not` nest
+selections, `Greater` and `GreaterEqual` exchange the compared operands, and
+any other condition is refused. A selection chooses between values that are
+both evaluated; it does not guard the evaluation of the rejected branch.
+
 ## Backend contract
 
 Every operation returns a result with:
