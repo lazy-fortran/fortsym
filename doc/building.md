@@ -55,6 +55,11 @@ nix develop          # Tier 1 dependencies
 nix develop .#tier2  # plus the optional engines
 ```
 
+Without Nix or root, `.fortyard/check` provisions the same versions under
+`$TMPDIR/fortsym-check`, GMP, MPFR and MPC from conda-forge and FLINT and
+SymEngine built from their release sources, then runs the Tier 1 CMake build
+and tests. The script names the one version that differs from `flake.lock`.
+
 ## fpm and fo
 
 `fpm.toml` links the system SymEngine, FLINT, MPFR and GMP; fpm cannot build a

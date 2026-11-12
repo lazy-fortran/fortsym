@@ -1,0 +1,35 @@
+#!/bin/sh
+# Verification of main on fortyard: the landing check, then the remaining job
+# of the GitHub CI, the Python wheel in a clean environment. Python, pip,
+# setuptools and build come from the locked conda-forge environment the check
+# provisions, so nothing is fetched from PyPI.
+set -eu
+. "$(dirname "$0")/check"
+
+# Inside build/, the one directory the runner keeps between checks.
+release=build/release
+run release-configure cmake -S . -B "$release" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    -DFORTSYM_BUILD_TESTING=OFF \
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+run release-build cmake --build "$release" -j "$jobs"
+rm -rf "$state/wheel"
+run wheel "$py/bin/python" -I -m build --no-isolation --wheel --outdir "$state/wheel/dist" python
+run wheel-install "$py/bin/python" -I -m pip install --no-deps --target "$state/wheel/site" "$state/wheel/dist"/*.whl
+LD_LIBRARY_PATH="$PWD/$release/lib:$LD_LIBRARY_PATH" \
+FORTSYM_LIBRARY="$PWD/$release/lib/libfortsym.so" \
+    "$py/bin/python" -I -c '
+import sys
+sys.path.insert(0, sys.argv[1])
+from fractions import Fraction
+import fortsym
+import fortsym.sympy as sp
+
+x = fortsym.Symbol("x")
+assert str(((x + 1) ** 2).expand()) == "x**2 + 2*x + 1"
+assert "1/3" in str(x + Fraction(1, 3))
+assert fortsym.Integer(2**100).exact_text == str(2**100)
+sx = sp.Symbol("x")
+assert isinstance(sx + 1, sp.Add)
+assert sp.simplify(sp.diff(sp.exp(sx), sx)) == sp.exp(sx)
+' "$state/wheel/site"
+echo "Python wheel passed in a clean environment"

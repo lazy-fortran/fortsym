@@ -1,0 +1,157 @@
+#!/bin/sh
+# Fortyard landing check: the Tier 1 job of the GitHub CI (cmake + ctest
+# without the optional engines), its generated-sources gate and the provenance
+# of the compatibility sources the landing adds.
+#
+# The GitHub CI takes FLINT, MPFR and SymEngine from flake.lock's nixpkgs.
+# The runners have no Nix and no root, so the same versions are provisioned
+# into TMPDIR, which persists between checks, once per version set:
+#   GMP 6.3.0, MPFR 4.2.2  conda-forge, as pinned, locked in deps/pixi.lock
+#   MPC 1.4.0              conda-forge (nixpkgs pins 1.4.1, not on conda-forge;
+#                          only SymEngine uses it, for complex MPC numbers)
+#   FLINT 3.6.0            built from source (conda-forge stops at 3.5.0); the
+#                          release tarball is byte-identical to nixpkgs' source
+#   SymEngine 0.14.0       built from source with nixpkgs' options, against
+#                          this FLINT (conda-forge's links an older FLINT)
+# Python for the tests also comes from the lock, without SymPy, as in Tier 1.
+set -eu
+here=$(cd "$(dirname "$0")" && pwd)
+if [ -z "${FY_CHECK_JOBS:-${FO_JOBS:-}}" ]; then
+    # nproc sees a cpuset but not a CPU quota; the container's limit is either.
+    jobs=$(nproc)
+    if read -r quota period < /sys/fs/cgroup/cpu.max 2> /dev/null && [ "$quota" != max ]; then
+        cpus=$(((quota + period - 1) / period))
+        [ "$cpus" -ge "$jobs" ] || jobs=$cpus
+    fi
+    [ "$jobs" -le 8 ] || jobs=8
+else
+    jobs=${FY_CHECK_JOBS:-$FO_JOBS}
+fi
+state=${TMPDIR:-/tmp}/fortsym-check
+pixi_version=0.83.0
+flint=3.6.0 flint_sha256=b95e2c7792f5eea4a1c8d2d42c4098434756832e57a094b295eb5dfdc9b4c36b
+symengine=0.14.0 symengine_sha256=11c5f64e9eec998152437f288b8429ec001168277d55f3f5f1df78e3cf129707
+flint_options="--disable-static"
+# nixpkgs' options for SymEngine (pkgs/by-name/sy/symengine), tests off.
+symengine_options="-DCMAKE_BUILD_TYPE=Release -DWITH_FLINT=ON -DINTEGER_CLASS=flint
+    -DWITH_SYMENGINE_THREAD_SAFE=ON -DWITH_MPC=ON -DBUILD_FOR_DISTRIBUTION=ON
+    -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_BENCHMARKS=OFF"
+mkdir -p "$state"
+run() {
+    log=$state/$1.log
+    shift
+    "$@" > "$log" 2>&1 || { tail -40 "$log"; exit 1; }
+}
+
+export PIXI_HOME="$state/pixi-home" PIXI_CACHE_DIR="$state/pixi-cache"
+pixi=$state/bin/pixi
+if [ "$("$pixi" --version 2>/dev/null)" != "pixi $pixi_version" ]; then
+    case $(uname -m) in
+        x86_64) pixi_sha256=064f371e692aaa3400ac581c89da2843c91437f20c2d9155395a5d0037f33551 ;;
+        aarch64) pixi_sha256=d08403d8f048626ec93ba7b7c56e3b747a5f3a95c4e6e0c815ceb264f5f0b9ce ;;
+        *) echo "no pixi hash for $(uname -m)" >&2; exit 1 ;;
+    esac
+    mkdir -p "$state/bin"
+    curl -fsSL -o "$state/pixi.tar.gz" \
+        "https://github.com/prefix-dev/pixi/releases/download/v$pixi_version/pixi-$(uname -m)-unknown-linux-musl.tar.gz"
+    echo "$pixi_sha256  $state/pixi.tar.gz" | sha256sum -c - > /dev/null
+    tar -xzf "$state/pixi.tar.gz" -C "$state/bin" pixi
+    rm -f "$state/pixi.tar.gz"
+fi
+
+# Everything the provisioned tree depends on joins the key, the compiler too:
+# FLINT and SymEngine are built with it.
+key=$( {
+    printf '%s\n' "$pixi_version" "$flint $flint_sha256 $flint_options" \
+        "$symengine $symengine_sha256 $symengine_options" "$(c++ --version | head -1)"
+    cat "$here/deps/pixi.toml" "$here/deps/pixi.lock"
+} | sha256sum | cut -c1-16)
+deps=$state/deps-$key
+env=$deps/.pixi/envs/default
+py=$deps/.pixi/envs/python
+prefix=$deps/prefix
+if [ ! -f "$deps/complete" ]; then
+    start=$(date +%s)
+    rm -rf "$deps"
+    mkdir -p "$deps/src"
+    cp "$here/deps/pixi.toml" "$here/deps/pixi.lock" "$deps"
+    run pixi "$pixi" install --frozen --all --manifest-path "$deps/pixi.toml"
+    fetch() {
+        curl -fsSL -o "$deps/src/$1.tar.gz" "$2"
+        echo "$3  $deps/src/$1.tar.gz" | sha256sum -c - > /dev/null
+        tar -xzf "$deps/src/$1.tar.gz" -C "$deps/src"
+    }
+    fetch flint "https://github.com/flintlib/flint/releases/download/v$flint/flint-$flint.tar.gz" \
+        "$flint_sha256"
+    fetch symengine "https://github.com/symengine/symengine/releases/download/v$symengine/symengine-$symengine.tar.gz" \
+        "$symengine_sha256"
+    rpath="-Wl,-rpath,$prefix/lib -Wl,-rpath,$env/lib"
+    (
+        cd "$deps/src/flint-$flint"
+        export PATH="$env/bin:$PATH"
+        # shellcheck disable=SC2086
+        run flint-configure ./configure --prefix="$prefix" --with-gmp="$env" --with-mpfr="$env" \
+            $flint_options LDFLAGS="$rpath"
+        run flint-build make -j "$jobs"
+        run flint-install make install
+    )
+    # shellcheck disable=SC2086
+    run symengine-configure cmake -S "$deps/src/symengine-$symengine" -B "$deps/src/symengine-build" \
+        -G Ninja -DCMAKE_INSTALL_PREFIX="$prefix" \
+        -DCMAKE_PREFIX_PATH="$prefix;$env" -DCMAKE_INSTALL_RPATH="$prefix/lib;$env/lib" \
+        $symengine_options
+    run symengine-build cmake --build "$deps/src/symengine-build" -j "$jobs"
+    run symengine-install cmake --install "$deps/src/symengine-build"
+    rm -rf "$deps/src"
+    touch "$deps/complete"
+    # Earlier version sets are not used again.
+    for old in "$state"/deps-*; do
+        [ "$old" = "$deps" ] || rm -rf "$old"
+    done
+    echo "dependencies provisioned in $(($(date +%s) - start)) s (deps-$key)"
+else
+    echo "dependencies reused (deps-$key)"
+fi
+echo "FLINT $flint, SymEngine $symengine, conda-forge packages as in .fortyard/deps/pixi.lock"
+# FLINT's headers include gmp.h, which the Nix shell puts on the compiler's
+# include path. LIBRARY_PATH stays unset: CMake would take its directories for
+# system ones and leave them out of the installed RUNPATH.
+export CMAKE_PREFIX_PATH="$prefix:$env" CPATH="$prefix/include:$env/include"
+export LD_LIBRARY_PATH="$PWD/build/lib:$prefix/lib:$env/lib"
+export CCACHE_DIR="${CCACHE_DIR:-$state/ccache}" CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-500M}"
+
+# Compatibility sources the landing adds, against the main it lands on.
+if git fetch -q origin refs/heads/main 2> /dev/null &&
+    base=$(git merge-base FETCH_HEAD HEAD 2> /dev/null); then
+    :
+else
+    base=$(git rev-parse -q --verify HEAD^ || true)
+fi
+if [ -n "$base" ]; then
+    git diff --name-only --diff-filter=A "$base" HEAD > "$state/changed-files.txt"
+    "$py/bin/python" -I scripts/check_provenance.py --changed-files "$state/changed-files.txt" \
+        --provenance doc/provenance.md
+fi
+
+# The kept build tree caches the dependency paths; a new version set starts it anew.
+[ "$(cat build/.fortyard-deps 2>/dev/null)" = "$deps" ] || rm -rf build
+run configure cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+    -DPython3_EXECUTABLE="$py/bin/python" \
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+echo "$deps" > build/.fortyard-deps
+run build cmake --build build -j "$jobs"
+echo "build passed"
+run ctest ctest --test-dir build --output-on-failure -j "$jobs"
+grep 'tests passed' "$state/ctest.log"
+
+# Each committed generated file names its generator; regenerating must not
+# change it.
+for file in src/generated/*.f90; do
+    [ -e "$file" ] || continue
+    gen=$(sed -n 's/^! Generator: //p' "$file" | head -n 1)
+    [ -n "$gen" ] || { echo "$file carries no '! Generator:' header line" >&2; exit 1; }
+    [ -x "build/bin/$gen" ] || { echo "$file names generator '$gen', which the build did not produce" >&2; exit 1; }
+    run "generate-$gen" "build/bin/$gen"
+done
+git diff --exit-code -- src/generated
+echo "generated sources are current"

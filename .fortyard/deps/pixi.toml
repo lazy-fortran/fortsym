@@ -1,0 +1,24 @@
+# Conda-forge packages for .fortyard/check and .fortyard/verify, locked with
+# their hashes in pixi.lock (refresh: pixi lock). GMP and MPFR are the versions
+# flake.lock pins; MPC 1.4.1 is not on conda-forge, so 1.4.0 stands in.
+
+[workspace]
+name = "fortsym-check-deps"
+channels = ["conda-forge"]
+platforms = ["linux-64", "linux-aarch64"]
+
+[dependencies]
+gmp = "==6.3.0"
+mpfr = "==4.2.2"
+mpc = "==1.4.0"
+# FLINT's configure needs m4, which the image lacks.
+m4 = "==1.4.21"
+
+[feature.python.dependencies]
+python = "==3.13.18"
+pip = "==26.2.2"
+setuptools = "==84.2.1"
+python-build = "==1.6.1"
+
+[environments]
+python = { features = ["python"], no-default-feature = true }
