@@ -1,0 +1,39 @@
+program installed_yacas_consumer
+    use fortsym_arena, only: arena_t
+    use fortsym_expr, only: expr_t, sym, operator(**)
+    use fortsym_engine, only: engine_result_t
+    use fortsym_engine_yacas, only: yacas_engine_t, make_yacas_engine, &
+        yacas_scripts_default
+    use fortsym_eval, only: binding_t, eval_expr
+    use fortsym_string, only: str
+    use, intrinsic :: iso_fortran_env, only: dp => real64
+    implicit none
+
+    type(arena_t), target :: arena
+    type(yacas_engine_t) :: engine
+    type(expr_t) :: x
+    type(engine_result_t) :: integral
+    type(binding_t) :: binding
+    real(dp) :: value
+    logical :: ok
+    character(len=4096) :: expected
+
+    call arena%init()
+    call get_command_argument(1, expected)
+    if (len_trim(expected) > 0) then
+        if (yacas_scripts_default() /= trim(expected)) &
+            error stop "Yacas scripts resolved outside relocated install"
+    end if
+    engine = make_yacas_engine(arena)
+    if (.not. engine%available) error stop "installed Yacas scripts not found"
+    x = sym(arena, "x")
+    integral = engine%integrate(x**2, x)
+    if (.not. integral%ok) error stop "installed Yacas integration failed"
+    binding%names = [str("x")]
+    binding%values = [3.0_dp]
+    binding%n = 1
+    value = eval_expr(integral%value, binding, ok)
+    if (.not. ok) error stop "invalid antiderivative"
+    if (abs(value - 9.0_dp) > 1.0e-12_dp) error stop "wrong antiderivative"
+    call engine%shutdown()
+end program installed_yacas_consumer

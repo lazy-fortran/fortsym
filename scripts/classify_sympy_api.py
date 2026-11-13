@@ -129,7 +129,7 @@ def supported_layers(name: str, profile: dict[str, Any]) -> dict[str, Any]:
         )
     return layers(
         ("refused",),
-        "ROADMAP.md",
+        "doc/roadmap.md",
         "outside the declared compatibility subset; no implementation claim is made",
     )
 
@@ -150,7 +150,7 @@ def classify_module_export(
         return supported_layers(record["name"], profile)
     return layers(
         ("refused",),
-        "ROADMAP.md",
+        "doc/roadmap.md",
         "the individual module export is not a declared supported adapter object",
     )
 
@@ -164,7 +164,7 @@ def class_layers(
         return supported_layers(class_id.rsplit(".", 1)[-1], profile)
     return layers(
         ("refused",),
-        "ROADMAP.md",
+        "doc/roadmap.md",
         "class is inventoried for parity but is outside the declared adapter subset",
     )
 
@@ -268,7 +268,7 @@ def build_report(inventory: dict[str, Any], root: Path) -> dict[str, Any]:
             "name": record["name"],
             **layers(
                 ("refused",),
-                "ROADMAP.md",
+                "doc/roadmap.md",
                 "whole-module parity is not declared; symbols are classified individually",
             ),
         })
@@ -315,7 +315,7 @@ def build_report(inventory: dict[str, Any], root: Path) -> dict[str, Any]:
             )
             method_layers = supported_layers(method["name"], profile) if method_supported else layers(
                 ("refused",),
-                "ROADMAP.md",
+                "doc/roadmap.md",
                 "method is inventoried for parity but is outside the declared adapter subset",
             )
             methods.append({

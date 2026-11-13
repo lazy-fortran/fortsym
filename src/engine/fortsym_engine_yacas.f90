@@ -49,6 +49,14 @@ module fortsym_engine_yacas
 
     interface
 
+        function fsym_yacas_scripts_path(buf, n) &
+                bind(c, name="fsym_yacas_scripts_path") result(length)
+            import :: c_char, c_size_t
+            character(kind=c_char), intent(out) :: buf(*)
+            integer(c_size_t), value :: n
+            integer(c_size_t) :: length
+        end function fsym_yacas_scripts_path
+
         function fsym_yacas_new(scripts_dir) bind(c, name="fsym_yacas_new") &
                 result(h)
             import :: c_ptr, c_char
@@ -107,21 +115,13 @@ contains
 
     !> Where to find the .ys script library.
     !>
-    !> The environment variable first, then the usual install locations. The
-    !> path is deliberately not compiled in: doing that would need the Fortran
-    !> preprocessor, and turning -cpp on across the codebase risks the C
-    !> preprocessor misreading Fortran's // string concatenation. The build
-    !> sets the variable for its own tests, and a packaged install can point
-    !> somewhere else without a rebuild.
+    !> An explicit override wins; otherwise the shim finds a relocated install.
     function yacas_scripts_default() result(path)
         character(:), allocatable :: path
         character(len=4096) :: buf
+        character(kind=c_char) :: cbuf(4096)
+        integer(c_size_t) :: length
         integer :: n, stat, k
-
-        character(*), parameter :: CANDIDATES(3) = [character(len=32) :: &
-            "/usr/share/yacas/scripts", &
-            "/usr/local/share/yacas/scripts", &
-            "/usr/lib/yacas/scripts"]
 
         call get_environment_variable("FORTSYM_YACAS_SCRIPTS", buf, n, stat)
         if (stat == 0 .and. n > 0) then
@@ -129,34 +129,14 @@ contains
             return
         end if
 
-        do k = 1, size(CANDIDATES)
-            if (has_init_script(trim_right(CANDIDATES(k)))) then
-                path = trim_right(CANDIDATES(k))
-                return
-            end if
-        end do
-
         path = ""
-    end function yacas_scripts_default
-
-    !> A scripts directory is only usable if the entry point is actually there.
-    function has_init_script(dir) result(yes)
-        character(*), intent(in) :: dir
-        logical                  :: yes
-        inquire (file=dir//"/yacasinit.ys", exist=yes)
-    end function has_init_script
-
-    pure function trim_right(s) result(r)
-        character(*), intent(in)  :: s
-        character(:), allocatable :: r
-        integer :: n
-        n = len(s)
-        do while (n > 0)
-            if (s(n:n) /= " ") exit
-            n = n - 1
+        length = fsym_yacas_scripts_path(cbuf, int(size(cbuf), c_size_t))
+        if (length == 0 .or. length > size(cbuf)) return
+        path = repeat(" ", int(length))
+        do k = 1, int(length)
+            path(k:k) = cbuf(k)
         end do
-        r = s(1:n)
-    end function trim_right
+    end function yacas_scripts_default
 
     function make_yacas_engine(home, scripts_dir) result(eng)
         type(arena_t), target,  intent(inout) :: home

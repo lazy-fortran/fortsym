@@ -11,7 +11,7 @@
 #
 # Yacas is not a pure C++ engine. Its algebra lives in .ys script files that the
 # engine loads at run time, so the scripts directory travels with the build and
-# its location is compiled in as FORTSYM_YACAS_SCRIPTS.
+# the shim finds the installed scripts relative to its own library.
 
 option(FORTSYM_ENABLE_YACAS "Build and link the Yacas engine" ON)
 

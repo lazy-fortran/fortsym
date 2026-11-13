@@ -48,6 +48,9 @@ module fortsym_capi
     integer(c_int), parameter :: FSYM_ALGEBRAIC_DIV = 4_c_int
     integer(c_int), parameter :: FSYM_ALGEBRAIC_CONJ = 1_c_int
     integer(c_int), parameter :: FSYM_ALGEBRAIC_SQRT = 2_c_int
+    integer(c_int), parameter :: FSYM_DELEGATE_FLINT_EXACT = 1_c_int
+    integer(c_int), parameter :: FSYM_DELEGATE_FLINT_ALGEBRAIC = 2_c_int
+    integer(c_int), parameter :: FSYM_DELEGATE_SYMENGINE_EVAL = 3_c_int
 
     ! Verdicts from fsym_zero_test. UNKNOWN is not a failure: it means the
     ! expression left the fragment the symbolic procedure decides, and the
@@ -618,6 +621,28 @@ module fortsym_capi
         end function dense_matrix_jacobian
 
         ! ------------------------------------------------- fortsym own shim --
+
+        subroutine fsym_delegate_initialize() bind(c, name="fsym_delegate_initialize")
+        end subroutine fsym_delegate_initialize
+
+        function fsym_delegate_begin(delegate) bind(c, name="fsym_delegate_begin") result(enabled)
+            import :: c_int
+            integer(c_int), value :: delegate
+            integer(c_int) :: enabled
+        end function fsym_delegate_begin
+
+        subroutine fsym_delegate_success(delegate) bind(c, name="fsym_delegate_success")
+            import :: c_int
+            integer(c_int), value :: delegate
+        end subroutine fsym_delegate_success
+
+        function fsym_delegate_counts(delegate, attempts, successes) &
+                bind(c, name="fsym_delegate_counts") result(ok)
+            import :: c_int, c_int64_t
+            integer(c_int), value :: delegate
+            integer(c_int64_t), intent(out) :: attempts, successes
+            integer(c_int) :: ok
+        end function fsym_delegate_counts
 
         function fsym_have_llvm() bind(c, name="fsym_have_llvm") result(r)
             import :: c_int

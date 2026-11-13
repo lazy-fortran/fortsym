@@ -16,11 +16,53 @@
 
 #include <sstream>
 #include <string>
+#include <filesystem>
+#include <algorithm>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
 
 #include <yacas/yacas.h>
 
 namespace
 {
+
+std::string scripts_path()
+{
+    namespace fs = std::filesystem;
+    fs::path library;
+#ifdef _WIN32
+    HMODULE module = nullptr;
+    if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+            reinterpret_cast<LPCSTR>(&fsym_yacas_scripts_path), &module)) {
+        char name[32768];
+        const DWORD n = GetModuleFileNameA(module, name, sizeof(name));
+        if (n > 0 && n < sizeof(name)) library = std::string(name, n);
+    }
+#else
+    Dl_info info;
+    if (dladdr(reinterpret_cast<void *>(&fsym_yacas_scripts_path), &info) &&
+            info.dli_fname != nullptr) library = info.dli_fname;
+#endif
+    const fs::path candidates[] = {
+        library.empty() ? fs::path() :
+            library.parent_path() / FORTSYM_YACAS_INSTALL_RELATIVE,
+        FORTSYM_YACAS_BUILD_SCRIPTS,
+        "/usr/share/yacas/scripts",
+        "/usr/local/share/yacas/scripts",
+        "/usr/lib/yacas/scripts"
+    };
+    for (const auto &path : candidates) {
+        std::error_code error;
+        if (!path.empty() && fs::is_regular_file(path / "yacasinit.ys", error))
+            return fs::weakly_canonical(path, error).string();
+    }
+    return {};
+}
 
 /*! Escape a path for embedding in a Yacas string literal. A Windows-style path
  *  or one containing a quote would otherwise terminate the literal early and
@@ -65,6 +107,17 @@ struct fsym_yacas {
 };
 
 extern "C" {
+
+size_t fsym_yacas_scripts_path(char *buf, size_t n)
+{
+    try {
+        const std::string path = scripts_path();
+        if (buf != nullptr) std::memcpy(buf, path.data(), std::min(n, path.size()));
+        return path.size();
+    } catch (...) {
+        return 0;
+    }
+}
 
 fsym_yacas *fsym_yacas_new(const char *scripts_dir)
 {
@@ -181,6 +234,8 @@ size_t fsym_yacas_error_fetch(fsym_yacas *self, char *buf, size_t n)
 #else /* !FORTSYM_HAVE_YACAS */
 
 extern "C" {
+
+size_t fsym_yacas_scripts_path(char *, size_t) { return 0; }
 
 /* Built without Yacas. Reporting unavailable is the same answer the caller
  * gets when the script library cannot be loaded, so no path above this needs a

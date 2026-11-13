@@ -45,6 +45,7 @@ recorded and the engine is skipped, never a build failure.
 | FLINT | 3.6.0 | LGPL-3.0-or-later | `LGPL-3.0-or-later` | **shared only** | https://github.com/flintlib/flint |
 | GMP | 6.3.0 | LGPL-3.0+ / GPL-2.0+ dual | `LGPL-3.0-or-later` | **shared only**, transitive | https://gmplib.org |
 | MPFR | 4.2.2 | LGPL-3.0-or-later | `LGPL-3.0-or-later` | **shared only**, transitive | https://www.mpfr.org |
+| MPC | system package | LGPL-3.0-or-later | `LGPL-3.0-or-later` | **shared only**, transitive through SymEngine | https://www.multiprecision.org/mpc/ |
 
 SymEngine is MIT, so it imposes nothing beyond attribution.
 
@@ -258,8 +259,13 @@ other.
 ## 7. Attribution required in binary distributions
 
 A binary distribution of fortsym must carry: fortsym's MIT licence; SymEngine's
-MIT licence; and the LGPL texts and notices for FLINT, GMP and MPFR, together
-with whatever the LGPL requires to permit relinking against modified versions.
+MIT licence; FortGen's and FortPlot's MIT notices; Yacas's LGPL-2.1-or-later
+licence and contributor notices; and the
+LGPL texts and notices for FLINT, GMP, MPFR and MPC, together with whatever the LGPL
+requires to permit relinking against modified versions. CMake installs the
+licence texts and [third-party notices](THIRD_PARTY.md) in
+`share/licenses/fortsym`. Distributors retain the notices and corresponding
+source for the dependency binaries they ship.
 
 Distributing fortsym does not require shipping anything for Tier 2 engines,
 because none of them is included or linked.

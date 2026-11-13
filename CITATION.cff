@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "Please cite the software release used in your work."
+type: software
+title: "fortsym: computer algebra and kernel generation for Fortran"
+authors:
+  - family-names: Albert
+    given-names: Christopher
+repository-code: "https://github.com/lazy-fortran/fortsym"
+url: "https://github.com/lazy-fortran/fortsym"
+license: MIT
+abstract: >-
+  A Fortran computer algebra library for symbolic derivations, numerical
+  kernel generation, derivative products, and independent checks.

@@ -26,6 +26,25 @@ if(FORTSYM_USE_SYSTEM_DEPS)
 
     find_package(SymEngine REQUIRED CONFIG)
 
+    include(CheckCXXSourceCompiles)
+    set(_fortsym_saved_required_includes "${CMAKE_REQUIRED_INCLUDES}")
+    set(CMAKE_REQUIRED_INCLUDES ${SYMENGINE_INCLUDE_DIRS})
+    unset(FORTSYM_SYMENGINE_HAS_PRECISION CACHE)
+    check_cxx_source_compiles("
+        #include <symengine/symengine_config.h>
+        #if !defined(HAVE_SYMENGINE_MPFR) || !defined(HAVE_SYMENGINE_MPC)
+        #error FortSym needs SymEngine MPFR and MPC evaluation
+        #endif
+        int main() { return 0; }
+        " FORTSYM_SYMENGINE_HAS_PRECISION)
+    set(CMAKE_REQUIRED_INCLUDES "${_fortsym_saved_required_includes}")
+    unset(_fortsym_saved_required_includes)
+    if(NOT FORTSYM_SYMENGINE_HAS_PRECISION)
+        message(FATAL_ERROR
+            "fortsym requires SymEngine built with WITH_MPFR=ON and WITH_MPC=ON; "
+            "use a matching system package or -DFORTSYM_USE_SYSTEM_DEPS=OFF")
+    endif()
+
     set(CMAKE_POLICY_VERSION_MINIMUM "${_fortsym_saved_policy_min}")
     unset(_fortsym_saved_policy_min)
 
@@ -48,6 +67,8 @@ else()
     set(BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
     set(INTEGER_CLASS "gmp" CACHE STRING "" FORCE)
     set(WITH_SYMENGINE_RCP ON CACHE BOOL "" FORCE)
+    set(WITH_MPFR ON CACHE BOOL "" FORCE)
+    set(WITH_MPC ON CACHE BOOL "" FORCE)
 
     FetchContent_Declare(symengine
         GIT_REPOSITORY https://github.com/symengine/symengine.git

@@ -2,12 +2,16 @@
  * each entry point exists. */
 
 #include <algorithm>
+#include <array>
+#include <atomic>
+#include <cstdio>
 #include <cstring>
 #include <cstdint>
 #include <cmath>
 #include <charconv>
 #include <cstdlib>
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <limits>
 #include <memory>
 #include <numeric>
@@ -62,6 +66,81 @@ static_assert(alignof(CRCPBasic) == alignof(CRCPBasic_C),
 
 namespace
 {
+
+bool environment_flag(const char *name)
+{
+    const char *value = std::getenv(name);
+    return value != nullptr && std::strcmp(value, "1") == 0;
+}
+
+struct DelegateState {
+    const std::array<bool, 3> enabled = {{
+        !environment_flag("FORTSYM_DISABLE_FLINT_EXACT"),
+        !environment_flag("FORTSYM_DISABLE_FLINT_ALGEBRAIC"),
+        !environment_flag("FORTSYM_DISABLE_SYMENGINE_EVAL")}};
+    const std::string trace_prefix = [] {
+        const char *value = std::getenv("FORTSYM_TRACE_DELEGATES");
+        return value == nullptr ? std::string{} : std::string(value);
+    }();
+    const bool counting = environment_flag("FORTSYM_COUNT_DELEGATES")
+        || !trace_prefix.empty() || !enabled[0] || !enabled[1] || !enabled[2];
+    std::array<std::atomic<uint64_t>, 3> attempts{};
+    std::array<std::atomic<uint64_t>, 3> successes{};
+
+    ~DelegateState()
+    {
+        if (trace_prefix.empty()) return;
+        try {
+            const std::string path = trace_prefix + "."
+                + std::to_string(static_cast<long long>(getpid())) + ".json";
+            const int fd = open(path.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600);
+            FILE *file = fd < 0 ? nullptr : fdopen(fd, "w");
+            if (file == nullptr) {
+                if (fd >= 0) close(fd);
+                std::fprintf(stderr, "fortsym: cannot create delegate trace %s\n",
+                             path.c_str());
+                return;
+            }
+            const char *names[] = {"flint-exact", "flint-algebraic", "symengine-eval"};
+            bool good = std::fprintf(file,
+                "{\"schema\":\"fortsym-direct-delegates-v1\",\"pid\":%lld,\"delegates\":{",
+                static_cast<long long>(getpid())) >= 0;
+            for (size_t i = 0; i < enabled.size(); ++i) {
+                good = std::fprintf(file,
+                    "%s\"%s\":{\"enabled\":%s,\"attempts\":%llu,\"successes\":%llu}",
+                    i == 0 ? "" : ",", names[i], enabled[i] ? "true" : "false",
+                    static_cast<unsigned long long>(attempts[i].load(std::memory_order_relaxed)),
+                    static_cast<unsigned long long>(successes[i].load(std::memory_order_relaxed))) >= 0 && good;
+            }
+            good = std::fprintf(file, "}}\n") >= 0 && good;
+            if (std::fclose(file) != 0 || !good) {
+                std::fprintf(stderr, "fortsym: incomplete delegate trace %s\n", path.c_str());
+            }
+        } catch (...) {
+            std::fprintf(stderr, "fortsym: cannot write delegate trace\n");
+        }
+    }
+};
+
+DelegateState &delegate_state()
+{
+    static DelegateState state;
+    return state;
+}
+
+class DelegateCall {
+    int delegate_;
+    bool enabled_;
+public:
+    explicit DelegateCall(int delegate)
+        : delegate_(delegate), enabled_(fsym_delegate_begin(delegate) != 0) {}
+    explicit operator bool() const { return enabled_; }
+    template <typename T> T accepted(T result)
+    {
+        if (result != 0) fsym_delegate_success(delegate_);
+        return result;
+    }
+};
 
 /* Rendered-text buffer. Thread-local so concurrent Fortran callers cannot
  * overwrite each other's pending fetch. */
@@ -876,6 +955,56 @@ try_cancel(const SymEngine::RCP<const SymEngine::Basic> &e)
 
 extern "C" {
 
+void fsym_delegate_initialize(void)
+{
+    const char *trace = std::getenv("FORTSYM_TRACE_DELEGATES");
+    if (trace == nullptr || trace[0] == '\0') return;
+    try {
+        (void)delegate_state();
+    } catch (...) {
+        std::fprintf(stderr, "fortsym: cannot initialize delegate trace\n");
+    }
+}
+
+int fsym_delegate_begin(int delegate)
+{
+    if (delegate < 1 || delegate > 3) return 0;
+    try {
+        auto &state = delegate_state();
+        const size_t index = static_cast<size_t>(delegate - 1);
+        if (state.counting) state.attempts[index].fetch_add(1, std::memory_order_relaxed);
+        return state.enabled[index] ? 1 : 0;
+    } catch (...) {
+        return 0;
+    }
+}
+
+void fsym_delegate_success(int delegate)
+{
+    if (delegate < 1 || delegate > 3) return;
+    try {
+        auto &state = delegate_state();
+        if (state.counting) {
+            state.successes[static_cast<size_t>(delegate - 1)].fetch_add(1, std::memory_order_relaxed);
+        }
+    } catch (...) {
+    }
+}
+
+int fsym_delegate_counts(int delegate, uint64_t *attempts, uint64_t *successes)
+{
+    if (delegate < 1 || delegate > 3 || attempts == nullptr || successes == nullptr) return 0;
+    try {
+        auto &state = delegate_state();
+        const size_t index = static_cast<size_t>(delegate - 1);
+        *attempts = state.attempts[index].load(std::memory_order_relaxed);
+        *successes = state.successes[index].load(std::memory_order_relaxed);
+        return 1;
+    } catch (...) {
+        return 0;
+    }
+}
+
 int fsym_make_temp_directory(char *path, size_t size)
 {
     constexpr char pattern[] = "/tmp/fortsym_XXXXXX";
@@ -957,12 +1086,14 @@ size_t fsym_str_fetch(char *buf, size_t n)
 size_t fsym_exact_normalize(const char *value)
 {
     try {
-        FmpqValue parsed;
+        DelegateCall call(FSYM_DELEGATE_FLINT_EXACT);
         g_exact_buffer.clear();
+        if (!call) return 0;
+        FmpqValue parsed;
         if (!parse_exact(parsed, value)) {
             return 0;
         }
-        return hold_exact(parsed.value);
+        return call.accepted(hold_exact(parsed.value));
     } catch (...) {
         g_exact_buffer.clear();
         return 0;
@@ -972,10 +1103,12 @@ size_t fsym_exact_normalize(const char *value)
 size_t fsym_exact_binary(const char *left, const char *right, int operation)
 {
     try {
+        DelegateCall call(FSYM_DELEGATE_FLINT_EXACT);
+        g_exact_buffer.clear();
+        if (!call) return 0;
         FmpqValue lhs;
         FmpqValue rhs;
         FmpqValue result;
-        g_exact_buffer.clear();
         if (!parse_exact(lhs, left) || !parse_exact(rhs, right)) {
             return 0;
         }
@@ -999,7 +1132,7 @@ size_t fsym_exact_binary(const char *left, const char *right, int operation)
         default:
             return 0;
         }
-        return hold_exact(result.value);
+        return call.accepted(hold_exact(result.value));
     } catch (...) {
         g_exact_buffer.clear();
         return 0;
@@ -1009,9 +1142,11 @@ size_t fsym_exact_binary(const char *left, const char *right, int operation)
 size_t fsym_exact_pow_si(const char *base, int64_t exponent)
 {
     try {
+        DelegateCall call(FSYM_DELEGATE_FLINT_EXACT);
+        g_exact_buffer.clear();
+        if (!call) return 0;
         FmpqValue value;
         FmpqValue result;
-        g_exact_buffer.clear();
         if (!parse_exact(value, base)) {
             return 0;
         }
@@ -1026,7 +1161,7 @@ size_t fsym_exact_pow_si(const char *base, int64_t exponent)
             return 0;
         }
         fmpq_pow_si(result.value, value.value, static_cast<slong>(exponent));
-        return hold_exact(result.value);
+        return call.accepted(hold_exact(result.value));
     } catch (...) {
         g_exact_buffer.clear();
         return 0;
@@ -1051,6 +1186,8 @@ size_t fsym_exact_fetch(char *buf, size_t n)
 int fsym_exact_get_d(const char *value, double *result)
 {
     try {
+        DelegateCall call(FSYM_DELEGATE_FLINT_EXACT);
+        if (!call) return 0;
         FmpqValue parsed;
         FmpqValue magnitude;
         FmpqValue minimum_normal;
@@ -1061,7 +1198,7 @@ int fsym_exact_get_d(const char *value, double *result)
         }
         if (fmpq_is_zero(parsed.value)) {
             *result = 0.0;
-            return 1;
+            return call.accepted(1);
         }
         fmpq_abs(magnitude.value, parsed.value);
         fmpz_one(fmpq_numref(minimum_normal.value));
@@ -1082,7 +1219,7 @@ int fsym_exact_get_d(const char *value, double *result)
         }
         fmpq_get_mpfr(rounded.value, parsed.value, MPFR_RNDN);
         *result = mpfr_get_d(rounded.value, MPFR_RNDN);
-        return std::isfinite(*result) ? 1 : 0;
+        return call.accepted(std::isfinite(*result) ? 1 : 0);
     } catch (...) {
         return 0;
     }
@@ -1178,12 +1315,14 @@ int fsym_mpfr_ulp_error(const char *reference, double observed, double *error)
 size_t fsym_algebraic_normalize(const char *value)
 {
     try {
-        QqbarValue parsed;
+        DelegateCall call(FSYM_DELEGATE_FLINT_ALGEBRAIC);
         g_algebraic_buffer.clear();
+        if (!call) return 0;
+        QqbarValue parsed;
         if (!parse_algebraic(parsed, value)) {
             return 0;
         }
-        return hold_algebraic(parsed.value);
+        return call.accepted(hold_algebraic(parsed.value));
     } catch (...) {
         g_algebraic_buffer.clear();
         return 0;
@@ -1193,6 +1332,8 @@ size_t fsym_algebraic_normalize(const char *value)
 int fsym_algebraic_get_d(const char *value, double *result)
 {
     try {
+        DelegateCall call(FSYM_DELEGATE_FLINT_ALGEBRAIC);
+        if (!call) return 0;
         QqbarValue input;
         QqbarValue real_part;
         if (result == nullptr || !parse_algebraic(input, value)
@@ -1201,7 +1342,7 @@ int fsym_algebraic_get_d(const char *value, double *result)
         }
         if (qqbar_is_zero(input.value)) {
             *result = 0.0;
-            return 1;
+            return call.accepted(1);
         }
 
         qqbar_re(real_part.value, input.value);
@@ -1219,7 +1360,7 @@ int fsym_algebraic_get_d(const char *value, double *result)
                 return 0;
             }
             *result = projected;
-            return 1;
+            return call.accepted(1);
         }
         return 0;
     } catch (...) {
@@ -1230,8 +1371,10 @@ int fsym_algebraic_get_d(const char *value, double *result)
 int fsym_algebraic_symengine_supported(const char *value)
 {
     try {
+        DelegateCall call(FSYM_DELEGATE_FLINT_ALGEBRAIC);
+        if (!call) return 0;
         std::string expression;
-        return algebraic_gaussian_rational_text(value, expression) ? 1 : 0;
+        return call.accepted(algebraic_gaussian_rational_text(value, expression) ? 1 : 0);
     } catch (...) {
         return 0;
     }
@@ -1241,11 +1384,15 @@ CWRAPPER_OUTPUT_TYPE fsym_algebraic_to_symengine(basic out,
                                                   const char *value)
 {
     try {
+        DelegateCall call(FSYM_DELEGATE_FLINT_ALGEBRAIC);
+        if (!call) return SYMENGINE_NOT_IMPLEMENTED;
         std::string expression;
         if (!algebraic_gaussian_rational_text(value, expression)) {
             return SYMENGINE_NOT_IMPLEMENTED;
         }
-        return basic_parse(out, expression.c_str());
+        const auto result = basic_parse(out, expression.c_str());
+        if (result == SYMENGINE_NO_EXCEPTION) call.accepted(1);
+        return result;
     } catch (...) {
         return SYMENGINE_RUNTIME_ERROR;
     }
@@ -1254,10 +1401,12 @@ CWRAPPER_OUTPUT_TYPE fsym_algebraic_to_symengine(basic out,
 size_t fsym_algebraic_i(void)
 {
     try {
-        QqbarValue value;
+        DelegateCall call(FSYM_DELEGATE_FLINT_ALGEBRAIC);
         g_algebraic_buffer.clear();
+        if (!call) return 0;
+        QqbarValue value;
         qqbar_i(value.value);
-        return hold_algebraic(value.value);
+        return call.accepted(hold_algebraic(value.value));
     } catch (...) {
         g_algebraic_buffer.clear();
         return 0;
@@ -1268,6 +1417,9 @@ size_t fsym_algebraic_from_re_im(const char *real_part,
                                  const char *imag_part)
 {
     try {
+        DelegateCall call(FSYM_DELEGATE_FLINT_ALGEBRAIC);
+        g_algebraic_buffer.clear();
+        if (!call) return 0;
         size_t real_length = 0;
         size_t imag_length = 0;
         FmpqValue real_value;
@@ -1275,7 +1427,6 @@ size_t fsym_algebraic_from_re_im(const char *real_part,
         QqbarValue real_algebraic;
         QqbarValue imag_algebraic;
         QqbarValue result;
-        g_algebraic_buffer.clear();
         if (!bounded_text_length(real_part, kMaxAlgebraicBytes, real_length)
             || !bounded_text_length(imag_part, kMaxAlgebraicBytes,
                                     imag_length)
@@ -1287,7 +1438,7 @@ size_t fsym_algebraic_from_re_im(const char *real_part,
         qqbar_set_fmpq(imag_algebraic.value, imag_value.value);
         qqbar_set_re_im(result.value, real_algebraic.value,
                         imag_algebraic.value);
-        return hold_algebraic(result.value);
+        return call.accepted(hold_algebraic(result.value));
     } catch (...) {
         g_algebraic_buffer.clear();
         return 0;
@@ -1296,22 +1447,30 @@ size_t fsym_algebraic_from_re_im(const char *real_part,
 
 size_t fsym_algebraic_re(const char *value)
 {
-    return hold_algebraic_component(value, true);
+    DelegateCall call(FSYM_DELEGATE_FLINT_ALGEBRAIC);
+    g_algebraic_buffer.clear();
+    if (!call) return 0;
+    return call.accepted(hold_algebraic_component(value, true));
 }
 
 size_t fsym_algebraic_im(const char *value)
 {
-    return hold_algebraic_component(value, false);
+    DelegateCall call(FSYM_DELEGATE_FLINT_ALGEBRAIC);
+    g_algebraic_buffer.clear();
+    if (!call) return 0;
+    return call.accepted(hold_algebraic_component(value, false));
 }
 
 size_t fsym_algebraic_binary(const char *left, const char *right,
                              int operation)
 {
     try {
+        DelegateCall call(FSYM_DELEGATE_FLINT_ALGEBRAIC);
+        g_algebraic_buffer.clear();
+        if (!call) return 0;
         QqbarValue lhs;
         QqbarValue rhs;
         QqbarValue result;
-        g_algebraic_buffer.clear();
         if (!parse_algebraic(lhs, left) || !parse_algebraic(rhs, right)
             || !qqbar_binop_within_limits(lhs.value, rhs.value,
                                           kMaxAlgebraicDegree,
@@ -1337,7 +1496,7 @@ size_t fsym_algebraic_binary(const char *left, const char *right,
         default:
             return 0;
         }
-        return hold_algebraic(result.value);
+        return call.accepted(hold_algebraic(result.value));
     } catch (...) {
         g_algebraic_buffer.clear();
         return 0;
@@ -1347,9 +1506,11 @@ size_t fsym_algebraic_binary(const char *left, const char *right,
 size_t fsym_algebraic_unary(const char *value, int operation)
 {
     try {
+        DelegateCall call(FSYM_DELEGATE_FLINT_ALGEBRAIC);
+        g_algebraic_buffer.clear();
+        if (!call) return 0;
         QqbarValue input;
         QqbarValue result;
-        g_algebraic_buffer.clear();
         if (!parse_algebraic(input, value)) {
             return 0;
         }
@@ -1366,7 +1527,7 @@ size_t fsym_algebraic_unary(const char *value, int operation)
         default:
             return 0;
         }
-        return hold_algebraic(result.value);
+        return call.accepted(hold_algebraic(result.value));
     } catch (...) {
         g_algebraic_buffer.clear();
         return 0;
@@ -1376,9 +1537,11 @@ size_t fsym_algebraic_unary(const char *value, int operation)
 size_t fsym_algebraic_pow_si(const char *base, int64_t exponent)
 {
     try {
+        DelegateCall call(FSYM_DELEGATE_FLINT_ALGEBRAIC);
+        g_algebraic_buffer.clear();
+        if (!call) return 0;
         QqbarValue value;
         QqbarValue result;
-        g_algebraic_buffer.clear();
         if (!parse_algebraic(value, base)
             || exponent < -kMaxAlgebraicPowExponent
             || exponent > kMaxAlgebraicPowExponent
@@ -1394,7 +1557,7 @@ size_t fsym_algebraic_pow_si(const char *base, int64_t exponent)
             return 0;
         }
         qqbar_pow_si(result.value, value.value, static_cast<slong>(exponent));
-        return hold_algebraic(result.value);
+        return call.accepted(hold_algebraic(result.value));
     } catch (...) {
         g_algebraic_buffer.clear();
         return 0;
@@ -1404,6 +1567,8 @@ size_t fsym_algebraic_pow_si(const char *base, int64_t exponent)
 int fsym_algebraic_signs(const char *value, int *real_sign, int *imag_sign)
 {
     try {
+        DelegateCall call(FSYM_DELEGATE_FLINT_ALGEBRAIC);
+        if (!call) return 0;
         QqbarValue parsed;
         if (real_sign == nullptr || imag_sign == nullptr
             || !parse_algebraic(parsed, value)) {
@@ -1411,7 +1576,7 @@ int fsym_algebraic_signs(const char *value, int *real_sign, int *imag_sign)
         }
         *real_sign = qqbar_sgn_re(parsed.value);
         *imag_sign = qqbar_sgn_im(parsed.value);
-        return 1;
+        return call.accepted(1);
     } catch (...) {
         return 0;
     }

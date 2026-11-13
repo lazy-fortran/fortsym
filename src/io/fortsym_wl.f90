@@ -66,6 +66,7 @@ module fortsym_wl
     use fortsym_limits, only: limit_of, limit_value_t, finite_point, &
         plus_infinity, minus_infinity, TWO_SIDED, LIMIT_FINITE, &
         LIMIT_PLUS_INF
+    use fortsym_capi, only: fsym_delegate_initialize
     implicit none
     private
 
@@ -167,6 +168,7 @@ contains
     subroutine wl_session_begin(s, a)
         type(wl_session_t),    intent(out)   :: s
         type(arena_t), target, intent(inout) :: a
+        call fsym_delegate_initialize()
         s%a => a
         s%engine = make_native_engine(a)
         s%n = 0
@@ -2634,10 +2636,14 @@ contains
         select case (chars(mapper%name()))
         case ("Plus")
             r = num(s%a, 0_int64)
-            do k = 1, size(values); r = r + values(k); end do
+            do k = 1, size(values)
+                r = r + values(k)
+            end do
         case ("Times")
             r = num(s%a, 1_int64)
-            do k = 1, size(values); r = r*values(k); end do
+            do k = 1, size(values)
+                r = r*values(k)
+            end do
         case default
             r = func(chars(mapper%name()), values)
             r = wl_eval(s, r, ok, message)
@@ -2653,7 +2659,8 @@ contains
         logical,             intent(in)    :: repeated
         logical,             intent(out)   :: ok
         type(str_t),        intent(out)   :: message
-        type(expr_t)                      :: r, rules, rule, before
+        type(expr_t)                      :: r, rules, before
+        type(expr_t), allocatable         :: rule_list(:)
         integer :: k, iteration
         logical :: item_ok
         type(str_t) :: item_message
@@ -2671,15 +2678,10 @@ contains
             call refuse(ok, message, chars(item_message))
             return
         end if
-        ! A command such as D is intentionally lowered before this wrapper
-        ! applies its rule.  Match top-level statement evaluation by folding
-        ! that result before substitution; otherwise raw powers such as 0**1
-        ! can survive a point replacement and corrupt a valid derivative.
+        ! Fold lowered commands before matching their resulting expression.
         r = auto_evaluate(s, r)
         rules = e%arg(2)
-        ! A computed rule expression such as First[Solve[...]] must be
-        ! evaluated before applying it. Keep literal RuleDelayed right-hand
-        ! sides lazy; this narrow path only resolves a computed First form.
+        ! Keep literal delayed right-hand sides lazy while resolving computed rules.
         if (rules%kind() == NK_FUNC .and. chars(rules%name()) == "First") then
             rules = wl_eval(s, apply_bindings(s, rules), item_ok, item_message)
             if (.not. item_ok) then
@@ -2688,223 +2690,142 @@ contains
             end if
         end if
         if (rules%kind() == NK_FUNC .and. chars(rules%name()) == "List") then
+            allocate (rule_list(rules%nargs()))
             do k = 1, rules%nargs()
-                before = r
-                call apply_one_rule(s, before, rules%arg(k), r, item_ok, item_message)
-                if (.not. item_ok) then
-                    call refuse(ok, message, chars(item_message))
-                    return
-                end if
+                rule_list(k) = rules%arg(k)
             end do
         else
+            rule_list = [rules]
+        end if
+
+        do iteration = 0, 64
             before = r
-            call apply_one_rule(s, before, rules, r, item_ok, item_message)
-            if (.not. item_ok) then
-                call refuse(ok, message, chars(item_message))
-                return
-            end if
-        end if
-        if (repeated) then
-            do iteration = 1, 64
-                before = r
-                if (rules%kind() == NK_FUNC .and. chars(rules%name()) == "List") then
-                    do k = 1, rules%nargs()
-                        before = r
-                        call apply_one_rule(s, before, rules%arg(k), r, item_ok, item_message)
-                        if (.not. item_ok) exit
-                    end do
-                else
-                    before = r
-                    call apply_one_rule(s, before, rules, r, item_ok, item_message)
-                end if
-                if (.not. item_ok) exit
-                if (r%id == before%id) exit
-            end do
-            if (.not. item_ok) then
-                call refuse(ok, message, chars(item_message))
-                return
-            end if
-            if (iteration > 64) then
-                call refuse(ok, message, "ReplaceRepeated exceeded its iteration bound")
-                return
-            end if
-        end if
-        r = wl_eval(s, r, ok, message)
+            call apply_rule_list(s, before, rule_list, r, ok, message)
+            if (.not. ok) return
+            r = wl_eval(s, r, ok, message)
+            if (.not. ok) return
+            r = auto_evaluate(s, r)
+            if (.not. repeated .or. r%id == before%id) return
+        end do
+        call refuse(ok, message, "ReplaceRepeated exceeded its iteration bound")
     end function lower_replace
 
-    subroutine apply_one_rule(s, input, rule, output, ok, message)
+    subroutine apply_rule_list(s, input, rules, output, ok, message)
         type(wl_session_t), intent(inout) :: s
-        type(expr_t),       intent(in)    :: input, rule
-        type(expr_t),       intent(out)   :: output
-        logical,             intent(out)  :: ok
-        type(str_t),         intent(out)  :: message
-        type(expr_t) :: rhs, lhs
-        logical :: has_pattern
-
-        output = input
-        ok = .false.
-        message = str("")
-        if (rule%kind() /= NK_FUNC .or. rule%nargs() /= 2) then
-            call refuse(ok, message, "replacement needs Rule or RuleDelayed")
-            return
-        end if
-        if (chars(rule%name()) /= "Rule" .and. chars(rule%name()) /= "RuleDelayed") then
-            call refuse(ok, message, "replacement needs Rule or RuleDelayed")
-            return
-        end if
-        has_pattern = contains_pattern(rule%arg(1))
-        if (has_pattern) then
-            output = replace_pattern(s, input, rule%arg(1), rule%arg(2), ok, message)
-            if (.not. ok) return
-        else
-            lhs = rule%arg(1)
-            rhs = wl_eval(s, apply_bindings(s, rule%arg(2)), ok, message)
-            if (.not. ok) return
-            if (lhs%kind() == NK_SYM .and. rhs%kind() == NK_FUNC .and. &
-                chars(rhs%name()) == "Function") then
-                output = replace_function_heads(s, input, chars(lhs%name()), &
-                    rhs, ok, message)
-                if (.not. ok) return
-            else
-                output = subs(input, rule%arg(1), rhs)
-            end if
-        end if
-        ok = .true.
-    end subroutine apply_one_rule
-
-    !> Replace a named head such as `t` in `t[x]` with a pure Function value.
-    !> ReplaceAll applies rules to heads as well as arguments. This bounded
-    !> implementation handles the function-valued rule used by source
-    !> derivations, while ordinary scalar replacement continues through subs.
-    recursive function replace_function_heads(s, input, head_name, mapper, ok, &
-            message) result(output)
-        type(wl_session_t), intent(inout) :: s
-        type(expr_t), intent(in) :: input, mapper
-        character(*), intent(in) :: head_name
+        type(expr_t), intent(in) :: input, rules(:)
+        type(expr_t), intent(out) :: output
         logical, intent(out) :: ok
         type(str_t), intent(out) :: message
-        type(expr_t) :: output, child, mapped
-        type(expr_t), allocatable :: args(:)
-        logical :: child_ok, changed
+        type(expr_t) :: lhs(size(rules)), rhs(size(rules)), rule
+        logical :: deferred(size(rules))
         integer :: k
 
+        output = input
         ok = .true.
         message = str("")
-        output = input
-        if (input%kind() == NK_SYM) then
-            if (chars(input%name()) == head_name) output = mapper
-            return
-        end if
-        if (input%kind() /= NK_ADD .and. input%kind() /= NK_MUL .and. &
-            input%kind() /= NK_POW .and. input%kind() /= NK_FUNC) return
-        if (input%nargs() == 0) return
-
-        if (input%kind() == NK_FUNC .and. chars(input%name()) == head_name) then
-            allocate (args(input%nargs()))
-            do k = 1, input%nargs()
-                args(k) = wl_eval(s, apply_bindings(s, input%arg(k)), child_ok, message)
-                if (.not. child_ok) then
-                    ok = .false.
-                    return
-                end if
-            end do
-            call apply_mapper(s, mapper, args, mapped, ok, message)
-            if (ok) output = mapped
-            return
-        end if
-
-        allocate (args(input%nargs()))
-        changed = .false.
-        do k = 1, input%nargs()
-            child = input%arg(k)
-            args(k) = replace_function_heads(s, child, head_name, mapper, child_ok, message)
-            if (.not. child_ok) then
-                ok = .false.
+        do k = 1, size(rules)
+            rule = rules(k)
+            if (rule%kind() /= NK_FUNC .or. rule%nargs() /= 2) then
+                call refuse(ok, message, "replacement needs Rule or RuleDelayed")
                 return
             end if
+            if (chars(rule%name()) /= "Rule" .and. chars(rule%name()) /= "RuleDelayed") then
+                call refuse(ok, message, "replacement needs Rule or RuleDelayed")
+                return
+            end if
+            lhs(k) = rule%arg(1)
+            rhs(k) = rule%arg(2)
+            deferred(k) = contains_pattern(lhs(k)) .or. chars(rule%name()) == "RuleDelayed"
+            if (.not. deferred(k)) then
+                rhs(k) = wl_eval(s, apply_bindings(s, rhs(k)), ok, message)
+                if (.not. ok) return
+            end if
+        end do
+        output = replace_rule_parts(s, input, lhs, rhs, deferred, ok, message)
+    end subroutine apply_rule_list
+
+    subroutine replace_rule_at_part(s, input, lhs, rhs, deferred, output, matched, ok, message)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t), intent(in) :: input, lhs(:), rhs(:)
+        logical, intent(in) :: deferred(:)
+        type(expr_t), intent(out) :: output
+        logical, intent(out) :: matched, ok
+        type(str_t), intent(out) :: message
+        type(expr_t) :: names(MAX_RULE_PATTERNS), values(MAX_RULE_PATTERNS)
+        integer :: k, nvars
+
+        output = input
+        matched = .false.
+        ok = .true.
+        message = str("")
+        do k = 1, size(lhs)
+            nvars = 0
+            matched = match_pattern(lhs(k), input, names, values, nvars)
+            if (.not. matched) cycle
+            output = rhs(k)
+            if (nvars > 0) output = subs_many(rhs(k), names(:nvars), values(:nvars))
+            if (deferred(k)) output = wl_eval(s, apply_bindings(s, output), ok, message)
+            return
+        end do
+    end subroutine replace_rule_at_part
+
+    !> A matched parent consumes its rule even when the replacement is identical.
+    !> Replacements are never traversed again until a separate replacement pass.
+    recursive function replace_rule_parts(s, input, lhs, rhs, deferred, ok, message) result(output)
+        type(wl_session_t), intent(inout) :: s
+        type(expr_t), intent(in) :: input, lhs(:), rhs(:)
+        logical, intent(in) :: deferred(:)
+        logical, intent(out) :: ok
+        type(str_t), intent(out) :: message
+        type(expr_t) :: output, head, original_head, child
+        type(expr_t), allocatable :: args(:)
+        logical :: matched, changed
+        integer :: k
+
+        call replace_rule_at_part(s, input, lhs, rhs, deferred, output, matched, ok, message)
+        if (.not. ok .or. matched) return
+        if (input%kind() /= NK_ADD .and. input%kind() /= NK_MUL .and. &
+            input%kind() /= NK_POW .and. input%kind() /= NK_FUNC) return
+
+        changed = .false.
+        if (input%kind() == NK_FUNC) then
+            original_head = sym(input%a, chars(input%name()))
+            call replace_rule_at_part(s, original_head, lhs, rhs, deferred, &
+                head, matched, ok, message)
+            if (.not. ok) return
+            changed = head%id /= original_head%id
+        end if
+        allocate (args(input%nargs()))
+        do k = 1, input%nargs()
+            child = input%arg(k)
+            args(k) = replace_rule_parts(s, child, lhs, rhs, deferred, ok, message)
+            if (.not. ok) return
             changed = changed .or. args(k)%id /= child%id
         end do
         if (.not. changed) return
         select case (input%kind())
         case (NK_ADD)
             output = args(1)
-            do k = 2, size(args); output = output + args(k); end do
+            do k = 2, size(args)
+                output = output + args(k)
+            end do
         case (NK_MUL)
             output = args(1)
-            do k = 2, size(args); output = output*args(k); end do
+            do k = 2, size(args)
+                output = output*args(k)
+            end do
         case (NK_POW)
             output = args(1)**args(2)
         case (NK_FUNC)
-            output = func(chars(input%name()), args)
+            if (head%kind() == NK_SYM) then
+                output = func(chars(head%name()), args)
+            else if (head%kind() == NK_FUNC .and. chars(head%name()) == "Function") then
+                call apply_mapper(s, head, args, output, ok, message)
+            else
+                call refuse(ok, message, "replacement produced an unsupported expression head")
+            end if
         end select
-    end function replace_function_heads
-
-    !> Replace named blank patterns such as `rr_` in a RuleDelayed. This is the
-    !> small pattern subset needed by source-faithful corpus identities: a blank
-    !> matches one whole expression, repeated names must match the same one, and
-    !> the instantiated right-hand side is evaluated only after binding it.
-    recursive function replace_pattern(s, input, pattern, rhs, ok, message) result(output)
-        type(wl_session_t), intent(inout) :: s
-        type(expr_t),       intent(in)    :: input, pattern, rhs
-        logical,             intent(out)   :: ok
-        type(str_t),         intent(out)   :: message
-        type(expr_t)                      :: output, replacement
-        type(expr_t)                      :: child
-        type(expr_t)                      :: pattern_vars(MAX_RULE_PATTERNS)
-        type(expr_t)                      :: pattern_values(MAX_RULE_PATTERNS)
-        type(expr_t), allocatable         :: args(:)
-        logical                           :: matched, child_ok, child_changed
-        integer                           :: nvars, k
-
-        ok = .true.
-        message = str("")
-        output = input
-        nvars = 0
-        matched = match_pattern(pattern, input, pattern_vars, pattern_values, nvars)
-        if (matched) then
-            replacement = rhs
-            do k = 1, nvars
-                replacement = subs(replacement, pattern_vars(k), pattern_values(k))
-            end do
-            replacement = wl_eval(s, apply_bindings(s, replacement), ok, message)
-            if (.not. ok) return
-            output = replacement
-            return
-        end if
-
-        select case (input%kind())
-        case (NK_ADD, NK_MUL, NK_POW, NK_FUNC)
-            if (input%nargs() == 0) return
-            allocate (args(input%nargs()))
-            child_changed = .false.
-            do k = 1, input%nargs()
-                child = input%arg(k)
-                args(k) = replace_pattern(s, child, pattern, rhs, child_ok, message)
-                if (.not. child_ok) then
-                    ok = .false.
-                    return
-                end if
-                child_changed = child_changed .or. (args(k)%id /= child%id)
-            end do
-            if (.not. child_changed) return
-            select case (input%kind())
-            case (NK_ADD)
-                output = args(1)
-                do k = 2, size(args)
-                    output = output + args(k)
-                end do
-            case (NK_MUL)
-                output = args(1)
-                do k = 2, size(args)
-                    output = output*args(k)
-                end do
-            case (NK_POW)
-                output = args(1)**args(2)
-            case (NK_FUNC)
-                output = func(chars(input%name()), args)
-            end select
-        end select
-    end function replace_pattern
+    end function replace_rule_parts
 
     recursive function match_pattern(pattern, value, names, values, nvars) result(matched)
         type(expr_t), intent(in)    :: pattern, value
@@ -3006,13 +2927,13 @@ contains
             length = len(name) - 1
             if (length > 0) name = name(:length)
         else if (e%kind() == NK_FUNC .and. chars(e%name()) == "Blank" .and. &
-            e%nargs() == 1) then
+                e%nargs() == 1) then
             child = e%arg(1)
             if (child%kind() /= NK_SYM) return
             name = chars(child%name())
             length = len(name)
         else if (e%kind() == NK_FUNC .and. chars(e%name()) == "Pattern" .and. &
-            e%nargs() == 2) then
+                e%nargs() == 2) then
             child = e%arg(1)
             if (child%kind() /= NK_SYM) return
             name = chars(child%name())

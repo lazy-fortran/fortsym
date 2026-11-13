@@ -88,4 +88,5 @@ refuses composite/foreign contexts. Python remains optional.
 - Exact mathematical equivalence versus explicitly permitted numerical
   lowering; avoid global framework migration before representative gates.
 
-The implementation order and atomic issues are in [PLAN.md](../PLAN.md).
+Open extensions are listed in the [development directions](roadmap.md) and
+the [issue tracker](https://github.com/lazy-fortran/fortsym/issues).

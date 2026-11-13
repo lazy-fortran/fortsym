@@ -346,8 +346,40 @@ target_include_directories(test_fortsym_header_cpp PRIVATE
 target_link_libraries(test_fortsym_header_cpp PRIVATE fortsym)
 add_test(NAME test_fortsym_header_cpp COMMAND test_fortsym_header_cpp)
 
+find_package(Threads REQUIRED)
+add_executable(test_fortsym_delegates capi/test_fortsym_delegates.cpp)
+target_include_directories(test_fortsym_delegates PRIVATE ${PROJECT_SOURCE_DIR}/src/capi)
+target_link_libraries(test_fortsym_delegates PRIVATE fortsym Threads::Threads)
+fortsym_add_test(test_fortsym_wl_delegates io/test_fortsym_wl_delegates.f90)
+set(_delegate_environment
+    "FORTSYM_COUNT_DELEGATES=0;FORTSYM_DISABLE_FLINT_EXACT=0;FORTSYM_DISABLE_FLINT_ALGEBRAIC=0;FORTSYM_DISABLE_SYMENGINE_EVAL=0;FORTSYM_TRACE_DELEGATES=")
+set_tests_properties(test_fortsym_wl_delegates PROPERTIES ENVIRONMENT "${_delegate_environment}")
+add_test(NAME test_fortsym_delegates COMMAND test_fortsym_delegates)
+set_tests_properties(test_fortsym_delegates PROPERTIES ENVIRONMENT "${_delegate_environment}")
+foreach(_mode IN ITEMS counted exact-off algebraic-off eval-off)
+    set(_environment "${_delegate_environment}")
+    list(TRANSFORM _environment REPLACE "^FORTSYM_COUNT_DELEGATES=0$" "FORTSYM_COUNT_DELEGATES=1")
+    if(_mode STREQUAL "exact-off")
+        list(TRANSFORM _environment REPLACE "^FORTSYM_DISABLE_FLINT_EXACT=0$" "FORTSYM_DISABLE_FLINT_EXACT=1")
+    elseif(_mode STREQUAL "algebraic-off")
+        list(TRANSFORM _environment REPLACE "^FORTSYM_DISABLE_FLINT_ALGEBRAIC=0$" "FORTSYM_DISABLE_FLINT_ALGEBRAIC=1")
+    elseif(_mode STREQUAL "eval-off")
+        list(TRANSFORM _environment REPLACE "^FORTSYM_DISABLE_SYMENGINE_EVAL=0$" "FORTSYM_DISABLE_SYMENGINE_EVAL=1")
+    endif()
+    add_test(NAME test_fortsym_delegates_${_mode} COMMAND test_fortsym_delegates)
+    add_test(NAME test_fortsym_wl_delegates_${_mode} COMMAND test_fortsym_wl_delegates ${_mode})
+    set_tests_properties(test_fortsym_delegates_${_mode} test_fortsym_wl_delegates_${_mode}
+        PROPERTIES ENVIRONMENT "${_environment}")
+endforeach()
+add_test(NAME test_fortsym_delegate_trace
+    COMMAND ${CMAKE_COMMAND} -DFIXTURE=$<TARGET_FILE:test_fortsym_wl_delegates>
+        -DRUNNER=$<TARGET_FILE:fortsym_wl_run>
+        -DTRACE_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/delegate-trace
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/capi/test_delegate_trace.cmake)
+add_dependencies(test_fortsym_wl_delegates fortsym_wl_run)
+
 # --- privacy-safe consumer evidence tooling ---
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
+find_package(Python3 3.11 COMPONENTS Interpreter REQUIRED)
 if(TARGET fortsym_wl_run)
     add_test(NAME test_fortsym_wl_run_protocol
         COMMAND ${Python3_EXECUTABLE}

@@ -44,3 +44,6 @@ __pycache__/
 
 # CI compiler cache
 .ccache/
+
+# Expanded pinned compatibility metadata (see scripts/api_metadata.py).
+/doc/sympy-api*.json

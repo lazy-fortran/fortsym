@@ -15,14 +15,28 @@ endfunction()
 run_checked("Install" "@CMAKE_COMMAND@" --install "@PROJECT_BINARY_DIR@"
     --prefix "${original}" --config "${FORTSYM_TEST_CONFIG}")
 file(RENAME "${original}" "${relocated}")
+foreach(license IN ITEMS LICENSE THIRD_PARTY.md SymEngine-MIT.txt
+        LGPL-2.1.txt LGPL-3.0.txt GPL-3.0.txt fortgen-MIT.txt fortplot-MIT.txt)
+    if(NOT EXISTS "${relocated}/@CMAKE_INSTALL_DATADIR@/licenses/fortsym/${license}")
+        message(FATAL_ERROR "Missing installed licence: ${license}")
+    endif()
+endforeach()
+if(@FORTSYM_ENABLE_YACAS@)
+    if(NOT EXISTS "${relocated}/@CMAKE_INSTALL_DATADIR@/licenses/fortsym/yacas/AUTHORS")
+        message(FATAL_ERROR "Missing Yacas contributor notices")
+    endif()
+endif()
 run_checked("Configure consumer" "@CMAKE_COMMAND@"
     -S "@CMAKE_CURRENT_SOURCE_DIR@/install/consumer" -B "${work}/consumer"
     "-DCMAKE_PREFIX_PATH=${relocated}"
-    "-DCMAKE_Fortran_COMPILER=@CMAKE_Fortran_COMPILER@")
+    "-DCMAKE_Fortran_COMPILER=@CMAKE_Fortran_COMPILER@"
+    "-DFORTSYM_TEST_YACAS=@FORTSYM_ENABLE_YACAS@"
+    "-DFORTSYM_TEST_YACAS_SCRIPTS=${relocated}/@CMAKE_INSTALL_DATADIR@/yacas/scripts")
 run_checked("Build consumer" "@CMAKE_COMMAND@" --build "${work}/consumer"
     --config "${FORTSYM_TEST_CONFIG}")
 run_checked("Run consumer" "@CMAKE_COMMAND@" -E env
     --unset=LD_LIBRARY_PATH --unset=DYLD_LIBRARY_PATH
     --unset=DYLD_FALLBACK_LIBRARY_PATH
+    --unset=FORTSYM_YACAS_SCRIPTS
     "@CMAKE_CTEST_COMMAND@" --test-dir "${work}/consumer"
     --build-config "${FORTSYM_TEST_CONFIG}" --output-on-failure)

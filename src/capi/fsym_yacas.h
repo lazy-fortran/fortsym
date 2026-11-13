@@ -26,6 +26,10 @@ extern "C" {
 
 typedef struct fsym_yacas fsym_yacas;
 
+/*! Find the script library beside this library, then in the build or system
+ *  installation. Returns the path length, copying at most n bytes to buf. */
+size_t fsym_yacas_scripts_path(char *buf, size_t n);
+
 /*! Create an engine and load its script library from `scripts_dir`.
  *
  *  Returns NULL when the engine cannot be created or the script library cannot

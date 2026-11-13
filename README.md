@@ -8,34 +8,42 @@ to generate and verify kernels in numerical libraries such as
 [fortfem](https://github.com/lazy-fortran/fortfem).
 
 Status: research code under active development; interfaces may change.
+The [verification status](doc/status.md) distinguishes tested fragments from
+experimental and planned capabilities.
 
 ## Features
 
-- Own expression representation (hash-consed DAG in an arena) with a native
-  Fortran core: exact integer and rational arithmetic, expansion,
+- Own expression representation (a hash-consed directed acyclic graph in an
+  arena) with a native Fortran core: exact integer and rational arithmetic, expansion,
   differentiation, Taylor series, substitution, exact linear solves and
   conservative zero tests. Assumptions such as `positive(x)` are explicit.
 - Several engines behind one interface: SymEngine and Yacas linked in process,
-  SymPy and Maxima as optional separate processes. Answers are compared and the
-  smallest verified form is kept; calling code never names an engine.
+  SymPy and Maxima as optional separate processes. Explicit engine registration
+  and the council interface compare answers and select the smallest verified
+  form. The introductory `diff` example uses the native engine directly.
 - Identity decisions that return `UNKNOWN` outside their decidable fragment,
   and a clear distinction between a symbolic proof and a numeric probe.
 - Kernel generation with common-subexpression elimination for Fortran (CPU,
   OpenMP target, OpenACC) and CUDA, CPU precision variants, and rigorous
   enclosure kernels.
-- Derivative products (`jvp`, `vjp`, `gradient`, `hvp`) without forming
-  Jacobians, and implicit-function derivatives.
+- Jacobian-vector (`jvp`), vector-Jacobian (`vjp`), gradient and
+  Hessian-vector (`hvp`) products without forming Jacobians, and
+  implicit-function derivatives.
 - Differential geometry: coordinate charts, metrics, Christoffel symbols,
   grad/div/curl/Laplacian, typed tensors, differential forms and curvature.
 - Fortran readback (recover the expression a source file computes), a native
   runner for a subset of the Wolfram language, LaTeX output, and Python
-  bindings over a C ABI.
+  bindings over a C application binary interface (ABI).
 
 ## Building
 
-Dependencies: a Fortran compiler, CMake 3.22 or newer, a C/C++ compiler,
-SymEngine, FLINT, MPFR and GMP. Yacas is fetched and built by CMake. SymPy and
-Maxima are optional and detected at run time.
+Dependencies: a Fortran 2018 compiler, a C compiler, a C++17 compiler,
+CMake 3.22 or newer, Ninja, SymEngine with MPFR and MPC support,
+FLINT 3.6.0, MPFR 4.2.2, MPC, GMP and Python 3.11 or newer.
+FLINT and MPFR must be shared libraries at those exact versions.
+CMake fetches Yacas and the kernel-generation and plotting libraries, which
+requires Git and network access. SymPy and Maxima are optional and detected
+at run time.
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -81,6 +89,7 @@ coordinate geometry, flux and Boozer coordinates, and output certificates.
 - [Fortran API](doc/fortran-api.md)
 - [Capabilities in more detail](doc/capabilities.md)
 - [Building](doc/building.md)
+- [Verification status and limits](doc/status.md)
 - [Architecture of the engine layer](doc/architecture.md)
 - [Feature matrix](doc/feature-matrix.md), [roadmap](doc/roadmap.md)
 - [C API](doc/c-api.md), [Python bindings](python/README.md),
@@ -88,6 +97,10 @@ coordinate geometry, flux and Boozer coordinates, and output certificates.
 - [Native Wolfram-language runner](doc/wolfram-runner.md)
 - [Rigorous kernels](doc/rigorous-runtime.md),
   [output certificates](doc/certificate.md)
+
+The [contribution guide](CONTRIBUTING.md) describes checks for changes.
+[CITATION.cff](CITATION.cff) supplies software citation metadata, and
+[acknowledgments](ACKNOWLEDGMENTS.md) credit contributions.
 
 ## Related projects
 
@@ -100,7 +113,7 @@ coordinate geometry, flux and Boozer coordinates, and output certificates.
 
 ## License
 
-MIT (see [LICENSE](LICENSE)). SymEngine (MIT), Yacas, FLINT, GMP and MPFR (LGPL)
+MIT (see [LICENSE](LICENSE)). SymEngine (MIT), Yacas, FLINT, GMP, MPFR and MPC (LGPL)
 are linked, the LGPL components dynamically. SymPy, Maxima and other GPL engines
 run only as separate processes and are not required. Wolfram/Mathematica is not
 used. [LEGAL.md](LEGAL.md) records every dependency and its obligations.

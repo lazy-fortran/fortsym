@@ -1,7 +1,7 @@
 # Geometry derivation ledger
 
 This document is the executable companion to
-[ROADMAP.md](../ROADMAP.md). It records the convention before an API is
+[development directions](roadmap.md). It records the convention before an API is
 implemented, gives a short derivation that can be checked independently, and
 names the native owner and expected refusal boundary.
 
@@ -306,7 +306,7 @@ warnings.
 ## Delivery checklist
 
 - [x] Record the source families, notation bridge, density convention, and
-  owner/refusal contract in ROADMAP.md and this ledger.
+  owner/refusal contract in the development directions and this ledger.
 - [x] Keep the cylindrical sqrtg B^i and magnetic form derivations in native
   examples with independent zero checks.
 - [x] Add a chart-derived nonorthogonal off-diagonal metric fixture with

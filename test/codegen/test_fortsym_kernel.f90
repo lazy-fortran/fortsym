@@ -1341,7 +1341,7 @@ contains
         type(kernel_spec_t) :: spec
         character(:), allocatable :: code, cpu_code, openmp_code, openacc_code
         character(:), allocatable :: combined_code
-        integer :: unit, ios, stat
+        integer :: unit, ios, stat, command_status
 
         call a%init()
         roots(1) = parsed(a, "x*x")
@@ -1358,8 +1358,7 @@ contains
             index(code, "!NVF$ INLINE"//new_line("a")// &
             "    pure subroutine k(x, r)") > 0)
         call ok("OpenMP declare-target directive annotates the leaf", &
-            index(code, "subroutine k(x, r)"//new_line("a")// &
-            "        !$omp declare target") > 0)
+            index(code, "!$omp declare target") > 0)
         call ok("device emission adds no parallel schedule", &
             index(code, "!$omp target") == 0 .and. &
             index(code, "!$acc parallel") == 0 .and. &
@@ -1405,6 +1404,48 @@ contains
             "> ./fortsym_gen_device_leaf.log 2>&1", &
             wait=.true., exitstat=stat)
         call ok("OpenMP-annotated generated leaf compiles", stat == 0)
+        open (newunit=unit, file="./fortsym_gen_device_driver.f90", &
+            status="replace", action="write")
+        write (unit, "(a)") "program device_oracle"
+        write (unit, "(a)") "use generated_device_leaf, only: k"
+        write (unit, "(a)") "use, intrinsic :: iso_fortran_env, only: real64"
+        write (unit, "(a)") "implicit none"
+        write (unit, "(a)") "real(real64) :: x, r"
+        write (unit, "(a)") "integer :: i"
+        write (unit, "(a)") "do i = -16, 16"
+        write (unit, "(a)") "x = real(i, real64)/4.0_real64"
+        write (unit, "(a)") "call k(x, r)"
+        write (unit, "(a)") "if (r /= x*x) error stop 'device leaf value differs'"
+        write (unit, "(a)") "end do"
+        write (unit, "(a)") "end program device_oracle"
+        close (unit)
+        call execute_command_line( &
+            "gfortran -fopenmp -fopenacc -foffload=disable -J /tmp -I /tmp "// &
+            "./fortsym_gen_device_leaf.f90 ./fortsym_gen_device_driver.f90 "// &
+            "-o ./fortsym_gen_device_driver > ./fortsym_gen_device_driver.log 2>&1", &
+            wait=.true., exitstat=stat)
+        call ok("dual-annotated leaf compiles with OpenMP and OpenACC", stat == 0)
+        if (stat == 0) then
+            call execute_command_line("./fortsym_gen_device_driver", &
+                wait=.true., exitstat=stat)
+            call ok("dual-annotated leaf matches independent square oracle", stat == 0)
+        end if
+        stat = 1
+        call execute_command_line("command -v ifx > /dev/null 2>&1", &
+            wait=.true., exitstat=stat, cmdstat=command_status)
+        if (command_status == 0 .and. stat == 0) then
+            call execute_command_line( &
+                "ifx -fiopenmp -module /tmp -I /tmp "// &
+                "./fortsym_gen_device_leaf.f90 ./fortsym_gen_device_driver.f90 "// &
+                "-o ./fortsym_gen_device_ifx > ./fortsym_gen_device_ifx.log 2>&1", &
+                wait=.true., exitstat=stat)
+            call ok("IFX accepts dual-annotated leaf specification", stat == 0)
+            if (stat == 0) then
+                call execute_command_line("./fortsym_gen_device_ifx", &
+                    wait=.true., exitstat=stat)
+                call ok("IFX device leaf matches independent square oracle", stat == 0)
+            end if
+        end if
     end subroutine test_device_leaf_annotations
 
     subroutine test_product_codegen_scales_linearly()

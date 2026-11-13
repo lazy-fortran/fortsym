@@ -50,6 +50,24 @@ int fsym_have_mpfr(void);
 /*! SymEngine's version string. Borrowed, valid for the process lifetime. */
 const char *fsym_symengine_version(void);
 
+/* ------------------------------------------------ delegate experiments -- */
+
+enum {
+    FSYM_DELEGATE_FLINT_EXACT = 1,
+    FSYM_DELEGATE_FLINT_ALGEBRAIC = 2,
+    FSYM_DELEGATE_SYMENGINE_EVAL = 3
+};
+
+/*! Process-wide immutable experiment policy, read on first use. A begin call
+ *  counts one attempt (including a disabled call); success records an accepted
+ *  result from that attempt. Counters are opt-in and atomic. See
+ *  doc/direct-delegates.md for environment flags and trace semantics. */
+int fsym_delegate_begin(int delegate);
+void fsym_delegate_success(int delegate);
+int fsym_delegate_counts(int delegate, uint64_t *attempts, uint64_t *successes);
+/*! Initialize a requested trace even when no delegate will be called. */
+void fsym_delegate_initialize(void);
+
 /* ----------------------------------------------------------- processes -- */
 
 /*! Atomically create a mode-0700 temporary directory from a fixed fortsym

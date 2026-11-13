@@ -11,14 +11,14 @@ bounded layer in `fortsym_wl`.
 
 | Form | Status and representation |
 |---|---|
-| Names, `$` names, and context marks such as `Global\`x` | accepted as symbol names |
+| Names, `$` names, and context marks such as ``Global`x`` | accepted as symbol names |
 | Integers, exact `p/q`, decimal/scientific reals, and Wolfram precision annotations | exact integer/rational nodes where applicable; approximate values are bounded to the native real node |
 | `Pi`, `E`, `I`, and ordinary names | canonical constants for the three documented constants; other names remain symbols |
 | `+`, unary/binary `-`, `*`, `/`, `^`, `.` | canonical add, multiply, reciprocal/power, or opaque `Dot` application |
 | implicit multiplication, parentheses, and standard Wolfram precedence | canonical multiplication and precedence-preserving grouping |
 | `Head[arg, ...]` and prefix `@` | canonical applied-function nodes |
 | postfix `expr'`, `//`, `/@`, `@@`, and `@@@` | structural heads used by the bounded Wolfram session |
-| `{a, b, ...}` and `<|a -> b, ...|>` | `List` and `Association` structural heads |
+| `{a, b, ...}` and `<\|a -> b, ...\|>` | `List` and `Association` structural heads |
 | `lhs -> rhs`, `lhs :> rhs`, `==`, `=`, `:=`, and `/.` | structural rule, equation, assignment, and replacement heads; execution is handled only by the bounded session |
 | slots `#`, `#n`, `##`, pure-function `&`, patterns, spans, and named characters `\[Name]` | structural heads where the bounded session has a documented consumer use; unsupported matching is refused by name |
 | comments `(* ... *)`, including nesting | discarded lexically; whitespace and newlines are insignificant outside literals |
@@ -42,10 +42,9 @@ the first failure together with its one-based source position. The parser never
 evaluates commands while constructing the expression graph.
 
 `fortsym_wl` adds only explicitly bounded command semantics. The session refuses `ConjugateTranspose` before it can be mistaken for a scalar
-inside a matrix product. Ordinary `Transpose` remains supported. Current
-coverage is measured against the real corrugation-resistance derivation in
-[`wolfram-coverage-39.md`](wolfram-coverage-39.md); the report records every
-evaluated binding and every named refusal. Mathics is used as a separate
+inside a matrix product. Ordinary `Transpose` remains supported. Corpus measurements belong in
+[fortsym-bench](https://github.com/lazy-fortran/fortsym-bench), with their
+source revisions and named refusals. Mathics is used as a separate
 behavioural oracle for the documented textual forms and corpus measurements;
 its source and tests are not copied into fortsym.
 

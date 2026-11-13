@@ -15,6 +15,10 @@ Cold startup, conversion, operation, printing, compilation, and generated
 kernel execution are separate measurements. Direct SymEngine C or C++ calls
 form the library baseline. fortsym reports native-only and end-to-end rows.
 
+The Wolfram-language runner's native evaluator can call FLINT and SymEngine
+directly. Use the [direct delegate controls](direct-delegates.md) to measure
+dependence on those calls, and label each disabled boundary explicitly.
+
 ## Emitted numerical leaves
 
 `bench_emitted_kernels` is a native CMake diagnostic for one exact-rational,
@@ -650,8 +654,10 @@ uses `--enforce-parity` after selecting a pinned machine baseline.
 The pinned inventory, classification, naming policy and audit, semantic
 difference ledger, API diff, feature matrix, and benchmark schema are checked
 together by `scripts/check_release_profile.py`. CTest runs its metadata half;
-the strict release command additionally checks a fresh enforced benchmark
-report:
+the strict release command additionally checks an enforced benchmark
+report. The [pinned metadata](api-metadata.md) is stored compressed and
+decompressed automatically by these checks; SymPy is not required for the
+metadata gate. Run the commands from the checkout root with Python 3.11 or newer.
 
 ```text
 python3 scripts/check_release_profile.py doc/release-profile.toml --metadata-only
@@ -662,7 +668,10 @@ python3 scripts/check_release_profile.py doc/release-profile.toml \
 The second command must receive a report produced by `bench_sympy.py` with
 `--enforce-parity` and the reviewed workload waivers recorded in that report.
 The profile manifest is the single source of the artifact paths and the
-report's SymPy version; a mismatched or stale artifact fails the gate.
+report's SymPy version. The gate rejects inconsistent versions, references and
+report fields; it does not establish when a report was run or whether an
+inventory reflects the current implementation. Release evidence must record
+the tested source revision and configuration separately.
 
 ### Focused Wolfram corpus audit
 

@@ -1,5 +1,8 @@
 import sys
 import unittest
+import gzip
+import json
+import tempfile
 from pathlib import Path
 
 
@@ -10,11 +13,30 @@ from scripts.check_release_profile import (  # noqa: E402
     ReleaseProfileError,
     validate_benchmark_report,
     validate_feature_matrix,
+    _load_json,
 )
 
 
 class ReleaseProfileCheckTest(unittest.TestCase):
     PROFILE = {"package": "fortsym", "sympy_version": "1.14.0"}
+
+    def test_compressed_metadata_preserves_full_json_without_sympy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "inventory.json"
+            expected = {"version": "1.14.0", "root_exports": [{"name": "sin"}]}
+            path.with_suffix(".json.gz").write_bytes(
+                gzip.compress(json.dumps(expected).encode(), mtime=0))
+            self.assertEqual(_load_json(path), expected)
+            self.assertFalse(path.exists())
+
+    def test_tracked_metadata_overrides_stale_expanded_copy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "inventory.json"
+            path.write_text(json.dumps({"source": "stale expanded cache"}))
+            expected = {"source": "current tracked metadata"}
+            path.with_suffix(".json.gz").write_bytes(
+                gzip.compress(json.dumps(expected).encode(), mtime=0))
+            self.assertEqual(_load_json(path), expected)
 
     @staticmethod
     def report(**overrides):

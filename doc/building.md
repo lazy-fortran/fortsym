@@ -4,9 +4,11 @@
 
 Linked into the library (Tier 1):
 
-- SymEngine (MIT), taken from the system by default
-- FLINT, MPFR and GMP (LGPL), linked dynamically
+- SymEngine (MIT), with MPFR and MPC support, taken from the system by default
+- FLINT 3.6.0, MPFR 4.2.2, MPC and GMP (LGPL), linked dynamically
 - Yacas (LGPL), fetched and built at a pinned tag by CMake
+
+Python 3.11 or newer runs the registered metadata and Python checks.
 
 Optional engines (Tier 2), detected at run time and skipped when absent: SymPy
 and Maxima, run as separate processes. `scripts/bootstrap.sh` reports which are
@@ -23,7 +25,7 @@ ctest --test-dir build --output-on-failure
 
 | Option | Default | Effect |
 | --- | --- | --- |
-| `FORTSYM_USE_SYSTEM_DEPS` | `ON` | Use the system SymEngine; `OFF` fetches and builds SymEngine and GMP from source |
+| `FORTSYM_USE_SYSTEM_DEPS` | `ON` | Use the system SymEngine; `OFF` fetches and builds SymEngine, using the installed arithmetic libraries |
 | `FORTSYM_BUILD_TESTING` | on for a top-level build | Build the tests |
 
 Install with `cmake --install build --prefix /path/to/fortsym`. A consumer
@@ -40,6 +42,21 @@ installation carries the bundled shared libraries. System arithmetic and
 compiler runtime libraries must still be present. The test
 `test_fortsym_installed_package` relocates an installation and builds an
 external consumer against it.
+
+The installed Yacas scripts are located relative to the shared library, so the
+installation can move without an environment override. `FORTSYM_YACAS_SCRIPTS`
+selects an explicit script directory when needed. Licence texts and notices are
+installed under `share/licenses/fortsym`.
+
+Some generated-kernel tests also use Flang when it is on `PATH`. On macOS,
+Homebrew's OpenMP runtime is not in the default linker search path; run those
+tests with:
+
+```bash
+LIBRARY_PATH="$(brew --prefix libomp)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}" ctest --test-dir build --output-on-failure
+```
+The generated source and its OpenMP checks are unchanged by this environment
+setting.
 
 The install also places the Python package under
 `share/fortsym/python/fortsym`; see the [Python README](../python/README.md).
@@ -62,8 +79,8 @@ and tests. The script names the one version that differs from `flake.lock`.
 
 ## fpm and fo
 
-`fpm.toml` links the system SymEngine, FLINT, MPFR and GMP; fpm cannot build a
-C++ dependency from source, so Yacas reports itself unavailable in that build.
+`fpm.toml` links the system SymEngine, FLINT, MPFR and GMP. The fpm build does
+not fetch or build Yacas, so that engine reports itself unavailable.
 The repository's contributor workflow uses
 [fo](https://github.com/lazy-fortran/fo), which wraps fpm:
 

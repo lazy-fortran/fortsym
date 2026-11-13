@@ -4,7 +4,7 @@ module fortsym_metric
     ! A chart supplies a convenient Euclidean metric, but a metric is a
     ! separate owner: its signature and orientation are data, not properties
     ! inferred from a variable name or hidden in sqrtg. This fixed-3D owner is
-    ! the first step toward the general manifold/patch contract in ROADMAP.md.
+    ! the first step toward the general manifold/patch contract in doc/roadmap.md.
     use fortsym_arena, only: arena_t
     use fortsym_chart, only: chart_t, DIM, &
         chart_metric_covariant => metric_covariant

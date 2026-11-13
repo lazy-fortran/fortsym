@@ -83,4 +83,4 @@ toolchain has been exercised:
 | NVIDIA Fortran | `nvfortran` 26.5-0 | independent compilation of a generated Fortran kernel | passed |
 
 The complete corpus and all supported compiler/toolchain combinations remain
-release-closure work in `ROADMAP.md`.
+release work in the [development directions](roadmap.md).

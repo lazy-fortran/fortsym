@@ -58,7 +58,7 @@ include(FetchContent)
 set(FORTGEN_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(fortgen
     GIT_REPOSITORY https://github.com/lazy-fortran/fortgen.git
-    GIT_TAG f8f89357086142b6912b40c0638e384e4fde9cd7
+    GIT_TAG d798253805264d7f334249212267212e2c928bdd
     GIT_SHALLOW FALSE
 )
 FetchContent_MakeAvailable(fortgen)
@@ -147,3 +147,15 @@ install(DIRECTORY python/fortsym/
     FILES_MATCHING PATTERN "*.py")
 install(FILES python/README.md
     DESTINATION ${CMAKE_INSTALL_DATADIR}/fortsym)
+install(FILES LICENSE LEGAL.md THIRD_PARTY.md
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/fortsym)
+install(DIRECTORY licenses/
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/fortsym)
+install(FILES "${fortgen_SOURCE_DIR}/LICENSE"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/fortsym RENAME fortgen-MIT.txt)
+install(FILES "${fortplot_SOURCE_DIR}/LICENSE"
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/fortsym RENAME fortplot-MIT.txt)
+if(FORTSYM_ENABLE_YACAS)
+    install(FILES "${yacas_SOURCE_DIR}/COPYING" "${yacas_SOURCE_DIR}/AUTHORS"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/fortsym/yacas)
+endif()

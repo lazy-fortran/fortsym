@@ -31,6 +31,7 @@ program test_fortsym_wl_statements
     call test_boole_evaluation()
     call test_which_evaluation()
     call test_pure_map_apply_replace()
+    call test_replace_rule_list()
     call test_derivative_rule_pattern()
     call test_list_threading()
     call test_scalar_matrix_dot()
@@ -354,6 +355,42 @@ contains
             "value", "List(x + 1, y + 1)")
     end subroutine test_pure_map_apply_replace
 
+    !> Each original part takes its first matching rule exactly once.
+    subroutine test_replace_rule_list()
+        call expect("replacement does not revisit its result", &
+            "value = 1 /. {1 -> 2, 2 -> 3}", "value", "2")
+        call expect("replacement swaps original list elements", &
+            "value = {a, b} /. {a -> b, b -> a}", "value", "List(b, a)")
+        call expect("replacement preserves inserted symbols", &
+            "value = (a + b) /. {a -> b, b -> 1}", "value", "b + 1")
+        call expect("replacement does not revisit rebuilt parents", &
+            "value = f[a] /. {a -> b, f[b] -> c}", "value", "f(b)")
+        call expect("parent pattern precedes child rules", &
+            "value = f[a] /. {x_ -> 1, a -> 2}", "value", "1")
+        call expect("identity rule consumes its match", &
+            "value = a /. {a -> a, a -> b}", "value", "a")
+        call expect("identity pattern consumes the parent", &
+            "value = f[a] /. {x_ -> x, a -> b}", "value", "f(a)")
+        call expect("head and argument replacements share one pass", &
+            "value = t[x] /. {t -> Function[z, z + 1], x -> 2}", &
+            "value", "3")
+        call expect("explicit replacement calls remain sequential", &
+            "value = 1 /. {1 -> 2} /. {2 -> 3}", "value", "3")
+        call expect("pattern captures are simultaneous", &
+            "value = f[y, z] /. f[x_, y_] -> {x, y}", &
+            "value", "List(y, z)")
+        call expect("repeated replacement compares complete passes", &
+            "value = f[f[f[a]]] //. {f[x_] -> x, b -> c}", "value", "a")
+        call expect("repeated replacement follows a reversed chain", &
+            "value = a //. {c -> d, b -> c, a -> b, z -> 0}", "value", "d")
+        call expect("repeated replacement evaluates between passes", &
+            "value = Sin[x] //. {x -> 0, 0 -> y}", "value", "y")
+        call expect_refusal("replacement validates all rules", &
+            "value = a /. {a -> b, 3}", "replacement needs Rule or RuleDelayed")
+        call expect_refusal("repeated replacement remains bounded", &
+            "value = a //. {a -> f[a]}", "ReplaceRepeated exceeded its iteration bound")
+    end subroutine test_replace_rule_list
+
     !> The force-balance rule is a delayed derivative rule with a named blank.
     !> At r=2 its hand-derived pressure slope is
     !> -(5)(3) - (2(11) + 7)(7)/2 = -233/2.
@@ -364,7 +401,7 @@ contains
             " bz[rr] Derivative[1][bz][rr]/mu0"//char(10)// &
             "pressureSlope = mu0 Derivative[1][p][r] /. forceBalance"// &
             char(10)// &
-            "value = pressureSlope /. {mu0 -> 1, r -> 2,"// &
+            "value = pressureSlope /. {mu0 -> 1, r -> 2} /. {"// &
             " bz[2] -> 3, Derivative[1][bz][2] -> 5,"// &
             " btheta[2] -> 7, Derivative[1][btheta][2] -> 11}"//char(10), &
             "value", "-233/2")

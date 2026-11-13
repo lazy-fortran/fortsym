@@ -13,8 +13,8 @@ auto-tests = true
 # SymEngine's integer class and stdc++ its C++ runtime.
 #
 # fpm links the system SymEngine; it cannot orchestrate fetching and building a
-# C++ numerical library from source. The fetch-and-build path (SymEngine and its
-# GMP dependency from source) is the CMake path: configure with
+# C++ numerical library from source. CMake can fetch and build SymEngine while
+# GMP remains a system dependency: configure with
 # -DFORTSYM_USE_SYSTEM_DEPS=OFF.
 # FLINT provides the polynomial GCD behind rational cancellation in the shim,
 # and MPFR backs high-precision evaluation. Both are already SymEngine
@@ -22,7 +22,7 @@ auto-tests = true
 link = ["symengine", "flint", "mpfr", "gmp", "stdc++", "dl"]
 
 [dependencies]
-fortgen = { git = "https://github.com/lazy-fortran/fortgen", rev = "f8f89357086142b6912b40c0638e384e4fde9cd7" }
+fortgen = { git = "https://github.com/lazy-fortran/fortgen", rev = "d798253805264d7f334249212267212e2c928bdd" }
 # Plotting. fortsym samples an expression into arrays and maps options; it
 # implements no plotting of its own, and anything missing is fixed upstream in
 # fortplot rather than worked around here. See issue #44.

@@ -160,7 +160,7 @@ def build_report(root: Path, classification: dict[str, Any]) -> dict[str, Any]:
         concept(
             "arena-and-expression",
             "Own expression storage and expression handles.",
-            ["arena_t", "expr_t", "default_arena", "reset"],
+            ["arena_t", "expr_t", "default_arena", "context_t"],
             ["Arena", "Expr"], ["Arena", "Expr"], ["Expr"],
             "Fortran types and Python handle classes are distinct language bindings. The default-state functions have no direct SymPy root equivalent, and the native facade uses short names because its module already supplies the namespace.",
             "Keep one responsibility per owner and document default versus explicit state once.",

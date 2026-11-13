@@ -2066,14 +2066,6 @@ contains
         call header%append(")")
         call append_wrapped(b, chars(header%to_str()))
 
-        if (emit_openmp) then
-            call b%append("    !$omp declare target")
-            call b%newline()
-        end if
-        if (emit_openacc) then
-            call b%append("    !$acc routine seq")
-            call b%newline()
-        end if
         if (spec%precision == PRECISION_REAL32) then
             call b%append("    use, intrinsic :: iso_fortran_env, only: real32")
         else if (spec%precision == PRECISION_MIXED) then
@@ -2135,6 +2127,15 @@ contains
                         res%names(k:min(k+255,res%n)))
                 end do
             end if
+        end if
+
+        if (emit_openmp) then
+            call b%append("    !$omp declare target")
+            call b%newline()
+        end if
+        if (emit_openacc) then
+            call b%append("    !$acc routine seq")
+            call b%newline()
         end if
 
         call b%newline()

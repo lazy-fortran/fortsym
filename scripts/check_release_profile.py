@@ -20,6 +20,7 @@ if str(_ROOT) not in sys.path:
 
 from scripts.check_api_naming_policy import validate as validate_naming_policy
 from scripts.check_sympy_api_differences import validate as validate_difference_ledger
+from scripts.api_metadata import read_json
 
 
 class ReleaseProfileError(ValueError):
@@ -32,8 +33,9 @@ def _require(condition: bool, message: str) -> None:
 
 
 def _load_json(path: Path) -> dict[str, Any]:
-    _require(path.is_file(), f"missing JSON artifact: {path}")
-    value = json.loads(path.read_text(encoding="utf-8"))
+    _require(path.is_file() or path.with_suffix(path.suffix + ".gz").is_file(),
+             f"missing JSON artifact: {path}")
+    value = read_json(path)
     _require(isinstance(value, dict), f"JSON artifact is not an object: {path}")
     return value
 

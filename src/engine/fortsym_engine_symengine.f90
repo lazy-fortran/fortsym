@@ -454,6 +454,10 @@ contains
             why = "SymEngine was built without MPFR requested-precision support"
             return
         end if
+        if (fsym_delegate_begin(FSYM_DELEGATE_SYMENGINE_EVAL) == 0_c_int) then
+            why = "SymEngine requested-precision evaluation disabled by experiment policy"
+            return
+        end if
 
         bits = int(real(digits + 8, dp)*3.321928094887362_dp, c_long)
         call init_conversion_cache(e%a, e%node_count(), cache)
@@ -465,6 +469,7 @@ contains
             good = decimal_literal(text)
             if (good) then
                 ok = .true.
+                call fsym_delegate_success(FSYM_DELEGATE_SYMENGINE_EVAL)
             else
                 text = ""
                 why = "SymEngine returned a non-real or non-decimal result"

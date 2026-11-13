@@ -171,7 +171,7 @@ and do not store private metric or chart copies. `fortsym_registry` contains
 explicit capability records and procedure registration for optional toolkits;
 it has no linker discovery or hidden initialization path. This split is the
 implementation target recorded in the differential-geometry section of
-[`ROADMAP.md`](../ROADMAP.md), while the current fixed-three-dimensional
+[development directions](roadmap.md), while the current fixed-three-dimensional
 modules are the migration starting point.
 
 The registry owner is `src/calculus/fortsym_registry.f90`. A caller creates

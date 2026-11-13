@@ -153,12 +153,20 @@ target_link_libraries(fortsym PUBLIC
     $<BUILD_INTERFACE:fortplot::fortplot>
     ${CMAKE_DL_LIBS})
 
-# Yacas is optional at configure time; when present its shim and backend join
-# the library and the scripts path is compiled in.
+# Resolve installed scripts relative to the library so the prefix can move.
 if(TARGET fortsym::yacas)
     target_link_libraries(fortsym PUBLIC $<BUILD_INTERFACE:fortsym::yacas>)
+    if(WIN32)
+        set(_fortsym_library_dir "${CMAKE_INSTALL_FULL_BINDIR}")
+    else()
+        set(_fortsym_library_dir "${CMAKE_INSTALL_FULL_LIBDIR}")
+    endif()
+    file(RELATIVE_PATH _fortsym_yacas_relative "${_fortsym_library_dir}"
+        "${CMAKE_INSTALL_FULL_DATADIR}/yacas/scripts")
     set_property(SOURCE capi/fsym_yacas.cpp APPEND PROPERTY
-        COMPILE_DEFINITIONS FORTSYM_HAVE_YACAS)
+        COMPILE_DEFINITIONS FORTSYM_HAVE_YACAS
+        "FORTSYM_YACAS_INSTALL_RELATIVE=\"${_fortsym_yacas_relative}\""
+        "FORTSYM_YACAS_BUILD_SCRIPTS=\"${FORTSYM_YACAS_SCRIPTS}\"")
 endif()
 
 # The C++ shim pulls in the C++ runtime; a Fortran-driven link needs it named
