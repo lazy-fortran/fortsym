@@ -1,5 +1,7 @@
 # fortsym
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24223529.svg)](https://doi.org/10.5281/zenodo.24223529)
+
 Computer algebra for Fortran: derive expressions symbolically, generate Fortran
 and CUDA kernels from them, and check generated or hand-written code against
 the symbolic definition, all inside the normal build and test run. It is used
@@ -117,3 +119,11 @@ MIT (see [LICENSE](LICENSE)). SymEngine (MIT), Yacas, FLINT, GMP, MPFR and MPC (
 are linked, the LGPL components dynamically. SymPy, Maxima and other GPL engines
 run only as separate processes and are not required. Wolfram/Mathematica is not
 used. [LEGAL.md](LEGAL.md) records every dependency and its obligations.
+
+## Citation
+
+Cite fortsym through its Zenodo record,
+[doi:10.5281/zenodo.24223529](https://doi.org/10.5281/zenodo.24223529), which
+always resolves to the latest release; release 0.1.0 is
+[doi:10.5281/zenodo.24223530](https://doi.org/10.5281/zenodo.24223530).
+`CITATION.cff` holds the full citation metadata.

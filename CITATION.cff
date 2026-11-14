@@ -11,5 +11,6 @@ license: MIT
 abstract: >-
   A Fortran computer algebra library for symbolic derivations, numerical
   kernel generation, derivative products, and independent checks.
+doi: "10.5281/zenodo.24223529"
 version: "0.1.0"
 date-released: "2026-11-14"
