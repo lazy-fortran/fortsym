@@ -19,6 +19,7 @@ target_sources(fortsym PRIVATE
     core/fortsym_arena.f90
     core/fortsym_context.f90
     core/fortsym_expr.f90
+    core/fortsym_elliptic_log.f90
     core/fortsym.f90
     core/fortsym_assume.f90
     core/fortsym_assume_api.f90

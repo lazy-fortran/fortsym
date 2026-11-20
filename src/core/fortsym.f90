@@ -202,6 +202,8 @@ module fortsym
         CLEBSCH_RESIDUAL_COUNT, BOOZER_RESIDUAL_COUNT, HAMADA_RESIDUAL_COUNT
     use fortsym_maxwell, only: maxwell_field_strength, maxwell_gauge_transform, &
         maxwell_residual
+    use fortsym_elliptic_log, only: elliptic_k_log_a, elliptic_k_log_b, &
+        elliptic_e_log_a, elliptic_e_log_b
     implicit none
     private
 
@@ -423,7 +425,8 @@ module fortsym
         operator(==), operator(/=)
     public :: sin, cos, tan, asin, acos, atan, atan2, sinh, cosh, tanh, &
         asinh, acosh, atanh, exp, log, sqrt, abs, erf, erfc, gamma, &
-        besselj, besseli, besselk, legendrep, legendreq, elliptic_k, elliptic_e
+        besselj, besseli, besselk, legendrep, legendreq, elliptic_k, elliptic_e, &
+        elliptic_k_log_a, elliptic_k_log_b, elliptic_e_log_a, elliptic_e_log_b
     public :: default_arena, symbols
     public :: assignment(=)
 

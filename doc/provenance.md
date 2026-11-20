@@ -144,6 +144,7 @@ implementation listed as a reference.
 | Exact algebraic numbers | Johansson, *Calcium / qqbar* — FLINT documentation and ISSAC 2020 |
 | Ball arithmetic | Johansson, *Arb: efficient arbitrary-precision midpoint-radius interval arithmetic*, IEEE Trans. Computers 66, 2017 |
 | Special function relations | Olver et al., *NIST Digital Library of Mathematical Functions*, dlmf.nist.gov — cited per rule in source |
+| Log-split pieces of `K` and `E` near `m = 1` (`src/core/fortsym_elliptic_log.f90`) | DLMF 19.12.1-2 (series in the complementary parameter) and 19.4.1; derivative recursion from the Legendre equation of `K`, derived here; no source reused |
 | Fact propagation | Nelson & Oppen, *Fast decision procedures based on congruence closure*, JACM 27(2), 1980 |
 | Equality saturation | Willsey et al., *egg: Fast and extensible equality saturation*, POPL 2021 |
 | Probabilistic zero testing | Schwartz, JACM 27, 1980; Zippel 1979 |

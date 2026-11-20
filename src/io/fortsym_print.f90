@@ -627,7 +627,8 @@ contains
         end if
         if (.not. ok) return
         if (name == "besselj" .or. name == "bessely" .or. &
-            name == "besseli" .or. name == "besselk") then
+            name == "besseli" .or. name == "besselk" .or. &
+            name == "elliptic_k_log_a" .or. name == "elliptic_k_log_b") then
             order = a%arg_of(id, 1)
             ok = a%kind_of(order) == NK_INT .or. &
                 (a%kind_of(order) == NK_RAT .and. a%den_of(order) == 1)
@@ -2124,9 +2125,10 @@ contains
                 "erf", "erfc", "gamma", "loggamma", "max", "min", &
                 "Min", "Max", "elliptic_k", "elliptic_e")
             is_real = .true.
-        case ("besselj", "bessely", "besseli", "besselk")
-            ! All four Fortran Bessel entry points take an integer order
-            ! followed by a real value.
+        case ("besselj", "bessely", "besseli", "besselk", &
+                "elliptic_k_log_a", "elliptic_k_log_b")
+            ! The Fortran Bessel entry points and fortnum's log pieces of K
+            ! take an integer order followed by a real value.
             is_real = position > 1
         case default
             ! A declared kernel array being indexed, or any other head fortsym

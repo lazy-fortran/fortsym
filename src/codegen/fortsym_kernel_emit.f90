@@ -2231,7 +2231,8 @@ contains
         character(*), intent(in) :: name
 
         ok = name == "besselj" .or. name == "bessely" .or. &
-            name == "besseli" .or. name == "besselk"
+            name == "besseli" .or. name == "besselk" .or. &
+            name == "elliptic_k_log_a" .or. name == "elliptic_k_log_b"
     end function integer_order_function
 
     logical function has_special_function(ir) result(found)

@@ -194,6 +194,8 @@ contains
             case ("besselk");  s = str("bessel_kn")
             case ("elliptic_k"); s = str("ellip_k")
             case ("elliptic_e"); s = str("ellip_e")
+            case ("elliptic_k_log_a"); s = str("ellip_k_log_a")
+            case ("elliptic_k_log_b"); s = str("ellip_k_log_b")
             case ("Min");      s = str("min")
             case ("Max");      s = str("max")
             case default;       s = str(canonical)
@@ -258,6 +260,8 @@ contains
             case ("bessel_kn"); s = str("besselk")
             case ("ellip_k");   s = str("elliptic_k")
             case ("ellip_e");   s = str("elliptic_e")
+            case ("ellip_k_log_a"); s = str("elliptic_k_log_a")
+            case ("ellip_k_log_b"); s = str("elliptic_k_log_b")
             case ("min");       s = str("Min")
             case ("max");       s = str("Max")
             case default;        s = str(spelling)
@@ -279,7 +283,7 @@ contains
                 "exp", "log", "log10", "sqrt", "abs", "erf", "erfc", &
                 "gamma", "loggamma", "max", "min", "Min", "Max", &
                 "besselj", "bessely", "besseli", "besselk", &
-                "elliptic_k", "elliptic_e")
+                "elliptic_k", "elliptic_e", "elliptic_k_log_a", "elliptic_k_log_b")
             ok = .true.
         case default
             ok = .false.
@@ -296,7 +300,8 @@ contains
             ok = n >= 2
         else if (name == "atan2" .or. name == "besselj" .or. &
                 name == "bessely" .or. name == "besseli" .or. &
-                name == "besselk") then
+                name == "besselk" .or. name == "elliptic_k_log_a" .or. &
+                name == "elliptic_k_log_b") then
             ok = n == 2
         else
             ok = n == 1
@@ -308,7 +313,8 @@ contains
         character(*), intent(in) :: name
 
         ok = name == "besseli" .or. name == "besselk" .or. &
-            name == "elliptic_k" .or. name == "elliptic_e"
+            name == "elliptic_k" .or. name == "elliptic_e" .or. &
+            name == "elliptic_k_log_a" .or. name == "elliptic_k_log_b"
     end function fortran_function_uses_special
 
     !> Spelling of a named constant. fortsym's canonical names are pi, e, i,

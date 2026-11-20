@@ -21,6 +21,7 @@ module fortsym_diff
         besselj, besseli, besselk, legendrep, legendreq, elliptic_k, elliptic_e, &
         operator(+), operator(-), operator(*), operator(/), operator(**), &
         operator(==), sin, cos, tan, exp, log, sqrt, abs, sinh, cosh, tanh
+    use fortsym_elliptic_log, only: elliptic_k_log_a, elliptic_k_log_b
     implicit none
     private
 
@@ -294,6 +295,23 @@ contains
                 d = (elliptic_e(x) - (1 - x)*elliptic_k(x))*dx/(2*x*(1 - x))
             else
                 d = (elliptic_e(x) - elliptic_k(x))*dx/(2*x)
+            end if
+            return
+        end if
+
+        ! Log-split pieces of K: the head of order n+1 is the q-derivative of
+        ! the head of order n (fortnum ellip_k_log_a, ellip_k_log_b).
+        if (name == "elliptic_k_log_a" .or. name == "elliptic_k_log_b") then
+            x = e%arg(2)
+            dx = diff(x, v)
+            if (is_zero(dx)) then
+                d = num(a, 0)
+                return
+            end if
+            if (name == "elliptic_k_log_a") then
+                d = elliptic_k_log_a(e%arg(1) + 1, x)*dx
+            else
+                d = elliptic_k_log_b(e%arg(1) + 1, x)*dx
             end if
             return
         end if

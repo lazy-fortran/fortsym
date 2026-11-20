@@ -252,7 +252,8 @@ contains
         ! index past the node's argument list, so a call with the wrong number of
         ! arguments has no value instead.
         if (name == "besselj" .or. name == "besseli" .or. name == "besselk" &
-            .or. name == "atan2") then
+            .or. name == "atan2" .or. name == "elliptic_k_log_a" .or. &
+            name == "elliptic_k_log_b") then
             if (a%nargs_of(id) /= 2) then
                 defined = .false.
                 return
@@ -279,6 +280,24 @@ contains
             else
                 v = modified_bessel_k(order, y, defined)
             end if
+            return
+        end if
+
+        if (name == "elliptic_k_log_a" .or. name == "elliptic_k_log_b") then
+            x = ev(a, a%arg_of(id, 1), b, defined)
+            if (.not. defined) return
+            if (x /= real(nint(x), dp) .or. x < 0.0_dp) then
+                defined = .false.
+                return
+            end if
+            order = nint(x)
+            y = ev(a, a%arg_of(id, 2), b, defined)
+            if (.not. defined) return
+            if (.not. (y >= 0.0_dp .and. y < 1.0_dp)) then
+                defined = .false.
+                return
+            end if
+            v = elliptic_log_piece(order, y, name == "elliptic_k_log_b")
             return
         end if
 
@@ -407,6 +426,68 @@ contains
         value = pi_dp/(2.0_dp*a)
         if (.not. first_kind) value = value*(1.0_dp - total)
     end function complete_elliptic
+
+    !> n-th derivative of A_K or B_K in K(1-q) = -ln(q) A_K/2 + B_K for q in
+    !> [0,1): the DLMF 19.12.1 series term by term below q = 1/2, above it
+    !> the derivatives of L y = q(1-q) y'' + (1-2q) y' - y/4 with L A_K = 0
+    !> and L B_K = (1-q) A_K' - A_K/2.
+    pure function elliptic_log_piece(order, q, b_part) result(value)
+        integer, intent(in) :: order
+        real(dp), intent(in) :: q
+        logical, intent(in) :: b_part
+        real(dp) :: value
+        real(dp), parameter :: pi_dp = acos(-1.0_dp)
+        real(dp) :: c, d, term, falling, kq, eq, km, em, m
+        real(dp) :: pa(0:order + 1), pb(0:order + 1)
+        integer :: n, j
+
+        if (q < 0.5_dp) then
+            c = 1.0_dp
+            d = 2.0_dp*log(2.0_dp)
+            value = 0.0_dp
+            do n = 0, 400
+                if (n > 0) then
+                    c = c*((real(n, dp) - 0.5_dp)/real(n, dp))**2
+                    d = d - 1.0_dp/(real(n, dp)*real(2*n - 1, dp))
+                end if
+                if (n < order) cycle
+                falling = 1.0_dp
+                do j = 0, order - 1
+                    falling = falling*real(n - j, dp)
+                end do
+                term = c*falling
+                if (n > order) term = term*q**(n - order)
+                if (b_part) term = term*d
+                value = value + term
+                if (n > order + 2 .and. abs(term) < 1.0e-18_dp*abs(value)) exit
+            end do
+            return
+        end if
+        kq = complete_elliptic(q, .true.)
+        eq = complete_elliptic(q, .false.)
+        pa(0) = 2.0_dp/pi_dp*kq
+        pa(1) = 2.0_dp/pi_dp*(eq - (1.0_dp - q)*kq)/(2.0_dp*q*(1.0_dp - q))
+        do j = 0, order - 1
+            pa(j + 2) = (-(j + 1)*(1.0_dp - 2.0_dp*q)*pa(j + 1) &
+                + (j + 0.5_dp)**2*pa(j))/(q*(1.0_dp - q))
+        end do
+        if (.not. b_part) then
+            value = pa(order)
+            return
+        end if
+        m = 1.0_dp - q
+        km = complete_elliptic(m, .true.)
+        em = complete_elliptic(m, .false.)
+        pb(0) = km + 0.5_dp*log(q)*pa(0)
+        pb(1) = -(em - q*km)/(2.0_dp*m*q) + pa(0)/(2.0_dp*q) &
+            + 0.5_dp*log(q)*pa(1)
+        do j = 0, order - 2
+            pb(j + 2) = ((1.0_dp - q)*pa(j + 1) - (j + 0.5_dp)*pa(j) &
+                - (j + 1)*(1.0_dp - 2.0_dp*q)*pb(j + 1) &
+                + (j + 0.5_dp)**2*pb(j))/(q*(1.0_dp - q))
+        end do
+        value = pb(order)
+    end function elliptic_log_piece
 
     pure function modified_bessel_i(order, x) result(value)
         integer, intent(in) :: order
