@@ -25,7 +25,7 @@ program test_fortsym_poly
     use, intrinsic :: iso_fortran_env, only: real64, int64
     use fortsym_string, only: chars
     use fortsym_arena, only: arena_t, NK_INT
-    use fortsym_expr, only: expr_t, sym, num, rat, real_expr, sin, &
+    use fortsym_expr, only: expr_t, sym, num, rat, real_expr, sin, i_expr, &
                             operator(+), operator(-), operator(*), &
                             operator(/), operator(**)
     use fortsym_subs, only: subs_many
@@ -60,6 +60,8 @@ program test_fortsym_poly
     call test_numerator_denominator()
     call test_float_refused()
     call test_many_variables()
+    call test_gaussian_rationals()
+    call test_common_denominator_sum()
 
     if (nfail /= 0) then
         print *, "test_fortsym_poly: ", nfail, " check(s) FAILED"
@@ -546,5 +548,67 @@ contains
             end if
         end if
     end subroutine test_many_variables
+
+    !> Together works over Q(i): fractions that vanish only through i**2 = -1
+    !> come back as the exact integer 0, and a denominator that vanishes that
+    !> way is refused instead of being read as a nonzero polynomial.
+    subroutine test_gaussian_rationals()
+        type(expr_t) :: x, y, im, zeros(3), r
+        logical :: ok
+        character(:), allocatable :: why
+        integer :: k
+
+        x = sym(arena, "x")
+        y = sym(arena, "y")
+        im = i_expr(arena)
+        zeros(1) = num(arena, 1)/(im*x) + im/x
+        zeros(2) = num(arena, 1)/(im*x + y) - (y - im*x)/(x*x + y*y)
+        zeros(3) = (x + im)*(x - im)/(x*x + num(arena, 1)) - num(arena, 1)
+        do k = 1, size(zeros)
+            call poly_together(arena, zeros(k), r, ok, why)
+            if (.not. ok) then
+                call fail("Together refused a Gaussian-rational zero: "//why)
+            else if (r%kind() /= NK_INT) then
+                call fail("Together left i**2 + 1 unreduced")
+            else if (r%int_value() /= 0) then
+                call fail("Together changed the value of a Gaussian-rational zero")
+            end if
+        end do
+        call poly_together(arena, num(arena, 1)/((x + im)*(x - im) - x*x - num(arena, 1)), &
+            r, ok, why)
+        if (ok) call fail("Together accepted a denominator that is zero over Q(i)")
+    end subroutine test_gaussian_rationals
+
+    !> A sum of many terms over one denominator keeps that denominator instead
+    !> of raising it to the number of terms: (x + 1)**70 alone exceeds the
+    !> degree bound, while the sum itself is a_1/(x + 1) + ... + a_70/(x + 1).
+    subroutine test_common_denominator_sum()
+        type(expr_t) :: x, d, e, total, r
+        logical :: ok
+        character(:), allocatable :: why
+        character(8) :: name
+        integer :: k
+
+        x = sym(arena, "x")
+        d = x + num(arena, 1)
+        do k = 1, 70
+            write (name, '("a_", i0)') k
+            if (k == 1) then
+                e = sym(arena, trim(name))/d
+                total = sym(arena, trim(name))
+            else
+                e = e + sym(arena, trim(name))/d
+                total = total + sym(arena, trim(name))
+            end if
+        end do
+        call poly_together(arena, e - total/d, r, ok, why)
+        if (.not. ok) then
+            call fail("Together over a common denominator refused: "//why)
+        else if (r%kind() /= NK_INT) then
+            call fail("Together over a common denominator left a residual")
+        else if (r%int_value() /= 0) then
+            call fail("Together over a common denominator changed the value")
+        end if
+    end subroutine test_common_denominator_sum
 
 end program test_fortsym_poly

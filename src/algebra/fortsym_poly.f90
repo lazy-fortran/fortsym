@@ -922,7 +922,66 @@ contains
               "indeterminate"
     end subroutine var_index
 
+    !> Read one node over Q(i): the generator of the constant `i` is reduced
+    !> by i**2 = -1 after every node, so a fraction that vanishes only through
+    !> i**2 + 1 = 0 is the zero polynomial and never reaches the gcd.
     recursive subroutine read_node(a, id, ctx, f, ok, why)
+        type(arena_t),             intent(in)    :: a
+        integer,                   intent(in)    :: id
+        type(ctx_t),               intent(inout) :: ctx
+        type(ratf_t),              intent(out)   :: f
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        integer :: iv, k
+
+        call read_node_raw(a, id, ctx, f, ok, why)
+        if (.not. ok) return
+        iv = 0
+        do k = 1, size(ctx%atom)
+            if (ctx%atom(k) <= 0) cycle
+            if (a%kind_of(ctx%atom(k)) /= NK_CONST) cycle
+            if (chars(a%name_of(ctx%atom(k))) == "i") iv = k
+        end do
+        if (iv == 0) return
+        call p_reduce_imaginary(f%n, iv, ok, why)
+        if (.not. ok) return
+        call p_reduce_imaginary(f%d, iv, ok, why)
+        if (.not. ok) return
+        if (p_is_zero(f%d)) then
+            ok = .false.
+            why = "the expression divides by zero"
+        end if
+    end subroutine read_node
+
+    !> Replace i**e by (-1)**(e/2) i**mod(e, 2) in every term of p.
+    subroutine p_reduce_imaginary(p, iv, ok, why)
+        type(poly_t),              intent(inout) :: p
+        integer,                   intent(in)    :: iv
+        logical,                   intent(out)   :: ok
+        character(:), allocatable, intent(out)   :: why
+        integer :: t, e
+
+        ok = .true.
+        why = ""
+        if (iv > p%nv) return
+        if (all(p%ex(iv, :) < 2)) return
+        do t = 1, size(p%c)
+            e = p%ex(iv, t)
+            if (e < 2) cycle
+            p%ex(iv, t) = mod(e, 2)
+            if (mod(e/2, 2) == 1) then
+                if (p%c(t)%n == MIN_I64) then
+                    ok = .false.
+                    why = OVERFLOW_WHY
+                    return
+                end if
+                p%c(t)%n = -p%c(t)%n
+            end if
+        end do
+        call p_norm(p, ok, why)
+    end subroutine p_reduce_imaginary
+
+    recursive subroutine read_node_raw(a, id, ctx, f, ok, why)
         type(arena_t),             intent(in)    :: a
         integer,                   intent(in)    :: id
         type(ctx_t),               intent(inout) :: ctx
@@ -1027,7 +1086,7 @@ contains
             why = "unsupported node kind "//chars(node_kind_name(kind))// &
                   " in the expression"
         end select
-    end subroutine read_node
+    end subroutine read_node_raw
 
     subroutine atom_ratf(ctx, id, f, ok, why)
         type(ctx_t),               intent(inout) :: ctx
@@ -1074,8 +1133,36 @@ contains
         type(ratf_t),              intent(out) :: z
         logical,                   intent(out) :: ok
         character(:), allocatable, intent(out) :: why
-        type(poly_t) :: t1, t2, n, d
+        type(poly_t) :: t1, t2, n, d, q
+        logical :: exact
 
+        ! Over a denominator that the other one divides, the sum needs no new
+        ! factor: n/d + m/(d/q) = (n + m q)/d. Without this, a sum of terms
+        ! over one common denominator raises it to the number of terms.
+        if (.not. p_is_const(y%d)) then
+            call p_divide(x%d, y%d, q, exact, ok, why)
+            if (ok .and. exact) then
+                call p_mul(y%n, q, t2, ok, why)
+                if (.not. ok) return
+                call p_add(x%n, t2, n, ok, why)
+                if (.not. ok) return
+                z%n = n
+                z%d = x%d
+                return
+            end if
+        end if
+        if (.not. p_is_const(x%d)) then
+            call p_divide(y%d, x%d, q, exact, ok, why)
+            if (ok .and. exact) then
+                call p_mul(x%n, q, t1, ok, why)
+                if (.not. ok) return
+                call p_add(t1, y%n, n, ok, why)
+                if (.not. ok) return
+                z%n = n
+                z%d = y%d
+                return
+            end if
+        end if
         call p_mul(x%n, y%d, t1, ok, why)
         if (.not. ok) return
         call p_mul(y%n, x%d, t2, ok, why)
@@ -2417,7 +2504,7 @@ contains
             end do
         end do
         do i = 1, size(factors)
-            end do
+        end do
         if (.not. u_equal(check, p)) then
             ok = .false.
             why = "internal check failed: the factors do not multiply back "// &

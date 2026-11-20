@@ -40,7 +40,9 @@ program test_fortsym_native_zero_limits
     s = x + y + z + u + v
     identity = geometric_residual(s, 9)
     call expect_refusal('term-bound identity', identity, 'terms')
-    call expect_unknown('term-bound identity', identity)
+    ! Summing over the common denominator keeps the zero test inside the
+    ! bound although Together on the whole quotient exceeds it.
+    call expect_native('term-bound identity proved', identity, VERDICT_TRUE)
     ! Early exact simplification remains authoritative even when the input
     ! includes an expression that separately exceeds a normalization bound.
     call expect_native('exact zero with bounded subexpression', &
