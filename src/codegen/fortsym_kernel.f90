@@ -17,7 +17,8 @@ module fortsym_kernel
     use fortsym_arena, only: arena_t, NK_INT, NK_RAT, NK_ADD, NK_MUL, NK_POW, &
         NK_FUNC, NK_SYM, NK_REAL, NK_BIG_INT, NK_BIG_RAT, NK_BIG_REAL
     use fortsym_expr, only: expr_t, operator(**)
-    use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN
+    use fortsym_dialect, only: dialect_t, dialect, DIA_FORTRAN, fn_spelling, &
+        fortran_function_uses_special
     use fortsym_context, only: kernel_binding_t, active_bindings
     use fortsym_print, only: print_expr_sub, &
         fortran_roots_representable, fortran_roots_representable_kind, &
@@ -124,6 +125,10 @@ module fortsym_kernel
         type(kernel_binding_t), allocatable, private :: bindings(:)
         !> Prefix for generated temporaries.
         type(str_t)              :: temp_prefix
+        !> Module supplying the special functions that Fortran lacks (Bessel
+        !> I and K, the complete elliptic integrals and their log pieces).
+        !> Empty selects fortnum's `fortnum_special` umbrella.
+        type(str_t)              :: special_module
         !> Store CSE temporaries in one array, avoiding tens of thousands of
         !> scalar locals in large straight-line Fortran leaves. Opt-in.
         logical                  :: array_temporaries = .false.
@@ -339,6 +344,53 @@ contains
             record%transcendental_counts = name_counts(1:n_names)
         end if
     end function operation_cost
+
+    !> Import the special functions the roots call, in a fixed order, from
+    !> spec%special_module (default fortnum_special).
+    subroutine append_special_use(b, roots, spec)
+        type(strbuf_t), intent(inout) :: b
+        type(expr_t), intent(in) :: roots(:)
+        type(kernel_spec_t), intent(in) :: spec
+        character(len=16), parameter :: heads(6) = [character(len=16) :: &
+            "besseli", "besselk", "elliptic_k", "elliptic_e", &
+            "elliptic_k_log_a", "elliptic_k_log_b"]
+        type(arena_t), pointer :: a
+        type(str_t), allocatable :: names(:)
+        integer, allocatable :: counts(:)
+        logical, allocatable :: visited(:)
+        logical :: first, used
+        integer :: k, j, n
+        character(:), allocatable :: module_name
+
+        if (size(roots) == 0) return
+        a => roots(1)%a
+        allocate (names(a%size()))
+        allocate (counts(a%size()), source=0)
+        allocate (visited(a%size()), source=.false.)
+        n = 0
+        do k = 1, size(roots)
+            call collect_function_nodes(a, roots(k)%id, visited, names, counts, n)
+        end do
+        first = .true.
+        module_name = chars(spec%special_module)
+        if (len_trim(module_name) == 0) module_name = "fortnum_special"
+        do j = 1, size(heads)
+            if (.not. fortran_function_uses_special(trim(heads(j)))) cycle
+            used = .false.
+            do k = 1, n
+                if (chars(names(k)) == trim(heads(j))) used = .true.
+            end do
+            if (.not. used) cycle
+            if (first) then
+                call b%append("    use "//trim(module_name)//", only: ")
+                first = .false.
+            else
+                call b%append(", ")
+            end if
+            call b%append(chars(fn_spelling(dialect(DIA_FORTRAN), trim(heads(j)))))
+        end do
+        if (.not. first) call b%newline()
+    end subroutine append_special_use
 
     recursive subroutine collect_function_nodes(a, id, visited, names, counts, n)
         type(arena_t), intent(in) :: a
@@ -2075,6 +2127,7 @@ contains
                 kind_alias//" => real64")
         end if
         call b%newline()
+        call append_special_use(b, roots, spec)
         call b%append("    implicit none")
         call b%newline()
 

@@ -22,6 +22,7 @@ program test_fortsym_elliptic_log
     use fortsym_kernel_ir, only: kernel_ir_t, lower_kernel_ir
     use fortsym_kernel_emit, only: kernel_emit_spec_t, emit_fortran_kernel_ir
     use fortsym_print, only: fortran_representable
+    use fortsym_kernel, only: kernel_spec_t, emit_kernel, KERNEL_SUBROUTINE
     implicit none
 
     integer, parameter :: dp = real64
@@ -104,6 +105,28 @@ contains
         call check("log pieces import fortnum_special", index(source, &
             "use fortnum_special, only: ellip_k_log_a, ellip_k_log_b") > 0)
         call check("order stays an integer", index(source, "ellip_k_log_b(2, q)") > 0)
+
+        ! emit_kernel, the generators' path, imports the same entry points.
+        block
+            type(kernel_spec_t) :: kspec
+
+            kspec%name = str("log_piece_kernel")
+            kspec%mode = KERNEL_SUBROUTINE
+            kspec%args = [str("q")]
+            kspec%outputs = [str("value")]
+            kspec%generator = str("test_fortsym_elliptic_log")
+            source = chars(emit_kernel(roots, kspec))
+            call check("emit_kernel imports the log pieces", index(source, &
+                "use fortnum_special, only: ellip_k_log_a, ellip_k_log_b") > 0)
+            roots(1) = elliptic_k(q) + q
+            source = chars(emit_kernel(roots, kspec))
+            call check("emit_kernel imports only what is called", index(source, &
+                "use fortnum_special, only: ellip_k"//new_line("a")) > 0)
+            kspec%special_module = str("my_special")
+            source = chars(emit_kernel(roots, kspec))
+            call check("emit_kernel honours special_module", &
+                index(source, "use my_special, only: ellip_k") > 0)
+        end block
     end subroutine test_emission
 
     subroutine agree(label, f, g, at, tol)
