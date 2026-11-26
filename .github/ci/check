@@ -112,7 +112,7 @@ if [ ! -f "$deps/complete" ]; then
 else
     echo "dependencies reused (deps-$key)"
 fi
-echo "FLINT $flint, SymEngine $symengine, conda-forge packages as in .fortyard/deps/pixi.lock"
+echo "FLINT $flint, SymEngine $symengine, conda-forge packages as in .github/ci/deps/pixi.lock"
 # FLINT's headers include gmp.h, which the Nix shell puts on the compiler's
 # include path. LIBRARY_PATH stays unset: CMake would take its directories for
 # system ones and leave them out of the installed RUNPATH.

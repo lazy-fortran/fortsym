@@ -1,352 +1,134 @@
+# Tests run in the merge queue and at night, not on every push to a pull
+# request. The merge queue builds one pull request per commit on top of the
+# ones before it, so HEAD^ is the state it lands on and `fo test --since HEAD^`
+# runs the cases it affects. The nightly run tests everything, slow cases
+# included, and is skipped when main has not moved since the last green
+# nightly run of less than a week ago. Everything runs in the gcc:16 image
+# (GNU Fortran 16 on Debian), with the Debian packages that
+# .github/ci/apt-packages lists, one per line.
 name: ci
-
 on:
-  merge_group:
-    types: [checks_requested]
   pull_request:
+  merge_group:
+  schedule:
+    - cron: '17 1 * * *'
+  workflow_dispatch:
 permissions:
   contents: read
-
-# Only PR runs share a group; pending push and merge-group runs stay independent.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.ref, github.run_id) }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
-# The toolchain comes from flake.nix, not from the runner image. fortsym pins
-# FLINT and MPFR to exact versions and needs SymEngine, and no distribution
-# repository carries that combination -- the previous apt-based workflow could
-# not install SymEngine at all. Nix resolves the whole closure from flake.lock,
-# so CI compiles against the same libraries a contributor does.
-#
-# Two caches keep that cheap. The Nix store cache restores the toolchain instead
-# of re-downloading it, and ccache covers the one large C++ build in the tree:
-# Yacas, which cmake/deps/yacas.cmake fetches at a pinned tag and which
-# therefore recompiles identically every run. Fortran is deliberately left off
-# the compiler launcher, because module files are side effects ccache does not
-# track.
-env:
-  CCACHE_DIR: ${{ github.workspace }}/.ccache
-  CCACHE_MAXSIZE: 500M
-
 jobs:
-  python-package:
-    name: Python wheel + clean virtualenv
-    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
+  check:
+    # Required by the main ruleset; skipped (and so passing) on pull requests.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    container: gcc:16
+    timeout-minutes: 360
+    permissions:
+      contents: read
+      actions: read
+    env:
+      FPM_VERSION: 0.13.0
+      GIT_TERMINAL_PROMPT: 0
+      MPLBACKEND: Agg
+      DEBIAN_FRONTEND: noninteractive
+    defaults:
+      run:
+        shell: bash
     steps:
-      - uses: actions/checkout@v5
-
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Run native checks in the build container
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
-        run: |-
-          ci/run.sh ci-python-package
-      - uses: cachix/install-nix-action@v31
-        with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Build the native shared library
+      - name: Base packages
         run: |
-          nix develop --command cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release -DFORTSYM_BUILD_TESTING=OFF
-          nix develop --command cmake --build build -j "${SCI_CPUS:-8}"
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Build and install the wheel in a clean environment
-        run: |
-          # shellcheck disable=SC2016
-          python3 -m venv .venv
-          .venv/bin/python -m pip install --quiet build
-          .venv/bin/python -m build --wheel --outdir wheelhouse python
-          .venv/bin/python -m pip install --quiet wheelhouse/*.whl
-          # shellcheck disable=SC2016
-          nix develop --command bash -c '
-            set -eu
-            library_path="$GITHUB_WORKSPACE/build/lib"
-            for flag in $NIX_LDFLAGS; do
-              case "$flag" in
-                -L*) library_path="$library_path:${flag#-L}" ;;
-              esac
-            done
-            export LD_LIBRARY_PATH="$library_path${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-            export FORTSYM_LIBRARY="$GITHUB_WORKSPACE/build/lib/libfortsym.so"
-            site_packages="$("$GITHUB_WORKSPACE/.venv/bin/python" -c "import sysconfig; print(sysconfig.get_path(\"purelib\"))")"
-            export PYTHONPATH="$site_packages"
-            exec python3 -
-          ' <<'PY'
-          from fractions import Fraction
-          import fortsym
-          import fortsym.sympy as sp
-
-          x = fortsym.Symbol("x")
-          assert str(((x + 1) ** 2).expand()) == "x**2 + 2*x + 1"
-          assert "1/3" in str(x + Fraction(1, 3))
-          assert fortsym.Integer(2**100).exact_text == str(2**100)
-          sx = sp.Symbol("x")
-          assert isinstance(sx + 1, sp.Add)
-          assert sp.simplify(sp.diff(sp.exp(sx), sx)) == sp.exp(sx)
-          PY
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-    if: >-
-      github.event_name == 'merge_group' &&
-      (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]'))
-  provenance:
-    name: compatibility provenance
-    if: >-
-      github.event_name == 'merge_group' &&
-      (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]'))
-    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-          persist-credentials: false
-      - name: Run native checks in the build container
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before || format('{0}^', github.sha) }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
-        run: |-
-          ci/run.sh ci-provenance
-      - name: Check new compatibility sources
-        run: |
-          git diff --name-only --diff-filter=A \
-            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
-            > changed-files.txt
-          python3 scripts/check_provenance.py \
-            --changed-files changed-files.txt \
-            --provenance doc/provenance.md
-
-  # Tier 1 only: the configuration every contributor and every consumer must be
-  # able to build. No optional engine is installed here on purpose, so a change
-  # that quietly starts depending on Maxima or SymPy fails this job.
-        if: ${{ github.event.pull_request.head.repo.fork }}
-  cmake:
-    name: cmake + ctest (Tier 1 only)
-    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
-    steps:
-      - uses: actions/checkout@v5
-
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Run native checks in the build container
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
-        run: |-
-          ci/run.sh ci-cmake
-      - uses: cachix/install-nix-action@v31
-        with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - uses: nix-community/cache-nix-action@v7
-        with:
-          primary-key: nix-tier1-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix') }}
-          restore-prefixes-first-match: nix-tier1-${{ runner.os }}-
-          gc-max-store-size-linux: 2G
-          purge: true
-          purge-prefixes: nix-tier1-${{ runner.os }}-
-          purge-created: 604800
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - uses: actions/cache@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-tier1-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-${{ github.sha }}
-          restore-keys: |
-            ccache-tier1-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-
-            ccache-tier1-${{ runner.os }}-
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Configure
-        run: |
-          nix develop --command cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Build
-        run: nix develop --command cmake --build build -j "${SCI_CPUS:-8}"
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Test
-        run: |
-          # shellcheck disable=SC2016
-          nix develop --command bash -c '
-            set -eu
-            library_path="$GITHUB_WORKSPACE/build/lib"
-            for flag in $NIX_LDFLAGS; do
-              case "$flag" in
-                -L*) library_path="$library_path:${flag#-L}" ;;
-              esac
-            done
-            export LD_LIBRARY_PATH="$library_path${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-            exec ctest --test-dir build --output-on-failure
-          '
-
-  # With the optional engines present, so the council actually has several
-  # voters and the cross-engine oracle is exercised. Not required: a Tier 2
-  # engine changing its output must not break the build for everyone.
-        if: ${{ github.event.pull_request.head.repo.fork }}
-    if: >-
-      github.event_name == 'merge_group' &&
-      (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]'))
-  multi-engine:
-    name: cmake + ctest (with Tier 2 engines)
-    runs-on: [self-hosted, itp-ubuntu24]
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Install Nix cache prerequisites
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends sqlite3
-          # cache-nix-action hardcodes runner:runner for its database ownership.
-          # Portable runners run as root and do not provide that account.
-          if ! getent passwd runner > /dev/null; then
-            sudo useradd --user-group --no-create-home --shell /usr/sbin/nologin runner
-          fi
-
-      - uses: cachix/install-nix-action@v31
-        with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-
-      - uses: nix-community/cache-nix-action@v7
-        with:
-          primary-key: nix-tier2-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix') }}
-          restore-prefixes-first-match: nix-tier2-${{ runner.os }}-
-          gc-max-store-size-linux: 4G
-          purge: true
-          purge-prefixes: nix-tier2-${{ runner.os }}-
-          purge-created: 604800
-
-      - uses: actions/cache@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-tier2-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-${{ github.sha }}
-          restore-keys: |
-            ccache-tier2-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-
-            ccache-tier2-${{ runner.os }}-
-
-      - name: Configure
-        run: |
-          nix develop .#tier2 --command cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Debug \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-
-      - name: Build
-        run: nix develop .#tier2 --command cmake --build build -j "${SCI_CPUS:-8}"
-
-      - name: Test
-        run: nix develop .#tier2 --command ctest --test-dir build --output-on-failure
-
-      # The council prints a per-engine benchmark table as a by-product of its
-      # own test run, so speed comparisons need no separate harness.
-      - name: Benchmark table
-        run: nix develop .#tier2 --command ./build/bin/test_fortsym_council
-
-  # Generated kernels are committed so they are reviewable in diffs and so
-  # consumers need no CAS to build. This job regenerates them and fails on any
-  # difference, which is what makes "generated code, lost generator" structurally
-  # impossible rather than merely discouraged.
-    if: >-
-      github.event_name == 'merge_group' &&
-      (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]'))
-  generated-up-to-date:
-    name: generated sources are current
-    runs-on: ${{ github.event.pull_request.head.repo.fork && fromJSON('["self-hosted","itp-ubuntu24"]') || fromJSON('["self-hosted","itp-build"]') }}
-    steps:
-      - uses: actions/checkout@v5
-
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Run native checks in the build container
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        env:
-          SCI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}
-          SCI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha || github.sha }}
-        run: |-
-          ci/run.sh ci-generated-up-to-date
-      - uses: cachix/install-nix-action@v31
-        with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - uses: nix-community/cache-nix-action@v7
-        with:
-          primary-key: nix-generated-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix') }}
-          restore-prefixes-first-match: nix-generated-${{ runner.os }}-
-          gc-max-store-size-linux: 2G
-          purge: true
-          purge-prefixes: nix-generated-${{ runner.os }}-
-          purge-created: 604800
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - uses: actions/cache@v4
-        with:
-          path: ${{ env.CCACHE_DIR }}
-          key: ccache-generated-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-${{ github.sha }}
-          restore-keys: |
-            ccache-generated-${{ runner.os }}-${{ hashFiles('cmake/deps/yacas.cmake') }}-
-            ccache-generated-${{ runner.os }}-
-
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Configure and build generators
-        run: |
-          nix develop --command cmake -S . -B build -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
-            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          nix develop --command cmake --build build -j "${SCI_CPUS:-8}"
-
-      # Each committed file names the program that produced it in its header, so
-      # the gate is driven by the files themselves. A glob over build/bin/gen_*
-      # would be wrong: most generators write into a consumer's tree and take the
-      # output path as an argument, and running those here only proves that they
-      # reject an empty command line.
-        if: ${{ github.event.pull_request.head.repo.fork }}
-      - name: Regenerate and diff
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          generated=(src/generated/*.f90)
-          if [ ${#generated[@]} -eq 0 ]; then
-            echo "no generated sources yet; nothing to regenerate"
-            exit 0
-          fi
-          for file in "${generated[@]}"; do
-            gen=$(sed -n 's/^! Generator: //p' "$file" | head -n 1)
-            if [ -z "$gen" ]; then
-              echo "$file carries no '! Generator:' header line" >&2
-              exit 1
-            fi
-            if [ ! -x "build/bin/$gen" ]; then
-              echo "$file names generator '$gen', which the build did not produce" >&2
-              exit 1
-            fi
-            echo "regenerating $file with $gen"
-            "build/bin/$gen"
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends cmake ninja-build curl ca-certificates ccache jq python3 > /dev/null
+          # The image installs GCC under /usr/local; tests that run with a
+          # minimal PATH expect a distribution's /usr/bin.
+          for t in gcc g++ gfortran cpp gcc-ar gcc-nm gcc-ranlib gcov; do
+            ln -sf "/usr/local/bin/$t" "/usr/bin/$t"
           done
-          git diff --exit-code -- src/generated
-        if: ${{ github.event.pull_request.head.repo.fork }}
-    if: >-
-      github.event_name == 'merge_group' &&
-      (github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && github.actor != 'github-merge-queue[bot]'))
+      - name: Skip a nightly run of an unchanged main
+        id: stale
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?event=schedule&status=success&per_page=1" |
+            jq -r '.workflow_runs[0] | "\(.head_sha) \(.created_at)"' 2>/dev/null || true)
+          sha=${last%% *} when=${last#* }
+          if [ "$sha" = "$GITHUB_SHA" ] && [ -n "$when" ] &&
+            [ "$(date -d "$when" +%s)" -gt "$(date -d '7 days ago' +%s)" ]; then
+            echo "main at $GITHUB_SHA passed the nightly run of $when; nothing to do."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.stale.outputs.skip != '1'
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Repository packages
+        if: steps.stale.outputs.skip != '1' && hashFiles('.github/ci/apt-packages') != ''
+        run: grep -v '^#' .github/ci/apt-packages | xargs apt-get install -y -qq --no-install-recommends > /dev/null
+      - name: Places
+        if: steps.stale.outputs.skip != '1'
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          fo=$(git ls-remote https://github.com/lazy-fortran/fo.git refs/heads/main | cut -f1)
+          test -n "$fo"
+          echo "FO_COMMIT=$fo" >> "$GITHUB_ENV"
+          echo "FO_TOOLS=$RUNNER_TOOL_CACHE/fo-$fo" >> "$GITHUB_ENV"
+          echo "FO_CACHE_DIR=$RUNNER_TEMP/fo-cache" >> "$GITHUB_ENV"
+          echo "CCACHE_DIR=$RUNNER_TEMP/ccache" >> "$GITHUB_ENV"
+      - name: fo cache
+        if: steps.stale.outputs.skip != '1'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.FO_TOOLS }}
+          key: fo-gcc16-${{ env.FO_COMMIT }}-fpm-${{ env.FPM_VERSION }}
+      - name: Build cache
+        if: steps.stale.outputs.skip != '1'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ${{ env.FO_CACHE_DIR }}
+            ${{ env.CCACHE_DIR }}
+            build/dependencies
+          key: build-${{ env.FO_COMMIT }}-${{ hashFiles('fpm.toml', 'CMakeLists.txt') }}-${{ github.sha }}
+          restore-keys: |
+            build-${{ env.FO_COMMIT }}-${{ hashFiles('fpm.toml', 'CMakeLists.txt') }}-
+            build-${{ env.FO_COMMIT }}-
+      - name: fo
+        if: steps.stale.outputs.skip != '1'
+        run: |
+          # fo at main, built once per commit with fpm's release binary of the
+          # pinned checksum.
+          if [ ! -x "$FO_TOOLS/bin/fo" ]; then
+            mkdir -p "$FO_TOOLS/bin"
+            curl -fsSL -o "$FO_TOOLS/bin/fpm" \
+              "https://github.com/fortran-lang/fpm/releases/download/v$FPM_VERSION/fpm-$FPM_VERSION-linux-x86_64-gcc-12"
+            echo "2e50a8649ac4136b9cf6b63c5d1b01adf26c02eedc18f32e16261c0ce655d46d  $FO_TOOLS/bin/fpm" | sha256sum -c -
+            chmod +x "$FO_TOOLS/bin/fpm"
+            git init --quiet "$RUNNER_TEMP/fo-src"
+            git -C "$RUNNER_TEMP/fo-src" fetch --quiet --depth 1 https://github.com/lazy-fortran/fo.git "$FO_COMMIT"
+            git -C "$RUNNER_TEMP/fo-src" checkout --quiet FETCH_HEAD
+            (cd "$RUNNER_TEMP/fo-src" && "$FO_TOOLS/bin/fpm" install --profile release --prefix "$FO_TOOLS")
+          fi
+          echo "$FO_TOOLS/bin" >> "$GITHUB_PATH"
+      - name: Check
+        if: steps.stale.outputs.skip != '1'
+        run: |
+          # Tests of permission errors need a user that file modes bind, so
+          # they do not run as the container's root.
+          useradd -u 1001 -m ci 2> /dev/null || true
+          chown -R ci "$GITHUB_WORKSPACE" "$RUNNER_TEMP"
+          git config --system --add safe.directory "$GITHUB_WORKSPACE"
+          exec setpriv --reuid=ci --regid=ci --init-groups env HOME=/home/ci sh -euc '
+            if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
+              [ -f .github/ci/check ] && exec ./.github/ci/check
+              fo build
+              exec fo test --since HEAD^
+            fi
+            [ -f .github/ci/nightly ] && exec ./.github/ci/nightly
+            [ -f .github/ci/verify ] && exec ./.github/ci/verify
+            fo build
+            FO_TEST_RERUN=1 exec fo test --all'
