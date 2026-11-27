@@ -1,5 +1,5 @@
 #!/bin/sh
-# Verification of main on fortyard: the landing check, then the remaining job
+# Nightly verification of main: the merge-queue check, then the remaining job
 # of the GitHub CI, the Python wheel in a clean environment. Python, pip,
 # setuptools and build come from the locked conda-forge environment the check
 # provisions, so nothing is fetched from PyPI.

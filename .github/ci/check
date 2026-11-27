@@ -1,5 +1,5 @@
 #!/bin/sh
-# Fortyard landing check: the Tier 1 job of the GitHub CI (cmake + ctest
+# Merge-queue check: the Tier 1 job of the GitHub CI (cmake + ctest
 # without the optional engines), its generated-sources gate and the provenance
 # of the compatibility sources the landing adds.
 #
@@ -16,7 +16,7 @@
 # Python for the tests also comes from the lock, without SymPy, as in Tier 1.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
-if [ -z "${FY_CHECK_JOBS:-${FO_JOBS:-}}" ]; then
+if [ -z "${CHECK_JOBS:-${FO_JOBS:-}}" ]; then
     # nproc sees a cpuset but not a CPU quota; the container's limit is either.
     jobs=$(nproc)
     if read -r quota period < /sys/fs/cgroup/cpu.max 2> /dev/null && [ "$quota" != max ]; then
@@ -25,7 +25,7 @@ if [ -z "${FY_CHECK_JOBS:-${FO_JOBS:-}}" ]; then
     fi
     [ "$jobs" -le 8 ] || jobs=8
 else
-    jobs=${FY_CHECK_JOBS:-$FO_JOBS}
+    jobs=${CHECK_JOBS:-$FO_JOBS}
 fi
 state=${TMPDIR:-/tmp}/fortsym-check
 pixi_version=0.83.0
@@ -134,11 +134,11 @@ if [ -n "$base" ]; then
 fi
 
 # The kept build tree caches the dependency paths; a new version set starts it anew.
-[ "$(cat build/.fortyard-deps 2>/dev/null)" = "$deps" ] || rm -rf build
+[ "$(cat build/.ci-deps 2>/dev/null)" = "$deps" ] || rm -rf build
 run configure cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug \
     -DPython3_EXECUTABLE="$py/bin/python" \
     -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-echo "$deps" > build/.fortyard-deps
+echo "$deps" > build/.ci-deps
 run build cmake --build build -j "$jobs"
 echo "build passed"
 run ctest ctest --test-dir build --output-on-failure -j "$jobs"
